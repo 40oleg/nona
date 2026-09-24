@@ -1,0 +1,94 @@
+import { CompileError } from '../diagnostics.js';
+import type { Token,TokenStream } from './token.js';
+
+export function lex(source: string): TokenStream {
+  const tokens: TokenStream = [];
+  Object.defineProperty(tokens,'source',{value:source});
+  let i = 0, lineBreak = false;
+  const fail = (message: string, start = i): never => { throw new CompileError([{ code: 'E_LEX', message, file: '', span: { start, end: Math.max(start + 1, i) } }]); };
+  const newline = (c: string) => /[\n\r\u2028\u2029]/.test(c);
+  const identifierStart = (c:string) => /^[$_\p{ID_Start}]$/u.test(c);
+  const identifierPart = (c:string) => /^[$\u200c\u200d\p{ID_Continue}]$/u.test(c);
+  const codePoint = () => i<source.length?String.fromCodePoint(source.codePointAt(i)!):'';
+  // Called immediately after the 'u'; positions remain UTF-16 source offsets.
+  const unicodeEscape = (start:number):string => {
+    if(source[i]==='{') {
+      i++;const begin=i;
+      while(i<source.length&&/[0-9a-f]/i.test(source[i]!))i++;
+      const digits=source.slice(begin,i),value=parseInt(digits,16);
+      if(!digits||source[i]!=='}'||value>0x10ffff)fail('Invalid Unicode code point escape',start);
+      i++;return String.fromCodePoint(value);
+    }
+    const digits=source.slice(i,i+4);
+    if(digits.length!==4||!/^[0-9a-f]+$/i.test(digits))fail('Invalid Unicode escape',start);
+    i+=4;return String.fromCharCode(parseInt(digits,16));
+  };
+  const push = (kind: Token['kind'], start: number, value?: string|number) => {
+    tokens.push({ kind, text: source.slice(start, i), value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
+  };
+  while (i < source.length) {
+    const c = source[i]!;
+    if (/\s/.test(c)) { if (newline(c)) lineBreak = true; i++; continue; }
+    if (source.startsWith('//', i)) { i += 2; while (i < source.length && !newline(source[i]!)) i++; continue; }
+    if (source.startsWith('/*', i)) {
+      const start = i; i += 2;
+      while (i < source.length && !source.startsWith('*/', i)) { if (newline(source[i]!)) lineBreak = true; i++; }
+      if (i === source.length) fail('Unterminated comment', start); i += 2; continue;
+    }
+    const start = i;
+    if (identifierStart(codePoint())||c==='\\') {
+      let value='';
+      while(i<source.length) {
+        let char=codePoint();const valid=value?identifierPart:identifierStart;
+        if(char==='\\') {
+          const escapeStart=i;i++;
+          if(source[i++]!=='u')fail('Identifier escape must be Unicode',escapeStart);
+          char=unicodeEscape(escapeStart);
+          if(!valid(char))fail('Invalid escaped identifier character',escapeStart);
+        } else {
+          if(!valid(char))break;
+          i+=char.length;
+        }
+        value+=char;
+      }
+      push('word',start,value);continue;
+    }
+    if (/[0-9]/.test(c) || c === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
+      const match = /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)/.exec(source.slice(i));
+      if (!match) fail('Invalid numeric literal');
+      const spelling = match![0]; i += spelling.length;
+      if (/^0[0-9]/.test(spelling)) fail('Legacy octal and leading-zero literals are unsupported', start);
+      if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
+      push('number', start, Number(spelling)); continue;
+    }
+    if (c === '"' || c === "'") {
+      const quote = c; let value = ''; i++;
+      while (i < source.length && source[i] !== quote) {
+        const char = source[i++]!;
+        if (char==='\r'||char==='\n') fail('Unescaped line terminator in string', start);
+        if (char !== '\\') { value += char; continue; }
+        if (i >= source.length) fail('Unterminated string', start);
+        const escape = source[i++]!;
+        if (newline(escape)) { if (escape === '\r' && source[i] === '\n') i++; continue; }
+        if(escape==='u'){value+=unicodeEscape(i-2);continue;}
+        if (escape === 'x') {
+          const count = 2, digits = source.slice(i, i + count);
+          if (digits.length !== count || !/^[0-9a-f]+$/i.test(digits)) fail('Invalid hexadecimal escape', i - 2);
+          value += String.fromCharCode(parseInt(digits, 16)); i += count; continue;
+        }
+        if (/[0-9]/.test(escape) && (escape !== '0' || /[0-9]/.test(source[i] ?? ''))) fail('Legacy octal escapes are unsupported', i - 2);
+        const escapes: Record<string,string> = { n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0', '\\':'\\', '"':'"', "'":"'" };
+        value += escapes[escape]??escape;
+      }
+      if (i >= source.length) fail('Unterminated string', start);
+      i++; push('string', start, value); continue;
+    }
+    if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){i+=2;push('punct',start);continue;}
+    const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
+    if (op) { i += op.length; push('punct', start); continue; }
+    if ('{}()[].;,?:+-*/%<>=!&|^~'.includes(c)) { i++; push('punct', start); continue; }
+    fail(`Unsupported character ${JSON.stringify(c)}`);
+  }
+  tokens.push({ kind:'eof', text:'<eof>', span:{start:i,end:i}, lineBreakBefore:lineBreak });
+  return tokens;
+}

@@ -1,0 +1,204 @@
+import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
+import { Assembler, type Mem } from './assembler.js';
+import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
+import type { ModuleIR, FunctionIR } from '../../ir/model.js';
+import { emitRuntime } from '../../runtime/index.js';
+import { failIf } from '../../runtime/abi.js';
+import { analyzeLiveness } from '../../ir/liveness.js';
+import { RootLayout as R } from '../../runtime/heap-layout.js';
+import { FunctionLayout } from '../../runtime/functions.js';
+import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
+
+const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
+const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toString'};
+const stack=(disp:number):Mem=>({base:'rsp',disp});
+const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
+
+export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
+  const runtime=emitRuntime();
+  const fragments:NamedFragment[]=[...runtime.fragments];
+  const functions:UnwindFunction[]=[...runtime.functions];
+  for(const name of module.globalFunctionProperties??[]){
+    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
+    if(!property)throw new Error('Missing intrinsic global property '+name);
+    property.bytes[P.attributes]=A.writable|A.enumerable;
+  }
+  const literals=new Map<string,string>();
+  const literal=(value:string):string=>{
+    const existing=literals.get(value);if(existing)return existing;
+    const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
+    v.setBigUint64(0,BigInt(value.length),true);for(let i=0;i<value.length;i++)v.setUint16(8+2*i,value.charCodeAt(i),true);
+    literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
+  };
+  fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
+  const globalProperties=module.globalProperties??[];
+  const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
+  fragments.push({name:'js.globalBindings',section:'.data',alignment:8,bytes:aliasBytes,symbols:{},
+    fixups:globalProperties.flatMap((property,i)=>[
+      {offset:i*24,kind:'va64' as const,target:literal(property.name),addend:0},
+      {offset:i*24+8,kind:'va64' as const,target:'js.globals',addend:property.index*16},
+    ])});
+  function finish(a:Assembler,name:string,size:number,prologSize:number):void {
+    a.label(name+'.end');fragments.push({...a.finish(),name,section:'.text'});
+    functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset:prologSize,stackAllocation:size,savedRegisters:[]});
+  }
+  function emitFunction(fn:FunctionIR):void {
+    // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
+    const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*fn.slotCount,newTargetBase=thisBase+16,argsBase=newTargetBase+16;
+    const liveness=analyzeLiveness(fn);
+    let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
+      if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
+      if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
+    }
+    const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
+    const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
+    if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
+    if(allocation>=4096){
+      a.mov('r11','rsp');a.mov('rax',Math.floor(allocation/4096));
+      const probe=a.unique('probe');a.label(probe);a.sub('r11',4096);a.load('r10',{base:'r11'});a.sub('rax',1);a.jcc('ne',probe);
+      // Touch the last partial page before moving RSP, as Windows guard pages require.
+      if(allocation%4096){a.sub('r11',allocation%4096);a.load('r10',{base:'r11'});}
+    }
+    a.sub('rsp',allocation);const prologSize=a.offset;
+    a.store(stack(40),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
+    const value=(n:number):Mem=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return stack(valueBase+16*n);};
+    const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
+    const copy=(to:Mem,from:Mem)=>{
+      a.load('rax',from);a.store(to,'rax');
+      const add=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};
+      a.load('rax',add(from));a.store(add(to),'rax');
+    };
+    a.mov('rax',0);for(let i=0;i<fn.slotCount;i++){a.store(value(i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
+    a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
+    a.load('r10',stack(allocation+48));copy(stack(newTargetBase),{base:'r10'});
+    for(let i=0;i<fn.parameterCount;i++){
+      const skip=a.unique('missing');a.load('rax',stack(48));a.cmp('rax',i);a.jcc('be',skip);
+      a.load('r10',stack(56));copy(value(i),{base:'r10',disp:16*i});a.label(skip);
+    }
+    a.load('rax',{rip:'rt.gcRoots'});a.store(stack(rootBase+R.next),'rax');
+    a.lea('rax',stack(valueBase));a.store(stack(rootBase+R.values),'rax');
+    a.mov('rax',fn.slotCount+2);a.store(stack(rootBase+R.count),'rax');
+    a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
+    for(const block of fn.blocks){
+      a.label(fn.id+'.block.'+block.id);
+      // Any predecessor may have left obsolete values in these slots. After the
+      // first safepoint only previously live slots/new destinations need clearing.
+      let possible=new Set(Array.from({length:fn.slotCount},(_,i)=>i));
+      for(const [index,op] of block.operations.entries()){
+       const live=liveness.get(block.id)!.before[index]!;
+       const dead=[...possible].filter(slot=>!live.has(slot));
+       if(dead.length){a.mov('rax',0);for(const slot of dead){a.store(value(slot),'rax');a.store(stack(valueBase+16*slot+8),'rax');}}
+       possible=new Set(live);if('dest'in op)possible.add(op.dest);
+       a.call(options.gcStress?'rt.collect':'rt.safepoint');
+       switch(op.kind){
+        case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
+        case 'readGlobalProperty':pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',op.allowMissing?1:0);a.call('rt.readGlobalProperty');break;
+        case 'newFunction':
+          (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
+          if(op.nameSlot!==undefined){a.load('rax',stack(valueBase+16*op.nameSlot+8));a.store(stack(72),'rax');}
+          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method?'rt.newMethod':'rt.newFunction');
+          if(op.strict){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
+          if(op.homeObject!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
+          if(op.sourceText!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
+          pointer('rcx',op.dest);
+          if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',stack(72));
+          a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
+        case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',op.setter?1:0);a.call('rt.defineLiteralAccessor');break;
+        case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
+        case 'readCell':pointer('rcx',op.dest);pointer('rdx',op.cell);a.call('rt.readCell');break;
+        case 'writeCell':pointer('rcx',op.cell);pointer('rdx',op.source);a.call('rt.writeCell');break;
+        case 'loadCapture':
+          a.load('r10',stack(64));a.load('r10',{base:'r10',disp:FunctionLayout.environment});
+          a.load('rax',{base:'r10',disp:E.cells+8*op.index});a.store(stack(valueBase+16*op.dest+8),'rax');
+          a.mov('rax',CellTag);a.store(value(op.dest),'rax');break;
+        case 'pushHandler':{
+          const offset=handlerBase+H.size*op.index;
+          a.load('rax',{rip:'rt.exceptionHandler'});a.store(stack(offset+H.next),'rax');a.mov('rax','rsp');a.store(stack(offset+H.stack),'rax');
+          a.lea('rax',{rip:fn.id+'.block.'+op.target});a.store(stack(offset+H.target),'rax');a.load('rax',{rip:'rt.gcRoots'});a.store(stack(offset+H.roots),'rax');
+          a.lea('rax',value(op.error));a.store(stack(offset+H.value),'rax');a.load('rax',{rip:'rt.cleanupHead'});a.store(stack(offset+H.cleanup),'rax');
+          preservedGp.forEach((reg,i)=>a.store(stack(offset+H.gp+8*i),reg));preservedXmm.forEach((reg,i)=>a.storeXmm128(stack(offset+H.xmm+16*i),reg));
+          a.lea('rax',stack(offset));a.store({rip:'rt.exceptionHandler'},'rax');break;
+        }
+        case 'popHandler':a.load('rax',{rip:'rt.exceptionHandler'});a.load('rax',{base:'rax',disp:H.next});a.store({rip:'rt.exceptionHandler'},'rax');break;
+        case 'newTarget':copy(value(op.dest),stack(newTargetBase));break;
+        case 'superBase':
+          a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
+          {const nonnull=a.unique('superBaseObject'),done=a.unique('superBaseDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
+        case 'superGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
+        case 'superSet':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.receiver);pointer('r9',op.source);a.call('rt.superSet');if(op.strict){a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
+        case 'currentFunction':
+          a.load('rax',stack(64));a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
+        case 'currentThis':copy(value(op.dest),stack(thisBase));break;
+        case 'newInstance':pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+        case 'newArguments':
+          a.mov('rax',op.parameters.length);a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
+          op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
+          pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
+        case 'constructorResult':pointer('rcx',op.dest);pointer('rdx',op.result);pointer('r8',op.instance);a.call('rt.constructorResult');break;
+        case 'invoke':
+          op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
+          if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
+          a.store(stack(32),'rax');
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.construct?'rt.invokeConstruct':'rt.invoke');break;
+        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);a.call('rt.newObject');break;
+        case 'property':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',stack(valueBase+16*op.dest+8));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
+        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
+        case 'setPrototype':pointer('rcx',op.object);pointer('rdx',op.prototype);a.call('rt.setPrototype');break;
+        case 'uninitialized':
+          a.mov('rax',255);a.store(value(op.dest),'rax');a.mov('rax',0);a.store(stack(valueBase+16*op.dest+8),'rax');break;
+        case 'checkInitialized':a.load('rax',value(op.slot));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
+        case 'checkResolvable':a.load('rax',stack(valueBase+16*op.slot+8));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
+        case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
+        case 'constant':{
+          const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:4;
+          a.mov('rax',tag);a.store(value(op.dest),'rax');
+          if(typeof v==='string')a.lea('rax',{rip:literal(v)});
+          else if(typeof v==='number'){const bytes=new DataView(new ArrayBuffer(8));bytes.setFloat64(0,v,true);a.mov('rax',bytes.getBigUint64(0,true));}
+          else a.mov('rax',v===true?1:0);
+          a.store(stack(valueBase+16*op.dest+8),'rax');break;
+        }
+        case 'copy':copy(value(op.dest),value(op.source));break;
+        case 'loadGlobal':copy(value(op.dest),{rip:'js.globals',addend:16*op.index});break;
+        case 'storeGlobal':{
+          const alias=globalProperties.findIndex(p=>p.index===op.index),done=a.unique('globalStoreDone');
+          if(alias>=0){a.load('rax',{rip:'js.globalBindings',addend:alias*24+16});a.and('rax',1);a.test('rax','rax');if(op.strict)failIf(a,'e','rt.throwTypeError');else a.jcc('e',done);}
+          copy({rip:'js.globals',addend:16*op.index},value(op.source));a.label(done);break;
+        }
+        case 'unary':pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
+        case 'binary':{
+          pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
+          if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}break;
+        }
+        case 'call':
+          op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
+          pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.target);break;
+       }
+      }
+      const term=block.terminator;
+      switch(term.kind){
+        case 'jump':a.jmp(fn.id+'.block.'+term.target);break;
+        case 'branch':pointer('rcx',term.condition);a.call('rt.toBoolean');a.test('rax','rax');a.jcc('ne',fn.id+'.block.'+term.yes);a.jmp(fn.id+'.block.'+term.no);break;
+        case 'throw':pointer('rcx',term.value);a.call('rt.throw');break;
+        case 'return':
+          a.load('r10',stack(40));
+          if(term.value<0){a.mov('rax',0);a.store({base:'r10'},'rax');a.store({base:'r10',disp:8},'rax');}
+          else copy({base:'r10'},value(term.value));
+          a.load('rax',stack(rootBase+R.next));a.store({rip:'rt.gcRoots'},'rax');
+          a.add('rsp',allocation);a.ret();break;
+      }
+    }
+    finish(a,fn.id,allocation,prologSize);
+  }
+  module.functions.forEach(emitFunction);
+  const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
+  entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
+  entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
+  entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
+  entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
+  entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');
+  entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
+  entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  entry.call('js.main');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  return {fragments,imports:runtime.imports,entry:'entry',functions};
+}

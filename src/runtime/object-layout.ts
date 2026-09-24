@@ -1,0 +1,8 @@
+/** Byte offsets shared by native object operations; all pointers are 64-bit.
+ * Properties remain separate allocations so later tracing GC can walk Values. */
+export const ObjectLayout={kind:0,properties:8,length:16,prototype:24,stringifying:32,flags:40,size:48} as const;
+export const PropertyLayout={next:0,key:8,value:16,attributes:32,getter:40,setter:56,size:72} as const;
+export const PropertyAttributes={writable:1,enumerable:2,configurable:4,ordinary:7,accessor:8} as const;
+
+/** Zero is extensible with writable array length. */
+export const ObjectFlags={nonExtensible:1,lengthReadonly:2} as const;

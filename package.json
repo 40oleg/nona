@@ -1,0 +1,32 @@
+{
+  "name": "nona",
+  "version": "0.1.0",
+  "description": "Experimental JavaScript subset AOT compiler for standalone Windows x64 executables",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/40oleg/nona.git"
+  },
+  "bugs": {
+    "url": "https://github.com/40oleg/nona/issues"
+  },
+  "homepage": "https://github.com/40oleg/nona#readme",
+  "engines": {
+    "node": ">=26"
+  },
+  "type": "module",
+  "bin": {
+    "nona": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test dist/tests/*.test.js",
+    "check": "npm run build && npm test",
+    "compare": "npm run build && node scripts/compare-examples.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
+  }
+}
