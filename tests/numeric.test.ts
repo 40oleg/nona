@@ -4,6 +4,7 @@ import {expectProgram} from './helpers/program.js';
 test('binary64 special values and signed zero',()=>expectProgram('console.log(1/0,-1/0,0/0,-0,1/-0);','Infinity -Infinity NaN 0 -Infinity\n'));
 test('exact binary remainder',()=>expectProgram('console.log(5.5%2,-5.5%2,1%0,1e308%3,1%5e-324,1/(-4%2));',`1.5 -1.5 NaN ${1e308%3} 0 -Infinity\n`));
 test('shortest decimal formatting boundaries',()=>expectProgram('console.log(0.1+0.2,5e-324,1e21,1e-7,1e-6,1e20);','0.30000000000000004 5e-324 1e+21 1e-7 0.000001 100000000000000000000\n'));
+test('small integer formatting boundaries',()=>expectProgram('console.log(-0,0,1,10,4294967295,4294967296,4294967295.5,-1);','0 0 1 10 4294967295 4294967296 4294967295.5 -1\n'));
 test('ES2020 string number grammar',()=>expectProgram('console.log(+"",+" 0x10 ",+"-0",+"x",1/+"-0",+"0b10",+"0o10",+"-0x1",+".5",+"1.");','0 16 0 NaN -Infinity 2 8 NaN 0.5 1\n'));
 test('ES2020 numeric whitespace excludes Mongolian vowel separator',()=>expectProgram('console.log(+"\\u180e42\\u180e",+"\\u200012\\ufeff",+"1 2");','NaN 12 NaN\n'));
 test('binary and octal string conversion validates every digit and rounds large values',()=>{

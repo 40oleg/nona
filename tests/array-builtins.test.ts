@@ -8,6 +8,7 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['sparse million element map completes',`var a=[];a[999999]=1;var b=a.map(function(x){return x+1});console.log(b.length,0 in b,b[999999]);`],
  ['Array unscopables object can be modified',`var u=Array.prototype[Symbol.unscopables];u.flat=false;u.extra=true;console.log(u.flat,u.extra,Object.prototype.hasOwnProperty.call(u,'extra'),Array.prototype[Symbol.unscopables]===u);`],
  ['Array.of falls back for nonconstructor functions',`var a=Array.of.call(Math.pow),b=Array.of.call(Math.pow.bind(Math));console.log(Array.isArray(a),Array.isArray(b),a.length,b.length);`],
  ['sort default and metadata',`var a=[10,2,1];console.log(a.sort()===a,a.join(','),Array.prototype.sort.length);`],

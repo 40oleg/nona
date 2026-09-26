@@ -76,6 +76,7 @@
     "built-ins/Array/prototype/indexOf/15.4.4.14-1-1.js",
     "built-ins/Array/prototype/lastIndexOf/15.4.4.15-1-1.js",
     "built-ins/Array/prototype/forEach/15.4.4.18-1-1.js",
+    "built-ins/Array/prototype/map/15.4.4.19-8-c-ii-1.js",
     "built-ins/Array/prototype/some/15.4.4.17-1-1.js",
     "built-ins/Array/prototype/every/15.4.4.16-0-1.js",
     "built-ins/Array/prototype/find/return-found-value-predicate-result-is-true.js",
