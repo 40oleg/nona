@@ -15,6 +15,7 @@ for(const [name,source,expected] of [
  ['setTime checks receiver before coercion',`let log=[];let arg={valueOf(){log.push('valueOf');return 4}};try{Date.prototype.setTime.call({},arg)}catch(e){log.push(e.name)}console.log(log.join(','))`],
  ['timezone offset follows UTC host policy',`let a=new Date(0),b=new Date(NaN);console.log(a.getTimezoneOffset(),Number.isNaN(b.getTimezoneOffset()))`,'0 true\n'],
  ['Date constructor copies internal time',`let d=new Date(1234);d.valueOf=()=>{throw Error('called')};console.log(new Date(d).getTime())`],
+ ['Date constructor uses default ToPrimitive hint',`let hints=[],o={[Symbol.toPrimitive](hint){hints.push(hint);return '2016-06-05T18:40:00.000Z'}};console.log(new Date(o).getTime(),hints.join(','));o[Symbol.toPrimitive]=()=>1234;console.log(new Date(o).getTime());o[Symbol.toPrimitive]=()=>Symbol.iterator;try{new Date(o)}catch(e){console.log(e.name)}`,'1465152000000 default\n1234\nTypeError\n'],
  ['calendar fields across Gregorian eras',`for(let t of [-8640000000000000,-2208988800000,-62167219200000,-1,0,951782400000,946684800000,8640000000000000]){let d=new Date(t);console.log(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),d.getUTCDay())}`],
  ['Annex B getYear',`for(let t of [Date.UTC(1899,0,1),Date.UTC(1900,0,1),Date.UTC(2000,0,1),NaN]){let d=new Date(t);console.log(d.getYear())}`],
  ['millisecond setters normalize negative dates',`for(let t of [-1,0,999,1000]){let d=new Date(t);console.log(d.setUTCMilliseconds(1234.9),d.getTime());console.log(d.setMilliseconds(-2),d.getTime())}`],
@@ -44,4 +45,5 @@ for(const [name,source,expected] of [
  ['parse ISO date and timestamp',`for(let s of ['1970','1970-01','1970-01-01','1970-01-01T00:00Z','2000-02-29T12:34:56.789Z','-000001-07-01T00:00Z','2020-01-01T00:00:00+02:30','2020-01-01T00:00:00-02:30'])console.log(Date.parse(s),new Date(s).getTime())`],
  ['reject invalid ISO fields',`for(let s of ['','2020-00-01','2020-13-01','2020-01-00','2020-01-32','2020-01-01T25:00Z','2020-01-01T00:60Z'])console.log(Number.isNaN(Date.parse(s)))`],
  ['parse Date string formats',`for(let t of [0,Date.UTC(2000,1,29,12,34,56),Date.UTC(-123,6,1)]){let d=new Date(t);console.log(Date.parse(d.toString()),Date.parse(d.toUTCString()),t)}`,'0 0 0\n951827696000 951827696000 951827696000\n-66033014400000 -66033014400000 -66033014400000\n'],
+ ['parse clips after timezone adjustment',`for(let s of ['+275760-09-13T00:00:00.001+00:01','+275760-09-13T00:00:00.000-00:01','-271821-04-20T00:00:00.000-00:01'])console.log(Date.parse(s))`,'8639999999940001\nNaN\n-8639999999940000\n'],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));

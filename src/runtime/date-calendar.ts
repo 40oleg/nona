@@ -6,7 +6,8 @@ import {rootedFn} from './root-scope.js';
 export function emitDateCalendar(b:RuntimeBuilder):void {
  // RCX Number Value output; RDX pointer to seven Number Values: year, month,
  // day, hour, minute, second, millisecond. Every element is already ToNumber.
- // R8 requests the Date.UTC/constructor 0..99 year adjustment; setters pass 0.
+ // R8=1 requests the Date.UTC/constructor 0..99 year adjustment; R8=2
+ // leaves the result unclipped so Date.parse can apply a timezone first.
  b.fn('rt.dateMakeTime',248,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(184),'r8');
   const invalid=a.unique('invalid'),finish=a.unique('finish');
@@ -17,7 +18,7 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
    a.cvttsd2si('rax','xmm0');a.store(slot(64+8*i),'rax');
   }
   // MakeFullYear: years 0..99 denote 1900..1999.
-  a.load('rax',slot(64));const yearReady=a.unique('yearReady');a.load('r10',slot(184));a.test('r10','r10');a.jcc('e',yearReady);a.test('rax','rax');a.jcc('l',yearReady);a.cmp('rax',99);a.jcc('g',yearReady);a.add('rax',1900);a.store(slot(64),'rax');a.label(yearReady);
+  a.load('rax',slot(64));const yearReady=a.unique('yearReady');a.load('r10',slot(184));a.cmp('r10',1);a.jcc('ne',yearReady);a.test('rax','rax');a.jcc('l',yearReady);a.cmp('rax',99);a.jcc('g',yearReady);a.add('rax',1900);a.store(slot(64),'rax');a.label(yearReady);
   // Normalize month to [0, 11] using floor division.
   a.load('rax',slot(72));a.emit([0x48,0x99]);a.mov('r10',12);a.idiv('r10');
   const monthPositive=a.unique('monthPositive');a.test('rdx','rdx');a.jcc('ge',monthPositive);a.add('rdx',12);a.sub('rax',1);a.label(monthPositive);
@@ -50,9 +51,10 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
   a.movsd('xmm0',slot(192));a.mov('rax',3600000);a.cvtsi2sd('xmm1','rax');a.mulsd('xmm0','xmm1');
   for(const [offset,scale] of [[200,60000],[208,1000],[216,1]] as const){a.movsd('xmm1',slot(offset));if(scale!==1){a.mov('rax',scale);a.cvtsi2sd('xmm2','rax');a.mulsd('xmm1','xmm2');}a.addsd('xmm0','xmm1');}
   a.storesd(slot(224),'xmm0');a.load('rax',slot(176));a.cvtsi2sd('xmm0','rax');a.mov('rax',86400000);a.cvtsi2sd('xmm1','rax');a.mulsd('xmm0','xmm1');a.addsd('xmm0',slot(224));
+  const storeResult=a.unique('storeResult');a.load('r10',slot(184));a.cmp('r10',2);a.jcc('e',storeResult);
   a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
   a.mov('rax',-8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);
-  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(finish);
+  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.label(storeResult);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(finish);
   a.label(invalid);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0x7ff8000000000000n);a.store({base:'rcx',disp:8},'rax');a.label(finish);
  });
  // Gather arguments in observable left-to-right order before calendar math.

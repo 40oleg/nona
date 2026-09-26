@@ -53,11 +53,14 @@ export function emitDateParse(b:RuntimeBuilder):void {
   for(const offset of [112,120,128]){a.load('rax',slot(offset));a.test('rax','rax');a.jcc('ne',invalid);}a.label(hourReady);
   // Convert seven integer components to Number Values for MakeDate.
   for(let i=0;i<7;i++){a.load('rax',slot(80+8*i));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(192+16*i),'rax');a.storesd(slot(200+16*i),'xmm0');}
-  a.load('rcx',slot(40));a.lea('rdx',slot(192));a.mov('r8',0);a.call('rt.dateMakeTime');
+  a.load('rcx',slot(40));a.lea('rdx',slot(192));a.mov('r8',2);a.call('rt.dateMakeTime');
   a.load('rax',slot(152));a.test('rax','rax');const noOffset=a.unique('noOffset');a.jcc('e',noOffset);
   a.load('r10',slot(160));a.mov('r11',60);a.imul('r10','r11');a.load('r11',slot(168));a.add('r10','r11');a.mov('r11',60000);a.imul('r10','r11');a.imul('r10','rax');
   a.load('rcx',slot(40));a.movsd('xmm0',{base:'rcx',disp:8});a.cvtsi2sd('xmm1','r10');a.subsd('xmm0','xmm1');a.storesd({base:'rcx',disp:8},'xmm0');
-  a.label(noOffset);a.jmp('rt.parseIsoDate.done');
+  a.label(noOffset);a.load('rcx',slot(40));a.movsd('xmm0',{base:'rcx',disp:8});a.ucomisd('xmm0','xmm0');a.jcc('p',invalid);
+  a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
+  a.mov('rax',-8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);
+  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp('rt.parseIsoDate.done');
   a.label(invalid);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0x7ff8000000000000n);a.store({base:'rcx',disp:8},'rax');a.label('rt.parseIsoDate.done');
  });
  b.fn('rt.parseDateString',312,a=>{
@@ -89,11 +92,14 @@ export function emitDateParse(b:RuntimeBuilder):void {
   a.load('rax',slot(144));a.cmp('rax',23);a.jcc('a',invalid);a.load('rax',slot(152));a.cmp('rax',59);a.jcc('a',invalid);
   a.label(finish);a.load('r10',slot(64));a.load('r11',slot(56));a.cmp('r10','r11');a.jcc('ne',invalid);
   for(let i=0;i<7;i++){a.load('rax',slot(80+8*i));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(192+16*i),'rax');a.storesd(slot(200+16*i),'xmm0');}
-  a.load('rcx',slot(40));a.lea('rdx',slot(192));a.mov('r8',0);a.call('rt.dateMakeTime');
+  a.load('rcx',slot(40));a.lea('rdx',slot(192));a.mov('r8',2);a.call('rt.dateMakeTime');
   a.load('rax',slot(136));a.test('rax','rax');const noOffset=a.unique('noOffset');a.jcc('e',noOffset);
   a.load('r10',slot(144));a.mov('r11',60);a.imul('r10','r11');a.load('r11',slot(152));a.add('r10','r11');a.mov('r11',60000);a.imul('r10','r11');a.imul('r10','rax');
   a.load('rcx',slot(40));a.movsd('xmm0',{base:'rcx',disp:8});a.cvtsi2sd('xmm1','r10');a.subsd('xmm0','xmm1');a.storesd({base:'rcx',disp:8},'xmm0');
-  a.label(noOffset);a.jmp('rt.parseDateString.done');
+  a.label(noOffset);a.load('rcx',slot(40));a.movsd('xmm0',{base:'rcx',disp:8});a.ucomisd('xmm0','xmm0');a.jcc('p',invalid);
+  a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
+  a.mov('rax',-8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);
+  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp('rt.parseDateString.done');
   a.label(invalid);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0x7ff8000000000000n);a.store({base:'rcx',disp:8},'rax');a.label('rt.parseDateString.done');
  });
  rootedFn(b,'rt.Date.parse.fn.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{

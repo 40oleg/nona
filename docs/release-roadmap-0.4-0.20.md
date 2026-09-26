@@ -105,7 +105,8 @@ locale-методы с политикой UTC для локального вре
 `__lookupSetter__`, запланированным на 0.19; остальные в основном требуют
 Proxy/Reflect, BigInt, RegExp, коллекции или более поздние Iterator Helpers.
 `Object.getOwnPropertySymbols` дал 8 pass / 4 fail; все четыре отказа требуют
-инвариантов Proxy из 0.15.
+инвариантов Proxy из 0.15. `Object.is` прошёл 21/21;
+`Object.setPrototypeOf` — 10/12, оставшиеся тесты требуют BigInt и Proxy.
 Date, JSON, BigInt, RegExp, его интеграция со String, буферы, Atomics,
 Map/Set и WeakMap/WeakSet остаются открытыми. PR для 0.6–0.14 пока
 не открывать.
