@@ -172,3 +172,18 @@ test('Math: atanh coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: asinh and acosh finite values and boundaries',()=>{
+ const asinhValues=[-1e300,-1e-300,-10,-1,-1e-12,-0,0,1e-12,1,10,1e-300,1e300];
+ const acoshValues=[1,1.0000000000000002,1.1,2,10,1e150,1e300];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${asinhValues.map(v=>`Math.asinh(${literal(v)})`).concat(acoshValues.map(v=>`Math.acosh(${literal(v)})`)).join(',')},Object.is(Math.asinh(-0),-0),Math.acosh(0),Math.acosh(-1));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(asinhValues.length+acoshValues.length),['true','NaN','NaN']);
+ const expected=asinhValues.map(Math.asinh).concat(acoshValues.map(Math.acosh));
+ for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=4e-14*Math.max(Number.MIN_VALUE,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
+});
+test('Math: asinh and acosh coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 1;}};console.log(Math.asinh(x)>0,Math.acosh(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

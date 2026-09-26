@@ -187,3 +187,7 @@ and 56/56. Positive smoke is 126/126; compatible examples pass
 The complete `Math.atanh` group passes 5/5. Positive smoke is 127/127;
 compatible examples pass 69/69 on Windows and Linux. The full native
 test run after URI work had 1632 passes, 27 skips, and zero failures.
+
+The complete `Math.asinh` and `Math.acosh` groups pass 5/5 and 7/7.
+Positive smoke is 129/129; compatible examples pass 70/70 on Windows
+and Linux.

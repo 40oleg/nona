@@ -77,6 +77,8 @@ jobs:
             test/built-ins/Math/asin
             test/built-ins/Math/acos
             test/built-ins/Math/atanh
+            test/built-ins/Math/asinh
+            test/built-ins/Math/acosh
             test/built-ins/encodeURI
             test/built-ins/encodeURIComponent
             test/built-ins/decodeURI
