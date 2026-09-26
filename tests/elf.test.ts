@@ -104,3 +104,9 @@ test('Linux native Array.prototype.fill keeps the value under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.copyWithin copies holes and references under GC stress',t=>{
+ const source=`let value={x:7},a=[value,,3];for(let i=0;i<20;i++)({x:i});a.copyWithin(1,0,2);console.log(a[0].x,a[1].x,2 in a);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

@@ -2153,3 +2153,15 @@ native тесты: 46/46; Linux native: 9 pass, 1 skip при недоступн
 все новые каталоги Array. Пропуски общего прогона: один из-за права на symlink
 и 11 WSL-проверок, недоступных во время массового запуска. Отдельный Linux
 native прогон выше подтвердил новые методы массива.
+
+## 2026-09-26: Array.prototype.copyWithin
+
+Добавлен generic `copyWithin` с преобразованием target/start/end, снимком
+длины, выбором обратного направления при перекрытии диапазонов, HasProperty,
+Get, Set и DeletePropertyOrThrow. Отсутствующий исходный индекс удаляет
+соответствующий целевой индекс. Windows array suite: 51/51. Test262:
+36/39; оставшиеся случаи используют Proxy traps или resizable ArrayBuffer.
+Положительный smoke manifest расширен отдельной проверкой holes до 82/82.
+Отдельный Linux native suite: 10 pass, 1 skip. Полная регрессия Node 26.10.0:
+1475 total, 1462 pass, 0 fail, 13 skip (один symlink и 12 WSL-проверок,
+недоступных при параллельном прогоне).
