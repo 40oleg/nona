@@ -153,3 +153,7 @@ transcendental functions; `f16round` and `sumPrecise` are later APIs.
 The complete `Math.sin`, `Math.cos`, and `Math.tan` groups now pass
 8/8, 9/9, and 9/9. Positive smoke is 111/111; compatible examples
 pass 60/60 on Windows and Linux.
+
+The complete `Math.log`, `Math.log2`, and `Math.log10` groups pass
+9/9, 5/5, and 5/5. Positive smoke is 114/114; compatible examples
+pass 61/61 on Windows and Linux.

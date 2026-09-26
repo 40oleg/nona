@@ -58,3 +58,16 @@ test('Math: trigonometric argument coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: logarithms track finite reference values',()=>{
+ const values=[0.5,2,10,1000,Math.E,1e-30,1e30];
+ const source=`console.log(${values.flatMap(v=>[`Math.log(${v})`,`Math.log2(${v})`,`Math.log10(${v})`]).join(',')});`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const actual=run.stdout.toString().trim().split(' ').map(Number);
+ const expected=values.flatMap(v=>[Math.log(v),Math.log2(v),Math.log10(v)]);
+ for(const [i,value] of expected.entries())assert.ok(Math.abs(actual[i]!-value)<=2e-14*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
+});
+test('Math: logarithm argument coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 1;}};console.log(Math.log(x),Math.log2(x),Math.log10(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
