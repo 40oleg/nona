@@ -89,16 +89,17 @@ export function emitBigInt(b:RuntimeBuilder):void {
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
  b.bundle.fragments.push(stringLiteral('rt.bigint.one','1'));
- emitFunctionBuiltin(b,'rt.bigintToString.fn','toString',1,'rt.bigintPrototype.valueOf','rt.bigintPrototype');
+ emitFunctionBuiltin(b,'rt.bigintToString.fn','toString',0,'rt.bigintPrototype.valueOf','rt.bigintPrototype');
  emitFunctionBuiltin(b,'rt.bigintValueOf.fn','valueOf',0,undefined,'rt.bigintPrototype');
  b.bundle.fragments.push(stringLiteral('rt.bigint.tag','BigInt'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
+ const prototypeHead=b.bundle.fragments.find(f=>f.name==='rt.bigintPrototype')!.fixups.find(f=>f.offset===O.properties)!;
  b.bundle.fragments.push({name:'rt.bigintPrototype.@@toStringTag',section:'.data',alignment:8,bytes:tag,symbols:{},fixups:[
-  {offset:P.next,kind:'va64',target:'rt.bigintPrototype.toString',addend:0},
+  {offset:P.next,kind:'va64',target:prototypeHead.target,addend:0},
   {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.bigint.tag',addend:0},
  ]});
- b.bundle.fragments.find(f=>f.name==='rt.bigintPrototype')!.fixups.find(f=>f.offset===O.properties)!.target='rt.bigintPrototype.@@toStringTag';
+ prototypeHead.target='rt.bigintPrototype.@@toStringTag';
  for(const method of ['toString','valueOf'] as const)rootedFn(b,'rt.bigint'+method[0]!.toUpperCase()+method.slice(1)+'.fn.code',104,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));a.load('rax',{base:'rdx'});const valid=a.unique('valid');a.cmp('rax',7);a.jcc('e',valid);a.cmp('rax',5);const invalid=a.unique('invalid');a.jcc('ne',invalid);a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',BoxKind);a.jcc('ne',invalid);a.add('r10',BoxLayout.value);a.load('rax',{base:'r10'});a.cmp('rax',7);a.jcc('ne',invalid);a.mov('rdx','r10');a.jmp(valid);a.label(invalid);a.call('rt.throwTypeError');a.label(valid);
   a.load('rcx',slot(40));a.mov('rax',method==='toString'?4:7);a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');
