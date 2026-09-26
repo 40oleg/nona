@@ -28,4 +28,6 @@ for(const [name,source,expected] of [
  ['day setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setUTCDate(v)),d.getTime())`],
  ['month setters cross year boundary',`for(let t of [Date.UTC(2000,1,29,12,34,56,789),Date.UTC(1970,0,1)]){let d=new Date(t);console.log(d.setUTCMonth(12),d.getTime());console.log(d.setUTCMonth(-2,35),d.getTime())}`],
  ['month setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setUTCMonth(v)),d.getTime())`],
+ ['year setters preserve month and time',`for(let t of [Date.UTC(2000,1,29,12,34,56,789),Date.UTC(1970,0,1),NaN]){let d=new Date(t);console.log(d.setUTCFullYear(50),d.getTime());console.log(d.setUTCFullYear(2024,1,29),d.getTime())}`],
+ ['year setter starts from zero on invalid Date',`let d=new Date(NaN),v={valueOf(){d.setTime(123);return 2001}};console.log(d.setFullYear(v),d.getTime())`,'978307200000 978307200000\n'],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
