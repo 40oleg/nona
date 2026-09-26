@@ -39,4 +39,6 @@ for(const [name,source,expected] of [
  ['UTC and local date strings',`let d=new Date(0);console.log(d.toUTCString(),d.toDateString(),d.toTimeString(),d.toString())`,'Thu, 01 Jan 1970 00:00:00 GMT Thu Jan 01 1970 00:00:00 GMT+0000 Thu Jan 01 1970 00:00:00 GMT+0000\n'],
  ['date strings handle invalid and negative years',`let d=new Date(NaN),e=new Date(Date.UTC(-1,6,1));console.log(d.toUTCString(),d.toDateString(),d.toTimeString(),d.toString());console.log(e.toUTCString(),e.toDateString())`],
  ['Date as function returns current string and ignores arguments',`let touched=false;let arg={valueOf(){touched=true;throw Error('called')}};let s=Date(arg);console.log(typeof s,s.includes('GMT+0000'),touched,Date.length)`,'string true false 7\n'],
+ ['parse ISO date and timestamp',`for(let s of ['1970','1970-01','1970-01-01','1970-01-01T00:00Z','2000-02-29T12:34:56.789Z','-000001-07-01T00:00Z','2020-01-01T00:00:00+02:30','2020-01-01T00:00:00-02:30'])console.log(Date.parse(s),new Date(s).getTime())`],
+ ['reject invalid ISO fields',`for(let s of ['','2020-00-01','2020-13-01','2020-01-00','2020-01-32','2020-01-01T25:00Z','2020-01-01T00:60Z'])console.log(Number.isNaN(Date.parse(s)))`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));

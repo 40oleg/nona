@@ -20,7 +20,7 @@ const timeParts=[
  ['getMinutes',60000,60],['getUTCMinutes',60000,60],
  ['getHours',3600000,24],['getUTCHours',3600000,24],
 ] as const;
-export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.toISOString.fn','rt.Date.toJSON.fn','rt.Date.toPrimitive.fn','rt.Date.now.fn','rt.Date.UTC.fn',...dateStringMethods.map(name=>'rt.Date.'+name+'.fn'),...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters,...dateHourSetters,...dateDaySetters,...dateMonthSetters,...dateYearSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
+export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.toISOString.fn','rt.Date.toJSON.fn','rt.Date.toPrimitive.fn','rt.Date.now.fn','rt.Date.UTC.fn','rt.Date.parse.fn',...dateStringMethods.map(name=>'rt.Date.'+name+'.fn'),...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters,...dateHourSetters,...dateDaySetters,...dateMonthSetters,...dateYearSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
 export const datePropertyRoots=[
  ...builtinPropertyRoots('rt.dateValueOf.fn','valueOf','rt.datePrototype'),
  ...builtinPropertyRoots('rt.dateGetTime.fn','getTime','rt.datePrototype'),
@@ -39,6 +39,7 @@ export const datePropertyRoots=[
  ...dateYearSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...builtinPropertyRoots('rt.Date.now.fn','now','rt.Date'),
  ...builtinPropertyRoots('rt.Date.UTC.fn','UTC','rt.Date'),
+ ...builtinPropertyRoots('rt.Date.parse.fn','parse','rt.Date'),
  ...timeParts.flatMap(([name])=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...dateFields.flatMap(([name])=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
 ];
@@ -69,6 +70,7 @@ export function emitDatePrototype(b:RuntimeBuilder):void {
 export function emitDate(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.Date.now.fn','now',0,'rt.Date');
  prependFunctionBuiltin(b,'rt.Date.UTC.fn','UTC',7,'rt.Date');
+ prependFunctionBuiltin(b,'rt.Date.parse.fn','parse',1,'rt.Date');
  rootedFn(b,'rt.Date.UTC.fn.code',72,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);
   a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0x7ff8000000000000n);a.store({base:'rcx',disp:8},'rax');const done=a.unique('done');a.jmp(done);
@@ -161,9 +163,10 @@ export function emitDate(b:RuntimeBuilder):void {
   a.call('rt.currentTimeMs');a.cvtsi2sd('xmm0','rax');a.storesd(slot(88),'xmm0');a.jmp(ready);
   a.label(supplied);a.load('rax',slot(48));a.cmp('rax',1);const one=a.unique('one');a.jcc('e',one);
   a.lea('rcx',slot(80));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.dateArgumentsMs');a.jmp(ready);
-  a.label(one);a.load('rdx',slot(56));a.load('rax',{base:'rdx'});a.cmp('rax',5);const convert=a.unique('convert');a.jcc('ne',convert);
+  a.label(one);a.load('rdx',slot(56));a.load('rax',{base:'rdx'});const parseString=a.unique('parseString'),convert=a.unique('convert');a.cmp('rax',4);a.jcc('e',parseString);a.cmp('rax',5);a.jcc('ne',convert);
   a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);a.jcc('ne',convert);
   a.load('rax',{base:'r10',disp:DateLayout.time});a.store(slot(88),'rax');a.jmp(ready);
+  a.label(parseString);a.lea('rcx',slot(80));a.load('rdx',slot(56));a.load('rdx',{base:'rdx',disp:8});a.call('rt.parseIsoDate');a.jmp(ready);
   a.label(convert);a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
   // TimeClip rejects non-finite and out-of-range values, then truncates.
   a.movsd('xmm0',slot(88));a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');
