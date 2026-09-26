@@ -98,3 +98,9 @@ test('Linux native Array.prototype.reduce and reduceRight call back under GC str
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.fill keeps the value under GC stress',t=>{
+ const source=`let value={x:7},a=[0,,0];for(let i=0;i<20;i++)({x:i});a.fill(value,1,undefined);console.log(a[0],a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

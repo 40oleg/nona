@@ -37,6 +37,14 @@ jobs:
             test/built-ins/Array/prototype/includes
             test/built-ins/Array/prototype/indexOf
             test/built-ins/Array/prototype/lastIndexOf
+            test/built-ins/Array/prototype/forEach
+            test/built-ins/Array/prototype/some
+            test/built-ins/Array/prototype/every
+            test/built-ins/Array/prototype/find
+            test/built-ins/Array/prototype/findIndex
+            test/built-ins/Array/prototype/reduce
+            test/built-ins/Array/prototype/reduceRight
+            test/built-ins/Array/prototype/fill
             test/built-ins/Array/prototype/pop
             test/built-ins/Math/pow
             test/built-ins/Math/abs

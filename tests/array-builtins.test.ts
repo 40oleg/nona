@@ -40,6 +40,11 @@ const cases:[string,string][]=[
  ['reduce and reduceRight holes and initial',`var a=[,,3,,5],s='';console.log(a.reduce(function(x,y,i){s+=i;return x+y}),s);s='';console.log(a.reduceRight(function(x,y,i){s+=i;return x+y}),s);console.log([,,].reduce(function(){return 2},7),[,,].reduceRight(function(){return 2},7));`],
  ['reduce and reduceRight empty errors',`for(var method of ['reduce','reduceRight']){try{[][method](function(){})}catch(e){console.log(method,e.name)}try{[][method](1,7)}catch(e){console.log(method,e.name)}}`],
  ['reduce and reduceRight generic receiver',`var o={length:3,0:'a',2:'c'},s='';console.log(Array.prototype.reduce.call(o,function(a,v,i,obj){s+=i;return a+v+(obj===o)},''),s);s='';console.log(Array.prototype.reduceRight.call(o,function(a,v,i){s+=i;return a+v},''),s);`],
+ ['fill basic and return identity',`var a=[1,,3,4];console.log(a.fill(7,1,3)===a,a.length,a.join(','),Array.prototype.fill.length);`],
+ ['fill negative and infinite positions',`var a=[1,2,3,4];a.fill(8,-3,-1);console.log(a.join(','));a.fill(5,Infinity);console.log(a.join(','));a.fill(6,-Infinity,-Infinity);console.log(a.join(','));`],
+ ['fill generic and omitted value',`var o={length:3};console.log(Array.prototype.fill.call(o,'x',1)===o,o[0],o[1],o[2]);var a=[1];a.fill();console.log(0 in a,a[0]);`],
+ ['fill start and end coercion order',`var s='',a=[1,2,3];a.fill(9,{valueOf(){s+='s';return 1.9}},{valueOf(){s+='e';return 3}});console.log(s,a.join(','));`],
+ ['fill explicit undefined end',`var a=[0,0];console.log(a.fill(1,0,undefined).join(','));a=[0,0];console.log(a.fill(1,0,NaN).join(','));`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -85,6 +90,11 @@ test('array builtins: find/findIndex callback survives stress GC',()=>{
 });
 test('array builtins: reduce/reduceRight callback survives stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];console.log(a.reduce(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0),a.reduceRight(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: fill value survives setter and stress GC',()=>{
+ const source=`var value={x:7},o={length:2},seen='';Object.defineProperty(o,'0',{set:function(v){for(var i=0;i<30;i++)({v:i});seen+=v.x;}});Array.prototype.fill.call(o,value);console.log(seen,o[1].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

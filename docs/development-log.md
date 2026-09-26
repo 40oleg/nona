@@ -2139,3 +2139,17 @@ TypeError для пустого обхода без initial value и перед�
 suite: 8 pass, 0 fail, 1 skip из-за WSL-проверки. Test262 для `reduce` и
 `reduceRight`: каждая группа 250/260; шесть случаев в каждой требуют Date,
 RegExp или JSON, четыре — resizable ArrayBuffer после ES2020.
+
+## 2026-09-26: Array.prototype.fill
+
+Добавлен generic `fill`: ToObject/ToLength, ToIntegerOrInfinity для start/end,
+отрицательные и бесконечные границы, явный `end = undefined`, запись в holes
+и возврат получателя. Значение удерживается корнем GC через setter callbacks.
+Test262 `built-ins/Array/prototype/fill`: 20/22; оставшиеся два теста требуют
+буферов или typed arrays, включая resizable ArrayBuffer. Целевые Windows
+native тесты: 46/46; Linux native: 9 pass, 1 skip при недоступной WSL-проверке.
+Общий прогон на Node 26.10.0: 1469 total, 1457 pass, 0 fail, 12 skip;
+положительный smoke Test262 расширен до 81/81 и CI sparse checkout включает
+все новые каталоги Array. Пропуски общего прогона: один из-за права на symlink
+и 11 WSL-проверок, недоступных во время массового запуска. Отдельный Linux
+native прогон выше подтвердил новые методы массива.

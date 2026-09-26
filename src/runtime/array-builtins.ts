@@ -4,8 +4,8 @@ import {ObjectLayout as O} from './object-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 
-export const arrayBuiltinRoots=['rt.Array.isArray.fn','rt.arrayPush.fn','rt.arrayPop.fn','rt.arrayIncludes.fn','rt.arrayIndexOf.fn','rt.arrayLastIndexOf.fn','rt.arrayForEach.fn','rt.arraySome.fn','rt.arrayEvery.fn','rt.arrayFind.fn','rt.arrayFindIndex.fn','rt.arrayReduce.fn','rt.arrayReduceRight.fn'];
-export const arrayBuiltinPropertyRoots=[...builtinPropertyRoots('rt.Array.isArray.fn','isArray','rt.Array'),...builtinPropertyRoots('rt.arrayPush.fn','push','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayPop.fn','pop','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayIncludes.fn','includes','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayIndexOf.fn','indexOf','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayLastIndexOf.fn','lastIndexOf','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayForEach.fn','forEach','rt.arrayPrototype'),...builtinPropertyRoots('rt.arraySome.fn','some','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayEvery.fn','every','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayFind.fn','find','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayFindIndex.fn','findIndex','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayReduce.fn','reduce','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayReduceRight.fn','reduceRight','rt.arrayPrototype')];
+export const arrayBuiltinRoots=['rt.Array.isArray.fn','rt.arrayPush.fn','rt.arrayPop.fn','rt.arrayIncludes.fn','rt.arrayIndexOf.fn','rt.arrayLastIndexOf.fn','rt.arrayForEach.fn','rt.arraySome.fn','rt.arrayEvery.fn','rt.arrayFind.fn','rt.arrayFindIndex.fn','rt.arrayReduce.fn','rt.arrayReduceRight.fn','rt.arrayFill.fn'];
+export const arrayBuiltinPropertyRoots=[...builtinPropertyRoots('rt.Array.isArray.fn','isArray','rt.Array'),...builtinPropertyRoots('rt.arrayPush.fn','push','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayPop.fn','pop','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayIncludes.fn','includes','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayIndexOf.fn','indexOf','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayLastIndexOf.fn','lastIndexOf','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayForEach.fn','forEach','rt.arrayPrototype'),...builtinPropertyRoots('rt.arraySome.fn','some','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayEvery.fn','every','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayFind.fn','find','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayFindIndex.fn','findIndex','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayReduce.fn','reduce','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayReduceRight.fn','reduceRight','rt.arrayPrototype'),...builtinPropertyRoots('rt.arrayFill.fn','fill','rt.arrayPrototype')];
 
 export function emitArrayBuiltins(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.Array.isArray.fn','isArray',1,'rt.Array');
@@ -21,6 +21,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.arrayFindIndex.fn','findIndex',1,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayReduce.fn','reduce',1,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayReduceRight.fn','reduceRight',1,'rt.arrayPrototype');
+ prependFunctionBuiltin(b,'rt.arrayFill.fn','fill',1,'rt.arrayPrototype');
  b.fn('rt.Array.isArray.fn.code',40,a=>{
   a.mov('rax',0);const save=a.unique('save');a.test('rdx','rdx');a.jcc('e',save);a.load('r10',{base:'r8'});a.cmp('r10',5);a.jcc('ne',save);a.load('r10',{base:'r8',disp:8});a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',1);a.jcc('ne',save);a.mov('rax',1);
   a.label(save);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
@@ -203,6 +204,44 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.label(next);a.load('rax',slot(64));if(name==='reduceRight')a.sub('rax',1);else a.add('rax',1);a.store(slot(64),'rax');a.jmp(loop);
   a.label(done);a.load('rax',slot(320));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(160+offset));a.store({base:'rcx',disp:offset},'rax');}
+ });
+ rootedFn(b,'rt.arrayFill.fn.code',248,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:10}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.load('rdx',slot(frame+40));a.lea('rcx',slot(80));a.call('rt.toObject');
+  a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.arrayPush.length'});a.store(slot(104),'rax');
+  a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.call('rt.getProperty');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toNumber');a.movsd('xmm0',slot(136));
+  const zeroLength=a.unique('zeroLength'),lengthReady=a.unique('lengthReady');
+  a.mov('rax',0);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',zeroLength);a.jcc('be',zeroLength);
+  a.mov('rax',9007199254740991n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',lengthReady);
+  a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zeroLength);a.mov('rax',0);a.label(lengthReady);a.store(slot(64),'rax');
+  a.mov('rax',0);a.store(slot(144),'rax');a.store(slot(152),'rax');
+  a.load('rax',slot(48));const noValue=a.unique('noValue');a.test('rax','rax');a.jcc('e',noValue);
+  a.load('rdx',slot(56));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store(slot(144+offset),'rax');}a.label(noValue);
+  for(const [ordinal,target] of [[1,72],[2,232]] as const){
+   const absent=a.unique('absent'),zero=a.unique('zero'),negative=a.unique('negative'),atEnd=a.unique('atEnd'),end=a.unique('end');
+   a.load('rax',slot(48));a.cmp('rax',ordinal+1);a.jcc('b',absent);
+   a.load('rdx',slot(56));a.lea('rdx',{base:'rdx',disp:ordinal*16});
+   if(ordinal===2){a.load('rax',{base:'rdx'});a.test('rax','rax');a.jcc('e',absent);}
+   a.lea('rcx',slot(160));a.call('rt.toNumber');a.movsd('xmm0',slot(168));
+   a.ucomisd('xmm0','xmm0');a.jcc('p',zero);
+   a.mov('rax',0);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',negative);
+   a.load('rax',slot(64));a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',atEnd);
+   a.cvttsd2si('rax','xmm0');a.jmp(end);
+   a.label(negative);a.load('rax',slot(64));a.neg('rax');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',zero);
+   a.cvttsd2si('rax','xmm0');a.load('r10',slot(64));a.add('rax','r10');a.jmp(end);
+   a.label(zero);a.mov('rax',0);a.jmp(end);
+   a.label(absent);if(ordinal===1){a.mov('rax',0);a.jmp(end);}
+   a.label(atEnd);a.load('rax',slot(64));
+   a.label(end);a.store(slot(target),'rax');
+  }
+  const loop=a.unique('loop'),done=a.unique('done');a.label(loop);
+  a.load('rax',slot(72));a.load('r10',slot(232));a.cmp('rax','r10');a.jcc('ae',done);
+  a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
+  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(80+offset));a.store({base:'rcx',disp:offset},'rax');}
  });
  rootedFn(b,'rt.arrayPop.fn.code',248,[{kind:'output',register:'rcx'},{kind:'locals',offset:80,count:8}],(a,frame)=>{
   a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));a.lea('rcx',slot(80));a.call('rt.toObject');
