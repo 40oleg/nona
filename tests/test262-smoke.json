@@ -133,6 +133,9 @@
     "built-ins/Math/cosh/cosh-specialVals.js",
     "built-ins/Math/tanh/tanh-specialVals.js",
     "built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional.js",
-    "built-ins/String/prototype/toLocaleUpperCase/special_casing.js"
+    "built-ins/String/prototype/toLocaleUpperCase/special_casing.js",
+    "built-ins/String/prototype/split/call-split-l-2-instance-is-string-hello.js",
+    "built-ins/String/prototype/split/cstm-split-on-number-primitive.js",
+    "built-ins/String/prototype/split/separator-tostring-error.js"
   ]
 }

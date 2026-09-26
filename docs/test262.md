@@ -207,3 +207,9 @@ accuracy for arbitrary finite inputs; large-angle reduction for
 Positive smoke is 134/134; compatible examples pass 72/72 on
 Windows and Linux. Locale-specific mappings beyond the default Unicode
 mapping remain to be evaluated.
+
+`String.prototype.split` passes 86/120 Test262 cases. The remaining
+34 require RegExp, BigInt, or eval. String-only separators, limits,
+primitive separators, and custom `Symbol.split` hooks are checked.
+Positive smoke is 137/137; compatible examples pass 73/73 on
+Windows and Linux.

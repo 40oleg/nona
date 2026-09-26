@@ -106,6 +106,7 @@ jobs:
             test/built-ins/String/prototype/toLowerCase
             test/built-ins/String/prototype/toLocaleLowerCase
             test/built-ins/String/prototype/toLocaleUpperCase
+            test/built-ins/String/prototype/split
             test/built-ins/Number/prototype/toFixed
             test/built-ins/Number/prototype/toExponential
             test/built-ins/Number/prototype/toPrecision
