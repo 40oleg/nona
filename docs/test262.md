@@ -168,3 +168,6 @@ and Linux.
 
 The complete `Math.log1p` group passes 5/5. Positive smoke is 119/119;
 compatible examples pass 64/64 on Windows and Linux.
+
+The complete `Math.cbrt` group passes 5/5. Positive smoke is 120/120;
+compatible examples pass 65/65 on Windows and Linux.

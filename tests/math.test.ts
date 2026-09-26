@@ -126,3 +126,19 @@ test('Math: log1p coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: cbrt finite values and signed zero',()=>{
+ const values=[-1e300,-27,-8,-1,-1e-300,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-300,1,8,27,1e300];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${values.map(v=>`Math.cbrt(${literal(v)})`).join(',')},Object.is(Math.cbrt(-0),-0),Math.cbrt(-Infinity),Math.cbrt(Infinity));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','-Infinity','Infinity']);
+ for(const [i,value] of values.entries()){
+  const expected=Math.cbrt(value),got=Number(parts[i]);
+  assert.ok(Math.abs(got-expected)<=2e-13*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
+ }
+});
+test('Math: cbrt coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return -8;}};console.log(Math.cbrt(x)<-1.999999999999,Object.is(Math.cbrt(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
