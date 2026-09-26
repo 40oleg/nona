@@ -12,4 +12,5 @@ for(const [name,source,expected] of [
  ['invalid calendar fields',`let d=new Date(NaN);console.log(Number.isNaN(d.getUTCFullYear()),Number.isNaN(d.getUTCMonth()),Number.isNaN(d.getUTCDate()),Number.isNaN(d.getUTCDay()))`],
  ['setTime clips and stores the numeric value',`let d=new Date(0);console.log(d.setTime(-1234.9),d.getTime(),Number.isNaN(d.setTime(8640000000000001)),Number.isNaN(d.getTime()),d.setTime(42),d.getTime())`],
  ['setTime checks receiver before coercion',`let log=[];let arg={valueOf(){log.push('valueOf');return 4}};try{Date.prototype.setTime.call({},arg)}catch(e){log.push(e.name)}console.log(log.join(','))`],
+ ['timezone offset follows UTC host policy',`let a=new Date(0),b=new Date(NaN);console.log(a.getTimezoneOffset(),Number.isNaN(b.getTimezoneOffset()))`,'0 true\n'],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
