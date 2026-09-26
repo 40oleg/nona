@@ -198,9 +198,9 @@ on Windows and Linux.
 
 A full `built-ins/Math` run now has 312 passes and 15 failures out of
 327. All 15 failures concern `Math.f16round` and `Math.sumPrecise`,
-which are later than ES2020. This does not measure transcendental
-accuracy for arbitrary finite inputs; large-angle reduction for
-`sin`, `cos`, and `tan` remains open.
+which are later than ES2020. This does not measure transcendental accuracy for arbitrary finite
+inputs. Large-angle reduction for `sin`, `cos`, and `tan` was added
+after this run and verified against Node.js 26 across binary exponents.
 
 `String.prototype.toLocaleLowerCase` and `toLocaleUpperCase` pass
 26/28 and 24/26. The four remaining tests require RegExp or eval.
@@ -213,3 +213,8 @@ mapping remain to be evaluated.
 primitive separators, and custom `Symbol.split` hooks are checked.
 Positive smoke is 137/137; compatible examples pass 73/73 on
 Windows and Linux.
+
+Large-angle `Math.sin`, `Math.cos`, and `Math.tan` now use a 1152-bit
+fixed-point table of `2/pi`. Native tests pass 48/48, including 80
+deterministic finite values across exponents 63–1022. Compatible
+examples pass 74/74 on Windows and Linux.

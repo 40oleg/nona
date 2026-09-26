@@ -203,3 +203,18 @@ test('Math: hyperbolic coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: trigonometric large-angle reduction',()=>{
+ const values=[2**63,1e20,1e30,1e50,1e100,1e200,1e300,Number.MAX_VALUE,-1e20,-1e100,-Number.MAX_VALUE];
+ const source=`console.log(${values.flatMap(v=>[`Math.sin(${v})`,`Math.cos(${v})`,`Math.tan(${v})`]).join(',')});`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const actual=run.stdout.toString().trim().split(' ').map(Number),expected=values.flatMap(v=>[Math.sin(v),Math.cos(v),Math.tan(v)]);
+ for(const [i,value] of expected.entries())assert.ok(Number.isFinite(actual[i])&&Math.abs(actual[i]!-value)<=3e-13*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
+});
+test('Math: large-angle reduction across binary exponents',()=>{
+ let seed=0x13579bdf;const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/2**32);
+ const values:number[]=[];for(let i=0;i<80;i++)values.push((i&1?-1:1)*(1+random())*2**(63+Math.floor(random()*960)));
+ const source=`console.log(${values.flatMap(v=>[`Math.sin(${v})`,`Math.cos(${v})`,`Math.tan(${v})`]).join(',')});`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const actual=run.stdout.toString().trim().split(' ').map(Number),expected=values.flatMap(v=>[Math.sin(v),Math.cos(v),Math.tan(v)]);
+ for(const [i,value] of expected.entries())assert.ok(Number.isFinite(actual[i])&&Math.abs(actual[i]!-value)<=8e-13*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
+});

@@ -3,6 +3,7 @@ import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
+import {emitTrigReduce} from './numeric/trig-reduce.js';
 
 const unaryMath=['abs','sign','sqrt','trunc','floor','ceil','round','fround'] as const;
 const integerMath=['imul','clz32'] as const;
@@ -15,6 +16,7 @@ const mathConstants=[['E',Math.E],['LN10',Math.LN10],['LN2',Math.LN2],['LOG10E',
 export const mathPropertyRoots=['rt.globalObject.Math','rt.Math.@@toStringTag',...mathConstants.map(([name])=>'rt.Math.'+name),...['pow','min','max','hypot','random','exp','expm1','log1p','cbrt','atan','atan2','atanh','asinh','acosh',...unaryMath,...trigMath,...inverseTrigMath,...hyperbolicMath,...logMath,...integerMath].flatMap(name=>builtinPropertyRoots('rt.Math.'+name+'.fn',name,'rt.Math'))];
 
 export function emitMath(b:RuntimeBuilder):void {
+ emitTrigReduce(b);
  b.bundle.fragments.push({name:'rt.Math',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
   {offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},
  ]});
@@ -169,7 +171,24 @@ export function emitMath(b:RuntimeBuilder):void {
   a.emit(name==='sin'?[0xd9,0xfe]:name==='cos'?[0xd9,0xff]:[0xd9,0xf2]);
   if(name==='tan')a.emit([0xdd,0xd8]); // discard the extra 1.0 from fptan
   a.emit([0xdd,0x5c,0x24,80]); // fstp qword [rsp+80]
-  a.jmp(done);a.label(large);a.mov('rax',0x7ff8000000000000n);a.store(slot(80),'rax');a.label(done);
+  a.jmp(done);a.label(large);
+  const nonfinite=a.unique('nonfinite');a.mov('r10',0x7ff0000000000000n);a.cmp('rax','r10');a.jcc('ae',nonfinite);
+  a.movqToXmm('xmm0','rax');a.call('rt.trigReduce');a.store(slot(96),'rax');a.storesd(slot(88),'xmm0');
+  if(name==='tan'){
+   a.emit([0xdd,0x44,0x24,88,0xd9,0xf2,0xdd,0xd8,0xdd,0x5c,0x24,80]); // tan(reduced angle)
+   const even=a.unique('even');a.load('rax',slot(96));a.and('rax',1);a.jcc('e',even);
+   a.mov('rax',0xbff0000000000000n);a.movqToXmm('xmm0','rax');a.divsd('xmm0',slot(80));a.storesd(slot(80),'xmm0');a.label(even);
+  }else{
+   const useSin=a.unique('useSin'),after=a.unique('afterTrig');a.load('rax',slot(96));a.and('rax',1);a.jcc(name==='sin'?'e':'ne',useSin);
+   a.emit([0xdd,0x44,0x24,88,0xd9,0xff,0xdd,0x5c,0x24,80]);a.jmp(after); // cos
+   a.label(useSin);a.emit([0xdd,0x44,0x24,88,0xd9,0xfe,0xdd,0x5c,0x24,80]);a.label(after);
+   const noQuadrantSign=a.unique('noQuadrantSign');a.load('rax',slot(96));
+   if(name==='sin'){a.cmp('rax',2);a.jcc('b',noQuadrantSign);}
+   else{a.cmp('rax',1);a.jcc('b',noQuadrantSign);a.cmp('rax',2);a.jcc('a',noQuadrantSign);}
+   a.load('rax',slot(80));a.mov('r10',0x8000000000000000n);a.xor('rax','r10');a.store(slot(80),'rax');a.label(noQuadrantSign);
+  }
+  if(name!=='cos'){a.load('rax',slot(72));a.mov('r10',0x8000000000000000n);a.and('rax','r10');a.load('r11',slot(80));a.xor('rax','r11');a.store(slot(80),'rax');}
+  a.jmp(done);a.label(nonfinite);a.mov('rax',0x7ff8000000000000n);a.store(slot(80),'rax');a.label(done);
   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',slot(80));a.store({base:'rcx',disp:8},'rax');
  });
  for(const name of logMath)rootedFn(b,'rt.Math.'+name+'.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
