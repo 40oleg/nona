@@ -101,7 +101,10 @@ export function emitDate(b:RuntimeBuilder):void {
   a.call('rt.currentTimeMs');a.cvtsi2sd('xmm0','rax');a.storesd(slot(88),'xmm0');a.jmp(ready);
   a.label(supplied);a.load('rax',slot(48));a.cmp('rax',1);const one=a.unique('one');a.jcc('e',one);
   a.lea('rcx',slot(80));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.dateArgumentsMs');a.jmp(ready);
-  a.label(one);a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
+  a.label(one);a.load('rdx',slot(56));a.load('rax',{base:'rdx'});a.cmp('rax',5);const convert=a.unique('convert');a.jcc('ne',convert);
+  a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);a.jcc('ne',convert);
+  a.load('rax',{base:'r10',disp:DateLayout.time});a.store(slot(88),'rax');a.jmp(ready);
+  a.label(convert);a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
   // TimeClip rejects non-finite and out-of-range values, then truncates.
   a.movsd('xmm0',slot(88));a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');
   a.ucomisd('xmm0','xmm0');const invalid=a.unique('invalid');a.jcc('p',invalid);
