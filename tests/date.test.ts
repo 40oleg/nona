@@ -20,4 +20,6 @@ for(const [name,source,expected] of [
  ['millisecond setter invalid values',`let d=new Date(NaN);console.log(Number.isNaN(d.setUTCMilliseconds(1)),Number.isNaN(d.getTime()));d=new Date(0);console.log(Number.isNaN(d.setMilliseconds()),Number.isNaN(d.getTime()))`],
  ['second setters preserve and override milliseconds',`for(let t of [-1,0,61007]){let d=new Date(t);console.log(d.setUTCSeconds(2),d.getTime());console.log(d.setSeconds(-3,12),d.getTime())}`],
  ['second setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setSeconds(v)),d.getTime())`],
+ ['minute setters preserve and override lower fields',`for(let t of [-1,0,3661007]){let d=new Date(t);console.log(d.setUTCMinutes(2),d.getTime());console.log(d.setMinutes(-3,12,34),d.getTime())}`],
+ ['minute setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setMinutes(v)),d.getTime())`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
