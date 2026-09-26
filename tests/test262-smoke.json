@@ -21,6 +21,8 @@
     "built-ins/Number/isInteger/integers.js",
     "built-ins/Number/isNaN/nan.js",
     "built-ins/Number/isSafeInteger/safe-integers.js",
+    "built-ins/Number/parseFloat.js",
+    "built-ins/Number/parseInt.js",
     "language/rest-parameters/no-alias-arguments.js",
     "language/statements/function/dflt-params-abrupt.js",
     "language/statements/function/dflt-params-arg-val-not-undefined.js",

@@ -1,12 +1,54 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {rootedFn} from './root-scope.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {stringLiteral} from './value.js';
 
 const names=['isFinite','isInteger','isNaN','isSafeInteger'] as const;
-export const numberBuiltinRoots=[...names.map(name=>'rt.Number.'+name+'.fn'),'rt.global.isFinite.fn','rt.global.isNaN.fn'];
-export const numberBuiltinPropertyRoots=[...names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number')),...['isFinite','isNaN'].flatMap(name=>builtinPropertyRoots('rt.global.'+name+'.fn',name,'rt.globalObject'))];
+export const numberBuiltinRoots=[...names.map(name=>'rt.Number.'+name+'.fn'),...['isFinite','isNaN','parseInt','parseFloat'].map(name=>'rt.global.'+name+'.fn')];
+export const numberBuiltinPropertyRoots=[...names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number')),...['isFinite','isNaN','parseInt','parseFloat'].flatMap(name=>builtinPropertyRoots('rt.global.'+name+'.fn',name,'rt.globalObject')),'rt.Number.parseInt','rt.Number.parseFloat'];
+
+function aliasNumberMethod(b:RuntimeBuilder,name:string,symbol:string):void {
+ const owner=b.bundle.fragments.find(f=>f.name==='rt.Number')!;
+ const head=owner.fixups.find(f=>f.offset===O.properties);
+ const property=new Uint8Array(P.size);property[P.value]=5;property[P.attributes]=A.writable|A.configurable;
+ b.bundle.fragments.push(stringLiteral('rt.Number.'+name+'.key',name));
+ b.bundle.fragments.push({name:'rt.Number.'+name,section:'.data',alignment:8,bytes:property,symbols:{},fixups:[
+  ...(head?[{offset:P.next,kind:'va64' as const,target:head.target,addend:0}]:[]),
+  {offset:P.key,kind:'va64',target:'rt.Number.'+name+'.key',addend:0},
+  {offset:P.value+8,kind:'va64',target:symbol,addend:0},
+ ]});
+ if(head)head.target='rt.Number.'+name;else owner.fixups.push({offset:O.properties,kind:'va64',target:'rt.Number.'+name,addend:0});
+}
 
 export function emitNumberBuiltins(b:RuntimeBuilder):void {
+ {
+  const symbol='rt.global.parseFloat.fn';
+  prependFunctionBuiltin(b,symbol,'parseFloat',1,'rt.globalObject');
+  aliasNumberMethod(b,'parseFloat',symbol);
+  rootedFn(b,symbol+'.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+   a.store(slot(40),'rcx');const haveString=a.unique('haveString');
+   a.test('rdx','rdx');a.jcc('ne',haveString);a.mov('rax',0);a.store(slot(96),'rax');a.store(slot(104),'rax');a.lea('rdx',slot(96));a.jmp(haveString+'.convert');
+   a.label(haveString);a.mov('rdx','r8');a.label(haveString+'.convert');a.lea('rcx',slot(64));a.call('rt.toString');
+   a.load('rcx',slot(72));a.call('rt.parseFloatString');
+   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.movqFromXmm('rax','xmm0');a.store({base:'rcx',disp:8},'rax');
+  });
+ }
+ {
+  const symbol='rt.global.parseInt.fn';
+  prependFunctionBuiltin(b,symbol,'parseInt',2,'rt.globalObject');
+  aliasNumberMethod(b,'parseInt',symbol);
+  rootedFn(b,symbol+'.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+   const haveString=a.unique('haveString'),haveRadix=a.unique('haveRadix');
+   a.test('rdx','rdx');a.jcc('ne',haveString);a.mov('rax',0);a.store(slot(96),'rax');a.store(slot(104),'rax');a.lea('rdx',slot(96));a.jmp(haveString+'.convert');
+   a.label(haveString);a.mov('rdx','r8');a.label(haveString+'.convert');a.lea('rcx',slot(64));a.call('rt.toString');
+   a.load('rax',slot(48));a.cmp('rax',2);a.jcc('ae',haveRadix);a.mov('rdx',0);a.jmp(haveRadix+'.ready');
+   a.label(haveRadix);a.load('rcx',slot(56));a.add('rcx',16);a.call('rt.toInt32');a.mov('rdx','rax');
+   a.label(haveRadix+'.ready');a.load('rcx',slot(72));a.call('rt.parseIntString');
+   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.movqFromXmm('rax','xmm0');a.store({base:'rcx',disp:8},'rax');
+  });
+ }
  for(const name of ['isFinite','isNaN'] as const){
   const symbol='rt.global.'+name+'.fn';
   prependFunctionBuiltin(b,symbol,name,1,'rt.globalObject');

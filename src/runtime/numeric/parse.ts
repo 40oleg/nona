@@ -51,4 +51,44 @@ export function emitParse(b:RuntimeBundle):void {
   a.label('parse.convert');a.mov('rcx','r12');a.mov('rdx','r13');a.call('num.ratio');a.movqFromXmm('rax','xmm0');a.jmp('parse.sign');
   a.label('parse.infinity');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax',16);a.jcc('ne','parse.nan');for(let i=0;i<8;i++){a.load('rax',{base:'rsi',disp:i*2},16);a.cmp('rax','Infinity'.charCodeAt(i));a.jcc('ne','parse.nan');}
   a.label('parse.inf');a.mov('rax',0x7ff0000000000000n);a.jmp('parse.sign');a.label('parse.signedzero');a.xor('rax','rax');a.label('parse.sign');f.get('rdx',4);a.or('rax','rdx');a.movqToXmm('xmm0','rax');a.jmp('parse.done');a.label('parse.zero');a.xor('rax','rax');a.movqToXmm('xmm0','rax');a.jmp('parse.done');a.label('parse.nan');a.mov('rax',0x7ff8000000000000n);a.movqToXmm('xmm0','rax');a.label('parse.done');f.end(b);
+
+  // RCX is a UTF-16 string descriptor, RDX is ToInt32(radix). Return binary64.
+  // Keep all significant radix digits until overflow is certain, then the
+  // shared biguint ratio converter supplies correctly rounded finite results.
+  {
+    const f=new Native('rt.parseIntString'),a=f.a;
+    a.mov('rbx','rdx');a.load('rdi',{base:'rcx'});a.lea('rsi',{base:'rcx',disp:8});a.shl('rdi',1);a.add('rdi','rsi');f.imm(4,0);a.xor('r14','r14');
+    a.label('parseInt.trim');a.cmp('rsi','rdi');a.jcc('ae','parseInt.nan');a.load('rcx',{base:'rsi'},16);a.call('num.space');a.test('rax','rax');a.jcc('e','parseInt.sign');a.add('rsi',2);a.jmp('parseInt.trim');
+    a.label('parseInt.sign');a.load('rax',{base:'rsi'},16);a.cmp('rax',45);a.jcc('ne','parseInt.plus');a.mov('r14',0x8000000000000000n);a.jmp('parseInt.skipSign');a.label('parseInt.plus');a.cmp('rax',43);a.jcc('ne','parseInt.radix');a.label('parseInt.skipSign');a.add('rsi',2);a.cmp('rsi','rdi');a.jcc('ae','parseInt.nan');
+    a.label('parseInt.radix');a.test('rbx','rbx');a.jcc('ne','parseInt.explicitRadix');a.mov('rbx',10);f.imm(4,1);a.jmp('parseInt.prefix');
+    a.label('parseInt.explicitRadix');a.cmp('rbx',2);a.jcc('l','parseInt.nan');a.cmp('rbx',36);a.jcc('g','parseInt.nan');a.cmp('rbx',16);a.jcc('ne','parseInt.prefix');f.imm(4,1);
+    a.label('parseInt.prefix');f.get('rax',4);a.test('rax','rax');a.jcc('e','parseInt.allocate');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax',4);a.jcc('b','parseInt.allocate');a.load('rax',{base:'rsi'},16);a.cmp('rax',48);a.jcc('ne','parseInt.allocate');a.load('rax',{base:'rsi',disp:2},16);a.or('rax',32);a.cmp('rax',120);a.jcc('ne','parseInt.allocate');a.mov('rbx',16);a.add('rsi',4);
+    a.label('parseInt.allocate');a.mov('rcx',BIG_BYTES*2);a.call('rt.alloc');a.mov('r12','rax');a.lea('r13',{base:'rax',disp:BIG_BYTES});a.mov('rcx','r12');a.mov('rdx',0);a.call('num.init');a.mov('rcx','r13');a.mov('rdx',1);a.call('num.init');f.imm(5,0);a.xor('r15','r15');
+    a.label('parseInt.digit');a.cmp('rsi','rdi');a.jcc('ae','parseInt.finish');a.load('r10',{base:'rsi'},16);a.sub('r10',48);a.cmp('r10',9);a.jcc('be','parseInt.value');a.add('r10',48);a.or('r10',32);a.sub('r10',97);a.cmp('r10',25);a.jcc('a','parseInt.finish');a.add('r10',10);
+    a.label('parseInt.value');a.cmp('r10','rbx');a.jcc('ae','parseInt.finish');f.imm(5,1);a.cmp('r15',1100);a.jcc('ae','parseInt.inf');f.set(6,'r10');a.mov('rcx','r12');a.mov('rdx','rbx');a.call('num.mul');a.mov('rcx','r12');f.get('rdx',6);a.call('num.add');a.mov('rcx','r12');a.call('num.bits');a.test('rax','rax');a.jcc('e','parseInt.next');a.add('r15',1);a.label('parseInt.next');a.add('rsi',2);a.jmp('parseInt.digit');
+    a.label('parseInt.finish');f.get('rax',5);a.test('rax','rax');a.jcc('e','parseInt.nan');a.mov('rcx','r12');a.mov('rdx','r13');a.call('num.ratio');a.movqFromXmm('rax','xmm0');a.jmp('parseInt.signResult');
+    a.label('parseInt.inf');a.mov('rax',0x7ff0000000000000n);a.label('parseInt.signResult');a.or('rax','r14');a.jmp('parseInt.done');
+    a.label('parseInt.nan');a.mov('rax',0x7ff8000000000000n);a.label('parseInt.done');a.movqToXmm('xmm0','rax');f.end(b);
+  }
+  // Find the longest StrDecimalLiteral prefix, then reuse the exact decimal
+  // parser so parseFloat and ToNumber agree on rounding at every boundary.
+  {
+    const f=new Native('rt.parseFloatString'),a=f.a;
+    a.load('rdi',{base:'rcx'});a.lea('rsi',{base:'rcx',disp:8});a.shl('rdi',1);a.add('rdi','rsi');
+    a.label('parseFloat.trim');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.nan');a.load('rcx',{base:'rsi'},16);a.call('num.space');a.test('rax','rax');a.jcc('e','parseFloat.sign');a.add('rsi',2);a.jmp('parseFloat.trim');
+    a.label('parseFloat.sign');a.mov('r12','rsi');a.load('rax',{base:'rsi'},16);a.cmp('rax',43);a.jcc('e','parseFloat.skipSign');a.cmp('rax',45);a.jcc('ne','parseFloat.infinity');a.label('parseFloat.skipSign');a.add('rsi',2);a.cmp('rsi','rdi');a.jcc('ae','parseFloat.nan');
+    a.label('parseFloat.infinity');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax',16);a.jcc('b','parseFloat.decimal');a.load('rax',{base:'rsi'},16);a.cmp('rax',73);a.jcc('ne','parseFloat.decimal');
+    for(let i=0;i<8;i++){a.load('rax',{base:'rsi',disp:i*2},16);a.cmp('rax','Infinity'.charCodeAt(i));a.jcc('ne','parseFloat.decimal');}
+    a.lea('r14',{base:'rsi',disp:16});a.jmp('parseFloat.copy');
+    a.label('parseFloat.decimal');a.xor('r14','r14');a.xor('r15','r15');
+    a.label('parseFloat.digits');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.dot');a.load('rax',{base:'rsi'},16);a.sub('rax',48);a.cmp('rax',9);a.jcc('a','parseFloat.dot');a.add('rsi',2);a.mov('r14','rsi');a.mov('r15',1);a.jmp('parseFloat.digits');
+    a.label('parseFloat.dot');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.exponent');a.load('rax',{base:'rsi'},16);a.cmp('rax',46);a.jcc('ne','parseFloat.exponent');a.add('rsi',2);a.test('r15','r15');a.jcc('e','parseFloat.fraction');a.mov('r14','rsi');
+    a.label('parseFloat.fraction');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.exponent');a.load('rax',{base:'rsi'},16);a.sub('rax',48);a.cmp('rax',9);a.jcc('a','parseFloat.exponent');a.add('rsi',2);a.mov('r14','rsi');a.mov('r15',1);a.jmp('parseFloat.fraction');
+    a.label('parseFloat.exponent');a.test('r15','r15');a.jcc('e','parseFloat.nan');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.copy');a.load('rax',{base:'rsi'},16);a.or('rax',32);a.cmp('rax',101);a.jcc('ne','parseFloat.copy');a.add('rsi',2);a.cmp('rsi','rdi');a.jcc('ae','parseFloat.copy');a.load('rax',{base:'rsi'},16);a.cmp('rax',43);a.jcc('e','parseFloat.expSign');a.cmp('rax',45);a.jcc('ne','parseFloat.expDigits');a.label('parseFloat.expSign');a.add('rsi',2);
+    a.label('parseFloat.expDigits');a.cmp('rsi','rdi');a.jcc('ae','parseFloat.copy');a.load('rax',{base:'rsi'},16);a.sub('rax',48);a.cmp('rax',9);a.jcc('a','parseFloat.copy');a.add('rsi',2);a.mov('r14','rsi');a.jmp('parseFloat.expDigits');
+    a.label('parseFloat.copy');a.mov('rcx','r14');a.sub('rcx','r12');a.mov('rbx','rcx');a.add('rcx',8);a.call('rt.alloc');a.mov('r13','rax');a.mov('rcx','rbx');a.shr('rcx',1);a.store({base:'r13'},'rcx');a.mov('rsi','r12');a.lea('rdi',{base:'r13',disp:8});
+    a.label('parseFloat.copyLoop');a.cmp('rsi','r14');a.jcc('ae','parseFloat.convert');a.load('rax',{base:'rsi'},16);a.store({base:'rdi'},'rax',16);a.add('rsi',2);a.add('rdi',2);a.jmp('parseFloat.copyLoop');
+    a.label('parseFloat.convert');a.mov('rcx','r13');a.call('rt.parseNumber');a.jmp('parseFloat.done');
+    a.label('parseFloat.nan');a.mov('rax',0x7ff8000000000000n);a.movqToXmm('xmm0','rax');a.label('parseFloat.done');f.end(b);
+  }
 }

@@ -12,7 +12,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.objectPrototype':['constructor','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toString','valueOf','__proto__','toLocaleString'],
   'rt.arrayPrototype':['constructor','join','toString','pop','push','shift','unshift','splice','slice','includes','indexOf','lastIndexOf','forEach','map','filter','some','every','find','findIndex','reduce','reduceRight','fill','copyWithin','reverse','keys','entries','values','@@iterator'],
   'rt.Array':['length','name','prototype','from','isArray','of','@@species'],
-  'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
+  'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','parseFloat','parseInt','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
   'rt.String':['length','name','prototype','fromCharCode'],
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
   'rt.booleanPrototype':['constructor','toString','valueOf'],
@@ -22,7 +22,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Symbol',...errorConstructorNames,'Math','globalThis','undefined','NaN','Infinity','isFinite','isNaN','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Symbol',...errorConstructorNames,'Math','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

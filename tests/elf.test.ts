@@ -159,3 +159,8 @@ test('Linux native Array.from maps an iterator under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native parseInt and parseFloat survive coercion under GC stress',t=>{
+ const source=`let x={toString(){for(let i=0;i<30;i++)({x:i});return '0x2a tail'}},r={valueOf(){for(let i=0;i<30;i++)({x:i});return 16}};console.log(parseInt(x,r),parseFloat(' -1.25e2rest'),Number.parseInt===parseInt,Number.parseFloat===parseFloat);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
