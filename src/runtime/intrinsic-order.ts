@@ -21,11 +21,12 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.numberPrototype':['constructor','toExponential','toFixed','toLocaleString','toPrecision','toString','valueOf'],
   'rt.stringPrototype':['constructor','toString','valueOf','charAt','charCodeAt','codePointAt','concat','toLowerCase','toLocaleLowerCase','toUpperCase','toLocaleUpperCase','includes','indexOf','lastIndexOf','startsWith','endsWith','localeCompare','normalize','padStart','padEnd','repeat','replace','slice','split','substring','trim','trimStart','trimEnd','trimLeft','trimRight','@@iterator'],
   'rt.symbolPrototype':['constructor','toString','valueOf','description','@@toPrimitive','@@toStringTag'],
+  'rt.bigintPrototype':['constructor','toString','valueOf'],
   'rt.datePrototype':['constructor','toString','toDateString','toTimeString','toISOString','toUTCString','toJSON','toLocaleString','toLocaleDateString','toLocaleTimeString','valueOf','getTime','getFullYear','getUTCFullYear','getMonth','getUTCMonth','getDate','getUTCDate','getDay','getUTCDay','getHours','getUTCHours','getMinutes','getUTCMinutes','getSeconds','getUTCSeconds','getMilliseconds','getUTCMilliseconds','getTimezoneOffset','setTime','setFullYear','setUTCFullYear','setMonth','setUTCMonth','setDate','setUTCDate','setHours','setUTCHours','setMinutes','setUTCMinutes','setSeconds','setUTCSeconds','setMilliseconds','setUTCMilliseconds','getYear','@@toPrimitive'],
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','Symbol',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','Symbol','BigInt',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

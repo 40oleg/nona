@@ -40,7 +40,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
