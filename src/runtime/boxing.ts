@@ -6,7 +6,7 @@ export const BoxKind=4;
 export const BoxLayout={value:O.size,size:O.size+16} as const;
 export function emitBoxing(b:RuntimeBuilder):void {
  for(const [name,tag] of [['boolean',2],['number',3],['string',4],['symbol',6],['bigint',7]] as const){
-  const bytes=new Uint8Array(BoxLayout.size);bytes[O.kind]=BoxKind;bytes[BoxLayout.value]=tag;
+  const bytes=new Uint8Array(BoxLayout.size);if(name!=='bigint'){bytes[O.kind]=BoxKind;bytes[BoxLayout.value]=tag;}
   const fixups:{offset:number;kind:'va64';target:string;addend:number}[]=[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0}];
   fixups.push({offset:O.properties,kind:'va64',target:'rt.'+name+'Prototype.toString',addend:0});
   if(tag===4)fixups.push({offset:BoxLayout.value+8,kind:'va64',target:'rt.str.empty',addend:0});
