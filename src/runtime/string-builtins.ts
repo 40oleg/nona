@@ -3,20 +3,64 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {stringLiteral} from './value.js';
-import {unicodeUpperCount,unicodeUpperData} from './unicode-upper-data.js';
+import {unicodeUpperCount,unicodeUpperData,unicodeLowerCount,unicodeLowerData,unicodeCasedCount,unicodeCasedData,unicodeCaseIgnorableCount,unicodeCaseIgnorableData} from './unicode-upper-data.js';
 
 const searchMethods=['includes','startsWith','endsWith'] as const;
 const positionMethods=['indexOf','lastIndexOf'] as const;
 const indexMethods=['charAt','charCodeAt','codePointAt'] as const;
 const trimMethods=['trim','trimStart','trimEnd'] as const;
 const padMethods=['padStart','padEnd'] as const;
-const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','toUpperCase','substring','slice','repeat',...trimMethods,...padMethods];
+const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','toUpperCase','toLowerCase','substring','slice','repeat',...trimMethods,...padMethods];
 export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn','rt.stringRaw.fn'];
 export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),...builtinPropertyRoots('rt.stringRaw.fn','raw','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
 
 export function emitStringBuiltins(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.str.padSpace',' '));
  b.data('rt.unicodeUpper',unicodeUpperData);
+ b.data('rt.unicodeLower',unicodeLowerData);
+ b.data('rt.unicodeCased',unicodeCasedData);
+ b.data('rt.unicodeCaseIgnorable',unicodeCaseIgnorableData);
+ const finalSigma=new Uint8Array(16);const sigmaView=new DataView(finalSigma.buffer);sigmaView.setUint32(0,0x03a3,true);sigmaView.setUint32(4,1,true);sigmaView.setUint16(8,0x03c2,true);b.data('rt.sigmaFinal',finalSigma);
+ for(const [name,count] of [['Cased',unicodeCasedCount],['CaseIgnorable',unicodeCaseIgnorableCount]] as const){
+  b.fn('rt.is'+name,40,a=>{
+   a.mov('r8',0);a.mov('r9',count);const loop=a.unique('classLoop'),less=a.unique('classLess'),yes=a.unique('classYes'),no=a.unique('classNo');
+   a.label(loop);a.cmp('r8','r9');a.jcc('ae',no);a.mov('rax','r8');a.add('rax','r9');a.shr('rax',1);
+   a.mov('r10','rax');a.shl('r10',3);a.lea('r11',{rip:'rt.unicode'+name});a.add('r10','r11');
+   a.load('r11',{base:'r10'},32);a.cmp('rcx','r11');a.jcc('b',less);
+   a.load('r11',{base:'r10',disp:4},32);a.cmp('rcx','r11');a.jcc('be',yes);
+   a.add('rax',1);a.mov('r8','rax');a.jmp(loop);
+   a.label(less);a.mov('r9','rax');a.jmp(loop);
+   a.label(yes);a.mov('rax',1);a.jmp(no+'Return');a.label(no);a.mov('rax',0);a.label(no+'Return');
+  });
+ }
+ for(const direction of ['Previous','Next'] as const){
+  b.fn('rt.sigma'+direction,88,a=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+   const loop=a.unique('sigmaLoop'),end=a.unique('sigmaEnd'),classify=a.unique('sigmaClassify'),found=a.unique('sigmaFound'),skip=a.unique('sigmaSkip');
+   a.label(loop);a.load('rax',slot(48));a.load('r10',slot(40));
+   if(direction==='Previous'){a.test('rax','rax');a.jcc('e',end);a.sub('rax',1);a.store(slot(48),'rax');}
+   else {a.load('r11',{base:'r10'});a.cmp('rax','r11');a.jcc('ae',end);}
+   a.shl('rax',1);a.add('r10',8);a.add('r10','rax');a.load('rcx',{base:'r10'},16);
+   if(direction==='Previous'){
+    a.cmp('rcx',0xdc00);a.jcc('b',classify);a.cmp('rcx',0xdfff);a.jcc('a',classify);
+    a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',classify);
+    a.load('rdx',{base:'r10',disp:-2},16);a.cmp('rdx',0xd800);a.jcc('b',classify);a.cmp('rdx',0xdbff);a.jcc('a',classify);
+    a.sub('rcx',0xdc00);a.sub('rdx',0xd800);a.shl('rdx',10);a.add('rcx','rdx');a.add('rcx',0x10000);
+    a.load('rax',slot(48));a.sub('rax',1);a.store(slot(48),'rax');
+   }else{
+    a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');
+    a.cmp('rcx',0xd800);a.jcc('b',classify);a.cmp('rcx',0xdbff);a.jcc('a',classify);
+    a.load('rax',slot(40));a.load('r11',{base:'rax'});a.load('rax',slot(48));a.cmp('rax','r11');a.jcc('ae',classify);
+    a.load('rdx',{base:'r10',disp:2},16);a.cmp('rdx',0xdc00);a.jcc('b',classify);a.cmp('rdx',0xdfff);a.jcc('a',classify);
+    a.sub('rcx',0xd800);a.shl('rcx',10);a.sub('rdx',0xdc00);a.add('rcx','rdx');a.add('rcx',0x10000);
+    a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');
+   }
+   a.label(classify);a.store(slot(56),'rcx');a.call('rt.isCaseIgnorable');a.test('rax','rax');a.jcc('ne',skip);
+   a.load('rcx',slot(56));a.call('rt.isCased');a.test('rax','rax');a.jcc('ne',found);a.jmp(end);
+   a.label(skip);a.jmp(loop);
+   a.label(found);a.mov('rax',1);a.jmp(end+'Return');a.label(end);a.mov('rax',0);a.label(end+'Return');
+  });
+ }
  prependFunctionBuiltin(b,'rt.stringFromCharCode.fn','fromCharCode',1,'rt.String');
  rootedFn(b,'rt.stringFromCharCode.fn.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
@@ -100,8 +144,10 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.load('rax',slot(136));a.add('rax',1);a.store(slot(136),'rax');a.jmp(loop);
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
- prependFunctionBuiltin(b,'rt.stringToUpperCase.fn','toUpperCase',0,'rt.stringPrototype');
- rootedFn(b,'rt.stringToUpperCase.fn.code',200,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:3}],(a,frame)=>{
+ for(const [name,table,count] of [['toUpperCase','rt.unicodeUpper',unicodeUpperCount],['toLowerCase','rt.unicodeLower',unicodeLowerCount]] as const){
+ const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';
+ prependFunctionBuiltin(b,symbol,name,0,'rt.stringPrototype');
+ rootedFn(b,symbol+'.code',200,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:3}],(a,frame)=>{
   a.store(slot(40),'rcx');
   a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(96+n),'rax');}
   a.load('rax',slot(96));a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
@@ -119,13 +165,21 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.load('r11',slot(112));a.add('r11',1);a.load('rdx',slot(160));a.cmp('r11','rdx');a.jcc('ae',lookup);
   a.load('rdx',{base:'r10',disp:2},16);a.cmp('rdx',0xdc00);a.jcc('b',lookup);a.cmp('rdx',0xdfff);a.jcc('a',lookup);
   a.sub('rax',0xd800);a.shl('rax',10);a.sub('rdx',0xdc00);a.add('rax','rdx');a.add('rax',0x10000);a.store(slot(128),'rax');a.mov('r10',2);a.store(slot(176),'r10');
-  a.label(lookup);a.mov('rax',0);a.store(slot(144),'rax');a.mov('rax',unicodeUpperCount);a.store(slot(152),'rax');
+  a.label(lookup);a.mov('rax',0);a.store(slot(144),'rax');a.mov('rax',count);a.store(slot(152),'rax');
   a.label(search);a.load('rax',slot(144));a.load('r10',slot(152));a.cmp('rax','r10');a.jcc('ae',copy);
-  a.add('rax','r10');a.shr('rax',1);a.store(slot(136),'rax');a.shl('rax',4);a.lea('r10',{rip:'rt.unicodeUpper'});a.add('r10','rax');
+  a.add('rax','r10');a.shr('rax',1);a.store(slot(136),'rax');a.shl('rax',4);a.lea('r10',{rip:table});a.add('r10','rax');
   a.load('rax',{base:'r10'},32);a.load('r11',slot(128));a.cmp('rax','r11');a.jcc('e',found);a.jcc('a',less);
   a.load('rax',slot(136));a.add('rax',1);a.store(slot(144),'rax');a.jmp(search);
   a.label(less);a.load('rax',slot(136));a.store(slot(152),'rax');a.jmp(search);
-  a.label(found);a.load('rax',{base:'r10',disp:4},32);a.store(slot(168),'rax');a.store(slot(184),'r10');a.mov('rax',0);a.store(slot(192),'rax');a.jmp(write);
+  a.label(found);
+  if(name==='toLowerCase'){
+   const normal=a.unique('normalSigma');a.load('rax',slot(128));a.cmp('rax',0x03a3);a.jcc('ne',normal);
+   a.load('rcx',slot(72));a.load('rdx',slot(112));a.call('rt.sigmaPrevious');a.test('rax','rax');a.jcc('e',normal);
+   a.load('rcx',slot(72));a.load('rdx',slot(112));a.add('rdx',1);a.call('rt.sigmaNext');a.test('rax','rax');a.jcc('ne',normal);
+   a.lea('r10',{rip:'rt.sigmaFinal'});a.jmp(normal+'Ready');
+   a.label(normal);a.load('rax',slot(136));a.shl('rax',4);a.lea('r10',{rip:table});a.add('r10','rax');a.label(normal+'Ready');
+  }
+  a.load('rax',{base:'r10',disp:4},32);a.store(slot(168),'rax');a.store(slot(184),'r10');a.mov('rax',0);a.store(slot(192),'rax');a.jmp(write);
   a.label(copy);a.load('rax',slot(176));a.store(slot(168),'rax');a.mov('rax',0);a.store(slot(192),'rax');a.mov('r10',0);a.store(slot(184),'r10');
   a.label(write);a.load('rax',slot(192));a.load('r10',slot(168));a.cmp('rax','r10');a.jcc('ae',next);
   a.load('r10',slot(184));a.test('r10','r10');a.jcc('e',one);
@@ -137,6 +191,7 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.label(done);a.load('r10',slot(88));a.load('rax',slot(120));a.store({base:'r10'},'rax');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ }
  for(const name of searchMethods){
  const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';
  prependFunctionBuiltin(b,symbol,name,1,'rt.stringPrototype');

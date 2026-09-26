@@ -2363,3 +2363,10 @@ Unicode 17.0 соответствий, с поддержкой расширен�
 защищена корнем GC. В группе Test262 24/26; два теста требуют `RegExp` и
 прямой `eval`. Native String tests 57/57, smoke 104/104, совместимые
 примеры Windows/Linux по 56/56.
+
+`String.prototype.toLowerCase` использует ту же независимую от хоста
+таблицу Unicode 17.0. Для контекстной формы греческой сигмы добавлены
+таблицы диапазонов Cased и Case_Ignorable, сканирование UTF-16 в обоих
+направлениях и правило Final_Sigma. Test262: 28/30, два случая требуют
+`RegExp` и `eval`; native String tests 60/60, smoke 105/105,
+совместимые примеры Windows/Linux по 57/57.

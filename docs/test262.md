@@ -130,3 +130,9 @@ The `built-ins/String/prototype/toUpperCase` group has 24 pass / 2 fail /
 0 skip. The two failures require `RegExp` and direct `eval`, both tracked
 outside v0.5. The Unicode special-casing case is in the positive smoke
 manifest, now 104/104. Windows and Linux compatible examples pass 56/56 each.
+
+The `built-ins/String/prototype/toLowerCase` group has 28 pass / 2 fail /
+0 skip. Its two failures also require `RegExp` and direct `eval`.
+Final Sigma conditional mapping, including `Case_Ignorable` characters,
+passes. The positive smoke manifest is 105/105; compatible examples are
+57/57 on Windows and Linux.

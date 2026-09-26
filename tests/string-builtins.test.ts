@@ -27,6 +27,8 @@ const cases:[string,string][]=[
  ['String.concat zero arguments and receiver errors',`console.log('abc'.concat(),String.prototype.concat.call(true));for(var x of [null,undefined])try{String.prototype.concat.call(x,'a')}catch(e){console.log(e.name)}`],
  ['String.toUpperCase Unicode',`console.log('abc 123 à ß ﬃ ı 𐐨'.toUpperCase());console.log('😀\ud800\udc00\ud800x'.toUpperCase().length,String.prototype.toUpperCase.call(123),String.prototype.toUpperCase.length);`],
  ['String.toUpperCase generic and errors',`var s='';var x={toString(){s+='x';return 'Straße';}};console.log(String.prototype.toUpperCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toUpperCase.call(v)}catch(e){console.log(e.name)}`],
+ ['String.toLowerCase Unicode and final sigma',`console.log('ABC À İ 𐐀'.toLowerCase());console.log('AΣ AΣB A.Σ AΣ.b AͅΣ AΣͅB'.toLowerCase(),String.prototype.toLowerCase.length);`],
+ ['String.toLowerCase generic and errors',`var s='';var x={toString(){s+='x';return 'AΣ';}};console.log(String.prototype.toLowerCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toLowerCase.call(v)}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -86,6 +88,11 @@ test('String.concat: receiver and arguments survive stress GC',()=>{
 });
 test('String.toUpperCase: coerced source survives stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Straße 𐐨 ﬃ';}};console.log(String.prototype.toUpperCase.call(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.toLowerCase: coerced source survives stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ 𐐀 İ';}};console.log(String.prototype.toLowerCase.call(x));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
