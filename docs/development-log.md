@@ -2228,3 +2228,17 @@ typed arrays, RegExp literal, Proxy и cross-realm. Smoke: 89/89. Отдельн
 Linux native набор: 21 успешно, 1 пропуск из-за WSL probe.
 Общая регрессия Node 26.10.0: 1575 тестов, 1551 успешно, 0 ошибок,
 24 пропуска из-за WSL под параллельной нагрузкой и ограничений среды.
+
+## 2026-09-26: Array.prototype.flat и flatMap
+
+Добавлены generic `flat` и `flatMap` с рекурсивным FlattenIntoArray,
+`ArraySpeciesCreate`, унаследованными индексами и пропуском holes. `flatMap`
+вызывает mapper с `(element, index, source)` и нужным `thisArg`, а результат
+расплющивает ровно на один уровень. Промежуточные значения и массивы
+удерживаются через точные GC roots при вложенных вызовах и callbacks.
+
+Целевые Windows native тесты: 10/10, включая GC stress; вся группа
+`array-builtins.test.ts`: 139/139. Test262 `flat`: 18/19 (один тест требует
+Proxy); `flatMap`: 21/24 (два теста требуют typed arrays, один Proxy).
+Положительный smoke-набор: 91/91. Linux native GC stress тест добавлен, но
+текущий запуск пропущен из-за недоступного WSL probe.

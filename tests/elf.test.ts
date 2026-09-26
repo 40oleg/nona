@@ -169,3 +169,8 @@ test('Linux native Array.prototype.concat honors spreadability and species under
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native flat and flatMap preserve nested values under GC stress',t=>{
+ const source=`let a=[{x:1},,[{x:2},[{x:3}]]],b=a.flat(2),c=b.flatMap(function(v,i){for(let j=0;j<20;j++)({x:j});return [v,{x:v.x+i}]});console.log(b.length,b[0].x,b[1].x,b[2].x,c.length,c[5].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

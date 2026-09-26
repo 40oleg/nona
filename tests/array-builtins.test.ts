@@ -8,6 +8,14 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['flat nested depth and metadata',`var a=[1,[2,[3,[4]]]];console.log(a.flat().join(','),a.flat(2).join(','),a.flat(Infinity).join(','),a.flat(0).length,Array.prototype.flat.length);`],
+ ['flat sparse and inherited',`var a=[1,,[2,,3]];var b=a.flat();console.log(b.length,b.join(','));Array.prototype[1]='p';b=a.flat();delete Array.prototype[1];console.log(b.join(','),b.length);`],
+ ['flat generic and species',`var o={length:2,0:[1,2],1:3};console.log(Array.prototype.flat.call(o).join(','));var a=[1,[2]],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:7}}};var b=a.flat();console.log(s,b[0],b[1],b.x,b.length,Array.isArray(b));`],
+ ['flat depth coercion',`var s='',a=[1,[2,[3]]];console.log(a.flat({valueOf(){s+='d';return 1.9}}).join(','),s,a.flat(-1).length,a.flat(NaN).length);`],
+ ['flatMap sparse and callback args',`var a=[1,,3],s='',b=a.flatMap(function(v,i,o){s+=i+':'+(o===a)+';';return [v,v+1]});console.log(b.join(','),b.length,s,Array.prototype.flatMap.length);`],
+ ['flatMap thisArg and one-level flatten',`var t={x:2},a=[1,[3]],b=a.flatMap(function(v){'use strict';return [v,this.x]},t);console.log(b.length,b[0],b[1],Array.isArray(b[2]),b[3]);`],
+ ['flatMap species and nonarray spreadable',`var a=[1],o={0:7,length:1,[Symbol.isConcatSpreadable]:true},s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:5}}};var b=a.flatMap(function(){s+='M';return o});console.log(s,b[0]===o,b.x,b.length);`],
+ ['flatMap invalid mapper',`try{[].flatMap(null)}catch(e){console.log(e.name)}try{[].flatMap()}catch(e){console.log(e.name)}`],
  ['concat ordinary and length',`var a=[1,2].concat([3,4],5);console.log(a.length,a.join(','),Array.prototype.concat.length,[].concat().length);`],
  ['concat sparse and inherited',`var a=[1,,3],b=[,5];var c=a.concat(b);console.log(c.length,0 in c,1 in c,2 in c,3 in c,4 in c,c[4]);Array.prototype[1]='p';c=a.concat(b);delete Array.prototype[1];console.log(c[1],1 in c,c[3],3 in c);`],
  ['concat spreadable object and array override',`var o={0:'x',2:'z',length:3,[Symbol.isConcatSpreadable]:true},a=[1,2];a[Symbol.isConcatSpreadable]=false;var b=[0].concat(o,a);console.log(b.length,b[0],b[1],2 in b,b[3],b[4]===a);`],
@@ -224,6 +232,18 @@ test('array builtins: unshift values survive setter and stress GC',()=>{
 
 test('array builtins: concat spreadability, species and entries survive stress GC',()=>{
  const source=`var value={x:7},a=[value],o={length:2,1:{x:9}},s='';Object.defineProperty(o,Symbol.isConcatSpreadable,{get:function(){for(var i=0;i<30;i++)({x:i});s+='S';return true}});Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({x:i});s+='G';return value}});a.constructor={[Symbol.species]:function(){for(var i=0;i<30;i++)({x:i});return []}};var r=a.concat(o);console.log(r.length,r[0].x,r[1].x,r[2].x,s);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
+test('array builtins: flat nested arrays and species survive stress GC',()=>{
+ const source=`var value={x:7},a=[,[value,[{x:8}]]];a.constructor={[Symbol.species]:function(){for(var i=0;i<30;i++)({x:i});return []}};var b=a.flat(2);console.log(b.length,b[0].x,b[1].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
+test('array builtins: flatMap callback and mapped values survive stress GC',()=>{
+ const source=`var value={x:7},a=[value,{x:8}],t={n:1};var b=a.flatMap(function(v,i){for(var j=0;j<30;j++)({x:j});return [v,{x:v.x+this.n+i}]},t);console.log(b.length,b[0].x,b[1].x,b[2].x,b[3].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

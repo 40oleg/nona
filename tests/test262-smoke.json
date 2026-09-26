@@ -88,6 +88,8 @@
     "built-ins/Array/prototype/shift/S15.4.4.9_A2_T3.js",
     "built-ins/Array/prototype/unshift/clamps-to-integer-limit.js",
     "built-ins/Array/prototype/concat/Array.prototype.concat_array-like.js",
-    "built-ins/Array/prototype/concat/create-species-null.js"
+    "built-ins/Array/prototype/concat/create-species-null.js",
+    "built-ins/Array/prototype/flat/positive-infinity.js",
+    "built-ins/Array/prototype/flatMap/depth-always-one.js"
   ]
 }
