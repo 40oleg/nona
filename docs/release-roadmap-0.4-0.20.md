@@ -99,7 +99,13 @@ locale-методы с политикой UTC для локального вре
 требуют `Reflect`, `Proxy`, коллекции/RegExp или классы. Группа `Function`
 дала 249 pass / 260 fail; среди отказов есть тесты
 динамического `Function`, RegExp в harness для `toString`, классов и async.
-Пофайловая классификация этой группы ещё не завершена. Полный разбор
+Пофайловая классификация этой группы ещё не завершена. Группа
+`Object/prototype` дала 165 pass / 83 fail: 54 отказа относятся к
+методам Annex B `__defineGetter__`/`__defineSetter__`/`__lookupGetter__`/
+`__lookupSetter__`, запланированным на 0.19; остальные в основном требуют
+Proxy/Reflect, BigInt, RegExp, коллекции или более поздние Iterator Helpers.
+`Object.getOwnPropertySymbols` дал 8 pass / 4 fail; все четыре отказа требуют
+инвариантов Proxy из 0.15.
 Date, JSON, BigInt, RegExp, его интеграция со String, буферы, Atomics,
 Map/Set и WeakMap/WeakSet остаются открытыми. PR для 0.6–0.14 пока
 не открывать.
