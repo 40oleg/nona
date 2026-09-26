@@ -114,4 +114,9 @@ the documented `eval` exception. The positive manifest passes 100/100.
 
 After v0.4.0, the complete `built-ins/String/fromCodePoint` group passes
 11/11. One case is retained in the pinned smoke manifest; the manifest
-passes 101/101.
+passed 101/101 at that checkpoint.
+
+The complete `built-ins/String/raw` group passes 30/30. Its tagged-template
+case is included in the pinned positive smoke manifest.
+The updated manifest passes 102/102; Windows and Linux compatible examples
+pass 54/54 each.

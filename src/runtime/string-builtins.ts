@@ -10,8 +10,8 @@ const indexMethods=['charAt','charCodeAt','codePointAt'] as const;
 const trimMethods=['trim','trimStart','trimEnd'] as const;
 const padMethods=['padStart','padEnd'] as const;
 const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'substring','slice','repeat',...trimMethods,...padMethods];
-export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn'];
-export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
+export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn','rt.stringRaw.fn'];
+export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),...builtinPropertyRoots('rt.stringRaw.fn','raw','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
 
 export function emitStringBuiltins(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.str.padSpace',' '));
@@ -56,6 +56,34 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.label(done);a.load('rdx',slot(72));a.load('rax',slot(104));a.store({base:'rdx'},'rax');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(finish);
   a.label(empty);a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.lea('rax',{rip:'rt.str.empty'});a.store({base:'rcx',disp:8},'rax');a.label(finish);
+ });
+ b.bundle.fragments.push(stringLiteral('rt.str.raw','raw'));
+ prependFunctionBuiltin(b,'rt.stringRaw.fn','raw',1,'rt.String');
+ rootedFn(b,'rt.stringRaw.fn.code',280,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:8}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
+  a.sub('rdx',1);a.store(slot(240),'rdx');
+  a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toObject');
+  a.mov('rax',4);a.store(slot(144),'rax');a.lea('rax',{rip:'rt.str.raw'});a.store(slot(152),'rax');
+  a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.getProperty');
+  a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toObject');
+  a.lea('rcx',slot(112));a.call('rt.arrayFlattenLength');a.store(slot(232),'rax');
+  a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(136),'rax');
+  a.mov('rax',0);a.store(slot(224),'rax');
+  const loop=a.unique('loop'),substitute=a.unique('substitute'),emptySub=a.unique('emptySub'),next=a.unique('next'),done=a.unique('done');
+  a.label(loop);a.load('rax',slot(224));a.load('r10',slot(232));a.cmp('rax','r10');a.jcc('ae',done);
+  a.lea('rcx',slot(144));a.load('rdx',slot(224));a.call('rt.arrayIndexKey');
+  a.lea('rcx',slot(160));a.lea('rdx',slot(112));a.lea('r8',slot(144));a.call('rt.getProperty');
+  a.lea('rcx',slot(176));a.lea('rdx',slot(160));a.call('rt.toString');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(128));a.lea('r8',slot(176));a.call('rt.concat');
+  a.load('rax',slot(224));a.add('rax',1);a.load('r10',slot(232));a.cmp('rax','r10');a.jcc('ae',done);
+  a.load('rax',slot(224));a.load('r10',slot(240));a.cmp('rax','r10');a.jcc('ae',emptySub);
+  a.add('rax',1);a.shl('rax',4);a.load('rdx',slot(56));a.add('rdx','rax');
+  a.lea('rcx',slot(192));a.call('rt.toString');a.jmp(substitute);
+  a.label(emptySub);a.mov('rax',4);a.store(slot(192),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(200),'rax');
+  a.label(substitute);a.lea('rcx',slot(128));a.lea('rdx',slot(128));a.lea('r8',slot(192));a.call('rt.concat');
+  a.label(next);a.load('rax',slot(224));a.add('rax',1);a.store(slot(224),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}
  });
  for(const name of searchMethods){
  const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';

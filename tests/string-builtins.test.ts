@@ -18,6 +18,10 @@ const cases:[string,string][]=[
  ['String.fromCodePoint BMP and surrogate pairs',`var s=String.fromCodePoint(65,0x1f600,0xffff);console.log(s.length,s.charCodeAt(0),s.charCodeAt(1),s.charCodeAt(2),s.charCodeAt(3),String.fromCodePoint().length,String.fromCodePoint.length);`],
  ['String.fromCodePoint validates each code point',`var values=[-1,0x110000,1.5,NaN,Infinity,-Infinity];for(var v of values){try{String.fromCodePoint(v);console.log('ok')}catch(e){console.log(e.name)}}try{String.fromCodePoint(Symbol())}catch(e){console.log(e.name)}`],
  ['String.fromCodePoint coercion order',`var s='';var a={valueOf(){s+='a';return 65;}},b={valueOf(){s+='b';return 0x1f600;}};console.log(String.fromCodePoint(a,b),s);`],
+ ['String.raw template and substitutions',`console.log(String.raw({raw:['a','b','c']},1,2),String.raw({raw:['a','b','c']},1),String.raw({raw:[]}),String.raw.length);`],
+ ['String.raw tagged template',`console.log(String.raw\`a\\nb\${3}c\`);`],
+ ['String.raw getters and conversion order',`var s='';var raw={get length(){s+='l';return 2},get 0(){s+='a';return {toString(){s+='A';return 'x'}}},get 1(){s+='b';return 'y'}};var value={toString(){s+='v';return '!'}};console.log(String.raw({raw:raw},value),s);`],
+ ['String.raw primitive raw and missing segment',`console.log(String.raw({raw:'ab'},'!'),String.raw({raw:{length:2,0:'a'}},'x'));`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -62,6 +66,11 @@ test('String.includes: coercion survives stress GC',()=>{
 });
 test('String.fromCodePoint: coercion retains buffer under stress GC',()=>{
  const source=`var a={valueOf(){for(var i=0;i<40;i++)({v:i});return 65;}},b={valueOf(){for(var i=0;i<40;i++)({v:i});return 0x1f600;}};console.log(String.fromCodePoint(a,b).length);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.raw: getters retain raw and result under stress GC',()=>{
+ const source=`var raw={length:2,get 0(){for(var i=0;i<40;i++)({v:i});return 'a'},get 1(){for(var i=0;i<40;i++)({v:i});return 'b'}};var sub={toString(){for(var i=0;i<40;i++)({v:i});return '!'}};console.log(String.raw({raw:raw},sub));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
