@@ -183,6 +183,9 @@ export class Assembler {
   div(s: Reg): void {
     this.instruction([0xf7], 6, s);
   }
+  idiv(s: Reg): void {
+    this.instruction([0xf7], 7, s);
+  }
   neg(r: Reg): void {
     this.instruction([0xf7], 3, r);
   }
