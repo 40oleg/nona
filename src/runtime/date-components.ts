@@ -6,6 +6,7 @@ import {DateKind,DateLayout} from './date.js';
 // used for local getters while the documented local-time policy is UTC.
 export const dateFields=[
  ['getFullYear',8],['getUTCFullYear',8],
+ ['getYear',8],
  ['getMonth',16],['getUTCMonth',16],
  ['getDate',24],['getUTCDate',24],
  ['getDay',32],['getUTCDay',32],
@@ -54,7 +55,7 @@ export function emitDateComponents(b:RuntimeBuilder):void {
  for(const [name,field] of dateFields)b.fn('rt.Date.'+name+'.fn.code',136,a=>{
   a.store(slot(40),'rcx');a.lea('rcx',slot(64));a.load('rdx',slot(176));a.call('rt.dateComponents');
   a.load('rax',slot(64));const invalid=a.unique('invalid'),done=a.unique('done');a.test('rax','rax');a.jcc('e',invalid);
-  a.load('rax',slot(64+field));a.cvtsi2sd('xmm0','rax');a.jmp(done);
+  a.load('rax',slot(64+field));if(name==='getYear')a.sub('rax',1900);a.cvtsi2sd('xmm0','rax');a.jmp(done);
   a.label(invalid);a.mov('rax',0x7ff8000000000000n);a.movqToXmm('xmm0','rax');a.label(done);
   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
  });
