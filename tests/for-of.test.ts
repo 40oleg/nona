@@ -17,6 +17,7 @@ const cases:[string,string][]=[
   ['dynamic length',`var a=[1,2];var s='';for(var x of a){s+=x;if(x===1)a[2]=3;}console.log(s);`],
   ['non-array rejected',`try{for(var x of 3){} }catch(e){console.log(e instanceof TypeError);}`],
   ['string code points',`var s='';for(var ch of 'A😀B')s+=ch+'|';console.log(s);`],
+  ['string iterator generic receiver and coercion error',`var o={toString(){return 'a😀'}},i=String.prototype[Symbol.iterator].call(o);console.log(i.next().value,i.next().value,i.next().done);var boom={toString(){throw Error('boom')}};try{String.prototype[Symbol.iterator].call(boom)}catch(e){console.log(e.message)}`],
   ['lone surrogates',`var s='';for(var ch of '\\ud800X\\udc00')s+=ch.length+',';console.log(s);`],
   ['empty string and continue',`var s='';for(var ch of '')s+=ch;for(var ch of 'abc'){if(ch==='b')continue;s+=ch;}console.log(s);`],
   ['custom iterable',`var o={[Symbol.iterator]:function(){var i=0;return {next:function(){return i<3?{value:++i,done:false}:{done:true};}}}};var s='';for(var x of o)s+=x;console.log(s);`],
