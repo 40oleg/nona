@@ -26,4 +26,6 @@ for(const [name,source,expected] of [
  ['hour setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setHours(v)),d.getTime())`],
  ['day setters cross month boundaries',`for(let t of [Date.UTC(2000,1,29),Date.UTC(1970,0,1),-1]){let d=new Date(t);console.log(d.setUTCDate(0),d.getTime());console.log(d.setUTCDate(35),d.getTime())}`],
  ['day setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setUTCDate(v)),d.getTime())`],
+ ['month setters cross year boundary',`for(let t of [Date.UTC(2000,1,29,12,34,56,789),Date.UTC(1970,0,1)]){let d=new Date(t);console.log(d.setUTCMonth(12),d.getTime());console.log(d.setUTCMonth(-2,35),d.getTime())}`],
+ ['month setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setUTCMonth(v)),d.getTime())`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));

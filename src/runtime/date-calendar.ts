@@ -6,8 +6,9 @@ import {rootedFn} from './root-scope.js';
 export function emitDateCalendar(b:RuntimeBuilder):void {
  // RCX Number Value output; RDX pointer to seven Number Values: year, month,
  // day, hour, minute, second, millisecond. Every element is already ToNumber.
+ // R8 requests the Date.UTC/constructor 0..99 year adjustment; setters pass 0.
  b.fn('rt.dateMakeTime',216,a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(184),'r8');
   const invalid=a.unique('invalid'),finish=a.unique('finish');
   for(let i=0;i<7;i++){
    a.load('r10',slot(48));a.movsd('xmm0',{base:'r10',disp:i*16+8});a.ucomisd('xmm0','xmm0');a.jcc('p',invalid);
@@ -16,7 +17,7 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
    a.cvttsd2si('rax','xmm0');a.store(slot(64+8*i),'rax');
   }
   // MakeFullYear: years 0..99 denote 1900..1999.
-  a.load('rax',slot(64));const yearReady=a.unique('yearReady');a.test('rax','rax');a.jcc('l',yearReady);a.cmp('rax',99);a.jcc('g',yearReady);a.add('rax',1900);a.store(slot(64),'rax');a.label(yearReady);
+  a.load('rax',slot(64));const yearReady=a.unique('yearReady');a.load('r10',slot(184));a.test('r10','r10');a.jcc('e',yearReady);a.test('rax','rax');a.jcc('l',yearReady);a.cmp('rax',99);a.jcc('g',yearReady);a.add('rax',1900);a.store(slot(64),'rax');a.label(yearReady);
   // Normalize month to [0, 11] using floor division.
   a.load('rax',slot(72));a.emit([0x48,0x99]);a.mov('r10',12);a.idiv('r10');
   const monthPositive=a.unique('monthPositive');a.test('rdx','rdx');a.jcc('ge',monthPositive);a.add('rdx',12);a.sub('rax',1);a.label(monthPositive);
@@ -55,6 +56,6 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
   a.load('rax',slot(64));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',done);a.cmp('rax',7);a.jcc('ae',done);
   a.shl('rax',4);a.load('rdx',slot(56));a.add('rdx','rax');a.lea('rcx',slot(80));a.add('rcx','rax');a.call('rt.toNumber');
   a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(loop);
-  a.label(done);a.load('rcx',slot(40));a.lea('rdx',slot(80));a.call('rt.dateMakeTime');
+  a.label(done);a.load('rcx',slot(40));a.lea('rdx',slot(80));a.mov('r8',1);a.call('rt.dateMakeTime');
  });
 }
