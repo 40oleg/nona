@@ -15,6 +15,24 @@ const cases:[string,string][]=[
  ['indexOf and lastIndexOf coercion',`var s='';var o={toString(){s+='r';return 'abcabc';}},q={toString(){s+='q';return 'bc';}},p={valueOf(){s+='p';return 4.8;}};console.log(String.prototype.indexOf.call(o,q,p),s);s='';console.log(String.prototype.lastIndexOf.call(o,q,p),s);`],
  ['String.fromCharCode code units',`console.log(String.fromCharCode(65,66,67),String.fromCharCode(0x1f600).charCodeAt(0),String.fromCharCode(-1).charCodeAt(0),String.fromCharCode().length,String.fromCharCode.length);`],
  ['String.fromCharCode conversions',`var s='';var a={valueOf(){s+='a';return 65.9;}},b={valueOf(){s+='b';return 66;}};console.log(String.fromCharCode(a,b),s);`],
+ ['String.fromCodePoint BMP and surrogate pairs',`var s=String.fromCodePoint(65,0x1f600,0xffff);console.log(s.length,s.charCodeAt(0),s.charCodeAt(1),s.charCodeAt(2),s.charCodeAt(3),String.fromCodePoint().length,String.fromCodePoint.length);`],
+ ['String.fromCodePoint validates each code point',`var values=[-1,0x110000,1.5,NaN,Infinity,-Infinity];for(var v of values){try{String.fromCodePoint(v);console.log('ok')}catch(e){console.log(e.name)}}try{String.fromCodePoint(Symbol())}catch(e){console.log(e.name)}`],
+ ['String.fromCodePoint coercion order',`var s='';var a={valueOf(){s+='a';return 65;}},b={valueOf(){s+='b';return 0x1f600;}};console.log(String.fromCodePoint(a,b),s);`],
+ ['String.raw template and substitutions',`console.log(String.raw({raw:['a','b','c']},1,2),String.raw({raw:['a','b','c']},1),String.raw({raw:[]}),String.raw.length);`],
+ ['String.raw tagged template',`console.log(String.raw\`a\\nb\${3}c\`);`],
+ ['String.raw getters and conversion order',`var s='';var raw={get length(){s+='l';return 2},get 0(){s+='a';return {toString(){s+='A';return 'x'}}},get 1(){s+='b';return 'y'}};var value={toString(){s+='v';return '!'}};console.log(String.raw({raw:raw},value),s);`],
+ ['String.raw primitive raw and missing segment',`console.log(String.raw({raw:'ab'},'!'),String.raw({raw:{length:2,0:'a'}},'x'));`],
+ ['String.concat values and metadata',`console.log('a'.concat('b',3,null,undefined),'😀'.concat('x').length,String.prototype.concat.call(123,'x'),String.prototype.concat.length);`],
+ ['String.concat coercion order',`var s='';var o={toString(){s+='r';return 'a';}},a={toString(){s+='a';return 'b';}},b={toString(){s+='b';return 'c';}};console.log(String.prototype.concat.call(o,a,b),s);`],
+ ['String.concat zero arguments and receiver errors',`console.log('abc'.concat(),String.prototype.concat.call(true));for(var x of [null,undefined])try{String.prototype.concat.call(x,'a')}catch(e){console.log(e.name)}`],
+ ['String.toUpperCase Unicode',`console.log('abc 123 à ß ﬃ ı 𐐨'.toUpperCase());console.log('😀\ud800\udc00\ud800x'.toUpperCase().length,String.prototype.toUpperCase.call(123),String.prototype.toUpperCase.length);`],
+ ['String.toUpperCase generic and errors',`var s='';var x={toString(){s+='x';return 'Straße';}};console.log(String.prototype.toUpperCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toUpperCase.call(v)}catch(e){console.log(e.name)}`],
+ ['String.toLowerCase Unicode and final sigma',`console.log('ABC À İ 𐐀'.toLowerCase());console.log('AΣ AΣB A.Σ AΣ.b AͅΣ AΣͅB'.toLowerCase(),String.prototype.toLowerCase.length);`],
+ ['String locale casing default Unicode and metadata',`console.log('abc ß 𐐨'.toLocaleUpperCase(),'AΣ İ 𐐀'.toLocaleLowerCase(),String.prototype.toLocaleUpperCase.length,String.prototype.toLocaleLowerCase.length,String.prototype.toLocaleUpperCase.name,String.prototype.toLocaleLowerCase.name);`],
+ ['String normalization forms, combining marks, and Hangul',`console.log('é'.normalize('NFD').length,'e\u0301'.normalize('NFC'),'Å'.normalize('NFKD'),'각'.normalize('NFD').length,'각'.normalize('NFC'),'햕'.normalize('NFC'),'़̣̀'.normalize('NFD'),String.prototype.normalize.length);`],
+ ['String normalization form coercion and errors',`var s='';var x={toString(){s+='x';return 'e\u0301'}},f={toString(){s+='f';return 'NFC'}};console.log(String.prototype.normalize.call(x,f),s);for(var q of ['bad',Symbol()])try{'x'.normalize(q)}catch(e){console.log(e.name)}`],
+ ['String localeCompare canonical equivalence and coercion',`var order='';var x={toString(){order+='x';return 'Å'}},y={toString(){order+='y';return 'A\u030A'}};console.log(String.prototype.localeCompare.call(x,y),order,'가'.localeCompare('가'),'a'.localeCompare('b'),'b'.localeCompare('a'),String.prototype.localeCompare.length);`],
+ ['String.toLowerCase generic and errors',`var s='';var x={toString(){s+='x';return 'AΣ';}};console.log(String.prototype.toLowerCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toLowerCase.call(v)}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -54,6 +72,46 @@ test('String.includes: truthy Symbol.match throws',()=>{
 
 test('String.includes: coercion survives stress GC',()=>{
  const source=`var x={toString:function(){for(var i=0;i<30;i++)({v:i});return 'abc';}},y={toString:function(){for(var i=0;i<30;i++)({v:i});return 'bc';}};console.log(String.prototype.includes.call(x,y));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.fromCodePoint: coercion retains buffer under stress GC',()=>{
+ const source=`var a={valueOf(){for(var i=0;i<40;i++)({v:i});return 65;}},b={valueOf(){for(var i=0;i<40;i++)({v:i});return 0x1f600;}};console.log(String.fromCodePoint(a,b).length);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.raw: getters retain raw and result under stress GC',()=>{
+ const source=`var raw={length:2,get 0(){for(var i=0;i<40;i++)({v:i});return 'a'},get 1(){for(var i=0;i<40;i++)({v:i});return 'b'}};var sub={toString(){for(var i=0;i<40;i++)({v:i});return '!'}};console.log(String.raw({raw:raw},sub));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.concat: receiver and arguments survive stress GC',()=>{
+ const source=`var o={toString(){for(var i=0;i<40;i++)({v:i});return 'a'}},a={toString(){for(var i=0;i<40;i++)({v:i});return 'b'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'c'}};console.log(String.prototype.concat.call(o,a,b));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.toUpperCase: coerced source survives stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Straße 𐐨 ﬃ';}};console.log(String.prototype.toUpperCase.call(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.toLowerCase: coerced source survives stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ 𐐀 İ';}};console.log(String.prototype.toLowerCase.call(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String locale casing: coerced source survives stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ Straße';}};console.log(String.prototype.toLocaleLowerCase.call(x),String.prototype.toLocaleUpperCase.call(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.normalize: coerced source and form survive stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Å각e\u0301'}},f={toString(){for(var i=0;i<40;i++)({v:i});return 'NFKD'}};console.log(String.prototype.normalize.call(x,f));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.localeCompare: inputs survive coercion and normalization under stress GC',()=>{
+ const source=`var a={toString(){for(var i=0;i<40;i++)({v:i});return 'e\u0301'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'é'}};console.log(String.prototype.localeCompare.call(a,b));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

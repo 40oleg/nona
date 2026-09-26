@@ -1,6 +1,42 @@
 import {test} from 'node:test';
 import {expectProgram} from './helpers/program.js';
 
+test('Number.toFixed exact rounding and layout',()=>{
+ const source=`console.log((1.25).toFixed(1),(1.35).toFixed(1),(2.55).toFixed(1),(-0.001).toFixed(2),(-0).toFixed(2),(0).toFixed(0),(123).toFixed(4),(1e21).toFixed(2),(1.005).toFixed(2),Number.prototype.toFixed.call(new Number(1.5),0));`;
+ expectProgram(source,[1.25,1.35,2.55,-.001,-0,0,123,1e21,1.005].map((x,i)=>x.toFixed([1,1,1,2,2,0,4,2,2][i]!)).join(' ')+' 2\n');
+});
+test('Number.toFixed seeded binary64 values and fraction widths',()=>{
+ let seed=0x831d55a1729bc044n;const view=new DataView(new ArrayBuffer(8));
+ const values=[Number.MIN_VALUE,Number.MAX_VALUE,0.5,1.25,1.005,1e-20,1e20,-1e-20,-1e20];
+ for(let i=0;i<65;i++){seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);view.setBigUint64(0,seed);const value=view.getFloat64(0);if(Number.isFinite(value))values.push(value);}
+ const widths=[0,1,2,6,17,50,100];const expressions:string[]=[],expected:string[]=[];
+ for(const [i,value] of values.entries()){const digits=widths[i%widths.length]!;expressions.push(`(${String(value)}).toFixed(${digits})`);expected.push(value.toFixed(digits));}
+ expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
+});
+test('Number.toExponential and toPrecision exact decimal layout',()=>{
+ const values=[123.456,-123.456,0.0001,0.9999,25,1e21,5e-324,0,-0];
+ const widths=[undefined,0,1,2,6,17,20,100] as const;
+ const expressions:string[]=[],expected:string[]=[];
+ for(const value of values)for(const width of widths){
+  const literal=Object.is(value,-0)?'-0':String(value);
+  if(width===undefined){expressions.push(`(${literal}).toExponential()`,`(${literal}).toPrecision()`);expected.push(value.toExponential(),value.toPrecision());}
+  else {expressions.push(`(${literal}).toExponential(${width})`);expected.push(value.toExponential(width));if(width>0){expressions.push(`(${literal}).toPrecision(${width})`);expected.push(value.toPrecision(width));}}
+ }
+ expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
+});
+test('Number significant formatting seeded binary64 values',()=>{
+ let seed=0x94d11b31a7ce2f05n;const view=new DataView(new ArrayBuffer(8));
+ const widths=[1,2,3,6,17,50,100];const expressions:string[]=[],expected:string[]=[];
+ for(let i=0;i<70;i++){
+  seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);view.setBigUint64(0,seed);
+  const value=view.getFloat64(0);if(!Number.isFinite(value))continue;
+  const p=widths[i%widths.length]!,f=p-1,source=`(${String(value)})`;
+  expressions.push(`${source}.toExponential(${f})`,`${source}.toPrecision(${p})`,`${source}.toExponential()`);
+  expected.push(value.toExponential(f),value.toPrecision(p),value.toExponential());
+ }
+ expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
+});
+
 test('binary64 special values and signed zero',()=>expectProgram('console.log(1/0,-1/0,0/0,-0,1/-0);','Infinity -Infinity NaN 0 -Infinity\n'));
 test('exact binary remainder',()=>expectProgram('console.log(5.5%2,-5.5%2,1%0,1e308%3,1%5e-324,1/(-4%2));',`1.5 -1.5 NaN ${1e308%3} 0 -Infinity\n`));
 test('shortest decimal formatting boundaries',()=>expectProgram('console.log(0.1+0.2,5e-324,1e21,1e-7,1e-6,1e20);','0.30000000000000004 5e-324 1e+21 1e-7 0.000001 100000000000000000000\n'));

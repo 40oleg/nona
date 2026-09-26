@@ -1,0 +1,1160 @@
+{
+  "test262Revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+  "fullRun": {
+    "pass": 939,
+    "fail": 284,
+    "skip": 0
+  },
+  "fixed": [
+    "built-ins/String/prototype/Symbol.iterator/this-val-to-str-err.js"
+  ],
+  "deferredCounts": {
+    "v0.19-eval-exception": 11,
+    "v0.19-with": 1,
+    "v0.8-bigint": 5,
+    "v0.15-reflect": 1,
+    "v0.20-cross-realm": 3,
+    "after-es2020": 72,
+    "v0.9-regexp": 11,
+    "v0.10-regexp-string-integration": 176,
+    "v0.19-dynamic-function-exception": 4
+  },
+  "deferred": [
+    {
+      "path": "built-ins/String/S15.5.1.1_A1_T6.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/S15.5.5.1_A4_T1.js",
+      "reason": "v0.19-with"
+    },
+    {
+      "path": "built-ins/String/S9.8_A1_T1.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/fromCharCode/touint16-tonumber-throws-bigint.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/String/is-a-constructor.js",
+      "reason": "v0.15-reflect"
+    },
+    {
+      "path": "built-ins/String/proto-from-ctor-realm.js",
+      "reason": "v0.20-cross-realm"
+    },
+    {
+      "path": "built-ins/String/prototype/at/index-argument-tointeger.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/index-non-numeric-argument-tointeger-invalid.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/index-non-numeric-argument-tointeger.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/length.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/name.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/prop-desc.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/return-abrupt-from-this.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/returns-code-unit.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/returns-item-relative-index.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/returns-item.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/at/returns-undefined-for-out-of-range-index.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/charAt/S15.5.4.4_A1.1.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/charCodeAt/S15.5.4.5_A1.1.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/endsWith/return-abrupt-from-searchstring-regexp-test.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/endsWith/searchstring-is-regexp-throws.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/includes/return-abrupt-from-searchstring-regexp-test.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/includes/searchstring-is-regexp-throws.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/indexOf/S15.5.4.7_A3_T2.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/indexOf/position-tointeger-bigint.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/String/prototype/indexOf/searchstring-tostring-bigint.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/length.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/name.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/not-a-constructor.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/prop-desc.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/return-abrupt-from-this.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/returns-boolean.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/to-string-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/isWellFormed/to-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T10.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T11.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T12.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T13.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T14.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T5.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T7.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A1_T9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T10.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T11.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T12.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T13.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T14.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T15.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T16.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T17.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T18.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T5.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T7.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A2_T9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/S15.5.4.10_A9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-get-err.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-invocation.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-is-null.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-on-bigint-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-on-boolean-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-on-number-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/cstm-matcher-on-string-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/duplicate-named-groups-properties.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/duplicate-named-indices-groups-properties.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/invoke-builtin-match.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/length.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/name.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/not-a-constructor.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/regexp-prototype-match-v-u-flag.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/this-val-bool.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/this-val-obj.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/match/this-value-not-obj-coercible.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/cstm-matchall-on-bigint-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/cstm-matchall-on-boolean-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/cstm-matchall-on-number-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/cstm-matchall-on-string-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/flags-nonglobal-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/flags-undefined-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/length.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/name.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/not-a-constructor.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/prop-desc.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-get-matchAll-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-is-null.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-is-undefined-or-null-invokes-matchAll.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-is-undefined.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-matchAll-invocation.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-matchAll-is-undefined-or-null.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-matchAll-not-callable.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-matchAll-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-prototype-get-matchAll-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-prototype-matchAll-invocation.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-prototype-matchAll-throws.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/regexp-prototype-matchAll-v-u-flag.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/this-val-non-obj-coercible.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/matchAll/toString-this-val.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/15.5.4.11-1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A12.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T14.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T15.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T16.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T17.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T5.js",
+      "reason": "v0.19-dynamic-function-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T6.js",
+      "reason": "v0.19-dynamic-function-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A1_T8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T10.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T5.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T7.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A2_T9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A3_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A3_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A3_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A4_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A4_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A4_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A4_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/S15.5.4.11_A5_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/cstm-replace-on-bigint-primitive.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/regexp-capture-by-index.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/regexp-prototype-replace-v-u-flag.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replace/replaceValue-evaluation-order-regexp-object.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/cstm-replaceall-on-bigint-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/cstm-replaceall-on-boolean-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/cstm-replaceall-on-number-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/cstm-replaceall-on-string-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024-0x0024.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024-0x0026.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024-0x0027.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024-0x003C.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024-0x0060.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024N.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/getSubstitution-0x0024NN.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/length.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/name.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/not-a-constructor.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceAll.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-call-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-call-each-match-position.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-call-matching-empty.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-call-skip-no-match.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-call-tostring-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-fn-skip-toString.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-tostring-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-value-replaces-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/replaceValue-value-tostring.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-empty-string-this-empty-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-empty-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-flags-no-g-throws.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-flags-null-undefined-throws.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-flags-toString-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-get-flags-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-isRegExp-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-RegExp-call-fn.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-RegExp-call.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-before-tostring.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-call-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-call.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-is-null.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-replacer-method-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-tostring-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/searchValue-tostring-regexp.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/this-is-null-throws.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/this-is-undefined-throws.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/this-tostring-abrupt.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/replaceAll/this-tostring.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1.1_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A10.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A11.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T10.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T11.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T12.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T13.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T14.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T5.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T7.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A1_T9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T3.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T5.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A2_T7.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A3_T1.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A3_T2.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A6.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A8.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/S15.5.4.12_A9.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-get-err.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-invocation.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-is-null.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-on-bigint-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-on-boolean-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-on-number-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/cstm-search-on-string-primitive.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/invoke-builtin-search-searcher-undef.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/invoke-builtin-search.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/name.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/not-a-constructor.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/regexp-prototype-search-v-flag.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/regexp-prototype-search-v-u-flag.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/search/this-value-not-obj-coercible.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/slice/S15.5.4.13_A1_T5.js",
+      "reason": "v0.19-dynamic-function-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-new-reg-exp-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-reg-exp-a-z-and-instance-is-string-abc.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-a-z-and-instance-is-string-abc.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-and-instance-is-number.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-d-and-instance-is-string-dfe23iu-34-65.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-l-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-reg-exp-d-and-instance-is-string-dfe23iu-34-65.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-s-and-instance-is-string-a-b-c-de-f.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/argument-is-regexp-x-and-instance-is-string-a-b-c-de-f.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-0-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-1-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-2-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-3-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-4-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-hi-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-undefined-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-new-reg-exp-and-void-0-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-0-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-1-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-2-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-3-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-4-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-hi-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-undefined-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-l-and-void-0-and-instance-is-string-hello.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/arguments-are-regexp-s-and-3-and-instance-is-string-a-b-c-de-f.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/call-split-2-instance-is-string-one-two-three-four-five.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/call-split-new-reg-exp.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/checking-by-using-eval.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/split/cstm-split-on-bigint-primitive.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/String/prototype/split/separator-regexp-comma-instance-is-string-one-1-two-2-four-4.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/separator-regexp-limit-string-via-eval.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/split/separator-regexp.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/split/transferred-to-number-separator-override-tostring-returns-regexp.js",
+      "reason": "v0.10-regexp-string-integration"
+    },
+    {
+      "path": "built-ins/String/prototype/startsWith/return-abrupt-from-searchstring-regexp-test.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/startsWith/searchstring-is-regexp-throws.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/substring/S15.5.4.15_A1_T5.js",
+      "reason": "v0.19-dynamic-function-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/toLocaleLowerCase/S15.5.4.17_A1_T14.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/toLocaleLowerCase/S15.5.4.17_A1_T3.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/toLocaleUpperCase/S15.5.4.19_A1_T14.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/toLocaleUpperCase/S15.5.4.19_A1_T3.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/toLowerCase/S15.5.4.16_A1_T14.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/toLowerCase/S15.5.4.16_A1_T3.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/toString/non-generic-realm.js",
+      "reason": "v0.20-cross-realm"
+    },
+    {
+      "path": "built-ins/String/prototype/toUpperCase/S15.5.4.18_A1_T14.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/toUpperCase/S15.5.4.18_A1_T3.js",
+      "reason": "v0.19-eval-exception"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/length.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/name.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/not-a-constructor.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/prop-desc.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/return-abrupt-from-this.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/returns-well-formed-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/to-string-primitive.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/toWellFormed/to-string.js",
+      "reason": "after-es2020"
+    },
+    {
+      "path": "built-ins/String/prototype/trim/15.5.4.20-2-49.js",
+      "reason": "v0.9-regexp"
+    },
+    {
+      "path": "built-ins/String/prototype/valueOf/non-generic-realm.js",
+      "reason": "v0.20-cross-realm"
+    }
+  ]
+}

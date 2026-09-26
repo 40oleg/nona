@@ -61,7 +61,7 @@ export function emitIterators(b:RuntimeBuilder):void {
  });
  for(const [symbol,kind,mode] of [['rt.arrayIterator.fn.code','array',0],['rt.arrayKeys.fn.code','array',1],['rt.arrayEntries.fn.code','array',2],['rt.stringIterator.fn.code','string',0]] as const)rootedFn(b,symbol,88,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));a.lea('rcx',slot(64));
-  if(kind==='string')a.call('rt.thisstringValue');else a.call('rt.toObject');
+  if(kind==='string'){a.load('rax',{base:'rdx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');a.call('rt.toString');}else a.call('rt.toObject');
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.mov('r8',mode);a.call('rt.newIterator');
  });
  // The next method is intentionally generic over Array and String iterator

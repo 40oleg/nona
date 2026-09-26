@@ -111,3 +111,116 @@ which have since been fixed. The repeat full Array run has 2640 pass,
 [the v0.4 deferral list](v0.4-array-deferred.json): 150 post-ES2020 API
 cases, 72 resizable-buffer cases, and 130 other future dependencies or
 the documented `eval` exception. The positive manifest passes 100/100.
+
+After v0.4.0, the complete `built-ins/String/fromCodePoint` group passes
+11/11. One case is retained in the pinned smoke manifest; the manifest
+passed 101/101 at that checkpoint.
+
+The complete `built-ins/String/raw` group passes 30/30. Its tagged-template
+case is included in the pinned positive smoke manifest.
+The updated manifest passes 102/102; Windows and Linux compatible examples
+pass 54/54 each.
+
+The complete `built-ins/String/prototype/concat` group passes 22/22.
+One case is included in the positive smoke manifest.
+The updated manifest passes 103/103; Windows and Linux compatible examples
+pass 55/55 each.
+
+The `built-ins/String/prototype/toUpperCase` group has 24 pass / 2 fail /
+0 skip. The two failures require `RegExp` and direct `eval`, both tracked
+outside v0.5. The Unicode special-casing case is in the positive smoke
+manifest, now 104/104. Windows and Linux compatible examples pass 56/56 each.
+
+The `built-ins/String/prototype/toLowerCase` group has 28 pass / 2 fail /
+0 skip. Its two failures also require `RegExp` and direct `eval`.
+Final Sigma conditional mapping, including `Case_Ignorable` characters,
+passes. The positive smoke manifest is 105/105; compatible examples are
+57/57 on Windows and Linux.
+
+The complete `built-ins/Number/prototype/toFixed` group has 15 pass /
+1 fail / 0 skip. The failing case uses BigInt, scheduled for v0.8.
+The exactness case is in the positive smoke manifest, now 106/106;
+compatible examples pass 58/58 on Windows and Linux.
+
+The complete `built-ins/Number/prototype/toExponential` and
+`built-ins/Number/prototype/toPrecision` groups pass 15/15 and 17/17.
+Their regular-value cases are in the positive smoke manifest, now 108/108.
+Compatible examples pass 59/59 on Windows and Linux.
+
+An initial full `built-ins/Math` run before the trigonometric additions
+had 176 pass / 151 fail out of 327. Most failures are missing ES2020
+transcendental functions; `f16round` and `sumPrecise` are later APIs.
+The complete `Math.sin`, `Math.cos`, and `Math.tan` groups now pass
+8/8, 9/9, and 9/9. Positive smoke is 111/111; compatible examples
+pass 60/60 on Windows and Linux.
+
+The complete `Math.log`, `Math.log2`, and `Math.log10` groups pass
+9/9, 5/5, and 5/5. Positive smoke is 114/114; compatible examples
+pass 61/61 on Windows and Linux.
+
+The complete `Math.exp` and `Math.expm1` groups pass 9/9 and 5/5.
+Positive smoke is 116/116; compatible examples pass 62/62 on Windows
+and Linux.
+
+The complete `Math.atan` and `Math.atan2` groups pass 7/7 and 11/11.
+Positive smoke is 118/118; compatible examples pass 63/63 on Windows
+and Linux.
+
+The complete `Math.log1p` group passes 5/5. Positive smoke is 119/119;
+compatible examples pass 64/64 on Windows and Linux.
+
+The complete `Math.cbrt` group passes 5/5. Positive smoke is 120/120;
+compatible examples pass 65/65 on Windows and Linux.
+
+The complete `Math.asin` and `Math.acos` groups pass 9/9 and 8/8.
+Positive smoke is 122/122; compatible examples pass 66/66 on Windows
+and Linux.
+
+The complete `encodeURI` and `encodeURIComponent` groups pass 31/31
+each. Positive smoke is 124/124; compatible examples pass 67/67
+on Windows and Linux.
+
+The complete `decodeURI` and `decodeURIComponent` groups pass 55/55
+and 56/56. Positive smoke is 126/126; compatible examples pass
+68/68 on Windows and Linux.
+
+The complete `Math.atanh` group passes 5/5. Positive smoke is 127/127;
+compatible examples pass 69/69 on Windows and Linux. The full native
+test run after URI work had 1632 passes, 27 skips, and zero failures.
+
+The complete `Math.asinh` and `Math.acosh` groups pass 5/5 and 7/7.
+Positive smoke is 129/129; compatible examples pass 70/70 on Windows
+and Linux.
+
+The complete `Math.sinh`, `Math.cosh`, and `Math.tanh` groups pass
+5/5 each. Positive smoke is 132/132; compatible examples pass 71/71
+on Windows and Linux.
+
+A full `built-ins/Math` run now has 312 passes and 15 failures out of
+327. All 15 failures concern `Math.f16round` and `Math.sumPrecise`,
+which are later than ES2020. This does not measure transcendental accuracy for arbitrary finite
+inputs. Large-angle reduction for `sin`, `cos`, and `tan` was added
+after this run and verified against Node.js 26 across binary exponents.
+
+`String.prototype.toLocaleLowerCase` and `toLocaleUpperCase` pass
+26/28 and 24/26. The four remaining tests require RegExp or eval.
+Positive smoke is 134/134; compatible examples pass 72/72 on
+Windows and Linux. Locale-specific mappings beyond the default Unicode
+mapping remain to be evaluated.
+
+`String.prototype.split` passes 86/120 Test262 cases. The remaining
+34 require RegExp, BigInt, or eval. String-only separators, limits,
+primitive separators, and custom `Symbol.split` hooks are checked.
+Positive smoke is 137/137; compatible examples pass 73/73 on
+Windows and Linux.
+
+Large-angle `Math.sin`, `Math.cos`, and `Math.tan` now use a 1152-bit
+fixed-point table of `2/pi`. Native tests pass 48/48, including 80
+deterministic finite values across exponents 63–1022. Compatible
+examples pass 74/74 on Windows and Linux.
+
+`String.prototype.replace` passes 24/55 Test262 cases. The remaining
+31 require RegExp, BigInt, or dynamic function construction. String
+search, functional replacement, replacement patterns, and custom
+`Symbol.replace` are covered. Positive smoke is 140/140; compatible
+examples pass 75/75 on Windows and Linux.
