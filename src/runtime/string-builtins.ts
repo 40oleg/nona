@@ -10,7 +10,7 @@ const positionMethods=['indexOf','lastIndexOf'] as const;
 const indexMethods=['charAt','charCodeAt','codePointAt'] as const;
 const trimMethods=['trim','trimStart','trimEnd'] as const;
 const padMethods=['padStart','padEnd'] as const;
-const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','toUpperCase','toLowerCase','substring','slice','repeat',...trimMethods,...padMethods];
+const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','toUpperCase','toLowerCase','toLocaleUpperCase','toLocaleLowerCase','substring','slice','repeat',...trimMethods,...padMethods];
 export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn','rt.stringRaw.fn'];
 export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),...builtinPropertyRoots('rt.stringRaw.fn','raw','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
 
@@ -191,6 +191,14 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.label(done);a.load('r10',slot(88));a.load('rax',slot(120));a.store({base:'r10'},'rax');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ }
+ for(const [localeName,baseName] of [['toLocaleUpperCase','toUpperCase'],['toLocaleLowerCase','toLowerCase']] as const){
+  const symbol='rt.string'+localeName[0]!.toUpperCase()+localeName.slice(1)+'.fn';
+  prependFunctionBuiltin(b,symbol,localeName,0,'rt.stringPrototype');
+  b.fn(symbol+'.code',56,a=>{
+   a.load('rax',slot(96));a.store(slot(32),'rax');
+   a.call('rt.string'+baseName[0]!.toUpperCase()+baseName.slice(1)+'.fn.code');
+  });
  }
  for(const name of searchMethods){
  const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';

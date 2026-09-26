@@ -131,6 +131,8 @@
     "built-ins/Math/acosh/arg-is-one.js",
     "built-ins/Math/sinh/sinh-specialVals.js",
     "built-ins/Math/cosh/cosh-specialVals.js",
-    "built-ins/Math/tanh/tanh-specialVals.js"
+    "built-ins/Math/tanh/tanh-specialVals.js",
+    "built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional.js",
+    "built-ins/String/prototype/toLocaleUpperCase/special_casing.js"
   ]
 }

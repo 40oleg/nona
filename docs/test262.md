@@ -201,3 +201,9 @@ A full `built-ins/Math` run now has 312 passes and 15 failures out of
 which are later than ES2020. This does not measure transcendental
 accuracy for arbitrary finite inputs; large-angle reduction for
 `sin`, `cos`, and `tan` remains open.
+
+`String.prototype.toLocaleLowerCase` and `toLocaleUpperCase` pass
+26/28 and 24/26. The four remaining tests require RegExp or eval.
+Positive smoke is 134/134; compatible examples pass 72/72 on
+Windows and Linux. Locale-specific mappings beyond the default Unicode
+mapping remain to be evaluated.
