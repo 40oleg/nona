@@ -5,7 +5,7 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
 
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,size:O.size+64} as const;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,size:O.size+104} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -64,7 +64,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8])a.store({base:'rax',disp:offset},'r10');
   a.lea('r10',{rip:'rt.functionPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
   a.load('r10',slot(48));a.store({base:'rax',disp:FunctionLayout.code},'r10');
@@ -87,6 +87,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',ordinary);
   a.mov('rax',0);a.store(slot(32),'rax');a.call('rt.invokeBound');a.jmp(done);
   a.label(ordinary);
+  const notArrow=a.unique('notArrow');a.load('r10',{base:'rax',disp:FunctionLayout.arrow});a.test('r10','r10');a.jcc('e',notArrow);
+  a.lea('r10',{base:'rax',disp:FunctionLayout.lexicalThis});a.store(slot(72),'r10');
+  a.label(notArrow);
   a.load('r10',{base:'rax',disp:FunctionLayout.rawThis});a.test('r10','r10');a.jcc('ne',ready);
   a.load('rdx',slot(72));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',ready);a.cmp('rax',1);a.jcc('a',box);
   a.lea('rax',{rip:'rt.globalValue'});a.store(slot(72),'rax');a.jmp(ready);
@@ -97,7 +100,12 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('rdx',slot(56));a.load('r8',slot(64));
   // Sixth source-function argument: stable new.target Value pointer. The saved
   // output at slot40 has already been loaded; it is dead across this call.
-  if(construct)a.load('rax',slot(48));else a.lea('rax',{rip:'rt.undefinedValue'});a.store(slot(40),'rax');
+  if(construct)a.load('rax',slot(48));else{
+    const ordinaryTarget=a.unique('ordinaryTarget'),targetReady=a.unique('targetReady');
+    a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});a.load('rax',{base:'r11',disp:FunctionLayout.arrow});a.test('rax','rax');a.jcc('e',ordinaryTarget);
+    a.lea('rax',{base:'r11',disp:FunctionLayout.lexicalNewTarget});a.jmp(targetReady);
+    a.label(ordinaryTarget);a.lea('rax',{rip:'rt.undefinedValue'});a.label(targetReady);
+  }a.store(slot(40),'rax');
   a.callRegister('r10');a.label(done);
  });
  // Construction is split at IR safepoints: prepare rooted instance, invoke JS,
@@ -119,7 +127,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');
   a.label(copy);a.load('rax',{base:'rdx'});a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');
  });
- rootedFn(b,'rt.instanceOf',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:1}],a=>{
+ rootedFn(b,'rt.ordinaryHasInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
@@ -134,5 +142,14 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(loop);a.load('rax',{base:'rax',disp:O.prototype});a.test('rax','rax');a.jcc('e',no);a.cmp('rax','rdx');a.jcc('e',yes);a.jmp(loop);
   a.label(no);a.mov('rax',0);a.jmp(save);a.label(yes);a.mov('rax',1);
   a.label(save);a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
+ });
+ rootedFn(b,'rt.instanceOf',120,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:3}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',6);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.Symbol.hasInstance.value'});a.store(slot(72),'rax');
+  a.lea('rcx',slot(80));a.load('rdx',slot(56));a.lea('r8',slot(64));a.call('rt.getProperty');
+  const ordinary=a.unique('ordinary'),done=a.unique('done');a.load('rax',slot(80));a.cmp('rax',1);a.jcc('be',ordinary);
+  a.load('rax',slot(56));a.store(slot(32),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.mov('r8',1);a.load('r9',slot(48));a.call('rt.invoke');
+  a.lea('rcx',slot(96));a.call('rt.toBoolean');a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+  a.label(ordinary);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.ordinaryHasInstance');a.label(done);
  });
 }

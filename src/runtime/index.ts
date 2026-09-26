@@ -6,6 +6,7 @@ import {emitLiteralAccessor} from './literal-accessor.js';
 import {emitObjectIntegrity} from './object-integrity.js';
 import {orderIntrinsicProperties} from './intrinsic-order.js';
 import {emitObjectCollections} from './object-collections.js';
+import {emitForIn} from './for-in.js';
 import {emitPropertyDescriptors} from './property-descriptors.js';
 import {emitObjectIntrospection} from './object-introspection.js';
 import {RuntimeBuilder,type RuntimeRequest,type RuntimeBundle} from './abi.js';
@@ -32,6 +33,13 @@ import {emitObjectMethods} from './object-methods.js';
 import {emitWrapperMethods} from './wrapper-methods.js';
 import {emitRadix} from './numeric/radix.js';
 import {emitBuiltinConstructors} from './builtin-constructors.js';
+import {emitSymbols} from './symbols.js';
+import {emitIterators} from './iterators.js';
+import {emitArrayBuiltins} from './array-builtins.js';
+import {emitStringBuiltins} from './string-builtins.js';
+import {emitNumberBuiltins} from './number-builtins.js';
+import {emitRestArguments} from './rest-arguments.js';
+import {emitMath} from './math.js';
 import {emitConsole} from './console.js';
-export function emitRuntime(_request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitExceptions(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitBoxing(b);emitErrors(b);emitBuiltinConstructors(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b);emitIo(b);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
+export function emitRuntime(_request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitExceptions(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitBuiltinConstructors(b);emitNumberBuiltins(b);emitSymbols(b);emitIterators(b);emitArrayBuiltins(b);emitStringBuiltins(b);emitMath(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b);emitIo(b);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
 export type {RuntimeRequest,RuntimeBundle} from './abi.js';

@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
 import {position} from './source.js';
 
-const help='Nona 0.1.0 — JavaScript subset to Windows x64 EXE\nUsage: nona build <input.js> -o <output.exe> [--target win32-x64]\n       nona --help | --version\n';
+const help='Nona 0.2.0 — JavaScript subset to Windows x64 EXE\nUsage: nona build <input.js> -o <output.exe> [--target win32-x64]\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute))return realpathSync(absolute).toLowerCase();
@@ -22,7 +22,7 @@ export function main(args:string[]):number {
   let temporary:string|undefined;
   try {
     if(args.length===1&&args[0]==='--help'){process.stdout.write(help);return 0;}
-    if(args.length===1&&args[0]==='--version'){process.stdout.write('0.1.0\n');return 0;}
+    if(args.length===1&&args[0]==='--version'){process.stdout.write('0.2.0\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
     const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
     let outputArg:string|undefined,target='win32-x64';const seen=new Set<string>();

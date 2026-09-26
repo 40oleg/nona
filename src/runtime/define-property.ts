@@ -14,7 +14,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   for(const i of [0,1,2]){const absent=a.unique('absent');a.load('rax',slot(48));a.cmp('rax',i);a.jcc('be',absent);a.load('r8',slot(56));for(const n of [0,8]){a.load('rax',{base:'r8',disp:16*i+n});a.store(slot(64+16*i+n),'rax');}a.label(absent);}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toString');
+  a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');
   a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.call('rt.toPropertyDescriptor');
   a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(128));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}

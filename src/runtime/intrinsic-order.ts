@@ -7,15 +7,21 @@ import {errorConstructorNames} from '../global-builtins.js';
 // properties newest-first so ownKeys observes the intrinsic creation order.
 export function orderIntrinsicProperties(b:RuntimeBuilder):void {
  const orders:Record<string,string[]>={
-  'rt.Object':['length','name','prototype','getOwnPropertyDescriptor','getOwnPropertyDescriptors','getOwnPropertyNames','is','preventExtensions','seal','create','defineProperties','defineProperty','freeze','getPrototypeOf','setPrototypeOf','isExtensible','isFrozen','isSealed','keys','entries','values'],
-  'rt.functionPrototype':['length','name','constructor','apply','bind','call','toString','arguments','caller'],
+  'rt.Object':['length','name','prototype','getOwnPropertyDescriptor','getOwnPropertyDescriptors','getOwnPropertyNames','getOwnPropertySymbols','is','preventExtensions','seal','create','defineProperties','defineProperty','freeze','getPrototypeOf','setPrototypeOf','isExtensible','isFrozen','isSealed','keys','entries','values'],
+  'rt.functionPrototype':['length','name','constructor','apply','bind','call','toString','arguments','caller','@@hasInstance'],
   'rt.objectPrototype':['constructor','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toString','valueOf','__proto__','toLocaleString'],
-  'rt.arrayPrototype':['constructor','join','toString'],
+  'rt.arrayPrototype':['constructor','join','toString','pop','push','includes','keys','entries','values','@@iterator'],
+  'rt.Array':['length','name','prototype','isArray'],
+  'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
+  'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','pow','@@toStringTag'],
   'rt.booleanPrototype':['constructor','toString','valueOf'],
   'rt.numberPrototype':['constructor','toString','valueOf'],
-  'rt.stringPrototype':['constructor','toString','valueOf'],
+  'rt.stringPrototype':['constructor','toString','valueOf','includes','@@iterator'],
+  'rt.symbolPrototype':['constructor','toString','valueOf','description','@@toPrimitive','@@toStringTag'],
+  'rt.iteratorPrototype':['next','@@iterator'],
+  'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String',...errorConstructorNames,'globalThis','undefined','NaN','Infinity','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Symbol',...errorConstructorNames,'Math','globalThis','undefined','NaN','Infinity','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));
@@ -26,7 +32,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
    const node:NamedFragment=fragments.get(name)!;
    const key=fragments.get(node.fixups.find(f=>f.offset===P.key)!.target)!;
    const view=new DataView(key.bytes.buffer,key.bytes.byteOffset,key.bytes.byteLength);
-   let text='';for(let i=8;i<key.bytes.length;i+=2)text+=String.fromCharCode(view.getUint16(i,true));
+   let text='';if(view.getBigUint64(0,true)===0xffffffffffffffffn)text=key.name==='rt.Symbol.iterator.value'?'@@iterator':key.name==='rt.Symbol.toStringTag.value'?'@@toStringTag':key.name==='rt.Symbol.hasInstance.value'?'@@hasInstance':'@@toPrimitive';else for(let i=8;i<key.bytes.length;i+=2)text+=String.fromCharCode(view.getUint16(i,true));
    const rank=order.indexOf(text);
    if(rank<0)throw new Error('Missing intrinsic property order: '+owner+'.'+text);
    nodes.push({node,rank});name=node.fixups.find(f=>f.offset===P.next)?.target;

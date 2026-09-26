@@ -58,8 +58,8 @@ for (const source of [
   'function f(a,a){"use strict";}',
   '"use strict";delete missing;', 'var x=012;', 'var x="\\12";',
   'while(true){break label;}', 'return 1;', 'break;', 'continue;',
-  'for(var x in y){}', 'try{}catch(){}',
-  'var x=/a/;', 'var x=`a`;',
+  'try{}catch(){}',
+  'var x=/a/;',
   'if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
 ]) test(`unsupported input rejected: ${source}`, () => assert.throws(() => check(source)));
 

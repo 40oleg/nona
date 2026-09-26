@@ -1387,3 +1387,254 @@ standalone programs, включая `modern-expressions.cjs`, совпали с 
 сгруппированной optional chain; оба дефекта прошли RED→GREEN и полный повторный
 прогон. Пункт 3 остаётся отложенным;
 полная цель ES2020 не завершена.
+
+## 2026-09-25 — инфраструктурные этапы 0–2
+
+Добавлен [контракт ES2020](es2020-contract.md) с границами ECMA-262,
+исключениями `eval`/динамического `Function`, решением включить `with` в цель и
+отдельным учётом Annex B. [Аудит операций](runtime-operations-audit.md)
+фиксирует нынешние общие входы property/call/construct/coercion/GC и границу
+будущего Linux backend. `compileToIR` выделяет платформенно независимый
+frontend/IR путь. Все текущие преобразования property keys проходят через
+`rt.toPropertyKey`; до появления Symbol этот вход совпадает с `ToString`.
+
+Добавлены Windows CI с полным native-набором и сравнением примеров, Linux CI
+для frontend/IR тестов, закреплённый адаптер Test262 с JSON-отчётом и десять
+native-тестов общих операций. Адаптер пока пропускает runtime-negative/module/async/raw
+и не является полным Test262 harness. Группа coalesce: 21 pass, 3 fail, 0 skip;
+один fail использует отсутствующий Symbol, два — proper tail calls. Manifest
+smoke: 2 pass, 0 fail, 0 skip.
+
+Проверка Windows x64, Node 26.9.0: `npm run build`; `node --test
+dist/tests/*.test.js` — 1088 total, 1087 pass, 0 fail, 1 skip. Единственный
+skip — проверка symlink в `cli.test.ts`, у Windows account нет разрешения на
+создание ссылки. `node scripts/compare-examples.mjs` — 34/34 совпадений с
+Node. Журналы: `work/stage02-check.log`, `work/stage02-compare.log`,
+`work/test262-smoke-report.json`, `work/compat-report.json`.
+
+Этап 2 создал общую точку расширения, но не реализовал Symbol, Proxy или
+полную диспетчеризацию ES2020 internal methods. Эти задачи остаются в
+соответствующих этапах [контракта](es2020-contract.md).
+
+## 2026-09-25 — этап 3, простые стрелочные функции
+
+Парсер принимает стрелки с простыми параметрами и expression/block body.
+Стрелки неконструируемы и не имеют own `prototype`; вызов берёт лексические
+`this`, `arguments`, `new.target` и `super` окружения. Function payload расширен
+до 152 байт, GC обходит сохранённые lexical Values. Точный исходный текст
+остаётся доступен через `Function.prototype.toString`.
+
+`arrows.test.ts`: 11 pass, включая native stress GC. Полный native-прогон:
+1099 total, 1098 pass, 0 fail, 1 Windows symlink skip
+(`work/stage03-arrow-check.log`). Совместимые примеры: 35/35 совпали с Node
+(`work/stage03-arrow-compare.log`). Test262 arrow group на закреплённой ревизии:
+129 pass, 214 fail, 0 skip (`work/stage03-arrow-test262-report.json`). Из 214
+ошибок 205 — compile failures: недостающие параметры, синтаксис и другие
+конструкции; 9 runtime failures требуют `eval`, Symbol, Array.forEach или иных
+ API за пределами текущего поднабора. Поддержка стрелок остаётся частичной.
+
+## 2026-09-25 — этап 3, шаблонные строки без тегов
+
+Lexer разбирает template segments с вложенными `${...}`, escape и
+нормализацией CRLF. Parser строит Template AST; lowering вычисляет каждое
+выражение в исходном порядке с явным строковым преобразованием. Tagged
+templates пока отклоняются.
+
+`templates.test.ts`: 8 pass. Полный native-прогон: 1106 total, 1105 pass,
+0 fail, 1 Windows symlink skip (`work/stage03-template-check.log`).
+Совместимые примеры: 36/36 совпали с Node
+(`work/stage03-template-compare.log`). Test262 template-literal group:
+42 pass, 15 fail, 0 skip (`work/stage03-template-test262-report.json`).
+14 compile failures связаны с tagged templates, один runtime failure
+использует исключённый из цели `eval`.
+Обновлённый Test262 smoke manifest: 4 pass, 0 fail, 0 skip (coalesce,
+lexical new.target стрелки и вложенный шаблон).
+
+## 2026-09-25 — этап 3, `for...in` для `var` и identifier
+
+Native helper собирает строковые ключи с цепочки прототипов, учитывает
+неперечислимые тени, а перед выдачей повторно проверяет существование ключа.
+Lexer/parser/binder/IR поддерживают `for (var key in value)` и запись в ранее
+объявленный identifier. `let`/`const`, property/destructuring targets и полная
+семантика мутаций остаются отдельной работой.
+
+`for-in.test.ts`: 8 pass, включая GC stress. Полный native-прогон:
+1114 total, 1113 pass, 0 fail, 1 Windows symlink skip
+(`work/stage03-for-in-check.log`). Совместимые примеры: 37/37 совпали с Node
+(`work/stage03-for-in-compare.log`). Test262 for-in group: 74 pass,
+45 fail, 0 skip (`work/stage03-for-in-test262-report.json`); 22 compile failures
+связаны с ещё неготовыми формами синтаксиса, runtime failures преимущественно
+используют `eval` и Array.push.
+
+## 2026-09-25 — этап 3/4, `for...of` для массивов
+
+Parser и IR принимают `for (var value of array)` и ранее объявленный
+identifier. Runtime проверяет, что RHS — массив или примитивная строка. Цикл
+читает текущую длину и значение по индексу на каждой итерации; массивы
+поддерживают holes и inherited values, строки выдают Unicode code points с
+объединением surrogate pair. `break`/`continue` работают. Пользовательские iterable, Symbol.iterator,
+IteratorClose, `let`/`const` и destructuring ещё отсутствуют.
+
+`for-of.test.ts`: 10 pass, включая GC stress. Полный native-прогон: 1124 total, 1123 pass,
+0 fail, 1 Windows symlink skip (`work/stage03-for-of-check.log`). Совместимые
+примеры: 38/38 совпали с Node (`work/stage03-for-of-compare.log`). Первый
+Test262 for-of group: 106 pass, 643 fail, 2 skip
+(`work/stage03-for-of-test262-report.json`); основная причина — отсутствие
+общего протокола и прочего синтаксиса ES2020. Smoke manifest: 6 pass.
+
+## 2026-09-26 — этап 4, основа Symbol
+
+Введён Symbol как отдельный Value tag и вид heap-объекта с точной трассировкой
+GC. Реализованы уникальность, typeof, преобразования и ошибки ToNumber/
+неявного ToString, символьные ключи с сохранением identity, порядок собственных
+ключей, Object.getOwnPropertySymbols, well-known symbols, Symbol.for/keyFor,
+Symbol.prototype.toString/valueOf/description/@@toPrimitive и пользовательский
+Symbol.toPrimitive. Реестр удерживает ключи и символы при сборке мусора.
+
+`symbols.test.ts`: 17 pass, включая три проверки с принудительным GC.
+Полный Windows native-прогон: 1141 total, 1140 pass, 0 fail, 1 прежний
+symlink skip (`work/stage04-symbol-check.log`). Test262 Symbol group:
+38 pass, 60 fail, 0 skip (`work/stage04-symbol-test262-report.json`);
+часть ошибок связана с недостающими возможностями общего harness
+(`Array.isArray`, `Math.pow`, `Array.prototype.push`, realm). Это не оценка
+полного соответствия разделу Symbol. `Object.prototype.toString` учитывает
+пользовательский `Symbol.toStringTag` и безопасен при вызове getter/GC.
+Общий итерационный протокол, Symbol.hasInstance и остальные интеграции
+well-known symbols ещё не готовы.
+Совместимые примеры: 39/39 совпали с Node (`work/stage04-symbol-compare.log`).
+
+## 2026-09-26 — этап 4, итерационный протокол
+
+`for...of` получает `@@iterator`, один раз читает `next`, вызывает его на
+каждом шаге и проверяет объект результата, `done` и `value`. Array/String
+prototypes предоставляют `@@iterator`; их методы возвращают объекты с `next`
+и `[Symbol.iterator]`. Поддержаны пользовательские iterables, замена метода
+массива и boxed strings. IteratorClose вызывается при break/return и
+исключении из тела цикла; при throw прежнее исключение сохраняется, если
+`return` выбросил новое. Ошибка из `next` не вызывает IteratorClose.
+
+`for-of.test.ts`: 27 pass, включая две проверки с принудительным GC.
+Полный Windows native-прогон: 1158 total, 1157 pass, 0 fail, 1 прежний
+symlink skip (`work/stage04-iterator-check.log`). Совместимые примеры:
+39/39 (`work/stage04-iterator-compare.log`). Test262 for-of group на
+закреплённой ревизии: 123 pass, 626 fail, 2 skip
+(`work/stage04-iterator-test262-report.json`). Не закрыты все варианты
+итерационных деклараций, destructuring, генераторы, async и ряд встроенных API.
+
+Добавлены Array.prototype.values (тот же callable, что @@iterator),
+Array.isArray и generic Array.prototype.push с проверкой длины, свойств и
+GC. `array-builtins.test.ts`: 6 pass, включая stress GC.
+
+Создан Math object и Math.pow поверх существующего числового ядра.
+`math.test.ts`: 4 pass. Остальные свойства Math ещё не реализованы.
+
+## 2026-09-26 — продолжение этапа 4, Symbol.hasInstance и лексические циклы
+
+`instanceof` вызывает пользовательский `Symbol.hasInstance`; обычный алгоритм
+вынесен в `Function.prototype[Symbol.hasInstance]`. Проверены переопределение,
+неконструируемые функции, ошибки и работа с GC. `for...in` и `for...of`
+поддерживают `let`/`const` в заголовке: создаются отдельные bindings на каждой
+итерации, включая захваты замыканиями; RHS вычисляется с учётом TDZ. Для
+`for...of` проверены закрытие итератора при помеченном `break` и сохранение
+захваченных значений при stress GC.
+
+Команда `npm exec --yes --package=node@26.9.0 -- node --test
+dist/tests/*.test.js`: 1180 total, 1179 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-node26-full.log`). Команда сравнения примеров с тем же Node 26:
+39/39 (`work/stage04-final-compare.log`). Положительный Test262 smoke:
+9 pass, 0 fail, 0 skip (`work/stage04-final-smoke.log`). Сырые группы
+закреплённой ревизии Test262: Symbol 72/26/0 pass/fail/skip,
+for-in 84/35/0, for-of 128/621/2. Эти группы содержат возможности вне
+текущего поднабора и тесты после ES2020; числа не означают закрытие этапа.
+
+Node 22 не является поддерживаемой версией тестового окружения: три теста
+сравнения с его собственным oracle дали отличия (в том числе metadata
+функций и sealing глобального объекта). На требуемом Node 26 они проходят.
+Linux native backend ещё не реализован; CI запускает на Linux только
+frontend/IR тесты. Полный объём ES2020 остаётся открытым.
+
+Затем добавлен `Array.prototype.includes` для обычных и generic receivers:
+SameValueZero (включая NaN), holes как `undefined`, унаследованные элементы,
+положительный и отрицательный `fromIndex`, объектные getters и GC roots.
+`array-builtins.test.ts`: 10 pass на Node 26. Полный native-прогон после этого
+добавления: 1184 total, 1183 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-includes-full.log`). Группа Test262
+`built-ins/Array/prototype/includes`: 26 pass, 4 fail, 0 skip; провалы требуют
+Proxy или resizable ArrayBuffer (`work/stage04-array-includes-test262.log`).
+Положительный smoke manifest расширен до 10 pass, 0 fail, 0 skip
+(`work/stage04-includes-smoke.log`). Совместимые примеры: 40/40
+(`work/stage04-includes-compare.log`).
+
+В Math добавлены восемь стандартных констант с неизменяемыми дескрипторами:
+E, LN10, LN2, LOG10E, LOG2E, PI, SQRT1_2, SQRT2. После этого вся группа
+Test262 `built-ins/Math/pow` прошла: 28 pass, 0 fail, 0 skip
+(`work/stage04-math-pow-test262.log`). `math.test.ts`: 5 pass. Итоговый
+native-прогон на Node 26: 1185 total, 1184 pass, 0 fail, 1 Windows symlink
+skip (`work/stage04-math-constants-full.log`); примеры 40/40, smoke 11/11.
+
+Добавлен `String.prototype.includes`: generic receiver, UTF-16 поиск,
+ToIntegerOrInfinity позиции, проверка Symbol.match до строкового преобразования
+и GC roots при пользовательских hooks. `string-builtins.test.ts`: 7 pass.
+Test262 `built-ins/String/prototype/includes`: 25 pass, 2 fail, 0 skip;
+два провала используют ещё отсутствующие RegExp literals
+(`work/stage04-string-includes-test262.log`). Итоговый native-прогон:
+1192 total, 1191 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-string-includes-full.log`); примеры 41/41, smoke 12/12.
+
+Заголовки `for...in`/`for...of` теперь принимают присваивание в member
+expression. Объект и вычисляемый ключ оцениваются на каждой итерации после
+получения следующего значения. Добавлены Array.prototype.keys/entries с
+общим состоянием итератора и собственный `arguments[Symbol.iterator]`
+для mapped и unmapped arguments. Соответствующие native-тесты проверяют
+итераторы, holes, строгую функцию и computed targets.
+
+Test262: for-in 85 pass / 34 fail / 0 skip; for-of 139 pass / 610 fail /
+2 skip (`work/stage04-property-forin.log`,
+`work/stage04-arguments-iterator-forof.log`). Полный native-прогон на Node 26:
+1201 total, 1200 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-arguments-iterator-full.log`). Совместимые примеры: 41/41.
+Положительный Test262 smoke manifest: 16/16
+(`work/stage04-final-smoke.log`).
+
+Реализован generic `Array.prototype.pop`: ToLength, чтение последнего
+элемента, DeletePropertyOrThrow, запись новой длины и возврат значения.
+Поддержаны sparse массивы, accessor callbacks и GC stress. Добавлены восемь
+стандартных констант Number с неизменяемыми дескрипторами. Группа Test262
+`built-ins/Array/prototype/pop`: 23 pass, 0 fail, 0 skip; группа for-of после
+этого: 142 pass, 607 fail, 2 skip (`work/stage04-array-pop-test262.log`,
+`work/stage04-array-pop-forof.log`). Итоговый native-прогон на Node 26:
+1206 total, 1205 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-array-pop-full.log`). Примеры 41/41, smoke 17/17.
+
+Добавлены Number.isFinite, Number.isInteger, Number.isNaN и
+Number.isSafeInteger. Они принимают только Number, обрабатывают NaN,
+бесконечности, дроби, ±0 и safe-integer границы без пользовательских
+преобразований. Четыре группы Test262 прошли полностью: 8/8, 9/9, 7/7,
+10/10. `number-builtins.test.ts`: 6 pass, включая GC stress. Полный native
+прогон на Node 26: 1212 total, 1211 pass, 0 fail, 1 Windows symlink skip
+(`work/stage04-number-builtins-full.log`). Примеры 41/41, положительный
+smoke manifest 21/21.
+
+Добавлен параметр `...rest` в function declarations/expressions, methods и
+стрелках. В parser/binder/IR отмечены фиксированные параметры и отдельная
+rest-привязка; runtime создаёт массив из оставшихся аргументов с GC roots.
+Sloppy `arguments` с rest остаётся unmapped. Проверены length, замыкания,
+обработка некорректного порядка/дубликатов и strict directive early error.
+`rest-parameters.test.ts`: 12 pass. Test262 `language/rest-parameters`:
+8 pass, 3 fail, 0 skip (классы/деструктуризация); группа стрелок:
+136 pass, 207 fail, 0 skip (`work/stage05-rest-test262.log`,
+`work/stage05-rest-arrow.log`). Полный native-прогон: 1224 total, 1223 pass,
+0 fail, 1 Windows symlink skip (`work/stage05-rest-full.log`); совместимые
+примеры 42/42, положительный smoke manifest 22/22.
+
+## Подготовка v0.2.0
+
+Изменения перенесены в отдельный клон `C:\Users\oleg\nona-update` поверх
+`b579bd0a1abdef4a5a9bbc84219428c5be134e29`. Версия пакета, lockfile,
+CLI и тест CLI обновлены до `0.2.0`. Сводка реализации находится в
+[`v0.2-status.md`](v0.2-status.md). Полная поддержка ES2020 не заявляется.
+
+На Node.js 26.9.0 в целевом клоне: сборка прошла; native-тесты — 1223 pass,
+0 fail, 1 skip из 1224; совместимые примеры — 42/42; положительный smoke-набор
+Test262 закреплённой ревизии — 22/22. Linux CI по-прежнему проверяет только
+frontend/IR: ELF/SysV backend остаётся отдельной задачей.

@@ -35,6 +35,7 @@ export function collectDeclarations(
       case 'While':case 'DoWhile':case 'Labeled':visitVars([statement.body]);break;
       case 'Switch':for(const clause of statement.cases)visitVars(clause.body);break;
       case 'For':if(statement.init?.kind==='Var')visitVars([statement.init]);visitVars([statement.body]);break;
+      case 'ForIn':case 'ForOf':if(statement.left.kind==='Var')visitVars([statement.left]);visitVars([statement.body]);break;
     }
   };
   visitVars(statements);

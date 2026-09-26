@@ -11,7 +11,7 @@ import { FunctionLayout } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
-const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toString'};
+const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 
@@ -97,8 +97,18 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
           if(op.nameSlot!==undefined){a.load('rax',stack(valueBase+16*op.nameSlot+8));a.store(stack(72),'rax');}
-          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method?'rt.newMethod':'rt.newFunction');
-          if(op.strict){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
+          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method||op.arrow?'rt.newMethod':'rt.newFunction');
+          if(op.strict||op.arrow){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
+          if(op.arrow){
+            a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
+            for(const [target,source] of [[FunctionLayout.lexicalThis,thisBase],[FunctionLayout.lexicalNewTarget,newTargetBase]] as const){
+              a.load('rax',stack(source));a.store({base:'r10',disp:target},'rax');
+              a.load('rax',stack(source+8));a.store({base:'r10',disp:target+8},'rax');
+            }
+            if(fn.id!=='js.main'){
+              a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');
+            }
+          }
           if(op.homeObject!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
           if(op.sourceText!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
           pointer('rcx',op.dest);
@@ -135,6 +145,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.mov('rax',op.parameters.length);a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
           pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
+        case 'newRestArray':pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.mov('r9',op.start);a.call('rt.newRestArray');break;
         case 'constructorResult':pointer('rcx',op.dest);pointer('rdx',op.result);pointer('r8',op.instance);a.call('rt.constructorResult');break;
         case 'invoke':
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -142,6 +153,13 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.store(stack(32),'rax');
           pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.construct?'rt.invokeConstruct':'rt.invoke');break;
         case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);a.call('rt.newObject');break;
+        case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
+        case 'forInHas':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.forInHas');break;
+        case 'getIterator':pointer('rcx',op.iterator);pointer('rdx',op.next);pointer('r8',op.object);a.call('rt.getIterator');break;
+        case 'iteratorStep':pointer('rcx',op.dest);pointer('rdx',op.done);pointer('r8',op.iterator);pointer('r9',op.next);a.call('rt.iteratorStep');break;
+        case 'iteratorClose':pointer('rcx',op.iterator);a.call('rt.iteratorClose');break;
+        case 'requireIterable':pointer('rcx',op.object);a.call('rt.requireIterable');break;
+        case 'forOfValue':pointer('rcx',op.dest);pointer('rdx',op.iterable);pointer('r8',op.index);a.call('rt.forOfValue');break;
         case 'property':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',stack(valueBase+16*op.dest+8));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
         case 'setPrototype':pointer('rcx',op.object);pointer('rdx',op.prototype);a.call('rt.setPrototype');break;

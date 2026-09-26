@@ -26,6 +26,41 @@ export function lex(source: string): TokenStream {
   const push = (kind: Token['kind'], start: number, value?: string|number) => {
     tokens.push({ kind, text: source.slice(start, i), value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
   };
+  const templates:{depth:number}[]=[];
+  const templateSegment=(start:number,continued:boolean):void=>{
+    let cooked='';
+    while(i<source.length){
+      const char=source[i++]!;
+      if(char==='`'){
+        push(continued?'templateTail':'templateNoSub',start,cooked);
+        if(continued)templates.pop();return;
+      }
+      if(char==='$'&&source[i]==='{'){
+        i++;push(continued?'templateMiddle':'templateHead',start,cooked);
+        if(!continued)templates.push({depth:0});return;
+      }
+      if(char==='\\'){
+        if(i>=source.length)fail('Unterminated template',start);
+        const escape=source[i++]!;
+        if(newline(escape)){if(escape==='\r'&&source[i]==='\n')i++;continue;}
+        if(escape==='u'){cooked+=unicodeEscape(i-2);continue;}
+        if(escape==='x'){
+          const digits=source.slice(i,i+2);
+          if(!/^[0-9a-f]{2}$/i.test(digits))fail('Invalid template escape',i-2);
+          cooked+=String.fromCharCode(parseInt(digits,16));i+=2;continue;
+        }
+        if(/[1-9]/.test(escape)||escape==='0'&&/[0-9]/.test(source[i]??''))fail('Legacy octal template escape',i-2);
+        const escapes:Record<string,string>={n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0'};
+        cooked+=escapes[escape]??escape;continue;
+      }
+      if(char==='\r'){
+        if(source[i]==='\n')i++;
+        cooked+='\n';continue;
+      }
+      cooked+=char;
+    }
+    fail('Unterminated template',start);
+  };
   while (i < source.length) {
     const c = source[i]!;
     if (/\s/.test(c)) { if (newline(c)) lineBreak = true; i++; continue; }
@@ -36,6 +71,15 @@ export function lex(source: string): TokenStream {
       if (i === source.length) fail('Unterminated comment', start); i += 2; continue;
     }
     const start = i;
+    if(c==='`'){i++;templateSegment(start,false);continue;}
+    if(templates.length&&c==='{'){templates[templates.length-1]!.depth++;i++;push('punct',start);continue;}
+    if(templates.length&&c==='}'){
+      const current=templates[templates.length-1]!;
+      i++;push('punct',start);
+      if(current.depth>0)current.depth--;
+      else templateSegment(i,true);
+      continue;
+    }
     if (identifierStart(codePoint())||c==='\\') {
       let value='';
       while(i<source.length) {
@@ -84,7 +128,7 @@ export function lex(source: string): TokenStream {
       i++; push('string', start, value); continue;
     }
     if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){i+=2;push('punct',start);continue;}
-    const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
+    const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','...','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
     if (op) { i += op.length; push('punct', start); continue; }
     if ('{}()[].;,?:+-*/%<>=!&|^~'.includes(c)) { i++; push('punct', start); continue; }
     fail(`Unsupported character ${JSON.stringify(c)}`);

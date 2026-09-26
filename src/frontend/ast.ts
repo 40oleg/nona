@@ -12,6 +12,7 @@ export interface Member extends Node {kind:'Member';object:Expression;property:E
 export type Assignable = Identifier|Member;
 export interface ObjectLiteral extends Node {kind:'ObjectLiteral';properties:{key:Expression;value:Expression;prototype:boolean;accessor?:'get'|'set'}[]}
 export interface ArrayLiteral extends Node {kind:'ArrayLiteral';elements:(Expression|null)[]}
+export interface Template extends Node {kind:'Template';quasis:string[];expressions:Expression[]}
 export interface Update extends Node { kind: 'Update'; operator: string; argument: Assignable; prefix: boolean }
 export interface Binary extends Node { kind: 'Binary'; operator: string; left: Expression; right: Expression }
 export interface Assignment extends Node { kind: 'Assignment'; operator: string; left: Assignable; right: Expression }
@@ -22,10 +23,10 @@ export type OptionalLink=
   | {kind:'property';property:Expression;computed:boolean;optional:boolean;span:Span}
   | {kind:'call';arguments:Expression[];optional:boolean;span:Span};
 export interface OptionalChain extends Node {kind:'OptionalChain';base:Expression;links:OptionalLink[]}
-export type Expression = NewTarget|Super|This|Identifier|Literal|Unary|Update|Binary|Assignment|Conditional|Call|New|Member|OptionalChain|ObjectLiteral|ArrayLiteral|FunctionExpression;
+export type Expression = NewTarget|Super|This|Identifier|Literal|Unary|Update|Binary|Assignment|Conditional|Call|New|Member|OptionalChain|ObjectLiteral|ArrayLiteral|Template|FunctionExpression;
 export interface Var extends Node { kind: 'Var'; declarationKind:'var'|'let'|'const'; declarations: { id: Identifier; init: Expression|null }[] }
-export interface FunctionDeclaration extends Node { kind: 'Function'; id: Identifier; parameters: Identifier[]; body: Block }
-export interface FunctionExpression extends Node {kind:'FunctionExpression';method?:boolean;id:Identifier|null;parameters:Identifier[];body:Block}
+export interface FunctionDeclaration extends Node { kind: 'Function'; id: Identifier; parameters: Identifier[]; rest?:Identifier|null; body: Block }
+export interface FunctionExpression extends Node {kind:'FunctionExpression';method?:boolean;arrow?:boolean;id:Identifier|null;parameters:Identifier[];rest?:Identifier|null;body:Block}
 export type FunctionNode=FunctionDeclaration|FunctionExpression;
 export interface ExpressionStatement extends Node { kind: 'ExpressionStatement'; expression: Expression }
 export interface If extends Node { kind: 'If'; test: Expression; consequent: Statement; alternate: Statement|null }
@@ -34,9 +35,11 @@ export interface DoWhile extends Node { kind: 'DoWhile'; test: Expression; body:
 export interface Switch extends Node { kind: 'Switch'; discriminant: Expression; cases: {test:Expression|null;body:Statement[]}[] }
 export interface Labeled extends Node { kind: 'Labeled'; label: Identifier; body: Statement }
 export interface For extends Node { kind: 'For'; init: Var|Expression|null; test: Expression|null; update: Expression|null; body: Statement }
+export interface ForIn extends Node {kind:'ForIn';left:Var|Assignable;right:Expression;body:Statement}
+export interface ForOf extends Node {kind:'ForOf';left:Var|Assignable;right:Expression;body:Statement}
 export interface Throw extends Node {kind:'Throw';argument:Expression}
 export interface Try extends Node {kind:'Try';body:Block;parameter:Identifier|null;handler:Block|null;finalizer:Block|null}
 export interface Return extends Node { kind: 'Return'; argument: Expression|null }
 export interface Simple extends Node { kind: 'Empty'|'Debugger' }
 export interface Jump extends Node { kind: 'Break'|'Continue'; label:Identifier|null }
-export type Statement = Throw|Try|Block|Var|FunctionDeclaration|ExpressionStatement|If|While|DoWhile|Switch|Labeled|For|Return|Simple|Jump;
+export type Statement = Throw|Try|Block|Var|FunctionDeclaration|ExpressionStatement|If|While|DoWhile|Switch|Labeled|For|ForIn|ForOf|Return|Simple|Jump;
