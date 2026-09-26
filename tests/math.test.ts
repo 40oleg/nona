@@ -96,3 +96,17 @@ test('Math: expm1 near zero and signed zero',()=>{
   assert.ok(Math.abs(got-expected)<=5e-13*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
  }
 });
+test('Math: atan and atan2 quadrants and signed zero',()=>{
+ const pairs:[[number,number],...[number,number][]]=[[1,1],[1,-1],[-1,1],[-1,-1],[0,1],[-0,1],[0,-1],[-0,-1],[Infinity,Infinity],[-Infinity,-Infinity]];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(Math.atan(1),Math.atan(-1),${pairs.map(([y,x])=>`Math.atan2(${literal(y)},${literal(x)})`).join(',')},Object.is(Math.atan(-0),-0),Object.is(Math.atan2(-0,1),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');const expected=[Math.atan(1),Math.atan(-1),...pairs.map(([y,x])=>Math.atan2(y,x))];
+ for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=2e-15*Math.max(1,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
+ assert.deepEqual(parts.slice(expected.length),['true','true']);
+});
+test('Math: atan2 coerces both arguments under stress GC',()=>{
+ const source=`var s='';function v(n){return {valueOf(){for(var i=0;i<40;i++)({v:i});s+=n;return n;}}}console.log(Math.atan2(v(1),v(1)),s);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

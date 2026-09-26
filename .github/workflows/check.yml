@@ -74,6 +74,8 @@ jobs:
             test/built-ins/Math/log10
             test/built-ins/Math/exp
             test/built-ins/Math/expm1
+            test/built-ins/Math/atan
+            test/built-ins/Math/atan2
             test/built-ins/Number/isFinite
             test/built-ins/Number/isInteger
             test/built-ins/Number/isNaN

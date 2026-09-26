@@ -161,3 +161,7 @@ pass 61/61 on Windows and Linux.
 The complete `Math.exp` and `Math.expm1` groups pass 9/9 and 5/5.
 Positive smoke is 116/116; compatible examples pass 62/62 on Windows
 and Linux.
+
+The complete `Math.atan` and `Math.atan2` groups pass 7/7 and 11/11.
+Positive smoke is 118/118; compatible examples pass 63/63 on Windows
+and Linux.
