@@ -13,6 +13,29 @@ test('Number.toFixed seeded binary64 values and fraction widths',()=>{
  for(const [i,value] of values.entries()){const digits=widths[i%widths.length]!;expressions.push(`(${String(value)}).toFixed(${digits})`);expected.push(value.toFixed(digits));}
  expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
 });
+test('Number.toExponential and toPrecision exact decimal layout',()=>{
+ const values=[123.456,-123.456,0.0001,0.9999,25,1e21,5e-324,0,-0];
+ const widths=[undefined,0,1,2,6,17,20,100] as const;
+ const expressions:string[]=[],expected:string[]=[];
+ for(const value of values)for(const width of widths){
+  const literal=Object.is(value,-0)?'-0':String(value);
+  if(width===undefined){expressions.push(`(${literal}).toExponential()`,`(${literal}).toPrecision()`);expected.push(value.toExponential(),value.toPrecision());}
+  else {expressions.push(`(${literal}).toExponential(${width})`);expected.push(value.toExponential(width));if(width>0){expressions.push(`(${literal}).toPrecision(${width})`);expected.push(value.toPrecision(width));}}
+ }
+ expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
+});
+test('Number significant formatting seeded binary64 values',()=>{
+ let seed=0x94d11b31a7ce2f05n;const view=new DataView(new ArrayBuffer(8));
+ const widths=[1,2,3,6,17,50,100];const expressions:string[]=[],expected:string[]=[];
+ for(let i=0;i<70;i++){
+  seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);view.setBigUint64(0,seed);
+  const value=view.getFloat64(0);if(!Number.isFinite(value))continue;
+  const p=widths[i%widths.length]!,f=p-1,source=`(${String(value)})`;
+  expressions.push(`${source}.toExponential(${f})`,`${source}.toPrecision(${p})`,`${source}.toExponential()`);
+  expected.push(value.toExponential(f),value.toPrecision(p),value.toExponential());
+ }
+ expectProgram('console.log('+expressions.join(',')+');',expected.join(' ')+'\n');
+});
 
 test('binary64 special values and signed zero',()=>expectProgram('console.log(1/0,-1/0,0/0,-0,1/-0);','Infinity -Infinity NaN 0 -Infinity\n'));
 test('exact binary remainder',()=>expectProgram('console.log(5.5%2,-5.5%2,1%0,1e308%3,1%5e-324,1/(-4%2));',`1.5 -1.5 NaN ${1e308%3} 0 -Infinity\n`));

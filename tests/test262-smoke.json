@@ -105,6 +105,8 @@
     "built-ins/String/prototype/concat/S15.5.4.6_A4_T1.js",
     "built-ins/String/prototype/toUpperCase/special_casing.js",
     "built-ins/String/prototype/toLowerCase/special_casing_conditional.js",
-    "built-ins/Number/prototype/toFixed/exactness.js"
+    "built-ins/Number/prototype/toFixed/exactness.js",
+    "built-ins/Number/prototype/toExponential/return-values.js",
+    "built-ins/Number/prototype/toPrecision/return-values.js"
   ]
 }

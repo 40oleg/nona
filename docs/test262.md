@@ -141,3 +141,8 @@ The complete `built-ins/Number/prototype/toFixed` group has 15 pass /
 1 fail / 0 skip. The failing case uses BigInt, scheduled for v0.8.
 The exactness case is in the positive smoke manifest, now 106/106;
 compatible examples pass 58/58 on Windows and Linux.
+
+The complete `built-ins/Number/prototype/toExponential` and
+`built-ins/Number/prototype/toPrecision` groups pass 15/15 and 17/17.
+Their regular-value cases are in the positive smoke manifest, now 108/108.
+Compatible examples pass 59/59 on Windows and Linux.

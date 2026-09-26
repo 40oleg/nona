@@ -81,6 +81,8 @@ jobs:
             test/built-ins/String/prototype/toUpperCase
             test/built-ins/String/prototype/toLowerCase
             test/built-ins/Number/prototype/toFixed
+            test/built-ins/Number/prototype/toExponential
+            test/built-ins/Number/prototype/toPrecision
             test/built-ins/String/prototype/includes
             test/built-ins/String/prototype/indexOf
             test/built-ins/String/prototype/lastIndexOf
