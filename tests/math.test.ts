@@ -156,3 +156,19 @@ test('Math: inverse trigonometric coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: atanh finite values, domain, and signed zero',()=>{
+ const values=[-1,-.9999999999999999,-.75,-.1,-1e-12,-0,0,1e-12,.1,.75,.9999999999999999,1];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${values.map(v=>`Math.atanh(${literal(v)})`).join(',')},Object.is(Math.atanh(-0),-0),Math.atanh(2),Math.atanh(-2));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','NaN','NaN']);
+ for(const [i,value] of values.entries()){
+  const expected=Math.atanh(value),got=Number(parts[i]);
+  assert.ok(!Number.isFinite(expected)?got===expected:Math.abs(got-expected)<=3e-14*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
+ }
+});
+test('Math: atanh coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.atanh(x),Object.is(Math.atanh(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

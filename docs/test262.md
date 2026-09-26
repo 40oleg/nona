@@ -183,3 +183,7 @@ on Windows and Linux.
 The complete `decodeURI` and `decodeURIComponent` groups pass 55/55
 and 56/56. Positive smoke is 126/126; compatible examples pass
 68/68 on Windows and Linux.
+
+The complete `Math.atanh` group passes 5/5. Positive smoke is 127/127;
+compatible examples pass 69/69 on Windows and Linux. The full native
+test run after URI work had 1632 passes, 27 skips, and zero failures.
