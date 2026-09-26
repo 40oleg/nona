@@ -14,4 +14,5 @@ for(const [name,source,expected] of [
  ['setTime checks receiver before coercion',`let log=[];let arg={valueOf(){log.push('valueOf');return 4}};try{Date.prototype.setTime.call({},arg)}catch(e){log.push(e.name)}console.log(log.join(','))`],
  ['timezone offset follows UTC host policy',`let a=new Date(0),b=new Date(NaN);console.log(a.getTimezoneOffset(),Number.isNaN(b.getTimezoneOffset()))`,'0 true\n'],
  ['Date constructor copies internal time',`let d=new Date(1234);d.valueOf=()=>{throw Error('called')};console.log(new Date(d).getTime())`],
+ ['calendar fields across Gregorian eras',`for(let t of [-8640000000000000,-2208988800000,-62167219200000,-1,0,951782400000,946684800000,8640000000000000]){let d=new Date(t);console.log(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),d.getUTCDay())}`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
