@@ -90,7 +90,10 @@ locale-методы с политикой UTC для локального вре
 `toTemporalInstant` относятся к Temporal после ES2020. Последняя полная native
 регрессия: 1725 pass / 0 fail / 14 skip из 1739. Группа `Boolean` дала
 47 pass / 4 fail: два отказа требуют согласованно исключённые `eval` и
-динамический `Function`, два — будущий `Reflect`/cross-realm. Полный разбор
+динамический `Function`, два — будущий `Reflect`/cross-realm. Группа `Error`
+дала 41 pass / 52 fail: 50 отказов относятся к появившимся после ES2020
+`cause`, `isError` и `stack`, два требуют `Reflect`/cross-realm; один из них
+также использует исключённый динамический `Function`. Полный разбор
 Date, JSON, BigInt,
 RegExp и его интеграция со String остаются открытыми. PR для 0.6–0.10 пока
 не открывать.
