@@ -110,3 +110,19 @@ test('Math: atan2 coerces both arguments under stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: log1p small values, domain, and signed zero',()=>{
+ const values=[-1,-.9,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,1e20];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${values.map(v=>`Math.log1p(${literal(v)})`).join(',')},Object.is(Math.log1p(-0),-0),Math.log1p(-2),Math.log1p(Infinity));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','NaN','Infinity']);
+ for(const [i,value] of values.entries()){
+  const expected=Math.log1p(value),got=Number(parts[i]);
+  assert.ok(expected===-Infinity?got===-Infinity:Math.abs(got-expected)<=2e-14*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
+ }
+});
+test('Math: log1p coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.log1p(x),Object.is(Math.log1p(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

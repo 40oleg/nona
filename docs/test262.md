@@ -165,3 +165,6 @@ and Linux.
 The complete `Math.atan` and `Math.atan2` groups pass 7/7 and 11/11.
 Positive smoke is 118/118; compatible examples pass 63/63 on Windows
 and Linux.
+
+The complete `Math.log1p` group passes 5/5. Positive smoke is 119/119;
+compatible examples pass 64/64 on Windows and Linux.

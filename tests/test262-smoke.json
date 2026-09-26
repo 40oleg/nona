@@ -117,6 +117,7 @@
     "built-ins/Math/exp/S15.8.2.8_A3.js",
     "built-ins/Math/expm1/expm1-specialVals.js",
     "built-ins/Math/atan/S15.8.2.4_A2.js",
-    "built-ins/Math/atan2/S15.8.2.5_A16.js"
+    "built-ins/Math/atan2/S15.8.2.5_A16.js",
+    "built-ins/Math/log1p/specific-results.js"
   ]
 }
