@@ -179,3 +179,8 @@ test('Linux native toLocaleString retains values under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native sort comparator retains elements under GC stress',t=>{
+ const source=`let a=[{x:3},{x:1},{x:2}];a.sort(function(v,w){for(let i=0;i<20;i++)({i:i});return v.x-w.x});console.log(a[0].x,a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

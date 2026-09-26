@@ -8,6 +8,14 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['sort default and metadata',`var a=[10,2,1];console.log(a.sort()===a,a.join(','),Array.prototype.sort.length);`],
+ ['sort numeric callback and stability',`var a=[{k:2,i:'a'},{k:1,i:'b'},{k:2,i:'c'}];a.sort(function(x,y){return x.k-y.k});console.log(a.map(function(x){return x.i}).join(','));`],
+ ['sort undefined and holes',`var a=[,undefined,3,,1,undefined];a.sort();console.log(a.length,a[0],a[1],a[2],a[3],4 in a,5 in a);`],
+ ['sort generic and inherited indices',`var o={length:3,0:'b',2:'a'};Array.prototype.sort.call(o);console.log(o[0],o[1],2 in o);Array.prototype[1]='c';var a=['b',,'a'];a.sort();delete Array.prototype[1];console.log(a.join(','),a.length);`],
+ ['sort mutation during comparator',`var a=[3,2,1],n=0;a.sort(function(x,y){if(++n===1)a[0]=9;return x-y});console.log(a.join(','),n);`],
+ ['sort invalid comparator',`try{[].sort(null)}catch(e){console.log(e.name)}try{Array.prototype.sort.call(null)}catch(e){console.log(e.name)}`],
+ ['sort undefined never enters comparator',`var a=[undefined,2,1],n=0;a.sort(function(x,y){n++;return x-y});console.log(a.join(','),n,a.length);`],
+ ['sort getters collected before comparisons',`var a=[3,2,1],s='';Object.defineProperty(a,0,{configurable:true,get:function(){s+='g';return 3},set:function(v){s+='s'+v}});a.sort(function(x,y){s+='c';return x-y});console.log(s,a.join(','));`],
  ['toLocaleString entries and metadata',`var a=[1,null,,{toLocaleString(){return 'x'}}];console.log(a.toLocaleString(),Array.prototype.toLocaleString.length);`],
  ['toLocaleString generic and frozen length',`var o={length:2,0:{toLocaleString(){o.length=0;return 'a'}},1:{toLocaleString(){return 'b'}}};console.log(Array.prototype.toLocaleString.call(o));`],
  ['toLocaleString invokes methods and converts results',`var s='',a=[{toLocaleString(){s+='A';return {toString(){s+='S';return 'x'}}}},{toLocaleString(){s+='B';return 'y'}}];console.log(a.toLocaleString(),s);`],
@@ -133,6 +141,11 @@ for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgra
 
 test('array builtins: toLocaleString methods and strings survive stress GC',()=>{
  const source=`var a=[{toLocaleString(){for(var i=0;i<30;i++)({x:i});return {toString(){for(var j=0;j<30;j++)({y:j});return 'left'}}}},{toLocaleString(){for(var i=0;i<30;i++)({z:i});return 'right'}}];console.log(a.toLocaleString());`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: sort comparator and elements survive stress GC',()=>{
+ const source=`var a=[{x:3},{x:1},{x:2}];a.sort(function(v,w){for(var i=0;i<30;i++)({i:i});return v.x-w.x});console.log(a[0].x,a[1].x,a[2].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
