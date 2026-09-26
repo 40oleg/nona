@@ -2510,3 +2510,14 @@ Test262 4/4, native wrapper tests 27/27. Локаль Node.js на этой ма
 эквивалентность Unicode при отсутствии ECMA-402. Test262 13/13,
 native String tests 67/67 с GC stress, совместимые примеры Windows/Linux
 по 77/77.
+
+Полный аудит Test262 для v0.5: `built-ins/Number` 334/340 с шестью
+пофайлово классифицированными зависимостями; `built-ins/String` сначала
+938/1223, после исправления generic receiver строкового итератора
+939/1223. Оставшиеся 284 случая перечислены в
+`v0.5-string-deferred.json`: 72 API после ES2020, остальные зависят от
+RegExp, BigInt, Reflect, cross realm, `with` или согласованных исключений
+`eval` и dynamic Function. Строковый итератор теперь выполняет `ToString`
+для любого подходящего receiver; его Test262 6/6, native for-of 43/43.
+Полный повтор Math: 312/327; все 15 отказов — методы после ES2020
+`f16round` и `sumPrecise`. Глобальные `isFinite`/`isNaN` 15/15 каждый.

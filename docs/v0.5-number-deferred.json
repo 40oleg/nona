@@ -1,0 +1,34 @@
+{
+  "test262Revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+  "counts": {
+    "pass": 334,
+    "fail": 6,
+    "skip": 0
+  },
+  "deferred": [
+    {
+      "path": "built-ins/Number/bigint-conversion.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/Number/is-a-constructor.js",
+      "reason": "v0.15-reflect"
+    },
+    {
+      "path": "built-ins/Number/proto-from-ctor-realm.js",
+      "reason": "v0.20-cross-realm"
+    },
+    {
+      "path": "built-ins/Number/prototype/toFixed/toFixed-tonumber-throws-typeerror-bigint.js",
+      "reason": "v0.8-bigint"
+    },
+    {
+      "path": "built-ins/Number/prototype/toString/S15.7.4.2_A4_T03.js",
+      "reason": "v0.7-date"
+    },
+    {
+      "path": "built-ins/Number/prototype/valueOf/S15.7.4.4_A2_T03.js",
+      "reason": "v0.7-date"
+    }
+  ]
+}
