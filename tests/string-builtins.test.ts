@@ -31,6 +31,7 @@ const cases:[string,string][]=[
  ['String locale casing default Unicode and metadata',`console.log('abc ß 𐐨'.toLocaleUpperCase(),'AΣ İ 𐐀'.toLocaleLowerCase(),String.prototype.toLocaleUpperCase.length,String.prototype.toLocaleLowerCase.length,String.prototype.toLocaleUpperCase.name,String.prototype.toLocaleLowerCase.name);`],
  ['String normalization forms, combining marks, and Hangul',`console.log('é'.normalize('NFD').length,'e\u0301'.normalize('NFC'),'Å'.normalize('NFKD'),'각'.normalize('NFD').length,'각'.normalize('NFC'),'햕'.normalize('NFC'),'़̣̀'.normalize('NFD'),String.prototype.normalize.length);`],
  ['String normalization form coercion and errors',`var s='';var x={toString(){s+='x';return 'e\u0301'}},f={toString(){s+='f';return 'NFC'}};console.log(String.prototype.normalize.call(x,f),s);for(var q of ['bad',Symbol()])try{'x'.normalize(q)}catch(e){console.log(e.name)}`],
+ ['String localeCompare canonical equivalence and coercion',`var order='';var x={toString(){order+='x';return 'Å'}},y={toString(){order+='y';return 'A\u030A'}};console.log(String.prototype.localeCompare.call(x,y),order,'가'.localeCompare('가'),'a'.localeCompare('b'),'b'.localeCompare('a'),String.prototype.localeCompare.length);`],
  ['String.toLowerCase generic and errors',`var s='';var x={toString(){s+='x';return 'AΣ';}};console.log(String.prototype.toLowerCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toLowerCase.call(v)}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
@@ -106,6 +107,11 @@ test('String locale casing: coerced source survives stress GC',()=>{
 });
 test('String.normalize: coerced source and form survive stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Å각e\u0301'}},f={toString(){for(var i=0;i<40;i++)({v:i});return 'NFKD'}};console.log(String.prototype.normalize.call(x,f));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.localeCompare: inputs survive coercion and normalization under stress GC',()=>{
+ const source=`var a={toString(){for(var i=0;i<40;i++)({v:i});return 'e\u0301'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'é'}};console.log(String.prototype.localeCompare.call(a,b));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
