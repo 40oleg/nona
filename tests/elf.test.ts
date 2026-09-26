@@ -164,3 +164,8 @@ test('Linux native parseInt and parseFloat survive coercion under GC stress',t=>
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native Array.prototype.concat honors spreadability and species under GC stress',t=>{
+ const source=`let a=[{x:1}],o={0:{x:2},length:1,[Symbol.isConcatSpreadable]:true};a.constructor={[Symbol.species]:function(){for(let i=0;i<20;i++)({x:i});return []}};let b=a.concat(o,{x:3});console.log(b.length,b[0].x,b[1].x,b[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

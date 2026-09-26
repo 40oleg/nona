@@ -35,6 +35,7 @@ jobs:
             test/language/statements/function
             test/built-ins/Symbol
             test/built-ins/Array/prototype/includes
+            test/built-ins/Array/prototype/concat
             test/built-ins/Array/prototype/indexOf
             test/built-ins/Array/prototype/lastIndexOf
             test/built-ins/Array/prototype/forEach

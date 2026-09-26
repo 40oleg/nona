@@ -8,6 +8,15 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['concat ordinary and length',`var a=[1,2].concat([3,4],5);console.log(a.length,a.join(','),Array.prototype.concat.length,[].concat().length);`],
+ ['concat sparse and inherited',`var a=[1,,3],b=[,5];var c=a.concat(b);console.log(c.length,0 in c,1 in c,2 in c,3 in c,4 in c,c[4]);Array.prototype[1]='p';c=a.concat(b);delete Array.prototype[1];console.log(c[1],1 in c,c[3],3 in c);`],
+ ['concat spreadable object and array override',`var o={0:'x',2:'z',length:3,[Symbol.isConcatSpreadable]:true},a=[1,2];a[Symbol.isConcatSpreadable]=false;var b=[0].concat(o,a);console.log(b.length,b[0],b[1],2 in b,b[3],b[4]===a);`],
+ ['concat generic receiver and primitive argument',`var o={0:'x',length:1,[Symbol.isConcatSpreadable]:true};var a=Array.prototype.concat.call(o,'y');console.log(a.length,a[0],a[1]);var b=Array.prototype.concat.call('ab',1);console.log(b.length,typeof b[0],b[1]);`],
+ ['concat species constructor and final length',`var a=[1,2],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:7}}};var b=a.concat([3]);console.log(s,b[0],b[1],b[2],b.length,b.x,Array.isArray(b));`],
+ ['concat spreadability and length getter order',`var s='',a=[1],o={0:2,length:1};Object.defineProperty(o,Symbol.isConcatSpreadable,{get:function(){s+='S';return true}});Object.defineProperty(o,'length',{get:function(){s+='L';return 1}});Object.defineProperty(o,'0',{get:function(){s+='V';return 2}});console.log(a.concat(o).join(','),s);`],
+ ['concat species own property and length setter',`var a=[1],p={},s='';Object.defineProperty(p,'0',{set:function(){s+='set'},configurable:true});var result=Object.create(p);Object.defineProperty(result,'length',{set:function(v){s+='L'+v}});a.constructor={[Symbol.species]:function(){return result}};var b=a.concat(2);console.log(b===result,Object.prototype.hasOwnProperty.call(b,'0'),b[0],b[1],s);`],
+ ['concat abrupt length limit',`var o={length:9007199254740991,[Symbol.isConcatSpreadable]:true};try{[1].concat(o)}catch(e){console.log(e.name)}`],
+ ['concat observes source mutations and holes',`var a=[1,2,3],s='';Object.defineProperty(a,'0',{get:function(){s+='g';delete a[1];return 7}});var b=a.concat();console.log(s,b.length,b[0],1 in b,b[2]);`],
  ['Array.from arrays and strings',`var a=Array.from([1,,3]),b=Array.from('a😀');console.log(a.length,a[0],1 in a,a[1],a[2],b.length,b[0],b[1]);`],
  ['Array.from array-like and mapping',`var a=Array.from({length:3,0:1,2:3},function(v,i){return String(v)+i});console.log(a.length,a.join(','),Array.from.length);`],
  ['Array.from iterable and constructor',`function C(n){this.argCount=arguments.length;this.n=n}var it={[Symbol.iterator]:function(){var i=0;return {next:function(){return i<2?{value:++i,done:false}:{done:true}}}}};var a=Array.from.call(C,it),b=Array.from.call(C,{length:2,0:'x'});console.log(a instanceof C,a.argCount,a.length,a[0],a[1],b.argCount,b.n,b.length,b[0],b[1]);`],
@@ -209,6 +218,12 @@ test('array builtins: shift first value survives getter and stress GC',()=>{
 });
 test('array builtins: unshift values survive setter and stress GC',()=>{
  const source=`var value={x:7},o={length:1,0:{x:2}},seen='';Object.defineProperty(o,'1',{set:function(v){for(var i=0;i<30;i++)({v:i});seen+=v.x}});console.log(Array.prototype.unshift.call(o,value),seen,o[0].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
+test('array builtins: concat spreadability, species and entries survive stress GC',()=>{
+ const source=`var value={x:7},a=[value],o={length:2,1:{x:9}},s='';Object.defineProperty(o,Symbol.isConcatSpreadable,{get:function(){for(var i=0;i<30;i++)({x:i});s+='S';return true}});Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({x:i});s+='G';return value}});a.constructor={[Symbol.species]:function(){for(var i=0;i<30;i++)({x:i});return []}};var r=a.concat(o);console.log(r.length,r[0].x,r[1].x,r[2].x,s);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
