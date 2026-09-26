@@ -25,7 +25,26 @@ export function emitPrimitives(b:RuntimeBuilder):void {
   a.label(convert);a.load('rcx',slot(40));a.lea('rdx',slot(56));a.call('rt.toString');a.label(done);
  });
  b.fn('rt.typeof',40,a=>{a.load('r10',{base:'rdx'});for(const [n,s] of ['undefined','object','boolean','number','string','object','symbol','bigint'].entries()){a.cmp('r10',n);a.jcc('ne','rt.typeof.next'+n);a.lea('rax',{rip:'rt.str.'+s});if(n===5){a.load('r11',{base:'rdx',disp:8});a.load('r11',{base:'r11'});a.cmp('r11',2);a.jcc('ne','rt.typeof.save');a.lea('rax',{rip:'rt.str.function'});}a.jmp('rt.typeof.save');a.label('rt.typeof.next'+n);}a.label('rt.typeof.save');a.store({base:'rcx',disp:8},'rax');tag(a,4);});
- for(const op of ['add','sub','mul','div','rem','pow'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');if(op==='add'){a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');a.lea('rdx',slot(64));a.store(slot(48),'rdx');a.lea('r8',slot(80));a.store(slot(56),'r8');a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('e','rt.add.string');a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e','rt.add.string');}a.lea('rcx',slot(64));a.call('rt.toNumber');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');a.movsd('xmm0',slot(72));a.movsd('xmm1',slot(88));if(op==='rem')a.call('rt.remainder');else if(op==='pow')a.call('rt.numberPow');else if(op==='add')a.addsd('xmm0','xmm1');else if(op==='sub')a.subsd('xmm0','xmm1');else if(op==='mul')a.mulsd('xmm0','xmm1');else a.divsd('xmm0','xmm1');a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');tag(a,3);if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');a.label('rt.add.done');}});
+ for(const op of ['add','sub','mul','div','rem','pow'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  if(op==='add'){
+   a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');
+   a.lea('rdx',slot(64));a.store(slot(48),'rdx');a.lea('r8',slot(80));a.store(slot(56),'r8');
+   a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('e','rt.add.string');a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e','rt.add.string');
+  }
+  const bigDone=a.unique('bigDone');
+  if(op==='add'||op==='sub'){
+   a.load('rdx',slot(48));a.load('rax',{base:'rdx'});const normal=a.unique('normal');a.cmp('rax',7);a.jcc('ne',normal);
+   a.load('r8',slot(56));a.load('rax',{base:'r8'});a.cmp('rax',7);a.jcc('ne',normal);
+   if(op==='sub'){a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.bigintNeg');a.lea('r8',slot(80));a.load('rdx',slot(48));}
+   a.load('rcx',slot(40));a.call('rt.bigintAdd');a.jmp(op==='add'?'rt.add.done':bigDone);a.label(normal);
+  }
+  a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toNumber');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
+  a.movsd('xmm0',slot(72));a.movsd('xmm1',slot(88));if(op==='rem')a.call('rt.remainder');else if(op==='pow')a.call('rt.numberPow');else if(op==='add')a.addsd('xmm0','xmm1');else if(op==='sub')a.subsd('xmm0','xmm1');else if(op==='mul')a.mulsd('xmm0','xmm1');else a.divsd('xmm0','xmm1');
+  a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');tag(a,3);
+  if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');a.label('rt.add.done');}
+  if(op==='sub')a.label(bigDone);
+ });
  for(const op of ['strictEq','eq','lt','le','gt','ge'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
  const p='rt.'+op;const eq=op==='eq'||op==='strictEq';a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');if(!eq){a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');a.lea('rdx',slot(64));a.store(slot(48),'rdx');a.lea('r8',slot(80));a.store(slot(56),'r8');}a.load('r10',{base:'rdx'});a.load('r11',{base:'r8'});
  if(eq){a.cmp('r10','r11');a.jcc('e',p+'.same');if(op==='strictEq')a.jmp(p+'.false');else {a.cmp('r10',1);a.jcc('a',p+'.leftNotNull');a.cmp('r11',1);a.jcc('be',p+'.true');a.jmp(p+'.false');a.label(p+'.leftNotNull');a.cmp('r11',1);a.jcc('be',p+'.false');a.cmp('r10',6);a.jcc('e',p+'.symbolMismatch');a.cmp('r11',6);a.jcc('e',p+'.symbolMismatch');a.jmp(p+'.numeric');a.label(p+'.symbolMismatch');a.cmp('r10',5);a.jcc('e',p+'.numeric');a.cmp('r11',5);a.jcc('e',p+'.numeric');a.jmp(p+'.false');}a.label(p+'.same');a.cmp('r10',1);a.jcc('be',p+'.true');a.cmp('r10',5);a.jcc('e',p+'.identity');a.cmp('r10',6);a.jcc('e',p+'.identity');const notBig=a.unique('notBig');a.cmp('r10',7);a.jcc('ne',notBig);a.load('rcx',{base:'rdx',disp:8});a.load('rdx',{base:'r8',disp:8});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',p+'.true');a.jmp(p+'.false');a.label(notBig);a.cmp('r10',2);a.jcc('ne',p+'.notBool');a.label(p+'.identity');a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'r8',disp:8});a.cmp('rax','r10');a.jcc('e',p+'.true');a.jmp(p+'.false');a.label(p+'.notBool');}
