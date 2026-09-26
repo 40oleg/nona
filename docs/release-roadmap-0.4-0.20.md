@@ -81,9 +81,9 @@ Test262. Повторный полный прогон Array: 2640 pass, 352 fail
 
 Текущий снимок ветки `work/v0.6-v0.10`: `Object.fromEntries` 25/25 Test262;
 `Object.assign` 34/38 (оставшиеся 4 зависят от Proxy). Добавлены Date clock,
-конструктор, `UTC`, календарные getter-методы, `setTime`, сеттеры часов, минут,
-секунд и миллисекунд, timezone offset при локальной политике UTC. До сеттеров
-группа `Date/prototype` давала 200 pass / 285 fail; восемь локальных и UTC
-сеттеров отдельно прошли 108/108 тестов Test262.
-Date parsing/formatting/setters и JSON остаются открытыми. BigInt, RegExp и
+конструктор, `UTC`, календарные getter-методы, `setTime`, сеттеры года, месяца,
+дня и времени суток, timezone offset при локальной политике UTC. До сеттеров
+группа `Date/prototype` давала 200 pass / 285 fail; четырнадцать локальных и UTC
+сеттеров отдельно прошли 181/181 тест Test262.
+Date parsing/formatting и JSON остаются открытыми. BigInt, RegExp и
 интеграция RegExp со String ещё не начаты. PR для 0.6–0.10 пока не открывать.
