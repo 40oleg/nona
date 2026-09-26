@@ -136,3 +136,8 @@ The `built-ins/String/prototype/toLowerCase` group has 28 pass / 2 fail /
 Final Sigma conditional mapping, including `Case_Ignorable` characters,
 passes. The positive smoke manifest is 105/105; compatible examples are
 57/57 on Windows and Linux.
+
+The complete `built-ins/Number/prototype/toFixed` group has 15 pass /
+1 fail / 0 skip. The failing case uses BigInt, scheduled for v0.8.
+The exactness case is in the positive smoke manifest, now 106/106;
+compatible examples pass 58/58 on Windows and Linux.

@@ -80,6 +80,7 @@ jobs:
             test/built-ins/String/prototype/concat
             test/built-ins/String/prototype/toUpperCase
             test/built-ins/String/prototype/toLowerCase
+            test/built-ins/Number/prototype/toFixed
             test/built-ins/String/prototype/includes
             test/built-ins/String/prototype/indexOf
             test/built-ins/String/prototype/lastIndexOf

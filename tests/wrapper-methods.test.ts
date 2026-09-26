@@ -21,6 +21,7 @@ const cases:[string,string][]=[
  ['radix fractions and rounding','console.log((0.1).toString(2),(0.1).toString(3),(1.1).toString(16),(0.9999999999999999).toString(3),(-12.375).toString(8));'],
  ['special values and signed zero in radices','console.log(NaN.toString(2),Infinity.toString(36),(-Infinity).toString(16),(-0).toString(2),(0).toString(36),1/(-0).valueOf());'],
  ['large and tiny radix values','let values=[5e-324,2.2250738585072014e-308,1.7976931348623157e308,9007199254740992,1e30];for(let i=0;i<values.length;i++){console.log(values[i].toString(2),values[i].toString(3),values[i].toString(36));}'],
+ ['Number.toFixed conversion, range and metadata','let s="",d={valueOf(){s+="d";return 2.9}};console.log((1.25).toFixed(d),s,(1.25).toFixed(NaN),Number.prototype.toFixed.length,Number.prototype.toFixed.name);for(let d of [-1,101,Infinity])try{(1).toFixed(d)}catch(e){console.log(e.name)}'],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 for(const source of ['true.valueOf.call(3);','"x".toString.call({});','(3).valueOf.call("3");','(3).toString.call(null);','(3).toString(1);','(3).toString(37);','(3).toString(NaN);','NaN.toString(1);','Infinity.toString(Infinity);','new (3).toString();'])test('wrapper brand or radix error: '+source,()=>{
@@ -29,6 +30,11 @@ for(const source of ['true.valueOf.call(3);','"x".toString.call({});','(3).value
 });
 test('radix output and boxed primitive payload survive GC',()=>{
  const source='let v={}.valueOf,s=v.call("x"+42),a=(0.1).toString(3);for(let i=0;i<40;i++){({x:i});}console.log(s.valueOf(),a);';
+ const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('Number.toFixed digits coercion survives stress GC',()=>{
+ const source='let digits={valueOf(){for(let i=0;i<40;i++)({v:i});return 3;}},n=new Number(1.25);console.log(Number.prototype.toFixed.call(n,digits));';
  const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
