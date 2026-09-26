@@ -78,6 +78,8 @@ jobs:
             test/built-ins/Math/acos
             test/built-ins/encodeURI
             test/built-ins/encodeURIComponent
+            test/built-ins/decodeURI
+            test/built-ins/decodeURIComponent
             test/built-ins/Math/exp
             test/built-ins/Math/expm1
             test/built-ins/Math/atan

@@ -19,3 +19,16 @@ test('URI encoding retains coerced string under stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+for(const [name,source] of [
+ ['reserved escapes',`console.log(decodeURI('%3b%2F%3f%3A%40%26%3D%2B%24%2C%23'),decodeURIComponent('%3b%2F%3f%3A%40%26%3D%2B%24%2C%23'));`],
+ ['UTF-8 round trips',`var s='é€😀';console.log(decodeURI(encodeURI(s)),decodeURIComponent(encodeURIComponent(s)));`],
+ ['malformed UTF-8',`for(var s of ['%','%0','%GG','%C0%80','%E0%80%80','%ED%A0%80','%F4%90%80%80','%E2%28%A1','%F0%9F%98']){try{decodeURIComponent(s);console.log('bad');}catch(e){console.log(e instanceof URIError);}}`],
+ ['metadata and coercion',`var s='';var x={toString(){s+='x';return '%20';}};console.log(decodeURI(x),s,decodeURI(),decodeURI.length,decodeURIComponent.length);`],
+] as [string,string][])test(`URI decoding: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
+
+test('URI decoding retains coerced string under stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<60;i++)({x:i});return 'a%20%F0%9F%98%80%20b';}};console.log(decodeURI(x),decodeURIComponent(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

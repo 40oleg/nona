@@ -179,3 +179,7 @@ and Linux.
 The complete `encodeURI` and `encodeURIComponent` groups pass 31/31
 each. Positive smoke is 124/124; compatible examples pass 67/67
 on Windows and Linux.
+
+The complete `decodeURI` and `decodeURIComponent` groups pass 55/55
+and 56/56. Positive smoke is 126/126; compatible examples pass
+68/68 on Windows and Linux.
