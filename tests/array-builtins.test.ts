@@ -23,6 +23,10 @@ const cases:[string,string][]=[
  ['indexOf and lastIndexOf holes',`var a=[,undefined,NaN];console.log(a.indexOf(undefined),a.lastIndexOf(undefined),a.indexOf(NaN),a.lastIndexOf(NaN),Array.prototype.indexOf.length,Array.prototype.lastIndexOf.length);`],
  ['indexOf and lastIndexOf positions',`var a=[1,2,1];console.log(a.indexOf(1,-1),a.indexOf(1,-4),a.indexOf(1,Infinity),a.lastIndexOf(1,-1),a.lastIndexOf(1,-.5),a.lastIndexOf(1,Infinity),a.lastIndexOf(1,undefined),a.lastIndexOf(1,-Infinity),a.lastIndexOf(1,-5.3));`],
  ['indexOf and lastIndexOf generic inherited',`var o={__proto__:{0:'x'},length:2,1:'y'};console.log(Array.prototype.indexOf.call(o,'x'),Array.prototype.lastIndexOf.call(o,'x'),Array.prototype.indexOf.call('ab','b'));`],
+ ['forEach sparse and inherited',`var a=[1,,3],s='';Array.prototype[1]=2;a.forEach(function(v,i,o){s+=v+':'+i+':'+(o===a)+';';});delete Array.prototype[1];console.log(s,a.forEach(function(){}),Array.prototype.forEach.length);`],
+ ['forEach snapshot length and thisArg',`var a=[1,2],seen='',receiver={x:7};a.forEach(function(v,i){'use strict';seen+=this.x+':'+v+':'+i+';';if(i===0){a.push(3);a[1]=4;}},receiver);console.log(seen);`],
+ ['forEach generic string',`var seen='';Array.prototype.forEach.call('ab',function(v,i,o){seen+=v+':'+i+':'+(typeof o)+';';});console.log(seen);`],
+ ['forEach empty callback validation',`try{[].forEach(1)}catch(e){console.log(e.name)}`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -48,6 +52,11 @@ test('array builtins: pop survives getter and GC',()=>{
 });
 test('array builtins: indexOf survives getter and GC',()=>{
  const source=`var needle={x:1},o={length:2};Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return needle;}});console.log(Array.prototype.indexOf.call(o,needle),Array.prototype.lastIndexOf.call(o,needle));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: forEach callback and getter survive stress GC',()=>{
+ const source=`var o={length:2},seen='';Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return {x:7};}});Array.prototype.forEach.call(o,function(v,i,obj){for(var j=0;j<30;j++)({v:j});seen+=v.x+':'+i+':'+(obj===o)+';';});console.log(seen);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

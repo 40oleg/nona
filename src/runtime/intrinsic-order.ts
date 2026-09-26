@@ -10,7 +10,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Object':['length','name','prototype','getOwnPropertyDescriptor','getOwnPropertyDescriptors','getOwnPropertyNames','getOwnPropertySymbols','is','preventExtensions','seal','create','defineProperties','defineProperty','freeze','getPrototypeOf','setPrototypeOf','isExtensible','isFrozen','isSealed','keys','entries','values'],
   'rt.functionPrototype':['length','name','constructor','apply','bind','call','toString','arguments','caller','@@hasInstance'],
   'rt.objectPrototype':['constructor','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toString','valueOf','__proto__','toLocaleString'],
-  'rt.arrayPrototype':['constructor','join','toString','pop','push','includes','indexOf','lastIndexOf','keys','entries','values','@@iterator'],
+  'rt.arrayPrototype':['constructor','join','toString','pop','push','includes','indexOf','lastIndexOf','forEach','keys','entries','values','@@iterator'],
   'rt.Array':['length','name','prototype','isArray'],
   'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
   'rt.String':['length','name','prototype','fromCharCode'],

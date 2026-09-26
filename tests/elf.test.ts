@@ -74,3 +74,9 @@ test('Linux native runtime survives GC stress and class construction',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
+ const source=`let a=[1,,3],s='';a.forEach(function(v,i){for(let j=0;j<20;j++)({x:j});s+=v+':'+i+';';});console.log(s);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
