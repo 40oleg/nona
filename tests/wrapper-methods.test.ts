@@ -23,8 +23,10 @@ const cases:[string,string][]=[
  ['large and tiny radix values','let values=[5e-324,2.2250738585072014e-308,1.7976931348623157e308,9007199254740992,1e30];for(let i=0;i<values.length;i++){console.log(values[i].toString(2),values[i].toString(3),values[i].toString(36));}'],
  ['Number.toFixed conversion, range and metadata','let s="",d={valueOf(){s+="d";return 2.9}};console.log((1.25).toFixed(d),s,(1.25).toFixed(NaN),Number.prototype.toFixed.length,Number.prototype.toFixed.name);for(let d of [-1,101,Infinity])try{(1).toFixed(d)}catch(e){console.log(e.name)}'],
  ['Number significant formatting conversion and metadata','let s="",d={valueOf(){s+="d";return 2.9}};console.log((12.34).toExponential(d),s,(12.34).toPrecision(4),Number.prototype.toExponential.length,Number.prototype.toPrecision.length);console.log(NaN.toExponential(Infinity),Infinity.toPrecision(1000));'],
+ ['Number.toLocaleString C locale fallback and metadata','let ignored={valueOf(){throw Error("used")}};console.log((12).toLocaleString(ignored),Number.prototype.toLocaleString.call(new Number(5)),Number.prototype.toLocaleString.length,Number.prototype.toLocaleString.name);'],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
+test('Number.toLocaleString uses a stable C locale decimal separator',()=>expectProgram('console.log((12.5).toLocaleString());','12.5\n'));
 for(const source of ['true.valueOf.call(3);','"x".toString.call({});','(3).valueOf.call("3");','(3).toString.call(null);','(3).toString(1);','(3).toString(37);','(3).toString(NaN);','NaN.toString(1);','Infinity.toString(Infinity);','new (3).toString();'])test('wrapper brand or radix error: '+source,()=>{
  const result=compile(source,{fileName:'wrapper-error.js',target:'win32-x64'});assert.equal(result.ok,true);if(!result.ok)return;
  const run=runNative(result.image);assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);

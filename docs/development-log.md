@@ -2499,3 +2499,8 @@ Test262 14/14, 500 случайных строк совпали с Node.js 26; �
 (1004 проверки) проходит без ошибок. Native String tests 65/65,
 Windows/Linux compatible examples 76/76, GC stress пройден. Полная
 native регрессия после внедрения: 1675 pass, 12 skip, 0 fail из 1687.
+
+Добавлен `Number.prototype.toLocaleString` для конфигурации без ECMA-402:
+устойчивый формат C locale без обработки зарезервированных аргументов.
+Test262 4/4, native wrapper tests 27/27. Локаль Node.js на этой машине
+выводит десятичную запятую; допустимость C locale подтверждена ECMA-262.

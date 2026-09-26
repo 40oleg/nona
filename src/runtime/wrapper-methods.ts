@@ -5,8 +5,8 @@ import {BoxKind,BoxLayout} from './boxing.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
 const brands=[['boolean',2],['number',3],['string',4],['symbol',6]] as const;
-export const wrapperMethodRoots=[...brands.flatMap(([brand])=>['rt.'+brand+'ValueOf','rt.'+brand+'ToString']),'rt.numberToFixed','rt.numberToExponential','rt.numberToPrecision'];
-export const wrapperMethodPropertyRoots=[...brands.flatMap(([brand])=>['valueOf','toString'].flatMap(method=>builtinPropertyRoots('rt.'+brand+(method==='valueOf'?'ValueOf':'ToString'),method,'rt.'+brand+'Prototype'))),...['toFixed','toExponential','toPrecision'].flatMap(method=>builtinPropertyRoots('rt.numberTo'+method.slice(2),method,'rt.numberPrototype'))];
+export const wrapperMethodRoots=[...brands.flatMap(([brand])=>['rt.'+brand+'ValueOf','rt.'+brand+'ToString']),'rt.numberToFixed','rt.numberToExponential','rt.numberToPrecision','rt.numberToLocaleString'];
+export const wrapperMethodPropertyRoots=[...brands.flatMap(([brand])=>['valueOf','toString'].flatMap(method=>builtinPropertyRoots('rt.'+brand+(method==='valueOf'?'ValueOf':'ToString'),method,'rt.'+brand+'Prototype'))),...['toFixed','toExponential','toPrecision','toLocaleString'].flatMap(method=>builtinPropertyRoots('rt.numberTo'+method.slice(2),method,'rt.numberPrototype'))];
 
 export function emitWrapperMethods(b:RuntimeBuilder):void {
  for(const [brand,tag] of brands){
@@ -35,7 +35,13 @@ export function emitWrapperMethods(b:RuntimeBuilder):void {
   a.mov('rax',37);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'ae','rt.throwRangeError');a.cvttsd2si('rax','xmm0');a.store(slot(96),'rax');
   a.label(format);a.load('rcx',slot(96));a.movsd('xmm0',slot(72));a.call('rt.formatRadix');a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');
  });
- emitFunctionBuiltin(b,'rt.numberToFixed','toFixed',1,'rt.numberPrototype.toPrecision','rt.numberPrototype');
+ // ECMA-262 without ECMA-402 permits the host's C locale decimal format.
+ emitFunctionBuiltin(b,'rt.numberToLocaleString','toLocaleString',0,'rt.numberPrototype.toPrecision','rt.numberPrototype');
+ b.fn('rt.numberToLocaleString.code',56,a=>{
+  a.load('rax',slot(96));a.store(slot(32),'rax');
+  a.mov('rdx',0);a.mov('r8',0);a.call('rt.numberToString.code');
+ });
+ emitFunctionBuiltin(b,'rt.numberToFixed','toFixed',1,'rt.numberPrototype.toLocaleString','rt.numberPrototype');
  emitFunctionBuiltin(b,'rt.numberToExponential','toExponential',1,'rt.numberPrototype.toFixed','rt.numberPrototype');
  emitFunctionBuiltin(b,'rt.numberToPrecision','toPrecision',1,'rt.numberPrototype.valueOf','rt.numberPrototype');
  rootedFn(b,'rt.numberToFixed.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:2}],(a,frame)=>{
