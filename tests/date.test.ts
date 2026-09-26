@@ -16,4 +16,6 @@ for(const [name,source,expected] of [
  ['Date constructor copies internal time',`let d=new Date(1234);d.valueOf=()=>{throw Error('called')};console.log(new Date(d).getTime())`],
  ['calendar fields across Gregorian eras',`for(let t of [-8640000000000000,-2208988800000,-62167219200000,-1,0,951782400000,946684800000,8640000000000000]){let d=new Date(t);console.log(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),d.getUTCDay())}`],
  ['Annex B getYear',`for(let t of [Date.UTC(1899,0,1),Date.UTC(1900,0,1),Date.UTC(2000,0,1),NaN]){let d=new Date(t);console.log(d.getYear())}`],
+ ['millisecond setters normalize negative dates',`for(let t of [-1,0,999,1000]){let d=new Date(t);console.log(d.setUTCMilliseconds(1234.9),d.getTime());console.log(d.setMilliseconds(-2),d.getTime())}`],
+ ['millisecond setter invalid values',`let d=new Date(NaN);console.log(Number.isNaN(d.setUTCMilliseconds(1)),Number.isNaN(d.getTime()));d=new Date(0);console.log(Number.isNaN(d.setMilliseconds()),Number.isNaN(d.getTime()))`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
