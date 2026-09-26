@@ -25,6 +25,8 @@ const cases:[string,string][]=[
  ['String.concat values and metadata',`console.log('a'.concat('b',3,null,undefined),'😀'.concat('x').length,String.prototype.concat.call(123,'x'),String.prototype.concat.length);`],
  ['String.concat coercion order',`var s='';var o={toString(){s+='r';return 'a';}},a={toString(){s+='a';return 'b';}},b={toString(){s+='b';return 'c';}};console.log(String.prototype.concat.call(o,a,b),s);`],
  ['String.concat zero arguments and receiver errors',`console.log('abc'.concat(),String.prototype.concat.call(true));for(var x of [null,undefined])try{String.prototype.concat.call(x,'a')}catch(e){console.log(e.name)}`],
+ ['String.toUpperCase Unicode',`console.log('abc 123 à ß ﬃ ı 𐐨'.toUpperCase());console.log('😀\ud800\udc00\ud800x'.toUpperCase().length,String.prototype.toUpperCase.call(123),String.prototype.toUpperCase.length);`],
+ ['String.toUpperCase generic and errors',`var s='';var x={toString(){s+='x';return 'Straße';}};console.log(String.prototype.toUpperCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toUpperCase.call(v)}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -79,6 +81,11 @@ test('String.raw: getters retain raw and result under stress GC',()=>{
 });
 test('String.concat: receiver and arguments survive stress GC',()=>{
  const source=`var o={toString(){for(var i=0;i<40;i++)({v:i});return 'a'}},a={toString(){for(var i=0;i<40;i++)({v:i});return 'b'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'c'}};console.log(String.prototype.concat.call(o,a,b));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.toUpperCase: coerced source survives stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Straße 𐐨 ﬃ';}};console.log(String.prototype.toUpperCase.call(x));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

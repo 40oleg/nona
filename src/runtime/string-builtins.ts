@@ -3,18 +3,20 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {stringLiteral} from './value.js';
+import {unicodeUpperCount,unicodeUpperData} from './unicode-upper-data.js';
 
 const searchMethods=['includes','startsWith','endsWith'] as const;
 const positionMethods=['indexOf','lastIndexOf'] as const;
 const indexMethods=['charAt','charCodeAt','codePointAt'] as const;
 const trimMethods=['trim','trimStart','trimEnd'] as const;
 const padMethods=['padStart','padEnd'] as const;
-const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','substring','slice','repeat',...trimMethods,...padMethods];
+const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','toUpperCase','substring','slice','repeat',...trimMethods,...padMethods];
 export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn','rt.stringRaw.fn'];
 export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),...builtinPropertyRoots('rt.stringRaw.fn','raw','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
 
 export function emitStringBuiltins(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.str.padSpace',' '));
+ b.data('rt.unicodeUpper',unicodeUpperData);
  prependFunctionBuiltin(b,'rt.stringFromCharCode.fn','fromCharCode',1,'rt.String');
  rootedFn(b,'rt.stringFromCharCode.fn.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
@@ -97,6 +99,43 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');
   a.load('rax',slot(136));a.add('rax',1);a.store(slot(136),'rax');a.jmp(loop);
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
+ });
+ prependFunctionBuiltin(b,'rt.stringToUpperCase.fn','toUpperCase',0,'rt.stringPrototype');
+ rootedFn(b,'rt.stringToUpperCase.fn.code',200,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:3}],(a,frame)=>{
+  a.store(slot(40),'rcx');
+  a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(96+n),'rax');}
+  a.load('rax',slot(96));a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(96));a.call('rt.toString');
+  a.load('r10',slot(72));a.load('rax',{base:'r10'});a.store(slot(160),'rax');
+  a.mov('r11',0x15555555);a.cmp('rax','r11');failIf(a,'a','rt.throwRangeError');
+  a.mov('r10',6);a.imul('rax','r10');a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');
+  a.mov('r10',4);a.store(slot(80),'r10');a.store(slot(88),'rax');
+  a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');
+  const loop=a.unique('upperLoop'),done=a.unique('upperDone'),one=a.unique('upperOne'),lookup=a.unique('upperLookup'),search=a.unique('upperSearch'),less=a.unique('upperLess'),found=a.unique('upperFound'),copy=a.unique('upperCopy'),write=a.unique('upperWrite'),next=a.unique('upperNext');
+  a.label(loop);a.load('rax',slot(112));a.load('r10',slot(160));a.cmp('rax','r10');a.jcc('ae',done);
+  a.mov('r10',1);a.store(slot(176),'r10');
+  a.shl('rax',1);a.load('r10',slot(72));a.add('r10',8);a.add('r10','rax');a.load('rax',{base:'r10'},16);a.store(slot(128),'rax');
+  a.cmp('rax',0xd800);a.jcc('b',lookup);a.cmp('rax',0xdbff);a.jcc('a',lookup);
+  a.load('r11',slot(112));a.add('r11',1);a.load('rdx',slot(160));a.cmp('r11','rdx');a.jcc('ae',lookup);
+  a.load('rdx',{base:'r10',disp:2},16);a.cmp('rdx',0xdc00);a.jcc('b',lookup);a.cmp('rdx',0xdfff);a.jcc('a',lookup);
+  a.sub('rax',0xd800);a.shl('rax',10);a.sub('rdx',0xdc00);a.add('rax','rdx');a.add('rax',0x10000);a.store(slot(128),'rax');a.mov('r10',2);a.store(slot(176),'r10');
+  a.label(lookup);a.mov('rax',0);a.store(slot(144),'rax');a.mov('rax',unicodeUpperCount);a.store(slot(152),'rax');
+  a.label(search);a.load('rax',slot(144));a.load('r10',slot(152));a.cmp('rax','r10');a.jcc('ae',copy);
+  a.add('rax','r10');a.shr('rax',1);a.store(slot(136),'rax');a.shl('rax',4);a.lea('r10',{rip:'rt.unicodeUpper'});a.add('r10','rax');
+  a.load('rax',{base:'r10'},32);a.load('r11',slot(128));a.cmp('rax','r11');a.jcc('e',found);a.jcc('a',less);
+  a.load('rax',slot(136));a.add('rax',1);a.store(slot(144),'rax');a.jmp(search);
+  a.label(less);a.load('rax',slot(136));a.store(slot(152),'rax');a.jmp(search);
+  a.label(found);a.load('rax',{base:'r10',disp:4},32);a.store(slot(168),'rax');a.store(slot(184),'r10');a.mov('rax',0);a.store(slot(192),'rax');a.jmp(write);
+  a.label(copy);a.load('rax',slot(176));a.store(slot(168),'rax');a.mov('rax',0);a.store(slot(192),'rax');a.mov('r10',0);a.store(slot(184),'r10');
+  a.label(write);a.load('rax',slot(192));a.load('r10',slot(168));a.cmp('rax','r10');a.jcc('ae',next);
+  a.load('r10',slot(184));a.test('r10','r10');a.jcc('e',one);
+  a.shl('rax',1);a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);a.jmp(write+'Value');
+  a.label(one);a.load('r10',slot(112));a.add('r10','rax');a.shl('r10',1);a.load('rdx',slot(72));a.add('rdx',8);a.add('rdx','r10');a.load('r11',{base:'rdx'},16);
+  a.label(write+'Value');a.load('r10',slot(120));a.shl('r10',1);a.load('rdx',slot(88));a.add('rdx',8);a.add('rdx','r10');a.store({base:'rdx'},'r11',16);
+  a.load('rax',slot(120));a.add('rax',1);a.store(slot(120),'rax');a.load('rax',slot(192));a.add('rax',1);a.store(slot(192),'rax');a.jmp(write);
+  a.label(next);a.load('rax',slot(112));a.load('r10',slot(176));a.add('rax','r10');a.store(slot(112),'rax');a.jmp(loop);
+  a.label(done);a.load('r10',slot(88));a.load('rax',slot(120));a.store({base:'r10'},'rax');
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
  });
  for(const name of searchMethods){
  const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';

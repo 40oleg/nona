@@ -125,3 +125,8 @@ The complete `built-ins/String/prototype/concat` group passes 22/22.
 One case is included in the positive smoke manifest.
 The updated manifest passes 103/103; Windows and Linux compatible examples
 pass 55/55 each.
+
+The `built-ins/String/prototype/toUpperCase` group has 24 pass / 2 fail /
+0 skip. The two failures require `RegExp` and direct `eval`, both tracked
+outside v0.5. The Unicode special-casing case is in the positive smoke
+manifest, now 104/104. Windows and Linux compatible examples pass 56/56 each.
