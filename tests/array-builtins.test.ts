@@ -22,6 +22,13 @@ const cases:[string,string][]=[
  ['filter species constructor',`var a=[1,2,3],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n+';';return {x:7}}};var b=a.filter(function(v){s+='F'+v+';';return v!==2});console.log(s,b[0],b[1],b.x,b.length);`],
  ['filter species fallback and errors',`var a=[1];a.constructor={[Symbol.species]:null};console.log(Array.isArray(a.filter(function(){return true})));a.constructor=null;try{a.filter(function(){return true})}catch(e){console.log(e.name)}try{a.filter(1)}catch(e){console.log(e.name)}`],
  ['filter own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.filter(function(){return true});console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0]);`],
+ ['slice ordinary and sparse',`var a=[1,,3,4],b=a.slice(1,3);console.log(b.length,0 in b,b[1],Array.prototype.slice.length);`],
+ ['slice bounds and coercion order',`var s='',a=[1,2,3,4];console.log(a.slice({valueOf(){s+='s';return -3.9}},{valueOf(){s+='e';return -1.2}}).join(','),s,a.slice(0,undefined).length,a.slice(Infinity).length,a.slice(-Infinity).length);`],
+ ['slice generic and inherited',`var o={length:3,0:'a',2:'c'};Object.prototype[1]='b';var b=Array.prototype.slice.call(o,0,3);delete Object.prototype[1];console.log(b.join(','),b.length);`],
+ ['slice species and holes',`var a=[1,,3],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:7}}};var b=a.slice(0,3);console.log(s,b[0],1 in b,b[2],b.x,b.length);`],
+ ['slice species null and constructor errors',`var a=[1];a.constructor={[Symbol.species]:null};console.log(Array.isArray(a.slice()));a.constructor=null;try{a.slice()}catch(e){console.log(e.name)}`],
+ ['slice length setter on species result',`var a=[1,2],s='',o={};Object.defineProperty(o,'length',{set:function(x){s+='L'+x}});a.constructor={[Symbol.species]:function(){return o}};var b=a.slice(0,1);console.log(b===o,b[0],s);`],
+ ['slice own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.slice();console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0],r.length);`],
  ['isArray brands',`console.log(Array.isArray([]),Array.isArray({}),Array.isArray('x'),Array.isArray(Array.prototype));`],
  ['push values',`var a=[1];console.log(a.push(2,3),a.length,a[1],a[2]);`],
  ['push empty',`var a=[];console.log(a.push(),a.length);`],
@@ -94,6 +101,11 @@ test('array builtins: map species and callback survive stress GC',()=>{
 });
 test('array builtins: filter species and callback survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.filter(function(v){for(var i=0;i<30;i++)({v:i});return v.x>1});console.log(b.length,b[0].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: slice species and getter survive stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{get:function(){for(var i=0;i<30;i++)({v:i});return {x:4}}});var b=a.slice();console.log(b.length,b[0].x,1 in b,b[2].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
