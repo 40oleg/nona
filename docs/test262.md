@@ -146,3 +146,10 @@ The complete `built-ins/Number/prototype/toExponential` and
 `built-ins/Number/prototype/toPrecision` groups pass 15/15 and 17/17.
 Their regular-value cases are in the positive smoke manifest, now 108/108.
 Compatible examples pass 59/59 on Windows and Linux.
+
+An initial full `built-ins/Math` run before the trigonometric additions
+had 176 pass / 151 fail out of 327. Most failures are missing ES2020
+transcendental functions; `f16round` and `sumPrecise` are later APIs.
+The complete `Math.sin`, `Math.cos`, and `Math.tan` groups now pass
+8/8, 9/9, and 9/9. Positive smoke is 111/111; compatible examples
+pass 60/60 on Windows and Linux.

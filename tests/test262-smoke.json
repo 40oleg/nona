@@ -107,6 +107,9 @@
     "built-ins/String/prototype/toLowerCase/special_casing_conditional.js",
     "built-ins/Number/prototype/toFixed/exactness.js",
     "built-ins/Number/prototype/toExponential/return-values.js",
-    "built-ins/Number/prototype/toPrecision/return-values.js"
+    "built-ins/Number/prototype/toPrecision/return-values.js",
+    "built-ins/Math/sin/zero.js",
+    "built-ins/Math/cos/S15.8.2.7_A2.js",
+    "built-ins/Math/tan/S15.8.2.18_A2.js"
   ]
 }

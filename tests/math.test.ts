@@ -46,3 +46,15 @@ test('Math: hypot survives coercion callbacks under stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: sin cos tan finite values and signed zero',()=>{
+ const source=`console.log(Math.sin(0.5),Math.cos(0.5),Math.tan(0.5),Object.is(Math.sin(-0),-0),Math.cos(0),Object.is(Math.tan(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');
+ for(const [i,expected] of [Math.sin(.5),Math.cos(.5),Math.tan(.5)].entries())assert.ok(Math.abs(Number(parts[i])-expected)<1e-15,`${i}: ${parts[i]}`);
+ assert.deepEqual(parts.slice(3),['true','1','true']);
+});
+test('Math: trigonometric argument coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.sin(x),Math.cos(x),Math.tan(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
