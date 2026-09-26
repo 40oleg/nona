@@ -154,3 +154,8 @@ test('Linux native Array.of constructs a subclass under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native Array.from maps an iterator under GC stress',t=>{
+ const source=`let a=Array.from([1,,3],function(v,i){for(let j=0;j<20;j++)({x:j});return {x:String(v)+i}});console.log(a.length,a[0].x,a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

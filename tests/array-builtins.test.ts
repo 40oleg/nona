@@ -8,6 +8,16 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['Array.from arrays and strings',`var a=Array.from([1,,3]),b=Array.from('a😀');console.log(a.length,a[0],1 in a,a[1],a[2],b.length,b[0],b[1]);`],
+ ['Array.from array-like and mapping',`var a=Array.from({length:3,0:1,2:3},function(v,i){return String(v)+i});console.log(a.length,a.join(','),Array.from.length);`],
+ ['Array.from iterable and constructor',`function C(n){this.argCount=arguments.length;this.n=n}var it={[Symbol.iterator]:function(){var i=0;return {next:function(){return i<2?{value:++i,done:false}:{done:true}}}}};var a=Array.from.call(C,it),b=Array.from.call(C,{length:2,0:'x'});console.log(a instanceof C,a.argCount,a.length,a[0],a[1],b.argCount,b.n,b.length,b[0],b[1]);`],
+ ['Array.from mapper thisArg',`var t={x:5},a=Array.from([1,2],function(v,i){'use strict';return v+this.x+i},t);console.log(a.join(','));`],
+ ['Array.from iterator getter once',`var s='',o={length:1,0:7};Object.defineProperty(o,Symbol.iterator,{get:function(){s+='g';return null}});console.log(Array.from(o)[0],s);`],
+ ['Array.from iterator close on mapper throw',`var s='',it={[Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){s+='closed';return {}}}}};try{Array.from(it,function(){throw Error('boom')})}catch(e){console.log(e.message,s)}`],
+ ['Array.from invalid mapper and iterator method',`try{Array.from([1],null)}catch(e){console.log(e.name)}try{Array.from({[Symbol.iterator]:3})}catch(e){console.log(e.name)}`],
+ ['Array.from keeps original mapper error after close failure',`var it={[Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){throw Error('close')}}}};try{Array.from(it,function(){throw Error('map')})}catch(e){console.log(e.message)}`],
+ ['Array.from does not close after next throws',`var s='',it={[Symbol.iterator]:function(){return {next:function(){throw Error('next')},return:function(){s+='closed';return {}}}}};try{Array.from(it)}catch(e){console.log(e.message,s)}`],
+ ['Array.from closes after result definition fails',`var s='',it={[Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){s+='closed';return {}}}}};function C(){return Object.preventExtensions({})}try{Array.from.call(C,it)}catch(e){console.log(e.name,s)}`],
  ['Array.of ordinary and one number',`var a=Array.of(3);console.log(a.length,a[0],Array.of().length,Array.of(1,2).join(','),Array.of.length);`],
  ['Array.of generic constructor',`function C(n){this.x=n}var a=Array.of.call(C,1,2);console.log(a instanceof C,a.x,a.length,a[0],a[1]);`],
  ['Array.of subclass and fallback',`class A extends Array{}var a=A.of(1,2);console.log(a instanceof A,a.length,a[0],a[1]);var b=Array.of.call({},1,2);console.log(Array.isArray(b),b.join(','));`],
@@ -130,6 +140,11 @@ test('array builtins: splice species, getter and inserted values survive stress 
 });
 test('array builtins: Array.of constructor and items survive stress GC',()=>{
  const source=`function C(n){for(var i=0;i<30;i++)({v:i});this.initial=n}var x={x:1},y={x:2};var a=Array.of.call(C,x,y);console.log(a instanceof C,a.initial,a.length,a[0].x,a[1].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: Array.from iterator, mapper and result survive stress GC',()=>{
+ const source=`var it={[Symbol.iterator]:function(){var i=0;return {next:function(){for(var j=0;j<20;j++)({v:j});return i<3?{value:{x:++i},done:false}:{done:true}}}}};var a=Array.from(it,function(v,i){for(var j=0;j<20;j++)({v:j});return {x:v.x+i}});console.log(a.length,a[0].x,a[1].x,a[2].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
