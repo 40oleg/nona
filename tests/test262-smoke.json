@@ -119,6 +119,8 @@
     "built-ins/Math/atan/S15.8.2.4_A2.js",
     "built-ins/Math/atan2/S15.8.2.5_A16.js",
     "built-ins/Math/log1p/specific-results.js",
-    "built-ins/Math/cbrt/cbrt-specialValues.js"
+    "built-ins/Math/cbrt/cbrt-specialValues.js",
+    "built-ins/Math/asin/S15.8.2.3_A2.js",
+    "built-ins/Math/acos/S15.8.2.2_A2.js"
   ]
 }

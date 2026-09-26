@@ -8,9 +8,10 @@ const unaryMath=['abs','sign','sqrt','trunc','floor','ceil','round','fround'] as
 const integerMath=['imul','clz32'] as const;
 const trigMath=['sin','cos','tan'] as const;
 const logMath=['log','log2','log10'] as const;
-export const mathRoots=['rt.Math','rt.Math.pow.fn','rt.Math.min.fn','rt.Math.max.fn','rt.Math.hypot.fn','rt.Math.random.fn','rt.Math.exp.fn','rt.Math.expm1.fn','rt.Math.log1p.fn','rt.Math.cbrt.fn','rt.Math.atan.fn','rt.Math.atan2.fn',...unaryMath.map(name=>'rt.Math.'+name+'.fn'),...trigMath.map(name=>'rt.Math.'+name+'.fn'),...logMath.map(name=>'rt.Math.'+name+'.fn'),...integerMath.map(name=>'rt.Math.'+name+'.fn')];
+const inverseTrigMath=['asin','acos'] as const;
+export const mathRoots=['rt.Math','rt.Math.pow.fn','rt.Math.min.fn','rt.Math.max.fn','rt.Math.hypot.fn','rt.Math.random.fn','rt.Math.exp.fn','rt.Math.expm1.fn','rt.Math.log1p.fn','rt.Math.cbrt.fn','rt.Math.atan.fn','rt.Math.atan2.fn',...unaryMath.map(name=>'rt.Math.'+name+'.fn'),...trigMath.map(name=>'rt.Math.'+name+'.fn'),...inverseTrigMath.map(name=>'rt.Math.'+name+'.fn'),...logMath.map(name=>'rt.Math.'+name+'.fn'),...integerMath.map(name=>'rt.Math.'+name+'.fn')];
 const mathConstants=[['E',Math.E],['LN10',Math.LN10],['LN2',Math.LN2],['LOG10E',Math.LOG10E],['LOG2E',Math.LOG2E],['PI',Math.PI],['SQRT1_2',Math.SQRT1_2],['SQRT2',Math.SQRT2]] as const;
-export const mathPropertyRoots=['rt.globalObject.Math','rt.Math.@@toStringTag',...mathConstants.map(([name])=>'rt.Math.'+name),...['pow','min','max','hypot','random','exp','expm1','log1p','cbrt','atan','atan2',...unaryMath,...trigMath,...logMath,...integerMath].flatMap(name=>builtinPropertyRoots('rt.Math.'+name+'.fn',name,'rt.Math'))];
+export const mathPropertyRoots=['rt.globalObject.Math','rt.Math.@@toStringTag',...mathConstants.map(([name])=>'rt.Math.'+name),...['pow','min','max','hypot','random','exp','expm1','log1p','cbrt','atan','atan2',...unaryMath,...trigMath,...inverseTrigMath,...logMath,...integerMath].flatMap(name=>builtinPropertyRoots('rt.Math.'+name+'.fn',name,'rt.Math'))];
 
 export function emitMath(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.Math',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -23,6 +24,7 @@ export function emitMath(b:RuntimeBuilder):void {
  b.data('rt.Math.random.state',new Uint8Array(8),'.data');
  for(const name of unaryMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
  for(const name of trigMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
+ for(const name of inverseTrigMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
  for(const name of logMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
  prependFunctionBuiltin(b,'rt.Math.exp.fn','exp',1,'rt.Math');
  prependFunctionBuiltin(b,'rt.Math.expm1.fn','expm1',1,'rt.Math');
@@ -247,6 +249,16 @@ export function emitMath(b:RuntimeBuilder):void {
   }
   a.emit([0xdd,0x44,0x24,72,0xdd,0x44,0x24,88,0xd9,0xf3,0xdd,0x5c,0x24,104]); // atan2(y,x)
   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',slot(104));a.store({base:'rcx',disp:8},'rax');
+ });
+ for(const name of inverseTrigMath)rootedFn(b,'rt.Math.'+name+'.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(64),'rax');a.store(slot(72),'rax');const missing=a.unique('missing');a.test('rdx','rdx');a.jcc('e',missing);
+  for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(missing);
+  a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toNumber');
+  a.movsd('xmm0',slot(72));a.mulsd('xmm0','xmm0');a.mov('rax',0x3ff0000000000000n);a.movqToXmm('xmm1','rax');a.subsd('xmm1','xmm0');a.sqrtsd('xmm1','xmm1');a.storesd(slot(80),'xmm1');
+  if(name==='asin')a.emit([0xdd,0x44,0x24,72,0xdd,0x44,0x24,80]); // x, sqrt(1-x²)
+  else a.emit([0xdd,0x44,0x24,80,0xdd,0x44,0x24,72]); // sqrt(1-x²), x
+  a.emit([0xd9,0xf3,0xdd,0x5c,0x24,80]); // fpatan; fstp result
+  a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',slot(80));a.store({base:'rcx',disp:8},'rax');
  });
  for(const name of integerMath)rootedFn(b,'rt.Math.'+name+'.fn.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');

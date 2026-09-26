@@ -142,3 +142,17 @@ test('Math: cbrt coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: asin and acos finite values and domain',()=>{
+ const values=[-1,-.9,-.5,-0,0,.5,.9,1];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${values.flatMap(v=>[`Math.asin(${literal(v)})`,`Math.acos(${literal(v)})`]).join(',')},Object.is(Math.asin(-0),-0),Math.asin(2),Math.acos(-2));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length*2),['true','NaN','NaN']);
+ const expected=values.flatMap(v=>[Math.asin(v),Math.acos(v)]);
+ for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=2e-15*Math.max(1,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
+});
+test('Math: inverse trigonometric coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.asin(x),Math.acos(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

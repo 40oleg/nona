@@ -171,3 +171,7 @@ compatible examples pass 64/64 on Windows and Linux.
 
 The complete `Math.cbrt` group passes 5/5. Positive smoke is 120/120;
 compatible examples pass 65/65 on Windows and Linux.
+
+The complete `Math.asin` and `Math.acos` groups pass 9/9 and 8/8.
+Positive smoke is 122/122; compatible examples pass 66/66 on Windows
+and Linux.

@@ -74,6 +74,8 @@ jobs:
             test/built-ins/Math/log10
             test/built-ins/Math/log1p
             test/built-ins/Math/cbrt
+            test/built-ins/Math/asin
+            test/built-ins/Math/acos
             test/built-ins/Math/exp
             test/built-ins/Math/expm1
             test/built-ins/Math/atan
