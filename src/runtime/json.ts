@@ -126,14 +126,8 @@ export function emitJson(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');
  });
 
- rootedFn(b,'rt.JSON.stringify.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
-  a.store(slot(40),'rcx');const undefinedResult=a.unique('undefinedResult'),nullResult=a.unique('nullResult'),convert=a.unique('convert'),quote=a.unique('quote'),done=a.unique('done');
-  a.test('rdx','rdx');a.jcc('e',undefinedResult);a.load('rax',{base:'r8'});a.store(slot(64),'rax');a.load('rax',{base:'r8',disp:8});a.store(slot(72),'rax');
-  a.load('rax',slot(64));a.cmp('rax',1);a.jcc('e',convert);a.cmp('rax',2);a.jcc('e',convert);a.cmp('rax',4);a.jcc('e',quote);a.cmp('rax',3);a.jcc('ne',undefinedResult);
-  a.movsd('xmm0',slot(72));a.ucomisd('xmm0','xmm0');a.jcc('p',nullResult);a.mov('rax',0x7ff0000000000000n);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',nullResult);a.mov('rax',0xfff0000000000000n);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',nullResult);
-  a.label(convert);a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.toString');a.jmp(done);
-  a.label(quote);a.load('rcx',slot(40));a.load('rdx',slot(72));a.call('rt.jsonQuote');a.jmp(done);
-  a.label(nullResult);a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.lea('rax',{rip:'rt.json.null'});a.store({base:'rcx',disp:8},'rax');a.jmp(done);
-  a.label(undefinedResult);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
+ rootedFn(b,'rt.JSON.stringify.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
+  a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);a.lea('r8',{rip:'rt.undefinedValue'});a.label(supplied);
+  a.mov('rdx','r8');a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(88),'rax');a.lea('r8',slot(80));a.call('rt.jsonStringifyValue');
  });
 }
