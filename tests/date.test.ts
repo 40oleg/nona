@@ -34,4 +34,6 @@ for(const [name,source,expected] of [
  ['ISO formatting rejects invalid time',`let a,b;try{new Date(NaN).toISOString()}catch(e){a=e.name}try{Date.prototype.toISOString.call({})}catch(e){b=e.name}console.log(a,b)`],
  ['toJSON returns ISO, null, and custom result',`let a=new Date(0),b=new Date(NaN),c={valueOf(){return 2},toISOString(){return 42}};console.log(a.toJSON(),b.toJSON(),Date.prototype.toJSON.call(c))`],
  ['toJSON checks primitives and finite values',`let a=Date.prototype.toJSON;let e;try{a.call(null)}catch(x){e=x.name}console.log(e,a.call({valueOf(){return Infinity},toISOString(){throw Error('called')}}))`],
+ ['Date Symbol.toPrimitive orders methods by hint',`let log=[],o={toString(){log.push('s');return 'S'},valueOf(){log.push('n');return 3}},f=Date.prototype[Symbol.toPrimitive];console.log(f.call(o,'default'),f.call(o,'number'),f.call(o,'string'),log.join(''))`],
+ ['Date Symbol.toPrimitive rejects invalid receiver and hint',`let f=Date.prototype[Symbol.toPrimitive],a,b;try{f.call(3,'number')}catch(e){a=e.name}try{f.call({},'bad')}catch(e){b=e.name}console.log(a,b)`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));

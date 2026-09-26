@@ -19,7 +19,7 @@ const timeParts=[
  ['getMinutes',60000,60],['getUTCMinutes',60000,60],
  ['getHours',3600000,24],['getUTCHours',3600000,24],
 ] as const;
-export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.toISOString.fn','rt.Date.toJSON.fn','rt.Date.now.fn','rt.Date.UTC.fn',...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters,...dateHourSetters,...dateDaySetters,...dateMonthSetters,...dateYearSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
+export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.toISOString.fn','rt.Date.toJSON.fn','rt.Date.toPrimitive.fn','rt.Date.now.fn','rt.Date.UTC.fn',...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters,...dateHourSetters,...dateDaySetters,...dateMonthSetters,...dateYearSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
 export const datePropertyRoots=[
  ...builtinPropertyRoots('rt.dateValueOf.fn','valueOf','rt.datePrototype'),
  ...builtinPropertyRoots('rt.dateGetTime.fn','getTime','rt.datePrototype'),
@@ -27,6 +27,7 @@ export const datePropertyRoots=[
  ...builtinPropertyRoots('rt.dateGetTimezoneOffset.fn','getTimezoneOffset','rt.datePrototype'),
  ...builtinPropertyRoots('rt.Date.toISOString.fn','toISOString','rt.datePrototype'),
  ...builtinPropertyRoots('rt.Date.toJSON.fn','toJSON','rt.datePrototype'),
+ 'rt.datePrototype.@@toPrimitive','rt.Date.toPrimitive.fn.name','rt.Date.toPrimitive.fn.length',
  ...['setMilliseconds','setUTCMilliseconds'].flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...dateSecondSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...dateMinuteSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
