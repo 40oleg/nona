@@ -27,6 +27,15 @@ const cases:[string,string][]=[
  ['forEach snapshot length and thisArg',`var a=[1,2],seen='',receiver={x:7};a.forEach(function(v,i){'use strict';seen+=this.x+':'+v+':'+i+';';if(i===0){a.push(3);a[1]=4;}},receiver);console.log(seen);`],
  ['forEach generic string',`var seen='';Array.prototype.forEach.call('ab',function(v,i,o){seen+=v+':'+i+':'+(typeof o)+';';});console.log(seen);`],
  ['forEach empty callback validation',`try{[].forEach(1)}catch(e){console.log(e.name)}`],
+ ['some and every basic',`console.log([].some(function(){return true}),[].every(function(){return false}),[1,2,3].some(function(x){return x===2}),[1,2,3].every(function(x){return x>0}),Array.prototype.some.length,Array.prototype.every.length);`],
+ ['some and every sparse inherited',`var a=[,2],s='';Array.prototype[0]=1;console.log(a.some(function(v,i){s+=v+':'+i+';';return v===1}),s);s='';console.log(a.every(function(v,i){s+=v+':'+i+';';return v<2}),s);delete Array.prototype[0];`],
+ ['some and every short circuit and thisArg',`var a=[1,2,3],o={x:2},s='';console.log(a.some(function(v){'use strict';s+=v;return v===this.x},o),s);s='';console.log(a.every(function(v){s+=v;return v<2}),s);`],
+ ['some and every generic mutation',`var a={length:3,0:1,1:2},s='';console.log(Array.prototype.some.call(a,function(v,i){s+=i;if(i===0){a[2]=3;a.length=1;}return v===3}),s);s='';console.log(Array.prototype.every.call(a,function(v,i){s+=i;return v<4}),s);`],
+ ['some and every empty callback validation',`for(var method of ['some','every'])try{Array.prototype[method].call([],1)}catch(e){console.log(method,e.name)}`],
+ ['find and findIndex basic',`var a=[1,2,3];console.log(a.find(function(x){return x>1}),a.findIndex(function(x){return x>1}),a.find(function(x){return x>9}),a.findIndex(function(x){return x>9}),Array.prototype.find.length,Array.prototype.findIndex.length);`],
+ ['find and findIndex visit holes',`var a=[,2],s='';console.log(a.find(function(v,i){s+=String(v)+':'+i+';';return i===0}),s);s='';console.log(a.findIndex(function(v,i){s+=String(v)+':'+i+';';return v===2}),s);`],
+ ['find and findIndex generic thisArg',`var o={length:3,0:'a',2:'c'},receiver={x:'c'},s='';console.log(Array.prototype.find.call(o,function(v,i,obj){'use strict';s+=i;return v===this.x&&obj===o},receiver),s);s='';console.log(Array.prototype.findIndex.call(o,function(v,i){s+=i;return i===1}),s);`],
+ ['find and findIndex empty callback validation',`for(var method of ['find','findIndex'])try{Array.prototype[method].call([],1)}catch(e){console.log(method,e.name)}`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -57,6 +66,16 @@ test('array builtins: indexOf survives getter and GC',()=>{
 });
 test('array builtins: forEach callback and getter survive stress GC',()=>{
  const source=`var o={length:2},seen='';Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return {x:7};}});Array.prototype.forEach.call(o,function(v,i,obj){for(var j=0;j<30;j++)({v:j});seen+=v.x+':'+i+':'+(obj===o)+';';});console.log(seen);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: some/every callback survives stress GC',()=>{
+ const source=`var a=[{x:1},{x:2},{x:3}];console.log(a.some(function(v){for(var i=0;i<30;i++)({v:i});return v.x===2}),a.every(function(v){for(var i=0;i<30;i++)({v:i});return v.x>0}));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: find/findIndex callback survives stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3}];console.log(a.find(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}).x,a.findIndex(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

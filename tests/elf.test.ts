@@ -80,3 +80,15 @@ test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.some and every call back under GC stress',t=>{
+ const source=`let a=[1,,3];console.log(a.some(function(v){for(let j=0;j<20;j++)({x:j});return v===3}),a.every(function(v){for(let j=0;j<20;j++)({x:j});return v>0}));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.find and findIndex visit holes under GC stress',t=>{
+ const source=`let a=[,{x:2}],s='';console.log(a.find(function(v,i){for(let j=0;j<20;j++)({x:j});s+=i;return v&&v.x===2}).x,a.findIndex(function(v,i){for(let j=0;j<20;j++)({x:j});return v&&v.x===2}),s);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
