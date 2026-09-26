@@ -8,6 +8,11 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['Array.of ordinary and one number',`var a=Array.of(3);console.log(a.length,a[0],Array.of().length,Array.of(1,2).join(','),Array.of.length);`],
+ ['Array.of generic constructor',`function C(n){this.x=n}var a=Array.of.call(C,1,2);console.log(a instanceof C,a.x,a.length,a[0],a[1]);`],
+ ['Array.of subclass and fallback',`class A extends Array{}var a=A.of(1,2);console.log(a instanceof A,a.length,a[0],a[1]);var b=Array.of.call({},1,2);console.log(Array.isArray(b),b.join(','));`],
+ ['Array.of own property and length setter',`var s='',p={};Object.defineProperty(p,'0',{set:function(){s+='set'}});function C(){return Object.create(p)}var a=Array.of.call(C,7);console.log(s,Object.prototype.hasOwnProperty.call(a,'0'),a[0],a.length);`],
+ ['Array.of nonconstructor fallback',`var a=Array.of.call(()=>{},1,2),b=Array.of.call(null,3);console.log(Array.isArray(a),a.join(','),Array.isArray(b),b[0]);`],
  ['Array species getter',`var d=Object.getOwnPropertyDescriptor(Array,Symbol.species);console.log(Array[Symbol.species]===Array,d.get.call({x:1}).x,d.enumerable,d.configurable,d.set===undefined,d.get.length,d.get.name);`],
  ['map ordinary and sparse',`var a=[1,,3],b=a.map(function(v,i){return v*2+i});console.log(b.length,b[0],1 in b,b[2],a.length,Array.prototype.map.length);`],
  ['map generic and inherited',`var o={length:3,0:2,2:4},s='';Object.prototype[1]=3;var b=Array.prototype.map.call(o,function(v,i,x){s+=i+':'+(x===o)+';';return v*2});delete Object.prototype[1];console.log(b.join(','),s);`],
@@ -120,6 +125,11 @@ test('array builtins: slice species and getter survive stress GC',()=>{
 });
 test('array builtins: splice species, getter and inserted values survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3},{x:4}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});Object.defineProperty(a,2,{configurable:true,writable:true,value:{x:5}});return {x:5}}});var b=a.splice(1,2,{x:8},{x:9},{x:10});console.log(b.length,0 in b,b[1].x,a.length,a[0].x,a[1].x,a[2].x,a[3].x,a[4].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: Array.of constructor and items survive stress GC',()=>{
+ const source=`function C(n){for(var i=0;i<30;i++)({v:i});this.initial=n}var x={x:1},y={x:2};var a=Array.of.call(C,x,y);console.log(a instanceof C,a.initial,a.length,a[0].x,a[1].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

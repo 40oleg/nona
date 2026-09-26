@@ -149,3 +149,8 @@ test('Linux native Array.prototype.splice moves sparse values under GC stress',t
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native Array.of constructs a subclass under GC stress',t=>{
+ const source=`class A extends Array{}let x={x:1},y={x:2};let a=A.of(x,y);for(let i=0;i<20;i++)({x:i});console.log(a instanceof A,a.length,a[0].x,a[1].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

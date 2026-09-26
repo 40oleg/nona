@@ -27,6 +27,7 @@ import {symbolRoots,symbolPropertyRoots} from './symbols.js';
 import {IteratorKind,iteratorRoots,iteratorPropertyRoots} from './iterators.js';
 import {arrayBuiltinRoots,arrayBuiltinPropertyRoots} from './array-builtins.js';
 import {arraySpliceRoots,arraySplicePropertyRoots} from './array-splice.js';
+import {arrayOfRoots,arrayOfPropertyRoots} from './array-of.js';
 import {stringBuiltinRoots,stringBuiltinPropertyRoots} from './string-builtins.js';
 import {numberBuiltinRoots,numberBuiltinPropertyRoots} from './number-builtins.js';
 import {mathRoots,mathPropertyRoots} from './math.js';
@@ -110,10 +111,10 @@ export function emitGc(b:RuntimeBuilder):void {
   a.call('rt.gcBuildIndex');
   a.load('rcx',{rip:'rt.gcGlobals'});a.load('rdx',{rip:'rt.gcGlobalCount'});a.call('rt.gcMarkRange');
   for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','symbolPrototype','generatorPrototype','generatorFunctionPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
-  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...arrayBuiltinRoots,...arraySpliceRoots,...stringBuiltinRoots,...mathRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
+  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...arrayBuiltinRoots,...arraySpliceRoots,...arrayOfRoots,...stringBuiltinRoots,...mathRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
   // Static property nodes are outside the managed heap index. Trace them explicitly.
   for(const name of ['name','length']){a.lea('rcx',{rip:'rt.functionPrototype.'+name});a.call('rt.gcTraceProperty');}
-  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...stringBuiltinPropertyRoots,...mathPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...arrayOfPropertyRoots,...stringBuiltinPropertyRoots,...mathPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
   a.load('rax',{rip:'rt.symbolRegistry'});a.store(slot(48),'rax');const symbolRecord=a.unique('symbolRecord'),symbolRecordsDone=a.unique('symbolRecordsDone');
   a.label(symbolRecord);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',symbolRecordsDone);
   a.mov('rcx','rax');a.call('rt.gcMarkPointer');a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:8});a.call('rt.gcMarkPointer');
