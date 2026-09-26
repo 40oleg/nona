@@ -61,6 +61,17 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(stdout);a.mov('rax',1);a.label(done);
  });
  b.fn('linux.GetConsoleMode.code',40,a=>a.mov('rax',0));
+ b.fn('linux.GetSystemTimeAsFileTime.code',104,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
+  a.mov('rdi',0);a.lea('rsi',slot(72));a.mov('rax',228);a.emit([0x0f,0x05]);
+  const done=a.unique('done');a.test('rax','rax');a.jcc('ne',done);
+  a.load('rax',slot(72));a.mov('r10',10000000);a.imul('rax','r10');
+  a.store(slot(64),'rax');a.load('rax',slot(80));a.xor('rdx','rdx');a.mov('r10',100);a.div('r10');
+  a.load('r10',slot(64));a.add('rax','r10');
+  a.mov('r10',116444736000000000n);a.add('rax','r10');
+  a.load('r10',slot(56));a.store({base:'r10'},'rax');
+  a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
  b.fn('linux.WriteConsoleW.code',40,a=>a.mov('rax',0));
  b.fn('linux.WriteFile.code',72,a=>{
   a.store(slot(40),'r9');a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('rax',1);a.emit([0x0f,0x05]);
