@@ -13,10 +13,11 @@ const timeParts=[
  ['getMinutes',60000,60],['getUTCMinutes',60000,60],
  ['getHours',3600000,24],['getUTCHours',3600000,24],
 ] as const;
-export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.Date.now.fn','rt.Date.UTC.fn',...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
+export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.Date.now.fn','rt.Date.UTC.fn',...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
 export const datePropertyRoots=[
  ...builtinPropertyRoots('rt.dateValueOf.fn','valueOf','rt.datePrototype'),
  ...builtinPropertyRoots('rt.dateGetTime.fn','getTime','rt.datePrototype'),
+ ...builtinPropertyRoots('rt.dateSetTime.fn','setTime','rt.datePrototype'),
  ...builtinPropertyRoots('rt.Date.now.fn','now','rt.Date'),
  ...builtinPropertyRoots('rt.Date.UTC.fn','UTC','rt.Date'),
  ...timeParts.flatMap(([name])=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
@@ -30,6 +31,7 @@ export function emitDatePrototype(b:RuntimeBuilder):void {
  ]});
  prependFunctionBuiltin(b,'rt.dateValueOf.fn','valueOf',0,'rt.datePrototype');
  prependFunctionBuiltin(b,'rt.dateGetTime.fn','getTime',0,'rt.datePrototype');
+ prependFunctionBuiltin(b,'rt.dateSetTime.fn','setTime',1,'rt.datePrototype');
  for(const [name] of timeParts)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,0,'rt.datePrototype');
  for(const [name] of dateFields)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,0,'rt.datePrototype');
 }
@@ -50,6 +52,21 @@ export function emitDate(b:RuntimeBuilder):void {
   a.load('rdx',slot(80));a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);failIf(a,'ne','rt.throwTypeError');
   a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',{base:'r10',disp:DateLayout.time});a.store({base:'rcx',disp:8},'rax');
+ });
+ rootedFn(b,'rt.dateSetTime.fn.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:1}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.load('r10',slot(frame+40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.store(slot(80),'rax');a.load('r10',{base:'r10',disp:8});a.store(slot(88),'r10');a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);failIf(a,'ne','rt.throwTypeError');
+  a.test('rdx','rdx');const missing=a.unique('missing'),converted=a.unique('converted');a.jcc('e',missing);
+  a.lea('rcx',slot(64));a.mov('rdx','r8');a.call('rt.toNumber');a.jmp(converted);
+  a.label(missing);a.mov('rax',3);a.store(slot(64),'rax');a.mov('rax',0x7ff8000000000000n);a.store(slot(72),'rax');
+  a.label(converted);a.movsd('xmm0',slot(72));a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');
+  a.ucomisd('xmm0','xmm0');const invalid=a.unique('invalid'),ready=a.unique('ready');a.jcc('p',invalid);
+  a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
+  a.mov('rax',-8640000000000000n);a.cvtsi2sd('xmm2','rax');a.ucomisd('xmm0','xmm2');a.jcc('b',invalid);
+  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.storesd(slot(72),'xmm0');a.jmp(ready);
+  a.label(invalid);a.mov('rax',0x7ff8000000000000n);a.store(slot(72),'rax');
+  a.label(ready);a.load('r10',slot(88));a.load('rax',slot(72));a.store({base:'r10',disp:DateLayout.time},'rax');
+  a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',slot(72));a.store({base:'rcx',disp:8},'rax');
  });
  for(const [name,divisor,modulus] of timeParts)b.fn('rt.Date.'+name+'.fn.code',88,a=>{
   a.store(slot(40),'rcx');a.load('rdx',slot(128));
