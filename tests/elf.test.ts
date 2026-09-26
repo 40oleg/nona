@@ -144,3 +144,8 @@ test('Linux native Array.prototype.slice honors species under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native Array.prototype.splice moves sparse values under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3},{x:4}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.splice(1,2,{x:8},{x:9},{x:10});console.log(b.length,0 in b,b[1].x,a.length,a[1].x,a[2].x,a[3].x,a[4].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

@@ -29,6 +29,15 @@ const cases:[string,string][]=[
  ['slice species null and constructor errors',`var a=[1];a.constructor={[Symbol.species]:null};console.log(Array.isArray(a.slice()));a.constructor=null;try{a.slice()}catch(e){console.log(e.name)}`],
  ['slice length setter on species result',`var a=[1,2],s='',o={};Object.defineProperty(o,'length',{set:function(x){s+='L'+x}});a.constructor={[Symbol.species]:function(){return o}};var b=a.slice(0,1);console.log(b===o,b[0],s);`],
  ['slice own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.slice();console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0],r.length);`],
+ ['splice removes and inserts',`var a=[1,2,3,4],b=a.splice(1,2,'x','y','z');console.log(b.join(','),b.length,a.join(','),a.length,Array.prototype.splice.length);`],
+ ['splice no arguments and one argument',`var a=[1,2,3];console.log(a.splice().length,a.join(','));var b=a.splice(1);console.log(b.join(','),a.join(','));`],
+ ['splice sparse and inherited',`var a=[1,,3,4];var b=a.splice(0,2);console.log(b.length,0 in b,1 in b,a.length,a.join(','));Array.prototype[1]='p';a=[,2,3];b=a.splice(0,2);delete Array.prototype[1];console.log(b.join(','),a.join(','));`],
+ ['splice negative and explicit undefined',`var a=[1,2,3,4];console.log(a.splice(-2,undefined,'x').length,a.join(','));console.log(a.splice(-2,Infinity,'y').join(','),a.join(','));`],
+ ['splice generic shift left',`var o={length:4,0:'a',2:'c',3:'d'};var r=Array.prototype.splice.call(o,1,2);console.log(r.length,0 in r,r[1],o.length,o[0],o[1],2 in o);`],
+ ['splice generic shift right',`var o={length:3,0:'a',2:'c'};var r=Array.prototype.splice.call(o,1,0,'x','y');console.log(r.length,o.length,o[0],o[1],o[2],3 in o,o[4]);`],
+ ['splice species constructor',`var a=[1,2,3],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:7}}};var b=a.splice(1,1,'x');console.log(s,b[0],b.length,b.x,a.join(','));`],
+ ['splice keeps inherited values on shift',`var a=[,1,2];Array.prototype[0]='p';var b=a.splice(1,0,'x');delete Array.prototype[0];console.log(b.length,a.length,a[0],a[1],a[2],a[3]);`],
+ ['splice uses own properties on result',`var a=[1,2],p={},s='';Object.defineProperty(p,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(p)}};var b=a.splice(0,1);console.log(s,Object.prototype.hasOwnProperty.call(b,'0'),b[0],b.length,a[0]);`],
  ['isArray brands',`console.log(Array.isArray([]),Array.isArray({}),Array.isArray('x'),Array.isArray(Array.prototype));`],
  ['push values',`var a=[1];console.log(a.push(2,3),a.length,a[1],a[2]);`],
  ['push empty',`var a=[];console.log(a.push(),a.length);`],
@@ -106,6 +115,11 @@ test('array builtins: filter species and callback survive stress GC',()=>{
 });
 test('array builtins: slice species and getter survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{get:function(){for(var i=0;i<30;i++)({v:i});return {x:4}}});var b=a.slice();console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: splice species, getter and inserted values survive stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3},{x:4}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});Object.defineProperty(a,2,{configurable:true,writable:true,value:{x:5}});return {x:5}}});var b=a.splice(1,2,{x:8},{x:9},{x:10});console.log(b.length,0 in b,b[1].x,a.length,a[0].x,a[1].x,a[2].x,a[3].x,a[4].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
