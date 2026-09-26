@@ -17,6 +17,11 @@ const cases:[string,string][]=[
  ['map species getter and constructor order',`var s='',a=[1];Object.defineProperty(a,'constructor',{get:function(){s+='c';return {[Symbol.species]:function(n){s+='s'+n;return {}}}}});a.map(function(x){s+='m';return x});console.log(s);`],
  ['map subclass species',`class A extends Array{}var a=new A(1,2),b=a.map(function(x){return x+1});console.log(b instanceof A,b.length,b[0],b[1]);class B extends Array{static get [Symbol.species](){return Array}}var c=new B(4).map(function(x){return x});console.log(c instanceof B,Array.isArray(c));`],
  ['map own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.map(function(x){return x+1});console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0]);`],
+ ['filter ordinary and sparse',`var a=[1,,2,3],b=a.filter(function(v){return v>1});console.log(b.length,b[0],b[1],Array.prototype.filter.length,a.length);`],
+ ['filter inherited and generic',`var o={length:3,0:1,2:3},s='';Object.prototype[1]=2;var b=Array.prototype.filter.call(o,function(v,i){s+=i;return v%2});delete Object.prototype[1];console.log(b.join(','),s);`],
+ ['filter species constructor',`var a=[1,2,3],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n+';';return {x:7}}};var b=a.filter(function(v){s+='F'+v+';';return v!==2});console.log(s,b[0],b[1],b.x,b.length);`],
+ ['filter species fallback and errors',`var a=[1];a.constructor={[Symbol.species]:null};console.log(Array.isArray(a.filter(function(){return true})));a.constructor=null;try{a.filter(function(){return true})}catch(e){console.log(e.name)}try{a.filter(1)}catch(e){console.log(e.name)}`],
+ ['filter own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.filter(function(){return true});console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0]);`],
  ['isArray brands',`console.log(Array.isArray([]),Array.isArray({}),Array.isArray('x'),Array.isArray(Array.prototype));`],
  ['push values',`var a=[1];console.log(a.push(2,3),a.length,a[1],a[2]);`],
  ['push empty',`var a=[];console.log(a.push(),a.length);`],
@@ -84,6 +89,11 @@ test('array builtins: push survives stress GC',()=>{
 
 test('array builtins: map species and callback survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.map(function(v){for(var i=0;i<30;i++)({v:i});return {x:v.x+1}});console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: filter species and callback survive stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.filter(function(v){for(var i=0;i<30;i++)({v:i});return v.x>1});console.log(b.length,b[0].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
