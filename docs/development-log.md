@@ -2491,3 +2491,11 @@ eval. Native tests 7/7 под Node.js 26, smoke 137/137, совместимые
 `Symbol.replace`. Test262 24/55, остальные 31 случая требуют RegExp,
 BigInt или динамического конструктора функций. Native tests 8/8,
 smoke 140/140, совместимые примеры Windows/Linux по 75/75.
+
+Добавлен `String.prototype.normalize` с формами NFC/NFD/NFKC/NFKD,
+таблицами Unicode 17 и алгоритмической декомпозицией/композицией Hangul.
+Test262 14/14, 500 случайных строк совпали с Node.js 26; после
+исправления крайних случаев Hangul выборка официального NormalizationTest
+(1004 проверки) проходит без ошибок. Native String tests 65/65,
+Windows/Linux compatible examples 76/76, GC stress пройден. Полная
+native регрессия после внедрения: 1675 pass, 12 skip, 0 fail из 1687.

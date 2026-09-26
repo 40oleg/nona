@@ -29,6 +29,8 @@ const cases:[string,string][]=[
  ['String.toUpperCase generic and errors',`var s='';var x={toString(){s+='x';return 'Straße';}};console.log(String.prototype.toUpperCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toUpperCase.call(v)}catch(e){console.log(e.name)}`],
  ['String.toLowerCase Unicode and final sigma',`console.log('ABC À İ 𐐀'.toLowerCase());console.log('AΣ AΣB A.Σ AΣ.b AͅΣ AΣͅB'.toLowerCase(),String.prototype.toLowerCase.length);`],
  ['String locale casing default Unicode and metadata',`console.log('abc ß 𐐨'.toLocaleUpperCase(),'AΣ İ 𐐀'.toLocaleLowerCase(),String.prototype.toLocaleUpperCase.length,String.prototype.toLocaleLowerCase.length,String.prototype.toLocaleUpperCase.name,String.prototype.toLocaleLowerCase.name);`],
+ ['String normalization forms, combining marks, and Hangul',`console.log('é'.normalize('NFD').length,'e\u0301'.normalize('NFC'),'Å'.normalize('NFKD'),'각'.normalize('NFD').length,'각'.normalize('NFC'),'햕'.normalize('NFC'),'़̣̀'.normalize('NFD'),String.prototype.normalize.length);`],
+ ['String normalization form coercion and errors',`var s='';var x={toString(){s+='x';return 'e\u0301'}},f={toString(){s+='f';return 'NFC'}};console.log(String.prototype.normalize.call(x,f),s);for(var q of ['bad',Symbol()])try{'x'.normalize(q)}catch(e){console.log(e.name)}`],
  ['String.toLowerCase generic and errors',`var s='';var x={toString(){s+='x';return 'AΣ';}};console.log(String.prototype.toLowerCase.call(x),s);for(var v of [null,undefined])try{String.prototype.toLowerCase.call(v)}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
@@ -99,6 +101,11 @@ test('String.toLowerCase: coerced source survives stress GC',()=>{
 });
 test('String locale casing: coerced source survives stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ Straße';}};console.log(String.prototype.toLocaleLowerCase.call(x),String.prototype.toLocaleUpperCase.call(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.normalize: coerced source and form survive stress GC',()=>{
+ const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Å각e\u0301'}},f={toString(){for(var i=0;i<40;i++)({v:i});return 'NFKD'}};console.log(String.prototype.normalize.call(x,f));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
