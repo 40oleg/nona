@@ -54,6 +54,15 @@ const cases:[string,string][]=[
  ['reverse generic and inherited',`var o={length:3,0:'a',2:'c'};console.log(Array.prototype.reverse.call(o)===o,o[0],o[2]);Array.prototype[0]='x';var a=[,1];a.reverse();console.log(a[1],0 in a,1 in a);delete Array.prototype[0];`],
  ['reverse getter and setter order',`var s='',o={length:2};Object.defineProperty(o,'0',{get:function(){s+='a';return 1},set:function(v){s+='c'}});Object.defineProperty(o,'1',{get:function(){s+='b';return 2},set:function(v){s+='d'}});Array.prototype.reverse.call(o);console.log(s);`],
  ['reverse getter deletes upper',`var a=['first','second'];Object.defineProperty(a,0,{get:function(){a.length=0;return 'first'}});a.reverse();console.log(0 in a,1 in a,a[1]);`],
+ ['shift basic and empty',`var a=[1,2,3];console.log(a.shift(),a.length,a.join(','),a.shift(),a.shift(),a.shift(),a.length,Array.prototype.shift.length);`],
+ ['shift sparse and inherited',`var a=[,2,,4];console.log(a.shift(),a.length,0 in a,1 in a,2 in a,a[0],a[2]);Array.prototype[1]='x';a=[,];a.length=2;console.log(a.shift(),a[0],a.length);delete Array.prototype[1];`],
+ ['shift generic and accessor',`var o={length:3,0:'a',2:'c'};console.log(Array.prototype.shift.call(o),o.length,0 in o,o[0],1 in o,o[1],2 in o);`],
+ ['shift getter changes later element',`var a=[1,2,3],backing=1;Object.defineProperty(a,0,{configurable:true,get:function(){a[1]=7;return backing},set:function(v){backing=v}});console.log(a.shift(),backing,a[1],a.length);`],
+ ['unshift basic and empty',`var a=[3,4];console.log(a.unshift(1,2),a.join(','),a.length);console.log(a.unshift(),a.join(','),Array.prototype.unshift.length);`],
+ ['unshift sparse and inherited',`var a=[,2];console.log(a.unshift('x'),a.length,0 in a,1 in a,2 in a,a[0],a[1],a[2]);Array.prototype[0]='p';a=[,];a.length=1;console.log(a.unshift('q'),a[0],a[1]);delete Array.prototype[0];`],
+ ['unshift generic',`var o={length:3,0:'a',2:'c'};console.log(Array.prototype.unshift.call(o,'x','y'),o.length,o[0],o[1],o[2],3 in o,o[4]);`],
+ ['unshift length limit',`var o={length:9007199254740991};try{Array.prototype.unshift.call(o,'x')}catch(e){console.log(e.name)}`],
+ ['unshift no arguments clamps huge length',`var o={length:Infinity};console.log(Array.prototype.unshift.call(o),o.length);o.length=9007199254740992;console.log(Array.prototype.unshift.call(o),o.length);`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -114,6 +123,16 @@ test('array builtins: copyWithin value survives getter and stress GC',()=>{
 });
 test('array builtins: reverse values survive getters and stress GC',()=>{
  const source=`var a={x:1},b={x:2},o={length:2};Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return a;},set:function(v){a=v;}});Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return b;},set:function(v){b=v;}});Array.prototype.reverse.call(o);console.log(a.x,b.x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: shift first value survives getter and stress GC',()=>{
+ const source=`var value={x:7},backing=value,a=[0,{x:2}];Object.defineProperty(a,'0',{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});return backing;},set:function(v){backing=v;}});var first=a.shift();console.log(first.x,backing.x,a.length);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: unshift values survive setter and stress GC',()=>{
+ const source=`var value={x:7},o={length:1,0:{x:2}},seen='';Object.defineProperty(o,'1',{set:function(v){for(var i=0;i<30;i++)({v:i});seen+=v.x}});console.log(Array.prototype.unshift.call(o,value),seen,o[0].x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

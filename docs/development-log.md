@@ -2177,3 +2177,16 @@ HasProperty верхнего, поскольку getter может сократ�
 в положительный smoke manifest, который теперь проходит 83/83. Отдельный
 Linux native suite: 11 pass, 1 skip. Общая регрессия Node 26.10.0: 1482
 total, 1471 pass, 0 fail, 11 skip (один symlink и 10 WSL-проверок).
+
+## 2026-09-26: Array.prototype.shift и unshift
+
+Добавлены generic `shift` и `unshift` с ToLength, переносом sparse и
+унаследованных элементов, DeletePropertyOrThrow, обновлением `length` и
+GC roots для аргументов и значений при повторном входе через accessors.
+`unshift()` с нулём аргументов пропускает перенос элементов: Test262 выявил
+тайм-аут на `length = 2^53-1`, после исправления группа проходит 22/22.
+Группа `shift` проходит 20/20. Целевые Windows native тесты: 68/68;
+отдельный Linux native suite: 13 pass, 1 skip. Положительный Test262 smoke
+расширен до 85/85, все его каталоги входят в CI checkout. Общая регрессия
+Node 26.10.0: 1495 total, 1486 pass, 0 fail, 9 skip (один symlink и восемь
+WSL-проверок при массовом параллельном прогоне).
