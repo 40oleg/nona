@@ -218,3 +218,9 @@ Large-angle `Math.sin`, `Math.cos`, and `Math.tan` now use a 1152-bit
 fixed-point table of `2/pi`. Native tests pass 48/48, including 80
 deterministic finite values across exponents 63–1022. Compatible
 examples pass 74/74 on Windows and Linux.
+
+`String.prototype.replace` passes 24/55 Test262 cases. The remaining
+31 require RegExp, BigInt, or dynamic function construction. String
+search, functional replacement, replacement patterns, and custom
+`Symbol.replace` are covered. Positive smoke is 140/140; compatible
+examples pass 75/75 on Windows and Linux.

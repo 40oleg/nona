@@ -136,6 +136,9 @@
     "built-ins/String/prototype/toLocaleUpperCase/special_casing.js",
     "built-ins/String/prototype/split/call-split-l-2-instance-is-string-hello.js",
     "built-ins/String/prototype/split/cstm-split-on-number-primitive.js",
-    "built-ins/String/prototype/split/separator-tostring-error.js"
+    "built-ins/String/prototype/split/separator-tostring-error.js",
+    "built-ins/String/prototype/replace/replaceValue-evaluation-order.js",
+    "built-ins/String/prototype/replace/cstm-replace-on-number-primitive.js",
+    "built-ins/String/prototype/replace/cstm-replace-invocation.js"
   ]
 }

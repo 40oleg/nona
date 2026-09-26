@@ -17,7 +17,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
   'rt.booleanPrototype':['constructor','toString','valueOf'],
   'rt.numberPrototype':['constructor','toExponential','toFixed','toPrecision','toString','valueOf'],
-  'rt.stringPrototype':['constructor','toString','valueOf','charAt','charCodeAt','codePointAt','concat','toLowerCase','toLocaleLowerCase','toUpperCase','toLocaleUpperCase','includes','indexOf','lastIndexOf','startsWith','endsWith','padStart','padEnd','repeat','slice','split','substring','trim','trimStart','trimEnd','trimLeft','trimRight','@@iterator'],
+  'rt.stringPrototype':['constructor','toString','valueOf','charAt','charCodeAt','codePointAt','concat','toLowerCase','toLocaleLowerCase','toUpperCase','toLocaleUpperCase','includes','indexOf','lastIndexOf','startsWith','endsWith','padStart','padEnd','repeat','replace','slice','split','substring','trim','trimStart','trimEnd','trimLeft','trimRight','@@iterator'],
   'rt.symbolPrototype':['constructor','toString','valueOf','description','@@toPrimitive','@@toStringTag'],
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
