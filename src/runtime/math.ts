@@ -8,9 +8,9 @@ const unaryMath=['abs','sign','sqrt','trunc','floor','ceil','round','fround'] as
 const integerMath=['imul','clz32'] as const;
 const trigMath=['sin','cos','tan'] as const;
 const logMath=['log','log2','log10'] as const;
-export const mathRoots=['rt.Math','rt.Math.pow.fn','rt.Math.min.fn','rt.Math.max.fn','rt.Math.hypot.fn','rt.Math.random.fn',...unaryMath.map(name=>'rt.Math.'+name+'.fn'),...trigMath.map(name=>'rt.Math.'+name+'.fn'),...logMath.map(name=>'rt.Math.'+name+'.fn'),...integerMath.map(name=>'rt.Math.'+name+'.fn')];
+export const mathRoots=['rt.Math','rt.Math.pow.fn','rt.Math.min.fn','rt.Math.max.fn','rt.Math.hypot.fn','rt.Math.random.fn','rt.Math.exp.fn','rt.Math.expm1.fn',...unaryMath.map(name=>'rt.Math.'+name+'.fn'),...trigMath.map(name=>'rt.Math.'+name+'.fn'),...logMath.map(name=>'rt.Math.'+name+'.fn'),...integerMath.map(name=>'rt.Math.'+name+'.fn')];
 const mathConstants=[['E',Math.E],['LN10',Math.LN10],['LN2',Math.LN2],['LOG10E',Math.LOG10E],['LOG2E',Math.LOG2E],['PI',Math.PI],['SQRT1_2',Math.SQRT1_2],['SQRT2',Math.SQRT2]] as const;
-export const mathPropertyRoots=['rt.globalObject.Math','rt.Math.@@toStringTag',...mathConstants.map(([name])=>'rt.Math.'+name),...['pow','min','max','hypot','random',...unaryMath,...trigMath,...logMath,...integerMath].flatMap(name=>builtinPropertyRoots('rt.Math.'+name+'.fn',name,'rt.Math'))];
+export const mathPropertyRoots=['rt.globalObject.Math','rt.Math.@@toStringTag',...mathConstants.map(([name])=>'rt.Math.'+name),...['pow','min','max','hypot','random','exp','expm1',...unaryMath,...trigMath,...logMath,...integerMath].flatMap(name=>builtinPropertyRoots('rt.Math.'+name+'.fn',name,'rt.Math'))];
 
 export function emitMath(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.Math',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -24,6 +24,8 @@ export function emitMath(b:RuntimeBuilder):void {
  for(const name of unaryMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
  for(const name of trigMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
  for(const name of logMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,1,'rt.Math');
+ prependFunctionBuiltin(b,'rt.Math.exp.fn','exp',1,'rt.Math');
+ prependFunctionBuiltin(b,'rt.Math.expm1.fn','expm1',1,'rt.Math');
  for(const name of integerMath)prependFunctionBuiltin(b,'rt.Math.'+name+'.fn',name,name==='imul'?2:1,'rt.Math');
  b.bundle.fragments.push(stringLiteral('rt.str.Math','Math'));
  const math=b.bundle.fragments.find(f=>f.name==='rt.Math')!;
@@ -168,6 +170,38 @@ export function emitMath(b:RuntimeBuilder):void {
   a.emit([0xdd,0x44,0x24,72,0xd9,0xf1]); // fld x; fyl2x
   a.emit([0xdd,0x5c,0x24,80]); // fstp qword [rsp+80]
   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.load('rax',slot(80));a.store({base:'rcx',disp:8},'rax');
+ });
+ b.fn('rt.mathExpCore',72,a=>{
+  a.movqFromXmm('rax','xmm0');a.store(slot(40),'rax');a.mov('r10',0x7fffffffffffffffn);a.and('r10','rax');
+  const special=a.unique('expSpecial'),zero=a.unique('expZero'),done=a.unique('expDone');
+  a.mov('r11',0x7ff0000000000000n);a.cmp('r10','r11');a.jcc('ae',special);
+  a.test('r10','r10');a.jcc('e',zero);
+  a.emit([0xd9,0xea,0xdd,0x44,0x24,40,0xde,0xc9]); // log2(e) * x
+  a.emit([0xd9,0xc0,0xd9,0xfc,0xd9,0xc9,0xd8,0xe1,0xd9,0xf0,0xd9,0xe8,0xde,0xc1,0xd9,0xfd,0xdd,0xd9]);
+  a.emit([0xdd,0x5c,0x24,48]);a.movsd('xmm0',slot(48));a.jmp(done);
+  a.label(special);a.mov('r11',0x7ff0000000000000n);a.cmp('r10','r11');const save=a.unique('expSave');a.jcc('ne',save);
+  a.test('rax','rax');a.jcc('s',zero);a.mov('rax',0x7ff0000000000000n);a.jmp(save);
+  a.label(zero);a.mov('rax',0x3ff0000000000000n);a.load('r10',slot(40));a.test('r10','r10');const normalZero=a.unique('normalZero');a.jcc('ns',normalZero);a.mov('r11',0x7fffffffffffffffn);a.and('r10','r11');a.test('r10','r10');a.jcc('e',normalZero);a.mov('rax',0);a.label(normalZero);
+  a.label(save);a.movqToXmm('xmm0','rax');a.label(done);
+ });
+ b.fn('rt.mathExpm1Core',72,a=>{
+  a.movqFromXmm('rax','xmm0');a.store(slot(40),'rax');a.mov('r10',0x7fffffffffffffffn);a.and('rax','r10');
+  const large=a.unique('expm1Large'),done=a.unique('expm1Done');a.mov('r10',0x3fe62e42fefa39efn);a.cmp('rax','r10');a.jcc('a',large);
+  a.emit([0xd9,0xea,0xdd,0x44,0x24,40,0xde,0xc9,0xd9,0xf0,0xdd,0x5c,0x24,48]); // 2^(x*log2(e))-1
+  a.movsd('xmm0',slot(48));a.jmp(done);
+  a.label(large);a.call('rt.mathExpCore');a.mov('rax',0x3ff0000000000000n);a.movqToXmm('xmm1','rax');a.subsd('xmm0','xmm1');a.label(done);
+ });
+ rootedFn(b,'rt.Math.exp.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(64),'rax');a.store(slot(72),'rax');const missing=a.unique('missing');a.test('rdx','rdx');a.jcc('e',missing);
+  for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(missing);
+  a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toNumber');a.movsd('xmm0',slot(72));a.call('rt.mathExpCore');
+  a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+ });
+ rootedFn(b,'rt.Math.expm1.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(64),'rax');a.store(slot(72),'rax');const missing=a.unique('missing');a.test('rdx','rdx');a.jcc('e',missing);
+  for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(missing);
+  a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toNumber');a.movsd('xmm0',slot(72));a.call('rt.mathExpm1Core');
+  a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
  });
  for(const name of integerMath)rootedFn(b,'rt.Math.'+name+'.fn.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');

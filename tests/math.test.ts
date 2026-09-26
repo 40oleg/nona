@@ -71,3 +71,28 @@ test('Math: logarithm argument coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: exp finite values and boundaries',()=>{
+ const values=[-745,-10,-1,-0,0,1,10,100,709,710];
+ const source=`console.log(${values.map(v=>`Math.exp(${Object.is(v,-0)?'-0':v})`).join(',')});`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const actual=run.stdout.toString().trim().split(' ').map(Number);
+ for(const [i,value] of values.entries()){
+  const expected=Math.exp(value),got=actual[i]!;
+  assert.ok(expected===Infinity?got===Infinity:Math.abs(got-expected)<=3e-13*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
+ }
+});
+test('Math: exp argument coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.exp(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('Math: expm1 near zero and signed zero',()=>{
+ const values=[-10,-1,-.5,-1e-5,-1e-10,-0,0,1e-10,1e-5,.5,1,10];
+ const source=`console.log(${values.map(v=>`Math.expm1(${Object.is(v,-0)?'-0':v})`).join(',')},Object.is(Math.expm1(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.equal(parts.at(-1),'true');
+ for(const [i,value] of values.entries()){
+  const expected=Math.expm1(value),got=Number(parts[i]);
+  assert.ok(Math.abs(got-expected)<=5e-13*Math.max(Number.MIN_VALUE,Math.abs(expected)),`${value}: ${got} vs ${expected}`);
+ }
+});

@@ -157,3 +157,7 @@ pass 60/60 on Windows and Linux.
 The complete `Math.log`, `Math.log2`, and `Math.log10` groups pass
 9/9, 5/5, and 5/5. Positive smoke is 114/114; compatible examples
 pass 61/61 on Windows and Linux.
+
+The complete `Math.exp` and `Math.expm1` groups pass 9/9 and 5/5.
+Positive smoke is 116/116; compatible examples pass 62/62 on Windows
+and Linux.
