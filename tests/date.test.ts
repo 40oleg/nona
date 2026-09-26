@@ -41,4 +41,5 @@ for(const [name,source,expected] of [
  ['Date as function returns current string and ignores arguments',`let touched=false;let arg={valueOf(){touched=true;throw Error('called')}};let s=Date(arg);console.log(typeof s,s.includes('GMT+0000'),touched,Date.length)`,'string true false 7\n'],
  ['parse ISO date and timestamp',`for(let s of ['1970','1970-01','1970-01-01','1970-01-01T00:00Z','2000-02-29T12:34:56.789Z','-000001-07-01T00:00Z','2020-01-01T00:00:00+02:30','2020-01-01T00:00:00-02:30'])console.log(Date.parse(s),new Date(s).getTime())`],
  ['reject invalid ISO fields',`for(let s of ['','2020-00-01','2020-13-01','2020-01-00','2020-01-32','2020-01-01T25:00Z','2020-01-01T00:60Z'])console.log(Number.isNaN(Date.parse(s)))`],
+ ['parse Date string formats',`for(let t of [0,Date.UTC(2000,1,29,12,34,56),Date.UTC(-123,6,1)]){let d=new Date(t);console.log(Date.parse(d.toString()),Date.parse(d.toUTCString()),t)}`,'0 0 0\n951827696000 951827696000 951827696000\n-66033014400000 -66033014400000 -66033014400000\n'],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
