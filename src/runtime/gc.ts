@@ -70,7 +70,7 @@ export function emitGc(b:RuntimeBuilder):void {
  });
  b.fn('rt.gcMarkValue',40,a=>{
   const mark=a.unique('mark'),done=a.unique('done');a.load('rax',{base:'rcx'});
-  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
+  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',7);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
   a.label(mark);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.label(done);
  });
  // RCX first Value*, RDX initialized count. A runtime range may itself be a

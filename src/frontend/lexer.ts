@@ -23,7 +23,7 @@ export function lex(source: string): TokenStream {
     if(digits.length!==4||!/^[0-9a-f]+$/i.test(digits))fail('Invalid Unicode escape',start);
     i+=4;return String.fromCharCode(parseInt(digits,16));
   };
-  const push = (kind: Token['kind'], start: number, value?: string|number) => {
+  const push = (kind: Token['kind'], start: number, value?: string|number|bigint) => {
     tokens.push({ kind, text: source.slice(start, i), value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
   };
   const templates:{depth:number}[]=[];
@@ -109,6 +109,7 @@ export function lex(source: string): TokenStream {
       if (!match) fail('Invalid numeric literal');
       const spelling = match![0]; i += spelling.length;
       if (/^0[0-9]/.test(spelling)) fail('Legacy octal and leading-zero literals are unsupported', start);
+      if(source[i]==='n'&&(/^[0-9]+$/.test(spelling)||/^0[xXbBoO]/.test(spelling))){i++;if(i<source.length&&(identifierPart(codePoint())||source[i]==='\\'))fail('Invalid BigInt literal',start);push('number',start,BigInt(spelling));continue;}
       if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
       push('number', start, Number(spelling)); continue;
     }

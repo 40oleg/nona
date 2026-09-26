@@ -43,7 +43,7 @@ class Lowerer {
   private select(b:BlockIR):void {this.current=b;this.terminated=false;}
   private emit(op:Operation):void{this.current.operations.push(op);}
   private end(t:Terminator):void{this.current.terminator=t;this.terminated=true;}
-  private constant(value:undefined|null|boolean|number|string):number {const dest=this.slot();this.emit({kind:'constant',dest,value});return dest;}
+  private constant(value:undefined|null|boolean|number|bigint|string):number {const dest=this.slot();this.emit({kind:'constant',dest,value});return dest;}
   private binding(id:A.Identifier):Binding {const b=this.bound.bindings.get(id);if(!b)throw new Error(`Missing binding: ${id.name}`);return b;}
   private cellSlot(binding:StorageBinding):number {
     if(binding.owner===(this.fn?.index??-1))return binding.index;

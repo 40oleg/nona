@@ -10,7 +10,7 @@ export type BindingPattern=Identifier|Member|ArrayPattern|ObjectPattern;
 export interface NewTarget extends Node {kind:'NewTarget'}
 export interface Super extends Node {kind:'Super'}
 export interface This extends Node {kind:'This'}
-export interface Literal extends Node { kind: 'Literal'; value: string|number|boolean|null|undefined }
+export interface Literal extends Node { kind: 'Literal'; value: string|number|bigint|boolean|null|undefined }
 export interface Unary extends Node { kind: 'Unary'; operator: string; argument: Expression }
 export interface Member extends Node {kind:'Member';object:Expression;property:Expression}
 export type Assignable = Identifier|Member;

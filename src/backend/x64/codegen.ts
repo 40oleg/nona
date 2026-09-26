@@ -219,9 +219,9 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
         case 'checkResolvable':a.load('rax',stack(valueBase+16*op.slot+8));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
         case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
         case 'constant':{
-          const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:4;
+          const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
           a.mov('rax',tag);a.store(value(op.dest),'rax');
-          if(typeof v==='string')a.lea('rax',{rip:literal(v)});
+          if(typeof v==='string'||typeof v==='bigint')a.lea('rax',{rip:literal(String(v))});
           else if(typeof v==='number'){const bytes=new DataView(new ArrayBuffer(8));bytes.setFloat64(0,v,true);a.mov('rax',bytes.getBigUint64(0,true));}
           else a.mov('rax',v===true?1:0);
           a.store(stack(valueBase+16*op.dest+8),'rax');break;
