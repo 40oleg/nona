@@ -47,6 +47,45 @@ export function emitObjectCollections(b:RuntimeBuilder):void {
   }
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot((mode==='create'?96:64)+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ // Internal CopyDataProperties for object spread. Own keys are snapshotted;
+ // enumerability and values are observed when each key is visited.
+ rootedFn(b,'rt.copyDataProperties',184,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:6}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(56),'r8');
+  a.load('r10',slot(56));for(const n of [0,8,16,24]){a.load('rax',{base:'r10',disp:n});a.store(slot(64+n),'rax');}
+  const done=a.unique('done'),loop=a.unique('loop'),next=a.unique('next');
+  a.load('rax',slot(80));a.cmp('rax',1);a.jcc('be',done);
+  a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.toObject');
+  a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.ownKeys');
+  a.mov('rax',0);a.store(slot(48),'rax');
+  a.label(loop);a.load('rax',slot(48));a.load('r10',slot(120));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',done);
+  a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(128+n),'rax');}
+  a.lea('rcx',slot(96));a.load('rdx',slot(136));a.call('rt.ownAttributes');a.cmp('rax',-1);a.jcc('e',next);a.and('rax',A.enumerable);a.test('rax','rax');a.jcc('e',next);
+  a.lea('rcx',slot(144));a.lea('rdx',slot(96));a.lea('r8',slot(128));a.call('rt.getProperty');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.mov('r9',1);a.call('rt.setProperty');
+  a.label(next);a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
+ });
+ // Object rest excludes already bound keys before checking enumerability or
+ // invoking a getter. Extra call arguments are the property keys to skip.
+ rootedFn(b,'rt.copyDataPropertiesExcept',216,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:8}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(56),'r8');a.store(slot(192),'rdx');
+  a.load('r10',slot(56));for(const n of [0,8,16,24]){a.load('rax',{base:'r10',disp:n});a.store(slot(64+n),'rax');}
+  a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.toObject');
+  a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.ownKeys');
+  a.mov('rax',0);a.store(slot(48),'rax');
+  const loop=a.unique('loop'),next=a.unique('next'),check=a.unique('check'),include=a.unique('include'),done=a.unique('done');
+  a.label(loop);a.load('rax',slot(48));a.load('r10',slot(120));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',done);
+  a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(128+n),'rax');}
+  a.mov('rax',2);a.store(slot(160),'rax');a.label(check);
+  a.load('rax',slot(160));a.load('r11',slot(192));a.cmp('rax','r11');a.jcc('ae',include);
+  a.shl('rax',4);a.load('rdx',slot(56));a.add('rdx','rax');a.lea('rcx',slot(128));a.call('rt.sameValue');a.test('rax','rax');a.jcc('ne',next);
+  a.load('rax',slot(160));a.add('rax',1);a.store(slot(160),'rax');a.jmp(check);
+  a.label(include);a.lea('rcx',slot(96));a.load('rdx',slot(136));a.call('rt.ownAttributes');a.cmp('rax',-1);a.jcc('e',next);a.and('rax',A.enumerable);a.test('rax','rax');a.jcc('e',next);
+  a.lea('rcx',slot(144));a.lea('rdx',slot(96));a.lea('r8',slot(128));a.call('rt.getProperty');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.mov('r9',1);a.call('rt.setProperty');
+  a.label(next);a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
+ });
  // Collect and validate every enumerable descriptor before the first commit.
  // Each private list entry is eight Values: key, six descriptor fields, numeric
  // presence mask. Reconstruct the native record only when applying it.

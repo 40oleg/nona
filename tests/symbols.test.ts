@@ -24,6 +24,7 @@ const cases:[string,string][]=[
  ['toStringTag hook',`var o={[Symbol.toStringTag]:'Custom'};console.log(Object.prototype.toString.call(o),Object.prototype.toString.call(Symbol('x')));`],
  ['Symbol prototype tag',`console.log(Symbol.prototype[Symbol.toStringTag],Object.prototype.toString.call(Object(Symbol('x'))));`],
  ['custom hasInstance',`var matcher={[Symbol.hasInstance]:function(x){return x.value===7;}};console.log(({value:7}) instanceof matcher,({value:8}) instanceof matcher);`],
+ ['computed symbol accessor names and conversion',`var n=0,o={get [Symbol.toPrimitive](){n++;return function(){return ' 42';};}};console.log(String.prototype.trimStart.call(o),n,Object.getOwnPropertyDescriptor(o,Symbol.toPrimitive).get.name);`],
  ['native hasInstance',`function F(){}var x=new F();console.log(x instanceof F,Function.prototype[Symbol.hasInstance].call(F,x),Function.prototype[Symbol.hasInstance].call({},x));`],
 ];
 for(const [name,source] of cases)test(`symbol: ${name}`,()=>expectProgram(source,runOracle(source).stdout));

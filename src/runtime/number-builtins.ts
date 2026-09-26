@@ -1,11 +1,26 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
+import {rootedFn} from './root-scope.js';
 
 const names=['isFinite','isInteger','isNaN','isSafeInteger'] as const;
-export const numberBuiltinRoots=names.map(name=>'rt.Number.'+name+'.fn');
-export const numberBuiltinPropertyRoots=names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number'));
+export const numberBuiltinRoots=[...names.map(name=>'rt.Number.'+name+'.fn'),'rt.global.isFinite.fn','rt.global.isNaN.fn'];
+export const numberBuiltinPropertyRoots=[...names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number')),...['isFinite','isNaN'].flatMap(name=>builtinPropertyRoots('rt.global.'+name+'.fn',name,'rt.globalObject'))];
 
 export function emitNumberBuiltins(b:RuntimeBuilder):void {
+ for(const name of ['isFinite','isNaN'] as const){
+  const symbol='rt.global.'+name+'.fn';
+  prependFunctionBuiltin(b,symbol,name,1,'rt.globalObject');
+  rootedFn(b,symbol+'.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+   a.store(slot(40),'rcx');const missing=a.unique('missing'),convert=a.unique('convert'),yes=a.unique('yes'),done=a.unique('done');
+   a.test('rdx','rdx');a.jcc('e',missing);a.mov('rdx','r8');a.jmp(convert);
+   a.label(missing);a.mov('rax',0);a.store(slot(64),'rax');a.store(slot(72),'rax');a.lea('rdx',slot(64));
+   a.label(convert);a.lea('rcx',slot(64));a.call('rt.toNumber');
+   a.load('rax',slot(72));a.mov('r10',0x7fffffffffffffffn);a.and('rax','r10');
+   a.mov('r10',0x7ff0000000000000n);a.cmp('rax','r10');
+   a.mov('rax',0);a.jcc(name==='isNaN'?'a':'b',yes);a.jmp(done);
+   a.label(yes);a.mov('rax',1);a.label(done);a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+  });
+ }
  for(const name of names){
   prependFunctionBuiltin(b,'rt.Number.'+name+'.fn',name,1,'rt.Number');
   b.fn('rt.Number.'+name+'.fn.code',56,a=>{

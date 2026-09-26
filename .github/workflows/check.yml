@@ -23,21 +23,41 @@ jobs:
             harness
             test/language/expressions/coalesce
             test/language/expressions/arrow-function
+            test/language/expressions/array
+            test/language/expressions/call
+            test/language/expressions/new
+            test/language/expressions/generators
+            test/language/expressions/tagged-template
             test/language/expressions/template-literal
             test/language/rest-parameters
             test/language/statements/for-in
             test/language/statements/for-of
+            test/language/statements/function
             test/built-ins/Symbol
             test/built-ins/Array/prototype/includes
+            test/built-ins/Array/prototype/indexOf
+            test/built-ins/Array/prototype/lastIndexOf
             test/built-ins/Array/prototype/pop
             test/built-ins/Math/pow
+            test/built-ins/Math/abs
+            test/built-ins/Math/ceil
+            test/built-ins/Math/floor
+            test/built-ins/Math/round
+            test/built-ins/Math/sign
+            test/built-ins/Math/sqrt
+            test/built-ins/Math/trunc
             test/built-ins/Number/isFinite
             test/built-ins/Number/isInteger
             test/built-ins/Number/isNaN
             test/built-ins/Number/isSafeInteger
+            test/built-ins/String/fromCharCode
             test/built-ins/String/prototype/includes
+            test/built-ins/String/prototype/indexOf
+            test/built-ins/String/prototype/lastIndexOf
+            test/built-ins/String/prototype/padEnd
+            test/built-ins/String/prototype/padStart
       - run: npm run test262:smoke
-  linux-frontend:
+  linux-native:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,4 +67,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js
+      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js
+      - run: npm run compare:linux
