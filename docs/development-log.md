@@ -2349,3 +2349,9 @@ NaN и выходящих за диапазон кодовых точек, UTF-1
 Целевые native проверки 5/5, полная группа Test262 `String/raw` 30/30.
 Полный файл String native tests: 50/50; smoke 102/102. Совместимые
 примеры Windows и Linux — по 54/54.
+
+Реализован `String.prototype.concat` с generic receiver, последовательным
+`ToString` аргументов и корнем GC для накапливаемой строки. Целевые native
+проверки 4/4, группа Test262 `String/prototype/concat` 22/22.
+Полный файл String native tests: 54/54, smoke 103/103, совместимые
+примеры Windows и Linux — по 55/55.

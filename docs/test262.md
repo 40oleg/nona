@@ -120,3 +120,8 @@ The complete `built-ins/String/raw` group passes 30/30. Its tagged-template
 case is included in the pinned positive smoke manifest.
 The updated manifest passes 102/102; Windows and Linux compatible examples
 pass 54/54 each.
+
+The complete `built-ins/String/prototype/concat` group passes 22/22.
+One case is included in the positive smoke manifest.
+The updated manifest passes 103/103; Windows and Linux compatible examples
+pass 55/55 each.

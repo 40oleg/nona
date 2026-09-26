@@ -22,6 +22,9 @@ const cases:[string,string][]=[
  ['String.raw tagged template',`console.log(String.raw\`a\\nb\${3}c\`);`],
  ['String.raw getters and conversion order',`var s='';var raw={get length(){s+='l';return 2},get 0(){s+='a';return {toString(){s+='A';return 'x'}}},get 1(){s+='b';return 'y'}};var value={toString(){s+='v';return '!'}};console.log(String.raw({raw:raw},value),s);`],
  ['String.raw primitive raw and missing segment',`console.log(String.raw({raw:'ab'},'!'),String.raw({raw:{length:2,0:'a'}},'x'));`],
+ ['String.concat values and metadata',`console.log('a'.concat('b',3,null,undefined),'😀'.concat('x').length,String.prototype.concat.call(123,'x'),String.prototype.concat.length);`],
+ ['String.concat coercion order',`var s='';var o={toString(){s+='r';return 'a';}},a={toString(){s+='a';return 'b';}},b={toString(){s+='b';return 'c';}};console.log(String.prototype.concat.call(o,a,b),s);`],
+ ['String.concat zero arguments and receiver errors',`console.log('abc'.concat(),String.prototype.concat.call(true));for(var x of [null,undefined])try{String.prototype.concat.call(x,'a')}catch(e){console.log(e.name)}`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -71,6 +74,11 @@ test('String.fromCodePoint: coercion retains buffer under stress GC',()=>{
 });
 test('String.raw: getters retain raw and result under stress GC',()=>{
  const source=`var raw={length:2,get 0(){for(var i=0;i<40;i++)({v:i});return 'a'},get 1(){for(var i=0;i<40;i++)({v:i});return 'b'}};var sub={toString(){for(var i=0;i<40;i++)({v:i});return '!'}};console.log(String.raw({raw:raw},sub));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.concat: receiver and arguments survive stress GC',()=>{
+ const source=`var o={toString(){for(var i=0;i<40;i++)({v:i});return 'a'}},a={toString(){for(var i=0;i<40;i++)({v:i});return 'b'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'c'}};console.log(String.prototype.concat.call(o,a,b));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

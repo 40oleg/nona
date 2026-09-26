@@ -77,6 +77,7 @@ jobs:
             test/built-ins/String/fromCharCode
             test/built-ins/String/fromCodePoint
             test/built-ins/String/raw
+            test/built-ins/String/prototype/concat
             test/built-ins/String/prototype/includes
             test/built-ins/String/prototype/indexOf
             test/built-ins/String/prototype/lastIndexOf

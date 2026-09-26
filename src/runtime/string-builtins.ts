@@ -9,7 +9,7 @@ const positionMethods=['indexOf','lastIndexOf'] as const;
 const indexMethods=['charAt','charCodeAt','codePointAt'] as const;
 const trimMethods=['trim','trimStart','trimEnd'] as const;
 const padMethods=['padStart','padEnd'] as const;
-const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'substring','slice','repeat',...trimMethods,...padMethods];
+const stringMethods=[...searchMethods,...positionMethods,...indexMethods,'concat','substring','slice','repeat',...trimMethods,...padMethods];
 export const stringBuiltinRoots=[...stringMethods.map(name=>'rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn'),'rt.stringFromCharCode.fn','rt.stringFromCodePoint.fn','rt.stringRaw.fn'];
 export const stringBuiltinPropertyRoots=[...stringMethods.flatMap(name=>builtinPropertyRoots('rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn',name,'rt.stringPrototype')),...builtinPropertyRoots('rt.stringFromCharCode.fn','fromCharCode','rt.String'),...builtinPropertyRoots('rt.stringFromCodePoint.fn','fromCodePoint','rt.String'),...builtinPropertyRoots('rt.stringRaw.fn','raw','rt.String'),'rt.stringPrototype.trimLeft','rt.stringPrototype.trimRight'];
 
@@ -84,6 +84,19 @@ export function emitStringBuiltins(b:RuntimeBuilder):void {
   a.label(substitute);a.lea('rcx',slot(128));a.lea('rdx',slot(128));a.lea('r8',slot(192));a.call('rt.concat');
   a.label(next);a.load('rax',slot(224));a.add('rax',1);a.store(slot(224),'rax');a.jmp(loop);
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}
+ });
+ prependFunctionBuiltin(b,'rt.stringConcat.fn','concat',1,'rt.stringPrototype');
+ rootedFn(b,'rt.stringConcat.fn.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:3}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(96+n),'rax');}
+  a.load('rax',slot(96));a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(96));a.call('rt.toString');
+  a.mov('rax',0);a.store(slot(136),'rax');const loop=a.unique('loop'),done=a.unique('done');
+  a.label(loop);a.load('rax',slot(136));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',done);
+  a.shl('rax',4);a.load('rdx',slot(56));a.add('rdx','rax');a.lea('rcx',slot(80));a.call('rt.toString');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');
+  a.load('rax',slot(136));a.add('rax',1);a.store(slot(136),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
  for(const name of searchMethods){
  const symbol='rt.string'+name[0]!.toUpperCase()+name.slice(1)+'.fn';
