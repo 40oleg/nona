@@ -69,8 +69,9 @@ export function emitJson(b:RuntimeBuilder):void {
 
  // The parser starts with exact JSON literals and the JSON number grammar.
  // Strings, composites and reviver traversal use the same entry point.
- rootedFn(b,'rt.JSON.parse.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
-  a.store(slot(40),'rcx');a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);a.lea('rdx',{rip:'rt.undefinedValue'});const convert=a.unique('convert');a.jmp(convert);
+ rootedFn(b,'rt.JSON.parse.fn.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1},{kind:'locals',offset:112,count:3}],a=>{
+  a.store(slot(40),'rcx');a.cmp('rdx',2);const noReviver=a.unique('noReviver');a.jcc('b',noReviver);for(const n of [0,8]){a.load('rax',{base:'r8',disp:16+n});a.store(slot(112+n),'rax');}a.label(noReviver);
+  a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);a.lea('rdx',{rip:'rt.undefinedValue'});const convert=a.unique('convert');a.jmp(convert);
   a.label(supplied);a.mov('rdx','r8');a.label(convert);a.lea('rcx',slot(64));a.call('rt.toString');a.lea('rcx',slot(64));a.load('rdx',slot(72));a.call('rt.jsonTrim');
   const done=a.unique('done');a.load('r10',slot(72));a.load('rax',{base:'r10'});a.test('rax','rax');const notString=a.unique('notString');a.jcc('e',notString);a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',34);a.jcc('ne',notString);a.load('rcx',slot(40));a.load('rdx',slot(72));a.call('rt.jsonParseString');a.jmp(done);a.label(notString);
   a.load('r10',slot(72));a.load('rax',{base:'r10'});a.test('rax','rax');const notComposite=a.unique('notComposite');a.jcc('e',notComposite);a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',91);a.jcc('e','rt.JSON.parse.composite');a.cmp('r11',123);a.jcc('ne',notComposite);a.label('rt.JSON.parse.composite');a.load('rcx',slot(40));a.load('rdx',slot(72));a.call('rt.jsonParseComposite');a.jmp(done);a.label(notComposite);
@@ -89,6 +90,11 @@ export function emitJson(b:RuntimeBuilder):void {
   const exponentLoop=a.unique('exponentLoop');a.label('rt.JSON.parse.exponentLoop');a.label(exponentLoop);a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);advance();atEnd('rt.JSON.parse.numberReady');peek();a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('be',exponentLoop);a.jmp(invalid);
   a.label('rt.JSON.parse.numberReady');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.toNumber');a.jmp(done);
   a.label(invalid);a.call('rt.throwSyntaxError');a.label(done);
+  a.load('rax',slot(112));const noWalk=a.unique('noWalk');a.cmp('rax',5);a.jcc('ne',noWalk);a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',noWalk);
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',{base:'rcx',disp:n});a.store(slot(128+n),'rax');}
+  a.lea('rcx',slot(144));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(104),'rax');
+  a.lea('rcx',slot(144));a.lea('rdx',slot(96));a.lea('r8',slot(128));a.mov('r9',1);a.call('rt.setProperty');
+  a.load('rcx',slot(40));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.lea('r9',slot(112));a.call('rt.jsonRevive');a.label(noWalk);
  });
 
  // JSON Quote escapes controls and unpaired UTF-16 surrogates. The allocation
