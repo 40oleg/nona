@@ -95,6 +95,8 @@
     "built-ins/Array/prototype/toLocaleString/invoke-element-tolocalestring.js",
     "built-ins/Array/prototype/sort/stability-11-elements.js",
     "built-ins/Array/prototype/Symbol.unscopables/value.js",
-    "built-ins/Array/prototype/values/iteration-mutable.js"
+    "built-ins/Array/prototype/values/iteration-mutable.js",
+    "built-ins/parseInt/15.1.2.2-2-1.js",
+    "built-ins/parseFloat/15.1.2.3-2-1.js"
   ]
 }
