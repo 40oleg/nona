@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0 — 2026-09-26
+
+- Extended the ES2020 Array methods for the supported runtime types, including `concat`, `flat`, `flatMap`, stable `sort`, `toLocaleString`, species handling, and `Symbol.unscopables`.
+- Added global `parseInt` and `parseFloat` with Number aliases, and fixed Array iterator completion after source growth.
+- Reduced numeric index formatting allocations so million-element sparse Array operations complete without the previous timeouts.
+- Expanded pinned Test262 coverage and Windows/Linux native examples. See [v0.4 status](docs/v0.4-status.md) for results and deferred dependencies.
+
+This remains an experimental subset release, with the remaining ES2020 work scheduled through v0.20.
+
 ## v0.3.0 — 2026-09-26
 
 - Added standalone Linux x64 ELF output with direct syscalls, native compatibility examples, and a Linux CI job.

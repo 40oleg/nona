@@ -35,8 +35,28 @@ jobs:
             test/language/statements/function
             test/built-ins/Symbol
             test/built-ins/Array/prototype/includes
+            test/built-ins/Array/prototype/concat
+            test/built-ins/Array/prototype/flat
+            test/built-ins/Array/prototype/flatMap
+            test/built-ins/Array/prototype/toLocaleString
+            test/built-ins/Array/prototype/sort
+            test/built-ins/Array/prototype/Symbol.unscopables
+            test/built-ins/Array/prototype/values
             test/built-ins/Array/prototype/indexOf
             test/built-ins/Array/prototype/lastIndexOf
+            test/built-ins/Array/prototype/forEach
+            test/built-ins/Array/prototype/map
+            test/built-ins/Array/prototype/some
+            test/built-ins/Array/prototype/every
+            test/built-ins/Array/prototype/find
+            test/built-ins/Array/prototype/findIndex
+            test/built-ins/Array/prototype/reduce
+            test/built-ins/Array/prototype/reduceRight
+            test/built-ins/Array/prototype/fill
+            test/built-ins/Array/prototype/copyWithin
+            test/built-ins/Array/prototype/reverse
+            test/built-ins/Array/prototype/shift
+            test/built-ins/Array/prototype/unshift
             test/built-ins/Array/prototype/pop
             test/built-ins/Math/pow
             test/built-ins/Math/abs
@@ -50,6 +70,10 @@ jobs:
             test/built-ins/Number/isInteger
             test/built-ins/Number/isNaN
             test/built-ins/Number/isSafeInteger
+            test/built-ins/Number/parseInt.js
+            test/built-ins/Number/parseFloat.js
+            test/built-ins/parseInt
+            test/built-ins/parseFloat
             test/built-ins/String/fromCharCode
             test/built-ins/String/prototype/includes
             test/built-ins/String/prototype/indexOf

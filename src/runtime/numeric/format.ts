@@ -17,6 +17,14 @@ export function emitFormat(b:RuntimeBundle):void {
     a.label('cand.exp');a.mov('rax','r12');a.mov('r11','r9');a.label('cand.expDigits');a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.store({base:'r11'},'rdx',8);a.add('r11',1);a.test('rax','rax');a.jcc('ne','cand.expDigits');a.label('cand.expReverse');a.sub('r11',1);a.load('rax',{base:'r11'},8);a.store({base:'rdi'},'rax',16);a.add('rdi',2);a.cmp('r11','r9');a.jcc('a','cand.expReverse');a.sub('rdi','rsi');a.sub('rdi',8);a.shr('rdi',1);a.store({base:'rsi'},'rdi');a.mov('rax','rsi');f.end(b);
   }
   const f=new Native('rt.formatNumber'),a=f.a;
+  a.mov('rax',0);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p','fmt.general');a.jcc('b','fmt.general');
+  a.mov('rax',4294967295);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a','fmt.general');
+  a.cvttsd2si('r12','xmm0');a.cvtsi2sd('xmm1','r12');a.ucomisd('xmm0','xmm1');a.jcc('ne','fmt.general');
+  a.lea('rsi',{base:'rsp',disp:200});a.mov('rdi','rsi');a.mov('rax','r12');a.mov('r10',10);
+  a.label('fmt.uintDigits');a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.store({base:'rdi'},'rdx',8);a.add('rdi',1);a.test('rax','rax');a.jcc('ne','fmt.uintDigits');
+  a.mov('r13','rdi');a.sub('r13','rsi');a.mov('rcx','r13');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.mov('r14','rax');a.store({base:'r14'},'r13');a.lea('rdi',{base:'r14',disp:8});
+  a.label('fmt.uintCopy');a.sub('r13',1);a.lea('r11',{base:'rsi'});a.add('r11','r13');a.load('rax',{base:'r11'},8);a.store({base:'rdi'},'rax',16);a.add('rdi',2);a.test('r13','r13');a.jcc('ne','fmt.uintCopy');a.mov('rax','r14');a.jmp('fmt.return');
+  a.label('fmt.general');
   a.movqFromXmm('r12','xmm0');f.set(0,'r12');a.mov('rax',0x7fffffffffffffffn);a.and('r12','rax');f.set(1,'r12');a.mov('rcx',4096);a.call('rt.alloc');a.mov('rsi','rax');a.lea('rdi',{base:'rax',disp:BIG_BYTES});f.set(2,'rdi');a.lea('rax',{base:'rsi',disp:2200});f.set(3,'rax');a.lea('rax',{base:'rsi',disp:2400});f.set(4,'rax');a.lea('r15',{base:'rax',disp:8});f.imm(5,0);
   a.mov('rax',0x7ff0000000000000n);a.cmp('r12','rax');a.jcc('a','fmt.nan');a.jcc('e','fmt.infinity');a.test('r12','r12');a.jcc('e','fmt.zero');
   // Exact decimal integer S and decimal scale: x = S * 10^scale.
@@ -39,6 +47,6 @@ export function emitFormat(b:RuntimeBundle):void {
   a.label('fmt.scientific');a.sub('rdi',1);a.load('rax',{base:'rdi'},8);a.store({base:'r15'},'rax',16);a.add('r15',2);a.sub('r14',1);a.jcc('e','fmt.exponent');a.mov('rax',46);a.store({base:'r15'},'rax',16);a.add('r15',2);a.label('fmt.scitail');a.sub('rdi',1);a.load('rax',{base:'rdi'},8);a.store({base:'r15'},'rax',16);a.add('r15',2);a.sub('r14',1);a.jcc('ne','fmt.scitail');
   a.label('fmt.exponent');a.mov('rax',101);a.store({base:'r15'},'rax',16);a.add('r15',2);a.sub('r13',1);a.mov('rax',43);a.cmp('r13',0);a.jcc('ge','fmt.expsign');a.mov('rax',45);a.neg('r13');a.label('fmt.expsign');a.store({base:'r15'},'rax',16);a.add('r15',2);f.get('rdi',2);a.mov('rax','r13');a.mov('r10',10);a.xor('r14','r14');a.label('fmt.expdivide');a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.store({base:'rdi'},'rdx',8);a.add('rdi',1);a.add('r14',1);a.test('rax','rax');a.jcc('ne','fmt.expdivide');a.jmp('fmt.tail');
   a.label('fmt.infinity');f.get('rax',0);a.shr('rax',63);a.test('rax','rax');a.jcc('e','fmt.inftext');a.mov('rax',45);a.store({base:'r15'},'rax',16);a.add('r15',2);a.label('fmt.inftext');writeText('Infinity');a.jmp('fmt.finish');a.label('fmt.nan');writeText('NaN');a.jmp('fmt.finish');a.label('fmt.zero');writeText('0');
-  a.label('fmt.finish');f.get('rax',4);a.sub('r15','rax');a.sub('r15',8);a.shr('r15',1);a.store({base:'rax'},'r15');f.end(b);
+  a.label('fmt.finish');f.get('rax',4);a.sub('r15','rax');a.sub('r15',8);a.shr('r15',1);a.store({base:'rax'},'r15');a.label('fmt.return');f.end(b);
   function writeText(s:string){for(const c of s){a.mov('rax',c.charCodeAt(0));a.store({base:'r15'},'rax',16);a.add('r15',2);}}
 }

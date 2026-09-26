@@ -74,3 +74,113 @@ test('Linux native runtime survives GC stress and class construction',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
+ const source=`let a=[1,,3],s='';a.forEach(function(v,i){for(let j=0;j<20;j++)({x:j});s+=v+':'+i+';';});console.log(s);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.some and every call back under GC stress',t=>{
+ const source=`let a=[1,,3];console.log(a.some(function(v){for(let j=0;j<20;j++)({x:j});return v===3}),a.every(function(v){for(let j=0;j<20;j++)({x:j});return v>0}));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.find and findIndex visit holes under GC stress',t=>{
+ const source=`let a=[,{x:2}],s='';console.log(a.find(function(v,i){for(let j=0;j<20;j++)({x:j});s+=i;return v&&v.x===2}).x,a.findIndex(function(v,i){for(let j=0;j<20;j++)({x:j});return v&&v.x===2}),s);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.reduce and reduceRight call back under GC stress',t=>{
+ const source=`let a=[1,,3];console.log(a.reduce(function(x,y){for(let j=0;j<20;j++)({x:j});return x+y},0),a.reduceRight(function(x,y){for(let j=0;j<20;j++)({x:j});return x-y},0));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.fill keeps the value under GC stress',t=>{
+ const source=`let value={x:7},a=[0,,0];for(let i=0;i<20;i++)({x:i});a.fill(value,1,undefined);console.log(a[0],a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.copyWithin copies holes and references under GC stress',t=>{
+ const source=`let value={x:7},a=[value,,3];for(let i=0;i<20;i++)({x:i});a.copyWithin(1,0,2);console.log(a[0].x,a[1].x,2 in a);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.reverse preserves holes under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];for(let i=0;i<20;i++)({x:i});a.reverse();console.log(a[0].x,1 in a,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.shift preserves holes under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];for(let i=0;i<20;i++)({x:i});let first=a.shift();console.log(first.x,0 in a,a[1].x,a.length);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.unshift moves sparse entries under GC stress',t=>{
+ const source=`let value={x:7},a=[,2];for(let i=0;i<20;i++)({x:i});console.log(a.unshift(value),a[0].x,1 in a,a[2],a.length);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native Array.prototype.map honors species under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.map(function(v){for(let i=0;i<20;i++)({x:i});return {x:v.x+1}});console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.prototype.filter honors species under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.filter(function(v){for(let i=0;i<20;i++)({x:i});return v.x>1});console.log(b.length,b[0].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.prototype.slice honors species under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.slice();console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.prototype.splice moves sparse values under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3},{x:4}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.splice(1,2,{x:8},{x:9},{x:10});console.log(b.length,0 in b,b[1].x,a.length,a[1].x,a[2].x,a[3].x,a[4].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.of constructs a subclass under GC stress',t=>{
+ const source=`class A extends Array{}let x={x:1},y={x:2};let a=A.of(x,y);for(let i=0;i<20;i++)({x:i});console.log(a instanceof A,a.length,a[0].x,a[1].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.from maps an iterator under GC stress',t=>{
+ const source=`let a=Array.from([1,,3],function(v,i){for(let j=0;j<20;j++)({x:j});return {x:String(v)+i}});console.log(a.length,a[0].x,a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native parseInt and parseFloat survive coercion under GC stress',t=>{
+ const source=`let x={toString(){for(let i=0;i<30;i++)({x:i});return '0x2a tail'}},r={valueOf(){for(let i=0;i<30;i++)({x:i});return 16}};console.log(parseInt(x,r),parseFloat(' -1.25e2rest'),Number.parseInt===parseInt,Number.parseFloat===parseFloat);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native Array.prototype.concat honors spreadability and species under GC stress',t=>{
+ const source=`let a=[{x:1}],o={0:{x:2},length:1,[Symbol.isConcatSpreadable]:true};a.constructor={[Symbol.species]:function(){for(let i=0;i<20;i++)({x:i});return []}};let b=a.concat(o,{x:3});console.log(b.length,b[0].x,b[1].x,b[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native flat and flatMap preserve nested values under GC stress',t=>{
+ const source=`let a=[{x:1},,[{x:2},[{x:3}]]],b=a.flat(2),c=b.flatMap(function(v,i){for(let j=0;j<20;j++)({x:j});return [v,{x:v.x+i}]});console.log(b.length,b[0].x,b[1].x,b[2].x,c.length,c[5].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native toLocaleString retains values under GC stress',t=>{
+ const source=`let a=[{toLocaleString(){for(let i=0;i<20;i++)({x:i});return 'one'}},{toLocaleString(){for(let i=0;i<20;i++)({x:i});return 'two'}}];console.log(a.toLocaleString());`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+test('Linux native sort comparator retains elements under GC stress',t=>{
+ const source=`let a=[{x:3},{x:1},{x:2}];a.sort(function(v,w){for(let i=0;i<20;i++)({i:i});return v.x-w.x});console.log(a[0].x,a[1].x,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

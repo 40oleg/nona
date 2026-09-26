@@ -4,8 +4,13 @@ import {expectProgram} from './helpers/program.js';
 test('binary64 special values and signed zero',()=>expectProgram('console.log(1/0,-1/0,0/0,-0,1/-0);','Infinity -Infinity NaN 0 -Infinity\n'));
 test('exact binary remainder',()=>expectProgram('console.log(5.5%2,-5.5%2,1%0,1e308%3,1%5e-324,1/(-4%2));',`1.5 -1.5 NaN ${1e308%3} 0 -Infinity\n`));
 test('shortest decimal formatting boundaries',()=>expectProgram('console.log(0.1+0.2,5e-324,1e21,1e-7,1e-6,1e20);','0.30000000000000004 5e-324 1e+21 1e-7 0.000001 100000000000000000000\n'));
-test('ES5 string number grammar',()=>expectProgram('console.log(+"",+" 0x10 ",+"-0",+"x",1/+"-0",+"0b10",+"0o10",+"-0x1",+".5",+"1.");','0 16 0 NaN -Infinity NaN NaN NaN 0.5 1\n'));
-test('ES5 whitespace includes Mongolian vowel separator',()=>expectProgram('console.log(+"\\u180e42\\u180e",+"\\u200012\\ufeff",+"1 2");','42 12 NaN\n'));
+test('small integer formatting boundaries',()=>expectProgram('console.log(-0,0,1,10,4294967295,4294967296,4294967295.5,-1);','0 0 1 10 4294967295 4294967296 4294967295.5 -1\n'));
+test('ES2020 string number grammar',()=>expectProgram('console.log(+"",+" 0x10 ",+"-0",+"x",1/+"-0",+"0b10",+"0o10",+"-0x1",+".5",+"1.");','0 16 0 NaN -Infinity 2 8 NaN 0.5 1\n'));
+test('ES2020 numeric whitespace excludes Mongolian vowel separator',()=>expectProgram('console.log(+"\\u180e42\\u180e",+"\\u200012\\ufeff",+"1 2");','NaN 12 NaN\n'));
+test('binary and octal string conversion validates every digit and rounds large values',()=>{
+  const inputs=['0b','0o','0b102','0o78','-0b10','+0o7','0B101','0O17',' 0b1 ','0b'+'0'.repeat(1200)+'1','0b1'+'0'.repeat(53)+'1','0b1'+'0'.repeat(1023),'0o7'+'0'.repeat(350)];
+  expectProgram('console.log('+inputs.map(v=>'+'+JSON.stringify(v)).join(',')+');',inputs.map(v=>String(Number(v))).join(' ')+'\n');
+});
 test('parser exact midpoint and extremes',()=>{
   const strings=['2.2250738585072014e-308','2.2250738585072011e-308','4.9406564584124654e-324','2.4703282292062327e-324','2.4703282292062328e-324','1.7976931348623157e308','1.7976931348623159e308','9007199254740993','9007199254740995','1.00000000000000011102230246251565404236316680908203125','1.00000000000000011102230246251565404236316680908203126','1e999999999999999999999','-1e-99999999999999999999'];
   expectProgram('console.log('+strings.map(s=>'+'+JSON.stringify(s)).join(',')+');',strings.map(s=>String(Number(s))).join(' ')+'\n');

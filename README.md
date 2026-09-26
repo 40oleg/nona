@@ -6,7 +6,7 @@
 
 Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code, and writes PE32+ or ELF64 executables. The generated program does not embed Node.js or a JavaScript interpreter and does not require a C/C++ compiler or LLVM. Windows output uses `KERNEL32.dll`; Linux output uses direct syscalls.
 
-> **Project status:** `v0.3` extends the supported JavaScript subset and adds Linux x64 native output. ES2020 remains incomplete; arbitrary JavaScript and Node.js projects are not supported.
+> **Project status:** `v0.4` extends the supported Array and numeric built-ins on Windows and Linux x64. ES2020 remains incomplete; arbitrary JavaScript and Node.js projects are not supported. See the [v0.4 status](docs/v0.4-status.md).
 
 ## How it works
 
@@ -105,7 +105,7 @@ The implemented subset includes:
 - ordinary and arrow functions, rest parameters, function expressions, recursion, closures, `this`, `arguments`, `new`, `new.target`, and `super` property access in object methods;
 - template literals, tagged templates, and the basic iterator protocol for arrays, strings, and custom iterables;
 - selected UTF-16 string methods, including `indexOf`, `lastIndexOf`, `padStart`, `padEnd`, and `String.fromCharCode`;
-- selected array methods, including `includes`, `indexOf`, and `lastIndexOf`;
+- selected array methods, including `includes`, `indexOf`, `lastIndexOf`, `forEach`, `some`, `every`, `find`, `findIndex`, `reduce`, `reduceRight`, `fill`, `copyWithin`, `reverse`, `shift`, and `unshift`;
 - `call`, `apply`, `bind`, function metadata, and function source text;
 - property descriptors, accessors, prototype chains, object integrity operations, and selected `Object` APIs;
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;

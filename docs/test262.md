@@ -100,3 +100,14 @@ On 2026-09-25 the `language/expressions/coalesce` group produced 21 pass,
 proper tail calls in strict code and overflow the native stack. Four
 parse-negative cases passed via compiler rejection. These are tracked
 missing capabilities, not evidence that `??` itself is generally broken.
+
+On 2026-09-26 the complete pinned `built-ins/parseInt` and
+`built-ins/parseFloat` groups passed 55/55 and 54/54. The initial full
+`built-ins/Array` run had 2632 pass, 360 fail, 90 skip out of 3082;
+all 90 skips are `Array.fromAsync` tests (an API after ES2020);
+it exposed an iterator completion bug and five sparse-array timeouts,
+which have since been fixed. The repeat full Array run has 2640 pass,
+352 fail, 90 skip. Each remaining failure has a recorded prerequisite in
+[the v0.4 deferral list](v0.4-array-deferred.json): 150 post-ES2020 API
+cases, 72 resizable-buffer cases, and 130 other future dependencies or
+the documented `eval` exception. The positive manifest passes 100/100.

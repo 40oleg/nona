@@ -40,10 +40,18 @@ import {emitBuiltinConstructors} from './builtin-constructors.js';
 import {emitSymbols} from './symbols.js';
 import {emitIterators} from './iterators.js';
 import {emitArrayBuiltins} from './array-builtins.js';
+import {emitArraySplice} from './array-splice.js';
+import {emitArrayOf} from './array-of.js';
+import {emitArrayFrom} from './array-from.js';
+import {emitArrayConcat} from './array-concat.js';
+import {emitArrayFlat} from './array-flat.js';
+import {emitArrayLocale} from './array-locale.js';
+import {emitArraySort} from './array-sort.js';
+import {emitArrayUnscopables} from './array-unscopables.js';
 import {emitStringBuiltins} from './string-builtins.js';
 import {emitNumberBuiltins} from './number-builtins.js';
 import {emitRestArguments} from './rest-arguments.js';
 import {emitMath} from './math.js';
 import {emitConsole} from './console.js';
-export function emitRuntime(_request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitBuiltinConstructors(b);emitNumberBuiltins(b);emitSymbols(b);emitIterators(b);emitGenerators(b);emitArrayBuiltins(b);emitStringBuiltins(b);emitMath(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b);emitIo(b);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
+export function emitRuntime(_request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitBuiltinConstructors(b);emitNumberBuiltins(b);emitSymbols(b);emitIterators(b);emitGenerators(b);emitArrayBuiltins(b);emitArraySplice(b);emitArrayOf(b);emitArrayFrom(b);emitArrayConcat(b);emitArrayFlat(b);emitArrayLocale(b);emitArraySort(b);emitArrayUnscopables(b);emitStringBuiltins(b);emitMath(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b);emitIo(b);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
 export type {RuntimeRequest,RuntimeBundle} from './abi.js';
