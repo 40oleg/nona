@@ -1,11 +1,12 @@
-import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {RuntimeBuilder,slot} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O} from './object-layout.js';
+import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
 
 // InternalizeJSONProperty: visit children first, then invoke the reviver with
 // the holder as this. Each recursion owns precise roots for mutable values.
 export function emitJsonReviver(b:RuntimeBuilder):void {
- rootedFn(b,'rt.jsonRevive',296,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:80,count:10}],a=>{
+ rootedFn(b,'rt.jsonRevive',392,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:80,count:10},{kind:'locals',offset:272,count:6}],a=>{
   a.store(slot(40),'rcx');for(const [register,offset] of [['rdx',80],['r8',96],['r9',112]] as const)for(const n of [0,8]){a.load('rax',{base:register,disp:n});a.store(slot(offset+n),'rax');}
   a.lea('rcx',slot(128));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.call('rt.getProperty');
   const invoke=a.unique('invoke'),array=a.unique('array'),object=a.unique('object'),loop=a.unique('loop'),next=a.unique('next');
@@ -21,8 +22,12 @@ export function emitJsonReviver(b:RuntimeBuilder):void {
   a.lea('rcx',slot(224));a.lea('rdx',slot(144));a.lea('r8',slot(160));a.call('rt.getProperty');for(const n of [0,8]){a.load('rax',slot(224+n));a.store(slot(160+n),'rax');}
   a.label(next);a.lea('rcx',slot(176));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.lea('r9',slot(112));a.call('rt.jsonRevive');
   a.load('rax',slot(176));const define=a.unique('define'),advance=a.unique('advance');a.test('rax','rax');a.jcc('ne',define);
-  a.lea('rcx',slot(224));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.call('rt.deleteProperty');a.load('rax',slot(232));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(advance);
-  a.label(define);a.lea('rcx',slot(128));a.lea('rdx',slot(160));a.lea('r8',slot(176));a.mov('r9',3);a.call('rt.setProperty');
+  a.lea('rcx',slot(224));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.call('rt.deleteProperty');a.jmp(advance);
+  a.label(define);a.mov('rax',2);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(272+offset),'rax');
+  a.mov('rax',1);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(272+offset+8),'rax');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(272+D.value+n),'rax');}
+  a.mov('rax',DF.data);a.store(slot(272+D.present),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(160));a.lea('r8',slot(272));a.call('rt.defineOwnProperty');
   a.label(advance);a.load('rax',slot(240));a.add('rax',1);a.store(slot(240),'rax');a.jmp(loop);
   a.label(invoke);for(const n of [0,8]){a.load('rax',slot(96+n));a.store(slot(192+n),'rax');a.load('rax',slot(128+n));a.store(slot(208+n),'rax');}
   a.lea('rax',slot(80));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(112));a.mov('r8',2);a.lea('r9',slot(192));a.call('rt.invoke');
