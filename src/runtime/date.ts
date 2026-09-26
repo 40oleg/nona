@@ -6,6 +6,7 @@ import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js
 import {dateFields} from './date-components.js';
 import {dateSecondSetters} from './date-second-setters.js';
 import {dateMinuteSetters} from './date-minute-setters.js';
+import {dateHourSetters} from './date-hour-setters.js';
 
 export const DateKind=7;
 export const DateLayout={time:O.size,size:O.size+8} as const;
@@ -15,7 +16,7 @@ const timeParts=[
  ['getMinutes',60000,60],['getUTCMinutes',60000,60],
  ['getHours',3600000,24],['getUTCHours',3600000,24],
 ] as const;
-export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.now.fn','rt.Date.UTC.fn',...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
+export const dateRoots=['rt.dateValueOf.fn','rt.dateGetTime.fn','rt.dateSetTime.fn','rt.dateGetTimezoneOffset.fn','rt.Date.now.fn','rt.Date.UTC.fn',...['setMilliseconds','setUTCMilliseconds',...dateSecondSetters,...dateMinuteSetters,...dateHourSetters].map(name=>'rt.Date.'+name+'.fn'),...timeParts.map(([name])=>'rt.Date.'+name+'.fn'),...dateFields.map(([name])=>'rt.Date.'+name+'.fn')];
 export const datePropertyRoots=[
  ...builtinPropertyRoots('rt.dateValueOf.fn','valueOf','rt.datePrototype'),
  ...builtinPropertyRoots('rt.dateGetTime.fn','getTime','rt.datePrototype'),
@@ -24,6 +25,7 @@ export const datePropertyRoots=[
  ...['setMilliseconds','setUTCMilliseconds'].flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...dateSecondSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...dateMinuteSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
+ ...dateHourSetters.flatMap(name=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
  ...builtinPropertyRoots('rt.Date.now.fn','now','rt.Date'),
  ...builtinPropertyRoots('rt.Date.UTC.fn','UTC','rt.Date'),
  ...timeParts.flatMap(([name])=>builtinPropertyRoots('rt.Date.'+name+'.fn',name,'rt.datePrototype')),
@@ -42,6 +44,7 @@ export function emitDatePrototype(b:RuntimeBuilder):void {
  for(const name of ['setMilliseconds','setUTCMilliseconds'])prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,1,'rt.datePrototype');
  for(const name of dateSecondSetters)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,2,'rt.datePrototype');
  for(const name of dateMinuteSetters)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,3,'rt.datePrototype');
+ for(const name of dateHourSetters)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,4,'rt.datePrototype');
  for(const [name] of timeParts)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,0,'rt.datePrototype');
  for(const [name] of dateFields)prependFunctionBuiltin(b,'rt.Date.'+name+'.fn',name,0,'rt.datePrototype');
 }
