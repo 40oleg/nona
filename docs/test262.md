@@ -175,3 +175,7 @@ compatible examples pass 65/65 on Windows and Linux.
 The complete `Math.asin` and `Math.acos` groups pass 9/9 and 8/8.
 Positive smoke is 122/122; compatible examples pass 66/66 on Windows
 and Linux.
+
+The complete `encodeURI` and `encodeURIComponent` groups pass 31/31
+each. Positive smoke is 124/124; compatible examples pass 67/67
+on Windows and Linux.

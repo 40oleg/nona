@@ -22,7 +22,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Symbol',...errorConstructorNames,'Math','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Symbol',...errorConstructorNames,'Math','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

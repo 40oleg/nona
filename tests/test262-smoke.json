@@ -121,6 +121,8 @@
     "built-ins/Math/log1p/specific-results.js",
     "built-ins/Math/cbrt/cbrt-specialValues.js",
     "built-ins/Math/asin/S15.8.2.3_A2.js",
-    "built-ins/Math/acos/S15.8.2.2_A2.js"
+    "built-ins/Math/acos/S15.8.2.2_A2.js",
+    "built-ins/encodeURI/S15.1.3.3_A4_T1.js",
+    "built-ins/encodeURIComponent/S15.1.3.4_A4_T1.js"
   ]
 }

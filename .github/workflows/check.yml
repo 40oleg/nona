@@ -76,6 +76,8 @@ jobs:
             test/built-ins/Math/cbrt
             test/built-ins/Math/asin
             test/built-ins/Math/acos
+            test/built-ins/encodeURI
+            test/built-ins/encodeURIComponent
             test/built-ins/Math/exp
             test/built-ins/Math/expm1
             test/built-ins/Math/atan
