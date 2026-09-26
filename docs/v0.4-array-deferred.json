@@ -1,0 +1,1762 @@
+[
+  {
+    "path": "built-ins/Array/from/items-is-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "typed arrays"
+  },
+  {
+    "path": "built-ins/Array/from/proto-from-ctor-realm.js",
+    "phase": "runtime",
+    "reason": "cross-realm, excluded eval"
+  },
+  {
+    "path": "built-ins/Array/fromAsync/builtin.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/fromAsync/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/fromAsync/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/fromAsync/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect"
+  },
+  {
+    "path": "built-ins/Array/fromAsync/prop-desc.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/is-a-constructor.js",
+    "phase": "runtime",
+    "reason": "Reflect"
+  },
+  {
+    "path": "built-ins/Array/isArray/15.4.3.2-1-10.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/isArray/15.4.3.2-1-11.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/isArray/15.4.3.2-1-9.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/isArray/proxy-revoked.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/isArray/proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/length/define-own-prop-length-coercion-order-set.js",
+    "phase": "runtime",
+    "reason": "Reflect"
+  },
+  {
+    "path": "built-ins/Array/length/define-own-prop-length-coercion-order.js",
+    "phase": "runtime",
+    "reason": "Reflect"
+  },
+  {
+    "path": "built-ins/Array/length/define-own-prop-length-no-value-order.js",
+    "phase": "runtime",
+    "reason": "Reflect"
+  },
+  {
+    "path": "built-ins/Array/length/define-own-prop-length-overflow-realm.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/of/proto-from-ctor-realm.js",
+    "phase": "runtime",
+    "reason": "cross-realm, excluded eval"
+  },
+  {
+    "path": "built-ins/Array/of/return-a-new-array-object.js",
+    "phase": "runtime",
+    "reason": "missing Math.cos"
+  },
+  {
+    "path": "built-ins/Array/of/return-abrupt-from-data-property-using-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/proto-from-ctor-realm-one.js",
+    "phase": "runtime",
+    "reason": "Reflect, cross-realm, excluded eval"
+  },
+  {
+    "path": "built-ins/Array/proto-from-ctor-realm-two.js",
+    "phase": "runtime",
+    "reason": "Reflect, cross-realm, excluded eval"
+  },
+  {
+    "path": "built-ins/Array/proto-from-ctor-realm-zero.js",
+    "phase": "runtime",
+    "reason": "Reflect, cross-realm, excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/Symbol.unscopables/array-find-from-last.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 unscopables"
+  },
+  {
+    "path": "built-ins/Array/prototype/Symbol.unscopables/at.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 unscopables"
+  },
+  {
+    "path": "built-ins/Array/prototype/Symbol.unscopables/change-array-by-copy.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 unscopables"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/coerced-index-resize.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/index-argument-tointeger.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/index-non-numeric-argument-tointeger-invalid.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/index-non-numeric-argument-tointeger.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/prop-desc.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/return-abrupt-from-this.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/returns-item-relative-index.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/returns-item.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/returns-undefined-for-holes-in-sparse-arrays.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/returns-undefined-for-out-of-range-index.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/at/typed-array-resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/Array.prototype.concat_large-typed-array.js",
+    "phase": "runtime",
+    "reason": "typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/Array.prototype.concat_small-typed-array.js",
+    "phase": "runtime",
+    "reason": "typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-reg-exp.js",
+    "phase": "compile",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/arg-length-exceeding-integer-limit.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/create-proto-from-ctor-realm-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/create-proto-from-ctor-realm-non-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/create-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/create-revoked-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/is-concat-spreadable-is-array-proxy-revoked.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/is-concat-spreadable-proxy-revoked.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/concat/is-concat-spreadable-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/copyWithin/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/copyWithin/return-abrupt-from-delete-proxy-target.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/copyWithin/return-abrupt-from-has-start.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/entries/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/entries/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/entries/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-5-15.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-5-16.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-5-17.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-5-7.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-7-c-iii-21.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-7-c-iii-22.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/15.4.4.16-7-c-iii-23.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/every/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/fill/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/fill/typed-array-resize.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-5-15.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-5-16.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-5-17.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-5-7.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-9-c-iii-22.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-9-c-iii-23.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/15.4.4.20-9-c-iii-24.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/create-proto-from-ctor-realm-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/create-proto-from-ctor-realm-non-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/create-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/create-revoked-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/filter/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/find/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/find/predicate-is-not-callable-throws.js",
+    "phase": "compile",
+    "reason": "RegExp literal"
+  },
+  {
+    "path": "built-ins/Array/prototype/find/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/find/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/find/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findIndex/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/findIndex/predicate-is-not-callable-throws.js",
+    "phase": "compile",
+    "reason": "RegExp literal"
+  },
+  {
+    "path": "built-ins/Array/prototype/findIndex/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findIndex/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findIndex/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/array-altered-during-loop.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/call-with-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/maximum-index.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-call-parameters.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-call-this-non-strict.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-call-this-strict.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-called-for-each-array-property.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-is-not-callable-throws.js",
+    "phase": "compile",
+    "reason": "post-ES2020 API, RegExp literal, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/predicate-not-called-on-empty-array.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/prop-desc.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/return-abrupt-from-predicate-call.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/return-abrupt-from-property.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/return-abrupt-from-this-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/return-found-value-predicate-result-is-true.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLast/return-undefined-if-predicate-returns-false-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/array-altered-during-loop.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/call-with-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/maximum-index.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-call-parameters.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-call-this-non-strict.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-call-this-strict.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-called-for-each-array-property.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-is-not-callable-throws.js",
+    "phase": "compile",
+    "reason": "post-ES2020 API, RegExp literal, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/predicate-not-called-on-empty-array.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/prop-desc.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/return-abrupt-from-predicate-call.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/return-abrupt-from-property.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/return-abrupt-from-this-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/return-index-predicate-result-is-true.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/findLastIndex/return-negative-one-if-predicate-returns-false-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/flat/proxy-access-count.js",
+    "phase": "runtime",
+    "reason": "Proxy, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/flatMap/array-like-objects-nested.js",
+    "phase": "runtime",
+    "reason": "typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/flatMap/array-like-objects-typedarrays.js",
+    "phase": "runtime",
+    "reason": "typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/flatMap/proxy-access-count.js",
+    "phase": "runtime",
+    "reason": "Proxy, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-5-15.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-5-16.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-5-17.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/15.4.4.18-5-7.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/forEach/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/includes/coerced-searchelement-fromindex-resize.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/includes/get-prop.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/includes/resizable-buffer-special-float-values.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/includes/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/15.4.4.14-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/15.4.4.14-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/15.4.4.14-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/calls-only-has-on-prototype-after-length-zeroed.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/coerced-searchelement-fromindex-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/coerced-searchelement-fromindex-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/resizable-buffer-special-float-values.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/indexOf/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/join/coerced-separator-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/join/coerced-separator-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/join/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/keys/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/keys/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/keys/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/15.4.4.15-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/15.4.4.15-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/15.4.4.15-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/15.4.4.15-2-8.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/15.4.4.15-5-21.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/calls-only-has-on-prototype-after-length-zeroed.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/coerced-position-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/coerced-position-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/lastIndexOf/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-5-15.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-5-16.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-5-17.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/15.4.4.19-5-7.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/create-proto-from-ctor-realm-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/create-proto-from-ctor-realm-non-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/create-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/create-revoked-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/create-species-undef-invalid-len.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "compile",
+    "reason": "resizable buffers, typed arrays, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/map/resizable-buffer.js",
+    "phase": "compile",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-9-c-ii-31.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-9-c-ii-32.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/15.4.4.21-9-c-ii-33.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduce/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-9-c-ii-31.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-9-c-ii-32.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/15.4.4.22-9-c-ii-33.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reduceRight/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/reverse/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/coerced-start-end-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/coerced-start-end-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/create-proto-from-ctor-realm-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/create-proto-from-ctor-realm-non-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/create-proxied-array-invalid-len.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/create-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/create-revoked-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/length-exceeding-integer-limit-proxied-array.js",
+    "phase": "runtime",
+    "reason": "Proxy, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/slice/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-1-11.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-1-12.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-1-13.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-5-15.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-5-16.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-5-17.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-5-7.js",
+    "phase": "runtime",
+    "reason": "excluded eval"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-7-c-iii-21.js",
+    "phase": "runtime",
+    "reason": "Date"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-7-c-iii-22.js",
+    "phase": "runtime",
+    "reason": "RegExp"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/15.4.4.17-7-c-iii-23.js",
+    "phase": "runtime",
+    "reason": "JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/callbackfn-resize-arraybuffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/some/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/call-with-primitive.js",
+    "phase": "compile",
+    "reason": "BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/comparefn-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/comparefn-nonfunction-call-throws.js",
+    "phase": "compile",
+    "reason": "RegExp literal"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/comparefn-resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/comparefn-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/sort/resizable-buffer-default-comparator.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-proto-from-ctor-realm-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-proto-from-ctor-realm-non-array.js",
+    "phase": "runtime",
+    "reason": "cross-realm"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-revoked-proxy.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit.js",
+    "phase": "runtime",
+    "reason": "Proxy, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/create-species-undef-invalid-len.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/splice/property-traps-order-with-species.js",
+    "phase": "runtime",
+    "reason": "Proxy"
+  },
+  {
+    "path": "built-ins/Array/prototype/toLocaleString/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/toLocaleString/user-provided-tolocalestring-grow.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/toLocaleString/user-provided-tolocalestring-shrink.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, BigInt"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/frozen-this-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/get-descending-order.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/holes-not-preserved.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/ignores-species.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/immutable.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length-casted-to-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length-decreased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length-exceeding-array-length-limit.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length-increased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length-tolength.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/property-descriptor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/this-value-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toReversed/zero-or-one-element.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/comparefn-called-after-get-elements.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/comparefn-controls-sort.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/comparefn-default.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/comparefn-not-a-function.js",
+    "phase": "compile",
+    "reason": "post-ES2020 API, RegExp literal, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/comparefn-stop-after-error.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/frozen-this-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/holes-not-preserved.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/ignores-species.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/immutable.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length-casted-to-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length-decreased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length-exceeding-array-length-limit.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length-increased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length-tolength.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/property-descriptor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/this-value-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSorted/zero-or-one-element.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/deleteCount-clamped-between-zero-and-remaining-count.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/deleteCount-missing.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/deleteCount-undefined.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/discarded-element-not-read.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/elements-read-in-order.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/frozen-this-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/holes-not-preserved.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/ignores-species.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/immutable.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-casted-to-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-clamped-to-2pow53minus1.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-decreased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-exceeding-array-length-limit.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-increased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length-tolength.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/mutate-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/property-descriptor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-and-deleteCount-missing.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-and-deleteCount-undefineds.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-bigger-than-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-neg-infinity-is-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-neg-less-than-minus-length-is-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-neg-subtracted-from-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/start-undefined-and-deleteCount-missing.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/this-value-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toSpliced/unmodified.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, future Array API"
+  },
+  {
+    "path": "built-ins/Array/prototype/toString/non-callable-join-string-tag.js",
+    "phase": "compile",
+    "reason": "Proxy, Reflect, Date, RegExp, JSON"
+  },
+  {
+    "path": "built-ins/Array/prototype/values/resizable-buffer-grow-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/values/resizable-buffer-shrink-mid-iteration.js",
+    "phase": "runtime",
+    "reason": "resizable buffers"
+  },
+  {
+    "path": "built-ins/Array/prototype/values/resizable-buffer.js",
+    "phase": "runtime",
+    "reason": "resizable buffers, typed arrays"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/frozen-this-value.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/holes-not-preserved.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/ignores-species.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/immutable.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/index-bigger-or-eq-than-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/index-casted-to-number.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/index-negative.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/index-smaller-than-minus-length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/index-throw-completion.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/length-decreased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/length-exceeding-array-length-limit.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/length-increased-while-iterating.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/length-tolength.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/length.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/name.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/negative-fractional-index-truncated-to-zero.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/no-get-replaced-index.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/not-a-constructor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API, Reflect"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/property-descriptor.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  },
+  {
+    "path": "built-ins/Array/prototype/with/this-value-boolean.js",
+    "phase": "runtime",
+    "reason": "post-ES2020 API"
+  }
+]

@@ -70,6 +70,8 @@ jobs:
             test/built-ins/Number/isInteger
             test/built-ins/Number/isNaN
             test/built-ins/Number/isSafeInteger
+            test/built-ins/Number/parseInt.js
+            test/built-ins/Number/parseFloat.js
             test/built-ins/parseInt
             test/built-ins/parseFloat
             test/built-ins/String/fromCharCode

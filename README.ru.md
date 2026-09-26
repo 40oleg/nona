@@ -3,6 +3,7 @@
 [English](README.md)
 
 Текущее состояние языка: [матрица поддержки](docs/language-support.md).
+Результаты релиза 0.4: [отчёт](docs/v0.4-status.md).
 Ход работ и результаты проверок: [журнал разработки](docs/development-log.md).
 Все документы: [индекс](docs/README.md).
 
