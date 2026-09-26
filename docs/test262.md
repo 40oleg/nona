@@ -195,3 +195,9 @@ and Linux.
 The complete `Math.sinh`, `Math.cosh`, and `Math.tanh` groups pass
 5/5 each. Positive smoke is 132/132; compatible examples pass 71/71
 on Windows and Linux.
+
+A full `built-ins/Math` run now has 312 passes and 15 failures out of
+327. All 15 failures concern `Math.f16round` and `Math.sumPrecise`,
+which are later than ES2020. This does not measure transcendental
+accuracy for arbitrary finite inputs; large-angle reduction for
+`sin`, `cos`, and `tan` remains open.
