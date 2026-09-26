@@ -90,6 +90,7 @@
     "built-ins/Array/prototype/concat/Array.prototype.concat_array-like.js",
     "built-ins/Array/prototype/concat/create-species-null.js",
     "built-ins/Array/prototype/flat/positive-infinity.js",
-    "built-ins/Array/prototype/flatMap/depth-always-one.js"
+    "built-ins/Array/prototype/flatMap/depth-always-one.js",
+    "built-ins/Array/prototype/toLocaleString/invoke-element-tolocalestring.js"
   ]
 }

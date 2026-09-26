@@ -8,6 +8,9 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['toLocaleString entries and metadata',`var a=[1,null,,{toLocaleString(){return 'x'}}];console.log(a.toLocaleString(),Array.prototype.toLocaleString.length);`],
+ ['toLocaleString generic and frozen length',`var o={length:2,0:{toLocaleString(){o.length=0;return 'a'}},1:{toLocaleString(){return 'b'}}};console.log(Array.prototype.toLocaleString.call(o));`],
+ ['toLocaleString invokes methods and converts results',`var s='',a=[{toLocaleString(){s+='A';return {toString(){s+='S';return 'x'}}}},{toLocaleString(){s+='B';return 'y'}}];console.log(a.toLocaleString(),s);`],
  ['flat nested depth and metadata',`var a=[1,[2,[3,[4]]]];console.log(a.flat().join(','),a.flat(2).join(','),a.flat(Infinity).join(','),a.flat(0).length,Array.prototype.flat.length);`],
  ['flat sparse and inherited',`var a=[1,,[2,,3]];var b=a.flat();console.log(b.length,b.join(','));Array.prototype[1]='p';b=a.flat();delete Array.prototype[1];console.log(b.join(','),b.length);`],
  ['flat generic and species',`var o={length:2,0:[1,2],1:3};console.log(Array.prototype.flat.call(o).join(','));var a=[1,[2]],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n;return {x:7}}};var b=a.flat();console.log(s,b[0],b[1],b.x,b.length,Array.isArray(b));`],
@@ -127,6 +130,12 @@ const cases:[string,string][]=[
  ['unshift no arguments clamps huge length',`var o={length:Infinity};console.log(Array.prototype.unshift.call(o),o.length);o.length=9007199254740992;console.log(Array.prototype.unshift.call(o),o.length);`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
+
+test('array builtins: toLocaleString methods and strings survive stress GC',()=>{
+ const source=`var a=[{toLocaleString(){for(var i=0;i<30;i++)({x:i});return {toString(){for(var j=0;j<30;j++)({y:j});return 'left'}}}},{toLocaleString(){for(var i=0;i<30;i++)({z:i});return 'right'}}];console.log(a.toLocaleString());`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
 
 test('array builtins: push survives stress GC',()=>{
  const source=`var a=[];for(var i=0;i<50;i++){a.push({x:i});}console.log(a.length,a[0].x,a[49].x);`;

@@ -174,3 +174,8 @@ test('Linux native flat and flatMap preserve nested values under GC stress',t=>{
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+test('Linux native toLocaleString retains values under GC stress',t=>{
+ const source=`let a=[{toLocaleString(){for(let i=0;i<20;i++)({x:i});return 'one'}},{toLocaleString(){for(let i=0;i<20;i++)({x:i});return 'two'}}];console.log(a.toLocaleString());`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

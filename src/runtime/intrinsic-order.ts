@@ -10,7 +10,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Object':['length','name','prototype','getOwnPropertyDescriptor','getOwnPropertyDescriptors','getOwnPropertyNames','getOwnPropertySymbols','is','preventExtensions','seal','create','defineProperties','defineProperty','freeze','getPrototypeOf','setPrototypeOf','isExtensible','isFrozen','isSealed','keys','entries','values'],
   'rt.functionPrototype':['length','name','constructor','apply','bind','call','toString','arguments','caller','@@hasInstance'],
   'rt.objectPrototype':['constructor','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toString','valueOf','__proto__','toLocaleString'],
-  'rt.arrayPrototype':['constructor','join','toString','concat','flat','flatMap','pop','push','shift','unshift','splice','slice','includes','indexOf','lastIndexOf','forEach','map','filter','some','every','find','findIndex','reduce','reduceRight','fill','copyWithin','reverse','keys','entries','values','@@iterator'],
+  'rt.arrayPrototype':['constructor','join','toString','toLocaleString','concat','flat','flatMap','pop','push','shift','unshift','splice','slice','includes','indexOf','lastIndexOf','forEach','map','filter','some','every','find','findIndex','reduce','reduceRight','fill','copyWithin','reverse','keys','entries','values','@@iterator'],
   'rt.Array':['length','name','prototype','from','isArray','of','@@species'],
   'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','parseFloat','parseInt','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
   'rt.String':['length','name','prototype','fromCharCode'],
