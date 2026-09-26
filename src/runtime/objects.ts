@@ -101,7 +101,7 @@ export function emitObjects(b:RuntimeBuilder):void {
   for(const mode of ['get','has'] as const)rootedFn(b,'rt.'+mode+'Property',136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:3}],a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
     a.load('rax',{base:'rdx'});a.cmp('rax',mode==='has'?5:1);failIf(a,mode==='has'?'ne':'be','rt.throwTypeError');
-    a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toString');a.load('rax',slot(88));a.store(slot(64),'rax');
+    a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toPropertyKey');a.load('rax',slot(88));a.store(slot(64),'rax');
     const missing=a.unique('missing'),save=a.unique('save'),number=a.unique('number'),string=a.unique('string'),character=a.unique('character'),done=a.unique('done');
     const object=a.unique('object');a.load('rcx',slot(48));a.call('rt.stringBase');a.test('rax','rax');a.jcc('e',object);a.store(slot(72),'rax');
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');const index=a.unique('index');a.jcc('ne',index);
@@ -201,7 +201,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
     a.load('rax',{base:'rdx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
     const yes=a.unique('yes'),no=a.unique('no'),save=a.unique('save'),object=a.unique('object'),loop=a.unique('loop'),next=a.unique('next');
-    a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toString');a.load('rax',slot(88));a.store(slot(64),'rax');
+    a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toPropertyKey');a.load('rax',slot(88));a.store(slot(64),'rax');
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');

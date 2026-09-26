@@ -4,7 +4,7 @@ import {ObjectLayout as O} from './object-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
-const brands=[['boolean',2],['number',3],['string',4]] as const;
+const brands=[['boolean',2],['number',3],['string',4],['symbol',6]] as const;
 export const wrapperMethodRoots=brands.flatMap(([brand])=>['rt.'+brand+'ValueOf','rt.'+brand+'ToString']);
 export const wrapperMethodPropertyRoots=brands.flatMap(([brand])=>['valueOf','toString'].flatMap(method=>builtinPropertyRoots('rt.'+brand+(method==='valueOf'?'ValueOf':'ToString'),method,'rt.'+brand+'Prototype')));
 
@@ -19,12 +19,12 @@ export function emitWrapperMethods(b:RuntimeBuilder):void {
    const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',tag);a.jcc('e',copy);a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
    a.load('rdx',{base:'rdx',disp:8});a.load('rax',{base:'rdx',disp:O.kind});a.cmp('rax',BoxKind);failIf(a,'ne','rt.throwTypeError');
    a.add('rdx',BoxLayout.value);a.load('rax',{base:'rdx'});a.cmp('rax',tag);failIf(a,'ne','rt.throwTypeError');
-   a.label(copy);a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');
+   a.label(copy);a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});if(brand==='symbol'){a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}a.store({base:'rcx',disp:8},'rax');
   });
   b.fn('rt.'+brand+'ValueOf.code',40,a=>{a.load('rdx',slot(80));a.call('rt.this'+brand+'Value');});
   if(brand!=='number')b.fn('rt.'+brand+'ToString.code',72,a=>{
    a.store(slot(40),'rcx');a.load('rdx',slot(112));a.lea('rcx',slot(56));a.call('rt.this'+brand+'Value');
-   a.load('rcx',slot(40));a.lea('rdx',slot(56));a.call('rt.toString');
+   a.load('rcx',slot(40));a.lea('rdx',slot(56));a.call(brand==='symbol'?'rt.symbolDescriptiveString':'rt.toString');
   });
  }
  rootedFn(b,'rt.numberToString.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:2}],(a,frame)=>{

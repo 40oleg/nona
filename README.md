@@ -6,7 +6,7 @@
 
 Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code, and writes a PE32+ executable. The generated program does not embed Node.js or a JavaScript interpreter and does not require a C/C++ compiler, LLVM, or the Microsoft C runtime. Its only runtime dependency is the Windows system library `KERNEL32.dll`.
 
-> **Project status:** `v0.1` is an early development release. It implements a useful but incomplete JavaScript subset and currently targets only Windows x64. It is not yet suitable for running arbitrary JavaScript or Node.js projects.
+> **Project status:** `v0.2` expands the supported JavaScript subset with arrows, templates, iteration, Symbols, rest parameters, and selected built-ins. ES2020 support remains incomplete. Native output currently targets Windows x64 only; arbitrary JavaScript and Node.js projects are not supported.
 
 ## How it works
 
@@ -97,12 +97,13 @@ The `examples` directory also contains Fibonacci, loop, string, compatibility, a
 
 The implemented subset includes:
 
-- numbers, UTF-16 strings, booleans, `null`, `undefined`, arrays, and objects;
+- numbers, UTF-16 strings, booleans, `null`, `undefined`, Symbols, arrays, and objects;
 - arithmetic, comparison, logical, bitwise, assignment, exponentiation, and nullish-coalescing operators;
 - optional chaining for properties, computed properties, calls, methods, and `delete`;
-- `if`, `switch`, `while`, `do/while`, traditional `for`, labels, `break`, and `continue`;
+- `if`, `switch`, `while`, `do/while`, traditional `for`, `for...in`, `for...of`, labels, `break`, and `continue`;
 - `var`, `let`, and `const`, including hoisting, block scope, TDZ, and per-iteration bindings;
-- ordinary functions, function expressions, recursion, closures, `this`, `arguments`, `new`, `new.target`, and `super` property access in object methods;
+- ordinary and arrow functions, rest parameters, function expressions, recursion, closures, `this`, `arguments`, `new`, `new.target`, and `super` property access in object methods;
+- untagged template literals and the basic iterator protocol for arrays, strings, and custom iterables;
 - `call`, `apply`, `bind`, function metadata, and function source text;
 - property descriptors, accessors, prototype chains, object integrity operations, and selected `Object` APIs;
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;
@@ -115,10 +116,10 @@ See the [language support matrix](docs/language-support.md) for exact behavior a
 
 Nona does not currently implement the complete ECMAScript standard. Major missing areas include:
 
-- arrow functions, classes, destructuring, rest/spread, and default parameters;
-- template literals and tagged templates;
-- `for...in`, `for...of`, iterators, generators, promises, and async functions;
-- modules, `Symbol`, `BigInt`, collections, proxies, typed arrays, and regular expressions;
+- classes, destructuring, spread syntax, and default parameters;
+- tagged templates;
+- generators, promises, and async functions;
+- modules, `BigInt`, collections, proxies, typed arrays, and regular expressions;
 - most of the standard `Array`, `String`, `Number`, `Math`, `Date`, and `JSON` APIs;
 - browser APIs, Node.js APIs, `eval`, and dynamic function constructors;
 - targets other than Windows x64.

@@ -1,0 +1,50 @@
+name: check
+on:
+  push:
+  pull_request:
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run compare
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/language/expressions/coalesce
+            test/language/expressions/arrow-function
+            test/language/expressions/template-literal
+            test/language/rest-parameters
+            test/language/statements/for-in
+            test/language/statements/for-of
+            test/built-ins/Symbol
+            test/built-ins/Array/prototype/includes
+            test/built-ins/Array/prototype/pop
+            test/built-ins/Math/pow
+            test/built-ins/Number/isFinite
+            test/built-ins/Number/isInteger
+            test/built-ins/Number/isNaN
+            test/built-ins/Number/isSafeInteger
+            test/built-ins/String/prototype/includes
+      - run: npm run test262:smoke
+  linux-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js

@@ -8,7 +8,7 @@ import {emitKeySort} from './key-sort.js';
 
 export function emitOwnKeys(b:RuntimeBuilder):void {
  emitValueList(b);emitKeySort(b);
- const intrinsicNodes=['globalThis','undefined','NaN','Infinity','console',...nativeConstructorNames];
+ const intrinsicNodes=['globalThis','undefined','NaN','Infinity','console','Math',...nativeConstructorNames];
  b.fn('rt.isIntrinsicGlobalKey',40,a=>{
   a.mov('rdx','rcx');a.lea('rcx',{rip:'rt.globalObject'});a.call('rt.findOwnProperty');
   const yes=a.unique('yes'),done=a.unique('done');
@@ -53,7 +53,7 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   const propertyLoop=a.unique('propertyLoop'),propertyNext=a.unique('propertyNext'),aliases=a.unique('aliases');
   a.label(propertyLoop);a.load('rax',slot(112));a.test('rax','rax');a.jcc('e',aliases);a.load('rdx',{base:'rax',disp:P.key});a.load('rcx',slot(56));a.call('rt.findGlobalBinding');a.test('rax','rax');const keeppropertyNext=a.unique('keeppropertyNext');a.jcc('e',keeppropertyNext);a.load('rax',slot(112));
   for(const name of intrinsicNodes){a.lea('r10',{rip:'rt.globalObject.'+name});a.cmp('rax','r10');a.jcc('e',keeppropertyNext);}a.jmp(propertyNext);a.label(keeppropertyNext);
-  a.load('rax',slot(112));a.load('rax',{base:'rax',disp:P.key});a.store(slot(152),'rax');a.mov('rax',4);a.store(slot(144),'rax');storeKey();a.load('rax',slot(104));a.sub('rax',1);a.store(slot(104),'rax');
+  a.load('rax',slot(112));a.load('rax',{base:'rax',disp:P.key});a.store(slot(152),'rax');a.load('r10',{base:'rax'});a.mov('rax',4);const stringKey=a.unique('stringKey');a.cmp('r10',-1);a.jcc('ne',stringKey);a.mov('rax',6);a.label(stringKey);a.store(slot(144),'rax');storeKey();a.load('rax',slot(104));a.sub('rax',1);a.store(slot(104),'rax');
   a.label(propertyNext);a.load('rax',slot(112));a.load('rax',{base:'rax',disp:P.next});a.store(slot(112),'rax');a.jmp(propertyLoop);
   // Globals existed before script declarations. Move the surviving intrinsic
   // prefix ahead of aliases, then fill the gap with aliases in declaration order.
@@ -65,7 +65,7 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.load('rax',slot(200));a.load('rcx',{base:'rax'});a.call('rt.isIntrinsicGlobalKey');a.test('rax','rax');const aliasNext=a.unique('aliasNext');a.jcc('ne',aliasNext);a.load('rax',slot(200));a.load('rax',{base:'rax'});a.store(slot(152),'rax');a.mov('rax',4);a.store(slot(144),'rax');storeKey();
   a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.label(aliasNext);a.load('rax',slot(192));a.add('rax',1);a.store(slot(192),'rax');a.load('rax',slot(200));a.add('rax',24);a.store(slot(200),'rax');a.jmp(aliasLoop);
   a.label(ordering);a.mov('rax',0);a.store(slot(104),'rax');const orderLoop=a.unique('orderLoop'),sort=a.unique('sort');
-  a.label(orderLoop);a.load('rax',slot(104));a.load('r10',slot(184));a.cmp('rax','r10');a.jcc('ae',sort);a.shl('rax',4);a.load('rcx',slot(136));a.add('rcx',L.values);a.add('rcx','rax');a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);const numeric=a.unique('numeric');a.jcc('ne',numeric);a.mov('rax',0x100000000n);a.load('r10',slot(104));a.add('rax','r10');a.label(numeric);
+  a.label(orderLoop);a.load('rax',slot(104));a.load('r10',slot(184));a.cmp('rax','r10');a.jcc('ae',sort);a.shl('rax',4);a.load('rcx',slot(136));a.add('rcx',L.values);a.add('rcx','rax');a.load('r10',{base:'rcx'});const symbolKey=a.unique('symbolKey'),rank=a.unique('rank');a.cmp('r10',6);a.jcc('e',symbolKey);a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);const numeric=a.unique('numeric');a.jcc('ne',numeric);a.mov('rax',0x100000000n);a.jmp(rank);a.label(symbolKey);a.mov('rax',0x200000000n);a.label(rank);a.load('r10',slot(104));a.add('rax','r10');a.label(numeric);
   a.load('r10',slot(104));a.shl('r10',3);a.load('r11',slot(176));a.add('r11','r10');a.store({base:'r11'},'rax');a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.jmp(orderLoop);
   a.label(sort);a.load('rcx',slot(136));a.add('rcx',L.values);a.load('rdx',slot(176));a.load('r8',slot(184));a.call('rt.sortOwnKeys');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}

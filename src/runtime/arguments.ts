@@ -10,6 +10,9 @@ export function emitArguments(b:RuntimeBuilder):void {
  const key=new Uint8Array(16);key[0]=4;
  b.bundle.fragments.push({name:'rt.key.callee',section:'.rdata',alignment:8,bytes:key,symbols:{},
   fixups:[{offset:8,kind:'va64',target:'rt.str.callee',addend:0}]});
+ const iteratorKey=new Uint8Array(16);iteratorKey[0]=6;
+ b.bundle.fragments.push({name:'rt.key.argumentsIterator',section:'.rdata',alignment:8,bytes:iteratorKey,symbols:{},
+  fixups:[{offset:8,kind:'va64',target:'rt.Symbol.iterator.value',addend:0}]});
  // RCX out, RDX actual argc, R8 actual argv, R9 metadata:
  // formal count, callee header, then Cell Values or undefined for an earlier
  // duplicate name. Mapping selection considers every formal, even missing ones.
@@ -22,6 +25,8 @@ export function emitArguments(b:RuntimeBuilder):void {
   a.lea('rdx',{rip:'rt.key.length'});a.lea('r8',slot(96));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
   a.mov('rax',5);a.store(slot(112),'rax');a.load('rax',slot(64));a.load('rax',{base:'rax',disp:8});a.store(slot(120),'rax');
   a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.callee'});a.lea('r8',slot(112));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
+  a.mov('rax',5);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.arrayIterator.fn'});a.store(slot(120),'rax');
+  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.argumentsIterator'});a.lea('r8',slot(112));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
   // Strict source functions retain the raw receiver and have an unmapped
   // arguments object with the shared nonconfigurable ThrowTypeError accessor.
   const sloppy=a.unique('sloppy');a.load('rax',slot(64));a.load('rax',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:F.rawThis});a.test('rax','rax');a.jcc('e',sloppy);

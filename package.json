@@ -1,6 +1,6 @@
 {
   "name": "nona",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Experimental JavaScript subset AOT compiler for standalone Windows x64 executables",
   "private": true,
   "license": "MIT",
@@ -23,7 +23,8 @@
     "build": "node scripts/build.mjs",
     "test": "node --test dist/tests/*.test.js",
     "check": "npm run build && npm test",
-    "compare": "npm run build && node scripts/compare-examples.mjs"
+    "compare": "npm run build && node scripts/compare-examples.mjs",
+    "test262:smoke": "npm run build && node scripts/test262-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

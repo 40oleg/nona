@@ -6,23 +6,24 @@ import {ValueListLayout as L} from './heap-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {emitOwnKeys} from './own-keys.js';
 
-const methods=[['keys',1],['values',1],['entries',1],['getOwnPropertyNames',1],['getOwnPropertyDescriptors',1],['create',2],['defineProperties',2]] as const;
+const methods=[['keys',1],['values',1],['entries',1],['getOwnPropertyNames',1],['getOwnPropertySymbols',1],['getOwnPropertyDescriptors',1],['create',2],['defineProperties',2]] as const;
 export const collectionRoots=methods.map(([name])=>'rt.Object.'+name+'.fn');
 export const collectionPropertyRoots=methods.flatMap(([name])=>builtinPropertyRoots('rt.Object.'+name+'.fn',name,'rt.Object'));
 export function emitObjectCollections(b:RuntimeBuilder):void {
  emitOwnKeys(b);
  for(const [name,length] of methods)prependFunctionBuiltin(b,'rt.Object.'+name+'.fn',name,length,'rt.Object');
- for(const mode of ['keys','values','entries','getOwnPropertyNames','getOwnPropertyDescriptors'] as const)rootedFn(b,'rt.Object.'+mode+'.fn.code',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:13}],a=>{
+ for(const mode of ['keys','values','entries','getOwnPropertyNames','getOwnPropertySymbols','getOwnPropertyDescriptors'] as const)rootedFn(b,'rt.Object.'+mode+'.fn.code',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:13}],a=>{
   a.store(slot(40),'rcx');const absent=a.unique('absent');a.test('rdx','rdx');a.jcc('e',absent);for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(absent);
   a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toObject');a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.ownKeys');
   a.lea('rcx',slot(112));a.mov('rdx',mode==='getOwnPropertyDescriptors'?0:1);a.mov('r8',0);a.call('rt.newObject');a.mov('rax',0);a.store(slot(280),'rax');
   const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');a.label(loop);a.load('rax',slot(280));a.load('r10',slot(104));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',done);a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');
   for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(128+n),'rax');}
+  if(mode!=='getOwnPropertyDescriptors'){a.load('rax',slot(128));a.cmp('rax',6);a.jcc(mode==='getOwnPropertySymbols'?'ne':'e',next);}
   if(mode==='getOwnPropertyDescriptors'){
    a.lea('rcx',slot(176));a.lea('rdx',slot(80));a.lea('r8',slot(128));a.call('rt.getOwnDescriptor');a.load('rax',slot(176+D.present));a.cmp('rax',-1);a.jcc('e',next);
    a.lea('rcx',slot(160));a.lea('rdx',slot(176));a.call('rt.fromPropertyDescriptor');a.lea('rcx',slot(112));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.mov('r9',1);a.call('rt.setProperty');
   }else{
-   if(mode!=='getOwnPropertyNames'){
+   if(mode!=='getOwnPropertyNames'&&mode!=='getOwnPropertySymbols'){
     a.lea('rcx',slot(80));a.load('rdx',slot(136));a.call('rt.ownAttributes');a.cmp('rax',-1);a.jcc('e',next);a.and('rax',A.enumerable);a.test('rax','rax');a.jcc('e',next);
    }
    if(mode==='values'||mode==='entries'){

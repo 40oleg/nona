@@ -5,7 +5,7 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 export const BoxKind=4;
 export const BoxLayout={value:O.size,size:O.size+16} as const;
 export function emitBoxing(b:RuntimeBuilder):void {
- for(const [name,tag] of [['boolean',2],['number',3],['string',4]] as const){
+ for(const [name,tag] of [['boolean',2],['number',3],['string',4],['symbol',6]] as const){
   const bytes=new Uint8Array(BoxLayout.size);bytes[O.kind]=BoxKind;bytes[BoxLayout.value]=tag;
   const fixups:{offset:number;kind:'va64';target:string;addend:number}[]=[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0}];
   fixups.push({offset:O.properties,kind:'va64',target:'rt.'+name+'Prototype.toString',addend:0});
@@ -15,12 +15,12 @@ export function emitBoxing(b:RuntimeBuilder):void {
  // RCX non-nullish Value* -> RAX object header for property lookup. Primitives
  // start at their prototype; boxed receivers keep their own object identity.
  b.fn('rt.propertyBase',40,a=>{
-  const boolean=a.unique('boolean'),number=a.unique('number'),string=a.unique('string'),done=a.unique('done');
-  a.load('rax',{base:'rcx'});a.cmp('rax',2);a.jcc('e',boolean);a.cmp('rax',3);a.jcc('e',number);a.cmp('rax',4);a.jcc('e',string);
+  const boolean=a.unique('boolean'),number=a.unique('number'),string=a.unique('string'),symbol=a.unique('symbol'),done=a.unique('done');
+  a.load('rax',{base:'rcx'});a.cmp('rax',2);a.jcc('e',boolean);a.cmp('rax',3);a.jcc('e',number);a.cmp('rax',4);a.jcc('e',string);a.cmp('rax',6);a.jcc('e',symbol);
   a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rcx',disp:8});a.jmp(done);
   a.label(boolean);a.lea('rax',{rip:'rt.booleanPrototype'});a.jmp(done);
   a.label(number);a.lea('rax',{rip:'rt.numberPrototype'});a.jmp(done);
-  a.label(string);a.lea('rax',{rip:'rt.stringPrototype'});a.label(done);
+  a.label(string);a.lea('rax',{rip:'rt.stringPrototype'});a.jmp(done);a.label(symbol);a.lea('rax',{rip:'rt.symbolPrototype'});a.label(done);
  });
  // RCX result, RDX primitive Value*. Caller publishes result before any safepoint.
  b.fn('rt.boxReceiver',72,a=>{

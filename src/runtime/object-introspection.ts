@@ -53,7 +53,7 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
    a.load('rdx',slot(56));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:16*i+offset});a.store(slot(64+16*i+offset),'rax');}a.label(absent);
   }
   if(method==='hasOwnProperty'||method==='propertyIsEnumerable'){
-   a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toString');
+   a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toPropertyKey');
    a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.toObject');
    a.lea('rcx',slot(96));a.load('rdx',slot(88));a.call('rt.ownAttributes');
    const done=a.unique('done');a.mov('r10','rax');a.cmp('rax',-1);a.mov('rax',0);a.jcc('e',done);

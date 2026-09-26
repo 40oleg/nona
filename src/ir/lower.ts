@@ -3,7 +3,7 @@ import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../front
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
 type Reference={id:A.Identifier;resolvable?:number}|{object:number;key:number;receiver?:number};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
-type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number};
+type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
 
 export function lower(bound:BoundProgram):ModuleIR {
@@ -48,7 +48,7 @@ class Lowerer {
   private closure(fn:BoundFunction,inferredName?:string|number,homeObject?:number):number {
     const dest=this.slot(),captures=fn.captures.map(binding=>this.cellSlot(binding));
     const name=fn.declaration.id?.name??inferredName??'';
-    this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,target:`js.fn.${fn.index}`,captures,parameterCount:fn.parameters.length,
+    this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,target:`js.fn.${fn.index}`,captures,parameterCount:fn.parameters.length,
       sourceText:this.bound.ast.source?.slice(fn.declaration.span.start,fn.declaration.span.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
@@ -137,6 +137,11 @@ class Lowerer {
       this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key,source,define:false});
     }
   }
+  private assignLoopTarget(left:A.Var|A.Assignable,value:number):void {
+    if(left.kind==='Var')this.write(left.declarations[0]!.id,value,left.declarationKind!=='var');
+    else if(left.kind==='Identifier')this.write(left,value);
+    else this.putReference(this.reference(left),value);
+  }
   private lowerOptionalChain(e:A.OptionalChain,mode:'value'|'delete',preserveReceiver=false):{value:number;receiver?:number} {
     const result=this.slot(),receiverResult=preserveReceiver?this.slot():undefined,join=this.block();
     if(receiverResult!==undefined){const missing=this.constant(undefined);this.emit({kind:'copy',dest:receiverResult,source:missing});}
@@ -196,6 +201,17 @@ class Lowerer {
       case 'Super':throw new Error('Bare super');
       case 'This':{const dest=this.slot();this.emit({kind:'currentThis',dest});return dest;}
       case 'Literal':return this.constant(e.value);
+      case 'Template':{
+        let result=this.constant(e.quasis[0]!);
+        for(let i=0;i<e.expressions.length;i++){
+          const value=this.expression(e.expressions[i]!),string=this.slot();
+          this.emit({kind:'unary',dest:string,operator:'string',argument:value});
+          const joined=this.slot();this.emit({kind:'binary',dest:joined,operator:'+',left:result,right:string});
+          const suffix=this.constant(e.quasis[i+1]!),next=this.slot();
+          this.emit({kind:'binary',dest:next,operator:'+',left:joined,right:suffix});result=next;
+        }
+        return result;
+      }
       case 'Identifier':return this.read(e);
       case 'FunctionExpression':return this.closure(this.bound.functionNodes.get(e)!,inferredName);
       case 'Member':return this.getReference(this.reference(e));
@@ -291,7 +307,7 @@ class Lowerer {
       }
     }
   }
-  private complete(term:Terminator,handlerDepth:number,finalizerDepth:number):void {
+  private complete(term:Terminator,handlerDepth:number,finalizerDepth:number,closeIterators:number[]=[]):void {
     const handlers=this.handlers,finalizers=this.finalizers,controls=this.controls;
     this.handlers=[...handlers];
     for(let i=finalizers.length-1;i>=finalizerDepth;i--){
@@ -304,6 +320,7 @@ class Lowerer {
     }
     if(!this.terminated){
       while(this.handlers.length>handlerDepth){this.emit({kind:'popHandler'});this.handlers.pop();}
+      for(const iterator of closeIterators)this.emit({kind:'iteratorClose',iterator});
       this.end(term);
     }
     this.handlers=handlers;this.finalizers=finalizers;this.controls=controls;
@@ -341,16 +358,17 @@ class Lowerer {
         else if(s.declarationKind!=='var')this.write(d.id,this.constant(undefined),true);
       }break;
       case 'ExpressionStatement':this.expression(s.expression);break;
-      case 'Return':{const value=s.argument?this.expression(s.argument):this.constant(undefined);this.complete({kind:'return',value},0,0);break;}
+      case 'Return':{const value=s.argument?this.expression(s.argument):this.constant(undefined);this.complete({kind:'return',value},0,0,[...this.controls].reverse().flatMap(c=>c.iterator===undefined?[]:[c.iterator]));break;}
       case 'Break':case 'Continue': {
         const target=[...this.controls].reverse().find(c=>s.label?c.labels.includes(s.label.name):s.kind==='Break'?c.unlabelledBreak:c.next!==undefined);
         if(!target)throw new Error('Missing validated control target');
-        this.complete({kind:'jump',target:s.kind==='Break'?target.stop:target.next!},target.handlerDepth,target.finalizerDepth);break;
+        const targetIndex=this.controls.lastIndexOf(target),exited=this.controls.slice(s.kind==='Break'?targetIndex:targetIndex+1).reverse().flatMap(c=>c.iterator===undefined?[]:[c.iterator]);
+        this.complete({kind:'jump',target:s.kind==='Break'?target.stop:target.next!},target.handlerDepth,target.finalizerDepth,exited);break;
       }
       case 'Labeled': {
         const names=[...labels,s.label.name];let body=s.body;
         while(body.kind==='Labeled'){names.push(body.label.name);body=body.body;}
-        if(body.kind==='While'||body.kind==='DoWhile'||body.kind==='For'||body.kind==='Switch')this.statement(body,names);
+        if(body.kind==='While'||body.kind==='DoWhile'||body.kind==='For'||body.kind==='ForIn'||body.kind==='ForOf'||body.kind==='Switch')this.statement(body,names);
         else {
           const join=this.block();this.controls.push({handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,stop:join.id,labels:names,unlabelledBreak:false});
           this.statement(body);if(!this.terminated)this.end({kind:'jump',target:join.id});
@@ -381,6 +399,51 @@ class Lowerer {
         this.end({kind:'branch',condition,yes:yes.id,no:no.id});this.select(yes);this.statement(s.consequent);if(!this.terminated)this.end({kind:'jump',target:join.id});
         this.select(no);if(s.alternate)this.statement(s.alternate);if(!this.terminated)this.end({kind:'jump',target:join.id});this.select(join);break;
       }
+      case 'ForOf':{
+        if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
+        const object=this.expression(s.right),iterator=this.slot(),next=this.slot();
+        this.emit({kind:'getIterator',iterator,next,object});
+        const cond=this.block(),bodyEntry=this.block(),update=this.block(),join=this.block(),caught=this.block(),error=this.slot(),handlerIndex=this.handlerCount++;
+        this.end({kind:'jump',target:cond.id});this.select(cond);
+        const key=this.slot(),done=this.slot();this.emit({kind:'iteratorStep',dest:key,done,iterator,next});
+        this.end({kind:'branch',condition:done,yes:join.id,no:bodyEntry.id});
+        this.controls.push({handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,stop:join.id,next:update.id,labels,unlabelledBreak:true,iterator});
+        this.select(bodyEntry);this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error});this.handlers.push(caught.id);
+        const body=this.block();this.end({kind:'jump',target:body.id});this.select(body);
+        if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
+        this.assignLoopTarget(s.left,key);this.statement(s.body);
+        if(!this.terminated){this.emit({kind:'popHandler'});this.end({kind:'jump',target:update.id});}
+        this.handlers.pop();
+        const rethrow=this.block(),closeFailed=this.block(),closeError=this.slot(),closeIndex=this.handlerCount++;
+        this.select(caught);this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
+        const closing=this.block();this.end({kind:'jump',target:closing.id});this.select(closing);
+        this.emit({kind:'iteratorClose',iterator});this.emit({kind:'popHandler'});this.end({kind:'jump',target:rethrow.id});this.handlers.pop();
+        this.select(closeFailed);this.end({kind:'jump',target:rethrow.id});this.select(rethrow);this.end({kind:'throw',value:error});
+        this.select(update);this.end({kind:'jump',target:cond.id});
+        this.controls.pop();this.select(join);break;
+      }
+      case 'ForIn':{
+        if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
+        const object=this.expression(s.right),keys=this.slot();
+        this.emit({kind:'forInKeys',dest:keys,object});
+        const index=this.slot(),zero=this.constant(0),one=this.constant(1),lengthKey=this.constant('length');
+        this.emit({kind:'copy',dest:index,source:zero});
+        const cond=this.block(),body=this.block(),update=this.block(),join=this.block();
+        this.end({kind:'jump',target:cond.id});this.select(cond);
+        const length=this.slot(),active=this.slot();this.emit({kind:'property',operation:'get',dest:length,object:keys,key:lengthKey});
+        this.emit({kind:'binary',dest:active,operator:'<',left:index,right:length});
+        this.end({kind:'branch',condition:active,yes:body.id,no:join.id});
+        this.controls.push({handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,stop:join.id,next:update.id,labels,unlabelledBreak:true});
+        this.select(body);const key=this.slot();
+        this.emit({kind:'property',operation:'get',dest:key,object:keys,key:index});
+        const present=this.slot(),yieldBody=this.block();this.emit({kind:'forInHas',dest:present,object,key});
+        this.end({kind:'branch',condition:present,yes:yieldBody.id,no:update.id});this.select(yieldBody);
+        if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
+        this.assignLoopTarget(s.left,key);this.statement(s.body);
+        if(!this.terminated)this.end({kind:'jump',target:update.id});
+        this.select(update);const next=this.slot();this.emit({kind:'binary',dest:next,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:next});this.end({kind:'jump',target:cond.id});
+        this.controls.pop();this.select(join);break;
+      }
       case 'While':case 'DoWhile':case 'For': {
         if(s.kind==='For')this.enterScope(s);
         if(s.kind==='For'&&s.init){if(s.init.kind==='Var')this.statement(s.init);else this.expression(s.init);}
@@ -406,9 +469,13 @@ class Lowerer {
       if(self.captured)this.emit({kind:'newCell',dest:self.index,source});
       else this.emit({kind:'copy',dest:self.index,source});
     }
+    if(this.fn?.restParameter){
+      const dest=this.slot();this.emit({kind:'newRestArray',dest,start:this.fn.parameters.length});
+      this.store(this.fn.restParameter,dest);
+    }
     if(this.fn?.argumentsBinding){
       const last=new Map(this.fn.parameters.map(p=>[p.name,p]));
-      const dest=this.slot();this.emit({kind:'newArguments',dest,parameters:this.fn.parameters.map(p=>!this.fn!.strict&&last.get(p.name)===p?this.cellSlot(p):-1)});
+      const dest=this.slot();this.emit({kind:'newArguments',dest,parameters:this.fn.parameters.map(p=>!this.fn!.strict&&!this.fn!.restParameter&&last.get(p.name)===p?this.cellSlot(p):-1)});
       this.store(this.fn.argumentsBinding,dest);
     }
     this.enterScope(this.fn?.declaration.body??this.bound.ast);

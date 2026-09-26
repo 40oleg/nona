@@ -66,7 +66,7 @@ export function emitPropertyDescriptors(b:RuntimeBuilder):void {
    for(const n of [0,8]){a.load('rax',{base:'r8',disp:16*i+n});a.store(slot(64+16*i+n),'rax');}a.label(absent);
   }
   a.lea('rcx',slot(96));a.lea('rdx',slot(64));a.call('rt.toObject');
-  a.lea('rcx',slot(64));a.lea('rdx',slot(80));a.call('rt.toString');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');
   a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.lea('r8',slot(64));a.call('rt.getOwnDescriptor');
   a.load('rcx',slot(40));a.lea('rdx',slot(112));a.call('rt.fromPropertyDescriptor');
  });

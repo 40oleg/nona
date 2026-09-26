@@ -21,6 +21,12 @@ import {objectMethodRoots,objectMethodPropertyRoots} from './object-methods.js';
 import {wrapperMethodRoots,wrapperMethodPropertyRoots} from './wrapper-methods.js';
 import {globalStaticProperties} from './globals.js';
 import {consoleRoots,consolePropertyRoots} from './console.js';
+import {symbolRoots,symbolPropertyRoots} from './symbols.js';
+import {IteratorKind,iteratorRoots,iteratorPropertyRoots} from './iterators.js';
+import {arrayBuiltinRoots,arrayBuiltinPropertyRoots} from './array-builtins.js';
+import {stringBuiltinRoots,stringBuiltinPropertyRoots} from './string-builtins.js';
+import {numberBuiltinRoots,numberBuiltinPropertyRoots} from './number-builtins.js';
+import {mathRoots,mathPropertyRoots} from './math.js';
 
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 export function emitGc(b:RuntimeBuilder):void {
@@ -47,7 +53,7 @@ export function emitGc(b:RuntimeBuilder):void {
  });
  b.fn('rt.gcMarkValue',40,a=>{
   const mark=a.unique('mark'),done=a.unique('done');a.load('rax',{base:'rcx'});
-  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
+  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
   a.label(mark);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.label(done);
  });
  // RCX first Value*, RDX initialized count. A runtime range may itself be a
@@ -62,11 +68,14 @@ export function emitGc(b:RuntimeBuilder):void {
  b.fn('rt.gcTraceObject',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.prototype});a.call('rt.gcMarkPointer');
-  const done=a.unique('done'),box=a.unique('box');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
+  const done=a.unique('done'),box=a.unique('box'),iterator=a.unique('iterator');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
   a.load('rcx',{base:'rcx',disp:FunctionLayout.environment});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:FunctionLayout.bound});a.call('rt.gcMarkPointer');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:FunctionLayout.homeObject});a.call('rt.gcMarkPointer');a.jmp(done);
-  a.label(box);a.cmp('rax',BoxKind);a.jcc('ne',done);a.add('rcx',BoxLayout.value);a.call('rt.gcMarkValue');a.label(done);
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:FunctionLayout.homeObject});a.call('rt.gcMarkPointer');
+  a.load('rcx',slot(40));a.add('rcx',FunctionLayout.lexicalThis);a.call('rt.gcMarkValue');
+  a.load('rcx',slot(40));a.add('rcx',FunctionLayout.lexicalNewTarget);a.call('rt.gcMarkValue');a.jmp(done);
+  a.label(box);a.cmp('rax',BoxKind);a.jcc('ne',iterator);a.add('rcx',BoxLayout.value);a.call('rt.gcMarkValue');a.jmp(done);
+  a.label(iterator);a.cmp('rax',IteratorKind);a.jcc('ne',done);a.add('rcx',O.size);a.call('rt.gcMarkValue');a.label(done);
  });
  b.fn('rt.gcTraceEnvironment',56,a=>{
   a.load('rax',{base:'rcx',disp:E.count});a.store(slot(48),'rax');a.add('rcx',E.cells);a.store(slot(40),'rcx');
@@ -84,11 +93,15 @@ export function emitGc(b:RuntimeBuilder):void {
   a.load('rax',{rip:'rt.gcCount'});a.add('rax',1);a.store({rip:'rt.gcCount'},'rax');
   a.call('rt.gcBuildIndex');
   a.load('rcx',{rip:'rt.gcGlobals'});a.load('rdx',{rip:'rt.gcGlobalCount'});a.call('rt.gcMarkRange');
-  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
-  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
+  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','symbolPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
+  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...symbolRoots,...iteratorRoots,...arrayBuiltinRoots,...stringBuiltinRoots,...mathRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
   // Static property nodes are outside the managed heap index. Trace them explicitly.
   for(const name of ['name','length']){a.lea('rcx',{rip:'rt.functionPrototype.'+name});a.call('rt.gcTraceProperty');}
-  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...arrayBuiltinPropertyRoots,...stringBuiltinPropertyRoots,...mathPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+  a.load('rax',{rip:'rt.symbolRegistry'});a.store(slot(48),'rax');const symbolRecord=a.unique('symbolRecord'),symbolRecordsDone=a.unique('symbolRecordsDone');
+  a.label(symbolRecord);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',symbolRecordsDone);
+  a.mov('rcx','rax');a.call('rt.gcMarkPointer');a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:8});a.call('rt.gcMarkPointer');
+  a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:16});a.call('rt.gcMarkPointer');a.load('rax',slot(48));a.load('rax',{base:'rax'});a.store(slot(48),'rax');a.jmp(symbolRecord);a.label(symbolRecordsDone);
   a.load('rax',{rip:'rt.gcRoots'});a.store(slot(40),'rax');
   a.label(frames);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',mark);
   a.load('rcx',{base:'rax',disp:R.values});a.load('rdx',{base:'rax',disp:R.count});a.call('rt.gcMarkRange');
@@ -101,7 +114,8 @@ export function emitGc(b:RuntimeBuilder):void {
   a.cmp('r10',HeapKind.property);a.jcc('ne',cell);a.call('rt.gcTraceProperty');a.jmp(mark);
   a.label(cell);a.cmp('r10',HeapKind.cell);a.jcc('ne',environment);a.call('rt.gcMarkValue');a.jmp(mark);
   a.label(environment);const bound=a.unique('bound');a.cmp('r10',HeapKind.environment);a.jcc('ne',bound);a.call('rt.gcTraceEnvironment');a.jmp(mark);
-  a.label(bound);const values=a.unique('values');a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
+  a.label(bound);const values=a.unique('values'),symbol=a.unique('symbol');a.cmp('r10',HeapKind.symbol);a.jcc('e',symbol);a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
+  a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
   a.label(sweep);a.lea('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');
   a.label(sweepLoop);a.load('r10',slot(40));a.load('rax',{base:'r10'});a.test('rax','rax');a.jcc('e',finish);

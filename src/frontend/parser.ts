@@ -22,6 +22,14 @@ class Parser {
     const t = this.token,name=String(t.value??t.text); if (t.kind !== 'word' || reserved.has(name)) this.error('Expected an identifier');
     this.take(); return {kind:'Identifier',name,span:t.span};
   }
+  private formalParameters():{parameters:A.Identifier[];rest:A.Identifier|null} {
+    this.need('(');const parameters:A.Identifier[]=[];let rest:A.Identifier|null=null;
+    while(!this.at(')')){
+      if(this.match('...')){rest=this.id();if(this.at(','))this.error('Rest parameter must be last');break;}
+      parameters.push(this.id());if(!this.match(','))break;
+    }
+    this.need(')');return {parameters,rest};
+  }
   private semi(): void {
     if (this.match(';') || this.at('}') || this.token.kind === 'eof' || this.token.lineBreakBefore) return;
     this.error('Expected semicolon or line terminator; unsupported syntax');
@@ -46,11 +54,11 @@ class Parser {
     while (!this.at('}')) { if (this.token.kind==='eof') this.error('Unterminated block'); body.push(this.statement(allowDeclarations)); }
     this.need('}'); return {kind:'Block',body,span:this.span(start)};
   }
-  private variable(semicolon:boolean): A.Var {
+  private variable(semicolon:boolean,forHead=false): A.Var {
     const keyword=this.take(),start=keyword.span.start,declarationKind=keyword.text as A.Var['declarationKind'], declarations:A.Var['declarations']=[];
     do {
       const id=this.id(), init=this.match('=')?this.assignment():null;
-      if(declarationKind==='const'&&!init)this.error('Const declaration requires an initializer');
+      if(declarationKind==='const'&&!init&&!forHead)this.error('Const declaration requires an initializer');
       declarations.push({id,init});
     } while(this.match(','));
     if(semicolon)this.semi(); return {kind:'Var',declarationKind,declarations,span:this.span(start)};
@@ -78,10 +86,9 @@ class Parser {
     }
     if(this.match('function')) {
       if(!allowDeclaration)this.error('Function declaration requires a StatementList');
-      const id=this.id(), parameters:A.Identifier[]=[];this.need('(');
-      if(!this.at(')'))do { parameters.push(this.id()); } while(this.match(',')&&!this.at(')'));
-      this.need(')');const body=this.block(true);body.strict=this.checkDirective(body.body);
-      return {kind:'Function',id,parameters,body,span:this.span(start)};
+      const id=this.id(),{parameters,rest}=this.formalParameters();
+      const body=this.block(true);body.strict=this.checkDirective(body.body);
+      return {kind:'Function',id,parameters,rest,body,span:this.span(start)};
     }
     if(this.match('if')) {
       this.need('(');const test=this.expression();this.need(')');const consequent=this.statement(false,false);
@@ -119,7 +126,23 @@ class Parser {
       this.need('}');return {kind:'Switch',discriminant,cases,span:this.span(start)};
     }
     if(this.match('for')) {
-      this.need('(');const init=this.at(';')?null:['var','let','const'].includes(this.token.text)?this.variable(false):this.expression();this.need(';');
+      this.need('(');const init=this.at(';')?null:['var','let','const'].includes(this.token.text)?this.variable(false,true):this.expression();
+      if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
+        if(init.declarations.length!==1||init.declarations[0]!.init)this.error('Only a single binding without initializer is supported in for...in/of');
+        const kind=this.take().text==='in'?'ForIn':'ForOf';const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
+        return {kind,left:init,right,body,span:this.span(start)};
+      }
+      if(init?.kind==='Binary'&&init.operator==='in'&&(init.left.kind==='Identifier'||init.left.kind==='Member')&&this.at(')')){
+        this.take();const body=this.statement(false,false);
+        return {kind:'ForIn',left:init.left,right:init.right,body,span:this.span(start)};
+      }
+      if((init?.kind==='Identifier'||init?.kind==='Member')&&this.match('of')){
+        if(init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
+        const right=this.assignment();this.need(')');const body=this.statement(false,false);
+        return {kind:'ForOf',left:init,right,body,span:this.span(start)};
+      }
+      if(init?.kind==='Var'&&init.declarationKind==='const'&&init.declarations.some(d=>!d.init))this.error('Const declaration requires an initializer');
+      this.need(';');
       const test=this.at(';')?null:this.expression();this.need(';');
       const update=this.at(')')?null:this.expression();this.need(')');const body=this.statement(false,false);
       return {kind:'For',init,test,update,body,span:this.span(start)};
@@ -144,12 +167,48 @@ class Parser {
     return left;
   }
   private assignment(): A.Expression {
+    const arrow=this.arrow();if(arrow)return arrow;
     const left=this.conditional();
     if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>='].includes(this.token.text)) {
       const opToken=this.take(), operator=opToken.text;if(left.kind!=='Identifier'&&left.kind!=='Member')this.error('Assignment requires a variable or property',opToken);
       const right=this.assignment();return {kind:'Assignment',operator,left,right,span:{start:left.span.start,end:right.span.end}};
     }
     return left;
+  }
+  private arrow():A.FunctionExpression|null {
+    const start=this.token.span.start;
+    let end=-1;
+    if(this.token.kind==='word'&&!reserved.has(String(this.token.value??this.token.text))&&this.tokens[this.index+1]?.text==='=>')end=this.index+1;
+    else if(this.at('(')){
+      let cursor=this.index+1,valid=true;
+      while(this.tokens[cursor]?.text!==')'){
+        const token=this.tokens[cursor];
+        if(token?.text==='...'){
+          cursor++;const rest=this.tokens[cursor];
+          if(!rest||rest.kind!=='word'||reserved.has(String(rest.value??rest.text))){valid=false;break;}
+          cursor++;if(this.tokens[cursor]?.text!==')')valid=false;break;
+        }
+        if(!token||token.kind!=='word'||reserved.has(String(token.value??token.text))){valid=false;break;}
+        cursor++;
+        if(this.tokens[cursor]?.text===')')break;
+        if(this.tokens[cursor]?.text!==','){valid=false;break;}
+        cursor++;
+      }
+      if(valid&&this.tokens[cursor]?.text===')'&&this.tokens[cursor+1]?.text==='=>')end=cursor+1;
+    }
+    if(end<0||this.tokens[end]!.lineBreakBefore)return null;
+    let parameters:A.Identifier[]=[],rest:A.Identifier|null=null;
+    if(this.at('(')){
+      ({parameters,rest}=this.formalParameters());
+    }else parameters.push(this.id());
+    this.need('=>');
+    let body:A.Block;
+    if(this.at('{')){body=this.block(true);body.strict=this.checkDirective(body.body);}
+    else{
+      const argument=this.assignment();
+      body={kind:'Block',body:[{kind:'Return',argument,span:argument.span}],span:argument.span};
+    }
+    return {kind:'FunctionExpression',arrow:true,id:null,parameters,rest,body,span:this.span(start)};
   }
   private conditional(): A.Expression {
     const test=this.binary(1);if(!this.match('?'))return test;
@@ -260,13 +319,24 @@ class Parser {
   }
   private primary(): A.Expression {
     const t=this.token;
+    if(t.kind==='templateNoSub'){this.take();return {kind:'Literal',value:String(t.value),span:t.span};}
+    if(t.kind==='templateHead'){
+      this.take();const quasis=[String(t.value)],expressions:A.Expression[]=[];
+      while(true){
+        expressions.push(this.expression());this.need('}');
+        const segment=this.token;
+        if(segment.kind!=='templateMiddle'&&segment.kind!=='templateTail')this.error('Expected template continuation');
+        this.take();quasis.push(String(segment.value));
+        if(segment.kind==='templateTail')break;
+      }
+      return {kind:'Template',quasis,expressions,span:this.span(t.span.start)};
+    }
     if(this.match('super')){if(!this.at('.')&&!this.at('['))this.error('Expected super property');return {kind:'Super',span:t.span};}
     if(this.match('this'))return {kind:'This',span:t.span};
     if(this.match('function')){
-      const id=this.at('(')?null:this.id(),parameters:A.Identifier[]=[];this.need('(');
-      if(!this.at(')'))do {parameters.push(this.id());}while(this.match(',')&&!this.at(')'));
-      this.need(')');const body=this.block(true);body.strict=this.checkDirective(body.body);
-      return {kind:'FunctionExpression',id,parameters,body,span:this.span(t.span.start)};
+      const id=this.at('(')?null:this.id(),{parameters,rest}=this.formalParameters();
+      const body=this.block(true);body.strict=this.checkDirective(body.body);
+      return {kind:'FunctionExpression',id,parameters,rest,body,span:this.span(t.span.start)};
     }
     if(this.match('[')) {
       const elements:A.ArrayLiteral['elements']=[];
@@ -292,14 +362,12 @@ class Parser {
           accessor=key.value;key=readKey();
         }
         if(this.at('(')){
-          this.take();const parameters:A.Identifier[]=[];
-          if(!this.at(')'))do {parameters.push(this.id());}while(this.match(',')&&!this.at(')'));
-          this.need(')');
+          const {parameters,rest}=this.formalParameters();
           if(new Set(parameters.map(p=>p.name)).size!==parameters.length)this.error('Duplicate method parameter');
-          if(accessor==='get'&&parameters.length!==0)this.error('Getter requires no parameters');
-          if(accessor==='set'&&parameters.length!==1)this.error('Setter requires one parameter');
+          if(accessor==='get'&&(parameters.length!==0||rest))this.error('Getter requires no parameters');
+          if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
           const body=this.block(true);body.strict=this.checkDirective(body.body);
-          value={kind:'FunctionExpression',method:true,id:null,parameters,body,span:this.span(propertyStart)};
+          value={kind:'FunctionExpression',method:true,id:null,parameters,rest,body,span:this.span(propertyStart)};
         }else if(accessor)this.error('Expected accessor parameter list');
         else if(this.match(':')){
           prototype=!computed&&key.kind==='Literal'&&key.value==='__proto__';

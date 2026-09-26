@@ -21,12 +21,18 @@ export function bind(ast:A.Program):BoundProgram {
     if(fn?.declaration.id)checkName(fn.declaration.id);
     const functionNames=fn?new Map<string,Binding>():globalNames;
     if(fn){
+      if(fn.declaration.rest&&fn.declaration.body.strict)fail(fn.declaration.rest,'Use strict directive with rest parameter');
       for(const p of fn.declaration.parameters){
         // Each actual position retains an input slot; only the last occurrence
         // of a simple sloppy parameter name is visible in the function scope.
-        checkName(p);if(strict&&functionNames.has(p.name))fail(p,'Duplicate strict parameter');
+        checkName(p);if((strict||!!fn.declaration.rest||fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)&&functionNames.has(p.name))fail(p,'Duplicate parameter');
         const b:StorageBinding={kind:'parameter',name:p.name,index:fn.locals.length,owner:fn.index};
         functionNames.set(p.name,b);fn.parameters.push(b);fn.locals.push(b);bindings.set(p,b);
+      }
+      if(fn.declaration.rest){
+        const p=fn.declaration.rest;checkName(p);if(functionNames.has(p.name))fail(p,'Duplicate parameter');
+        const b:StorageBinding={kind:'parameter',name:p.name,index:fn.locals.length,owner:fn.index};
+        functionNames.set(p.name,b);fn.restParameter=b;fn.locals.push(b);bindings.set(p,b);
       }
     }
     const variable=(id:A.Identifier,functionDeclaration=false):void=>{
@@ -75,7 +81,7 @@ export function bind(ast:A.Program):BoundProgram {
       lexicalScopes.set(node,entries);
     };
     declareLexicals(owner,body,functionNames,'var');
-    if(fn){
+    if(fn&&!(fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)){
       const existing=functionNames.get('arguments');
       const shadowed=existing&&(existing.kind==='parameter'||'lexical'in existing&&existing.lexical)||body.some(s=>s.kind==='Function'&&s.id.name==='arguments');
       if(!shadowed){
@@ -111,8 +117,14 @@ export function bind(ast:A.Program):BoundProgram {
     };
     const expression=(e:A.Expression):void=>{
       switch(e.kind){
-        case 'NewTarget':if(!fn)fail(e,'new.target requires a function');break;
-        case 'Super':if(fn?.declaration.kind!=='FunctionExpression'||!fn.declaration.method)fail(e,'Super property requires a method');break;
+        case 'NewTarget':{
+          let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
+          if(!owner)fail(e,'new.target requires a non-arrow function');break;
+        }
+        case 'Super':{
+          let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
+          if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.method)fail(e,'Super property requires a method');break;
+        }
         case 'This':case 'Literal':break;
         case 'FunctionExpression':{
           const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
@@ -124,6 +136,7 @@ export function bind(ast:A.Program):BoundProgram {
         case 'Member':expression(e.object);expression(e.property);break;
         case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property')expression(link.property);else link.arguments.forEach(expression);break;
         case 'ArrayLiteral':for(const item of e.elements)if(item)expression(item);break;
+        case 'Template':e.expressions.forEach(expression);break;
         case 'ObjectLiteral':for(const p of e.properties){expression(p.key);expression(p.value);}break;
         case 'Binary':expression(e.left);expression(e.right);break;
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
@@ -156,6 +169,11 @@ export function bind(ast:A.Program):BoundProgram {
           if(s.init){if(s.init.kind==='Var')statements([s.init],loops,switches);else expression(s.init);}
           if(s.test)expression(s.test);if(s.update)expression(s.update);statements([s.body],loops+1,switches);
         });break;
+        case 'ForIn':case 'ForOf':{
+          if(s.left.kind==='Var'&&s.left.declarationKind!=='var')scoped(s,[s.left],()=>{expression(s.right);statements([s.body],loops+1,switches);});
+          else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);expression(s.right);statements([s.body],loops+1,switches);}
+          break;
+        }
         case 'Switch':
           expression(s.discriminant);
           scoped(s,s.cases.flatMap(c=>c.body),()=>{
@@ -164,7 +182,7 @@ export function bind(ast:A.Program):BoundProgram {
         case 'Labeled': {
           if(labels.has(s.label.name))fail(s.label,'Duplicate label');
           let target=s.body;while(target.kind==='Labeled')target=target.body;
-          labels.set(s.label.name,['While','DoWhile','For'].includes(target.kind));
+          labels.set(s.label.name,['While','DoWhile','For','ForIn','ForOf'].includes(target.kind));
           statements([s.body],loops,switches);labels.delete(s.label.name);break;
         }
         case 'Return':if(!fn)fail(s,'return outside function');if(s.argument)expression(s.argument);break;

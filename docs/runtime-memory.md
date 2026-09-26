@@ -34,7 +34,11 @@ Value в caller root slots на всё время косвенного вызо�
 Поле constructable отделяет обычные source functions от callable, но
 неконструируемого Function.prototype. Native code/environment/constructable
 занимают offsets 48/56/64; rawThis flag — 72, bound-data pointer — 80,
-sourceText descriptor — 88, native constructCode — 96, homeObject pointer — 104, полный function payload — 112 bytes.
+sourceText descriptor — 88, native constructCode — 96, homeObject pointer — 104,
+arrow flag — 112, lexicalThis tagged Value — 120, lexicalNewTarget tagged Value —
+136; полный function payload — 152 bytes. GC трассирует оба лексических Value.
+Стрелка хранит receiver и new.target при создании, а при вызове игнорирует
+переданный thisArg. HomeObject наследуется от окружающего метода/стрелки.
 ConstructCode — static code pointer, не managed edge. Ноль означает обычный
 source-function construct через invoke. Ненулевой entry получает builtin ABI
 out/argc/argv/callee и prepared receiver пятым аргументом. Bound wrappers хранят
@@ -380,3 +384,18 @@ length/radix/argument limits — RangeError. Uncaught throw пока испол�
 общий fatal reporter, без stack trace. Runtime message: Invalid operation;
 текст не претендует на совпадение с V8. V8 stack/captureStackTrace и ES2022
 cause не входят в реализованный ES2020 Error surface.
+
+## Symbol и Iterator GC roots
+
+Symbol Value tag 6 содержит указатель на 16-байтный descriptor: sentinel `-1`
+в первом слове, указатель на UTF-16 description во втором. Обычные property
+keys и Symbol keys разделяют поле `P.key`; сравнение символов основано на
+identity descriptor. Управляемые дескрипторы имеют `HeapKind.symbol`; GC
+трассирует description. Статические well-known symbols находятся в data-секции.
+
+Глобальный Symbol registry хранит связанный список `[next,key,symbol]`.
+`rt.collect` удерживает каждый record, key и symbol. Iterator objects имеют
+`O.kind=8`, payload: source Value и числовой index Value. GC трассирует source,
+а source/iterator/next/result Values в вызовах пользовательских методов имеют
+точные временные корни. Lowering хранит iterator и next в отдельных IR slots;
+выход из тела цикла закрывает итератор, а исключение из next не закрывает его.

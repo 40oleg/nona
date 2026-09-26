@@ -14,14 +14,23 @@ function unreachable(value:never):never {
 function transfer(operation:Operation,live:Set<number>):void {
  // Kill before adding uses: an operation may read its own destination.
  if('dest' in operation)live.delete(operation.dest);
+ if(operation.kind==='getIterator')live.delete(operation.iterator),live.delete(operation.next);
+ if(operation.kind==='iteratorStep')live.delete(operation.done);
  switch(operation.kind){
   case 'pushHandler':case 'popHandler':return;
-  case 'newTarget':case 'superBase':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'uninitialized':case 'immutableWrite':
+  case 'newTarget':case 'superBase':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'newRestArray':case 'uninitialized':case 'immutableWrite':
   case 'constant':case 'loadGlobal':case 'globalObject':case 'readGlobalProperty':return;
   case 'superGet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);return;
   case 'superSet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);live.add(operation.source);return;
   case 'property':live.add(operation.object);live.add(operation.key);return;
   case 'newInstance':live.add(operation.callee);return;
+  case 'forInKeys':live.add(operation.object);return;
+  case 'forInHas':live.add(operation.object);live.add(operation.key);return;
+  case 'getIterator':live.add(operation.object);return;
+  case 'iteratorStep':live.add(operation.iterator);live.add(operation.next);return;
+  case 'iteratorClose':live.add(operation.iterator);return;
+  case 'requireIterable':live.add(operation.object);return;
+  case 'forOfValue':live.add(operation.iterable);live.add(operation.index);return;
   case 'newArguments':for(const parameter of operation.parameters)if(parameter>=0)live.add(parameter);return;
   case 'constructorResult':live.add(operation.result);live.add(operation.instance);return;
   case 'defineAccessor':case 'setProperty':live.add(operation.object);live.add(operation.key);live.add(operation.source);return;

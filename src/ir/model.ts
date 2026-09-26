@@ -1,6 +1,6 @@
 export type Constant = undefined|null|boolean|number|string;
 export type Operation =
-  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
+  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;arrow?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
   | {kind:'newCell';dest:number;source:number}
   | {kind:'readCell';dest:number;cell:number}
   | {kind:'writeCell';cell:number;source:number}
@@ -19,7 +19,15 @@ export type Operation =
   | {kind:'newInstance';dest:number;callee:number}
   | {kind:'constructorResult';dest:number;result:number;instance:number}
   | {kind:'newArguments';dest:number;parameters:number[]} // -1: earlier duplicate, no mapping
+  | {kind:'newRestArray';dest:number;start:number}
   | {kind:'newObject';dest:number;array:boolean;length:number}
+  | {kind:'forInKeys';dest:number;object:number}
+  | {kind:'forInHas';dest:number;object:number;key:number}
+  | {kind:'getIterator';iterator:number;next:number;object:number}
+  | {kind:'iteratorStep';dest:number;done:number;iterator:number;next:number}
+  | {kind:'iteratorClose';iterator:number}
+  | {kind:'requireIterable';object:number}
+  | {kind:'forOfValue';dest:number;iterable:number;index:number}
   | {kind:'property';strict?:boolean;operation:'get'|'delete'|'has';dest:number;object:number;key:number}
   | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean}
   | {kind:'defineAccessor';object:number;key:number;source:number;setter:boolean}

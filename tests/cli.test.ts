@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,dirname,basename} from 'node:path';
 const cli=(args:string[])=>spawnSync(process.execPath,['dist/cli.js',...args],{encoding:'utf8',windowsHide:true});
 function fixture(body:(dir:string)=>void){const dir=mkdtempSync(join(tmpdir(),'nona-cli-'));try{body(dir);}finally{assert.equal(dirname(resolve(dir)),resolve(tmpdir()));assert.ok(basename(dir).startsWith('nona-cli-'));rmSync(dir,{recursive:true,force:true});}}
-test('CLI help and version',()=>{assert.equal(cli(['--help']).status,0);assert.match(cli(['--version']).stdout,/0\.1\.0/);});
+test('CLI help and version',()=>{assert.equal(cli(['--help']).status,0);assert.match(cli(['--version']).stdout,/0\.2\.0/);});
 test('CLI builds nested output and runs executable',()=>fixture(dir=>{const input=join(dir,'in.js'),output=join(dir,'nested','out.exe');writeFileSync(input,'console.log("hello");');const r=cli(['build',input,'-o',output]);assert.equal(r.status,0,r.stderr);const native=spawnSync(output,[],{encoding:'utf8',windowsHide:true});assert.equal(native.status,0);assert.equal(native.stdout,'hello\n');}));
 test('CLI rejects missing/unknown/duplicate arguments',()=>{for(const args of [[],['build'],['build','a.js'],['build','a.js','-o','b.exe','--target','linux'],['build','a.js','-o','b','-o','c'],['--wat']])assert.equal(cli(args).status,1);});
 test('analysis failure preserves existing output with positioned diagnostic',()=>fixture(dir=>{const input=join(dir,'in.js'),output=join(dir,'out.exe');writeFileSync(input,'var x=1;\n)');writeFileSync(output,'original');const r=cli(['build',input,'-o',output]);assert.equal(r.status,1);assert.match(r.stderr,/in\.js:2:1.*E_SYNTAX/);assert.equal(readFileSync(output,'utf8'),'original');}));

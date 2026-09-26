@@ -1,0 +1,26 @@
+{
+  "tests": [
+    "language/expressions/coalesce/short-circuit-number-42.js",
+    "language/expressions/coalesce/short-circuit-prevents-evaluation.js",
+    "language/expressions/arrow-function/lexical-new.target.js",
+    "language/expressions/template-literal/literal-expr-template.js",
+    "language/statements/for-in/12.6.4-1.js",
+    "language/statements/for-of/array.js",
+    "language/statements/for-of/head-let-fresh-binding-per-iteration.js",
+    "language/statements/for-of/head-const-fresh-binding-per-iteration.js",
+    "built-ins/Symbol/for/create-value.js",
+    "built-ins/Array/prototype/includes/samevaluezero.js",
+    "built-ins/Math/pow/applying-the-exp-operator_A14.js",
+    "built-ins/String/prototype/includes/return-true-if-searchstring-is-empty.js",
+    "language/statements/for-of/Array.prototype.entries.js",
+    "language/statements/for-of/Array.prototype.keys.js",
+    "language/statements/for-of/arguments-mapped.js",
+    "language/statements/for-of/head-lhs-member.js",
+    "built-ins/Array/prototype/pop/S15.4.4.6_A2_T2.js",
+    "built-ins/Number/isFinite/finite-numbers.js",
+    "built-ins/Number/isInteger/integers.js",
+    "built-ins/Number/isNaN/nan.js",
+    "built-ins/Number/isSafeInteger/safe-integers.js",
+    "language/rest-parameters/no-alias-arguments.js"
+  ]
+}

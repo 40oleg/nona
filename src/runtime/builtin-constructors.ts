@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {FunctionLayout as F,FunctionKind} from './functions.js';
@@ -8,16 +9,28 @@ import type {Assembler} from '../backend/x64/assembler.js';
 import type {Fixup} from '../backend/pe/model.js';
 
 export const constructorRoots=names.map(name=>'rt.'+name);
+const numberConstants=[['MAX_VALUE',Number.MAX_VALUE],['MIN_VALUE',Number.MIN_VALUE],['NaN',NaN],['NEGATIVE_INFINITY',-Infinity],['POSITIVE_INFINITY',Infinity],['EPSILON',Number.EPSILON],['MAX_SAFE_INTEGER',Number.MAX_SAFE_INTEGER],['MIN_SAFE_INTEGER',Number.MIN_SAFE_INTEGER]] as const;
 export const constructorPropertyRoots=names.flatMap(name=>[
  ...['name','length','prototype'].map(key=>'rt.'+name+'.'+key),
  'rt.globalObject.'+name,'rt.'+name.toLowerCase()+'Prototype.constructor',
-]);
+]).concat(numberConstants.map(([name])=>'rt.Number.'+name));
 const pointer=(offset:number,target:string):Fixup=>({offset,kind:'va64',target,addend:0});
 function copyResult(a:Assembler,offset:number):void {
  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(offset+n));a.store({base:'rcx',disp:n},'rax');}
 }
 
 export function emitBuiltinConstructors(b:RuntimeBuilder):void {
+ b.bundle.fragments.push(stringLiteral('rt.str.symbolOpen','Symbol('),stringLiteral('rt.str.symbolClose',')'));
+ rootedFn(b,'rt.symbolDescriptiveString',120,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:3}],a=>{
+  a.store(slot(40),'rcx');a.load('rax',{base:'rdx'});a.cmp('rax',6);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax',disp:8});
+  const hasDescription=a.unique('hasDescription');a.test('rax','rax');a.jcc('ne',hasDescription);a.lea('rax',{rip:'rt.str.empty'});a.label(hasDescription);
+  a.mov('r10',4);a.store(slot(64),'r10');a.store(slot(80),'r10');a.store(slot(96),'r10');
+  a.lea('r10',{rip:'rt.str.symbolOpen'});a.store(slot(72),'r10');a.store(slot(88),'rax');
+  a.lea('r10',{rip:'rt.str.symbolClose'});a.store(slot(104),'r10');
+  a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');
+  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.concat');
+ });
  // Add native constructor objects after all intrinsic prototype headers exist.
  const globalThis=b.bundle.fragments.find(f=>f.name==='rt.globalObject.globalThis')!;
  globalThis.fixups.push(pointer(P.next,'rt.globalObject.Object'));
@@ -27,13 +40,13 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Boolean','Number','String'].includes(name)?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Boolean','Number','String'].includes(name)?'.construct':name==='Symbol'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
    const fixups=[pointer(P.key,'rt.str.'+key)];
    if(i<2)fixups.push(pointer(P.next,symbol+'.'+['name','length'][i]));
-   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,1,true);
+   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,name==='Symbol'?0:1,true);
    else fixups.push(pointer(P.value+8,key==='name'?symbol+'.text':prototype));
    b.bundle.fragments.push({name:symbol+'.'+key,section:'.data',alignment:8,bytes:data,symbols:{},fixups});
   }
@@ -49,9 +62,28 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   ]});
   head.target=prototype+'.constructor';
  }
+ const numberHeader=b.bundle.fragments.find(f=>f.name==='rt.Number')!;
+ const numberHead=numberHeader.fixups.find(f=>f.offset===O.properties)!;
+ for(const [name,value] of numberConstants){
+  const node='rt.Number.'+name,key=node+'.key';b.bundle.fragments.push(stringLiteral(key,name));
+  const data=new Uint8Array(P.size);data[P.value]=3;new DataView(data.buffer).setFloat64(P.value+8,value,true);
+  b.bundle.fragments.push({name:node,section:'.data',alignment:8,bytes:data,symbols:{},fixups:[
+   pointer(P.next,numberHead.target),pointer(P.key,key),
+  ]});numberHead.target=node;
+ }
  // Function exists for reflection/prototype identity. Dynamic compilation is
  // deliberately excluded from this compiler's scope, including via constructor.
  b.fn('rt.Function.code',40,a=>a.call('rt.fail'));
+ b.fn('rt.Symbol.construct',40,a=>a.call('rt.throwTypeError'));
+ rootedFn(b,'rt.Symbol.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(72),'rax');
+  const allocate=a.unique('allocate');a.test('rdx','rdx');a.jcc('e',allocate);a.load('rax',{base:'r8'});a.test('rax','rax');a.jcc('e',allocate);
+  a.lea('rcx',slot(64));a.mov('rdx','r8');a.call('rt.toString');
+  a.label(allocate);a.mov('rcx',16);a.call('rt.alloc');
+  a.mov('r10',-1);a.store({base:'rax'},'r10');a.load('r10',slot(72));a.store({base:'rax',disp:8},'r10');
+  a.mov('r10',HeapKind.symbol);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.load('rcx',slot(40));a.mov('r10',6);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ });
  rootedFn(b,'rt.Object.code',72,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   const fresh=a.unique('fresh'),done=a.unique('done');a.test('rdx','rdx');a.jcc('e',fresh);
   a.load('rax',{base:'r8'});a.cmp('rax',1);a.jcc('be',fresh);a.mov('rdx','r8');a.call('rt.toObject');a.jmp(done);
@@ -65,7 +97,9 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
    a.label(convert);
    if(name==='Boolean'){
     a.mov('rcx','r8');a.call('rt.toBoolean');a.store(slot(72),'rax');a.mov('rax',2);a.store(slot(64),'rax');
-   }else{a.lea('rcx',slot(64));a.mov('rdx','r8');a.call(name==='Number'?'rt.toNumber':'rt.toString');}
+   }else{a.lea('rcx',slot(64));a.mov('rdx','r8');if(name==='String'&&!construct){
+    const plain=a.unique('plain'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',6);a.jcc('ne',plain);a.call('rt.symbolDescriptiveString');a.jmp(converted);a.label(plain);a.call('rt.toString');a.label(converted);
+   }else a.call(name==='String'?'rt.toString':'rt.toNumber');}
    a.label(ready);
    if(construct){a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');}else copyResult(a,64);
   });
