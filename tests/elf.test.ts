@@ -128,3 +128,9 @@ test('Linux native Array.prototype.unshift moves sparse entries under GC stress'
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.map honors species under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(let i=0;i<20;i++)({x:i});return new Array(n)}};let b=a.map(function(v){for(let i=0;i<20;i++)({x:i});return {x:v.x+1}});console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

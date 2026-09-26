@@ -8,6 +8,15 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['Array species getter',`var d=Object.getOwnPropertyDescriptor(Array,Symbol.species);console.log(Array[Symbol.species]===Array,d.get.call({x:1}).x,d.enumerable,d.configurable,d.set===undefined,d.get.length,d.get.name);`],
+ ['map ordinary and sparse',`var a=[1,,3],b=a.map(function(v,i){return v*2+i});console.log(b.length,b[0],1 in b,b[2],a.length,Array.prototype.map.length);`],
+ ['map generic and inherited',`var o={length:3,0:2,2:4},s='';Object.prototype[1]=3;var b=Array.prototype.map.call(o,function(v,i,x){s+=i+':'+(x===o)+';';return v*2});delete Object.prototype[1];console.log(b.join(','),s);`],
+ ['map species constructor',`var a=[1,2],s='';a.constructor={[Symbol.species]:function(n){s+='C'+n+';';return {x:1}}};var b=a.map(function(v){s+='M'+v+';';return v+1});console.log(s,b[0],b[1],b.x,Array.isArray(b));`],
+ ['map species fallback and errors',`var a=[1];a.constructor={[Symbol.species]:null};console.log(Array.isArray(a.map(function(x){return x})));a.constructor={[Symbol.species]:{}};try{a.map(function(x){return x})}catch(e){console.log(e.name)}try{a.map(1)}catch(e){console.log(e.name)}`],
+ ['map constructor null and undefined',`var a=[1];a.constructor=undefined;console.log(Array.isArray(a.map(function(x){return x})));a.constructor=null;try{a.map(function(x){return x})}catch(e){console.log(e.name)}`],
+ ['map species getter and constructor order',`var s='',a=[1];Object.defineProperty(a,'constructor',{get:function(){s+='c';return {[Symbol.species]:function(n){s+='s'+n;return {}}}}});a.map(function(x){s+='m';return x});console.log(s);`],
+ ['map subclass species',`class A extends Array{}var a=new A(1,2),b=a.map(function(x){return x+1});console.log(b instanceof A,b.length,b[0],b[1]);class B extends Array{static get [Symbol.species](){return Array}}var c=new B(4).map(function(x){return x});console.log(c instanceof B,Array.isArray(c));`],
+ ['map own property bypasses inherited setter',`var a=[1],b={},s='';Object.defineProperty(b,'0',{set:function(){s+='set'},configurable:true});a.constructor={[Symbol.species]:function(){return Object.create(b)}};var r=a.map(function(x){return x+1});console.log(s,Object.prototype.hasOwnProperty.call(r,'0'),r[0]);`],
  ['isArray brands',`console.log(Array.isArray([]),Array.isArray({}),Array.isArray('x'),Array.isArray(Array.prototype));`],
  ['push values',`var a=[1];console.log(a.push(2,3),a.length,a[1],a[2]);`],
  ['push empty',`var a=[];console.log(a.push(),a.length);`],
@@ -71,6 +80,12 @@ test('array builtins: push survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
+test('array builtins: map species and callback survive stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.map(function(v){for(var i=0;i<30;i++)({v:i});return {x:v.x+1}});console.log(b.length,b[0].x,1 in b,b[2].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: includes survives getter and GC',()=>{
