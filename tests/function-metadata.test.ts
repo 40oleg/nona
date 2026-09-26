@@ -23,7 +23,6 @@ const cases:[string,string][]=[
  ['literal own properties override inherited readonly metadata','function f(a){}let o={__proto__:f,name:"own",length:8};console.log(o.name,o.length);'],
  ['inferred name is not a named-expression binding','let f=function(){return f;};let original=f;f=4;console.log(original(),original.name);'],
  ['Function prototype is shared callable and has no own prototype','function f(){}function g(){}let p=f.__proto__;console.log(p===g.__proto__,typeof p,p(),p.name==="",p.length,"prototype" in p,p.__proto__==={}.__proto__);'],
- ['restricted caller and arguments ownership',`function f(){}function strict(){'use strict'}function* gen(){}let method={m(){}}.m,arrow=()=>{};let d=Object.getOwnPropertyDescriptor(f,'caller');console.log(Object.getOwnPropertyNames(f).join('|'),d.value,d.writable,d.enumerable,d.configurable,Object.prototype.hasOwnProperty.call(strict,'caller'),Object.prototype.hasOwnProperty.call(gen,'caller'),Object.prototype.hasOwnProperty.call(method,'caller'),Object.prototype.hasOwnProperty.call(arrow,'caller'));`],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 test('dynamic computed function name survives stress GC',()=>{

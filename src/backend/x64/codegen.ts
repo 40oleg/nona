@@ -117,9 +117,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           if(op.sourceText!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
           pointer('rcx',op.dest);
           if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',stack(valueBase+16*op.nameSlot+8));
-          a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');
-          if(!op.strict&&!op.method&&!op.classConstructor&&!op.arrow&&!op.generator){pointer('rcx',op.dest);a.call('rt.initSloppyFunctionMetadata');}
-          break;
+          a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
         case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.setter?1:0)|(op.nonEnumerable?2:0));a.call('rt.defineLiteralAccessor');break;
         case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
         case 'readCell':pointer('rcx',op.dest);pointer('rdx',op.cell);a.call('rt.readCell');break;

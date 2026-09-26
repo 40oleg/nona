@@ -4,7 +4,6 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
-import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
 
 export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,size:O.size+112} as const;
 export const FunctionKind=2;
@@ -61,26 +60,6 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.findOwnProperty');
   a.load('r10',slot(80));a.load('r11',{base:'r10',disp:P.next});a.store({base:'rax',disp:P.next},'r11');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});a.store({base:'r10',disp:P.next},'r11');a.store({base:'rcx',disp:O.properties},'r10');a.label(noPrototype);
- });
- // Sloppy ordinary functions have own nonconfigurable null data properties
- // for caller and arguments. Strict functions and methods inherit the shared
- // ThrowTypeError accessors instead.
- rootedFn(b,'rt.initSloppyFunctionMetadata',200,[{kind:'value',register:'rcx'},{kind:'locals',offset:64,count:7}],a=>{
-  a.store(slot(40),'rcx');
-  for(const name of ['arguments','caller']){
-   a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.functionPrototype.'+name+'.key'});a.store(slot(72),'rax');
-   a.mov('rax',1);a.store(slot(80+D.value),'rax');a.mov('rax',DF.data);a.store(slot(80+D.present),'rax');
-   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.defineOwnProperty');
-  }
-  // Preserve intrinsic insertion order: length, name, arguments, caller,
-  // prototype. Property nodes are linked newest-first internally.
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});
-  a.lea('rdx',{rip:'rt.str.prototype'});a.call('rt.findOwnProperty');
-  const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);a.store(slot(192),'rax');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});
-  a.lea('rdx',{rip:'rt.functionPrototype.arguments.key'});a.call('rt.findOwnProperty');
-  a.load('r10',slot(192));a.load('r11',{base:'r10',disp:P.next});a.store({base:'rax',disp:P.next},'r11');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});a.store({base:'r10',disp:P.next},'r11');a.store({base:'rcx',disp:O.properties},'r10');a.label(done);
  });
  // Concise methods/accessors have no own prototype and cannot construct.
  b.fn('rt.newMethod',56,a=>{
