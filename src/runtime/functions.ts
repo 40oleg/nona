@@ -5,7 +5,7 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
 
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,size:O.size+104} as const;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,size:O.size+112} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -34,11 +34,20 @@ export function emitFunctions(b:RuntimeBuilder):void {
  // Install fresh own data properties on function/prototype objects. Public
  // Public defineProperty requires the later descriptors stage.
  b.fn('rt.initFunctionProperty',72,a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(64),'r9');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('rcx',{base:'rcx',disp:8});a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
+  const create=a.unique('create');a.test('rax','rax');a.jcc('e',create);
+  a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.configurable);a.test('r10','r10');a.jcc('e',create);
+  a.load('r10',slot(56));for(const offset of [0,8]){a.load('r11',{base:'r10',disp:offset});a.store({base:'rax',disp:P.value+offset},'r11');}
+  a.load('r10',slot(64));a.store({base:'rax',disp:P.attributes},'r10');a.mov('r10',0);
+  for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
+  const done=a.unique('done');a.jmp(done);a.label(create);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));
   a.mov('r9',1);a.call('rt.setProperty');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});
   a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
   a.load('r10',slot(64));a.store({base:'rax',disp:P.attributes},'r10');
+  a.label(done);
  });
  // RCX fresh function Value*, RDX name descriptor, R8 simple parameter count.
  b.fn('rt.initFunctionMetadata',88,a=>{
@@ -64,7 +73,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator])a.store({base:'rax',disp:offset},'r10');
   a.lea('r10',{rip:'rt.functionPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
   a.load('r10',slot(48));a.store({base:'rax',disp:FunctionLayout.code},'r10');
@@ -87,6 +96,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',ordinary);
   a.mov('rax',0);a.store(slot(32),'rax');a.call('rt.invokeBound');a.jmp(done);
   a.label(ordinary);
+  if(!construct){a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.cmp('r10',2);failIf(a,'e','rt.throwTypeError');}
   const notArrow=a.unique('notArrow');a.load('r10',{base:'rax',disp:FunctionLayout.arrow});a.test('r10','r10');a.jcc('e',notArrow);
   a.lea('r10',{base:'rax',disp:FunctionLayout.lexicalThis});a.store(slot(72),'r10');
   a.label(notArrow);
@@ -96,11 +106,20 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(box);a.lea('rcx',slot(80));a.call('rt.boxReceiver');a.lea('rax',slot(80));a.store(slot(72),'rax');
   // The fresh box is copied into the JS frame root before its first safepoint.
   a.label(ready);a.load('rax',slot(72));a.store(slot(32),'rax');
+  if(!construct){
+   const ordinaryCall=a.unique('ordinaryCall');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});
+   a.load('r10',{base:'r10',disp:FunctionLayout.generator});a.test('r10','r10');a.jcc('e',ordinaryCall);
+   a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newGenerator');a.jmp(done);
+   a.label(ordinaryCall);
+  }
   a.load('rax',slot(48));a.load('r9',{base:'rax',disp:8});a.load('r10',{base:'r9',disp:FunctionLayout.code});
   a.load('rcx',slot(40));a.load('rdx',slot(56));a.load('r8',slot(64));
   // Sixth source-function argument: stable new.target Value pointer. The saved
   // output at slot40 has already been loaded; it is dead across this call.
-  if(construct)a.load('rax',slot(48));else{
+  if(construct){
+    const targetReady=a.unique('constructTargetReady');a.load('rax',slot(152));a.test('rax','rax');a.jcc('ne',targetReady);
+    a.load('rax',slot(48));a.label(targetReady);
+  }else{
     const ordinaryTarget=a.unique('ordinaryTarget'),targetReady=a.unique('targetReady');
     a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});a.load('rax',{base:'r11',disp:FunctionLayout.arrow});a.test('rax','rax');a.jcc('e',ordinaryTarget);
     a.lea('rax',{base:'r11',disp:FunctionLayout.lexicalNewTarget});a.jmp(targetReady);

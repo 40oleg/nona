@@ -8,6 +8,9 @@ export function emitExceptions(b:RuntimeBuilder):void {
  // Explicit JS throw only. All work before the transfer is callback/GC-free.
  b.fn('rt.throw',40,a=>{
   a.load('r11',{rip:'rt.exceptionHandler'});a.test('r11','r11');failIf(a,'e');
+  const selected=a.unique('selected'),skip=a.unique('skip');a.load('rax',{base:'rcx'});a.cmp('rax',254);a.jcc('ne',selected);
+  a.label(skip);a.load('r10',{base:'r11',disp:H.kind});a.test('r10','r10');a.jcc('ne',selected);
+  a.load('r11',{base:'r11',disp:H.next});a.test('r11','r11');failIf(a,'e');a.jmp(skip);a.label(selected);
   a.load('r8',{base:'r11',disp:H.value});for(const n of [0,8]){a.load('rax',{base:'rcx',disp:n});a.store({base:'r8',disp:n},'rax');}
   a.load('r10',{rip:'rt.cleanupHead'});a.load('r9',{base:'r11',disp:H.cleanup});
   const cleanup=a.unique('cleanup'),restored=a.unique('restored');a.label(cleanup);a.cmp('r10','r9');a.jcc('e',restored);

@@ -40,7 +40,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Boolean','Number','String'].includes(name)?'.construct':name==='Symbol'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
@@ -84,13 +84,19 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.mov('r10',HeapKind.symbol);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.load('rcx',slot(40));a.mov('r10',6);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
- rootedFn(b,'rt.Object.code',72,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
+ for(const construct of [false,true])rootedFn(b,construct?'rt.Object.construct':'rt.Object.code',72,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],(a,frame)=>{
+  const ordinary=a.unique('ordinaryObjectConstruction'),finished=a.unique('objectConstructionFinished');
+  if(construct){
+   a.load('rax',slot(frame+48));a.test('rax','rax');a.jcc('e',ordinary);
+   a.load('rdx',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'rcx',disp:offset},'rax');}
+   a.jmp(finished);a.label(ordinary);
+  }
   const fresh=a.unique('fresh'),done=a.unique('done');a.test('rdx','rdx');a.jcc('e',fresh);
   a.load('rax',{base:'r8'});a.cmp('rax',1);a.jcc('be',fresh);a.mov('rdx','r8');a.call('rt.toObject');a.jmp(done);
-  a.label(fresh);a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');a.label(done);
+  a.label(fresh);a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');a.label(done);if(construct)a.label(finished);
  });
  for(const [name,tag] of [['Boolean',2],['Number',3],['String',4]] as const)for(const construct of [false,true]){
-  rootedFn(b,'rt.'+name+(construct?'.construct':'.code'),88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+  rootedFn(b,'rt.'+name+(construct?'.construct':'.code'),88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
    const convert=a.unique('convert'),ready=a.unique('ready');a.test('rdx','rdx');a.jcc('ne',convert);
    a.mov('rax',tag);a.store(slot(64),'rax');if(name==='String')a.lea('rax',{rip:'rt.str.empty'});else a.mov('rax',0);a.store(slot(72),'rax');a.jmp(ready);
@@ -101,10 +107,14 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
     const plain=a.unique('plain'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',6);a.jcc('ne',plain);a.call('rt.symbolDescriptiveString');a.jmp(converted);a.label(plain);a.call('rt.toString');a.label(converted);
    }else a.call(name==='String'?'rt.toString':'rt.toNumber');}
    a.label(ready);
-   if(construct){a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');}else copyResult(a,64);
+   if(construct){
+    a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');
+    a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+    a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.prototype},'r10');
+   }else copyResult(a,64);
   });
  }
- rootedFn(b,'rt.Array.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],a=>{
+ for(const construct of [false,true])rootedFn(b,construct?'rt.Array.construct':'rt.Array.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.lea('rcx',slot(80));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
   const elements=a.unique('elements'),loop=a.unique('loop'),done=a.unique('done');
@@ -119,6 +129,12 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.load('r8',slot(64));a.shl('r8',4);a.load('rax',slot(56));a.add('r8','rax');
   a.lea('rcx',slot(80));a.lea('rdx',slot(112));a.mov('r9',1);a.call('rt.setProperty');
   a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(loop);
-  a.label(done);copyResult(a,80);
+  a.label(done);
+  if(construct){
+   // The prepared receiver carries the prototype selected by new.target.
+   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+   a.load('rax',slot(88));a.store({base:'rax',disp:O.prototype},'r10');
+  }
+  copyResult(a,80);
  });
 }

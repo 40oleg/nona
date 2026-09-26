@@ -15,10 +15,11 @@ function transfer(operation:Operation,live:Set<number>):void {
  // Kill before adding uses: an operation may read its own destination.
  if('dest' in operation)live.delete(operation.dest);
  if(operation.kind==='getIterator')live.delete(operation.iterator),live.delete(operation.next);
- if(operation.kind==='iteratorStep')live.delete(operation.done);
+  if(operation.kind==='iteratorStep')live.delete(operation.done);
+ if(operation.kind==='yieldDelegated')live.delete(operation.mode);
  switch(operation.kind){
-  case 'pushHandler':case 'popHandler':return;
-  case 'newTarget':case 'superBase':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'newRestArray':case 'uninitialized':case 'immutableWrite':
+  case 'pushHandler':case 'popHandler':case 'generatorInitialSuspend':return;
+  case 'newTarget':case 'superBase':case 'superConstructor':case 'superReceiver':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'newRestArray':case 'uninitialized':case 'immutableWrite':
   case 'constant':case 'loadGlobal':case 'globalObject':case 'readGlobalProperty':return;
   case 'superGet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);return;
   case 'superSet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);live.add(operation.source);return;
@@ -33,8 +34,13 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'forOfValue':live.add(operation.iterable);live.add(operation.index);return;
   case 'newArguments':for(const parameter of operation.parameters)if(parameter>=0)live.add(parameter);return;
   case 'constructorResult':live.add(operation.result);live.add(operation.instance);return;
-  case 'defineAccessor':case 'setProperty':live.add(operation.object);live.add(operation.key);live.add(operation.source);return;
+  case 'derivedReturn':live.add(operation.source);return;
+  case 'defineAccessor':case 'setProperty':case 'defineDataProperty':live.add(operation.object);live.add(operation.key);live.add(operation.source);return;
   case 'setPrototype':live.add(operation.object);live.add(operation.prototype);return;
+  case 'setFunctionHomeObject':live.add(operation.func);live.add(operation.homeObject);return;
+  case 'setCurrentThis':live.add(operation.source);return;
+  case 'validateClassHeritage':live.add(operation.base);return;
+  case 'validateClassPrototype':live.add(operation.prototype);return;
   case 'checkInitialized':case 'checkResolvable':live.add(operation.slot);return;
   case 'copy':case 'storeGlobal':case 'newCell':live.add(operation.source);return;
   case 'newFunction':if(operation.homeObject!==undefined)live.add(operation.homeObject);for(const capture of operation.captures??[])live.add(capture);if(operation.nameSlot!==undefined)live.add(operation.nameSlot);return;
@@ -43,7 +49,11 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'unary':live.add(operation.argument);return;
   case 'binary':live.add(operation.left);live.add(operation.right);return;
   case 'call':for(const argument of operation.arguments)live.add(argument);return;
-  case 'invoke':live.add(operation.callee);if(operation.receiver!==undefined)live.add(operation.receiver);for(const argument of operation.arguments)live.add(argument);return;
+  case 'invoke':live.add(operation.callee);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);for(const argument of operation.arguments)live.add(argument);return;
+  case 'invokeArray':live.add(operation.callee);live.add(operation.array);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);return;
+  case 'yield':live.add(operation.source);return;
+  case 'yieldDelegated':live.add(operation.source);return;
+  case 'requireObject':live.add(operation.source);return;
   default:unreachable(operation);
  }
 }

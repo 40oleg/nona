@@ -1,6 +1,7 @@
 import { CompileError } from '../diagnostics.js';
 import type { Token,TokenStream } from './token.js';
 import type * as A from './ast.js';
+import {boundNames} from './declarations.js';
 
 const reserved = new Set(('break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super implements interface let package private protected public static yield null true false').split(' '));
 const precedence: Record<string,number> = { '??':1,'||':1,'&&':2,'|':3,'^':4,'&':5,'==':6,'!=':6,'===':6,'!==':6,'<':7,'<=':7,'>':7,'>=':7,'in':7,'instanceof':7,'<<':8,'>>':8,'>>>':8,'+':9,'-':9,'*':10,'/':10,'%':10 };
@@ -8,6 +9,8 @@ export function parse(tokens: TokenStream): A.Program { return new Parser(tokens
 
 class Parser {
   private index = 0;
+  private generatorContext = false;
+  private yieldIdentifierForbidden = false;
   private parenthesized = new WeakSet<A.Expression>();
   private computedMembers = new WeakSet<A.Member>();
   constructor(private tokens: TokenStream) {}
@@ -18,17 +21,89 @@ class Parser {
   private error(message:string, token=this.token): never { throw new CompileError([{ code:'E_SYNTAX',message,file:'',span:token.span }]); }
   private need(s:string): Token { if (!this.at(s)) this.error(`Expected '${s}', found '${this.token.text}'`); return this.take(); }
   private span(start:number): {start:number;end:number} { return {start,end:this.tokens[Math.max(0,this.index-1)]!.span.end}; }
+  private reservedIdentifier(name:string):boolean {return reserved.has(name)&&!(name==='yield'&&!this.generatorContext&&!this.yieldIdentifierForbidden);}
   private id(): A.Identifier {
-    const t = this.token,name=String(t.value??t.text); if (t.kind !== 'word' || reserved.has(name)) this.error('Expected an identifier');
+    const t = this.token,name=String(t.value??t.text); if (t.kind !== 'word' || this.reservedIdentifier(name)) this.error('Expected an identifier');
     this.take(); return {kind:'Identifier',name,span:t.span};
   }
-  private formalParameters():{parameters:A.Identifier[];rest:A.Identifier|null} {
-    this.need('(');const parameters:A.Identifier[]=[];let rest:A.Identifier|null=null;
-    while(!this.at(')')){
-      if(this.match('...')){rest=this.id();if(this.at(','))this.error('Rest parameter must be last');break;}
-      parameters.push(this.id());if(!this.match(','))break;
+  private functionIdentifier(generator:boolean):A.Identifier {
+    const previous=this.generatorContext;this.generatorContext=generator;
+    try{return this.id();}finally{this.generatorContext=previous;}
+  }
+  private bindingPattern():A.BindingPattern {
+    if(this.at('{')){
+      const start=this.take().span.start,properties:A.ObjectPattern['properties']=[];let rest:A.BindingPattern|null=null;
+      while(!this.at('}')){
+        if(this.match('...')){rest=this.bindingPattern();if(this.at(','))this.error('Rest binding must be last');break;}
+        let key:A.Expression,computed=false,shorthand:A.Identifier|null=null;
+        if(this.match('[')){computed=true;key=this.assignment();this.need(']');}
+        else{
+          const token=this.token;if(!['word','string','number'].includes(token.kind))this.error('Expected an object binding property');
+          this.take();key={kind:'Literal',value:String(token.value??token.text),span:token.span};
+          if(token.kind==='word'&&!this.reservedIdentifier(String(token.value??token.text)))shorthand={kind:'Identifier',name:String(token.value??token.text),span:token.span};
+        }
+        const id=this.match(':')?this.bindingPattern():shorthand;
+        if(!id)this.error('Invalid shorthand binding property');
+        const init=this.match('=')?this.assignment():null;
+        properties.push({key,value:{id,init},computed});if(!this.match(','))break;
+      }
+      this.need('}');return {kind:'ObjectPattern',properties,rest,span:this.span(start)};
     }
-    this.need(')');return {parameters,rest};
+    if(!this.at('['))return this.id();
+    const start=this.take().span.start,elements:(A.BindingElement|null)[]=[];let rest:A.BindingPattern|null=null;
+    while(!this.at(']')){
+      if(this.token.kind==='eof')this.error('Unterminated array binding pattern');
+      if(this.match(',')){elements.push(null);continue;}
+      if(this.match('...')){rest=this.bindingPattern();if(this.at(','))this.error('Rest binding must be last');break;}
+      const id=this.bindingPattern(),init=this.match('=')?this.assignment():null;
+      elements.push({id,init});if(!this.match(','))break;
+    }
+    this.need(']');return {kind:'ArrayPattern',elements,rest,span:this.span(start)};
+  }
+  private formalParameters():{parameters:A.BindingPattern[];defaults:(A.Expression|null)[];rest:A.BindingPattern|null} {
+    this.need('(');const parameters:A.BindingPattern[]=[],defaults:(A.Expression|null)[]=[];let rest:A.BindingPattern|null=null;
+    while(!this.at(')')){
+      if(this.match('...')){rest=this.bindingPattern();if(this.at('=')||this.at(','))this.error('Rest parameter must be last and cannot have a default');break;}
+      parameters.push(this.bindingPattern());defaults.push(this.match('=')?this.assignment():null);if(!this.match(','))break;
+    }
+    this.need(')');return {parameters,defaults,rest};
+  }
+  private functionParameters(generator=false):ReturnType<Parser['formalParameters']> {
+    const previous=this.generatorContext,previousYield=this.yieldIdentifierForbidden;this.generatorContext=false;this.yieldIdentifierForbidden=generator;
+    try{return this.formalParameters();}finally{this.generatorContext=previous;this.yieldIdentifierForbidden=previousYield;}
+  }
+  private functionBody(generator:boolean):A.Block {
+    const previous=this.generatorContext;this.generatorContext=generator;
+    try{const body=this.block(true);body.strict=this.checkDirective(body.body);return body;}
+    finally{this.generatorContext=previous;}
+  }
+  private classTail(start:number,id:A.Identifier|null):A.ClassExpression {
+    const superClass=this.match('extends')?this.leftHandSide():null;
+    this.need('{');const methods:A.ClassMethod[]=[];let constructorMethod:A.FunctionExpression|null=null;
+    while(!this.at('}')){
+      if(this.match(';'))continue;
+      const methodStart=this.token.span.start;let isStatic=false,accessor:'get'|'set'|undefined,computed=false;
+      if(this.at('static')&&this.tokens[this.index+1]?.text!=='('){this.take();isStatic=true;}
+      if((this.at('get')||this.at('set'))&&this.tokens[this.index+1]?.text!=='('){accessor=this.take().text as 'get'|'set';}
+      const generator=this.match('*');if(generator&&accessor)this.error('Generator method cannot be an accessor');
+      let key:A.Expression;
+      if(this.match('[')){computed=true;key=this.assignment();this.need(']');}
+      else{const token=this.token;if(!['word','string','number'].includes(token.kind))this.error('Expected a class method name');this.take();key={kind:'Literal',value:String(token.value??token.text),span:token.span};}
+      if(isStatic&&!computed&&key.kind==='Literal'&&key.value==='prototype')this.error('Static prototype method is not allowed');
+      const {parameters,defaults,rest}=this.functionParameters(generator);
+      if(accessor==='get'&&(parameters.length||rest))this.error('Getter requires no parameters');
+      if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
+      const body=this.functionBody(generator);
+      const value:A.FunctionExpression={kind:'FunctionExpression',generator,method:true,classMethod:true,id:null,parameters,defaults,rest,body,span:this.span(methodStart)};
+      const constructor=!isStatic&&!computed&&!accessor&&key.kind==='Literal'&&key.value==='constructor';
+      if(constructor){if(generator)this.error('Class constructor cannot be a generator');if(constructorMethod)this.error('Duplicate constructor');value.classConstructor=true;constructorMethod=value;}
+      else methods.push({key,computed,isStatic,...(accessor?{accessor}:{}),value});
+    }
+    this.need('}');
+    const defaultClassConstructor=!constructorMethod;
+    constructorMethod??={kind:'FunctionExpression',method:true,classMethod:true,classConstructor:true,id:null,parameters:[],defaults:[],rest:null,body:{kind:'Block',body:[],span:this.span(start)},span:this.span(start)};
+    constructorMethod.derivedConstructor=!!superClass;constructorMethod.defaultClassConstructor=defaultClassConstructor;
+    return {kind:'ClassExpression',id,superClass,methods,constructorMethod,span:this.span(start)};
   }
   private semi(): void {
     if (this.match(';') || this.at('}') || this.token.kind === 'eof' || this.token.lineBreakBefore) return;
@@ -57,8 +132,9 @@ class Parser {
   private variable(semicolon:boolean,forHead=false): A.Var {
     const keyword=this.take(),start=keyword.span.start,declarationKind=keyword.text as A.Var['declarationKind'], declarations:A.Var['declarations']=[];
     do {
-      const id=this.id(), init=this.match('=')?this.assignment():null;
+      const id=this.bindingPattern(), init=this.match('=')?this.assignment():null;
       if(declarationKind==='const'&&!init&&!forHead)this.error('Const declaration requires an initializer');
+      if(id.kind!=='Identifier'&&!init&&!forHead)this.error('Destructuring declaration requires an initializer');
       declarations.push({id,init});
     } while(this.match(','));
     if(semicolon)this.semi(); return {kind:'Var',declarationKind,declarations,span:this.span(start)};
@@ -86,9 +162,14 @@ class Parser {
     }
     if(this.match('function')) {
       if(!allowDeclaration)this.error('Function declaration requires a StatementList');
-      const id=this.id(),{parameters,rest}=this.formalParameters();
-      const body=this.block(true);body.strict=this.checkDirective(body.body);
-      return {kind:'Function',id,parameters,rest,body,span:this.span(start)};
+      const generator=this.match('*'),id=this.functionIdentifier(generator),{parameters,defaults,rest}=this.functionParameters(generator);
+      const body=this.functionBody(generator);
+      return {kind:'Function',generator,id,parameters,defaults,rest,body,span:this.span(start)};
+    }
+    if(this.match('class')){
+      if(!allowDeclaration||!allowLexical)this.error('Class declaration requires a StatementList');
+      const id=this.id(),node=this.classTail(start,id);
+      return {...node,kind:'Class',id};
     }
     if(this.match('if')) {
       this.need('(');const test=this.expression();this.need(')');const consequent=this.statement(false,false);
@@ -127,6 +208,8 @@ class Parser {
     }
     if(this.match('for')) {
       this.need('(');const init=this.at(';')?null:['var','let','const'].includes(this.token.text)?this.variable(false,true):this.expression();
+      if(init?.kind==='Yield'&&init.argument?.kind==='Binary'&&init.argument.operator==='in'&&!this.parenthesized.has(init.argument))
+        this.error('Unparenthesized in is not allowed in a for initializer');
       if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
         if(init.declarations.length!==1||init.declarations[0]!.init)this.error('Only a single binding without initializer is supported in for...in/of');
         const kind=this.take().text==='in'?'ForIn':'ForOf';const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
@@ -153,7 +236,7 @@ class Parser {
     }
     if(this.at('break')||this.at('continue')) {
       const kind=this.take().text==='break'?'Break':'Continue';
-      const label=!this.token.lineBreakBefore&&this.token.kind==='word'&&!reserved.has(this.token.text)?this.id():null;
+      const label=!this.token.lineBreakBefore&&this.token.kind==='word'&&!this.reservedIdentifier(this.token.text)?this.id():null;
       this.semi();return {kind,label,span:this.span(start)};
     }
     const expression=this.expression();this.semi();return {kind:'ExpressionStatement',expression,span:this.span(start)};
@@ -166,49 +249,78 @@ class Parser {
     }
     return left;
   }
+  private assignmentPattern(expression:A.Expression|A.BindingPattern):A.BindingPattern {
+    if(expression.kind==='Identifier'||expression.kind==='Member')return expression;
+    if(expression.kind==='ArrayPattern'||expression.kind==='ObjectPattern')return expression;
+    if(expression.kind==='ArrayLiteral'){
+      if(expression.trailingCommaAfterSpread)this.error('Rest assignment target cannot have a trailing comma');
+      const elements:(A.BindingElement|null)[]=[],length=expression.elements.length;let rest:A.BindingPattern|null=null;
+      for(const [index,item] of expression.elements.entries()){
+        if(!item){elements.push(null);continue;}
+        if(item.kind==='SpreadElement'){
+          if(index!==length-1)this.error('Rest assignment target must be last');
+          rest=this.assignmentPattern(item.argument);continue;
+        }
+        const target=item.kind==='Assignment'&&item.operator==='='?item.left:item;
+        elements.push({id:this.assignmentPattern(target),init:item.kind==='Assignment'&&item.operator==='='?item.right:null});
+      }
+      return {kind:'ArrayPattern',elements,rest,span:expression.span};
+    }
+    if(expression.kind==='ObjectLiteral'){
+      if(expression.trailingCommaAfterSpread)this.error('Rest assignment target cannot have a trailing comma');
+      const properties:A.ObjectPattern['properties']=[];let rest:A.BindingPattern|null=null;
+      for(const [index,property] of expression.properties.entries()){
+        if('spread'in property){if(index!==expression.properties.length-1)this.error('Rest assignment target must be last');rest=this.assignmentPattern(property.spread);continue;}
+        if(property.accessor||property.value.kind==='FunctionExpression'&&property.value.method)this.error('Invalid assignment pattern property');
+        const target=property.value.kind==='Assignment'&&property.value.operator==='='?property.value.left:property.value;
+        properties.push({key:property.key,computed:!!property.computed,value:{id:this.assignmentPattern(target),init:property.value.kind==='Assignment'&&property.value.operator==='='?property.value.right:null}});
+      }
+      return {kind:'ObjectPattern',properties,rest,span:expression.span};
+    }
+    this.error('Invalid destructuring assignment target');
+  }
   private assignment(): A.Expression {
+    if(this.generatorContext&&this.at('yield')){
+      const start=this.take().span.start,delegate=!this.token.lineBreakBefore&&this.match('*');
+      const argument=delegate||!this.token.lineBreakBefore&&![';',')',']','}',',',':','<eof>'].includes(this.token.text)?this.assignment():null;
+      if(delegate&&!argument)this.error('yield* requires an expression');
+      return {kind:'Yield',argument,delegate,span:this.span(start)};
+    }
     const arrow=this.arrow();if(arrow)return arrow;
     const left=this.conditional();
     if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>='].includes(this.token.text)) {
-      const opToken=this.take(), operator=opToken.text;if(left.kind!=='Identifier'&&left.kind!=='Member')this.error('Assignment requires a variable or property',opToken);
-      const right=this.assignment();return {kind:'Assignment',operator,left,right,span:{start:left.span.start,end:right.span.end}};
+      const opToken=this.take(), operator=opToken.text;
+      if(left.kind!=='Identifier'&&left.kind!=='Member'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')))this.error('Assignment requires a variable or property',opToken);
+      const target=left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral'?this.assignmentPattern(left):left;
+      const right=this.assignment();return {kind:'Assignment',operator,left:target,right,span:{start:left.span.start,end:right.span.end}};
     }
     return left;
   }
   private arrow():A.FunctionExpression|null {
     const start=this.token.span.start;
     let end=-1;
-    if(this.token.kind==='word'&&!reserved.has(String(this.token.value??this.token.text))&&this.tokens[this.index+1]?.text==='=>')end=this.index+1;
+    if(this.token.kind==='word'&&!this.reservedIdentifier(String(this.token.value??this.token.text))&&this.tokens[this.index+1]?.text==='=>')end=this.index+1;
     else if(this.at('(')){
-      let cursor=this.index+1,valid=true;
-      while(this.tokens[cursor]?.text!==')'){
-        const token=this.tokens[cursor];
-        if(token?.text==='...'){
-          cursor++;const rest=this.tokens[cursor];
-          if(!rest||rest.kind!=='word'||reserved.has(String(rest.value??rest.text))){valid=false;break;}
-          cursor++;if(this.tokens[cursor]?.text!==')')valid=false;break;
-        }
-        if(!token||token.kind!=='word'||reserved.has(String(token.value??token.text))){valid=false;break;}
-        cursor++;
-        if(this.tokens[cursor]?.text===')')break;
-        if(this.tokens[cursor]?.text!==','){valid=false;break;}
-        cursor++;
-      }
-      if(valid&&this.tokens[cursor]?.text===')'&&this.tokens[cursor+1]?.text==='=>')end=cursor+1;
+      let cursor=this.index,depth=0;
+      do {const token=this.tokens[cursor];if(!token||token.kind==='eof')break;
+        if(token.text==='(')depth++;else if(token.text===')')depth--;cursor++;
+      }while(depth>0);
+      if(depth===0&&this.tokens[cursor]?.text==='=>')end=cursor;
     }
     if(end<0||this.tokens[end]!.lineBreakBefore)return null;
-    let parameters:A.Identifier[]=[],rest:A.Identifier|null=null;
+    let parameters:A.BindingPattern[]=[],defaults:(A.Expression|null)[]=[],rest:A.BindingPattern|null=null;
     if(this.at('(')){
-      ({parameters,rest}=this.formalParameters());
-    }else parameters.push(this.id());
+      ({parameters,defaults,rest}=this.functionParameters());
+    }else {parameters.push(this.id());defaults.push(null);}
     this.need('=>');
     let body:A.Block;
-    if(this.at('{')){body=this.block(true);body.strict=this.checkDirective(body.body);}
+    if(this.at('{'))body=this.functionBody(false);
     else{
-      const argument=this.assignment();
+      const previous=this.generatorContext;this.generatorContext=false;
+      let argument:A.Expression;try{argument=this.assignment();}finally{this.generatorContext=previous;}
       body={kind:'Block',body:[{kind:'Return',argument,span:argument.span}],span:argument.span};
     }
-    return {kind:'FunctionExpression',arrow:true,id:null,parameters,rest,body,span:this.span(start)};
+    return {kind:'FunctionExpression',arrow:true,id:null,parameters,defaults,rest,body,span:this.span(start)};
   }
   private conditional(): A.Expression {
     const test=this.binary(1);if(!this.match('?'))return test;
@@ -252,9 +364,12 @@ class Parser {
     }
     return expression;
   }
-  private arguments():A.Expression[] {
-    const args:A.Expression[]=[];this.need('(');
-    if(!this.at(')'))do {args.push(this.assignment());}while(this.match(',')&&!this.at(')'));
+  private arguments():A.Argument[] {
+    const args:A.Argument[]=[];this.need('(');
+    if(!this.at(')'))do {
+      if(this.at('...')){const spread=this.take(),argument=this.assignment();args.push({kind:'SpreadElement',argument,span:{start:spread.span.start,end:argument.span.end}});}
+      else args.push(this.assignment());
+    }while(this.match(',')&&!this.at(')'));
     this.need(')');return args;
   }
   private chainParts(expression:A.Expression):{base:A.Expression;links:A.OptionalLink[]} {
@@ -313,45 +428,70 @@ class Parser {
         if(expression.kind==='OptionalChain'&&!this.parenthesized.has(expression))
           expression=this.chain(expression,{kind:'call',arguments:args,optional:false,span:this.span(start)},start);
         else expression={kind:'Call',callee:expression,arguments:args,span:this.span(start)};
+      }else if(this.token.kind==='templateNoSub'||this.token.kind==='templateHead'){
+        if(expression.kind==='OptionalChain'&&!this.parenthesized.has(expression))this.error('Optional chain cannot be a template tag');
+        expression=this.template(expression);
       }else break;
     }
     return expression;
   }
+  private template(tag?:A.Expression):A.Expression {
+    const first=this.token,start=tag?.span.start??first.span.start;
+    const raw=(token:Token)=>{
+      const text=token.text;
+      const segment=token.kind==='templateNoSub'?text.slice(1,-1):token.kind==='templateHead'?text.slice(1,-2):token.kind==='templateTail'?text.slice(0,-1):text.slice(0,-2);
+      return segment.replace(/\r\n?/g,'\n');
+    };
+    if(first.kind==='templateNoSub'){
+      this.take();const value=first.value===undefined?undefined:String(first.value);
+      if(tag)return {kind:'TaggedTemplate',tag,quasis:[value],rawQuasis:[raw(first)],expressions:[],span:this.span(start)};
+      if(value===undefined)this.error('Invalid escape in untagged template',first);
+      return {kind:'Literal',value,span:first.span};
+    }
+    if(first.kind!=='templateHead')this.error('Expected template literal');
+    this.take();const quasis:(string|undefined)[]=[first.value===undefined?undefined:String(first.value)],rawQuasis=[raw(first)],expressions:A.Expression[]=[];
+    while(true){
+      expressions.push(this.expression());this.need('}');
+      const segment=this.token;
+      if(segment.kind!=='templateMiddle'&&segment.kind!=='templateTail')this.error('Expected template continuation');
+      this.take();quasis.push(segment.value===undefined?undefined:String(segment.value));rawQuasis.push(raw(segment));
+      if(segment.kind==='templateTail')break;
+    }
+    if(tag)return {kind:'TaggedTemplate',tag,quasis,rawQuasis,expressions,span:this.span(start)};
+    if(quasis.some(value=>value===undefined))this.error('Invalid escape in untagged template',first);
+    return {kind:'Template',quasis:quasis as string[],expressions,span:this.span(start)};
+  }
   private primary(): A.Expression {
     const t=this.token;
-    if(t.kind==='templateNoSub'){this.take();return {kind:'Literal',value:String(t.value),span:t.span};}
-    if(t.kind==='templateHead'){
-      this.take();const quasis=[String(t.value)],expressions:A.Expression[]=[];
-      while(true){
-        expressions.push(this.expression());this.need('}');
-        const segment=this.token;
-        if(segment.kind!=='templateMiddle'&&segment.kind!=='templateTail')this.error('Expected template continuation');
-        this.take();quasis.push(String(segment.value));
-        if(segment.kind==='templateTail')break;
-      }
-      return {kind:'Template',quasis,expressions,span:this.span(t.span.start)};
-    }
-    if(this.match('super')){if(!this.at('.')&&!this.at('['))this.error('Expected super property');return {kind:'Super',span:t.span};}
+    if(t.kind==='templateNoSub'||t.kind==='templateHead')return this.template();
+    if(this.match('super')){if(!this.at('.')&&!this.at('[')&&!this.at('('))this.error('Expected super property or call');return {kind:'Super',span:t.span};}
     if(this.match('this'))return {kind:'This',span:t.span};
     if(this.match('function')){
-      const id=this.at('(')?null:this.id(),{parameters,rest}=this.formalParameters();
-      const body=this.block(true);body.strict=this.checkDirective(body.body);
-      return {kind:'FunctionExpression',id,parameters,rest,body,span:this.span(t.span.start)};
+      const generator=this.match('*'),id=this.at('(')?null:this.functionIdentifier(generator),{parameters,defaults,rest}=this.functionParameters(generator);
+      const body=this.functionBody(generator);
+      return {kind:'FunctionExpression',generator,id,parameters,defaults,rest,body,span:this.span(t.span.start)};
+    }
+    if(this.match('class')){
+      const id=this.at('{')||this.at('extends')?null:this.id();return this.classTail(t.span.start,id);
     }
     if(this.match('[')) {
-      const elements:A.ArrayLiteral['elements']=[];
+      const elements:A.ArrayLiteral['elements']=[];let trailingCommaAfterSpread=false;
       while(!this.at(']')) {
         if(this.match(',')){elements.push(null);continue;}
-        elements.push(this.assignment());if(!this.match(','))break;
+        if(this.at('...')){const spread=this.take(),argument=this.assignment();elements.push({kind:'SpreadElement',argument,span:{start:spread.span.start,end:argument.span.end}});}
+        else elements.push(this.assignment());if(!this.match(','))break;
+        if(this.at(']')&&elements.at(-1)?.kind==='SpreadElement')trailingCommaAfterSpread=true;
       }
-      this.need(']');return {kind:'ArrayLiteral',elements,span:this.span(t.span.start)};
+      this.need(']');return {kind:'ArrayLiteral',elements,trailingCommaAfterSpread,span:this.span(t.span.start)};
     }
     if(this.match('{')) {
-      const properties:A.ObjectLiteral['properties']=[];let hasPrototype=false;
+      const properties:A.ObjectLiteral['properties']=[];let hasPrototype=false,trailingCommaAfterSpread=false;
       while(!this.at('}')) {
+        if(this.match('...')){properties.push({spread:this.assignment()});if(!this.match(','))break;if(this.at('}'))trailingCommaAfterSpread=true;continue;}
         const propertyStart=this.token.span.start;
-        let key:A.Expression,value:A.Expression,prototype=false,accessor:'get'|'set'|undefined;
+        let key:A.Expression,value:A.Expression,prototype=false,coverInitialized=false,accessor:'get'|'set'|undefined;
         let shorthand:Token|undefined,computed=false;
+        const generator=this.match('*');
         const readKey=():A.Expression=>{
           if(this.match('[')){computed=true;const key=this.assignment();this.need(']');return key;}
           const k=this.token;if(!['word','string','number'].includes(k.kind))this.error('Expected an object property');
@@ -362,29 +502,33 @@ class Parser {
           accessor=key.value;key=readKey();
         }
         if(this.at('(')){
-          const {parameters,rest}=this.formalParameters();
-          if(new Set(parameters.map(p=>p.name)).size!==parameters.length)this.error('Duplicate method parameter');
+          const {parameters,defaults,rest}=this.functionParameters(generator);
+          const names=parameters.flatMap(p=>boundNames(p).map(id=>id.name));
+          if(new Set(names).size!==names.length)this.error('Duplicate method parameter');
           if(accessor==='get'&&(parameters.length!==0||rest))this.error('Getter requires no parameters');
           if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
-          const body=this.block(true);body.strict=this.checkDirective(body.body);
-          value={kind:'FunctionExpression',method:true,id:null,parameters,rest,body,span:this.span(propertyStart)};
+          if(generator&&accessor)this.error('Generator method cannot be an accessor');
+          const body=this.functionBody(generator);
+          value={kind:'FunctionExpression',generator,method:true,id:null,parameters,defaults,rest,body,span:this.span(propertyStart)};
         }else if(accessor)this.error('Expected accessor parameter list');
+        else if(generator)this.error('Expected generator method parameter list');
         else if(this.match(':')){
           prototype=!computed&&key.kind==='Literal'&&key.value==='__proto__';
           if(prototype&&hasPrototype)this.error('Duplicate __proto__ property');hasPrototype ||= prototype;
           value=this.assignment();
         }else{
-          if(computed||!shorthand||shorthand.kind!=='word'||reserved.has(String(shorthand.value??shorthand.text)))this.error('Invalid shorthand property');
+          if(computed||!shorthand||shorthand.kind!=='word'||this.reservedIdentifier(String(shorthand.value??shorthand.text)))this.error('Invalid shorthand property');
           value={kind:'Identifier',name:String(shorthand.value??shorthand.text),span:shorthand.span};
+          if(this.match('=')){const left=value,right=this.assignment();value={kind:'Assignment',operator:'=',left,right,span:{start:left.span.start,end:right.span.end}};coverInitialized=true;}
         }
-        properties.push({key,value,prototype,...(accessor?{accessor}:{})});if(!this.match(','))break;
+        properties.push({key,value,prototype,computed,coverInitialized,...(accessor?{accessor}:{})});if(!this.match(','))break;
       }
-      this.need('}');return {kind:'ObjectLiteral',properties,span:this.span(t.span.start)};
+      this.need('}');return {kind:'ObjectLiteral',properties,trailingCommaAfterSpread,span:this.span(t.span.start)};
     }
     if(t.kind==='number'||t.kind==='string') {this.take();return {kind:'Literal',value:t.value!,span:t.span};}
     if(['true','false','null'].includes(t.text)) {this.take();return {kind:'Literal',value:t.text==='null'?null:t.text==='true',span:t.span};}
     if(this.match('(')) {const e=this.expression();this.need(')');this.parenthesized.add(e);return e;}
-    if(t.kind==='word'&&!reserved.has(t.text))return this.id();
+    if(t.kind==='word'&&!this.reservedIdentifier(t.text))return this.id();
     return this.error(`Unsupported or unexpected syntax '${t.text}'`);
   }
 }

@@ -8,7 +8,7 @@ import {emitKeySort} from './key-sort.js';
 
 export function emitOwnKeys(b:RuntimeBuilder):void {
  emitValueList(b);emitKeySort(b);
- const intrinsicNodes=['globalThis','undefined','NaN','Infinity','console','Math',...nativeConstructorNames];
+ const intrinsicNodes=['globalThis','undefined','NaN','Infinity','console','Math','isFinite','isNaN',...nativeConstructorNames];
  b.fn('rt.isIntrinsicGlobalKey',40,a=>{
   a.mov('rdx','rcx');a.lea('rcx',{rip:'rt.globalObject'});a.call('rt.findOwnProperty');
   const yes=a.unique('yes'),done=a.unique('done');

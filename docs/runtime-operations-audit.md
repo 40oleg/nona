@@ -10,10 +10,10 @@ audit of the present implementation, not a statement of full ES2020 behavior.
 | Property delete | `rt.deleteProperty` in `src/runtime/objects.ts` | Symbol keys and Proxy `[[Delete]]` absent |
 | Own keys and enumeration | `src/runtime/own-keys.ts`, `key-sort.ts` | Symbol ordering and Proxy ownKeys invariants absent; `for...in` absent |
 | Descriptors / define | `define-property.ts`, `descriptor-conversion.ts`, `descriptor-validation.ts` | Internal dispatch is not yet general enough for Proxy or typed arrays |
-| Call / construct | `functions.ts`, `function-call.ts`, `function-bound-call.ts` | Classes, Proxy functions and async/generator callables absent |
+| Call / construct | `functions.ts`, `function-call.ts`, `function-bound-call.ts`, `generator.ts` | Proxy functions and async callables absent; generator edge cases remain |
 | Primitive conversion | `object-coercion.ts` | `Symbol.toPrimitive` and Date default hint absent |
 | Numeric conversion | `primitives.ts`, `numeric.ts` | BigInt conversion and operations absent |
-| GC roots / reentry | `root-scope.ts`, `gc.ts` | Suspended async/generator frames and weak collections absent |
+| GC roots / reentry | `root-scope.ts`, `gc.ts`, `context-switch.ts` | Suspended async frames and weak collections absent; generator roots require further coverage |
 
 ## Implementation rule for the next changes
 

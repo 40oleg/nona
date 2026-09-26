@@ -2,7 +2,7 @@ import {CompileError} from '../diagnostics.js';
 import {immutableGlobalNames,runtimeGlobalNames} from '../global-builtins.js';
 import type * as A from './ast.js';
 import type {Binding,StorageBinding,BoundFunction,BoundProgram} from './bound.js';
-import {collectDeclarations} from './declarations.js';
+import {boundNames,collectDeclarations} from './declarations.js';
 
 export function bind(ast:A.Program):BoundProgram {
   const globals:StorageBinding[]=[],mainLocals:StorageBinding[]=[],functions:BoundFunction[]=[],bindings=new Map<A.Node,Binding>();
@@ -12,27 +12,43 @@ export function bind(ast:A.Program):BoundProgram {
   const catchBindings=new Set<Binding>();
   const fail=(node:A.Node,message:string):never=>{throw new CompileError([{code:'E_BIND',message,file:'',span:node.span}]);};
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
-    const entry:BoundFunction={strict:!!(node.body.strict||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
+    const entry:BoundFunction={strict:!!(node.body.strict||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
     functions.push(entry);functionNodes.set(node,entry);return entry;
   };
   const analyze=(body:A.Statement[],fn:BoundFunction|null,owner:A.Node,outerScopes:Map<string,Binding>[]=[]):void=>{
     const strict=fn?.strict??!!ast.strict;
-    const checkName=(id:A.Identifier)=>{if(strict&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict binding');};
+    const nonSimple=!!fn&&(!!fn.declaration.rest||!!fn.declaration.defaults?.some(Boolean)||fn.declaration.parameters.some(p=>p.kind!=='Identifier'));
+    let parameterArguments:StorageBinding|undefined;
+    const checkName=(id:A.Identifier)=>{if(strict&&(id.name==='eval'||id.name==='arguments'||id.name==='yield'))fail(id,'Restricted strict binding');};
     if(fn?.declaration.id)checkName(fn.declaration.id);
     const functionNames=fn?new Map<string,Binding>():globalNames;
     if(fn){
-      if(fn.declaration.rest&&fn.declaration.body.strict)fail(fn.declaration.rest,'Use strict directive with rest parameter');
-      for(const p of fn.declaration.parameters){
+      if(nonSimple&&fn.declaration.body.strict)fail(fn.declaration,'Use strict directive with non-simple parameters');
+      for(const [index,p] of fn.declaration.parameters.entries()){
         // Each actual position retains an input slot; only the last occurrence
         // of a simple sloppy parameter name is visible in the function scope.
-        checkName(p);if((strict||!!fn.declaration.rest||fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)&&functionNames.has(p.name))fail(p,'Duplicate parameter');
-        const b:StorageBinding={kind:'parameter',name:p.name,index:fn.locals.length,owner:fn.index};
-        functionNames.set(p.name,b);fn.parameters.push(b);fn.locals.push(b);bindings.set(p,b);
+        const b:StorageBinding={kind:'parameter',name:p.kind==='Identifier'?p.name:`#parameter${index}`,index:fn.locals.length,owner:fn.index};
+        fn.parameters.push(b);fn.locals.push(b);
+        if(p.kind==='Identifier'){
+          checkName(p);if((strict||nonSimple||fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)&&functionNames.has(p.name))fail(p,'Duplicate parameter');
+          functionNames.set(p.name,b);bindings.set(p,b);
+        }
+      }
+      for(const p of fn.declaration.parameters)if(p.kind!=='Identifier')for(const id of boundNames(p)){
+        checkName(id);if(functionNames.has(id.name))fail(id,'Duplicate parameter');
+        const b:StorageBinding={kind:'parameter',name:id.name,index:fn.locals.length,owner:fn.index};
+        functionNames.set(id.name,b);fn.locals.push(b);bindings.set(id,b);
       }
       if(fn.declaration.rest){
-        const p=fn.declaration.rest;checkName(p);if(functionNames.has(p.name))fail(p,'Duplicate parameter');
-        const b:StorageBinding={kind:'parameter',name:p.name,index:fn.locals.length,owner:fn.index};
-        functionNames.set(p.name,b);fn.restParameter=b;fn.locals.push(b);bindings.set(p,b);
+        const p=fn.declaration.rest;
+        const b:StorageBinding={kind:'parameter',name:p.kind==='Identifier'?p.name:'#rest',index:fn.locals.length,owner:fn.index};
+        fn.restParameter=b;fn.locals.push(b);
+        for(const id of boundNames(p)){
+          checkName(id);if(functionNames.has(id.name))fail(id,'Duplicate parameter');
+          const binding=id===p?b:{kind:'parameter' as const,name:id.name,index:fn.locals.length,owner:fn.index};
+          if(binding!==b)fn.locals.push(binding);
+          functionNames.set(id.name,binding);bindings.set(id,binding);
+        }
       }
     }
     const variable=(id:A.Identifier,functionDeclaration=false):void=>{
@@ -83,8 +99,13 @@ export function bind(ast:A.Program):BoundProgram {
     declareLexicals(owner,body,functionNames,'var');
     if(fn&&!(fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)){
       const existing=functionNames.get('arguments');
+      const parameterName=fn.parameters.some(p=>p.name==='arguments');
       const shadowed=existing&&(existing.kind==='parameter'||'lexical'in existing&&existing.lexical)||body.some(s=>s.kind==='Function'&&s.id.name==='arguments');
-      if(!shadowed){
+      if(nonSimple&&!parameterName){
+        parameterArguments={kind:'local',name:'arguments',index:-1,owner:fn.index};
+        argumentOwners.set(parameterArguments,fn);
+        if(!shadowed)functionNames.set('arguments',parameterArguments);
+      }else if(!shadowed){
         const candidate=(existing??{kind:'local',name:'arguments',index:-1,owner:fn.index}) as StorageBinding;
         functionNames.set('arguments',candidate);argumentOwners.set(candidate,fn);
       }
@@ -94,6 +115,7 @@ export function bind(ast:A.Program):BoundProgram {
       scopes.push(scope);action();scopes.pop();
     };
     const resolve=(id:A.Identifier,mode:'value'|'write'|'call'|'typeof'='value'):Binding=>{
+      if(strict&&id.name==='yield')fail(id,'Restricted strict identifier');
       if(strict&&mode==='write'&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict assignment');
       let b:Binding|undefined;
       for(let i=scopes.length-1;i>=0&&!b;i--)b=scopes[i]!.get(id.name);
@@ -105,7 +127,7 @@ export function bind(ast:A.Program):BoundProgram {
         if(argumentsOwner){
           if(result.index<0){result.index=argumentsOwner.locals.length;argumentsOwner.locals.push(result);}
           argumentsOwner.argumentsBinding=result;
-          if(!argumentsOwner.strict)for(const parameter of new Map(argumentsOwner.parameters.map(p=>[p.name,p])).values())parameter.captured=true;
+          if(!argumentsOwner.strict&&!argumentsOwner.declaration.rest&&!argumentsOwner.declaration.defaults?.some(Boolean)&&argumentsOwner.declaration.parameters.every(p=>p.kind==='Identifier'))for(const parameter of new Map(argumentsOwner.parameters.map(p=>[p.name,p])).values())parameter.captured=true;
         }
       }
       if(fn&&(result.kind==='local'||result.kind==='parameter')&&result.owner!==fn.index){
@@ -129,25 +151,59 @@ export function bind(ast:A.Program):BoundProgram {
         case 'FunctionExpression':{
           const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
         }
+        case 'ClassExpression':analyzeClass(e);break;
         case 'Identifier':resolve(e);break;
         case 'Unary':if(strict&&e.operator==='delete'&&e.argument.kind==='Identifier')fail(e,'Strict delete of identifier');if((e.operator==='typeof'||e.operator==='delete')&&e.argument.kind==='Identifier')resolve(e.argument,'typeof');else expression(e.argument);break;
         case 'Update':if(e.argument.kind==='Identifier')resolve(e.argument,'write');else expression(e.argument);break;
-        case 'Assignment':if(e.left.kind==='Identifier')resolve(e.left,'write');else expression(e.left);expression(e.right);break;
+        case 'Assignment':if(e.left.kind==='Identifier')resolve(e.left,'write');else if(e.left.kind==='ArrayPattern'||e.left.kind==='ObjectPattern'){for(const id of boundNames(e.left))resolve(id,'write');patternInitializers(e.left);}else expression(e.left);expression(e.right);break;
         case 'Member':expression(e.object);expression(e.property);break;
-        case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property')expression(link.property);else link.arguments.forEach(expression);break;
-        case 'ArrayLiteral':for(const item of e.elements)if(item)expression(item);break;
+        case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property')expression(link.property);else link.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
+        case 'ArrayLiteral':for(const item of e.elements)if(item)expression(item.kind==='SpreadElement'?item.argument:item);break;
         case 'Template':e.expressions.forEach(expression);break;
-        case 'ObjectLiteral':for(const p of e.properties){expression(p.key);expression(p.value);}break;
+        case 'TaggedTemplate':expression(e.tag);e.expressions.forEach(expression);break;
+        case 'Yield':if(!fn?.declaration.generator)fail(e,'yield outside generator');if(e.argument)expression(e.argument);break;
+        case 'ObjectLiteral':for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
         case 'Binary':expression(e.left);expression(e.right);break;
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
-        case 'New':case 'Call':if(e.callee.kind==='Identifier')resolve(e.callee,'call');else expression(e.callee);e.arguments.forEach(expression);break;
+        case 'New':case 'Call':if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
+          if(fn?.declaration.kind!=='FunctionExpression'||!fn.declaration.derivedConstructor)fail(e.callee,'super() requires a derived class constructor');
+        }else expression(e.callee);e.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
       }
+    };
+    const analyzeClass=(node:A.ClassExpression|A.ClassDeclaration):void=>{
+      const namedExpression=node.kind==='ClassExpression'&&node.id;
+      if(namedExpression){
+        checkName(namedExpression);
+        const storage=fn?fn.locals:mainLocals;
+        const binding:StorageBinding={kind:'local',name:namedExpression.name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:false};
+        storage.push(binding);bindings.set(namedExpression,binding);lexicalScopes.set(node,[binding]);
+        scopes.push(new Map([[namedExpression.name,binding]]));
+      }
+      if(node.superClass)expression(node.superClass);
+      for(const method of node.methods){if(method.computed)expression(method.key);const nested=register(method.value,fn);analyze(method.value.body.body,nested,method.value.body,scopes);}
+      const constructor=register(node.constructorMethod,fn);analyze(node.constructorMethod.body.body,constructor,node.constructorMethod.body,scopes);
+      if(namedExpression)scopes.pop();
+    };
+    const patternInitializers=(pattern:A.BindingPattern):void=>{
+      if(pattern.kind==='Identifier')return;
+      if(pattern.kind==='Member'){expression(pattern);return;}
+      if(pattern.kind==='ObjectPattern'){
+        for(const property of pattern.properties){if(property.computed)expression(property.key);if(property.value.init)expression(property.value.init);patternInitializers(property.value.id);}
+        if(pattern.rest)patternInitializers(pattern.rest);
+        return;
+      }
+      for(const element of pattern.elements)if(element){
+        if(element.init)expression(element.init);
+        patternInitializers(element.id);
+      }
+      if(pattern.rest)patternInitializers(pattern.rest);
     };
     const statements=(list:A.Statement[],loops:number,switches=0):void=>{
       for(const s of list)switch(s.kind){
         case 'Function':{
           const nested=functionNodes.get(s)!;analyze(s.body.body,nested,s.body,scopes);break;
         }
+        case 'Class':analyzeClass(s);break;
         case 'Throw':expression(s.argument);break;
         case 'Try':{
           statements([s.body],loops,switches);
@@ -160,7 +216,7 @@ export function bind(ast:A.Program):BoundProgram {
           if(s.finalizer)statements([s.finalizer],loops,switches);break;
         }
         case 'Empty':case 'Debugger':break;
-        case 'Var':for(const d of s.declarations)if(d.init){if(s.declarationKind==='var'){const visible=[...scopes].reverse().map(scope=>scope.get(d.id.name)).find(Boolean);if(visible&&catchBindings.has(visible))resolve(d.id,'write');}expression(d.init);}break;
+        case 'Var':for(const d of s.declarations){if(d.init){const id=d.id;if(s.declarationKind==='var'&&id.kind==='Identifier'){const visible=[...scopes].reverse().map(scope=>scope.get(id.name)).find(Boolean);if(visible&&catchBindings.has(visible))resolve(id,'write');}expression(d.init);}patternInitializers(d.id);}break;
         case 'Block':scoped(s,s.body,()=>statements(s.body,loops,switches));break;
         case 'ExpressionStatement':expression(s.expression);break;
         case 'If':expression(s.test);statements([s.consequent],loops,switches);if(s.alternate)statements([s.alternate],loops,switches);break;
@@ -170,8 +226,9 @@ export function bind(ast:A.Program):BoundProgram {
           if(s.test)expression(s.test);if(s.update)expression(s.update);statements([s.body],loops+1,switches);
         });break;
         case 'ForIn':case 'ForOf':{
-          if(s.left.kind==='Var'&&s.left.declarationKind!=='var')scoped(s,[s.left],()=>{expression(s.right);statements([s.body],loops+1,switches);});
-          else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);expression(s.right);statements([s.body],loops+1,switches);}
+          const left=s.left;
+          if(left.kind==='Var'&&left.declarationKind!=='var')scoped(s,[left],()=>{expression(s.right);patternInitializers(left.declarations[0]!.id);statements([s.body],loops+1,switches);});
+          else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);else if(s.left.kind==='Var')patternInitializers(s.left.declarations[0]!.id);expression(s.right);statements([s.body],loops+1,switches);}
           break;
         }
         case 'Switch':
@@ -194,6 +251,18 @@ export function bind(ast:A.Program):BoundProgram {
           break;
       }
     };
+    if(fn&&(fn.declaration.defaults?.some(Boolean)||fn.declaration.parameters.some(p=>p.kind!=='Identifier')||fn.declaration.rest?.kind!=='Identifier'&&fn.declaration.rest!==null&&fn.declaration.rest!==undefined)){
+      // Initializers see parameter bindings and outer scopes, not var/function
+      // declarations instantiated for the function body.
+      const parameters=new Map<string,Binding>();
+      for(const p of fn.locals)if(p.kind==='parameter'&&!p.name.startsWith('#'))parameters.set(p.name,p);
+      const argumentsBinding=parameterArguments??functionNames.get('arguments');
+      if(argumentsBinding&&argumentOwners.has(argumentsBinding as StorageBinding))parameters.set('arguments',argumentsBinding);
+      const last=scopes.length-1,saved=scopes[last]!;scopes[last]=parameters;
+      fn.declaration.parameters.forEach((pattern,index)=>{const init=fn.declaration.defaults?.[index];if(init)expression(init);patternInitializers(pattern);});
+      if(fn.declaration.rest)patternInitializers(fn.declaration.rest);
+      scopes[last]=saved;
+    }
     statements(body,0);
   };
   analyze(ast.body,null,ast);

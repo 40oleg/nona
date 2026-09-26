@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { lex } from '../src/frontend/lexer.js';
 import { parse } from '../src/frontend/parser.js';
 import { bind } from '../src/frontend/binder.js';
+import {compile} from '../src/compiler.js';
 
 const syntax = (s: string) => parse(lex(s));
 const check = (s: string) => bind(syntax(s));
 
 for(const [spelling,value] of [['0xAf',175],['.25e+2',25],['12.',12],['1e-2',0.01],['"\\x41\\u0042"','AB'],['"a\\\r\nb"','ab'],['"\\n\\r\\t\\b\\f\\v\\0"','\n\r\t\b\f\v\0']] as const)
   test('literal decoding '+JSON.stringify(spelling),()=>assert.equal(lex(spelling)[0]!.value,value));
-for(const source of ['/* missing','"\\x0G"','"\\u000"','"a\nb"','for(var i=0\ni<2;i++){}','while(true){break x;}'])test('malformed syntax '+JSON.stringify(source),()=>assert.throws(()=>check(source)));
+for(const source of ['/* missing','"\\x0G"','"\\u000"','"a\nb"','for(var i=0\ni<2;i++){}','while(true){break x;}','class C{static prototype(){}}'])test('malformed syntax '+JSON.stringify(source),()=>assert.throws(()=>check(source)));
 test('break and continue ASI at line break',()=>assert.doesNotThrow(()=>check('var x=0;while(x<2){x++;continue\n x=99;}while(true){break\n x=4;}')));
 
 test('strict directive recognition keeps parentheses and escape spelling', () => {
@@ -18,6 +19,24 @@ test('strict directive recognition keeps parentheses and escape spelling', () =>
   assert.equal(syntax('"use strict";').strict,true);
   assert.equal(syntax('("use strict");').strict,false);
   assert.equal(syntax('"use\\x20strict";').strict,false);
+});
+test('generator syntax records yield and delegation in declarations and methods',()=>{
+  const declaration=syntax('function* g(){var x=yield 1;yield* xs;return x;}').body[0] as any;
+  assert.equal(declaration.generator,true);
+  assert.equal(declaration.body.body[0].declarations[0].init.kind,'Yield');
+  assert.equal(declaration.body.body[1].expression.delegate,true);
+  const object=(syntax('var o={*m(){yield 1;}};').body[0] as any).declarations[0].init;
+  assert.equal(object.properties[0].value.generator,true);
+  const cls=syntax('class C{*m(){yield 1;}}').body[0] as any;
+  assert.equal(cls.methods[0].value.generator,true);
+});
+test('generator context does not leak into nested ordinary functions or arrows',()=>{
+  for(const source of ['function f(){yield 1;}','function* g(){function f(){yield 1;}}','function* g(){var f=()=>yield 1;}','function* g(a=yield 1){}','function* g(){yield*;}'])
+    assert.throws(()=>syntax(source));
+});
+test('delegated yield compiles for the native runtime',()=>{
+  const result=compile('function* g(){yield* [1];}',{fileName:'generator.js',target:'win32-x64'});
+  assert.equal(result.ok,true);
 });
 test('invalid lvalue diagnostics identify the operator', () => {
   for (const [source, start] of [['1=2;', 1], ['++1;', 0]] as const) assert.throws(() => check(source), (e:any) => e.diagnostics[0].span.start === start);
@@ -68,7 +87,7 @@ test('explicit exceptions bind with named and optional catch parameters', () => 
 });
 
 test('diagnostics carry the offending token position', () => {
-  assert.throws(() => check('var x=1;\nclass X{}'), (e: any) => {
+  assert.throws(() => check('var x=1;\n@'), (e: any) => {
     assert.equal(e.diagnostics[0].span.start, 9);
     return true;
   });

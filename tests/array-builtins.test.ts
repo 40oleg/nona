@@ -19,6 +19,10 @@ const cases:[string,string][]=[
  ['includes values and holes',`var a=[1,,NaN];console.log(a.includes(1),a.includes(undefined),a.includes(NaN),a.includes(2));`],
  ['includes fromIndex',`var a=[1,2,1];console.log(a.includes(1,1),a.includes(1,-1),a.includes(1,-3),a.includes(1,Infinity),a.includes(2,-Infinity));`],
  ['includes generic inherited values',`var o={__proto__:{0:'x'},length:2,1:'y'};console.log(Array.prototype.includes.call(o,'x'),Array.prototype.includes.call(o,'y'),Array.prototype.includes.call('ab','b'));`],
+ ['indexOf and lastIndexOf values',`var a=['a','b','a'];console.log(a.indexOf('a'),a.indexOf('a',1),a.lastIndexOf('a'),a.lastIndexOf('a',1),a.indexOf('x'),a.lastIndexOf('x'));`],
+ ['indexOf and lastIndexOf holes',`var a=[,undefined,NaN];console.log(a.indexOf(undefined),a.lastIndexOf(undefined),a.indexOf(NaN),a.lastIndexOf(NaN),Array.prototype.indexOf.length,Array.prototype.lastIndexOf.length);`],
+ ['indexOf and lastIndexOf positions',`var a=[1,2,1];console.log(a.indexOf(1,-1),a.indexOf(1,-4),a.indexOf(1,Infinity),a.lastIndexOf(1,-1),a.lastIndexOf(1,-.5),a.lastIndexOf(1,Infinity),a.lastIndexOf(1,undefined),a.lastIndexOf(1,-Infinity),a.lastIndexOf(1,-5.3));`],
+ ['indexOf and lastIndexOf generic inherited',`var o={__proto__:{0:'x'},length:2,1:'y'};console.log(Array.prototype.indexOf.call(o,'x'),Array.prototype.lastIndexOf.call(o,'x'),Array.prototype.indexOf.call('ab','b'));`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -41,4 +45,9 @@ test('array builtins: pop survives getter and GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: indexOf survives getter and GC',()=>{
+ const source=`var needle={x:1},o={length:2};Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return needle;}});console.log(Array.prototype.indexOf.call(o,needle),Array.prototype.lastIndexOf.call(o,needle));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

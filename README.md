@@ -1,12 +1,12 @@
 # Nona
 
-**Nona is an experimental ahead-of-time compiler that turns a supported subset of JavaScript into a standalone Windows x64 executable.**
+**Nona is an experimental ahead-of-time compiler that turns a supported subset of JavaScript into standalone Windows or Linux x64 executables.**
 
 [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [Runtime memory model](docs/runtime-memory.md)
 
-Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code, and writes a PE32+ executable. The generated program does not embed Node.js or a JavaScript interpreter and does not require a C/C++ compiler, LLVM, or the Microsoft C runtime. Its only runtime dependency is the Windows system library `KERNEL32.dll`.
+Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code, and writes PE32+ or ELF64 executables. The generated program does not embed Node.js or a JavaScript interpreter and does not require a C/C++ compiler or LLVM. Windows output uses `KERNEL32.dll`; Linux output uses direct syscalls.
 
-> **Project status:** `v0.2` expands the supported JavaScript subset with arrows, templates, iteration, Symbols, rest parameters, and selected built-ins. ES2020 support remains incomplete. Native output currently targets Windows x64 only; arbitrary JavaScript and Node.js projects are not supported.
+> **Project status:** `v0.3` extends the supported JavaScript subset and adds Linux x64 native output. ES2020 remains incomplete; arbitrary JavaScript and Node.js projects are not supported.
 
 ## How it works
 
@@ -74,7 +74,7 @@ Hello, from Nona!
 The CLI accepts one UTF-8 source file:
 
 ```text
-nona build <input.js> -o <output.exe> [--target win32-x64]
+nona build <input.js> -o <output> [--target win32-x64|linux-x64]
 nona --help
 nona --version
 ```
@@ -103,7 +103,9 @@ The implemented subset includes:
 - `if`, `switch`, `while`, `do/while`, traditional `for`, `for...in`, `for...of`, labels, `break`, and `continue`;
 - `var`, `let`, and `const`, including hoisting, block scope, TDZ, and per-iteration bindings;
 - ordinary and arrow functions, rest parameters, function expressions, recursion, closures, `this`, `arguments`, `new`, `new.target`, and `super` property access in object methods;
-- untagged template literals and the basic iterator protocol for arrays, strings, and custom iterables;
+- template literals, tagged templates, and the basic iterator protocol for arrays, strings, and custom iterables;
+- selected UTF-16 string methods, including `indexOf`, `lastIndexOf`, `padStart`, `padEnd`, and `String.fromCharCode`;
+- selected array methods, including `includes`, `indexOf`, and `lastIndexOf`;
 - `call`, `apply`, `bind`, function metadata, and function source text;
 - property descriptors, accessors, prototype chains, object integrity operations, and selected `Object` APIs;
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;
@@ -116,13 +118,12 @@ See the [language support matrix](docs/language-support.md) for exact behavior a
 
 Nona does not currently implement the complete ECMAScript standard. Major missing areas include:
 
-- classes, destructuring, spread syntax, and default parameters;
-- tagged templates;
-- generators, promises, and async functions;
+- remaining ES2020 class semantics, including async methods;
+- remaining generator semantics, promises, and async functions;
 - modules, `BigInt`, collections, proxies, typed arrays, and regular expressions;
 - most of the standard `Array`, `String`, `Number`, `Math`, `Date`, and `JSON` APIs;
 - browser APIs, Node.js APIs, `eval`, and dynamic function constructors;
-- targets other than Windows x64.
+- targets other than Windows and Linux x64.
 
 Unsupported syntax is rejected by the compiler. Consult the support matrix before relying on a language feature.
 

@@ -28,7 +28,7 @@ export function lex(source: string): TokenStream {
   };
   const templates:{depth:number}[]=[];
   const templateSegment=(start:number,continued:boolean):void=>{
-    let cooked='';
+    let cooked:string|undefined='';
     while(i<source.length){
       const char=source[i++]!;
       if(char==='`'){
@@ -43,21 +43,28 @@ export function lex(source: string): TokenStream {
         if(i>=source.length)fail('Unterminated template',start);
         const escape=source[i++]!;
         if(newline(escape)){if(escape==='\r'&&source[i]==='\n')i++;continue;}
-        if(escape==='u'){cooked+=unicodeEscape(i-2);continue;}
+        if(escape==='u'){
+          const braced=source[i]==='{';
+          const match=braced?/^\{([0-9a-f]+)\}/i.exec(source.slice(i)):null;
+          const valid=braced?!!match&&parseInt(match[1]!,16)<=0x10ffff:/^[0-9a-f]{4}$/i.test(source.slice(i,i+4));
+          if(valid){const decoded=unicodeEscape(i-2);if(cooked!==undefined)cooked+=decoded;}
+          else cooked=undefined;
+          continue;
+        }
         if(escape==='x'){
           const digits=source.slice(i,i+2);
-          if(!/^[0-9a-f]{2}$/i.test(digits))fail('Invalid template escape',i-2);
-          cooked+=String.fromCharCode(parseInt(digits,16));i+=2;continue;
+          if(!/^[0-9a-f]{2}$/i.test(digits)){cooked=undefined;continue;}
+          if(cooked!==undefined)cooked+=String.fromCharCode(parseInt(digits,16));i+=2;continue;
         }
-        if(/[1-9]/.test(escape)||escape==='0'&&/[0-9]/.test(source[i]??''))fail('Legacy octal template escape',i-2);
+        if(/[1-9]/.test(escape)||escape==='0'&&/[0-9]/.test(source[i]??'')){cooked=undefined;continue;}
         const escapes:Record<string,string>={n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0'};
-        cooked+=escapes[escape]??escape;continue;
+        if(cooked!==undefined)cooked+=escapes[escape]??escape;continue;
       }
       if(char==='\r'){
         if(source[i]==='\n')i++;
-        cooked+='\n';continue;
+        if(cooked!==undefined)cooked+='\n';continue;
       }
-      cooked+=char;
+      if(cooked!==undefined)cooked+=char;
     }
     fail('Unterminated template',start);
   };

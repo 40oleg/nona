@@ -33,10 +33,13 @@ export function emitErrors(b:RuntimeBuilder):void {
    const bytes=new Uint8Array(P.size);bytes[P.value]=4;bytes[P.attributes]=A.writable|A.configurable;
    b.bundle.fragments.push({name:prototype+'.'+key,section:'.data',alignment:8,bytes,symbols:{},fixups:[pointer(P.key,key==='name'?'rt.str.name':'rt.error.messageText'),pointer(P.value+8,key==='name'?'rt.'+name+'.text':'rt.str.empty'),...(key==='name'?[pointer(P.next,prototype+'.message')]:[])]});
   }
-  rootedFn(b,'rt.'+name+'.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],a=>{
+  for(const construct of [false,true])rootedFn(b,'rt.'+name+(construct?'.construct':'.code'),136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
    a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
-   a.load('r10',slot(88));a.mov('rax',ErrorKind);a.store({base:'r10',disp:O.kind},'rax');a.lea('rax',{rip:prototype});a.store({base:'r10',disp:O.prototype},'rax');
+   a.load('r10',slot(88));a.mov('rax',ErrorKind);a.store({base:'r10',disp:O.kind},'rax');
+   if(construct){a.load('rax',slot(frame+40));a.load('rax',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:O.prototype});}
+   else a.lea('rax',{rip:prototype});
+   a.store({base:'r10',disp:O.prototype},'rax');
    const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
    a.load('rdx',slot(56));a.load('rax',{base:'rdx'});a.test('rax','rax');a.jcc('e',done);
    a.lea('rcx',slot(96));a.call('rt.toString');

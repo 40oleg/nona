@@ -1,9 +1,9 @@
 # ES2020 completion contract
 
 Target: the normative ECMA-262 11th edition (June 2020) language and built-ins,
-compiled ahead of time to a standalone executable. The current executable target
-is Windows x64. Linux x64 is a planned second target; semantic tests must not
-depend on PE, KERNEL32, or the Windows calling convention.
+compiled ahead of time to a standalone executable. Windows x64 and Linux x64
+targets exist for the supported subset; semantic tests must not depend on PE,
+KERNEL32, or the Windows calling convention.
 
 This is **not** a claim that Nona currently conforms. The current implementation
 is documented in [language-support.md](language-support.md). This contract is the
@@ -39,7 +39,7 @@ chapter works. A row closes only with runnable conformance evidence.
 | Functions, arrows, parameters, destructuring, templates | Partial | Call/construct/`this`/arguments and syntax groups |
 | Proper tail calls in strict code | Missing | Tail-position Test262 groups, bounded native stack use |
 | Objects, descriptors, classes, `super`, symbols | Partial | Internal-method invariants and class groups |
-| Iterators and generators | Missing | Iterator protocol and generator state groups |
+| Iterators and generators | Partial | Iterator protocol and generator state groups, including delegated `yield*` and abrupt completion |
 | Promises, jobs, async functions/generators | Missing | Job ordering, assimilation, async completion groups |
 | Script and module linking, dynamic import, `import.meta` | Missing | Multi-file graph, cycles, live bindings, errors |
 | BigInt and all numeric semantics | Partial | Numeric and BigInt groups, boundary values |

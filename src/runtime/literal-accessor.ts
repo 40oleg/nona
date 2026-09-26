@@ -8,8 +8,8 @@ export function emitLiteralAccessor(b:RuntimeBuilder):void {
  rootedFn(b,'rt.defineLiteralAccessor',184,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:6}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   a.mov('rax',2);a.store(slot(80+D.enumerable),'rax');a.store(slot(80+D.configurable),'rax');
-  a.mov('rax',1);a.store(slot(80+D.enumerable+8),'rax');a.store(slot(80+D.configurable+8),'rax');
-  const setter=a.unique('setter'),apply=a.unique('apply');a.test('r9','r9');a.jcc('ne',setter);
+  a.mov('rax','r9');a.and('rax',2);a.test('rax','rax');const enumerable=a.unique('enumerable'),enumerabilityReady=a.unique('enumerabilityReady');a.jcc('e',enumerable);a.mov('rax',0);a.jmp(enumerabilityReady);a.label(enumerable);a.mov('rax',1);a.label(enumerabilityReady);a.store(slot(80+D.enumerable+8),'rax');a.mov('rax',1);a.store(slot(80+D.configurable+8),'rax');
+  const setter=a.unique('setter'),apply=a.unique('apply');a.mov('rax','r9');a.and('rax',1);a.test('rax','rax');a.jcc('ne',setter);
   for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(80+D.get+n),'rax');}
   a.mov('rax',F.enumerable|F.configurable|F.get);a.jmp(apply);a.label(setter);
   for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(80+D.set+n),'rax');}

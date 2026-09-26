@@ -260,6 +260,12 @@ export class Assembler {
   sqrtsd(d: Xmm, s: Xmm | Mem): void {
     this.sse(d, s, 0x51);
   }
+  cvtsd2ss(d: Xmm, s: Xmm | Mem): void {
+    this.sse(d, s, 0x5a);
+  }
+  cvtss2sd(d: Xmm, s: Xmm | Mem): void {
+    this.sse(d, s, 0x5a, 0xf3);
+  }
   ucomisd(d: Xmm, s: Xmm | Mem): void {
     this.sse(d, s, 0x2e, 0x66);
   }

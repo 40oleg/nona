@@ -3,14 +3,20 @@ import type * as A from './ast.js';
 export type LexicalDeclaration={
   name:string;
   id:A.Identifier;
-  kind:'let'|'const'|'function';
-  statement:A.Var|A.FunctionDeclaration;
+  kind:'let'|'const'|'function'|'class';
+  statement:A.Var|A.FunctionDeclaration|A.ClassDeclaration;
 };
 
 export interface DeclarationInfo {
   lexicals:LexicalDeclaration[];
   vars:A.Identifier[];
   bodyFunctions:A.FunctionDeclaration[];
+}
+export function boundNames(pattern:A.BindingPattern):A.Identifier[]{
+ if(pattern.kind==='Identifier')return [pattern];
+ if(pattern.kind==='Member')return [];
+ if(pattern.kind==='ObjectPattern')return [...pattern.properties.flatMap(property=>boundNames(property.value.id)),...(pattern.rest?boundNames(pattern.rest):[])];
+ return [...pattern.elements.flatMap(element=>element?boundNames(element.id):[]),...(pattern.rest?boundNames(pattern.rest):[])];
 }
 
 export function collectDeclarations(
@@ -20,15 +26,16 @@ export function collectDeclarations(
   const lexicals:LexicalDeclaration[]=[],vars:A.Identifier[]=[],bodyFunctions:A.FunctionDeclaration[]=[];
   for(const statement of statements){
     if(statement.kind==='Var'&&statement.declarationKind!=='var')for(const declaration of statement.declarations)
-      lexicals.push({name:declaration.id.name,id:declaration.id,kind:statement.declarationKind,statement});
+      for(const id of boundNames(declaration.id))lexicals.push({name:id.name,id,kind:statement.declarationKind,statement});
     if(statement.kind==='Function'){
       if(functionDeclarationKind==='var')bodyFunctions.push(statement);
       else lexicals.push({name:statement.id.name,id:statement.id,kind:'function',statement});
     }
+    if(statement.kind==='Class')lexicals.push({name:statement.id.name,id:statement.id,kind:'class',statement});
   }
   const visitVars=(list:readonly A.Statement[]):void=>{
     for(const statement of list)switch(statement.kind){
-      case 'Var':if(statement.declarationKind==='var')for(const declaration of statement.declarations)vars.push(declaration.id);break;
+      case 'Var':if(statement.declarationKind==='var')for(const declaration of statement.declarations)vars.push(...boundNames(declaration.id));break;
       case 'Try':visitVars(statement.body.body);if(statement.handler)visitVars(statement.handler.body);if(statement.finalizer)visitVars(statement.finalizer.body);break;
       case 'Block':visitVars(statement.body);break;
       case 'If':visitVars([statement.consequent,...(statement.alternate?[statement.alternate]:[])]);break;
