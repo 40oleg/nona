@@ -24,4 +24,6 @@ for(const [name,source,expected] of [
  ['minute setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setMinutes(v)),d.getTime())`],
  ['hour setters preserve and override lower fields',`for(let t of [-1,0,3661007]){let d=new Date(t);console.log(d.setUTCHours(2),d.getTime());console.log(d.setHours(-3,12,34,56),d.getTime())}`,'-75600001 -75600001\n-96445944 -96445944\n7200000 7200000\n-10045944 -10045944\n7261007 7261007\n-10045944 -10045944\n'],
  ['hour setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setHours(v)),d.getTime())`],
+ ['day setters cross month boundaries',`for(let t of [Date.UTC(2000,1,29),Date.UTC(1970,0,1),-1]){let d=new Date(t);console.log(d.setUTCDate(0),d.getTime());console.log(d.setUTCDate(35),d.getTime())}`],
+ ['day setter snapshots invalid time',`let d=new Date(NaN),v={valueOf(){d.setTime(0);return 2}};console.log(Number.isNaN(d.setUTCDate(v)),d.getTime())`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
