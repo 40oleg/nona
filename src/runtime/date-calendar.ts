@@ -7,13 +7,13 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
  // RCX Number Value output; RDX pointer to seven Number Values: year, month,
  // day, hour, minute, second, millisecond. Every element is already ToNumber.
  // R8 requests the Date.UTC/constructor 0..99 year adjustment; setters pass 0.
- b.fn('rt.dateMakeTime',216,a=>{
+ b.fn('rt.dateMakeTime',248,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(184),'r8');
   const invalid=a.unique('invalid'),finish=a.unique('finish');
   for(let i=0;i<7;i++){
    a.load('r10',slot(48));a.movsd('xmm0',{base:'r10',disp:i*16+8});a.ucomisd('xmm0','xmm0');a.jcc('p',invalid);
-   a.mov('rax',1000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
-   a.mov('rax',-1000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);
+   if(i<3){a.mov('rax',1000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
+    a.mov('rax',-1000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);}
    a.cvttsd2si('rax','xmm0');a.store(slot(64+8*i),'rax');
   }
   // MakeFullYear: years 0..99 denote 1900..1999.
@@ -35,13 +35,24 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
   a.load('rax',slot(152));a.xor('rdx','rdx');a.mov('r10',4);a.div('r10');a.load('r11',slot(168));a.add('r11','rax');a.store(slot(168),'r11');
   a.load('rax',slot(152));a.xor('rdx','rdx');a.mov('r10',100);a.div('r10');a.load('r11',slot(168));a.sub('r11','rax');a.load('rax',slot(160));a.add('r11','rax');
   a.load('rax',slot(144));a.mov('r10',146097);a.imul('rax','r10');a.add('rax','r11');a.sub('rax',719468);
-  a.store(slot(176),'rax');a.cmp('rax',100000001);a.jcc('ge',invalid);a.cmp('rax',-100000001);a.jcc('le',invalid);
-  a.mov('r10',86400000);a.imul('rax','r10');
-  for(const [offset,scale] of [[88,3600000],[96,60000],[104,1000],[112,1]] as const){
-   a.load('r11',slot(offset));if(scale!==1){a.mov('r10',scale);a.imul('r11','r10');}a.add('rax','r11');
+  a.store(slot(176),'rax');
+  // MakeTime and MakeDate use IEEE-754 operations in their specified order.
+  // Truncate finite component inputs before multiplication, preserving values
+  // larger than int64 (which are already integral at binary64 precision).
+  for(let i=3;i<7;i++){
+   a.load('r10',slot(48));a.movsd('xmm0',{base:'r10',disp:i*16+8});
+   a.mov('rax',0x7ff0000000000000n);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',invalid);
+   a.mov('rax',0xfff0000000000000n);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',invalid);
+   const large=a.unique('large');a.mov('rax',9223372036854775807n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',large);
+   a.mov('rax',-9223372036854775807n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',large);
+   a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.label(large);a.storesd(slot(192+8*(i-3)),'xmm0');
   }
-  a.mov('r10',8640000000000000n);a.cmp('rax','r10');a.jcc('g',invalid);a.neg('r10');a.cmp('rax','r10');a.jcc('l',invalid);
-  a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(finish);
+  a.movsd('xmm0',slot(192));a.mov('rax',3600000);a.cvtsi2sd('xmm1','rax');a.mulsd('xmm0','xmm1');
+  for(const [offset,scale] of [[200,60000],[208,1000],[216,1]] as const){a.movsd('xmm1',slot(offset));if(scale!==1){a.mov('rax',scale);a.cvtsi2sd('xmm2','rax');a.mulsd('xmm1','xmm2');}a.addsd('xmm0','xmm1');}
+  a.storesd(slot(224),'xmm0');a.load('rax',slot(176));a.cvtsi2sd('xmm0','rax');a.mov('rax',86400000);a.cvtsi2sd('xmm1','rax');a.mulsd('xmm0','xmm1');a.addsd('xmm0',slot(224));
+  a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
+  a.mov('rax',-8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',invalid);
+  a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(finish);
   a.label(invalid);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0x7ff8000000000000n);a.store({base:'rcx',disp:8},'rax');a.label(finish);
  });
  // Gather arguments in observable left-to-right order before calendar math.

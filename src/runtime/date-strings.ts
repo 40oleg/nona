@@ -2,14 +2,15 @@ import {RuntimeBuilder,slot} from './abi.js';
 import {DateLayout} from './date.js';
 import {stringLiteral} from './value.js';
 
-export const dateStringMethods=['toUTCString','toDateString','toTimeString','toString'] as const;
+export const dateStringMethods=['toUTCString','toDateString','toTimeString','toString','toLocaleDateString','toLocaleTimeString','toLocaleString'] as const;
 
 export function emitDateStrings(b:RuntimeBuilder):void {
  const table=(names:string[])=>{const bytes=new Uint8Array(names.length*8),view=new DataView(bytes.buffer);names.forEach((name,i)=>view.setBigUint64(i*8,BigInt(name.charCodeAt(0))|(BigInt(name.charCodeAt(1))<<16n)|(BigInt(name.charCodeAt(2))<<32n),true));return bytes;};
  b.data('rt.date.weekdays',table(['Sun','Mon','Tue','Wed','Thu','Fri','Sat']));
  b.data('rt.date.months',table(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']));
  b.bundle.fragments.push(stringLiteral('rt.str.invalidDate','Invalid Date'));
- for(const mode of dateStringMethods)b.fn('rt.Date.'+mode+'.fn.code',200,a=>{
+ for(const method of dateStringMethods){const mode=method==='toLocaleDateString'?'toDateString':method==='toLocaleTimeString'?'toTimeString':method==='toLocaleString'?'toString':method;
+ b.fn('rt.Date.'+method+'.fn.code',200,a=>{
   const literal=(s:string)=>{for(const c of s){a.mov('r10',c.charCodeAt(0));a.store({base:'r9'},'r10',16);a.add('r9',2);}};
   const digits=(width:number)=>{for(let i=width-1;i>=0;i--){a.xor('rdx','rdx');a.mov('r10',10);a.div('r10');a.add('rdx',48);a.store({base:'r9',disp:i*2},'rdx',16);}a.add('r9',width*2);};
   const name=(offset:number,tableName:string)=>{a.load('rax',slot(offset));a.shl('rax',3);a.lea('r10',{rip:tableName});a.add('r10','rax');a.load('r10',{base:'r10'});for(let i=0;i<3;i++){a.store({base:'r9',disp:i*2},'r10',16);if(i<2)a.shr('r10',16);}a.add('r9',6);};
@@ -33,5 +34,5 @@ export function emitDateStrings(b:RuntimeBuilder):void {
   else if(mode==='toTimeString'){time();literal(' GMT+0000');}
   else{name(96,'rt.date.weekdays');literal(' ');name(80,'rt.date.months');literal(' ');a.load('rax',slot(88));digits(2);literal(' ');year();if(mode==='toString'){literal(' ');time();literal(' GMT+0000');}}
   a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(168));a.store({base:'rcx',disp:8},'rax');a.label(done);
- });
+ });}
 }
