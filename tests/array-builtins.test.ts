@@ -8,6 +8,7 @@ import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
+ ['Array unscopables object can be modified',`var u=Array.prototype[Symbol.unscopables];u.flat=false;u.extra=true;console.log(u.flat,u.extra,Object.prototype.hasOwnProperty.call(u,'extra'),Array.prototype[Symbol.unscopables]===u);`],
  ['sort default and metadata',`var a=[10,2,1];console.log(a.sort()===a,a.join(','),Array.prototype.sort.length);`],
  ['sort numeric callback and stability',`var a=[{k:2,i:'a'},{k:1,i:'b'},{k:2,i:'c'}];a.sort(function(x,y){return x.k-y.k});console.log(a.map(function(x){return x.i}).join(','));`],
  ['sort undefined and holes',`var a=[,undefined,3,,1,undefined];a.sort();console.log(a.length,a[0],a[1],a[2],a[3],4 in a,5 in a);`],
@@ -138,6 +139,11 @@ const cases:[string,string][]=[
  ['unshift no arguments clamps huge length',`var o={length:Infinity};console.log(Array.prototype.unshift.call(o),o.length);o.length=9007199254740992;console.log(Array.prototype.unshift.call(o),o.length);`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
+
+test('array builtins: ES2020 Array unscopables names and descriptors',()=>{
+ const source=`var u=Array.prototype[Symbol.unscopables],d=Object.getOwnPropertyDescriptor(Array.prototype,Symbol.unscopables);console.log(Object.getPrototypeOf(u)===null,Object.keys(u).join(','),Object.keys(u).every(function(k){return u[k]===true}),d.writable,d.enumerable,d.configurable);`;
+ expectProgram(source,'true copyWithin,entries,fill,find,findIndex,flat,flatMap,includes,keys,values true false false true\n');
+});
 
 test('array builtins: toLocaleString methods and strings survive stress GC',()=>{
  const source=`var a=[{toLocaleString(){for(var i=0;i<30;i++)({x:i});return {toString(){for(var j=0;j<30;j++)({y:j});return 'left'}}}},{toLocaleString(){for(var i=0;i<30;i++)({z:i});return 'right'}}];console.log(a.toLocaleString());`;

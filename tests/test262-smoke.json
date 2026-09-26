@@ -92,6 +92,7 @@
     "built-ins/Array/prototype/flat/positive-infinity.js",
     "built-ins/Array/prototype/flatMap/depth-always-one.js",
     "built-ins/Array/prototype/toLocaleString/invoke-element-tolocalestring.js",
-    "built-ins/Array/prototype/sort/stability-11-elements.js"
+    "built-ins/Array/prototype/sort/stability-11-elements.js",
+    "built-ins/Array/prototype/Symbol.unscopables/value.js"
   ]
 }
