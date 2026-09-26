@@ -41,6 +41,7 @@ jobs:
             test/built-ins/Array/prototype/toLocaleString
             test/built-ins/Array/prototype/sort
             test/built-ins/Array/prototype/Symbol.unscopables
+            test/built-ins/Array/prototype/values
             test/built-ins/Array/prototype/indexOf
             test/built-ins/Array/prototype/lastIndexOf
             test/built-ins/Array/prototype/forEach

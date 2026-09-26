@@ -2281,3 +2281,24 @@ ES2020 ключами со значением `true`; дескриптор си�
 относятся к методам `at`, `findLast` и change-array-by-copy, появившимся
 после ES2020. Целевые native тесты: 2/2; вся группа Array: 154/154;
 положительный smoke Test262: 94/94.
+
+## 2026-09-26: полный аудит Test262 Array и завершение итераторов
+
+Запущены все 3082 файла `built-ins/Array` закреплённой ревизии Test262:
+2632 pass, 360 fail, 90 skip. Этот сырой результат включает API после
+ES2020 (`at`, `findLast`, `findLastIndex`, `toReversed`, `toSorted`,
+`toSpliced`, `with`, `fromAsync`), resizable buffers и отсутствующие пока
+Proxy/Reflect, BigInt, RegExp, Date, JSON, ArrayBuffer/typed arrays и
+cross-realm. Пять тестов с sparse Array длиной 1 000 000 достигли лимита
+smoke-раннера 30 с; производительность требует отдельной проверки.
+
+Аудит выявил ошибку ES2020: массивный итератор после первого `done: true`
+оставался привязанным к исходному массиву, поэтому при последующем `push`
+мог снова вернуть значение. При завершении `next` теперь очищает
+`[[IteratedObject]]`; повторные вызовы остаются завершёнными. Группы
+Test262 `entries`, `keys` и `values` после исправления: по 9/12;
+три остальных случая в каждой группе требуют resizable buffers.
+Целевой native тест с мутацией массива прошёл; `for-of` и Array регрессия:
+197/197. Положительный smoke Test262: 95/95. Отдельная проверка
+`Array.of` с nonconstructor function на доступном `Math.pow` прошла;
+провал Test262 с `Math.cos` относится к пока отсутствующему Math API.

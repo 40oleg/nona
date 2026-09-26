@@ -30,6 +30,7 @@ const cases:[string,string][]=[
   ['array values identity',`console.log(Array.prototype.values===Array.prototype[Symbol.iterator],[2].values().next().value);`],
   ['array keys iterator',`var a=[4,,6],i=a.keys();console.log(i.next().value,i.next().value,i.next().value,i.next().done);`],
   ['array entries iterator',`var a=[4,,6],i=a.entries(),x=i.next().value,y=i.next().value,z=i.next().value;console.log(x[0],x[1],y[0],y[1],z[0],z[1],i.next().done);`],
+  ['array iterators stay done after growth',`for(var name of ['keys','values','entries']){var a=[],it=a[name]();a.push('a');console.log(it.next().done,it.next().done);a.push('b');console.log(it.next().done);}`],
   ['for-of array entries',`var a=[3,4],s='';for(var pair of a.entries())s+=pair[0]+':'+pair[1]+';';console.log(s);`],
   ['arguments iterator',`function f(){var s='';for(var x of arguments)s+=x;return s;}console.log(f(1,2,3));`],
   ['strict arguments iterator',`function f(){'use strict';var s='';for(var x of arguments)s+=x;return s;}console.log(f('a','b'));`],

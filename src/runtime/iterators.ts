@@ -69,11 +69,13 @@ export function emitIterators(b:RuntimeBuilder):void {
  rootedFn(b,'rt.iteratorNext.fn.code',200,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:7}],(a,frame)=>{
   a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',IteratorKind);failIf(a,'ne','rt.throwTypeError');
+  const finished=a.unique('finished'),construct=a.unique('construct');
+  a.load('rax',{base:'r10',disp:Source});a.test('rax','rax');a.jcc('e',finished);
   a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(88),'rax');
   a.lea('rcx',slot(96));a.lea('rdx',{base:'r10',disp:Source});a.lea('r8',slot(80));a.call('rt.getProperty');
   a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toNumber');
   a.load('r10',slot(72));a.movsd('xmm0',{base:'r10',disp:Index+8});a.ucomisd('xmm0',slot(120));
-  const finished=a.unique('finished'),construct=a.unique('construct');a.jcc('ae',finished);
+  a.jcc('ae',finished);
   a.load('rax',{base:'r10',disp:O.flags});const values=a.unique('values'),keys=a.unique('keys'),valueReady=a.unique('valueReady');a.cmp('rax',1);a.jcc('e',keys);
   a.mov('rax',3);a.store(slot(112),'rax');a.movsd('xmm0',{base:'r10',disp:Index+8});a.storesd(slot(120),'xmm0');
   a.lea('rcx',slot(128));a.lea('rdx',{base:'r10',disp:Source});a.lea('r8',{base:'r10',disp:Index});a.call('rt.forOfValue');
@@ -85,7 +87,7 @@ export function emitIterators(b:RuntimeBuilder):void {
   a.label(keys);a.mov('rax',3);a.store(slot(128),'rax');a.movsd('xmm0',{base:'r10',disp:Index+8});a.storesd(slot(136),'xmm0');a.mov('rax',1);a.cvtsi2sd('xmm1','rax');a.addsd('xmm0','xmm1');a.storesd({base:'r10',disp:Index+8},'xmm0');
   a.label(valueReady);
   a.mov('rax',2);a.store(slot(144),'rax');a.mov('rax',0);a.store(slot(152),'rax');a.jmp(construct);
-  a.label(finished);a.mov('rax',0);a.store(slot(128),'rax');a.store(slot(136),'rax');a.mov('rax',1);a.store(slot(152),'rax');a.mov('rax',2);a.store(slot(144),'rax');
+  a.label(finished);a.load('r10',slot(72));a.mov('rax',0);a.store({base:'r10',disp:Source},'rax');a.store({base:'r10',disp:Source+8},'rax');a.store(slot(128),'rax');a.store(slot(136),'rax');a.mov('rax',1);a.store(slot(152),'rax');a.mov('rax',2);a.store(slot(144),'rax');
   a.label(construct);a.lea('rcx',slot(160));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.iter.value'});a.store(slot(184),'rax');
   a.lea('rcx',slot(160));a.lea('rdx',slot(176));a.lea('r8',slot(128));a.mov('r9',1);a.call('rt.setProperty');

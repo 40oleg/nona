@@ -9,6 +9,7 @@ import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
  ['Array unscopables object can be modified',`var u=Array.prototype[Symbol.unscopables];u.flat=false;u.extra=true;console.log(u.flat,u.extra,Object.prototype.hasOwnProperty.call(u,'extra'),Array.prototype[Symbol.unscopables]===u);`],
+ ['Array.of falls back for nonconstructor functions',`var a=Array.of.call(Math.pow),b=Array.of.call(Math.pow.bind(Math));console.log(Array.isArray(a),Array.isArray(b),a.length,b.length);`],
  ['sort default and metadata',`var a=[10,2,1];console.log(a.sort()===a,a.join(','),Array.prototype.sort.length);`],
  ['sort numeric callback and stability',`var a=[{k:2,i:'a'},{k:1,i:'b'},{k:2,i:'c'}];a.sort(function(x,y){return x.k-y.k});console.log(a.map(function(x){return x.i}).join(','));`],
  ['sort undefined and holes',`var a=[,undefined,3,,1,undefined];a.sort();console.log(a.length,a[0],a[1],a[2],a[3],4 in a,5 in a);`],
