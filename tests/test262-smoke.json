@@ -81,6 +81,7 @@
     "built-ins/Array/prototype/reduce/15.4.4.21-1-1.js",
     "built-ins/Array/prototype/reduceRight/15.4.4.22-1-1.js",
     "built-ins/Array/prototype/fill/coerced-indexes.js",
-    "built-ins/Array/prototype/copyWithin/fill-holes.js"
+    "built-ins/Array/prototype/copyWithin/fill-holes.js",
+    "built-ins/Array/prototype/reverse/get_if_present_with_delete.js"
   ]
 }

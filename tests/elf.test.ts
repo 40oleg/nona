@@ -110,3 +110,9 @@ test('Linux native Array.prototype.copyWithin copies holes and references under 
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.reverse preserves holes under GC stress',t=>{
+ const source=`let a=[{x:1},,{x:3}];for(let i=0;i<20;i++)({x:i});a.reverse();console.log(a[0].x,1 in a,a[2].x);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

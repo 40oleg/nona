@@ -105,7 +105,7 @@ The implemented subset includes:
 - ordinary and arrow functions, rest parameters, function expressions, recursion, closures, `this`, `arguments`, `new`, `new.target`, and `super` property access in object methods;
 - template literals, tagged templates, and the basic iterator protocol for arrays, strings, and custom iterables;
 - selected UTF-16 string methods, including `indexOf`, `lastIndexOf`, `padStart`, `padEnd`, and `String.fromCharCode`;
-- selected array methods, including `includes`, `indexOf`, `lastIndexOf`, `forEach`, `some`, `every`, `find`, `findIndex`, `reduce`, `reduceRight`, `fill`, and `copyWithin`;
+- selected array methods, including `includes`, `indexOf`, `lastIndexOf`, `forEach`, `some`, `every`, `find`, `findIndex`, `reduce`, `reduceRight`, `fill`, `copyWithin`, and `reverse`;
 - `call`, `apply`, `bind`, function metadata, and function source text;
 - property descriptors, accessors, prototype chains, object integrity operations, and selected `Object` APIs;
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;

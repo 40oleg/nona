@@ -46,6 +46,7 @@ jobs:
             test/built-ins/Array/prototype/reduceRight
             test/built-ins/Array/prototype/fill
             test/built-ins/Array/prototype/copyWithin
+            test/built-ins/Array/prototype/reverse
             test/built-ins/Array/prototype/pop
             test/built-ins/Math/pow
             test/built-ins/Math/abs

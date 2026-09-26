@@ -49,6 +49,11 @@ const cases:[string,string][]=[
  ['copyWithin holes and inherited',`var a=[1,2,,4];a.copyWithin(0,2,4);console.log(0 in a,1 in a,a[0],a[1]);Array.prototype[2]=7;a=[1,2,,4];a.copyWithin(0,2,4);console.log(a[0],a[1]);delete Array.prototype[2];`],
  ['copyWithin generic and bounds',`var o={length:4,0:'a',2:'c'};console.log(Array.prototype.copyWithin.call(o,1,0,3)===o,o[1],o[2],3 in o);var a=[1,2,3];a.copyWithin(-2,-1,undefined);console.log(a.join(','));`],
  ['copyWithin coercion order',`var s='',a=[1,2,3];a.copyWithin({valueOf(){s+='t';return 0}},{valueOf(){s+='s';return 1}},{valueOf(){s+='e';return 3}});console.log(s,a.join(','));`],
+ ['reverse basic and identity',`var a=[1,2,3,4];console.log(a.reverse()===a,a.join(','),Array.prototype.reverse.length);`],
+ ['reverse sparse holes',`var a=[1,,3,];a.length=4;a.reverse();console.log(a.length,0 in a,1 in a,2 in a,3 in a,a[0],a[1],a[2],a[3]);`],
+ ['reverse generic and inherited',`var o={length:3,0:'a',2:'c'};console.log(Array.prototype.reverse.call(o)===o,o[0],o[2]);Array.prototype[0]='x';var a=[,1];a.reverse();console.log(a[1],0 in a,1 in a);delete Array.prototype[0];`],
+ ['reverse getter and setter order',`var s='',o={length:2};Object.defineProperty(o,'0',{get:function(){s+='a';return 1},set:function(v){s+='c'}});Object.defineProperty(o,'1',{get:function(){s+='b';return 2},set:function(v){s+='d'}});Array.prototype.reverse.call(o);console.log(s);`],
+ ['reverse getter deletes upper',`var a=['first','second'];Object.defineProperty(a,0,{get:function(){a.length=0;return 'first'}});a.reverse();console.log(0 in a,1 in a,a[1]);`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -104,6 +109,11 @@ test('array builtins: fill value survives setter and stress GC',()=>{
 });
 test('array builtins: copyWithin value survives getter and stress GC',()=>{
  const source=`var value={x:7},o={length:2};Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return value;}});Array.prototype.copyWithin.call(o,0,1);console.log(o[0].x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: reverse values survive getters and stress GC',()=>{
+ const source=`var a={x:1},b={x:2},o={length:2};Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return a;},set:function(v){a=v;}});Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return b;},set:function(v){b=v;}});Array.prototype.reverse.call(o);console.log(a.x,b.x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

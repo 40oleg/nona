@@ -2165,3 +2165,15 @@ Get, Set и DeletePropertyOrThrow. Отсутствующий исходный �
 Отдельный Linux native suite: 10 pass, 1 skip. Полная регрессия Node 26.10.0:
 1475 total, 1462 pass, 0 fail, 13 skip (один symlink и 12 WSL-проверок,
 недоступных при параллельном прогоне).
+
+## 2026-09-26: Array.prototype.reverse
+
+Добавлен generic `reverse` с четырьмя ветвями для пары присутствующих или
+отсутствующих индексов, чтением/записью и DeletePropertyOrThrow. Test262
+обнаружил важный порядок: Get нижнего элемента должен происходить до
+HasProperty верхнего, поскольку getter может сократить массив. После
+исправления Windows array suite 57/57, Test262 `reverse` 16/18; оставшиеся
+два случая требуют Proxy либо resizable ArrayBuffer. Этот сценарий включён
+в положительный smoke manifest, который теперь проходит 83/83. Отдельный
+Linux native suite: 11 pass, 1 skip. Общая регрессия Node 26.10.0: 1482
+total, 1471 pass, 0 fail, 11 skip (один symlink и 10 WSL-проверок).
