@@ -1,0 +1,11 @@
+var sparse = [];
+sparse[9] = 3;
+var mapped = sparse.map(function (value) { return value + 1; });
+console.log(mapped.length, 0 in mapped, mapped[9]);
+console.log([3, 1, 2].sort(function (a, b) { return a - b; }).join(','));
+console.log([1, [2, [3]]].flat(2).join(','));
+console.log([1, 2].flatMap(function (value) { return [value, value * 2]; }).join(','));
+console.log([1, , 3].concat([4, 5]).join(','));
+console.log(Array.of(1, 2).join(','), Array.from('ab').join(','));
+console.log([1, null, undefined].toLocaleString());
+console.log(parseInt('0xff'), parseFloat('2.5x'));
