@@ -38,4 +38,5 @@ for(const [name,source,expected] of [
  ['Date Symbol.toPrimitive rejects invalid receiver and hint',`let f=Date.prototype[Symbol.toPrimitive],a,b;try{f.call(3,'number')}catch(e){a=e.name}try{f.call({},'bad')}catch(e){b=e.name}console.log(a,b)`],
  ['UTC and local date strings',`let d=new Date(0);console.log(d.toUTCString(),d.toDateString(),d.toTimeString(),d.toString())`,'Thu, 01 Jan 1970 00:00:00 GMT Thu Jan 01 1970 00:00:00 GMT+0000 Thu Jan 01 1970 00:00:00 GMT+0000\n'],
  ['date strings handle invalid and negative years',`let d=new Date(NaN),e=new Date(Date.UTC(-1,6,1));console.log(d.toUTCString(),d.toDateString(),d.toTimeString(),d.toString());console.log(e.toUTCString(),e.toDateString())`],
+ ['Date as function returns current string and ignores arguments',`let touched=false;let arg={valueOf(){touched=true;throw Error('called')}};let s=Date(arg);console.log(typeof s,s.includes('GMT+0000'),touched,Date.length)`,'string true false 7\n'],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));

@@ -144,9 +144,17 @@ export function emitDate(b:RuntimeBuilder):void {
   a.label(invalid);a.mov('rax',0x7ff8000000000000n);a.movqToXmm('xmm0','rax');
   a.label(save);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
  });
- // Date() string formatting and calendar parsing are added with the rest of
- // the Date surface. Until then a call cannot masquerade as a correct date.
- b.fn('rt.Date.code',40,a=>a.call('rt.throwTypeError'));
+ rootedFn(b,'rt.Date.code',120,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.call('rt.currentTimeMs');a.store(slot(48),'rax');
+  a.mov('rcx',DateLayout.size);a.call('rt.alloc');
+  a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.mov('r10',DateKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  a.lea('r10',{rip:'rt.datePrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+  a.load('r10',slot(48));a.cvtsi2sd('xmm0','r10');a.storesd({base:'rax',disp:DateLayout.time},'xmm0');
+  a.store(slot(72),'rax');a.mov('rax',5);a.store(slot(64),'rax');
+  a.lea('rax',slot(64));a.store(slot(32),'rax');a.load('rcx',slot(40));a.mov('rdx',0);a.lea('r8',{rip:'rt.undefinedValue'});a.call('rt.Date.toString.fn.code');
+ });
  rootedFn(b,'rt.Date.construct',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   const supplied=a.unique('supplied'),ready=a.unique('ready');a.test('rdx','rdx');a.jcc('ne',supplied);
