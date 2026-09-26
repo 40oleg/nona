@@ -128,6 +128,9 @@
     "built-ins/decodeURIComponent/S15.1.3.2_A3_T1.js",
     "built-ins/Math/atanh/atanh-specialVals.js",
     "built-ins/Math/asinh/asinh-specialVals.js",
-    "built-ins/Math/acosh/arg-is-one.js"
+    "built-ins/Math/acosh/arg-is-one.js",
+    "built-ins/Math/sinh/sinh-specialVals.js",
+    "built-ins/Math/cosh/cosh-specialVals.js",
+    "built-ins/Math/tanh/tanh-specialVals.js"
   ]
 }

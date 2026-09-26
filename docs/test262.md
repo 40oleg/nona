@@ -191,3 +191,7 @@ test run after URI work had 1632 passes, 27 skips, and zero failures.
 The complete `Math.asinh` and `Math.acosh` groups pass 5/5 and 7/7.
 Positive smoke is 129/129; compatible examples pass 70/70 on Windows
 and Linux.
+
+The complete `Math.sinh`, `Math.cosh`, and `Math.tanh` groups pass
+5/5 each. Positive smoke is 132/132; compatible examples pass 71/71
+on Windows and Linux.

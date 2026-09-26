@@ -187,3 +187,19 @@ test('Math: asinh and acosh coercion survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('Math: hyperbolic finite values, overflow, and signed zero',()=>{
+ const values=[-711,-710,-100,-20,-1,-1e-12,-0,0,1e-12,1,20,100,710,711];
+ const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
+ const source=`console.log(${values.flatMap(v=>[`Math.sinh(${literal(v)})`,`Math.cosh(${literal(v)})`,`Math.tanh(${literal(v)})`]).join(',')},Object.is(Math.sinh(-0),-0),Object.is(Math.tanh(-0),-0));`;
+ const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length*3),['true','true']);
+ const expected=values.flatMap(v=>[Math.sinh(v),Math.cosh(v),Math.tanh(v)]);
+ for(const [i,value] of expected.entries()){
+  const got=Number(parts[i]);assert.ok(!Number.isFinite(value)?got===value:Math.abs(got-value)<=3e-13*Math.max(Number.MIN_VALUE,Math.abs(value)),`${i}: ${got} vs ${value}`);
+ }
+});
+test('Math: hyperbolic coercion survives stress GC',()=>{
+ const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.sinh(x),Math.cosh(x),Math.tanh(x));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
