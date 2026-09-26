@@ -111,3 +111,7 @@ which have since been fixed. The repeat full Array run has 2640 pass,
 [the v0.4 deferral list](v0.4-array-deferred.json): 150 post-ES2020 API
 cases, 72 resizable-buffer cases, and 130 other future dependencies or
 the documented `eval` exception. The positive manifest passes 100/100.
+
+After v0.4.0, the complete `built-ins/String/fromCodePoint` group passes
+11/11. One case is retained in the pinned smoke manifest; the manifest
+passes 101/101.

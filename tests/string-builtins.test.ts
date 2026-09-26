@@ -15,6 +15,9 @@ const cases:[string,string][]=[
  ['indexOf and lastIndexOf coercion',`var s='';var o={toString(){s+='r';return 'abcabc';}},q={toString(){s+='q';return 'bc';}},p={valueOf(){s+='p';return 4.8;}};console.log(String.prototype.indexOf.call(o,q,p),s);s='';console.log(String.prototype.lastIndexOf.call(o,q,p),s);`],
  ['String.fromCharCode code units',`console.log(String.fromCharCode(65,66,67),String.fromCharCode(0x1f600).charCodeAt(0),String.fromCharCode(-1).charCodeAt(0),String.fromCharCode().length,String.fromCharCode.length);`],
  ['String.fromCharCode conversions',`var s='';var a={valueOf(){s+='a';return 65.9;}},b={valueOf(){s+='b';return 66;}};console.log(String.fromCharCode(a,b),s);`],
+ ['String.fromCodePoint BMP and surrogate pairs',`var s=String.fromCodePoint(65,0x1f600,0xffff);console.log(s.length,s.charCodeAt(0),s.charCodeAt(1),s.charCodeAt(2),s.charCodeAt(3),String.fromCodePoint().length,String.fromCodePoint.length);`],
+ ['String.fromCodePoint validates each code point',`var values=[-1,0x110000,1.5,NaN,Infinity,-Infinity];for(var v of values){try{String.fromCodePoint(v);console.log('ok')}catch(e){console.log(e.name)}}try{String.fromCodePoint(Symbol())}catch(e){console.log(e.name)}`],
+ ['String.fromCodePoint coercion order',`var s='';var a={valueOf(){s+='a';return 65;}},b={valueOf(){s+='b';return 0x1f600;}};console.log(String.fromCodePoint(a,b),s);`],
  ['positions',`console.log('abcabc'.includes('ab',1),'abcabc'.includes('ab',3),'abc'.includes('a',Infinity),'abc'.includes('',Infinity),'abc'.includes('a',-5),'abc'.includes('b',1.9));`],
  ['UTF16 code units',`console.log('😀x'.includes('😀'),'😀x'.includes('\ud83d'),'😀x'.includes('x',2));`],
  ['generic and conversions',`var s='';var o={toString:function(){s+='r';return 'abc';}},q={toString:function(){s+='s';return 'b';}},p={valueOf:function(){s+='p';return 1;}};console.log(String.prototype.includes.call(o,q,p),s,String.prototype.includes.call(123,'2'));`],
@@ -54,6 +57,11 @@ test('String.includes: truthy Symbol.match throws',()=>{
 
 test('String.includes: coercion survives stress GC',()=>{
  const source=`var x={toString:function(){for(var i=0;i<30;i++)({v:i});return 'abc';}},y={toString:function(){for(var i=0;i<30;i++)({v:i});return 'bc';}};console.log(String.prototype.includes.call(x,y));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('String.fromCodePoint: coercion retains buffer under stress GC',()=>{
+ const source=`var a={valueOf(){for(var i=0;i<40;i++)({v:i});return 65;}},b={valueOf(){for(var i=0;i<40;i++)({v:i});return 0x1f600;}};console.log(String.fromCodePoint(a,b).length);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

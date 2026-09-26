@@ -99,6 +99,7 @@
     "built-ins/parseInt/15.1.2.2-2-1.js",
     "built-ins/parseFloat/15.1.2.3-2-1.js",
     "built-ins/Number/parseInt.js",
-    "built-ins/Number/parseFloat.js"
+    "built-ins/Number/parseFloat.js",
+    "built-ins/String/fromCodePoint/return-string-value.js"
   ]
 }
