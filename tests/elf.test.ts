@@ -92,3 +92,9 @@ test('Linux native Array.prototype.find and findIndex visit holes under GC stres
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
+
+test('Linux native Array.prototype.reduce and reduceRight call back under GC stress',t=>{
+ const source=`let a=[1,,3];console.log(a.reduce(function(x,y){for(let j=0;j<20;j++)({x:j});return x+y},0),a.reduceRight(function(x,y){for(let j=0;j<20;j++)({x:j});return x-y},0));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});

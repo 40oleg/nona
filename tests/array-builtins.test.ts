@@ -36,6 +36,10 @@ const cases:[string,string][]=[
  ['find and findIndex visit holes',`var a=[,2],s='';console.log(a.find(function(v,i){s+=String(v)+':'+i+';';return i===0}),s);s='';console.log(a.findIndex(function(v,i){s+=String(v)+':'+i+';';return v===2}),s);`],
  ['find and findIndex generic thisArg',`var o={length:3,0:'a',2:'c'},receiver={x:'c'},s='';console.log(Array.prototype.find.call(o,function(v,i,obj){'use strict';s+=i;return v===this.x&&obj===o},receiver),s);s='';console.log(Array.prototype.findIndex.call(o,function(v,i){s+=i;return i===1}),s);`],
  ['find and findIndex empty callback validation',`for(var method of ['find','findIndex'])try{Array.prototype[method].call([],1)}catch(e){console.log(method,e.name)}`],
+ ['reduce and reduceRight basic',`var a=[1,2,3];console.log(a.reduce(function(x,y){return x-y}),a.reduceRight(function(x,y){return x-y}),a.reduce(function(x,y){return x+y},10),a.reduceRight(function(x,y){return x+y},10),Array.prototype.reduce.length,Array.prototype.reduceRight.length);`],
+ ['reduce and reduceRight holes and initial',`var a=[,,3,,5],s='';console.log(a.reduce(function(x,y,i){s+=i;return x+y}),s);s='';console.log(a.reduceRight(function(x,y,i){s+=i;return x+y}),s);console.log([,,].reduce(function(){return 2},7),[,,].reduceRight(function(){return 2},7));`],
+ ['reduce and reduceRight empty errors',`for(var method of ['reduce','reduceRight']){try{[][method](function(){})}catch(e){console.log(method,e.name)}try{[][method](1,7)}catch(e){console.log(method,e.name)}}`],
+ ['reduce and reduceRight generic receiver',`var o={length:3,0:'a',2:'c'},s='';console.log(Array.prototype.reduce.call(o,function(a,v,i,obj){s+=i;return a+v+(obj===o)},''),s);s='';console.log(Array.prototype.reduceRight.call(o,function(a,v,i){s+=i;return a+v},''),s);`],
 ];
 for(const [name,source] of cases)test(`array builtins: ${name}`,()=>expectProgram(source,runOracle(source).stdout));
 
@@ -76,6 +80,11 @@ test('array builtins: some/every callback survives stress GC',()=>{
 });
 test('array builtins: find/findIndex callback survives stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];console.log(a.find(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}).x,a.findIndex(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+test('array builtins: reduce/reduceRight callback survives stress GC',()=>{
+ const source=`var a=[{x:1},,{x:3}];console.log(a.reduce(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0),a.reduceRight(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

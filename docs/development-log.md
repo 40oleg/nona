@@ -2128,3 +2128,14 @@ Windows array suite: 35/35. Test262: обе группы по 17 pass, 6 fail и
 один использует отсутствующий `splice`, один содержит RegExp literal,
 который компилятор пока не разбирает. Linux native callback и GC проверяются
 отдельным тестом в `elf.test.ts`.
+
+## 2026-09-26: Array.prototype.reduce и reduceRight
+
+Добавлены generic левые и правые свёртки с фиксированной начальной длиной,
+пропуском holes, поиском первого существующего элемента без initial value,
+TypeError для пустого обхода без initial value и передачей callback четырёх
+аргументов. Аккумулятор, значение, индекс и объект удерживаются корнями GC
+при повторном входе в JavaScript. Windows array suite: 40/40; Linux native
+suite: 8 pass, 0 fail, 1 skip из-за WSL-проверки. Test262 для `reduce` и
+`reduceRight`: каждая группа 250/260; шесть случаев в каждой требуют Date,
+RegExp или JSON, четыре — resizable ArrayBuffer после ES2020.
