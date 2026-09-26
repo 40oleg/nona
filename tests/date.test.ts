@@ -32,4 +32,6 @@ for(const [name,source,expected] of [
  ['year setter starts from zero on invalid Date',`let d=new Date(NaN),v={valueOf(){d.setTime(123);return 2001}};console.log(d.setFullYear(v),d.getTime())`,'978307200000 978307200000\n'],
  ['ISO formatting including extended years',`for(let t of [-8640000000000000,-62167219200000,-1,0,Date.UTC(2000,1,29,12,34,56,789),8640000000000000])console.log(new Date(t).toISOString())`],
  ['ISO formatting rejects invalid time',`let a,b;try{new Date(NaN).toISOString()}catch(e){a=e.name}try{Date.prototype.toISOString.call({})}catch(e){b=e.name}console.log(a,b)`],
+ ['toJSON returns ISO, null, and custom result',`let a=new Date(0),b=new Date(NaN),c={valueOf(){return 2},toISOString(){return 42}};console.log(a.toJSON(),b.toJSON(),Date.prototype.toJSON.call(c))`],
+ ['toJSON checks primitives and finite values',`let a=Date.prototype.toJSON;let e;try{a.call(null)}catch(x){e=x.name}console.log(e,a.call({valueOf(){return Infinity},toISOString(){throw Error('called')}}))`],
 ] as const)test(name,()=>expectProgram(source,expected??runOracle(source).stdout));
