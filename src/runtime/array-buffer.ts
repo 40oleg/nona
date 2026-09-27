@@ -21,6 +21,10 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.ArrayBuffer.isView.fn','isView',1,'rt.ArrayBuffer');
  b.fn('rt.ArrayBuffer.isView.fn.code',40,a=>{
   a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');
+  const done=a.unique('done');a.test('rdx','rdx');a.jcc('e',done);
+  a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',done);
+  a.load('rax',{base:'r8',disp:8});a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',12);a.jcc('ne',done);
+  a.mov('rax',1);a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
  prependFunctionBuiltin(b,'rt.arrayBufferCopy.fn','__nonaCopyInternal',4,'rt.ArrayBuffer');
  b.fn('rt.arrayBufferCopy.fn.code',88,a=>{
