@@ -146,7 +146,8 @@ export function emitObjects(b:RuntimeBuilder):void {
       a.cmp('rax',6);a.jcc('ne',notTypedIndex);
       a.load('rcx',slot(64));a.call('rt.arrayIndex');
       a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rdx',disp:TypedArrayLayout.byteOffset});a.add('rax','r10');
-      a.load('rdx',{base:'rdx',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',{base:'rdx'},8);a.jmp(number);
+      a.load('r10',{base:'rdx',disp:TypedArrayLayout.elementType});a.load('rdx',{base:'rdx',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',{base:'rdx'},8);
+      const unsigned=a.unique('unsigned');a.cmp('r10',2);a.jcc('ne',unsigned);a.shl('rax',56);a.sar('rax',56);a.label(unsigned);a.jmp(number);
       a.label(notTypedIndex);a.cmp('rax',3);a.jcc('e',copy);
       a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',dataProperty);
       a.mov('r10','rax');copyValue(a,slot(96),{base:'r10',disp:P.getter});a.load('rax',slot(96));a.test('rax','rax');a.jcc('e',missing);

@@ -282,3 +282,19 @@ test('TypedArray.of keeps values rooted during coercion',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 7 2\n');
 });
+
+test('Int8Array shares backing bytes and reads signed values',()=>expectProgram(`
+  var buffer=new ArrayBuffer(4),signed=new Int8Array(buffer),unsigned=new Uint8Array(buffer);
+  signed[0]=-1;signed[1]=128;unsigned[2]=254;
+  console.log(signed[0],signed[1],signed[2],unsigned[0],unsigned[1],ArrayBuffer.isView(signed));
+  console.log(new Int8Array([255,256,-129]).length,Int8Array.of(255,-129)[0],Int8Array.of(255,-129)[1]);
+  console.log(signed instanceof Int8Array,Object.prototype.toString.call(signed),Object.getPrototypeOf(Int8Array)===Object.getPrototypeOf(Uint8Array));
+  var view=new Int8Array(buffer,1,2);console.log(view.byteOffset,view.byteLength,view.length,view[0],view[1]);
+`,'-1 -128 -2 255 128 true\n3 -1 127\ntrue [object Int8Array] true\n1 2 2 -128 -2\n'));
+
+test('Int8Array indexed descriptors and iterator survive stress GC',()=>{
+ const source=`var bytes=Int8Array.of(127,128,255);var iterator=bytes.values();for(var i=0;i<30;i++)new ArrayBuffer(i);console.log(Object.keys(bytes).join(','),Object.getOwnPropertyDescriptor(bytes,'1').value,iterator.next().value,iterator.next().value,iterator.next().value);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'0,1,2 -128 127 -128 -1\n');
+});

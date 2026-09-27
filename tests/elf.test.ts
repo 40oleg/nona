@@ -83,6 +83,13 @@ test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'255 255 true\n');
 });
 
+test('Linux native Int8Array reads shared bytes as signed values',t=>{
+ const source=`let b=new ArrayBuffer(2),a=new Int8Array(b),u=new Uint8Array(b);a[0]=-1;u[1]=128;console.log(a[0],a[1],u[0],ArrayBuffer.isView(a));`;
+ const result=compile(source,{fileName:'int8-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 -128 255 true\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});
