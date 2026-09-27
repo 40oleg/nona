@@ -417,6 +417,7 @@ export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,s
 };
 Object.defineProperty(RegExp.prototype,Symbol.match,{value:function(string){
   'use strict';
+  if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
   var input=String(string);
   var flags=String(this.flags);
   var global=flags.indexOf('g')>=0,unicode=flags.indexOf('u')>=0;
@@ -456,4 +457,28 @@ Object.defineProperty(String.prototype,'match',{value:({match(regexp){
   var rx=new RegExp(regexp);
   return rx[Symbol.match](String(this))
 }}).match,writable:true,configurable:true});
-Object.defineProperty(String.prototype.match,'name',{value:'match',configurable:true});`;
+Object.defineProperty(String.prototype.match,'name',{value:'match',configurable:true});
+Object.defineProperty(RegExp.prototype,Symbol.search,{value:({[Symbol.search](string){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('Invalid RegExp receiver');
+  if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var input=String(string),previous=this.lastIndex;
+  if(!Object.is(previous,0))this.lastIndex=0;
+  var result=this.exec(input);
+  if(result!==null&&typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
+  if(!Object.is(this.lastIndex,previous))this.lastIndex=previous;
+  return result===null?-1:result.index
+}})[Symbol.search],writable:true,configurable:true});
+Object.defineProperty(String.prototype,'search',{value:({search(regexp){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('String.prototype.search called on null or undefined');
+  if(regexp!==null&&(typeof regexp==='object'||typeof regexp==='function')){
+    var searcher=regexp[Symbol.search];
+    if(searcher!==null&&searcher!==undefined){
+      if(typeof searcher!=='function')throw new TypeError('Symbol.search is not callable');
+      return searcher.call(regexp,String(this))
+    }
+  }
+  var rx=new RegExp(regexp);
+  return rx[Symbol.search](String(this))
+}}).search,writable:true,configurable:true});`;
