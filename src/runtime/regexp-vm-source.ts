@@ -481,4 +481,101 @@ Object.defineProperty(String.prototype,'search',{value:({search(regexp){
   }
   var rx=new RegExp(regexp);
   return rx[Symbol.search](String(this))
-}}).search,writable:true,configurable:true});`;
+}}).search,writable:true,configurable:true});
+Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](string,replaceValue){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('Invalid RegExp receiver');
+  if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var input=String(string),functional=typeof replaceValue==='function';
+  var replacement=undefined;
+  if(!functional){
+    if(typeof replaceValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+    replacement=String(replaceValue)
+  }
+  var flags=String(this.flags);
+  var global=Boolean(this.global),unicode=global?Boolean(this.unicode):false;
+  if(global)this.lastIndex=0;
+  var results=[];
+  while(true){
+    var result=this.exec(input);
+    if(result===null)break;
+    if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
+    results.push(result);
+    if(!global)break;
+    var matched=String(result[0]);
+    if(matched===''){
+      var index=Number(this.lastIndex);
+      if(index!==index||index<0)index=0;
+      else if(index>9007199254740991)index=9007199254740991;
+      else index=Math.floor(index);
+      if(unicode&&index+1<input.length){
+        var first=input.charCodeAt(index),second=input.charCodeAt(index+1);
+        this.lastIndex=index+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
+      }else this.lastIndex=index+1
+    }
+  }
+  var accumulated='',nextSourcePosition=0;
+  for(var i=0;i<results.length;i++){
+    var item=results[i],match=String(item[0]),position=Number(item.index);
+    if(position!==position||position<0)position=0;
+    else if(position>input.length)position=input.length;
+    else position=Math.floor(position);
+    var captures=[],length=Number(item.length);
+    if(length!==length||length<0)length=0;
+    else length=Math.floor(length);
+    for(var j=1;j<length;j++){
+      var capture=item[j];
+      if(capture!==undefined){
+        if(typeof capture==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+        capture=String(capture)
+      }
+      captures.push(capture)
+    }
+    var groups=item.groups,value='';
+    if(!functional&&groups===null)throw new TypeError('Invalid named capture groups');
+    if(functional){
+      var args=[match];
+      for(var j=0;j<captures.length;j++)args.push(captures[j]);
+      args.push(position);args.push(input);
+      if(groups!==undefined)args.push(groups);
+      value=String(replaceValue.apply(undefined,args))
+    }else{
+      for(var j=0;j<replacement.length;j++){
+        var c=replacement[j];
+        if(c!=='$'||j+1>=replacement.length){value+=c;continue}
+        var next=replacement[j+1];
+        if(next==='$'){value+='$';j++;continue}
+        if(next==='&'){value+=match;j++;continue}
+        if(next.charCodeAt(0)===96){value+=input.slice(0,position);j++;continue}
+        if(next==="'"){value+=input.slice(position+match.length);j++;continue}
+        if(next==='<'&&groups!==undefined){
+          var end=replacement.indexOf('>',j+2);
+          if(end>=0){
+            var named=groups[replacement.slice(j+2,end)];
+            if(named!==undefined)value+=String(named);
+            j=end;continue
+          }
+        }
+        var digit=next.charCodeAt(0)-48;
+        if(digit>=0&&digit<=9){
+          var number=digit,used=1;
+          if(j+2<replacement.length){
+            var secondDigit=replacement.charCodeAt(j+2)-48;
+            if(secondDigit>=0&&secondDigit<=9&&digit*10+secondDigit<=captures.length){number=digit*10+secondDigit;used=2}
+          }
+          if(number>0&&number<=captures.length){
+            var capture=captures[number-1];
+            if(capture!==undefined)value+=String(capture);
+            j+=used;continue
+          }
+        }
+        value+='$'
+      }
+    }
+    if(position>=nextSourcePosition){
+      accumulated+=input.slice(nextSourcePosition,position)+value;
+      nextSourcePosition=position+match.length
+    }
+  }
+  return accumulated+input.slice(nextSourcePosition)
+}})[Symbol.replace],writable:true,configurable:true});`;
