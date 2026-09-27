@@ -26,7 +26,7 @@ function booleanResult(a:Assembler):void {
 export function emitObjectIntrospection(b:RuntimeBuilder):void {
  for(const [symbol,method,length,owner] of methods)prependFunctionBuiltin(b,symbol,method,length,owner);
  // RCX boxed receiver Value*, RDX normalized string descriptor; RAX attrs or -1.
- // This lookup is leaf-only: coercion happens in the rooted public caller.
+ // Coercion happens in the rooted public caller.
  b.fn('rt.ownAttributes',88,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   const normal=a.unique('normal'),missing=a.unique('missing'),done=a.unique('done');
@@ -35,7 +35,7 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.label(normal);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store(slot(56),'rax');
   const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});
   const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
-  a.load('rcx',slot(48));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',ordinary);
+  a.load('rcx',slot(48));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',ordinary);a.cmp('rax',-2);a.jcc('e',missing);
   a.load('r10',slot(56));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('ae',missing);
   a.mov('rax',A.ordinary);a.jmp(done);
   a.label(notTyped);a.cmp('r10',1);a.jcc('ne',ordinary);

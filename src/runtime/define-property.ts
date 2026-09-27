@@ -40,7 +40,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   for(const n of [0,8]){a.load('rax',slot(184+n));a.store({base:'r8',disp:D.value+n},'rax');}a.jmp(lookup);
   a.label(index);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.store(slot(72),'rax');a.cmp('rax',-1);a.jcc('e',lookup);
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',lookup);a.load('r10',{base:'r10',disp:O.flags});a.and('r10',OF.lengthReadonly);a.test('r10','r10');a.jcc('ne',no);
-  a.label(typed);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',lookup);
+  a.label(typed);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',lookup);a.cmp('rax',-2);a.jcc('e',no);
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',no);a.store(slot(208),'rax');
   a.load('r8',slot(56));a.load('rax',{base:'r8',disp:D.present});a.and('rax',F.get|F.set);a.test('rax','rax');a.jcc('ne',no);
   for(const [field,flag] of [[D.configurable,F.configurable],[D.enumerable,F.enumerable],[D.writable,F.writable]] as const){

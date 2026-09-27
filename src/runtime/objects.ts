@@ -49,6 +49,17 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(bad);a.mov('rax',-1);a.label(done);
   });
 
+  // Integer-indexed exotic objects distinguish ordinary names (-1),
+  // canonical but invalid numeric names (-2), and usable indices.
+  b.bundle.fragments.push(stringLiteral('rt.str.negativeZero','-0'));
+  rootedFn(b,'rt.typedArrayNumericIndex',88,[{kind:'pointer',register:'rcx'}],a=>{
+    a.store(slot(40),'rcx');a.call('rt.arrayIndex');a.cmp('rax',-1);const done=a.unique('done'),invalid=a.unique('invalid');a.jcc('ne',done);
+    a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.str.negativeZero'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',invalid);
+    a.load('rcx',slot(40));a.call('rt.parseNumber');a.call('rt.formatNumber');
+    a.mov('rdx','rax');a.load('rcx',slot(40));a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',invalid);
+    a.mov('rax',-1);a.jmp(done);a.label(invalid);a.mov('rax',-2);a.label(done);
+  });
+
   // RCX object header, RDX key descriptor; RAX property node or null.
   b.fn('rt.findOwnProperty',72,a=>{
     a.store(slot(40),'rdx');a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');
@@ -68,8 +79,8 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(loop);a.load('rcx',slot(48));a.test('rcx','rcx');const present=a.unique('present');a.jcc('ne',present);a.mov('rax',0);a.jmp(done);
     a.label(present);a.load('rax',{base:'rcx',disp:O.kind});
     const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
-    a.load('rcx',slot(40));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',normal);
-    a.load('rcx',slot(48));a.load('r10',{base:'rcx',disp:TypedArrayLayout.length});a.cmp('rax','r10');const typedMissing=a.unique('typedMissing');a.jcc('ae',typedMissing);
+    const typedMissing=a.unique('typedMissing');a.load('rcx',slot(40));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',normal);a.cmp('rax',-2);a.jcc('e',typedMissing);
+    a.load('rcx',slot(48));a.load('r10',{base:'rcx',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('ae',typedMissing);
     a.mov('rax',6);a.jmp(done);a.label(typedMissing);a.mov('rax',0);a.jmp(done);
     a.label(notTyped);a.cmp('rax',1);a.jcc('ne',normal);
     a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',normal);
@@ -164,7 +175,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rcx',{base:'rdx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',normal);
     a.load('rcx',slot(72));a.load('rax',{base:'rcx',disp:O.flags});a.and('rax',2);a.test('rax','rax');a.jcc('ne',rejected);a.load('rdx',slot(56));a.call('rt.setArrayLength');a.test('rax','rax');a.jcc('e',rejected);a.jmp(done);
     a.label(normal);const ordinaryObject=a.unique('ordinaryObject');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('ne',ordinaryObject);
-    a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',ordinaryObject);
+    a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',ordinaryObject);a.cmp('rax',-2);a.jcc('e',rejected);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',rejected);a.store(slot(80),'rax');
     a.load('rcx',slot(56));a.call('rt.toInt32');a.and('rax',255);a.store(slot(80),'rax');
     a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');
@@ -229,7 +240,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rcx',slot(64));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',yes);a.load('r10',slot(72));a.load('r10',{base:'r10'});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);
     a.label(object);a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});
     const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
-    a.load('rcx',slot(64));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',notTyped);
+    a.load('rcx',slot(64));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',notTyped);a.cmp('rax',-2);a.jcc('e',yes);
     a.load('r10',slot(72));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);
     a.label(notTyped);a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',1);const scan=a.unique('scan');a.jcc('ne',scan);
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',no);

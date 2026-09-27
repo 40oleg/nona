@@ -197,3 +197,21 @@ test('Uint8Array defineProperty updates indexed bytes and enforces attributes',(
   try{Object.defineProperty(bytes,'2',{value:9})}catch(error){console.log(error.name)}
   console.log(bytes[0],bytes[1],Object.keys(bytes).join(','));
 `,'true 2 2\ntrue\nTypeError\nTypeError\nTypeError\nTypeError\nTypeError\n0 2 0,1\n'));
+
+test('Uint8Array rejects canonical numeric keys outside valid indices',()=>expectProgram(`
+  var bytes=new Uint8Array(2);bytes[0]=3;bytes[1]=4;
+  for(var key of ['-0','-1','1.5','NaN','Infinity','4294967295']){
+    bytes[key]=7;
+    console.log(key in bytes,bytes[key],bytes.hasOwnProperty(key),delete bytes[key]);
+    try{Object.defineProperty(bytes,key,{value:8})}catch(error){console.log(error.name)}
+  }
+  bytes['01']=9;bytes['1e0']=10;
+  console.log(bytes['01'],bytes['1e0'],Object.keys(bytes).join(','),bytes[0],bytes[1]);
+`,'false undefined false true\nTypeError\nfalse undefined false true\nTypeError\nfalse undefined false true\nTypeError\nfalse undefined false true\nTypeError\nfalse undefined false true\nTypeError\nfalse undefined false true\nTypeError\n9 10 0,1,01,1e0 3 4\n'));
+
+test('Uint8Array canonical numeric keys bypass inherited properties under stress GC',()=>{
+ const source=`var bytes=new Uint8Array(1),key='-'+'1';Uint8Array.prototype[key]=42;for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(bytes[key],key in bytes,Object.getOwnPropertyDescriptor(bytes,key));bytes[key]=8;console.log(bytes[key],Uint8Array.prototype[key]);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'undefined false undefined\nundefined 42\n');
+});
