@@ -9,6 +9,7 @@ const root = resolve(process.env.TEST262_ROOT || 'work/test262');
 const manifest = JSON.parse(readFileSync(new URL('../tests/test262-smoke.json', import.meta.url), 'utf8'));
 const group = process.argv[2];
 const pathFilter = process.env.TEST262_PATH_FILTER || '';
+const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
 const jobs = Number(process.env.TEST262_JOBS || 1);
 if (!Number.isSafeInteger(runtimeTimeout) || runtimeTimeout < 1 || runtimeTimeout > 600000) {
@@ -69,7 +70,7 @@ if (!isMainThread) {
   for (const path of workerData.paths) parentPort.postMessage(runCase(path));
 } else {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
-    .filter(path => path.includes(pathFilter));
+    .filter(path => path.includes(pathFilter) && (!excludePathFilter || !path.includes(excludePathFilter)));
   let results;
   if (jobs === 1 || paths.length < 2) results = paths.map(runCase);
   else {
@@ -89,7 +90,7 @@ if (!isMainThread) {
     }
   }
   const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, runtimeTimeout, jobs, counts, results};
+  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilter, runtimeTimeout, jobs, counts, results};
   mkdirSync(dirname(reportPath), {recursive: true});
   writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
   console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);

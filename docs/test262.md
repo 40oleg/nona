@@ -20,6 +20,8 @@ different checkout and `TEST262_REPORT` selects a different JSON report path.
 `TEST262_JOBS` runs up to eight worker threads in parallel (the default is one)
 and preserves the report order. For example, set `TEST262_JOBS=4` before a
 large catalog run.
+`TEST262_PATH_FILTER` includes matching paths; `TEST262_EXCLUDE_PATH_FILTER`
+omits matching paths. Both are literal substring filters.
 The no-argument command runs the reviewed manifest in
 `tests/test262-smoke.json`; a relative directory argument runs every `.js`
 file beneath that Test262 group. Reports distinguish compile failures, runtime
