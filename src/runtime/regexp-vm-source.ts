@@ -414,4 +414,46 @@ export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,s
       Object.defineProperty(result,'groups',{value:groups,writable:true,enumerable:true,configurable:true})
     }else Object.defineProperty(result,'groups',{value:undefined,writable:true,enumerable:true,configurable:true});
     return result
-}`;
+};
+Object.defineProperty(RegExp.prototype,Symbol.match,{value:function(string){
+  'use strict';
+  var input=String(string);
+  var flags=String(this.flags);
+  var global=flags.indexOf('g')>=0,unicode=flags.indexOf('u')>=0;
+  if(!global){
+    var single=this.exec(input);
+    if(single!==null&&typeof single!=='object'&&typeof single!=='function')throw new TypeError('RegExp exec returned invalid result');
+    return single
+  }
+  this.lastIndex=0;
+  var matches=[];
+  while(true){
+    var result=this.exec(input);
+    if(result===null)return matches.length===0?null:matches;
+    if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
+    var value=String(result[0]);
+    matches.push(value);
+    if(value===''){
+      var index=this.lastIndex;
+      if(unicode&&index+1<input.length){
+        var first=input.charCodeAt(index),second=input.charCodeAt(index+1);
+        this.lastIndex=index+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
+      }else this.lastIndex=index+1
+    }
+  }
+},writable:true,configurable:true});
+Object.defineProperty(RegExp.prototype[Symbol.match],'name',{value:'[Symbol.match]',configurable:true});
+Object.defineProperty(String.prototype,'match',{value:({match(regexp){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('String.prototype.match called on null or undefined');
+  if(regexp!==null&&(typeof regexp==='object'||typeof regexp==='function')){
+    var matcher=regexp[Symbol.match];
+    if(matcher!==null&&matcher!==undefined){
+      if(typeof matcher!=='function')throw new TypeError('Symbol.match is not callable');
+      return matcher.call(regexp,String(this))
+    }
+  }
+  var rx=new RegExp(regexp);
+  return rx[Symbol.match](String(this))
+}}).match,writable:true,configurable:true});
+Object.defineProperty(String.prototype.match,'name',{value:'match',configurable:true});`;
