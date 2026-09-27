@@ -478,8 +478,9 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('r10',slot(72));a.load('r8',{base:'r10',disp:RegExpLayout.flags});a.load('r9',{base:'r8'});a.add('r8',8);a.mov('r11',0);
   const flagScan=a.unique('flagScan'),flagsDone=a.unique('flagsDone'),nextFlag=a.unique('nextFlag');a.label(flagScan);a.test('r9','r9');a.jcc('e',flagsDone);
   a.load('rax',{base:'r8'},16);a.cmp('rax',103);a.jcc('ne',nextFlag);a.or('r11',1);a.label(nextFlag);
+  a.cmp('rax',105);const notIgnore=a.unique('notIgnore');a.jcc('ne',notIgnore);a.or('r11',4);a.label(notIgnore);
   a.cmp('rax',121);const notSticky=a.unique('notSticky');a.jcc('ne',notSticky);a.or('r11',2);a.label(notSticky);
-  a.add('r8',2);a.sub('r9',1);a.jmp(flagScan);a.label(flagsDone);a.store(slot(208),'r11');
+  a.add('r8',2);a.sub('r9',1);a.jmp(flagScan);a.label(flagsDone);a.store(slot(312),'r11');a.and('r11',3);a.store(slot(208),'r11');
   a.mov('rax',0);a.store(slot(192),'rax');a.store(slot(200),'rax');a.mov('rax','r11');a.and('rax',2);a.store(slot(200),'rax');
   const indexReady=a.unique('indexReady');
   a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.str.lastIndex'});a.store(slot(136),'rax');
@@ -492,6 +493,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.label(tooFar);a.add('r10',1);a.store(slot(192),'r10');a.label(indexReady);
   a.load('rax',slot(208));a.test('rax','rax');const useIndex=a.unique('useIndex');a.jcc('ne',useIndex);a.mov('rax',0);a.store(slot(192),'rax');a.label(useIndex);
   const done=a.unique('done'),nativeMatch=a.unique('nativeMatch'),vmMatch=a.unique('vmMatch');
+  a.load('rax',slot(312));a.and('rax',4);a.test('rax','rax');a.jcc('ne',vmMatch);
   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:RegExpLayout.pattern});a.load('r11',{base:'r10'});a.add('r10',8);
   const scan=a.unique('vmScan'),scanEscape=a.unique('vmScanEscape'),scanClass=a.unique('vmScanClass'),scanNext=a.unique('vmScanNext'),inClass=a.unique('vmInClass');
   a.mov('r8',0);a.label(scan);a.test('r11','r11');a.jcc('e',nativeMatch);

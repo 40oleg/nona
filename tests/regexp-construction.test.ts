@@ -255,6 +255,13 @@ test('RegExp ASCII literals match without case under ignoreCase',()=>expectProgr
   console.log(/x/i.test('X'),/x/i.test('猫'));
 `,'CAT 2\nab 3 AB 5\ntrue false\n'));
 
+test('RegExp Unicode simple folding differs from legacy ignoreCase',()=>expectProgram(String.raw`
+  console.log(/k/iu.test('K'),/[A-Z]/iu.test('K'),/\w/iu.test('K'));
+  console.log(/k/i.test('K'),/s/i.test('ſ'),/é/i.test('É'),/[a-z]/i.test('B'));
+  console.log(/[\u0390]/iu.test('\u1fd3'),/[\u1fd3]/iu.test('\u0390'));
+  console.log(/\p{Lu}/iu.test('a'),/\P{Lu}/iu.test('a'),/\p{Lu}/iu.test('A'),/\P{Lu}/iu.test('A'));
+`,'true true true\nfalse false true true\ntrue true\ntrue true true true\n'));
+
 test('RegExp repeats a single atom with star plus and optional',()=>expectProgram(String.raw`
   let g=/\d+/g;console.log(g.exec('a12 b345')[0],g.lastIndex,g.exec('a12 b345')[0],g.lastIndex,g.exec('a12 b345'),g.lastIndex);
   console.log(/a+/.exec('baaa')[0],/a*/.exec('bbb')[0]==='',/z?/.exec('abc')[0]==='');

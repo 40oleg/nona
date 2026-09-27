@@ -28,6 +28,36 @@ export const regexpVmSource=String.raw`(function(){
     while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
     return false
   }
+  var foldReverse={},foldReady=false;
+  function foldPoint(point){
+    var encoded=unicodeData.folds,low=0,high=encoded.length/12-1;
+    while(low<=high){
+      var middle=(low+high)>>1,offset=middle*12,source=parseInt(slice(encoded,offset,offset+6),16);
+      if(point<source)high=middle-1;
+      else if(point>source)low=middle+1;
+      else return parseInt(slice(encoded,offset+6,offset+12),16)
+    }
+    return point
+  }
+  function foldAlternates(point){
+    if(!foldReady){
+      var encoded=unicodeData.folds;
+      for(var i=0;i<encoded.length;i+=12){
+        var source=parseInt(slice(encoded,i,i+6),16),target=foldPoint(parseInt(slice(encoded,i+6,i+12),16));
+        var list=foldReverse[target];
+        if(list===undefined){list=[];foldReverse[target]=list}
+        append(list,source)
+      }
+      foldReady=true
+    }
+    return foldReverse[point]
+  }
+  function legacyCanonical(point){
+    var upper=String.fromCharCode(point).toUpperCase();
+    if(upper.length!==1)return point;
+    var result=charCodeAt(upper,0);
+    return point>=128&&result<128?point:result
+  }
   function compile(pattern,flags){
     var at=0,groups=0,names=[],totalGroups=0,inClass=false;
     for(var scan=0;scan<pattern.length;scan++){
@@ -364,11 +394,26 @@ export const regexpVmSource=String.raw`(function(){
     }else if(node.kind==='repeat'||node.kind==='look')clear(node.value,caps)
   }
   function execute(compiled,input,start,sticky){
-    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,dotAll=indexOf(flags,'s')>=0,multiline=indexOf(flags,'m')>=0,steps=0;
-    function same(a,b){return ignore?a.toLowerCase()===b.toLowerCase():a===b}
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0,dotAll=indexOf(flags,'s')>=0,multiline=indexOf(flags,'m')>=0,steps=0;
+    function same(a,b){
+      if(!ignore)return a===b;
+      if(!unicode){
+        if(a.length!==b.length)return false;
+        for(var unit=0;unit<a.length;unit++)if(legacyCanonical(charCodeAt(a,unit))!==legacyCanonical(charCodeAt(b,unit)))return false;
+        return true
+      }
+      var left=0,right=0;
+      while(left<a.length&&right<b.length){
+        var first=a.codePointAt(left),second=b.codePointAt(right);
+        if(foldPoint(first)!==foldPoint(second))return false;
+        left+=first>0xffff?2:1;right+=second>0xffff?2:1
+      }
+      return left===a.length&&right===b.length
+    }
     function word(c){
       if(c===undefined)return false;
-      var n=charCodeAt(c,0);
+      var n=unicode?c.codePointAt(0):charCodeAt(c,0);
+      if(ignore&&unicode)n=foldPoint(n);
       return n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95
     }
     function escapedClass(kind,c){
@@ -378,21 +423,38 @@ export const regexpVmSource=String.raw`(function(){
       else yes=c===' '||c==='\t'||c==='\r'||c==='\n'||c==='\v'||c==='\f'||c==='\u00a0';
       return kind==='D'||kind==='W'||kind==='S'?!yes:yes
     }
+    function propertyContains(ranges,point,negated){
+      var present=propertyMatch(ranges,point);
+      if(negated?!present:present)return true;
+      if(!ignore||!unicode)return false;
+      var canonical=foldPoint(point);
+      present=propertyMatch(ranges,canonical);
+      if(negated?!present:present)return true;
+      var alternates=foldAlternates(canonical);
+      if(alternates!==undefined)for(var i=0;i<alternates.length;i++){
+        present=propertyMatch(ranges,alternates[i]);
+        if(negated?!present:present)return true
+      }
+      return false
+    }
     function classMatch(spec,c){
       var yes=false,point=c.codePointAt(0);
       for(var i=0;i<spec.items.length;i++){
         var item=spec.items[i];
         if(item.range){
-          var current=ignore?c.toLowerCase().codePointAt(0):point;
-          var low=ignore?String.fromCodePoint(item.from).toLowerCase().codePointAt(0):item.from;
-          var high=ignore?String.fromCodePoint(item.to).toLowerCase().codePointAt(0):item.to;
-          if(current>=low&&current<=high)yes=true
+          if(ignore&&unicode){
+            var canonical=foldPoint(point),alternates=foldAlternates(canonical);
+            if(canonical>=item.from&&canonical<=item.to)yes=true;
+            if(alternates!==undefined)for(var j=0;j<alternates.length;j++)if(alternates[j]>=item.from&&alternates[j]<=item.to)yes=true
+          }else{
+            var current=ignore?legacyCanonical(point):point;
+            var low=ignore?legacyCanonical(item.from):item.from;
+            var high=ignore?legacyCanonical(item.to):item.to;
+            if(current>=low&&current<=high)yes=true
+          }
         }else if(item.set){
           if(item.escape!==undefined){if(escapedClass(item.escape,c))yes=true}
-          else{
-            var found=propertyMatch(item.property,point);
-            if(item.negated?!found:found)yes=true
-          }
+          else if(propertyContains(item.property,point,item.negated))yes=true
         }else if(same(c,String.fromCodePoint(item.point)))yes=true
       }
       return spec.inverted?!yes:yes
@@ -520,12 +582,10 @@ export const regexpVmSource=String.raw`(function(){
       else if(k==='property'){
         var point=charCodeAt(input,direction<0?pos-width:pos);
         if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,direction<0?pos-1:pos+1)-0xdc00);
-        matched=propertyMatch(node.value,point);
-        if(node.negated)matched=!matched
+        matched=propertyContains(node.value,point,node.negated)
       }
       return matched?next(pos+direction*width,caps):null
     }
-    var unicode=indexOf(flags,'u')>=0;
     if(unicode&&start>0&&start<input.length){
       var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--

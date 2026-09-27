@@ -3,7 +3,7 @@
 Usage: python scripts/generate-regexp-unicode.py work/unicode17
 The input files are published at https://www.unicode.org/Public/17.0.0/ucd/.
 Unicode data license: https://www.unicode.org/license.txt
-Required files: UnicodeData.txt, Scripts.txt, ScriptExtensions.txt,
+Required files: UnicodeData.txt, CaseFolding.txt, Scripts.txt, ScriptExtensions.txt,
 PropertyAliases.txt, PropertyValueAliases.txt, PropList.txt,
 DerivedCoreProperties.txt, emoji-emoji-data.txt, DerivedNormalizationProps.txt.
 """
@@ -166,6 +166,15 @@ import json
 values = list(dict.fromkeys(data.values()))
 index = {value: i for i, value in enumerate(values)}
 packed = {'names': {name: index[value] for name, value in data.items()}, 'values': values}
+folds = {}
+for row in (source / 'CaseFolding.txt').read_text(encoding='utf-8').splitlines():
+    row = row.split('#', 1)[0].strip()
+    if not row:
+        continue
+    point, status, mapping = (part.strip() for part in row.split(';')[:3])
+    if status in ('C', 'S'):
+        folds[int(point, 16)] = int(mapping, 16)
+packed['folds'] = ''.join(f'{point:06x}{target:06x}' for point, target in sorted(folds.items()))
 out.write_text('// Generated from Unicode 17.0.0 UCD; see scripts/generate-regexp-unicode.py.\n'
                + '// Unicode data license: https://www.unicode.org/license.txt\n'
                + 'export const regexpUnicodeData = ' + json.dumps(json.dumps(packed, separators=(',', ':'))) + ';\n', encoding='utf-8')
