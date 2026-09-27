@@ -147,7 +147,7 @@ export function bind(ast:A.Program):BoundProgram {
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
           if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.method)fail(e,'Super property requires a method');break;
         }
-        case 'This':case 'Literal':break;
+        case 'This':case 'Literal':case 'RegExpLiteral':break;
         case 'FunctionExpression':{
           const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
         }

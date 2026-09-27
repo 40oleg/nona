@@ -526,6 +526,7 @@ class Parser {
       this.need('}');return {kind:'ObjectLiteral',properties,trailingCommaAfterSpread,span:this.span(t.span.start)};
     }
     if(t.kind==='number'||t.kind==='string') {this.take();return {kind:'Literal',value:t.value!,span:t.span};}
+    if(t.kind==='regexp'){this.take();return {kind:'RegExpLiteral',pattern:t.pattern!,flags:t.flags!,span:t.span};}
     if(['true','false','null'].includes(t.text)) {this.take();return {kind:'Literal',value:t.text==='null'?null:t.text==='true',span:t.span};}
     if(this.match('(')) {const e=this.expression();this.need(')');this.parenthesized.add(e);return e;}
     if(t.kind==='word'&&!this.reservedIdentifier(t.text))return this.id();

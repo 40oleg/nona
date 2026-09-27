@@ -11,6 +11,7 @@ export interface NewTarget extends Node {kind:'NewTarget'}
 export interface Super extends Node {kind:'Super'}
 export interface This extends Node {kind:'This'}
 export interface Literal extends Node { kind: 'Literal'; value: string|number|bigint|boolean|null|undefined }
+export interface RegExpLiteral extends Node {kind:'RegExpLiteral';pattern:string;flags:string}
 export interface Unary extends Node { kind: 'Unary'; operator: string; argument: Expression }
 export interface Member extends Node {kind:'Member';object:Expression;property:Expression}
 export type Assignable = Identifier|Member;
@@ -31,7 +32,7 @@ export type OptionalLink=
   | {kind:'property';property:Expression;computed:boolean;optional:boolean;span:Span}
   | {kind:'call';arguments:Argument[];optional:boolean;span:Span};
 export interface OptionalChain extends Node {kind:'OptionalChain';base:Expression;links:OptionalLink[]}
-export type Expression = NewTarget|Super|This|Identifier|Literal|Unary|Update|Binary|Assignment|Conditional|Call|New|Member|OptionalChain|ObjectLiteral|ArrayLiteral|Template|TaggedTemplate|Yield|FunctionExpression|ClassExpression;
+export type Expression = NewTarget|Super|This|Identifier|Literal|RegExpLiteral|Unary|Update|Binary|Assignment|Conditional|Call|New|Member|OptionalChain|ObjectLiteral|ArrayLiteral|Template|TaggedTemplate|Yield|FunctionExpression|ClassExpression;
 export interface Var extends Node { kind: 'Var'; declarationKind:'var'|'let'|'const'; declarations: { id: BindingPattern; init: Expression|null }[] }
 export interface FunctionDeclaration extends Node { kind: 'Function'; generator?:boolean; id: Identifier; parameters: BindingPattern[]; defaults?:(Expression|null)[]; rest?:BindingPattern|null; body: Block }
 export interface FunctionExpression extends Node {kind:'FunctionExpression';generator?:boolean;method?:boolean;classMethod?:boolean;classConstructor?:boolean;derivedConstructor?:boolean;defaultClassConstructor?:boolean;arrow?:boolean;id:Identifier|null;parameters:BindingPattern[];defaults?:(Expression|null)[];rest?:BindingPattern|null;body:Block}

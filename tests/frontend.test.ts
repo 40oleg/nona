@@ -55,6 +55,14 @@ test('lexer separates regular expression literals from division',()=>{
   assert.equal(tokens.filter(token=>token.text==='/').length,1);
   for(const source of ['var r=/x/gg;','var r=/x/z;','var r=/[a/;','var r=/x/uv;'])assert.throws(()=>lex(source));
 });
+test('RegExp literal reaches binding and reports native runtime gap',()=>{
+  const declaration=syntax('var re=/a+/gi;').body[0] as any;
+  assert.deepEqual(declaration.declarations[0].init,{kind:'RegExpLiteral',pattern:'a+',flags:'gi',span:{start:7,end:13}});
+  assert.doesNotThrow(()=>check('var re=/a+/gi;'));
+  const result=compile('var re=/a+/gi;',{fileName:'regexp.js',target:'win32-x64'});
+  assert.equal(result.ok,false);
+  if(!result.ok)assert.equal(result.diagnostics[0]!.code,'E_UNSUPPORTED');
+});
 test('parser preserves precedence and assignment associativity', () => {
   const p = syntax('var a,b; a=b=1+2*3;');
   const expr = (p.body[1] as any).expression;
@@ -85,7 +93,6 @@ for (const source of [
   '"use strict";delete missing;', 'var x=012;', 'var x="\\12";',
   'while(true){break label;}', 'return 1;', 'break;', 'continue;',
   'try{}catch(){}',
-  'var x=/a/;',
   'if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
 ]) test(`unsupported input rejected: ${source}`, () => assert.throws(() => check(source)));
 
