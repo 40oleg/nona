@@ -8,6 +8,8 @@ export const regexpVmSource=String.raw`(function(){
   var safeIndexOf=intrinsic?intrinsic.replaceIndexOf:String.prototype.indexOf;
   var safeCharCodeAt=intrinsic?intrinsic.replaceCharCodeAt:String.prototype.charCodeAt;
   var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
+  var ByteArray=intrinsic?intrinsic.byteArrayConstructor:Uint8Array;
+  var byteFill=intrinsic?intrinsic.byteArrayFill:Uint8Array.prototype.fill;
   function append(array,value){Object.defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
   function slice(string,start,end){return safeSlice.call(string,start,end)}
   function indexOf(string,value){return safeIndexOf.call(string,value)}
@@ -28,6 +30,16 @@ export const regexpVmSource=String.raw`(function(){
     var low=0,high=ranges.length-1;
     while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
     return false
+  }
+  function propertyBitmap(ranges){
+    if(ranges.bitmap!==undefined)return ranges.bitmap;
+    var bitmap=new ByteArray(0x110000);
+    for(var i=0;i<ranges.length;i++){
+      if(intrinsic)intrinsic.safeCall(byteFill,bitmap,1,ranges[i][0],ranges[i][1]+1);
+      else byteFill.call(bitmap,1,ranges[i][0],ranges[i][1]+1)
+    }
+    ranges.bitmap=bitmap;
+    return bitmap
   }
   var foldReverse={},foldReady=false;
   function foldPoint(point){
@@ -522,6 +534,7 @@ export const regexpVmSource=String.raw`(function(){
           if(node.max<capacity)capacity=node.max;
           var packed=capacity>1024;
           var positions=packed?new PositionArray(capacity+1):[pos],positionCount=1,end=pos;
+          var bitmap=simple==='property'&&packed&&!ignore?propertyBitmap(node.value.value):null;
           if(packed)positions[0]=pos;
           while(positionCount-1<node.max){
             var after=end;
@@ -535,7 +548,9 @@ export const regexpVmSource=String.raw`(function(){
                 var low=charCodeAt(input,pointIndex+1);
                 if(low>=0xdc00&&low<=0xdfff){point=0x10000+(point-0xd800)*1024+(low-0xdc00);width=2}
               }
-              if(!propertyContains(node.value.value,point,node.value.negated))break;
+              if(bitmap!==null){
+                if((bitmap[point]!==0)===node.value.negated)break
+              }else if(!propertyContains(node.value.value,point,node.value.negated))break;
               after=end+direction*width
             }else{
               var one=run(node.value,end,caps,function(after){return {end:after}},direction);
@@ -1028,6 +1043,8 @@ __nonaRegexpVm.replaceSlice=String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
 __nonaRegexpVm.positionArrayConstructor=Uint32Array;
+__nonaRegexpVm.byteArrayConstructor=Uint8Array;
+__nonaRegexpVm.byteArrayFill=Uint8Array.prototype.fill;
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
 __nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
 __nonaRegexpVm.arrayBufferConstructor=ArrayBuffer;

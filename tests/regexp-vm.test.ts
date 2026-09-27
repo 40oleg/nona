@@ -53,8 +53,15 @@ test('RegExp simple repeats backtrack after long Unicode runs',()=>expectProgram
   let sequence='a'.repeat(1300)+'b';
   console.log(/a+ab/.test(sequence),/(?<=a{1100})b/.test(sequence));
   let intrinsic=Uint32Array;
+  let byteIntrinsic=Uint8Array, fillIntrinsic=Uint8Array.prototype.fill;
   Uint32Array=function(){throw new Error('replaced')};
-  try{console.log(/^\p{L}+!$/u.test(letters+'!'))}finally{Uint32Array=intrinsic}
+  Uint8Array=function(){throw new Error('replaced')};
+  byteIntrinsic.prototype.fill=function(){throw new Error('replaced')};
+  try{console.log(/^\p{L}+!$/u.test(letters+'!'))}finally{
+    Uint32Array=intrinsic;
+    Uint8Array=byteIntrinsic;
+    byteIntrinsic.prototype.fill=fillIntrinsic
+  }
 `,'true true\ntrue true\ntrue\n'));
 
 test('RegExp Unicode properties match categories, scripts and supplementary points',()=>expectProgram(`
