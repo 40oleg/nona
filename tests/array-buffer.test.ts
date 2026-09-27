@@ -151,3 +151,29 @@ test('buffer methods retain native calls after Function.prototype.call changes',
  view.setBigUint64(0,0x123456789abcdef0n,true);
  console.log(view.getBigUint64(0,true).toString(16),buffer.slice(0.9,8).byteLength);
 `,'123456789abcdef0 8\n'));
+
+test('Uint8Array construction creates a shared view',()=>expectProgram(`
+  var owned=new Uint8Array(4),empty=new Uint8Array(),buffer=new ArrayBuffer(8),view=new Uint8Array(buffer,2,3);
+  console.log(owned.length,owned.byteLength,owned.buffer.byteLength,empty.length);
+  console.log(view.length,view.byteOffset,view.byteLength,view.buffer===buffer,ArrayBuffer.isView(view));
+  console.log(view instanceof Uint8Array,Object.prototype.toString.call(view));
+  class Child extends Uint8Array{};console.log(new Child(2) instanceof Child);
+  try{Uint8Array(2)}catch(error){console.log(error.name)}
+  try{new Uint8Array(buffer,9)}catch(error){console.log(error.name)}
+`,'4 4 4 0\n3 2 3 true true\ntrue [object Uint8Array]\ntrue\nTypeError\nRangeError\n'));
+
+test('Uint8Array indexed bytes alias DataView and obey bounds',()=>expectProgram(`
+  var buffer=new ArrayBuffer(6),bytes=new Uint8Array(buffer,1,4),view=new DataView(buffer);
+  bytes[0]=257;bytes[1]=-1;bytes[2]=3.9;
+  console.log(bytes[0],bytes[1],bytes[2],view.getUint8(1),view.getUint8(2),view.getUint8(3));
+  view.setUint8(4,77);console.log(bytes[3],0 in bytes,3 in bytes,4 in bytes,bytes[4]);
+  bytes[4]=99;console.log(view.getUint8(5));
+  console.log(delete bytes[0],delete bytes[4],bytes[0]);
+`,'1 255 3 1 255 3\n77 true true false undefined\n0\nfalse true 1\n'));
+
+test('Uint8Array keeps backing bytes through stress GC',()=>{
+ const source=`var bytes=new Uint8Array(16);bytes[0]=201;bytes[15]=47;for(var i=0;i<40;i++){new Uint8Array(i);String(i)+String(i)}console.log(bytes[0],bytes[15],bytes.buffer.byteLength);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'201 47 16\n');
+});

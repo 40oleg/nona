@@ -23,7 +23,7 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
   a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');
   const done=a.unique('done');a.test('rdx','rdx');a.jcc('e',done);
   a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',done);
-  a.load('rax',{base:'r8',disp:8});a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',12);a.jcc('ne',done);
+  a.load('rax',{base:'r8',disp:8});a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',12);const yes=a.unique('yes');a.jcc('e',yes);a.cmp('rax',13);a.jcc('ne',done);a.label(yes);
   a.mov('rax',1);a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
  prependFunctionBuiltin(b,'rt.arrayBufferCopy.fn','__nonaCopyInternal',4,'rt.ArrayBuffer');

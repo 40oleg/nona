@@ -5,6 +5,8 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import {BoxLayout} from './boxing.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 import type {Assembler,Mem} from '../backend/x64/assembler.js';
 
 function copyValue(a:Assembler,to:Mem,from:Mem):void {
@@ -64,7 +66,12 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.store(slot(40),'rdx');a.store(slot(48),'rcx');
     const loop=a.unique('loop'),done=a.unique('done'),normal=a.unique('normal'),next=a.unique('next');
     a.label(loop);a.load('rcx',slot(48));a.test('rcx','rcx');const present=a.unique('present');a.jcc('ne',present);a.mov('rax',0);a.jmp(done);
-    a.label(present);a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',1);a.jcc('ne',normal);
+    a.label(present);a.load('rax',{base:'rcx',disp:O.kind});
+    const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
+    a.load('rcx',slot(40));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',normal);
+    a.load('rcx',slot(48));a.load('r10',{base:'rcx',disp:TypedArrayLayout.length});a.cmp('rax','r10');const typedMissing=a.unique('typedMissing');a.jcc('ae',typedMissing);
+    a.mov('rax',6);a.jmp(done);a.label(typedMissing);a.mov('rax',0);a.jmp(done);
+    a.label(notTyped);a.cmp('rax',1);a.jcc('ne',normal);
     a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',normal);
     a.mov('rax',1);a.jmp(done);
     a.label(normal);a.mov('rax',5);a.store(slot(56),'rax');a.load('rax',slot(48));a.store(slot(64),'rax');
@@ -124,7 +131,12 @@ export function emitObjects(b:RuntimeBuilder):void {
       a.load('rax',{base:'rdx',disp:O.length});a.jmp(number);
       a.label(notLength);a.cmp('rax',2);const property=a.unique('property');a.jcc('ne',property);
       a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.getPrototype');a.jmp(done);
-      a.label(property);const copy=a.unique('copy'),dataProperty=a.unique('dataProperty');a.cmp('rax',3);a.jcc('e',copy);
+      a.label(property);const copy=a.unique('copy'),dataProperty=a.unique('dataProperty'),notTypedIndex=a.unique('notTypedIndex');
+      a.cmp('rax',6);a.jcc('ne',notTypedIndex);
+      a.load('rcx',slot(64));a.call('rt.arrayIndex');
+      a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rdx',disp:TypedArrayLayout.byteOffset});a.add('rax','r10');
+      a.load('rdx',{base:'rdx',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',{base:'rdx'},8);a.jmp(number);
+      a.label(notTypedIndex);a.cmp('rax',3);a.jcc('e',copy);
       a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',dataProperty);
       a.mov('r10','rax');copyValue(a,slot(96),{base:'r10',disp:P.getter});a.load('rax',slot(96));a.test('rax','rax');a.jcc('e',missing);
       a.load('rdx',slot(48));copyValue(a,slot(112),{base:'rdx'});a.lea('rax',slot(112));a.store(slot(32),'rax');
@@ -151,7 +163,15 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rax',{base:'rcx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',normal);
     a.load('rcx',{base:'rdx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',normal);
     a.load('rcx',slot(72));a.load('rax',{base:'rcx',disp:O.flags});a.and('rax',2);a.test('rax','rax');a.jcc('ne',rejected);a.load('rdx',slot(56));a.call('rt.setArrayLength');a.test('rax','rax');a.jcc('e',rejected);a.jmp(done);
-    a.label(normal);a.load('rcx',slot(72));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.findGlobalBinding');
+    a.label(normal);const ordinaryObject=a.unique('ordinaryObject');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('ne',ordinaryObject);
+    a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',ordinaryObject);
+    a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',rejected);a.store(slot(80),'rax');
+    a.load('rcx',slot(56));a.call('rt.toInt32');a.and('rax',255);a.store(slot(80),'rax');
+    a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');
+    a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','r11');
+    a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+    a.load('rax',slot(80));a.store({base:'rdx'},'rax',8);a.jmp(done);
+    a.label(ordinaryObject);a.load('rcx',slot(72));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.findGlobalBinding');
     const own=a.unique('own');a.test('rax','rax');a.jcc('e',own);a.load('r10',{base:'rdx'});a.and('r10',A.writable);a.test('r10','r10');a.jcc('e',rejected);a.mov('rcx','rax');a.load('rdx',slot(56));copyValue(a,{base:'rcx'},{base:'rdx'});a.jmp(done);
     a.label(own);a.load('rcx',slot(72));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
     a.test('rax','rax');a.jcc('ne',write);
@@ -207,7 +227,11 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',no);
     a.load('rcx',slot(64));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',yes);a.load('r10',slot(72));a.load('r10',{base:'r10'});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);
-    a.label(object);a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);const scan=a.unique('scan');a.jcc('ne',scan);
+    a.label(object);a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});
+    const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
+    a.load('rcx',slot(64));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',notTyped);
+    a.load('r10',slot(72));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);
+    a.label(notTyped);a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',1);const scan=a.unique('scan');a.jcc('ne',scan);
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',no);
     a.label(scan);a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',no);
     a.load('rax',slot(72));a.lea('r10',{rip:'rt.objectPrototype'});a.cmp('rax','r10');const dataOnly=a.unique('dataOnly');a.jcc('ne',dataOnly);
