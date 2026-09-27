@@ -150,7 +150,8 @@ test('TypedArray from snapshots iterables and reads array-like values after cons
   var changed={length:2,0:4,1:5},Ctor=function(length){changed[1]=9;return new Uint8Array(length)};console.log(Uint8Array.from.call(Ctor,changed).join(','));
   console.log(BigInt64Array.from([1n,2n],function(value){return value+3n}).join(','));
   var target=new Uint8Array(2),Wrap=function(){return target};console.log(Uint8Array.from.call(Wrap,[7,8]).join(','));
-`,'1,3,5\n4,9\n4,5\n7,8\n'));
+  var touched=false,bad={get [Symbol.iterator](){touched=true;return undefined}};try{Uint8Array.from.call(()=>{},bad)}catch(error){console.log(error.name,touched)}
+`,'1,3,5\n4,9\n4,5\n7,8\nTypeError false\n'));
 
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);

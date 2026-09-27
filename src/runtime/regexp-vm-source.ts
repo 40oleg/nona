@@ -986,6 +986,8 @@ __nonaRegexpVm.typedArrayDefaultConstructor=__nonaRegexpVm.typedArrayConstructor
 delete __nonaRegexpVm.typedArrayConstructor.__nonaDefaultConstructorInternal;
 __nonaRegexpVm.isTypedArray=__nonaRegexpVm.typedArrayConstructor.__nonaIsTypedArrayInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaIsTypedArrayInternal;
+__nonaRegexpVm.isConstructor=__nonaRegexpVm.typedArrayConstructor.__nonaIsConstructorInternal;
+delete __nonaRegexpVm.typedArrayConstructor.__nonaIsConstructorInternal;
 __nonaRegexpVm.typedArrayRawLength=__nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
 __nonaRegexpVm.typedArrayRawByteOffset=__nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
@@ -993,7 +995,7 @@ delete __nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,'from',{value:function from(source){
  'use strict';
  var constructor=this,mapfn=arguments[1],thisArg=arguments[2];
- if(typeof constructor!=='function')throw new __nonaRegexpVm.bufferTypeError('TypedArray.from requires a constructor');
+ if(!__nonaRegexpVm.safeCall(__nonaRegexpVm.isConstructor,undefined,constructor))throw new __nonaRegexpVm.bufferTypeError('TypedArray.from requires a constructor');
  if(mapfn!==undefined&&typeof mapfn!=='function')throw new __nonaRegexpVm.bufferTypeError('TypedArray.from mapper is not callable');
  var method=source[Symbol.iterator],values,length,iterated=method!==undefined&&method!==null;
  if(iterated){

@@ -29,7 +29,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Float64Array':['length','name','prototype','BYTES_PER_ELEMENT'],
   'rt.BigInt64Array':['length','name','prototype','BYTES_PER_ELEMENT'],
   'rt.BigUint64Array':['length','name','prototype','BYTES_PER_ELEMENT'],
-  'rt.TypedArray':['length','name','prototype','of','__nonaDefaultConstructorInternal','__nonaIsTypedArrayInternal','__nonaRawLengthInternal','__nonaRawByteOffsetInternal'],
+  'rt.TypedArray':['length','name','prototype','of','__nonaDefaultConstructorInternal','__nonaIsTypedArrayInternal','__nonaIsConstructorInternal','__nonaRawLengthInternal','__nonaRawByteOffsetInternal'],
   'rt.String':['length','name','prototype','fromCharCode','fromCodePoint','raw'],
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
   'rt.JSON':['parse','stringify','@@toStringTag'],
