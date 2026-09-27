@@ -48,6 +48,13 @@ test('lexer decodes literals and keeps line breaks across comments', () => {
   assert.equal(t[5]!.lineBreakBefore, true);
   assert.equal(t[7]!.value, 50);
 });
+test('lexer separates regular expression literals from division',()=>{
+  const tokens=lex('var re=/a\\/b[0-9]/gi; var q=12/3; if(q) /x/.test("x");');
+  const regexps=tokens.filter(token=>token.kind==='regexp');
+  assert.deepEqual(regexps.map(token=>[token.pattern,token.flags]),[['a\\/b[0-9]','gi'],['x','']]);
+  assert.equal(tokens.filter(token=>token.text==='/').length,1);
+  for(const source of ['var r=/x/gg;','var r=/x/z;','var r=/[a/;','var r=/x/uv;'])assert.throws(()=>lex(source));
+});
 test('parser preserves precedence and assignment associativity', () => {
   const p = syntax('var a,b; a=b=1+2*3;');
   const expr = (p.body[1] as any).expression;

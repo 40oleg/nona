@@ -4,7 +4,8 @@ import type { Token,TokenStream } from './token.js';
 export function lex(source: string): TokenStream {
   const tokens: TokenStream = [];
   Object.defineProperty(tokens,'source',{value:source});
-  let i = 0, lineBreak = false;
+  let i = 0, lineBreak = false, regexpAllowed = true;
+  const parentheses:boolean[]=[];
   const fail = (message: string, start = i): never => { throw new CompileError([{ code: 'E_LEX', message, file: '', span: { start, end: Math.max(start + 1, i) } }]); };
   const newline = (c: string) => /[\n\r\u2028\u2029]/.test(c);
   const identifierStart = (c:string) => /^[$_\p{ID_Start}]$/u.test(c);
@@ -24,7 +25,13 @@ export function lex(source: string): TokenStream {
     i+=4;return String.fromCharCode(parseInt(digits,16));
   };
   const push = (kind: Token['kind'], start: number, value?: string|number|bigint) => {
-    tokens.push({ kind, text: source.slice(start, i), value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
+    const text=source.slice(start,i),previous=tokens.at(-1);
+    tokens.push({ kind, text, value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
+    if(kind==='punct'&&text==='(')parentheses.push(previous?.kind==='word'&&['if','while','for','with','switch','catch'].includes(String(previous.value)));
+    if(kind==='punct'&&text===')'){regexpAllowed=parentheses.pop()??false;return;}
+    if(kind==='word'){regexpAllowed=['return','throw','case','delete','void','typeof','instanceof','in','new','yield','await','else','do'].includes(String(value));return;}
+    if(kind==='number'||kind==='string'||kind==='regexp'||kind==='templateTail'||kind==='templateNoSub'){regexpAllowed=false;return;}
+    regexpAllowed=kind==='punct'&&!['}',']','++','--'].includes(text);
   };
   const templates:{depth:number}[]=[];
   const templateSegment=(start:number,continued:boolean):void=>{
@@ -134,6 +141,30 @@ export function lex(source: string): TokenStream {
       }
       if (i >= source.length) fail('Unterminated string', start);
       i++; push('string', start, value); continue;
+    }
+    if(c==='/'&&regexpAllowed){
+      i++;let inClass=false,closed=false;
+      while(i<source.length){
+        const char=source[i++]!;
+        if(newline(char))fail('Unterminated regular expression literal',start);
+        if(char==='\\'){
+          if(i>=source.length||newline(source[i]!))fail('Unterminated regular expression literal',start);
+          i++;continue;
+        }
+        if(char==='[')inClass=true;
+        else if(char===']')inClass=false;
+        else if(char==='/'&&!inClass){closed=true;break;}
+      }
+      if(!closed)fail('Unterminated regular expression literal',start);
+      const pattern=source.slice(start+1,i-1),flagStart=i;
+      while(i<source.length&&identifierPart(codePoint()))i+=codePoint().length;
+      const flags=source.slice(flagStart,i);
+      if(!/^[gimsuy]*$/.test(flags)||new Set(flags).size!==flags.length)fail('Invalid regular expression flags',flagStart);
+      try{new RegExp(pattern,flags);}catch{fail('Invalid regular expression pattern',start);}
+      push('regexp',start);
+      tokens[tokens.length-1]!.pattern=pattern;
+      tokens[tokens.length-1]!.flags=flags;
+      continue;
     }
     if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){i+=2;push('punct',start);continue;}
     const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','...','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
