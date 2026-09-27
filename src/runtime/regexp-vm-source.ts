@@ -367,19 +367,20 @@ export const regexpVmSource=String.raw`(function(){
       }
       return spec.inverted?!yes:yes
     }
-    function run(node,pos,caps,next){
+    function run(node,pos,caps,next,direction){
       if(++steps>100000)throw new RangeError('RegExp backtracking limit');
       var k=node.kind;
       if(k==='sequence'){
         function part(i,p,a){
           if(i===node.value.length)return next(p,a);
-          return run(node.value[i],p,a,function(end,updated){return part(i+1,end,updated)})
+          var partIndex=direction<0?node.value.length-1-i:i;
+          return run(node.value[partIndex],p,a,function(end,updated){return part(i+1,end,updated)},direction)
         }
         return part(0,pos,caps)
       }
       if(k==='alternative'){
         for(var i=0;i<node.value.length;i++){
-          var result=run(node.value[i],pos,copy(caps),next);
+          var result=run(node.value[i],pos,copy(caps),next,direction);
           if(result!==null)return result
         }
         return null
@@ -388,21 +389,15 @@ export const regexpVmSource=String.raw`(function(){
         return run(node.value,pos,caps,function(end,updated){
           if(node.capture===0)return next(end,updated);
           var changed=copy(updated);
-          changed[node.capture*2]=pos;
-          changed[node.capture*2+1]=end;
+          changed[node.capture*2]=direction<0?end:pos;
+          changed[node.capture*2+1]=direction<0?pos:end;
           return next(end,changed)
-        })
+        },direction)
       }
       if(k==='look'){
         var seen=null;
-        if(node.behind){
-          for(var begin=pos;begin>=0;begin--){
-            seen=run(node.value,begin,copy(caps),function(end,updated){
-              return end===pos?{captures:updated}:null
-            });
-            if(seen!==null)break
-          }
-        }else seen=run(node.value,pos,copy(caps),function(end,updated){return {captures:updated}});
+        if(node.behind)seen=run(node.value,pos,copy(caps),function(end,updated){return {captures:updated}},-1);
+        else seen=run(node.value,pos,copy(caps),function(end,updated){return {captures:updated}},1);
         if(node.positive)return seen===null?null:next(pos,seen.captures);
         return seen===null?next(pos,caps):null
       }
@@ -411,7 +406,7 @@ export const regexpVmSource=String.raw`(function(){
         if(simple==='char'||simple==='dot'||simple==='class'||simple==='classEscape'||simple==='property'){
           var positions=[pos],end=pos;
           while(positions.length-1<node.max){
-            var one=run(node.value,end,caps,function(after){return {end:after}});
+            var one=run(node.value,end,caps,function(after){return {end:after}},direction);
             steps--;
             if(one===null||one.end===end)break;
             end=one.end;append(positions,end)
@@ -437,7 +432,7 @@ export const regexpVmSource=String.raw`(function(){
             return run(node.value,p,fresh,function(end,updated){
               if(end===p)return count+1>=node.min?next(end,updated):null;
               return repeat(count+1,end,updated)
-            })
+            },direction)
           }
           if(node.lazy){
             if(count>=node.min){var early=next(p,copy(a));if(early!==null)return early}
@@ -469,29 +464,36 @@ export const regexpVmSource=String.raw`(function(){
         var begin=caps[index*2],end=caps[index*2+1];
         if(begin===undefined)return next(pos,caps);
         var length=end-begin;
-        if(pos+length>input.length)return null;
-        return same(slice(input,pos,pos+length),slice(input,begin,end))?next(pos+length,caps):null
+        var refStart=direction<0?pos-length:pos;
+        if(refStart<0||refStart+length>input.length)return null;
+        return same(slice(input,refStart,refStart+length),slice(input,begin,end))?next(pos+direction*length,caps):null
       }
-      if(pos>=input.length)return null;
-      var current=input[pos],matched=false,width=1;
-      if(indexOf(flags,'u')>=0&&charCodeAt(current,0)>=0xd800&&charCodeAt(current,0)<=0xdbff&&pos+1<input.length){
-        var trail=charCodeAt(input,pos+1);
-        if(trail>=0xdc00&&trail<=0xdfff)width=2
+      if(direction<0?pos<=0:pos>=input.length)return null;
+      var current=input[direction<0?pos-1:pos],matched=false,width=1;
+      if(indexOf(flags,'u')>=0){
+        if(direction<0&&pos>=2){
+          var low=charCodeAt(input,pos-1),high=charCodeAt(input,pos-2);
+          if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)width=2
+        }else if(direction>0&&charCodeAt(current,0)>=0xd800&&charCodeAt(current,0)<=0xdbff&&pos+1<input.length){
+          var trail=charCodeAt(input,pos+1);
+          if(trail>=0xdc00&&trail<=0xdfff)width=2
+        }
       }
       if(k==='char'){
         width=node.value.length;
-        matched=pos+width<=input.length&&same(slice(input,pos,pos+width),node.value)
+        var from=direction<0?pos-width:pos;
+        matched=from>=0&&from+width<=input.length&&same(slice(input,from,from+width),node.value)
       }
       else if(k==='dot')matched=dotAll||indexOf('\n\r\u2028\u2029',current)<0;
       else if(k==='classEscape')matched=escapedClass(node.value,current);
-      else if(k==='class')matched=classMatch(node.value,slice(input,pos,pos+width));
+      else if(k==='class')matched=classMatch(node.value,slice(input,direction<0?pos-width:pos,direction<0?pos:pos+width));
       else if(k==='property'){
-        var point=charCodeAt(current,0);
-        if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,pos+1)-0xdc00);
+        var point=charCodeAt(input,direction<0?pos-width:pos);
+        if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,direction<0?pos-1:pos+1)-0xdc00);
         matched=propertyMatch(node.value,point);
         if(node.negated)matched=!matched
       }
-      return matched?next(pos+width,caps):null
+      return matched?next(pos+direction*width,caps):null
     }
     var unicode=indexOf(flags,'u')>=0;
     if(unicode&&start>0&&start<input.length){
@@ -501,7 +503,7 @@ export const regexpVmSource=String.raw`(function(){
     for(var candidate=start;candidate<=input.length;candidate++){
       var caps=[];
       for(var i=0;i<=compiled.groups;i++){append(caps,undefined);append(caps,undefined)}
-      var result=run(compiled.tree,candidate,caps,function(end,updated){return {end:end,captures:updated}});
+      var result=run(compiled.tree,candidate,caps,function(end,updated){return {end:end,captures:updated}},1);
       if(result!==null){result.start=candidate;return result}
       if(sticky)break
       if(unicode&&candidate+1<input.length){

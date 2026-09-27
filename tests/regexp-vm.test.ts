@@ -14,6 +14,15 @@ test('RegExp VM parses groups, alternatives and quantifiers in native code',()=>
   console.log(four.start,four.end);
 `,'1 4 1 3 3 4\n1 4\n0 5\n0 2\n'));
 
+test('RegExp lookbehind matches backwards with captures and greedy repeats',()=>expectProgram(`
+  let pair=/(?<=(\\w{2}))def/.exec('abcdef');
+  console.log(pair[0],pair[1]);
+  let repeated=/(?<=(b+))c/.exec('abbbbbbc');
+  console.log(repeated[0],repeated[1]);
+  let choice=/(?<=(bc)|(cd))./.exec('abcd');
+  console.log(choice[0],choice[1],choice[2]);
+`,'def bc\nc bbbbbb\nd bc undefined\n'));
+
 test('RegExp Unicode properties match categories, scripts and supplementary points',()=>expectProgram(`
   console.log(/\\p{L}+/u.exec('12αβ')[0]);
   console.log(/\\P{ASCII}+/u.exec('abαβ')[0]);
