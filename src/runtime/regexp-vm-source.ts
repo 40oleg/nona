@@ -1018,4 +1018,26 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'findIndex',{v
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)if(__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return k;
  return -1;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduce',{value:function reduce(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var k=0,accumulator;
+ if(arguments.length>1)accumulator=arguments[1];
+ else{if(length===0)throw new __nonaRegexpVm.bufferTypeError('Reduce of empty typed array with no initial value');accumulator=this[0];k=1}
+ for(;k<length;k++)accumulator=__nonaRegexpVm.safeCall(callbackfn,undefined,accumulator,this[k],k,this);
+ return accumulator;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduceRight',{value:function reduceRight(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var k=length-1,accumulator;
+ if(arguments.length>1)accumulator=arguments[1];
+ else{if(length===0)throw new __nonaRegexpVm.bufferTypeError('Reduce of empty typed array with no initial value');accumulator=this[k];k--}
+ for(;k>=0;k--)accumulator=__nonaRegexpVm.safeCall(callbackfn,undefined,accumulator,this[k],k,this);
+ return accumulator;
 },writable:true,configurable:true});`;

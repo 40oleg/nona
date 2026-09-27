@@ -67,6 +67,16 @@ test('TypedArray callback search and quantifiers short-circuit and see BigInt',(
   console.log(a.every(function(){return true}),a.some(function(){return false}),a.find(function(){return false}),a.findIndex(function(){return false}));
 `,'false 012\ntrue 01\n2 1\n5 1\ntrue false undefined -1\n'));
 
+test('TypedArray reduce and reduceRight use direction and explicit initial values',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3]);
+  console.log(a.reduce(function(acc,v,i){return acc+v+i},0),a.reduceRight(function(acc,v,i){return acc+v+i},0));
+  console.log(a.reduce(function(acc,v){return acc*10+v}),a.reduceRight(function(acc,v){return acc*10+v}));
+  var b=new BigInt64Array([2n,3n]);console.log(String(b.reduce(function(acc,v){return acc*v},1n)));
+  console.log(new Uint8Array(0).reduce(function(){return 1},undefined));
+  try{new Uint8Array(0).reduce(function(){})}catch(error){console.log(error.name)}
+  try{new Uint8Array(0).reduceRight(function(){})}catch(error){console.log(error.name)}
+`,'9 9\n123 321\n6\nundefined\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
