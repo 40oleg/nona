@@ -289,7 +289,10 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
   entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');
   entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
   entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
-  if(prelude)entry.call('js.regexpVm.main');
+  if(prelude){
+    entry.call('js.regexpVm.main');
+    entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  }
   entry.call('js.main');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

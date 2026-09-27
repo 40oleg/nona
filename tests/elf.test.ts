@@ -81,6 +81,32 @@ test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
 
+test('Linux native RegExp VM captures survive GC stress',t=>{
+ const source=`let re=/(?<word>ab)\\k<word>/g;let m=re.exec('xabab');console.log(m[0],m.groups.word,m.index,re.lastIndex);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native RegExp VM matches without GC stress',t=>{
+ const source=`let m=/(a+)(b)/.exec('xaab');console.log(m[0],m[1],m[2],m.index);`;
+ const result=compile(source,{fileName:'regexp.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native simple RegExp matches without VM',t=>{
+ const source=`let m=/abc/.exec('xabc');console.log(m[0],m.index);`;
+ const result=compile(source,{fileName:'regexp-simple.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native simple RegExp survives GC stress',t=>{
+ const source=`let m=/abc/.exec('xabc');console.log(m[0],m.index);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
 test('Linux native Array.prototype.some and every call back under GC stress',t=>{
  const source=`let a=[1,,3];console.log(a.some(function(v){for(let j=0;j<20;j++)({x:j});return v===3}),a.every(function(v){for(let j=0;j<20;j++)({x:j});return v>0}));`;
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
