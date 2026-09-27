@@ -106,8 +106,7 @@ Proxy/Reflect, BigInt, RegExp, коллекции или более поздни
 `Object.getOwnPropertySymbols` дал 8 pass / 4 fail; все четыре отказа требуют
 инвариантов Proxy из 0.15. `Object.is` прошёл 21/21;
 `Object.setPrototypeOf` — 10/12, оставшиеся тесты требуют BigInt и Proxy.
-Date и BigInt существенно расширены, но gate ES2020 ещё открыт. RegExp реализован частично (см. `v0.9-regexp-status.md`); его интеграция со String, буферы, Atomics, Map/Set и WeakMap/WeakSet остаются открытыми. PR для 0.6–0.14 пока
-не открывать.
+Date и BigInt существенно расширены, но общий gate ES2020 ещё открыт. RegExp, его интеграция со String, буферы и Agent model для Atomics остаются частичными. Полные каталоги Map/Set проверены; WeakMap/WeakSet реализованы с ephemeron GC и проверкой освобождения памяти. Текущие результаты описаны в статусах 0.9–0.14. PR для 0.6–0.14 пока не открывать.
 
 ### Промежуточная проверка 0.7 (2026-09-27)
 
@@ -121,7 +120,9 @@ Test262 `JSON.parse` проходит 63/77; оставшиеся тесты и�
 
 ### Промежуточная проверка 0.13 (2026-09-27)
 
-Начат native `Map`: конструктор с iterable, основные методы, `forEach`,
-SameValueZero и трассировка записей GC. Windows и Linux native сценарии с
-GC stress прошли. Итераторы Map, Set и этап 0.14 ещё открыты; этап 0.12 с
-агентами также не закрыт. Детали в `v0.13-collections-status.md`.
+Native `Map` и `Set` включают iterable-конструкторы, методы и итераторы,
+SameValueZero, порядок вставки и трассировку GC. Windows и Linux native
+сценарии с GC stress прошли. Полные каталоги Test262: Map **164/204**,
+Set **229/383**; отказы требуют функций после ES2020, Reflect/cross-realm
+или WeakRef. Детали в `v0.13-collections-status.md`. Этап 0.12 с агентами
+остаётся открытым.
