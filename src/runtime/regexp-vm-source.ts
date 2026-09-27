@@ -466,11 +466,11 @@ Object.defineProperty(String.prototype,'match',{value:({match(regexp){
     var matcher=regexp[Symbol.match];
     if(matcher!==null&&matcher!==undefined){
       if(typeof matcher!=='function')throw new TypeError('Symbol.match is not callable');
-      return matcher.call(regexp,String(this))
+      return matcher.call(regexp,this)
     }
   }
   var rx=new RegExp(regexp);
-  return rx[Symbol.match](String(this))
+  return rx[Symbol.match](this)
 }}).match,writable:true,configurable:true});
 Object.defineProperty(String.prototype.match,'name',{value:'match',configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.search,{value:({[Symbol.search](string){
@@ -491,11 +491,11 @@ Object.defineProperty(String.prototype,'search',{value:({search(regexp){
     var searcher=regexp[Symbol.search];
     if(searcher!==null&&searcher!==undefined){
       if(typeof searcher!=='function')throw new TypeError('Symbol.search is not callable');
-      return searcher.call(regexp,String(this))
+      return searcher.call(regexp,this)
     }
   }
   var rx=new RegExp(regexp);
-  return rx[Symbol.search](String(this))
+  return rx[Symbol.search](this)
 }}).search,writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](string,replaceValue){
   'use strict';
@@ -724,9 +724,55 @@ Object.defineProperty(String.prototype,'matchAll',{value:({matchAll(regexp){
     var method=regexp[Symbol.matchAll];
     if(method!==null&&method!==undefined){
       if(typeof method!=='function')throw new TypeError('Symbol.matchAll is not callable');
-      return method.call(regexp,String(this))
+      return method.call(regexp,this)
     }
   }
   var rx=new RegExp(regexp,'g');
-  return rx[Symbol.matchAll](String(this))
-}}).matchAll,writable:true,configurable:true});`;
+  return rx[Symbol.matchAll](this)
+}}).matchAll,writable:true,configurable:true});
+Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchValue,replaceValue){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('String.prototype.replaceAll called on null or undefined');
+  if(searchValue!==null&&(typeof searchValue==='object'||typeof searchValue==='function')){
+    var marker=searchValue[Symbol.match],isRegExp=marker===undefined?searchValue instanceof RegExp:Boolean(marker);
+    if(isRegExp){
+      var flags=String(searchValue.flags);
+      if(flags.indexOf('g')<0)throw new TypeError('RegExp must have global flag')
+    }
+    var hook=searchValue[Symbol.replace];
+    if(hook!==null&&hook!==undefined){
+      if(typeof hook!=='function')throw new TypeError('Symbol.replace is not callable');
+      return hook.call(searchValue,this,replaceValue)
+    }
+  }
+  var input=String(this);
+  if(typeof searchValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var search=String(searchValue),functional=typeof replaceValue==='function',replacement='';
+  if(!functional){
+    if(typeof replaceValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+    replacement=String(replaceValue)
+  }
+  var result='',end=0,position=input.indexOf(search,0);
+  while(position>=0){
+    result+=input.slice(end,position);
+    var value='';
+    if(functional)value=String(replaceValue(search,position,input));
+    else{
+      for(var i=0;i<replacement.length;i++){
+        var c=replacement[i];
+        if(c!=='$'||i+1>=replacement.length){value+=c;continue}
+        var next=replacement[i+1];
+        if(next==='$'){value+='$';i++;continue}
+        if(next==='&'){value+=search;i++;continue}
+        if(next.charCodeAt(0)===96){value+=input.slice(0,position);i++;continue}
+        if(next==="'"){value+=input.slice(position+search.length);i++;continue}
+        value+='$'
+      }
+    }
+    result+=value;
+    end=position+search.length;
+    var nextPosition=position+(search.length===0?1:search.length);
+    position=nextPosition>input.length?-1:input.indexOf(search,nextPosition)
+  }
+  return result+input.slice(end)
+}}).replaceAll,writable:true,configurable:true});`;
