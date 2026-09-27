@@ -9,14 +9,36 @@ import { analyzeLiveness } from '../../ir/liveness.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
+import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
+import {lex} from '../../frontend/lexer.js';
+import {parse} from '../../frontend/parser.js';
+import {bind} from '../../frontend/binder.js';
+import {lower} from '../../ir/lower.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
+let cachedRegExpPrelude:ModuleIR|undefined;
 
 export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
+  const userGlobalCount=module.globalCount;
+  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource)))))):undefined;
+  if(prelude&&prelude.globalCount!==1)throw new Error('RegExp VM prelude must have one global binding');
+  const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
+  module={...module,globalCount:userGlobalCount+(prelude?.globalCount??0),functions:[
+    ...module.functions,
+    ...(prelude?.functions??[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
+      operations:block.operations.map(op=>{
+        if(op.kind==='newFunction')return {...op,target:prefix(op.target)};
+        if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,index:op.index+userGlobalCount};
+        return op;
+      }),
+    }))})),
+  ]};
   const runtime=emitRuntime();
+  if(prelude)runtime.fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push(
+    {offset:0,kind:'va64',target:'js.globals',addend:userGlobalCount*16});
   const fragments:NamedFragment[]=[...runtime.fragments];
   const functions:UnwindFunction[]=[...runtime.functions];
   for(const name of module.globalFunctionProperties??[]){
@@ -267,6 +289,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
   entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');
   entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
   entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  if(prelude)entry.call('js.regexpVm.main');
   entry.call('js.main');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

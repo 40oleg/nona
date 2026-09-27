@@ -8,10 +8,11 @@ import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './
 export const RegExpKind=10;
 export const RegExpLayout={pattern:O.size,flags:O.size+8,size:O.size+16} as const;
 const flagGetters=[['global','g'],['ignoreCase','i'],['multiline','m'],['dotAll','s'],['unicode','u'],['sticky','y']] as const;
-export const regexpRoots=['rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn','rt.regexpExec.fn',...flagGetters.map(([name])=>'rt.regexpFlag.'+name+'.fn')];
-export const regexpPropertyRoots=['rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...['toString','test','exec'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':name==='test'?'Test':'Exec')+'.fn',name,'rt.regexpPrototype')),...flagGetters.flatMap(([name])=>['rt.regexpPrototype.'+name,'rt.regexpFlag.'+name+'.fn.name','rt.regexpFlag.'+name+'.fn.length'])];
+export const regexpRoots=['rt.RegExp.species.fn','rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn','rt.regexpExec.fn',...flagGetters.map(([name])=>'rt.regexpFlag.'+name+'.fn')];
+export const regexpPropertyRoots=['rt.RegExp.@@species','rt.RegExp.species.fn.name','rt.RegExp.species.fn.length','rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(1,3).flatMap(name=>[name+'.name',name+'.length']),...['toString','test','exec'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':name==='test'?'Test':'Exec')+'.fn',name,'rt.regexpPrototype')),...flagGetters.flatMap(([name])=>['rt.regexpPrototype.'+name,'rt.regexpFlag.'+name+'.fn.name','rt.regexpFlag.'+name+'.fn.length'])];
 
 export function emitRegExpPrototype(b:RuntimeBuilder):void {
+ b.data('rt.regexpVmCell',new Uint8Array(8),'.data');
  const bytes=new Uint8Array(O.size);
  b.bundle.fragments.push({name:'rt.regexpPrototype',section:'.data',alignment:8,bytes,symbols:{},fixups:[
   {offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},
@@ -24,6 +25,16 @@ export function emitRegExpPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitRegExp(b:RuntimeBuilder):void {
+ emitNativeFunction(b,'rt.RegExp.species.fn','get [Symbol.species]',0);
+ const speciesProperty=new Uint8Array(P.size);speciesProperty[P.attributes]=A.accessor|A.configurable;speciesProperty[P.getter]=5;
+ const regexpConstructor=b.bundle.fragments.find(f=>f.name==='rt.RegExp')!;
+ const speciesHead=regexpConstructor.fixups.find(f=>f.offset===O.properties)!;
+ b.bundle.fragments.push({name:'rt.RegExp.@@species',section:'.data',alignment:8,bytes:speciesProperty,symbols:{},fixups:[
+  {offset:P.next,kind:'va64',target:speciesHead.target,addend:0},
+  {offset:P.key,kind:'va64',target:'rt.Symbol.species.value',addend:0},
+  {offset:P.getter+8,kind:'va64',target:'rt.RegExp.species.fn',addend:0},
+ ]});speciesHead.target='rt.RegExp.@@species';
+ b.fn('rt.RegExp.species.fn.code',40,a=>{a.load('rdx',slot(80));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'rcx',disp:offset},'rax');}});
  rootedFn(b,'rt.escapeRegExpSource',120,[{kind:'pointer',register:'rcx'}],a=>{
   a.store(slot(40),'rcx');a.load('r9',{base:'rcx'});a.store(slot(48),'r9');a.add('rcx',8);a.mov('r8','rcx');a.mov('rdx',0);a.mov('r11',0);
   const scan=a.unique('scan'),scanned=a.unique('scanned'),slash=a.unique('slash'),line=a.unique('line'),unicodeLine=a.unique('unicodeLine'),backslash=a.unique('backslash'),advance=a.unique('advance');
@@ -455,7 +466,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.label(yes);a.mov('rax','rdx');a.load('r10',slot(48));a.add('r10',8);a.sub('rax','r10');a.shr('rax',1);a.load('r10',slot(80));a.sub('rax','r10');a.mov('rdx','rax');a.mov('rax','r10');
   a.jmp(done);a.label(no);a.mov('rax',-1);a.mov('rdx',0);a.label(done);
  });
- rootedFn(b,'rt.regexpExec.fn.code',216,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:8}],(a,frame)=>{
+ rootedFn(b,'rt.regexpExec.fn.code',328,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:216,count:6}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.load('r10',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(64+offset),'rax');}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
@@ -480,6 +491,27 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.cvttsd2si('rax','xmm0');a.store(slot(192),'rax');a.jmp(indexReady);
   a.label(tooFar);a.add('r10',1);a.store(slot(192),'r10');a.label(indexReady);
   a.load('rax',slot(208));a.test('rax','rax');const useIndex=a.unique('useIndex');a.jcc('ne',useIndex);a.mov('rax',0);a.store(slot(192),'rax');a.label(useIndex);
+  const done=a.unique('done'),nativeMatch=a.unique('nativeMatch'),vmMatch=a.unique('vmMatch');
+  a.load('r10',slot(72));a.load('r10',{base:'r10',disp:RegExpLayout.pattern});a.load('r11',{base:'r10'});a.add('r10',8);
+  const scan=a.unique('vmScan'),scanEscape=a.unique('vmScanEscape'),scanClass=a.unique('vmScanClass'),scanNext=a.unique('vmScanNext'),inClass=a.unique('vmInClass');
+  a.mov('r8',0);a.label(scan);a.test('r11','r11');a.jcc('e',nativeMatch);
+  a.load('rax',{base:'r10'},16);a.cmp('rax',92);a.jcc('e',scanEscape);a.cmp('rax',91);a.jcc('e',scanClass);a.cmp('rax',93);a.jcc('e',scanClass);
+  a.test('r8','r8');a.jcc('ne',scanNext);
+  for(const code of '(){}*+?|'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',vmMatch);}
+  a.jmp(scanNext);
+  a.label(scanEscape);a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
+  a.label(scanClass);a.xor('r8',1);
+  a.label(scanNext);a.add('r10',2);a.sub('r11',1);a.jmp(scan);
+  a.label(vmMatch);
+  for(const [from,to] of [[64,216],[96,232]] as const)for(const offset of [0,8]){a.load('rax',slot(from+offset));a.store(slot(to+offset),'rax');}
+  a.mov('rax',3);a.store(slot(248),'rax');a.load('rax',slot(192));a.cvtsi2sd('xmm0','rax');a.storesd(slot(256),'xmm0');
+  a.mov('rax',2);a.store(slot(264),'rax');a.load('rax',slot(200));a.test('rax','rax');const stickyReady=a.unique('vmStickyReady');a.jcc('e',stickyReady);a.mov('rax',1);a.label(stickyReady);a.store(slot(272),'rax');
+  a.mov('rax',4);a.store(slot(280),'rax');a.store(slot(296),'rax');
+  a.load('r10',slot(72));a.load('rax',{base:'r10',disp:RegExpLayout.pattern});a.store(slot(288),'rax');
+  a.load('rax',{base:'r10',disp:RegExpLayout.flags});a.store(slot(304),'rax');
+  a.lea('rax',{rip:'rt.undefinedValue'});a.store(slot(32),'rax');
+  a.load('rcx',slot(40));a.load('rdx',{rip:'rt.regexpVmCell'});a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.mov('r8',6);a.lea('r9',slot(216));a.call('rt.invoke');a.jmp(done);
+  a.label(nativeMatch);
   a.load('rcx',slot(72));a.load('rdx',slot(104));a.load('r8',slot(192));a.load('r9',slot(200));a.call('rt.regexpFindPlain');a.store(slot(192),'rax');a.store(slot(200),'rdx');
   const writeLastIndex=(zero:boolean)=>{
    a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.str.lastIndex'});a.store(slot(136),'rax');
@@ -487,7 +519,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
    a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(144),'rax');a.storesd(slot(152),'xmm0');
    a.lea('rcx',slot(64));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');
   };
-  const found=a.unique('found'),done=a.unique('done');a.cmp('rax',-1);a.jcc('ne',found);
+  const found=a.unique('found');a.cmp('rax',-1);a.jcc('ne',found);
   a.load('rax',slot(208));a.test('rax','rax');const skipReset=a.unique('skipReset');a.jcc('e',skipReset);writeLastIndex(true);a.label(skipReset);
   a.load('rcx',slot(40));a.mov('rax',1);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');a.jmp(done);
   a.label(found);a.load('rax',slot(208));a.test('rax','rax');const skipAdvance=a.unique('skipAdvance');a.jcc('e',skipAdvance);writeLastIndex(false);a.label(skipAdvance);

@@ -22,6 +22,52 @@ test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   }
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n'));
 
+test('RegExp species getter returns its receiver',()=>expectProgram(`
+  let getter=Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get;
+  let other={name:'other'};
+  console.log(RegExp[Symbol.species]===RegExp,getter.call(other)===other);
+  console.log(getter.name,getter.length);
+  let descriptor=Object.getOwnPropertyDescriptor(RegExp,Symbol.species);
+  console.log(descriptor.enumerable,descriptor.configurable,descriptor.set);
+`,'true true\nget [Symbol.species] 0\nfalse true undefined\n'));
+
+test('RegExp exec delegates groups, alternatives and repeats to the VM',()=>expectProgram(String.raw`
+  let first=/(a+)(b)/.exec('xaab');
+  console.log(first[0],first[1],first[2],first.index,first.input,first.groups);
+  let second=/(?:ab|cd)\d?/g;
+  console.log(second.exec('xcd2')[0],second.lastIndex,second.exec('xcd2'),second.lastIndex);
+  console.log(/[Nn]?ever/.exec('Never')[0],/a{2,4}?/.exec('aaaaa')[0]);
+`,'aab aa b 1 xaab undefined\ncd2 4 null 0\nNever aa\n'));
+
+test('RegExp VM supports named and numbered backreferences',()=>expectProgram(String.raw`
+  let named=/(?<word>ab)\k<word>/.exec('xabab');
+  console.log(named[0],named[1],named.groups.word,Object.getPrototypeOf(named.groups)===null);
+  let numbered=/(a)(b)\2\1/.exec('abba');
+  console.log(numbered[0],numbered[1],numbered[2]);
+  let absent=/(a)?\1b/.exec('b');
+  console.log(absent[0],absent[1]);
+`,'abab ab ab true\nabba a b\nb undefined\n'));
+
+test('RegExp VM reads internal pattern and flags',()=>expectProgram(`
+  let re=/(a+)/g;
+  Object.defineProperty(re,'source',{get(){throw new Error('source')}});
+  Object.defineProperty(re,'flags',{get(){throw new Error('flags')}});
+  console.log(re.exec('xaa')[0],re.lastIndex);
+`,'aa 3\n'));
+
+test('RegExp VM updates lastIndex with strict Set semantics',()=>expectProgram(`
+  let re=/(a+)/g;
+  Object.defineProperty(re,'lastIndex',{value:0,writable:false});
+  try{re.exec('aa')}catch(error){console.log(error.name)}
+  console.log(re.lastIndex);
+`,'TypeError\n0\n'));
+
+test('RegExp VM handles lookahead and lookbehind assertions',()=>expectProgram(String.raw`
+  console.log(/(?=ab)ab/.exec('xab')[0],/(?!ab)a./.exec('xac')[0]);
+  console.log(/(?<=ab)c/.exec('xabc').index,/(?<!ab)c/.exec('xc').index);
+  console.log(/(?<=(a)b)c/.exec('abc')[1]);
+`,'ab ac\n3 1\na\n'));
+
 test('RegExp constructor rejects structurally incomplete patterns',()=>expectProgram(String.raw`
   for(let pattern of ['(','[',')','a\\']){
     try{new RegExp(pattern)}catch(error){console.log(error.name)}
@@ -200,4 +246,11 @@ test('RegExp wildcard match text survives stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'abc 1 4\n');
+});
+
+test('RegExp VM captures survive stress GC',()=>{
+ const source=`let re=/(a+)(b)/g;let m=re.exec('xaab');console.log(m[0],m[1],m[2],m.index,re.lastIndex);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'aab aa b 1 4\n');
 });

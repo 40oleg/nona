@@ -12,7 +12,7 @@ export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64'}
 export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string):ModuleIR {
-  return lower(bind(parse(lex(source))));
+  return {...lower(bind(parse(lex(source)))),runtimePrelude:true};
 }
 export function compile(source:string, options:CompileOptions):CompileResult {
   try {

@@ -15,7 +15,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','parseFloat','parseInt','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
   'rt.BigInt':['length','name','prototype','asIntN','asUintN'],
   'rt.Date':['length','name','prototype','now','parse','UTC'],
-  'rt.RegExp':['length','name','prototype'],
+  'rt.RegExp':['length','name','prototype','@@species'],
   'rt.String':['length','name','prototype','fromCharCode','fromCodePoint','raw'],
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
   'rt.JSON':['parse','stringify','@@toStringTag'],
