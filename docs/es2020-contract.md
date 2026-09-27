@@ -45,7 +45,7 @@ chapter works. A row closes only with runnable conformance evidence.
 | BigInt and all numeric semantics | Partial | Numeric and BigInt groups, boundary values |
 | RegExp and Unicode matching | Missing | RegExp syntax, execution and String integration |
 | Collections and weak collections | Missing | Key equality, order, GC and weak reachability |
-| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Missing | Buffer/view bounds, shared memory and atomic groups |
+| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Partial | Native ArrayBuffer allocation and byteLength exist; views, detachment, shared memory and Atomics remain |
 | Proxy and Reflect | Missing | Every trap and invariant, abrupt completion |
 | All ECMA-262 built-in constructors, methods and properties | Partial | Per-object Test262 groups and property descriptors |
 | Native memory safety and portability | Partial | GC stress, callback roots, Windows and Linux native suites |

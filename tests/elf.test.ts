@@ -62,6 +62,13 @@ test('Linux native compiler executes a JavaScript program',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'hello 42\n');
 });
 
+test('Linux native ArrayBuffer allocation and byteLength',t=>{
+ const source=`let b=new ArrayBuffer(16);console.log(b.byteLength,Object.prototype.toString.call(b));`;
+ const result=compile(source,{fileName:'array-buffer.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'16 [object ArrayBuffer]\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});
