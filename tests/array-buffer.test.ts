@@ -215,3 +215,28 @@ test('Uint8Array canonical numeric keys bypass inherited properties under stress
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'undefined false undefined\nundefined 42\n');
 });
+
+test('Uint8Array copies iterable and array-like sources',()=>expectProgram(`
+  var values=new Uint8Array([257,-1,3.9]);console.log(values.length,values[0],values[1],values[2]);
+  var like={0:5,2:258,length:3};var copied=new Uint8Array(like);
+  console.log(copied[0],copied[1],copied[2],copied.buffer.byteLength);
+  var iterable={[Symbol.iterator]:function*(){yield 6;yield 259}};
+  var iterated=new Uint8Array(iterable);console.log(iterated.length,iterated[0],iterated[1]);
+`,'3 1 255 3\n5 0 2 3\n2 6 3\n'));
+
+test('Uint8Array converts iterable values during iteration and closes on error',()=>expectProgram(`
+  var trace='',source={
+    [Symbol.iterator](){var i=0;return {
+      next(){trace+='n';return i++<2?{value:i===1?{valueOf(){trace+='c';return 257}}:{valueOf(){trace+='x';throw Error('bad')}},done:false}:{done:true}},
+      return(){trace+='r';return {done:true}}
+    }}
+  };
+  try{new Uint8Array(source)}catch(error){console.log(error.message,trace)}
+`,'bad ncnxr\n'));
+
+test('Uint8Array source copying survives intrinsic changes and stress GC',()=>{
+ const source=`var source=new Uint8Array(2);source[0]=8;source[1]=259;Array.from=function(){throw Error('changed')};var copy=new Uint8Array(source);var values=new Uint8Array([{valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 258}}]);console.log(copy.length,copy[0],copy[1],values[0]);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'2 8 3 2\n');
+});
