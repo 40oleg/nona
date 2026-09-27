@@ -97,6 +97,13 @@ test('Linux native ArrayBuffer detachment invalidates views',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 undefined false\nTypeError\n');
 });
 
+test('Linux native array append keeps indexed values and length',t=>{
+ const source=`let values=[];for(let i=0;i<10000;i++)values[i]=i;console.log(values.length,values[0],values[9999]);`;
+ const result=compile(source,{fileName:'array-append.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'10000 0 9999\n');
+});
+
 test('Linux native TypedArray callback methods traverse BigInt elements',t=>{
  const source=`let a=new BigInt64Array([1n,2n,3n]),sum=0n;a.forEach(v=>sum+=v);let copy=new BigInt64Array(3);copy.set(a);let sorted=new BigInt64Array([3n,1n,2n]);sorted.sort();console.log(String(sum),a.every(v=>v>0n),a.some(v=>v===2n),String(a.find(v=>v>1n)),a.findIndex(v=>v>1n),String(a.reduce((x,y)=>x+y,0n)),String(a.reduceRight((x,y)=>x*10n+y,0n)),a.join(':'),a.toString(),a.map(v=>v+1n).join(':'),a.filter(v=>v>1n).join(':'),copy.join(':'),a.subarray(1).join(':'),a.slice(1).join(':'),sorted.join(':'),a.toLocaleString(),BigInt64Array.from([4n,5n],v=>v+1n).join(':'));`;
  const result=compile(source,{fileName:'typed-array-callbacks.js',target:'linux-x64'});
