@@ -5,6 +5,7 @@ import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
+import {runOracle} from './helpers/oracle.js';
 
 test('BigInt literal forms, type, string and Boolean conversion',()=>expectProgram(`console.log(typeof 0n,String(0n),Boolean(0n),Boolean(1n));console.log(String(0xFFn),String(0b101n),String(0o77n),String(9007199254740993n))`,'bigint 0 false true\n255 5 63 9007199254740993\n'));
 test('BigInt literal strict equality and JSON rejection',()=>expectProgram(`console.log(1n===1n,1n===2n,1n===1);try{JSON.stringify(1n)}catch(e){console.log(e.name)}`,'true false false\nTypeError\n'));
@@ -26,3 +27,11 @@ test('BigInt radix and modulo conversions survive stress GC',()=>{
 test('BigInt multiplication keeps arbitrary precision and signs',()=>expectProgram(`console.log(String(12345678901234567890n*98765432109876543210n),String(-12345678901234567890n*7n),String(-12n*-13n),String(999999999999999999n*0n));try{1n*2}catch(e){console.log(e.name)}`,'1219326311370217952237463801111263526900 -86419752308641975230 156 0\nTypeError\n'));
 test('BigInt division and remainder truncate toward zero',()=>expectProgram(`console.log(String(123456789012345678901234567890n/987654321n),String(123456789012345678901234567890n%987654321n));console.log(String(-13n/5n),String(-13n%5n),String(13n/-5n),String(13n%-5n),String(-13n/-5n),String(-13n%-5n));try{1n/0n}catch(e){console.log(e.name)}`,'124999998873437499901 574845669\n-2 -3 -2 3 2 -3\nRangeError\n'));
 test('BigInt exponentiation squares exact values',()=>expectProgram(`console.log(String(2n**100n),String((-3n)**5n),String((-3n)**6n),String(0n**0n));try{2n**-1n}catch(e){console.log(e.name)}`,'1267650600228229401496703205376 -243 729 1\nRangeError\n'));
+test('BigInt shifts preserve arbitrary width and arithmetic sign',()=>expectProgram(`console.log(String(1n<<100n),String(1024n>>8n),String(-13n>>2n),String(-13n<<3n));console.log(String(16n<<-2n),String(-13n<<-2n),String(16n>>-2n));console.log(String(1n>>10000000000000n),String(-1n>>10000000000000n));try{1n>>>1n}catch(e){console.log(e.name)}`,'1267650600228229401496703205376 4 -4 -104\n4 -4 64\n0 -1\nTypeError\n'));
+test('BigInt bitwise complement uses infinite sign bits',()=>expectProgram(`console.log(String(~0n),String(~1n),String(~-1n),String(~123456789012345678901n))`,'-1 -2 0 -123456789012345678902\n'));
+test('BigInt bitwise and or xor retain sign extension',()=>expectProgram(`console.log(String(0xff00n&0x0ff0n),String(0xff00n|0x0ff0n),String(0xff00n^0x0ff0n));console.log(String(-1n&0xffn),String(-1n|0xffn),String(-1n^0xffn),String(-12345678901234567890n&0xffffn))`,'3840 65520 61680\n255 -1 -256 62766\n'));
+test('BigInt shifts and bitwise operations survive stress GC',()=>{
+ const source=`var a=BigInt('0x123456789abcdef0123456789abcdef'),b=-BigInt('0xabcdef0123456789');console.log(String(a<<17n),String(b>>19n),String(a&b),String(a|b),String(a^b),String(~a));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
