@@ -48,7 +48,7 @@ export function emitIterators(b:RuntimeBuilder):void {
  symbolMethod(b,'rt.stringPrototype','rt.stringPrototype.@@iterator','iterator','rt.stringIterator.fn');
  ordinaryMethod(b,'rt.iteratorPrototype','rt.iteratorPrototype.next','rt.iter.next','rt.iteratorNext.fn');
  symbolMethod(b,'rt.iteratorPrototype','rt.iteratorPrototype.@@iterator','iterator','rt.iteratorSelf.fn');
- b.fn('rt.iteratorSelf.fn.code',56,a=>{a.store(slot(40),'rcx');a.load('rdx',slot(96));a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',IteratorKind);failIf(a,'ne','rt.throwTypeError');a.load('rcx',slot(40));a.mov('rax',5);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');});
+ b.fn('rt.iteratorSelf.fn.code',56,a=>{a.load('rdx',slot(96));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store({base:'rcx',disp:n},'rax');}});
  // Internal allocation of a stateful iterator; receiver Value is rooted.
  rootedFn(b,'rt.newIterator',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',IteratorSize);a.call('rt.alloc');

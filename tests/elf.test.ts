@@ -154,9 +154,9 @@ test('Linux native Atomics.wait handles mismatch and finite timeout',t=>{
 });
 
 test('Linux native Map stores SameValueZero keys through GC stress',t=>{
- const source=`let key={id:7},map=new Map([[key,{id:9}],[NaN,'first']]);map.set(NaN,'second');for(let i=0;i<20;i++)({i:i});let seen=[];map.forEach((value,key)=>seen.push(String(value.id||value)));console.log(map.size,map.get(key).id,map.get(NaN),map.delete(key),map.size,seen.join(','));`;
+ const source=`let key={id:7},map=new Map([[key,{id:9}],[NaN,'first']]);map.set(NaN,'second');for(let i=0;i<20;i++)({i:i});let seen=[];map.forEach((value,key)=>seen.push(String(value.id||value)));let iterator=map.values(),first=iterator.next().value;console.log(map.size,map.get(key).id,map.get(NaN),map.delete(key),map.size,seen.join(','),first.id,iterator.next().value);`;
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
- const output=executeLinux(image,t);if(output!==null)assert.equal(output,'2 9 second true 1 9,second\n');
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'2 9 second true 1 9,second 9 second\n');
 });
 
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{

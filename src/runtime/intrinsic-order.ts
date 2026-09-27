@@ -46,6 +46,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.arraybufferPrototype':['constructor','byteLength','slice','@@toStringTag'],
   'rt.dataviewPrototype':['constructor','buffer','byteLength','byteOffset','getInt8','setInt8','getUint8','setUint8','getInt16','setInt16','getUint16','setUint16','getInt32','setInt32','getUint32','setUint32','getFloat32','setFloat32','getFloat64','setFloat64','getBigInt64','setBigInt64','getBigUint64','setBigUint64','@@toStringTag'],
   'rt.mapPrototype':['constructor','clear','delete','forEach','get','has','set','size','entries','keys','values','@@iterator','@@toStringTag'],
+  'rt.mapIteratorPrototype':['next','@@toStringTag'],
   'rt.typedArrayPrototype':['constructor','buffer','byteOffset','byteLength','length','copyWithin','entries','fill','includes','indexOf','keys','lastIndexOf','values','@@iterator','reverse'],
   'rt.uint8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],
   'rt.int8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],

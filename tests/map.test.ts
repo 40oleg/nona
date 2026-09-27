@@ -47,3 +47,17 @@ test('Map.forEach observes appends and skips deleted entries',()=>expectProgram(
  map.forEach(function(value,key,current){seen.push(key+':'+value+':'+(this.flag));if(key===1){current.delete(2);current.set(3,'three')}},{flag:7});
  console.log(seen.join(','),map.size);
 `,'1:one:7,3:three:7 2\n'));
+
+test('Map iterators preserve order and observe later additions',()=>expectProgram(`
+ var map=new Map([[1,'one'],[2,'two']]),entries=map.entries();
+ console.log(entries[Symbol.iterator]()===entries,Map.prototype[Symbol.iterator]===Map.prototype.entries);
+ console.log(entries.next().value.join(':'));map.delete(2);map.set(3,'three');
+ console.log(entries.next().value.join(':'),entries.next().done,entries.next().done);
+ console.log(Array.from(map.keys()).join(','),Array.from(map.values()).join(','),Array.from(map).map(pair=>pair.join(':')).join(','));
+`,'true true\n1:one\n3:three true true\n1,3 one,three 1:one,3:three\n'));
+
+test('Map iterator retains its source and entries across GC',()=>{
+ const source=`var iterator=(function(){var map=new Map([[{id:7},{id:9}]]);return map.entries()})();for(var i=0;i<40;i++)({i:i});var pair=iterator.next().value;console.log(pair[0].id,pair[1].id,iterator.next().done);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'7 9 true\n');
+});
