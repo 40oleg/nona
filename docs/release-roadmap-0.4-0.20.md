@@ -118,3 +118,10 @@ Test262 `JSON.parse` проходит 63/77; оставшиеся тесты и�
 `json-parse-with-source` после ES2020. Группа `JSON.stringify` проходит
 49/66; оставшиеся тесты требуют Proxy, BigInt или RegExp literal.
 Эти результаты касаются выбранных тестов и не заменяют полный gate 0.7.
+
+### Промежуточная проверка 0.13 (2026-09-27)
+
+Начат native `Map`: конструктор с iterable, основные методы, `forEach`,
+SameValueZero и трассировка записей GC. Windows и Linux native сценарии с
+GC stress прошли. Итераторы Map, Set и этап 0.14 ещё открыты; этап 0.12 с
+агентами также не закрыт. Детали в `v0.13-collections-status.md`.

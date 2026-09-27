@@ -153,6 +153,12 @@ test('Linux native Atomics.wait handles mismatch and finite timeout',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'not-equal timed-out timed-out not-equal timed-out\n');
 });
 
+test('Linux native Map stores SameValueZero keys through GC stress',t=>{
+ const source=`let key={id:7},map=new Map([[key,{id:9}],[NaN,'first']]);map.set(NaN,'second');for(let i=0;i<20;i++)({i:i});let seen=[];map.forEach((value,key)=>seen.push(String(value.id||value)));console.log(map.size,map.get(key).id,map.get(NaN),map.delete(key),map.size,seen.join(','));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'2 9 second true 1 9,second\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});
