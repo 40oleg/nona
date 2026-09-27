@@ -98,6 +98,12 @@ test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   re.exec=function(){return 3};try{re.test('x')}catch(error){console.log(error.name)}
 `,'true\nfalse\nTypeError\n'));
 
+test('RegExp exec rejects an ordinary object receiver',()=>expectProgram(`
+  for(let value of [{},[],new Number(1),function(){}]){
+    try{RegExp.prototype.exec.call(value,'x')}catch(error){console.log(error.name)}
+  }
+`,'TypeError\nTypeError\nTypeError\nTypeError\n'));
+
 test('RegExp internal strings survive stress GC',()=>{
  const source=String.raw`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}let m=new RegExp('needle').exec('xneedle');console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString(),new RegExp('needle').test('xneedle'),m[0],m.index,new RegExp('/').source==='\\/')`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
