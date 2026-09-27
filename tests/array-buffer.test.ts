@@ -256,3 +256,13 @@ test('Uint8Array iterator retains backing bytes under stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'7 8 true\n');
 });
+
+test('Uint8Array inherits abstract TypedArray constructor and shared accessors',()=>expectProgram(`
+  var TypedArray=Object.getPrototypeOf(Uint8Array),common=Object.getPrototypeOf(Uint8Array.prototype);
+  var bytes=new Uint8Array([1,2]);
+  console.log(TypedArray.name,TypedArray.length,TypedArray.prototype===common,common.constructor===TypedArray);
+  console.log(Object.getPrototypeOf(TypedArray)===Function.prototype,Object.getOwnPropertyDescriptor(TypedArray,'prototype').writable);
+  console.log(Object.getOwnPropertyDescriptor(common,'length').get.call(bytes),common.values===bytes.values);
+  try{new TypedArray(1)}catch(error){console.log(error.name)}
+  try{TypedArray()}catch(error){console.log(error.name)}
+`,'TypedArray 0 true true\ntrue false\n2 true\nTypeError\nTypeError\n'));

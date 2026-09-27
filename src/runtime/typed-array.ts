@@ -5,12 +5,13 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {ArrayBufferKind,ArrayBufferLayout} from './array-buffer.js';
+import {FunctionLayout as F,FunctionKind} from './functions.js';
 
 /** Common layout for future numeric and BigInt typed-array variants. */
 export const TypedArrayKind=13;
 export const TypedArrayLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,length:O.size+24,elementType:O.size+32,size:O.size+40} as const;
-export const typedArrayRoots=['rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn'];
-export const typedArrayPropertyRoots=['rt.uint8arrayPrototype.@@toStringTag',...['buffer','byteOffset','byteLength','length'].map(name=>'rt.uint8arrayPrototype.'+name),...['values','keys','entries','@@iterator'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.flatMap(name=>[name+'.name',name+'.length'])];
+export const typedArrayRoots=['rt.TypedArray','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn'];
+export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.typedArrayPrototype.constructor','rt.uint8arrayPrototype.@@toStringTag',...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
 
 export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.typedArrayPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -23,6 +24,32 @@ export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
 
 export function emitTypedArray(b:RuntimeBuilder):void {
  const common=b.bundle.fragments.find(f=>f.name==='rt.typedArrayPrototype')!;
+ const typedConstructor=new Uint8Array(F.size);typedConstructor[O.kind]=FunctionKind;typedConstructor[F.constructable]=1;typedConstructor[F.rawThis]=1;
+ b.bundle.fragments.push(stringLiteral('rt.TypedArray.text','TypedArray'),stringLiteral('rt.TypedArray.source','function TypedArray() { [native code] }'));
+ b.bundle.fragments.push({name:'rt.TypedArray',section:'.data',alignment:8,bytes:typedConstructor,symbols:{},fixups:[
+  {offset:O.properties,kind:'va64',target:'rt.TypedArray.prototype',addend:0},
+  {offset:O.prototype,kind:'va64',target:'rt.functionPrototype',addend:0},
+  {offset:F.code,kind:'va64',target:'rt.TypedArray.code',addend:0},
+  {offset:F.constructCode,kind:'va64',target:'rt.TypedArray.construct',addend:0},
+  {offset:F.sourceText,kind:'va64',target:'rt.TypedArray.source',addend:0},
+ ]});
+ for(const [name,next] of [['prototype','name'],['name','length'],['length',null]] as const){
+  const bytes=new Uint8Array(P.size);bytes[P.value]=name==='name'?4:name==='length'?3:5;bytes[P.attributes]=name==='prototype'?0:A.configurable;
+  b.bundle.fragments.push({name:'rt.TypedArray.'+name,section:'.data',alignment:8,bytes,symbols:{},fixups:[
+   {offset:P.key,kind:'va64',target:'rt.str.'+name,addend:0},
+   ...(next?[{offset:P.next,kind:'va64' as const,target:'rt.TypedArray.'+next,addend:0}]:[]),
+   ...(name==='length'?[]:[{offset:P.value+8,kind:'va64' as const,target:name==='name'?'rt.TypedArray.text':'rt.typedArrayPrototype',addend:0}]),
+  ]});
+ }
+ b.fn('rt.TypedArray.code',40,a=>a.call('rt.throwTypeError'));
+ b.fn('rt.TypedArray.construct',40,a=>a.call('rt.throwTypeError'));
+ const constructor=new Uint8Array(P.size);constructor[P.value]=5;constructor[P.attributes]=A.writable|A.configurable;
+ b.bundle.fragments.push({name:'rt.typedArrayPrototype.constructor',section:'.data',alignment:8,bytes:constructor,symbols:{},fixups:[
+  {offset:P.key,kind:'va64',target:'rt.str.constructor',addend:0},
+  {offset:P.value+8,kind:'va64',target:'rt.TypedArray',addend:0},
+ ]});common.fixups.push({offset:O.properties,kind:'va64',target:'rt.typedArrayPrototype.constructor',addend:0});
+ const uint8=b.bundle.fragments.find(f=>f.name==='rt.Uint8Array')!;
+ uint8.fixups.find(f=>f.offset===O.prototype)!.target='rt.TypedArray';
  for(const [name,mode] of [['values',0],['keys',1],['entries',2]] as const){
   const symbol='rt.typedArray'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';emitNativeFunction(b,symbol,name,0);
   b.bundle.fragments.push(stringLiteral('rt.typedArrayPrototype.'+name+'.key',name));
@@ -52,18 +79,18 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.mov('rcx','r8');a.call('rt.toInt32');a.and('rax',255);a.cvtsi2sd('xmm0','rax');
   a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
  });
- const prototype=b.bundle.fragments.find(f=>f.name==='rt.uint8arrayPrototype')!;
+ const prototype=common;
  for(const [name,offset] of [['buffer',TypedArrayLayout.buffer],['byteOffset',TypedArrayLayout.byteOffset],['byteLength',TypedArrayLayout.byteLength],['length',TypedArrayLayout.length]] as const){
   const symbol='rt.typedArray'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
   emitNativeFunction(b,symbol,'get '+name,0);
-  b.bundle.fragments.push(stringLiteral('rt.uint8arrayPrototype.'+name+'.key',name));
+  b.bundle.fragments.push(stringLiteral('rt.typedArrayPrototype.'+name+'.key',name));
   const property=new Uint8Array(P.size);property[P.attributes]=A.accessor|A.configurable;property[P.getter]=5;
   const head=prototype.fixups.find(f=>f.offset===O.properties);
-  b.bundle.fragments.push({name:'rt.uint8arrayPrototype.'+name,section:'.data',alignment:8,bytes:property,symbols:{},fixups:[
+  b.bundle.fragments.push({name:'rt.typedArrayPrototype.'+name,section:'.data',alignment:8,bytes:property,symbols:{},fixups:[
    ...(head?[{offset:P.next,kind:'va64' as const,target:head.target,addend:0}]:[]),
-   {offset:P.key,kind:'va64',target:'rt.uint8arrayPrototype.'+name+'.key',addend:0},
+   {offset:P.key,kind:'va64',target:'rt.typedArrayPrototype.'+name+'.key',addend:0},
    {offset:P.getter+8,kind:'va64',target:symbol,addend:0},
-  ]});if(head)head.target='rt.uint8arrayPrototype.'+name;else prototype.fixups.push({offset:O.properties,kind:'va64',target:'rt.uint8arrayPrototype.'+name,addend:0});
+  ]});if(head)head.target='rt.typedArrayPrototype.'+name;else prototype.fixups.push({offset:O.properties,kind:'va64',target:'rt.typedArrayPrototype.'+name,addend:0});
   b.fn(symbol+'.code',40,a=>{
    a.load('rdx',slot(80));a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
    a.load('rdx',{base:'rdx',disp:8});a.load('rax',{base:'rdx',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
@@ -76,12 +103,13 @@ export function emitTypedArray(b:RuntimeBuilder):void {
  }
  b.bundle.fragments.push(stringLiteral('rt.uint8ArrayTag','Uint8Array'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
- const tagHead=prototype.fixups.find(f=>f.offset===O.properties)!;
+ const uint8Prototype=b.bundle.fragments.find(f=>f.name==='rt.uint8arrayPrototype')!;
+ const tagHead=uint8Prototype.fixups.find(f=>f.offset===O.properties);
  b.bundle.fragments.push({name:'rt.uint8arrayPrototype.@@toStringTag',section:'.data',alignment:8,bytes:tag,symbols:{},fixups:[
-  {offset:P.next,kind:'va64',target:tagHead.target,addend:0},
+  ...(tagHead?[{offset:P.next,kind:'va64' as const,target:tagHead.target,addend:0}]:[]),
   {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.uint8ArrayTag',addend:0},
- ]});tagHead.target='rt.uint8arrayPrototype.@@toStringTag';
+ ]});if(tagHead)tagHead.target='rt.uint8arrayPrototype.@@toStringTag';else uint8Prototype.fixups.push({offset:O.properties,kind:'va64',target:'rt.uint8arrayPrototype.@@toStringTag',addend:0});
  b.fn('rt.Uint8Array.code',40,a=>a.call('rt.throwTypeError'));
  rootedFn(b,'rt.Uint8Array.construct',328,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:96,count:11}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rax',0);for(const n of [64,72,80,272,280,288])a.store(slot(n),'rax');
