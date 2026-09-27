@@ -22,6 +22,14 @@ test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   }
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n'));
 
+test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
+  let original=/cat/gi;
+  console.log(RegExp(original)===original,RegExp(original,undefined)===original);
+  let copy=new RegExp(original),override=new RegExp(original,'m');
+  console.log(copy===original,copy.source,copy.flags,copy.lastIndex);
+  console.log(override.source,override.flags,RegExp(original,'y')===original);
+`,'true true\nfalse cat gi 0\ncat m false\n'));
+
 test('RegExp flag accessors and generic flags getter',()=>expectProgram(`
   let re=new RegExp('x','yimgus');
   console.log(re.global,re.ignoreCase,re.multiline,re.dotAll,re.unicode,re.sticky,re.flags);
@@ -29,6 +37,12 @@ test('RegExp flag accessors and generic flags getter',()=>expectProgram(`
   console.log(get.call({global:1,ignoreCase:0,multiline:'x',dotAll:false,unicode:true,sticky:[]}));
   console.log(RegExp.prototype.global,RegExp.prototype.flags);
 `,'true true true true true true gimsuy\ngmuy\nundefined \n'));
+
+test('RegExp source escapes slash and line terminators',()=>expectProgram(String.raw`
+  console.log(new RegExp('/').source==='\\/',new RegExp('\n').source==='\\n');
+  console.log(new RegExp('\u2028').source==='\\u2028',new RegExp('\u2029').source==='\\u2029');
+  console.log(/a\/b/.source==='a\\/b',new RegExp('/').toString()==='/\\//');
+`,'true true\ntrue true\ntrue true\n'));
 
 test('RegExp test matches plain UTF-16 substrings without flags',()=>expectProgram(`
   let re=new RegExp('needle');
@@ -51,8 +65,8 @@ test('RegExp test invokes an overridden exec method',()=>expectProgram(`
 `,'true\nfalse\nTypeError\n'));
 
 test('RegExp internal strings survive stress GC',()=>{
- const source=`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}let m=new RegExp('needle').exec('xneedle');console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString(),new RegExp('needle').test('xneedle'),m[0],m.index)`;
+ const source=String.raw`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}let m=new RegExp('needle').exec('xneedle');console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString(),new RegExp('needle').test('xneedle'),m[0],m.index,new RegExp('/').source==='\\/')`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
- assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi true needle 1\n');
+ assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi true needle 1 true\n');
 });
