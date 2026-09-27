@@ -293,6 +293,18 @@ test('DataView BigInt access converts index and value before detached-buffer che
   try{view.setBigUint64(0,{valueOf(){calls++;return 1n}})}catch(error){console.log(error.name,calls)}
 `,'RangeError\nTypeError\nRangeError\nTypeError\nRangeError 0\nTypeError 1\n'));
 
+test('DataView numeric access checks detachment before bounds',()=>expectProgram(`
+  var buffer=new ArrayBuffer(1),view=new DataView(buffer),calls=0;
+  ArrayBuffer.__nonaDetachInternal(buffer);
+  for(var method of ['getInt8','getFloat64']){
+    try{view[method](4)}catch(error){console.log(error.name)}
+  }
+  for(var method of ['setUint8','setFloat64']){
+    try{view[method](4,{valueOf(){calls++;return 0}})}catch(error){console.log(error.name,calls)}
+  }
+  try{view.setFloat64(Infinity,0)}catch(error){console.log(error.name)}
+`,'TypeError\nTypeError\nTypeError 1\nTypeError 2\nRangeError\n'));
+
 test('DataView BigInt value conversion survives stress GC',()=>{
  const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};v.setBigInt64(0,value,true);console.log(v.getBigUint64(0,true).toString(16),v.buffer.byteLength);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));

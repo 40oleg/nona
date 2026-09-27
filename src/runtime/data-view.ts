@@ -67,9 +67,10 @@ export function emitDataView(b:RuntimeBuilder):void {
     a.load('rcx',slot(56));a.add('rcx',16);a.jmp(valueReady+'.converted');
     a.label(valueReady);a.lea('rcx',slot(112));a.label(valueReady+'.converted');a.call('rt.toInt32');a.and('rax',255);a.store(slot(64),'rax');
    }
-   a.load('rdx',slot(88));a.load('rax',slot(72));a.load('r10',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax','r10');failIf(a,'ae','rt.throwRangeError');
+   a.load('rdx',slot(88));a.load('r10',{base:'rdx',disp:DataViewLayout.buffer});a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
+   a.load('rax',slot(72));a.load('r10',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax','r10');failIf(a,'ae','rt.throwRangeError');
    a.load('r10',{base:'rdx',disp:DataViewLayout.byteOffset});a.add('rax','r10');
-   a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('r10',{base:'rdx',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+   a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
    if(write){a.load('rax',slot(64));a.store({base:'rdx'},'rax',8);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');}
    else{a.load('rax',{base:'rdx'},8);if(signed){a.shl('rax',56);a.sar('rax',56);}a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
   });
@@ -104,10 +105,11 @@ export function emitDataView(b:RuntimeBuilder):void {
    a.mov('rax',0);a.store(slot(64),'rax');
    const noEndian=a.unique('noEndian');a.load('rax',slot(48));a.cmp('rax',write?3:2);a.jcc('b',noEndian);
    a.load('rcx',slot(56));a.add('rcx',write?32:16);a.call('rt.toBoolean');a.store(slot(64),'rax');a.label(noEndian);
-   a.load('rdx',slot(88));a.load('rax',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax',width);failIf(a,'b','rt.throwRangeError');
+   a.load('rdx',slot(88));a.load('r10',{base:'rdx',disp:DataViewLayout.buffer});a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
+   a.load('rax',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax',width);failIf(a,'b','rt.throwRangeError');
    a.sub('rax',width);a.load('r10',slot(72));a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');
    a.load('rax',{base:'rdx',disp:DataViewLayout.byteOffset});a.add('rax','r10');
-   a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('r10',{base:'rdx',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+   a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
    const little=a.unique('little'),finished=a.unique('finished');a.load('rax',slot(64));a.test('rax','rax');a.jcc('ne',little);
    if(write){for(let i=0;i<width;i++){a.load('rax',slot(128));a.shr('rax',bits-8*(i+1));a.and('rax',255);a.store({base:'rdx',disp:i},'rax',8);}}
    else{a.mov('rax',0);for(let i=0;i<width;i++){a.shl('rax',8);a.load('r10',{base:'rdx',disp:i},8);a.or('rax','r10');}}
