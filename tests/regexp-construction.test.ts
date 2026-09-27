@@ -92,6 +92,13 @@ test('RegExp constructor validates quantifiers and group grammar before exec',()
   console.log(new RegExp('a{2,3}').source);
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\na{2,3}\n'));
 
+test('RegExp constructor validates character class ranges',()=>expectProgram(String.raw`
+  for(let pair of [['[z-a]',''],['[\\x7a-a]',''],['[\\d-a]','u'],['[a-\\d]','u'],['[a-\\p{L}]','u']]){
+    try{new RegExp(pair[0],pair[1])}catch(error){console.log(error.name)}
+  }
+  console.log(new RegExp('[a-z]').test('q'),new RegExp('[\\d-a]').test('4'));
+`,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\ntrue true\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);

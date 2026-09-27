@@ -32,6 +32,66 @@ export const regexpVmSource=String.raw`(function(){
     var at=0,groups=0,names=[];
     function error(){throw new SyntaxError('Invalid regular expression')}
     function digit(c){return c>='0'&&c<='9'}
+    function hex(c){
+      if(c===undefined)return -1;
+      var n=charCodeAt(c,0);
+      return n>=48&&n<=57?n-48:n>=65&&n<=70?n-55:n>=97&&n<=102?n-87:-1
+    }
+    function validateClass(body){
+      var cursor=body[0]==='^'?1:0,unicode=indexOf(flags,'u')>=0;
+      function unit(){
+        var c=body[cursor++],point=charCodeAt(c,0);
+        if(c!=='\\'){
+          if(unicode&&point>=0xd800&&point<=0xdbff&&cursor<body.length){
+            var low=charCodeAt(body,cursor);
+            if(low>=0xdc00&&low<=0xdfff){cursor++;point=0x10000+(point-0xd800)*1024+low}
+          }
+          return {point:point,set:false}
+        }
+        if(cursor>=body.length)error();
+        c=body[cursor++];
+        if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {point:0,set:true};
+        if((c==='p'||c==='P')&&unicode){
+          if(body[cursor++]!=='{')error();
+          var begin=cursor;
+          while(cursor<body.length&&body[cursor]!=='}')cursor++;
+          if(begin===cursor||body[cursor]!=='}')error();
+          propertyRanges(slice(body,begin,cursor++));
+          return {point:0,set:true}
+        }
+        if(c==='x'||c==='u'){
+          var count=c==='x'?2:4,value=0;
+          if(c==='u'&&unicode&&body[cursor]==='{'){
+            cursor++;count=0;
+            while(cursor<body.length&&body[cursor]!=='}'){
+              var d=hex(body[cursor++]);if(d<0)error();
+              value=value*16+d;if(++count>6||value>0x10ffff)error()
+            }
+            if(count===0||body[cursor]!=='}')error();
+            cursor++;return {point:value,set:false}
+          }
+          for(var j=0;j<count;j++){
+            var d=hex(body[cursor+j]);
+            if(d<0){if(unicode)error();return {point:charCodeAt(c,0),set:false}}
+            value=value*16+d
+          }
+          cursor+=count;return {point:value,set:false}
+        }
+        if(c==='n')point=10;else if(c==='r')point=13;else if(c==='t')point=9;
+        else if(c==='v')point=11;else if(c==='f')point=12;else if(c==='b')point=8;
+        else point=charCodeAt(c,0);
+        return {point:point,set:false}
+      }
+      while(cursor<body.length){
+        var first=unit();
+        if(body[cursor]==='-'&&cursor+1<body.length){
+          cursor++;
+          var last=unit();
+          if(first.set||last.set){if(unicode)error()}
+          else if(first.point>last.point)error()
+        }
+      }
+    }
     function decimal(){
       var n=0,seen=false;
       while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(charCodeAt(pattern,at)-48);at++}
@@ -153,7 +213,7 @@ export const regexpVmSource=String.raw`(function(){
         var start=at,escapedClass=false;
         while(at<pattern.length){
           var k=pattern[at++];
-          if(k===']'&&!escapedClass)return {kind:'class',value:slice(pattern,start,at-1)};
+          if(k===']'&&!escapedClass){var body=slice(pattern,start,at-1);validateClass(body);return {kind:'class',value:body}}
           if(k==='\\'&&!escapedClass)escapedClass=true;
           else escapedClass=false
         }
@@ -252,7 +312,10 @@ export const regexpVmSource=String.raw`(function(){
           }
           if(first==='n')first='\n';
           else if(first==='r')first='\r';
-          else if(first==='t')first='\t'
+          else if(first==='t')first='\t';
+          else if(first==='v')first='\v';
+          else if(first==='f')first='\f';
+          else if(first==='b')first='\b'
         }
         if(i+1<body.length&&body[i]==='-'){
           i++;
