@@ -1339,6 +1339,7 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:f
  if(targetOffset===Infinity||targetOffset===-Infinity)throw new __nonaRegexpVm.bufferRangeError('Invalid TypedArray offset');
  targetOffset=__nonaRegexpVm.arrayBufferTrunc(targetOffset);
  if(targetOffset<0)throw new __nonaRegexpVm.bufferRangeError('Invalid TypedArray offset');
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  if(source===null||source===undefined)throw new __nonaRegexpVm.bufferTypeError('Source is null or undefined');
  var sourceIsTyped=__nonaRegexpVm.isTypedArray(source);
  var sourceLength,values;
