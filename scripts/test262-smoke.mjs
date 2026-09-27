@@ -7,6 +7,7 @@ const PIN = '7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd';
 const root = resolve(process.env.TEST262_ROOT || 'work/test262');
 const manifest = JSON.parse(readFileSync(new URL('../tests/test262-smoke.json', import.meta.url), 'utf8'));
 const group = process.argv[2];
+const pathFilter = process.env.TEST262_PATH_FILTER || '';
 if (group && (!/^[A-Za-z0-9_./-]+$/.test(group) || group.includes('..') || group.startsWith('/'))) {
   throw new Error('Group must be a relative Test262 test directory');
 }
@@ -27,7 +28,8 @@ function filesUnder(directory, prefix) {
       : entry.isFile() && entry.name.endsWith('.js') ? [path] : [];
   });
 }
-const paths = group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests;
+const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
+  .filter(path => path.includes(pathFilter));
 for (const path of paths) {
   const source = readFileSync(join(root, 'test', path), 'utf8');
   const metadata = source.match(/\/\*---([\s\S]*?)---\*\//)?.[1] || '';
@@ -61,7 +63,7 @@ for (const path of paths) {
     status: run.status, error: run.error?.message, stderr: run.stderr?.slice(0, 2000)});
 }
 const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', counts, results};
+const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, counts, results};
 mkdirSync(dirname(reportPath), {recursive: true});
 writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
 console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);

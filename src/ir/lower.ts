@@ -474,8 +474,8 @@ class Lowerer {
         const dest=this.slot();this.emit({kind:'unary',dest,operator:e.operator,argument});return dest;
       }
       case 'Update': {
-        const ref=this.reference(e.argument),previous=this.getReference(ref),numeric=this.slot();this.emit({kind:'unary',dest:numeric,operator:'+',argument:previous});
-        const one=this.constant(1),next=this.slot();this.emit({kind:'binary',dest:next,operator:e.operator==='++'?'+':'-',left:numeric,right:one});
+        const ref=this.reference(e.argument),previous=this.getReference(ref),numeric=this.slot();this.emit({kind:'unary',dest:numeric,operator:'numeric',argument:previous});
+        const next=this.slot();this.emit({kind:'unary',dest:next,operator:e.operator==='++'?'increment':'decrement',argument:numeric});
         this.putReference(ref,next);return e.prefix?next:numeric;
       }
       case 'Assignment': {
