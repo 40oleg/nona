@@ -92,6 +92,28 @@ test('dot wildcard respects line terminators and dotAll',()=>expectProgram(Strin
   let re=/c.t/gy;re.lastIndex=1;console.log(re.exec('xcat').index,re.lastIndex);
 `,'true false true\nx null true\n1 4\n'));
 
+test('RegExp matches escaped literals, controls, and digit classes',()=>expectProgram(String.raw`
+  let digits=/\d\d/.exec('a42');console.log(digits[0],digits.index);
+  let escaped=/a\.b/.exec('xxa.b');console.log(escaped[0],escaped.index);
+  let line=/a\nb/.exec('xa\nb');console.log(line[0]==='a\nb',line.index);
+  let nonDigit=/\D/.exec('7猫');console.log(nonDigit[0],nonDigit.index);
+  let global=/\d/g;console.log(global.exec('a1b2')[0],global.lastIndex,global.exec('a1b2')[0],global.lastIndex,global.exec('a1b2'),global.lastIndex);
+`,'42 1\na.b 2\ntrue 1\n猫 1\n1 2 2 4 null 0\n'));
+
+test('RegExp word and whitespace escapes cover ASCII and ES2020 spaces',()=>expectProgram(String.raw`
+  console.log(/\w/.exec('猫_A')[0],/\W/.exec('_猫')[0]);
+  console.log(/\s/.exec('x\u00a0')[0]==='\u00a0',/\s/.exec('x\u2028')[0]==='\u2028');
+  console.log(/\S/.exec('\tQ')[0],/\w/.test('é'),/\W/.test('é'));
+`,'_ 猫\ntrue true\nQ false true\n'));
+
+test('RegExp simple character classes and ranges',()=>expectProgram(String.raw`
+  console.log(/[Nn]evermore/.exec('Nevermore')[0],/[a-z]d/.exec('xbd')[0]);
+  console.log(/[^a-z]/.exec('abc猫')[0],/[]/.exec('a'),/[^]/.exec('\n')[0]==='\n');
+  console.log(/[\]]/.exec('x]')[0],/[a-z]/g.exec('a')[0]);
+  let re=/[a-z]/gy;re.lastIndex=1;console.log(re.exec('xq').index,re.lastIndex);
+  console.log(/[\n]/.exec('x\n')[0]==='\n',/[\b]/.exec('x\b')[0]==='\b');
+`,'Nevermore bd\n猫 null true\n] a\n1 2\ntrue true\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));
