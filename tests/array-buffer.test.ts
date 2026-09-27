@@ -448,3 +448,21 @@ test('TypedArray fill roots receiver and converts the value once under stress GC
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'1 0 -2 -2\n');
 });
+
+test('TypedArray includes, indexOf, and lastIndexOf use internal length and correct equality',()=>expectProgram(`
+  var a=new Float64Array([1,NaN,-0,1,NaN]);
+  console.log(a.includes(NaN),a.indexOf(NaN),a.lastIndexOf(NaN),a.includes(0),a.indexOf(0),a.lastIndexOf(1));
+  console.log(a.includes(1,2),a.indexOf(1,2),a.lastIndexOf(1,2),a.lastIndexOf(1,-2));
+  var b=BigUint64Array.of(1n,2n,1n);console.log(b.includes(2n),b.includes(2),b.indexOf(1n),b.lastIndexOf(1n));
+  Object.defineProperty(b,'length',{value:0});console.log(b.length,b.includes(2n),b.indexOf(1n),b.lastIndexOf(1n));
+  console.log(new Uint8Array(0).includes(0),new Uint8Array(0).indexOf(0),new Uint8Array(0).lastIndexOf(0));
+  try{Uint8Array.prototype.includes.call({},1)}catch(error){console.log(error.name)}
+  console.log(Uint8Array.prototype.includes.length,Uint8Array.prototype.indexOf.length,Uint8Array.prototype.lastIndexOf.length);
+`,'true -1 -1 true 2 3\ntrue 3 0 3\ntrue false 0 2\n0 true 0 2\nfalse -1 -1\nTypeError\n1 1 1\n'));
+
+test('TypedArray search roots receiver and BigInt needle through fromIndex coercion',()=>{
+ const source=`var a=BigInt64Array.of(1n,2n,3n),needle=2n,from={valueOf(){for(var i=0;i<30;i++)new ArrayBuffer(i);return 0}};console.log(a.includes(needle,from),a.indexOf(needle,from),a.lastIndexOf(needle,from));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'true 1 -1\n');
+});

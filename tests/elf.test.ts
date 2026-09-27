@@ -146,6 +146,13 @@ test('Linux native TypedArray fill preserves BigInt and Float32 values',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 -2 -2 true true\n');
 });
 
+test('Linux native TypedArray search handles NaN and BigInt',t=>{
+ const source=`let a=new Float32Array([1,NaN,-0]),b=BigInt64Array.of(1n,2n,1n);console.log(a.includes(NaN),a.indexOf(NaN),a.includes(0),b.indexOf(2n),b.lastIndexOf(1n));`;
+ const result=compile(source,{fileName:'typed-array-search.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true -1 true 1 2\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

@@ -10,8 +10,8 @@ import {FunctionLayout as F,FunctionKind} from './functions.js';
 /** Common layout for future numeric and BigInt typed-array variants. */
 export const TypedArrayKind=13;
 export const TypedArrayLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,length:O.size+24,elementType:O.size+32,size:O.size+40} as const;
-export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn','rt.typedArrayCopyWithin.fn','rt.typedArrayFill.fn'];
-export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...['uint8array','int8array','uint8clampedarray','uint16array','int16array','uint32array','int32array','float32array','float64array','bigint64array','biguint64array'].map(name=>'rt.'+name+'Prototype.@@toStringTag'),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
+export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn','rt.typedArrayCopyWithin.fn','rt.typedArrayFill.fn',...['Includes','IndexOf','LastIndexOf'].map(name=>'rt.typedArray'+name+'.fn')];
+export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...['uint8array','int8array','uint8clampedarray','uint16array','int16array','uint32array','int32array','float32array','float64array','bigint64array','biguint64array'].map(name=>'rt.'+name+'Prototype.@@toStringTag'),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill','includes','indexOf','lastIndexOf'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
 
 export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.typedArrayPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -166,6 +166,32 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),done=a.unique('done'),byte=a.unique('byte'),word=a.unique('word'),double=a.unique('double');a.label(loop);a.load('rax',slot(88));a.load('r10',slot(96));a.cmp('rax','r10');a.jcc('ae',done);a.load('r11',slot(128));a.imul('rax','r11');a.load('rdx',slot(136));a.add('rdx','rax');a.load('rax',slot(120));a.cmp('r11',2);a.jcc('b',byte);a.jcc('e',word);a.cmp('r11',8);a.jcc('e',double);a.store({base:'rdx'},'rax',32);const advance=a.unique('advance');a.jmp(advance);a.label(double);a.store({base:'rdx'},'rax',64);a.jmp(advance);a.label(word);a.store({base:'rdx'},'rax',16);a.jmp(advance);a.label(byte);a.store({base:'rdx'},'rax',8);a.label(advance);a.load('rax',slot(88));a.add('rax',1);a.store(slot(88),'rax');a.jmp(loop);a.label(done);
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ for(const name of ['includes','indexOf','lastIndexOf'] as const){
+  const symbol='rt.typedArray'+name[0]!.toUpperCase()+name.slice(1)+'.fn';
+  prependFunctionBuiltin(b,symbol,name,1,'rt.typedArrayPrototype');
+  rootedFn(b,symbol+'.code',216,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:5}],(a,frame)=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
+   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'r10',disp:TypedArrayLayout.length});a.store(slot(168),'rax');
+   const notFound=a.unique('notFound'),found=a.unique('found'),result=a.unique('result');a.test('rax','rax');a.jcc('e',notFound);
+   a.load('rax',slot(48));const noSearch=a.unique('noSearch'),searchReady=a.unique('searchReady');a.test('rax','rax');a.jcc('e',noSearch);a.load('rdx',slot(56));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(80+n),'rax');}a.jmp(searchReady);a.label(noSearch);a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');a.label(searchReady);
+   if(name==='lastIndexOf'){a.load('rax',slot(168));a.sub('rax',1);}else a.mov('rax',0);a.store(slot(160),'rax');
+   const startReady=a.unique('startReady'),startZero=a.unique('startZero'),negative=a.unique('negative'),atEnd=a.unique('atEnd');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',startReady);
+   a.load('rdx',slot(56));a.add('rdx',16);a.lea('rcx',slot(144));a.call('rt.toNumber');a.movsd('xmm0',slot(152));a.ucomisd('xmm0','xmm0');a.jcc('p',startZero);
+   a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',negative);
+   a.load('rax',slot(168));a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',name==='lastIndexOf'?atEnd:notFound);a.cvttsd2si('rax','xmm0');a.store(slot(160),'rax');a.jmp(startReady);
+   a.label(negative);a.load('rax',slot(168));a.neg('rax');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',name==='lastIndexOf'?notFound:startZero);a.cvttsd2si('rax','xmm0');a.load('r10',slot(168));a.add('rax','r10');a.store(slot(160),'rax');a.jmp(startReady);
+   a.label(startZero);a.mov('rax',0);a.store(slot(160),'rax');a.jmp(startReady);a.label(atEnd);a.load('rax',slot(168));a.sub('rax',1);a.store(slot(160),'rax');a.label(startReady);
+   const loop=a.unique('loop'),next=a.unique('next');a.label(loop);if(name!=='lastIndexOf'){a.load('rax',slot(160));a.load('r10',slot(168));a.cmp('rax','r10');a.jcc('ae',notFound);}
+   a.lea('rcx',slot(96));a.load('rdx',slot(160));a.call('rt.arrayIndexKey');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
+   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.lea('r8',slot(80));a.call('rt.strictEq');a.load('rax',slot(136));a.test('rax','rax');a.jcc('ne',found);
+   if(name==='includes'){
+    a.load('rax',slot(112));a.cmp('rax',3);a.jcc('ne',next);a.load('rax',slot(80));a.cmp('rax',3);a.jcc('ne',next);a.movsd('xmm0',slot(120));a.ucomisd('xmm0','xmm0');a.jcc('np',next);a.movsd('xmm0',slot(88));a.ucomisd('xmm0','xmm0');a.jcc('p',found);
+   }
+   a.label(next);a.load('rax',slot(160));if(name==='lastIndexOf'){a.test('rax','rax');a.jcc('e',notFound);a.sub('rax',1);}else a.add('rax',1);a.store(slot(160),'rax');a.jmp(loop);
+   a.label(found);if(name==='includes')a.mov('rax',1);else a.load('rax',slot(160));a.jmp(result);a.label(notFound);a.mov('rax',name==='includes'?0:-1);a.label(result);
+   a.load('rcx',slot(40));if(name==='includes'){a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');}else{a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
+  });
+ }
  emitNativeFunction(b,'rt.uint8Convert.fn','',1);
  rootedFn(b,'rt.uint8Convert.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.mov('rcx','r8');a.call('rt.toInt32');a.and('rax',255);a.cvtsi2sd('xmm0','rax');
