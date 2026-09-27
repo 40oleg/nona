@@ -125,6 +125,13 @@ test('Linux native BigInt typed arrays retain all 64 bits',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 18446744073709551615 -9223372036854775808 true\n');
 });
 
+test('Linux native TypedArray reverse swaps 64-bit elements',t=>{
+ const source=`let a=BigUint64Array.of(1n,2n,3n);a.reverse();console.log(String(a[0]),String(a[1]),String(a[2]));`;
+ const result=compile(source,{fileName:'typed-array-reverse.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'3 2 1\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

@@ -10,8 +10,8 @@ import {FunctionLayout as F,FunctionKind} from './functions.js';
 /** Common layout for future numeric and BigInt typed-array variants. */
 export const TypedArrayKind=13;
 export const TypedArrayLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,length:O.size+24,elementType:O.size+32,size:O.size+40} as const;
-export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn'];
-export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...['uint8array','int8array','uint8clampedarray','uint16array','int16array','uint32array','int32array','float32array','float64array','bigint64array','biguint64array'].map(name=>'rt.'+name+'Prototype.@@toStringTag'),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
+export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn'];
+export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...['uint8array','int8array','uint8clampedarray','uint16array','int16array','uint32array','int32array','float32array','float64array','bigint64array','biguint64array'].map(name=>'rt.'+name+'Prototype.@@toStringTag'),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
 
 export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.typedArrayPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -103,6 +103,22 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   {offset:P.key,kind:'va64',target:'rt.Symbol.iterator.value',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.typedArrayValues.fn',addend:0},
  ]});head.target='rt.typedArrayPrototype.@@iterator';
+ prependFunctionBuiltin(b,'rt.typedArrayReverse.fn','reverse',0,'rt.typedArrayPrototype');
+ rootedFn(b,'rt.typedArrayReverse.fn.code',120,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
+  a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+  const done=a.unique('done');a.mov('rax',0);a.store(slot(80),'rax');a.load('rax',{base:'r10',disp:TypedArrayLayout.length});a.test('rax','rax');a.jcc('e',done);a.sub('rax',1);a.store(slot(88),'rax');
+  a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});const one=a.unique('one'),two=a.unique('two'),eight=a.unique('eight'),widthReady=a.unique('widthReady');a.cmp('rax',4);a.jcc('b',one);a.cmp('rax',6);a.jcc('b',two);a.cmp('rax',9);a.jcc('ae',eight);a.mov('rax',4);a.jmp(widthReady);a.label(one);a.mov('rax',1);a.jmp(widthReady);a.label(two);a.mov('rax',2);a.jmp(widthReady);a.label(eight);a.mov('rax',8);a.label(widthReady);a.store(slot(96),'rax');
+  a.load('rax',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rax',{base:'rax',disp:ArrayBufferLayout.bytes});a.load('r11',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','r11');a.store(slot(112),'rax');
+  const loop=a.unique('loop'),next=a.unique('next');a.label(loop);a.load('r10',slot(80));a.load('r11',slot(88));a.cmp('r10','r11');a.jcc('ae',done);a.mov('rax',0);a.store(slot(104),'rax');
+  a.label(next);a.load('rax',slot(104));a.load('r11',slot(96));a.cmp('rax','r11');const advance=a.unique('advance');a.jcc('ae',advance);
+  a.load('r10',slot(80));a.imul('r10','r11');a.add('r10','rax');a.load('r11',slot(112));a.add('r10','r11');
+  a.load('r8',slot(88));a.load('r11',slot(96));a.imul('r8','r11');a.add('r8','rax');a.load('r11',slot(112));a.add('r8','r11');
+  a.load('rax',{base:'r10'},8);a.load('rdx',{base:'r8'},8);a.store({base:'r10'},'rdx',8);a.store({base:'r8'},'rax',8);
+  a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.jmp(next);
+  a.label(advance);a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.load('rax',slot(88));a.sub('rax',1);a.store(slot(88),'rax');a.jmp(loop);a.label(done);
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
+ });
  emitNativeFunction(b,'rt.uint8Convert.fn','',1);
  rootedFn(b,'rt.uint8Convert.fn.code',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.mov('rcx','r8');a.call('rt.toInt32');a.and('rax',255);a.cvtsi2sd('xmm0','rax');

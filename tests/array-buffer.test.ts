@@ -395,3 +395,20 @@ test('BigInt typed array coercion and iteration survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true true true true\n');
 });
+
+test('TypedArray reverse swaps element bytes in place across numeric and BigInt views',()=>expectProgram(`
+  var bytes=new Uint8Array([1,2,3,4]);console.log(bytes.reverse()===bytes,Array.from(bytes).join(','));
+  var b=new ArrayBuffer(12),a=new Int32Array(b),v=new DataView(b);a[0]=0x12345678;a[1]=-2;a[2]=3;a.reverse();
+  console.log(Array.from(a).join(','),v.getInt32(8,true)===0x12345678);
+  var f=new Float32Array([1,-0,NaN]);f.reverse();console.log(Number.isNaN(f[0]),1/f[1],f[2]);
+  var big=BigUint64Array.of(1n,2n,3n);console.log(big.reverse()===big,String(big[0]),String(big[1]),String(big[2]));
+  console.log(new Uint8Array(0).reverse().length,new Int16Array([7]).reverse()[0]);
+  try{Uint8Array.prototype.reverse.call({})}catch(error){console.log(error.name)}
+`,'true 4,3,2,1\n3,-2,305419896 true\ntrue -Infinity 1\ntrue 3 2 1\n0 7\nTypeError\n'));
+
+test('TypedArray reverse keeps shared backing under stress GC',()=>{
+ const source=`var b=new ArrayBuffer(16),a=new BigInt64Array(b);a[0]=-1n;a[1]=2n;for(var i=0;i<30;i++)new ArrayBuffer(i);a.reverse();console.log(String(a[0]),String(a[1]),new DataView(b).getBigUint64(8,true)===18446744073709551615n);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'2 -1 true\n');
+});
