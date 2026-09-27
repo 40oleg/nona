@@ -87,8 +87,7 @@ locale-методы с политикой UTC для локального вре
 `Date.parse` проходит 8/8, `Date.UTC` — 17/17. Полная группа
 `Date/prototype` после locale-методов дала 473 pass / 12 fail. Четыре теста
 формата требуют RegExp из 0.9, восемь тестов
-`toTemporalInstant` относятся к Temporal после ES2020. Последняя полная native
-регрессия: 1725 pass / 0 fail / 14 skip из 1739. Группа `Boolean` дала
+`toTemporalInstant` относятся к Temporal после ES2020. Последняя Windows native-регрессия: 1772 pass / 0 fail / 1 skip из 1773 (тесты Linux исключены). Группа `Boolean` дала
 47 pass / 4 fail: два отказа требуют согласованно исключённые `eval` и
 динамический `Function`, два — будущий `Reflect`/cross-realm. Группа `Error`
 дала 41 pass / 52 fail: 50 отказов относятся к появившимся после ES2020
@@ -107,8 +106,7 @@ Proxy/Reflect, BigInt, RegExp, коллекции или более поздни
 `Object.getOwnPropertySymbols` дал 8 pass / 4 fail; все четыре отказа требуют
 инвариантов Proxy из 0.15. `Object.is` прошёл 21/21;
 `Object.setPrototypeOf` — 10/12, оставшиеся тесты требуют BigInt и Proxy.
-Date, JSON, BigInt, RegExp, его интеграция со String, буферы, Atomics,
-Map/Set и WeakMap/WeakSet остаются открытыми. PR для 0.6–0.14 пока
+Date и BigInt существенно расширены, но gate ES2020 ещё открыт. RegExp реализован частично (см. `v0.9-regexp-status.md`); его интеграция со String, буферы, Atomics, Map/Set и WeakMap/WeakSet остаются открытыми. PR для 0.6–0.14 пока
 не открывать.
 
 ### Промежуточная проверка 0.7 (2026-09-27)
