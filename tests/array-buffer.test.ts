@@ -90,3 +90,13 @@ test('DataView byte access survives coercion and stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'0 4\n');
 });
+
+test('DataView 16 and 32 bit integer access handles byte order and signs',()=>expectProgram(`
+  var view=new DataView(new ArrayBuffer(8));
+  view.setUint16(0,0x1234);view.setInt16(2,-2,true);view.setUint32(4,0x89abcdef,true);
+  console.log(view.getUint16(0),view.getUint16(0,true),view.getInt16(2,true),view.getInt16(2));
+  console.log(view.getUint32(4,true),view.getInt32(4,true),view.getUint32(4));
+  var bytes=[];for(var i=0;i<8;i++)bytes.push(view.getUint8(i));console.log(bytes.join(' '));
+  try{view.getUint32(5)}catch(error){console.log(error.name)}
+  try{view.setUint16(7,1)}catch(error){console.log(error.name)}
+`,'4660 13330 -2 -257\n2309737967 -1985229329 4023233417\n18 52 254 255 239 205 171 137\nRangeError\nRangeError\n'));
