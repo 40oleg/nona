@@ -975,6 +975,9 @@ Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt
 Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
 __nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
 __nonaRegexpVm.typedArraySort=Array.prototype.sort;
+__nonaRegexpVm.bigintToString=BigInt.prototype.toString;
+__nonaRegexpVm.typedArrayLocaleString=String;
+Object.defineProperty(BigInt.prototype,'toLocaleString',{value:function toLocaleString(){'use strict';return __nonaRegexpVm.safeCall(__nonaRegexpVm.bigintToString,this)},writable:true,configurable:true});
 __nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
 __nonaRegexpVm.typedArrayBuffer=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'buffer').get;
 __nonaRegexpVm.typedArrayByteOffset=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'byteOffset').get;
@@ -1214,4 +1217,15 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'sort',{value:
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArraySort,values,compare);
  for(var i=0;i<length;i++)if(i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[i]=values[i];
  return this;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleString',{value:function toLocaleString(){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this),result='';
+ for(var k=0;k<length;k++){
+  if(k>0)result+=',';
+  var value=this[k];
+  if(value!==undefined&&value!==null){var localized=value.toLocaleString();if(typeof localized==='symbol')throw new __nonaRegexpVm.bufferTypeError('Cannot convert Symbol to string');result+=__nonaRegexpVm.typedArrayLocaleString(localized)}
+ }
+ return result;
 },writable:true,configurable:true});`;

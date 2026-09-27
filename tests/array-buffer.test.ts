@@ -138,6 +138,13 @@ test('TypedArray sort uses numeric stable order and handles BigInt',()=>expectPr
   try{d.sort(function(){return 1n})}catch(error){console.log(error.name)}
 `,'true 1,2,10\n-1 -Infinity Infinity 2 NaN\n-2,3,10\n3,2,1\nTypeError\nTypeError\n'));
 
+test('TypedArray toLocaleString visits numeric and BigInt elements',()=>expectProgram(`
+  console.log(new Uint8Array([1,2,3]).toLocaleString(),new BigInt64Array([4n,5n]).toLocaleString());
+  console.log((42n).toLocaleString());
+  var a=new Uint8Array([1,2]);ArrayBuffer.__nonaDetachInternal(a.buffer);try{a.toLocaleString()}catch(error){console.log(error.name)}
+  try{Uint8Array.prototype.toLocaleString.call([])}catch(error){console.log(error.name)}
+`,'1,2,3 4,5\n42\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
