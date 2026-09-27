@@ -1,5 +1,13 @@
 import { CompileError } from '../diagnostics.js';
+import {runInNewContext} from 'node:vm';
+import {regexpVmSource} from '../runtime/regexp-vm-source.js';
 import type { Token,TokenStream } from './token.js';
+
+let compileRegExpPattern:((pattern:string,flags:string)=>unknown)|undefined;
+function validateRegExpPattern(pattern:string,flags:string):void {
+  compileRegExpPattern??=(runInNewContext(regexpVmSource) as {compile:(pattern:string,flags:string)=>unknown}).compile;
+  compileRegExpPattern(pattern,flags);
+}
 
 export function lex(source: string): TokenStream {
   const tokens: TokenStream = [];
@@ -164,7 +172,7 @@ export function lex(source: string): TokenStream {
       while(i<source.length&&identifierPart(codePoint()))i+=codePoint().length;
       const flags=source.slice(flagStart,i);
       if(!/^[gimsuy]*$/.test(flags)||new Set(flags).size!==flags.length)fail('Invalid regular expression flags',flagStart);
-      try{new RegExp(pattern,flags);}catch{fail('Invalid regular expression pattern',start);}
+      try{validateRegExpPattern(pattern,flags);}catch{fail('Invalid regular expression pattern',start);}
       push('regexp',start);
       tokens[tokens.length-1]!.pattern=pattern;
       tokens[tokens.length-1]!.flags=flags;

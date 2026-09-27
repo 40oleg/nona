@@ -59,12 +59,13 @@ export const regexpVmSource=String.raw`(function(){
     return point>=128&&result<128?point:result
   }
   function compile(pattern,flags){
-    var at=0,groups=0,names=[],totalGroups=0,inClass=false;
+    var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false;
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
       if(mark==='\\'){scan++;continue}
       if(inClass){if(mark===']')inClass=false;continue}
       if(mark==='['){inClass=true;continue}
+      if(mark==='('&&pattern[scan+1]==='?'&&pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!')hasNamedGroup=true;
       if(mark==='('&&!(pattern[scan+1]==='?'&&(pattern[scan+2]===':'||pattern[scan+2]==='='||pattern[scan+2]==='!'||pattern[scan+2]==='<'&&(pattern[scan+3]==='='||pattern[scan+3]==='!'))))totalGroups++
     }
     function error(){throw new SyntaxError('Invalid regular expression')}
@@ -274,11 +275,12 @@ export const regexpVmSource=String.raw`(function(){
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
-        if(indexOf(flags,'u')<0&&indexOf(pattern,'(?<')<0)return {kind:'char',value:'k'};
+        if(indexOf(flags,'u')<0&&!hasNamedGroup)return {kind:'char',value:'k'};
         at++;
         var name=groupName();
         return {kind:'namedBackref',value:name}
       }
+      if(c==='k'&&hasNamedGroup)error();
       if(c>='1'&&c<='9'){
         var number=charCodeAt(c,0)-48,probe=at;
         while(probe<pattern.length&&digit(pattern[probe]))number=number*10+(charCodeAt(pattern,probe++)-48);
@@ -335,6 +337,14 @@ export const regexpVmSource=String.raw`(function(){
         error()
       }
       if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}')))error();
+      if(c==='{'){
+        var probe=at,seen=false;
+        while(digit(pattern[probe])){probe++;seen=true}
+        if(seen){
+          if(pattern[probe]===','){probe++;while(digit(pattern[probe]))probe++}
+          if(pattern[probe]==='}')error()
+        }
+      }
       if(indexOf(flags,'u')>=0&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
         var trail=charCodeAt(pattern,at);
         if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
@@ -360,6 +370,7 @@ export const regexpVmSource=String.raw`(function(){
           }
         }
         if(quantified){
+          if(node.kind==='look'&&(node.behind||indexOf(flags,'u')>=0))error();
           var lazy=pattern[at]==='?';
           if(lazy)at++;
           node={kind:'repeat',value:node,min:min,max:max,lazy:lazy}

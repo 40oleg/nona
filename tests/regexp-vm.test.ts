@@ -1,6 +1,17 @@
 import {test} from 'node:test';
+import assert from 'node:assert/strict';
 import {expectProgram} from './helpers/program.js';
 import {regexpVmSource} from '../src/runtime/regexp-vm-source.js';
+import {lex} from '../src/frontend/lexer.js';
+
+test('RegExp literals use the Nona grammar during lexing',()=>{
+  assert.equal(lex(String.raw`/\u{000000003f}/u`)[0]?.kind,'regexp');
+  assert.equal(lex('/[𝌆]/u')[0]?.kind,'regexp');
+  assert.throws(()=>lex('/(?<x>a)|(?<x>b)/'),/Invalid regular expression pattern/);
+  for(const pattern of ['/{2}/','/.(?<=.)?/','/.(?=.)?/u',String.raw`/(?<a>.)\k/`])
+    assert.throws(()=>lex(pattern),/Invalid regular expression pattern/);
+  assert.equal(lex('/(?=a)?a/')[0]?.kind,'regexp');
+});
 
 test('RegExp VM parses groups, alternatives and quantifiers in native code',()=>expectProgram(`
   let vm=${regexpVmSource};
