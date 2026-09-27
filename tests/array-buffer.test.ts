@@ -100,3 +100,20 @@ test('DataView 16 and 32 bit integer access handles byte order and signs',()=>ex
   try{view.getUint32(5)}catch(error){console.log(error.name)}
   try{view.setUint16(7,1)}catch(error){console.log(error.name)}
 `,'4660 13330 -2 -257\n2309737967 -1985229329 4023233417\n18 52 254 255 239 205 171 137\nRangeError\nRangeError\n'));
+
+test('DataView Float32 and Float64 preserve byte order and special values',()=>expectProgram(`
+  var view=new DataView(new ArrayBuffer(24));
+  view.setFloat32(0,1.5);view.setFloat32(4,-0,true);view.setFloat64(8,-Math.PI,true);
+  var bytes=[];for(var i=0;i<16;i++)bytes.push(view.getUint8(i));console.log(bytes.join(' '));
+  console.log(view.getFloat32(0),Object.is(view.getFloat32(4,true),-0),view.getFloat64(8,true));
+  view.setFloat32(16,Infinity,true);view.setFloat64(16,NaN);
+  console.log(view.getFloat64(16)!==view.getFloat64(16));
+  try{view.getFloat64(17)}catch(error){console.log(error.name)}
+`,'63 192 0 0 0 0 0 128 24 45 68 84 251 33 9 192\n1.5 true -3.141592653589793\ntrue\nRangeError\n'));
+
+test('DataView float value coercion survives stress GC',()=>{
+ const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -0}};v.setFloat64(0,value,true);console.log(Object.is(v.getFloat64(0,true),-0),v.buffer.byteLength);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'true 8\n');
+});

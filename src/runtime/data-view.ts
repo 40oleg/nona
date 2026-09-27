@@ -10,7 +10,8 @@ export const DataViewKind=12;
 export const DataViewLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,size:O.size+24} as const;
 const byteMethods=['getInt8','getUint8','setInt8','setUint8'] as const;
 const wordMethods=['getInt16','getUint16','getInt32','getUint32','setInt16','setUint16','setInt32','setUint32'] as const;
-const dataMethods=[...byteMethods,...wordMethods];
+const floatMethods=['getFloat32','getFloat64','setFloat32','setFloat64'] as const;
+const dataMethods=[...byteMethods,...wordMethods,...floatMethods];
 export const dataViewRoots=['rt.dataViewBuffer.fn','rt.dataViewByteOffset.fn','rt.dataViewByteLength.fn',...dataMethods.map(name=>'rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn')];
 export const dataViewPropertyRoots=['rt.dataviewPrototype.@@toStringTag',...['buffer','byteOffset','byteLength'].map(name=>'rt.dataviewPrototype.'+name),...dataViewRoots.slice(0,3).flatMap(name=>[name+'.name',name+'.length']),...dataMethods.flatMap(name=>builtinPropertyRoots('rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn',name,'rt.dataviewPrototype'))];
 
@@ -70,9 +71,9 @@ export function emitDataView(b:RuntimeBuilder):void {
    else{a.load('rax',{base:'rdx'},8);if(signed){a.shl('rax',56);a.sar('rax',56);}a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
   });
  }
- for(const name of wordMethods){
-  const write=name.startsWith('set'),signed=name.includes('Int')&&!name.includes('Uint');
-  const width=name.endsWith('16')?2:4,bits=width*8;
+ for(const name of [...wordMethods,...floatMethods]){
+  const write=name.startsWith('set'),signed=name.includes('Int')&&!name.includes('Uint'),floating=name.includes('Float');
+  const width=name.endsWith('16')?2:name.endsWith('64')?8:4,bits=width*8;
   const symbol='rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
   prependFunctionBuiltin(b,symbol,name,write?2:1,'rt.dataviewPrototype');
   rootedFn(b,symbol+'.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
@@ -88,10 +89,14 @@ export function emitDataView(b:RuntimeBuilder):void {
    a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
    a.cvttsd2si('rax','xmm0');a.jmp(ready);a.label(zero);a.mov('rax',0);a.label(ready);a.store(slot(72),'rax');
    if(write){
-    a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');
+    a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');if(floating){a.store(slot(144),'rax');a.store(slot(152),'rax');}
     const missing=a.unique('missing'),convert=a.unique('convert');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',missing);
     a.load('rcx',slot(56));a.add('rcx',16);a.jmp(convert);
-    a.label(missing);a.lea('rcx',slot(112));a.label(convert);a.call('rt.toInt32');a.store(slot(128),'rax');
+    a.label(missing);a.lea('rcx',slot(floating?144:112));a.label(convert);
+    if(floating){
+     a.mov('rdx','rcx');a.lea('rcx',slot(112));a.call('rt.toNumber');
+     a.movsd('xmm0',slot(120));if(width===4)a.cvtsd2ss('xmm0','xmm0');a.movqFromXmm('rax','xmm0');a.store(slot(128),'rax');
+    }else{a.call('rt.toInt32');a.store(slot(128),'rax');}
    }
    a.mov('rax',0);a.store(slot(64),'rax');
    const noEndian=a.unique('noEndian');a.load('rax',slot(48));a.cmp('rax',write?3:2);a.jcc('b',noEndian);
@@ -108,7 +113,9 @@ export function emitDataView(b:RuntimeBuilder):void {
    else{a.mov('rax',0);for(let i=width-1;i>=0;i--){a.shl('rax',8);a.load('r10',{base:'rdx',disp:i},8);a.or('rax','r10');}}
    a.label(finished);
    a.load('rcx',slot(40));if(write){a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');}
-   else{if(signed){a.shl('rax',64-bits);a.sar('rax',64-bits);}a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
+   else{if(floating){a.movqToXmm('xmm0','rax');if(width===4)a.cvtss2sd('xmm0','xmm0');}
+    else{if(signed){a.shl('rax',64-bits);a.sar('rax',64-bits);}a.cvtsi2sd('xmm0','rax');}
+    a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
   });
  }
  b.bundle.fragments.push(stringLiteral('rt.dataViewTag','DataView'));
