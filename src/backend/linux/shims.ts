@@ -61,6 +61,13 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(stdout);a.mov('rax',1);a.label(done);
  });
  b.fn('linux.GetConsoleMode.code',40,a=>a.mov('rax',0));
+ b.fn('linux.WaitOnAddress.code',104,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');a.load('rdx',{base:'rdx'},32);
+  a.mov('r10',0);a.mov('r11',0xffffffffn);a.cmp('r9','r11');const infinite=a.unique('infinite');a.jcc('e',infinite);
+  a.mov('rax','r9');a.mov('rdx',0);a.mov('r11',1000);a.div('r11');a.store(slot(72),'rax');a.mov('rax','rdx');a.mov('r11',1000000);a.imul('rax','r11');a.store(slot(80),'rax');a.lea('r10',slot(72));a.load('rdx',slot(56));a.load('rdx',{base:'rdx'},32);
+  a.label(infinite);a.load('rdi',slot(56));a.mov('rsi',128);a.mov('rax',202);a.emit([0x0f,0x05]);
+  const failed=a.unique('failed'),done=a.unique('done');a.test('rax','rax');a.jcc('ne',failed);a.mov('rax',1);a.jmp(done);a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
  b.fn('linux.GetSystemTimeAsFileTime.code',104,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
   a.mov('rdi',0);a.lea('rsi',slot(72));a.mov('rax',228);a.emit([0x0f,0x05]);

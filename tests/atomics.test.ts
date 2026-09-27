@@ -51,3 +51,12 @@ test('Atomics.notify validates operands and returns zero without waiters',()=>ex
  try{Atomics.notify(shared,2)}catch(error){console.log(error.name)}
  try{Atomics.notify(shared,0,Symbol())}catch(error){console.log(error.name)}
 `,'count\n0 0 0\nTypeError\nRangeError\nTypeError\n'));
+
+test('Atomics.wait handles mismatch and finite timeout',()=>expectProgram(`
+ var word=new Int32Array(new SharedArrayBuffer(4));word[0]=7;
+ console.log(Atomics.wait(word,0,8),Atomics.wait(word,0,7,0),Atomics.wait(word,0,7,2));
+ var big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-5n;
+ console.log(Atomics.wait(big,0,-4n),Atomics.wait(big,0,-5n,-1));
+ try{Atomics.wait(new Int32Array(1),0,0,0)}catch(error){console.log(error.name)}
+ try{Atomics.wait(new Uint32Array(new SharedArrayBuffer(4)),0,0,0)}catch(error){console.log(error.name)}
+`,'not-equal timed-out timed-out\nnot-equal timed-out\nTypeError\nTypeError\n'));

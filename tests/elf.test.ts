@@ -146,6 +146,13 @@ test('Linux native Atomics.notify returns zero without waiters',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 0\n');
 });
 
+test('Linux native Atomics.wait handles mismatch and finite timeout',t=>{
+ const source=`let word=new Int32Array(new SharedArrayBuffer(4));word[0]=7;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-5n;console.log(Atomics.wait(word,0,8),Atomics.wait(word,0,7,0),Atomics.wait(word,0,7,2),Atomics.wait(big,0,-4n),Atomics.wait(big,0,-5n,2));`;
+ const result=compile(source,{fileName:'atomics-wait.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'not-equal timed-out timed-out not-equal timed-out\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});

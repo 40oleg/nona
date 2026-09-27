@@ -7,10 +7,12 @@ import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 
 const rmwNames=['add','sub','exchange','and','or','xor'] as const;
-export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn','rt.Atomics.compareExchange.fn','rt.Atomics.notify.fn',...rmwNames.map(name=>'rt.Atomics.'+name+'.fn')];
-export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store','compareExchange','notify',...rmwNames].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
+export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn','rt.Atomics.compareExchange.fn','rt.Atomics.notify.fn','rt.Atomics.wait.fn',...rmwNames.map(name=>'rt.Atomics.'+name+'.fn')];
+export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store','compareExchange','notify','wait',...rmwNames].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
 
 export function emitAtomics(b:RuntimeBuilder):void {
+ b.bundle.imports.push({dll:'KERNELBASE.dll',name:'WaitOnAddress',symbol:'WaitOnAddress'});
+ for(const [name,value] of [['notEqual','not-equal'],['timedOut','timed-out'],['ok','ok']] as const)b.bundle.fragments.push(stringLiteral('rt.Atomics.'+name,value));
  b.bundle.fragments.push({name:'rt.Atomics',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
   {offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},
  ]});
@@ -19,6 +21,7 @@ export function emitAtomics(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.Atomics.store.fn','store',3,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.compareExchange.fn','compareExchange',4,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.notify.fn','notify',3,'rt.Atomics');
+ prependFunctionBuiltin(b,'rt.Atomics.wait.fn','wait',4,'rt.Atomics');
  for(const name of rmwNames)prependFunctionBuiltin(b,'rt.Atomics.'+name+'.fn',name,3,'rt.Atomics');
  b.bundle.fragments.push(stringLiteral('rt.str.Atomics','Atomics'));
  const atomics=b.bundle.fragments.find(f=>f.name==='rt.Atomics')!;
@@ -103,6 +106,28 @@ export function emitAtomics(b:RuntimeBuilder):void {
   a.load('rdx',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','rdx');a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',slot(144));
   const storeByte=a.unique('storeByte'),storeWord=a.unique('storeWord'),storeQuad=a.unique('storeQuad'),stored=a.unique('stored');a.cmp('r11',3);a.jcc('b',storeByte);a.cmp('r11',6);a.jcc('b',storeWord);a.cmp('r11',10);a.jcc('ae',storeQuad);a.atomicExchange({base:'rdx'},'rax',32);a.jmp(stored);a.label(storeWord);a.atomicExchange({base:'rdx'},'rax',16);a.jmp(stored);a.label(storeQuad);a.atomicExchange({base:'rdx'},'rax',64);a.jmp(stored);a.label(storeByte);a.atomicExchange({base:'rdx'},'rax',8);a.label(stored);
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}
+ });
+ rootedFn(b,'rt.Atomics.wait.fn.code',248,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:7}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.cmp('rax',7);const valid=a.unique('valid');a.jcc('e',valid);a.cmp('rax',10);failIf(a,'ne','rt.throwTypeError');a.label(valid);a.store(slot(72),'rax');a.store(slot(64),'r10');
+  a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rax',{base:'r11',disp:O.kind});a.cmp('rax',14);failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');const indexReady=a.unique('indexReady');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',indexReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:16+n});a.store(slot(80+n),'rax');}a.label(indexReady);
+  a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.toNumber');a.movsd('xmm0',slot(88));const notNan=a.unique('notNan'),coerced=a.unique('coerced');a.ucomisd('xmm0','xmm0');a.jcc('np',notNan);a.mov('rax',0);a.jmp(coerced);a.label(notNan);a.cvttsd2si('rax','xmm0');a.label(coerced);a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(96),'rax');
+  a.load('r10',slot(64));a.load('rdx',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','rdx');failIf(a,'ae','rt.throwRangeError');
+  a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');const valueReady=a.unique('valueReady');a.load('rax',slot(48));a.cmp('rax',3);a.jcc('b',valueReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:32+n});a.store(slot(112+n),'rax');}a.label(valueReady);
+  a.load('rax',slot(72));a.cmp('rax',10);const numeric=a.unique('numeric'),valueConverted=a.unique('valueConverted');a.jcc('b',numeric);
+  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toBigIntValue');a.lea('rdx',slot(128));a.call('rt.bigintToUint64');a.store(slot(144),'rax');a.jmp(valueConverted);
+  a.label(numeric);a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toNumber');a.lea('rcx',slot(128));a.call('rt.toInt32');a.store(slot(144),'rax');a.label(valueConverted);
+  a.mov('rax',0xffffffffn);a.store(slot(192),'rax');a.load('rax',slot(48));a.cmp('rax',4);const timeoutReady=a.unique('timeoutReady');a.jcc('b',timeoutReady);a.load('r10',slot(56));a.load('rax',{base:'r10',disp:48});a.test('rax','rax');a.jcc('e',timeoutReady);for(const n of [0,8]){a.load('rax',{base:'r10',disp:48+n});a.store(slot(160+n),'rax');}
+  a.lea('rcx',slot(176));a.lea('rdx',slot(160));a.call('rt.toNumber');a.movsd('xmm0',slot(184));a.ucomisd('xmm0','xmm0');a.jcc('p',timeoutReady);a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');const positive=a.unique('positive');a.jcc('a',positive);a.store(slot(192),'rax');a.jmp(timeoutReady);
+  a.label(positive);a.mov('rax',0xfffffffen);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',timeoutReady);a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');const integral=a.unique('integral');a.jcc('e',integral);a.add('rax',1);a.label(integral);a.store(slot(192),'rax');a.label(timeoutReady);
+  a.load('r10',slot(64));a.load('rax',slot(96));a.load('r11',slot(72));a.cmp('r11',10);const quad=a.unique('quad'),address=a.unique('address');a.jcc('e',quad);a.shl('rax',2);a.jmp(address);a.label(quad);a.shl('rax',3);a.label(address);a.load('rdx',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','rdx');a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rax','rdx');a.store(slot(200),'rax');
+  a.load('r10',slot(144));a.cmp('r11',10);const readQuad=a.unique('readQuad'),compared=a.unique('compared');a.jcc('e',readQuad);a.load('rax',{base:'rax'},32);a.mov('rdx',0xffffffffn);a.and('r10','rdx');a.jmp(compared);a.label(readQuad);a.load('rax',{base:'rax'},64);a.label(compared);a.cmp('rax','r10');const notEqual=a.unique('notEqual'),timedOut=a.unique('timedOut'),finish=a.unique('finish');a.jcc('ne',notEqual);
+  a.load('rax',slot(192));a.test('rax','rax');a.jcc('e',timedOut);
+  a.load('rcx',slot(200));a.lea('rdx',slot(144));a.mov('r8',4);a.load('rax',slot(72));a.cmp('rax',10);const widthReady=a.unique('widthReady');a.jcc('ne',widthReady);a.mov('r8',8);a.label(widthReady);a.load('r9',slot(192));a.callImport('WaitOnAddress');a.test('rax','rax');a.jcc('e',timedOut);a.load('rcx',slot(40));a.lea('rax',{rip:'rt.Atomics.ok'});a.jmp(finish);
+  a.label(notEqual);a.load('rcx',slot(40));a.lea('rax',{rip:'rt.Atomics.notEqual'});a.jmp(finish);a.label(timedOut);a.load('rcx',slot(40));a.lea('rax',{rip:'rt.Atomics.timedOut'});a.label(finish);a.mov('r10',4);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
  for(const name of rmwNames)rootedFn(b,'rt.Atomics.'+name+'.fn.code',200,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:4}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
