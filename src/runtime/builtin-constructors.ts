@@ -105,7 +105,9 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
     a.mov('rcx','r8');a.call('rt.toBoolean');a.store(slot(72),'rax');a.mov('rax',2);a.store(slot(64),'rax');
    }else{a.lea('rcx',slot(64));a.mov('rdx','r8');if(name==='String'&&!construct){
     const plain=a.unique('plain'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',6);a.jcc('ne',plain);a.call('rt.symbolDescriptiveString');a.jmp(converted);a.label(plain);a.call('rt.toString');a.label(converted);
-   }else a.call(name==='String'?'rt.toString':'rt.toNumber');}
+   }else if(name==='Number'){
+    const ordinary=a.unique('ordinary'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',7);a.jcc('ne',ordinary);a.load('rcx',{base:'r8',disp:8});a.call('rt.parseNumber');a.mov('rax',3);a.store(slot(64),'rax');a.storesd(slot(72),'xmm0');a.jmp(converted);a.label(ordinary);a.call('rt.toNumber');a.label(converted);
+   }else a.call('rt.toString');}
    a.label(ready);
    if(construct){
     a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');
