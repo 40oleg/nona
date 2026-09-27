@@ -2,14 +2,15 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
-import {emitNativeFunction} from './function-builtin.js';
+import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {ArrayBufferKind,ArrayBufferLayout} from './array-buffer.js';
 
 export const DataViewKind=12;
 export const DataViewLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,size:O.size+24} as const;
-export const dataViewRoots=['rt.dataViewBuffer.fn','rt.dataViewByteOffset.fn','rt.dataViewByteLength.fn'];
-export const dataViewPropertyRoots=['rt.dataviewPrototype.@@toStringTag',...['buffer','byteOffset','byteLength'].map(name=>'rt.dataviewPrototype.'+name),...dataViewRoots.flatMap(name=>[name+'.name',name+'.length'])];
+const byteMethods=['getInt8','getUint8','setInt8','setUint8'] as const;
+export const dataViewRoots=['rt.dataViewBuffer.fn','rt.dataViewByteOffset.fn','rt.dataViewByteLength.fn',...byteMethods.map(name=>'rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn')];
+export const dataViewPropertyRoots=['rt.dataviewPrototype.@@toStringTag',...['buffer','byteOffset','byteLength'].map(name=>'rt.dataviewPrototype.'+name),...dataViewRoots.slice(0,3).flatMap(name=>[name+'.name',name+'.length']),...byteMethods.flatMap(name=>builtinPropertyRoots('rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn',name,'rt.dataviewPrototype'))];
 
 export function emitDataViewPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -37,6 +38,34 @@ export function emitDataView(b:RuntimeBuilder):void {
    }else{
     a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
    }
+  });
+ }
+ for(const name of byteMethods){
+  const write=name.startsWith('set'),signed=name.includes('Int8')&&!name.includes('Uint8'),symbol='rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
+  prependFunctionBuiltin(b,symbol,name,write?2:1,'rt.dataviewPrototype');
+  rootedFn(b,symbol+'.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+   a.load('rdx',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store(slot(80+offset),'rax');}
+   a.load('rax',slot(80));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+   a.load('rax',slot(88));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',DataViewKind);failIf(a,'ne','rt.throwTypeError');
+   a.mov('rax',3);a.store(slot(96),'rax');a.mov('rax',0);a.store(slot(104),'rax');
+   const haveIndex=a.unique('haveIndex');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',haveIndex);
+   a.lea('rcx',slot(96));a.load('rdx',slot(56));a.call('rt.toNumber');a.label(haveIndex);
+   a.movsd('xmm0',slot(104));a.ucomisd('xmm0','xmm0');const zero=a.unique('zero'),ready=a.unique('ready');a.jcc('p',zero);
+   a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');
+   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
+   a.cvttsd2si('rax','xmm0');a.jmp(ready);a.label(zero);a.mov('rax',0);a.label(ready);a.store(slot(72),'rax');
+   if(write){
+    a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');
+    const valueReady=a.unique('valueReady');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',valueReady);
+    a.load('rcx',slot(56));a.add('rcx',16);a.jmp(valueReady+'.converted');
+    a.label(valueReady);a.lea('rcx',slot(112));a.label(valueReady+'.converted');a.call('rt.toInt32');a.and('rax',255);a.store(slot(64),'rax');
+   }
+   a.load('rdx',slot(88));a.load('rax',slot(72));a.load('r10',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax','r10');failIf(a,'ae','rt.throwRangeError');
+   a.load('r10',{base:'rdx',disp:DataViewLayout.byteOffset});a.add('rax','r10');
+   a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+   if(write){a.load('rax',slot(64));a.store({base:'rdx'},'rax',8);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');}
+   else{a.load('rax',{base:'rdx'},8);if(signed){a.shl('rax',56);a.sar('rax',56);}a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
   });
  }
  b.bundle.fragments.push(stringLiteral('rt.dataViewTag','DataView'));

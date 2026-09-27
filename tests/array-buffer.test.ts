@@ -67,3 +67,26 @@ test('DataView retains its ArrayBuffer through stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'7 11 32 true\n');
 });
+
+test('DataView getUint8 and setUint8 access shared bytes',()=>expectProgram(`
+  var buffer=new ArrayBuffer(5),whole=new DataView(buffer),middle=new DataView(buffer,1,3);
+  middle.setUint8(0,257);middle.setUint8(1,-1);middle.setUint8(2,NaN);
+  console.log(whole.getUint8(1),whole.getUint8(2),whole.getUint8(3));
+  console.log(middle.getUint8(0),middle.getUint8(1),middle.getUint8(2));
+  var copy=buffer.slice(1,4),copied=new DataView(copy);
+  console.log(copied.getUint8(0),copied.getUint8(1),copied.getUint8(2));
+  whole.setUint8(2,7);console.log(copied.getUint8(1));
+  whole.setInt8(0,-2);console.log(whole.getInt8(0),whole.getUint8(0));
+  whole.setUint8(0,129);console.log(whole.getInt8(0));
+  console.log(middle.setUint8(0,11)===undefined,middle.getUint8());
+  try{middle.getUint8(3)}catch(error){console.log(error.name)}
+  try{middle.setUint8(-1,1)}catch(error){console.log(error.name)}
+  try{DataView.prototype.getUint8.call(buffer,0)}catch(error){console.log(error.name)}
+`,'1 255 0\n1 255 0\n1 255 0\n255\n-2 254\n-127\ntrue 11\nRangeError\nRangeError\nTypeError\n'));
+
+test('DataView byte access survives coercion and stress GC',()=>{
+ const source=`var v=new DataView(new ArrayBuffer(4));var index={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1.9}};var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1e20}};v.setUint8(index,value);console.log(v.getUint8(index),v.buffer.byteLength);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'0 4\n');
+});
