@@ -99,6 +99,12 @@ test('RegExp constructor validates character class ranges',()=>expectProgram(Str
   console.log(new RegExp('[a-z]').test('q'),new RegExp('[\\d-a]').test('4'));
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\ntrue true\n'));
 
+test('RegExp VM matches decoded character class atoms and ranges',()=>expectProgram(String.raw`
+  console.log(/[\x41-\x43]/.test('B'),/[\u0041-\u0043]/.test('C'));
+  console.log(/[\u{1F600}-\u{1F602}]/u.test('😁'),/[\d-a]/.test('-'));
+  console.log(/[\cA]/.test('\u0001'),/[\b]/.test('\b'));
+`,'true true\ntrue true\ntrue true\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);

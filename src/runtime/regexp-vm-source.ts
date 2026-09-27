@@ -37,8 +37,8 @@ export const regexpVmSource=String.raw`(function(){
       var n=charCodeAt(c,0);
       return n>=48&&n<=57?n-48:n>=65&&n<=70?n-55:n>=97&&n<=102?n-87:-1
     }
-    function validateClass(body){
-      var cursor=body[0]==='^'?1:0,unicode=indexOf(flags,'u')>=0;
+    function parseClass(body){
+      var inverted=body[0]==='^',cursor=inverted?1:0,unicode=indexOf(flags,'u')>=0,items=[];
       function unit(){
         var c=body[cursor++],point=charCodeAt(c,0);
         if(c!=='\\'){
@@ -50,14 +50,14 @@ export const regexpVmSource=String.raw`(function(){
         }
         if(cursor>=body.length)error();
         c=body[cursor++];
-        if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {point:0,set:true};
+        if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {point:0,set:true,escape:c};
         if((c==='p'||c==='P')&&unicode){
           if(body[cursor++]!=='{')error();
           var begin=cursor;
           while(cursor<body.length&&body[cursor]!=='}')cursor++;
           if(begin===cursor||body[cursor]!=='}')error();
-          propertyRanges(slice(body,begin,cursor++));
-          return {point:0,set:true}
+          var ranges=propertyRanges(slice(body,begin,cursor++));
+          return {point:0,set:true,property:ranges,negated:c==='P'}
         }
         if(c==='x'||c==='u'){
           var count=c==='x'?2:4,value=0;
@@ -79,6 +79,12 @@ export const regexpVmSource=String.raw`(function(){
         }
         if(c==='n')point=10;else if(c==='r')point=13;else if(c==='t')point=9;
         else if(c==='v')point=11;else if(c==='f')point=12;else if(c==='b')point=8;
+        else if(c==='0')point=0;
+        else if(c==='c'&&cursor<body.length){
+          var control=charCodeAt(body,cursor);
+          if(control>=65&&control<=90||control>=97&&control<=122){cursor++;point=control%32}
+          else if(unicode)error();else point=99
+        }
         else point=charCodeAt(c,0);
         return {point:point,set:false}
       }
@@ -87,10 +93,16 @@ export const regexpVmSource=String.raw`(function(){
         if(body[cursor]==='-'&&cursor+1<body.length){
           cursor++;
           var last=unit();
-          if(first.set||last.set){if(unicode)error()}
-          else if(first.point>last.point)error()
-        }
+          if(first.set||last.set){
+            if(unicode)error();
+            append(items,first);append(items,{point:45,set:false});append(items,last)
+          }else{
+            if(first.point>last.point)error();
+            append(items,{from:first.point,to:last.point,range:true})
+          }
+        }else append(items,first)
       }
+      return {inverted:inverted,items:items}
     }
     function decimal(){
       var n=0,seen=false;
@@ -213,7 +225,7 @@ export const regexpVmSource=String.raw`(function(){
         var start=at,escapedClass=false;
         while(at<pattern.length){
           var k=pattern[at++];
-          if(k===']'&&!escapedClass){var body=slice(pattern,start,at-1);validateClass(body);return {kind:'class',value:body}}
+          if(k===']'&&!escapedClass){var body=slice(pattern,start,at-1);return {kind:'class',value:parseClass(body)}}
           if(k==='\\'&&!escapedClass)escapedClass=true;
           else escapedClass=false
         }
@@ -290,42 +302,24 @@ export const regexpVmSource=String.raw`(function(){
       else yes=c===' '||c==='\t'||c==='\r'||c==='\n'||c==='\v'||c==='\f'||c==='\u00a0';
       return kind==='D'||kind==='W'||kind==='S'?!yes:yes
     }
-    function classMatch(body,c){
-      var invert=body[0]==='^',i=invert?1:0,yes=false;
-      while(i<body.length){
-        var first=body[i++];
-        if(first==='\\'&&i<body.length){
-          first=body[i++];
-          if((first==='p'||first==='P')&&indexOf(flags,'u')>=0){
-            if(body[i++]!=='{')throw new SyntaxError('Invalid Unicode property');
-            var begin=i;
-            while(i<body.length&&body[i]!=='}')i++;
-            if(i===begin||body[i]!=='}')throw new SyntaxError('Invalid Unicode property');
-            var code=c.codePointAt(0),has=propertyMatch(propertyRanges(slice(body,begin,i++)),code);
-            if(first==='P')has=!has;
-            if(has)yes=true;
-            continue
+    function classMatch(spec,c){
+      var yes=false,point=c.codePointAt(0);
+      for(var i=0;i<spec.items.length;i++){
+        var item=spec.items[i];
+        if(item.range){
+          var current=ignore?c.toLowerCase().codePointAt(0):point;
+          var low=ignore?String.fromCodePoint(item.from).toLowerCase().codePointAt(0):item.from;
+          var high=ignore?String.fromCodePoint(item.to).toLowerCase().codePointAt(0):item.to;
+          if(current>=low&&current<=high)yes=true
+        }else if(item.set){
+          if(item.escape!==undefined){if(escapedClass(item.escape,c))yes=true}
+          else{
+            var found=propertyMatch(item.property,point);
+            if(item.negated?!found:found)yes=true
           }
-          if(first==='d'||first==='D'||first==='w'||first==='W'||first==='s'||first==='S'){
-            if(escapedClass(first,c))yes=true;
-            continue
-          }
-          if(first==='n')first='\n';
-          else if(first==='r')first='\r';
-          else if(first==='t')first='\t';
-          else if(first==='v')first='\v';
-          else if(first==='f')first='\f';
-          else if(first==='b')first='\b'
-        }
-        if(i+1<body.length&&body[i]==='-'){
-          i++;
-          var last=body[i++];
-          if(last==='\\'&&i<body.length)last=body[i++];
-          var x=ignore?c.toLowerCase():c,lo=ignore?first.toLowerCase():first,hi=ignore?last.toLowerCase():last;
-          if(x>=lo&&x<=hi)yes=true
-        }else if(same(c,first))yes=true
+        }else if(same(c,String.fromCodePoint(item.point)))yes=true
       }
-      return invert?!yes:yes
+      return spec.inverted?!yes:yes
     }
     function run(node,pos,caps,next){
       if(++steps>100000)throw new RangeError('RegExp backtracking limit');
