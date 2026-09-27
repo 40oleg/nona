@@ -143,16 +143,17 @@ export function emitRegExp(b:RuntimeBuilder):void {
  });
   // Basic UTF-16 matcher. R8 supplies the starting index and R9 selects
   // sticky mode. RAX returns the match index or -1. Metacharacters need a VM.
- b.fn('rt.regexpClassContains',72,a=>{
+ b.fn('rt.regexpClassContains',104,a=>{
   a.lea('r9',{base:'rcx',disp:2});a.mov('r10','r8');a.sub('r10',1);a.mov('r11','rdx');
   for(const offset of [40,48]){a.mov('rax',0);a.store(slot(offset),'rax');}a.mov('rax',1);a.store(slot(56),'rax');
-  const scan=a.unique('scan'),close=a.unique('close'),ordinary=a.unique('ordinary'),advance=a.unique('advance'),invalid=a.unique('invalid');
+  const scan=a.unique('scan'),close=a.unique('close'),ordinary=a.unique('ordinary'),advance=a.unique('advance'),invalid=a.unique('invalid'),shorthand=a.unique('shorthand');
   a.test('r10','r10');a.jcc('e',invalid);a.load('rax',{base:'r9'},16);a.cmp('rax',94);a.jcc('ne',scan);
   a.mov('rax',1);a.store(slot(40),'rax');a.add('r9',2);a.sub('r10',1);a.load('rax',slot(56));a.add('rax',1);a.store(slot(56),'rax');
   a.label(scan);a.test('r10','r10');a.jcc('e',invalid);a.load('rax',{base:'r9'},16);a.cmp('rax',93);a.jcc('e',close);
   a.cmp('rax',92);a.jcc('ne',ordinary);a.add('r9',2);a.sub('r10',1);a.load('rax',slot(56));a.add('rax',1);a.store(slot(56),'rax');
   a.test('r10','r10');a.jcc('e',invalid);a.load('rax',{base:'r9'},16);
-  for(const code of 'dDwWsSuUxXcCpPkK'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',invalid);}
+  for(const code of 'dDwWsS'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',shorthand);}
+  for(const code of 'uUxXcCpPkK'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',invalid);}
   for(const [code,value] of [['n',10],['r',13],['t',9],['v',11],['f',12],['0',0],['b',8]] as const){
    const next=a.unique('nextClassEscape');a.cmp('rax',code.charCodeAt(0));a.jcc('ne',next);a.mov('rax',value);a.jmp(ordinary);a.label(next);
   }
@@ -162,8 +163,19 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('rdx',slot(64));a.cmp('rdx','rax');a.jcc('a',invalid);a.cmp('r11','rdx');const nextRange=a.unique('nextRange');a.jcc('b',nextRange);a.cmp('r11','rax');a.jcc('a',nextRange);
   a.mov('rdx',1);a.store(slot(48),'rdx');a.label(nextRange);a.add('r9',4);a.sub('r10',2);a.load('rax',slot(56));a.add('rax',2);a.store(slot(56),'rax');a.jmp(scan);
   a.label(advance);a.load('rax',slot(64));a.cmp('r11','rax');const notEqual=a.unique('notEqual');a.jcc('ne',notEqual);a.mov('rax',1);a.store(slot(48),'rax');a.label(notEqual);a.jmp(scan);
+  a.label(shorthand);a.store(slot(72),'r9');a.store(slot(80),'r10');a.store(slot(88),'r11');
+  a.lea('rcx',{base:'r9',disp:-2});a.mov('rdx','r10');a.add('rdx',1);a.mov('r8','r11');a.mov('r9',0);a.call('rt.regexpAtomMatches');
+  a.test('rax','rax');const noShorthandMatch=a.unique('noShorthandMatch');a.jcc('e',noShorthandMatch);a.mov('rax',1);a.store(slot(48),'rax');a.label(noShorthandMatch);
+  a.load('r9',slot(72));a.load('r10',slot(80));a.load('r11',slot(88));
+  a.cmp('r10',2);const noRange=a.unique('noShorthandRange');a.jcc('b',noRange);a.load('rax',{base:'r9',disp:2},16);a.cmp('rax',45);a.jcc('e',invalid);a.label(noRange);
+  a.add('r9',2);a.sub('r10',1);a.load('rax',slot(56));a.add('rax',1);a.store(slot(56),'rax');a.jmp(scan);
   a.label(close);a.load('rax',slot(56));a.add('rax',1);a.mov('rdx','rax');a.load('rax',slot(48));a.load('r10',slot(40));a.xor('rax','r10');const done=a.unique('done');a.jmp(done);
   a.label(invalid);a.call('rt.throwTypeError');a.label(done);
+ });
+ b.fn('rt.regexpIsWordCodeUnit',40,a=>{
+  const yes=a.unique('yes'),done=a.unique('done');
+  for(const [first,last] of [[48,57],[65,90],[97,122]] as const){const after=a.unique('afterRange');a.cmp('rcx',first);a.jcc('b',after);a.cmp('rcx',last);a.jcc('be',yes);a.label(after);}
+  a.cmp('rcx',95);a.jcc('e',yes);a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
  });
  b.fn('rt.regexpAtomMatches',88,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
@@ -252,8 +264,9 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.cmp('rax',46);const ordinary=a.unique('ordinary');a.jcc('ne',ordinary);a.load('rax',slot(96));a.and('rax',2);failIf(a,'ne','rt.throwTypeError');a.label(ordinary);
   a.add('rdx',2);a.sub('r9',1);a.jmp(advance);
   a.label(escape);a.cmp('r9',1);failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'rdx',disp:2},16);
-  const validEscape=a.unique('validEscape');for(const code of 'dDwWsSnrtvf0\\.^$*+?()[]{}|/'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',validEscape);}
+  const validEscape=a.unique('validEscape');for(const code of 'dDwWsSbBnrtvf0\\.^$*+?()[]{}|/'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',validEscape);}
   a.call('rt.throwTypeError');a.label(validEscape);a.add('rdx',4);a.sub('r9',2);
+  a.cmp('rax',98);a.jcc('e',validate);a.cmp('rax',66);a.jcc('e',validate);
   const nextValidated=a.unique('nextValidated');a.jmp(nextValidated);
   a.label(classValidate);a.load('rax',slot(96));a.and('rax',10);failIf(a,'ne','rt.throwTypeError');
   a.store(slot(104),'r8');a.store(slot(112),'r9');a.store(slot(120),'rdx');a.mov('rcx','rdx');a.mov('rdx',0);a.mov('r8','r9');a.call('rt.regexpClassContains');
@@ -269,8 +282,10 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('rax',slot(80));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('a',no);
   a.shl('rax',1);a.load('rdx',slot(48));a.add('rdx',8);a.add('rdx','rax');a.load('r8',slot(56));a.load('r9',{base:'r8'});a.add('r8',8);
   a.label(inner);a.test('r9','r9');a.jcc('e',yes);a.load('r11',{base:'r8'},16);
-  const literal=a.unique('literal'),matched=a.unique('matched'),escaped=a.unique('escaped'),classMatch=a.unique('classMatch'),startMatch=a.unique('startMatch'),endMatch=a.unique('endMatch'),anchorMatched=a.unique('anchorMatched');
-  a.cmp('r11',94);a.jcc('e',startMatch);a.cmp('r11',36);a.jcc('e',endMatch);a.load('r10',{base:'rdx'},16);
+  const literal=a.unique('literal'),matched=a.unique('matched'),escaped=a.unique('escaped'),classMatch=a.unique('classMatch'),startMatch=a.unique('startMatch'),endMatch=a.unique('endMatch'),anchorMatched=a.unique('anchorMatched'),boundary=a.unique('boundary');
+  a.cmp('r11',94);a.jcc('e',startMatch);a.cmp('r11',36);a.jcc('e',endMatch);
+  a.cmp('r11',92);const notBoundary=a.unique('notBoundary');a.jcc('ne',notBoundary);a.load('r10',{base:'r8',disp:2},16);a.cmp('r10',98);a.jcc('e',boundary);a.cmp('r10',66);a.jcc('e',boundary);a.label(notBoundary);
+  a.load('r10',{base:'rdx'},16);
   a.cmp('r11',92);a.jcc('e',escaped);a.cmp('r11',91);a.jcc('e',classMatch);
   a.cmp('r11',46);a.jcc('ne',literal);
   a.load('rax',slot(96));a.and('rax',1);a.test('rax','rax');a.jcc('ne',matched);
@@ -305,6 +320,14 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('rax',{base:'rdx'},16);const lineFound=a.unique('lineFound');for(const code of [10,13,0x2028,0x2029]){a.cmp('rax',code);a.jcc('e',lineFound);}a.jmp(mismatch);
   a.label(lineFound);
   a.label(anchorMatched);a.add('r8',2);a.sub('r9',1);a.jmp(inner);
+  a.label(boundary);a.store(slot(64),'r10');a.store(slot(104),'rdx');a.store(slot(112),'r8');a.store(slot(120),'r9');
+  a.load('r10',slot(48));a.add('r10',8);a.cmp('rdx','r10');const prevZero=a.unique('prevZero'),prevReady=a.unique('prevReady');a.jcc('e',prevZero);
+  a.load('rcx',{base:'rdx',disp:-2},16);a.call('rt.regexpIsWordCodeUnit');a.jmp(prevReady);a.label(prevZero);a.mov('rax',0);a.label(prevReady);a.store(slot(128),'rax');
+  a.load('r10',slot(48));a.load('rax',{base:'r10'});a.shl('rax',1);a.add('r10',8);a.add('r10','rax');a.load('rdx',slot(104));a.cmp('rdx','r10');const nextZero=a.unique('nextZero'),nextReady=a.unique('nextReady');a.jcc('e',nextZero);
+  a.load('rcx',{base:'rdx'},16);a.call('rt.regexpIsWordCodeUnit');a.jmp(nextReady);a.label(nextZero);a.mov('rax',0);a.label(nextReady);
+  a.load('r10',slot(128));a.xor('rax','r10');a.load('r10',slot(64));a.cmp('r10',98);const nonBoundary=a.unique('nonBoundary'),boundaryReady=a.unique('boundaryReady');a.jcc('ne',nonBoundary);a.test('rax','rax');a.jcc('e',mismatch);a.jmp(boundaryReady);
+  a.label(nonBoundary);a.test('rax','rax');a.jcc('ne',mismatch);a.label(boundaryReady);
+  a.load('rdx',slot(104));a.load('r8',slot(112));a.add('r8',4);a.load('r9',slot(120));a.sub('r9',2);a.jmp(inner);
   a.label(classMatch);a.store(slot(104),'rdx');a.store(slot(112),'r8');a.store(slot(120),'r9');a.mov('rcx','r8');a.mov('rdx','r10');a.mov('r8','r9');a.call('rt.regexpClassContains');
   a.test('rax','rax');a.jcc('e',mismatch);a.mov('r11','rdx');a.load('r9',slot(120));a.sub('r9','r11');a.shl('r11',1);a.load('r8',slot(112));a.add('r8','r11');a.load('rdx',slot(104));a.add('rdx',2);a.jmp(inner);
   a.label(literal);a.cmp('r10','r11');a.jcc('e',matched);

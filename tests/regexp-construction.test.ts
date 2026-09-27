@@ -114,6 +114,17 @@ test('RegExp simple character classes and ranges',()=>expectProgram(String.raw`
   console.log(/[\n]/.exec('x\n')[0]==='\n',/[\b]/.exec('x\b')[0]==='\b');
 `,'Nevermore bd\n猫 null true\n] a\n1 2\ntrue true\n'));
 
+test('RegExp character classes include shorthand escapes',()=>expectProgram(String.raw`
+  console.log(/[x\d]/.exec('a7')[0],/[\w]/.exec('猫_')[0],/[\s]/.exec('x\u00a0')[0]==='\u00a0');
+  console.log(/[^\d]/.exec('7猫')[0],/[\D]/.exec('7猫')[0]);
+`,'7 _ true\n猫 猫\n'));
+
+test('RegExp word boundary assertions are zero width',()=>expectProgram(String.raw`
+  console.log(/\bcat\b/.exec('a cat!')[0],/\bcat\b/.exec('a cat!').index);
+  console.log(/\Bcat/.exec('scat').index,/\b/.exec(' cat').index,/\B/.exec('').index);
+  console.log(/\b/.exec('é'),/\B/.exec('猫').index);
+`,'cat 2\n1 1 0\nnull 0\n'));
+
 test('RegExp start and end anchors honor multiline mode',()=>expectProgram(String.raw`
   console.log(/^cat/.exec('xcat'),/cat$/.exec('xcat').index);
   console.log(/^cat/m.exec('x\ncat').index,/cat$/m.exec('cat\nx').index);
