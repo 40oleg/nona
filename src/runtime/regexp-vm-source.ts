@@ -990,6 +990,8 @@ __nonaRegexpVm.typedArrayRawLength=__nonaRegexpVm.typedArrayConstructor.__nonaRa
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
 __nonaRegexpVm.typedArrayRawByteOffset=__nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
+[Uint8Array,Int8Array,Uint8ClampedArray,Uint16Array,Int16Array,Uint32Array,Int32Array,Float32Array,Float64Array,BigInt64Array,BigUint64Array].forEach(function(ctor){delete ctor.prototype[Symbol.toStringTag]});
+Object.defineProperty(__nonaRegexpVm.typedArrayConstructor.prototype,Symbol.toStringTag,{get:Object.getOwnPropertyDescriptor({get [Symbol.toStringTag](){'use strict';if(!__nonaRegexpVm.safeCall(__nonaRegexpVm.isTypedArray,undefined,this))return undefined;return __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,this).name}},Symbol.toStringTag).get,configurable:true});
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,Symbol.species,{get:Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get,configurable:true});
 __nonaRegexpVm.typedArraySpeciesCreate=function(source,length){
  var defaultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,source);
