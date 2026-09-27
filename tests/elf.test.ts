@@ -111,6 +111,13 @@ test('Linux native thirty-two-bit typed arrays share buffer bytes',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'2309737967 -1985229329 -2 2309737967 4294967294\n');
 });
 
+test('Linux native floating-point typed arrays round and share bytes',t=>{
+ const source=`let b=new ArrayBuffer(16),a=new Float32Array(b),d=new Float64Array(b,8),v=new DataView(b);a[0]=1/3;d[0]=Math.PI;console.log(a[0]===Math.fround(1/3),v.getFloat32(0,true)===a[0],d[0]===Math.PI);`;
+ const result=compile(source,{fileName:'float-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true true true\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

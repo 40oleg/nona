@@ -354,3 +354,24 @@ test('thirty-two-bit indexed descriptors and iterators survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'8 -2 -2 -1\n');
 });
+
+test('Float32Array and Float64Array round, alias DataView, and preserve special numbers',()=>expectProgram(`
+  var buffer=new ArrayBuffer(16),f32=new Float32Array(buffer,4,2),f64=new Float64Array(buffer,8,1),view=new DataView(buffer);
+  f32[0]=1/3;f32[1]=-0;
+  console.log(f32.length,f32.byteLength,f32.byteOffset,f32[0]===Math.fround(1/3),1/f32[1]);
+  console.log(view.getFloat32(4,true)===f32[0],1/view.getFloat32(8,true));
+  f64[0]=Math.PI;console.log(f64[0]===Math.PI,view.getFloat64(8,true)===Math.PI);
+  var a=new Float32Array([1/3,Infinity,NaN]),b=Float64Array.of(1/3,-Infinity,NaN);
+  console.log(a.length,a.byteLength,a[0]===Math.fround(1/3),a[1],Number.isNaN(a[2]));
+  console.log(b.length,b.byteLength,b[0]===1/3,b[1],Number.isNaN(b[2]),Object.prototype.toString.call(b));
+  Object.defineProperty(a,'0',{value:2.5});console.log(a[0],ArrayBuffer.isView(a));
+  try{new Float64Array(buffer,4)}catch(error){console.log(error.name)}
+  try{new Float32Array(new ArrayBuffer(5))}catch(error){console.log(error.name)}
+`,'2 8 4 true -Infinity\ntrue -Infinity\ntrue true\n3 12 true Infinity true\n3 24 true -Infinity true [object Float64Array]\n2.5 true\nRangeError\nRangeError\n'));
+
+test('floating-point indexed conversion and iteration survive stress GC',()=>{
+ const source=`var a=new Float32Array(2),v={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1/3}};a[0]=v;Object.defineProperty(a,'1',{value:v});var it=a.values();for(var j=0;j<20;j++)new ArrayBuffer(j);console.log(a[0]===Math.fround(1/3),Object.getOwnPropertyDescriptor(a,'1').value===Math.fround(1/3),it.next().value===a[0],it.next().value===a[1]);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'true true true true\n');
+});
