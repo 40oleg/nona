@@ -139,6 +139,13 @@ test('Linux native Atomics.compareExchange handles unsigned wrapped expected val
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'4294967291 7 7 7\n');
 });
 
+test('Linux native Atomics.notify returns zero without waiters',t=>{
+ const source=`let view=new Int32Array(new SharedArrayBuffer(4));console.log(Atomics.notify(view,0),Atomics.notify(view,0,1),Atomics.notify(new Int32Array(1),0,1));`;
+ const result=compile(source,{fileName:'atomics-notify.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 0\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});

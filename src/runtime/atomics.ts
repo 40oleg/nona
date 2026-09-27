@@ -7,8 +7,8 @@ import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 
 const rmwNames=['add','sub','exchange','and','or','xor'] as const;
-export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn','rt.Atomics.compareExchange.fn',...rmwNames.map(name=>'rt.Atomics.'+name+'.fn')];
-export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store','compareExchange',...rmwNames].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
+export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn','rt.Atomics.compareExchange.fn','rt.Atomics.notify.fn',...rmwNames.map(name=>'rt.Atomics.'+name+'.fn')];
+export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store','compareExchange','notify',...rmwNames].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
 
 export function emitAtomics(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.Atomics',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -18,6 +18,7 @@ export function emitAtomics(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.Atomics.load.fn','load',2,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.store.fn','store',3,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.compareExchange.fn','compareExchange',4,'rt.Atomics');
+ prependFunctionBuiltin(b,'rt.Atomics.notify.fn','notify',3,'rt.Atomics');
  for(const name of rmwNames)prependFunctionBuiltin(b,'rt.Atomics.'+name+'.fn',name,3,'rt.Atomics');
  b.bundle.fragments.push(stringLiteral('rt.str.Atomics','Atomics'));
  const atomics=b.bundle.fragments.find(f=>f.name==='rt.Atomics')!;
@@ -44,6 +45,18 @@ export function emitAtomics(b:RuntimeBuilder):void {
   const yes=a.unique('yes'),done=a.unique('done');for(const size of [1,2,4,8]){a.cmp('rax',size);a.jcc('e',yes);}
   a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
   a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ });
+ rootedFn(b,'rt.Atomics.notify.fn.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:2}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.cmp('rax',7);const accepted=a.unique('accepted');a.jcc('e',accepted);a.cmp('rax',10);failIf(a,'ne','rt.throwTypeError');a.label(accepted);
+  a.store(slot(64),'r10');a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rax',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');const indexReady=a.unique('indexReady');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',indexReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:16+n});a.store(slot(80+n),'rax');}a.label(indexReady);
+  a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.toNumber');a.movsd('xmm0',slot(88));const notNan=a.unique('notNan'),coerced=a.unique('coerced');a.ucomisd('xmm0','xmm0');a.jcc('np',notNan);a.mov('rax',0);a.jmp(coerced);a.label(notNan);a.cvttsd2si('rax','xmm0');a.label(coerced);a.test('rax','rax');failIf(a,'s','rt.throwRangeError');
+  a.load('r10',slot(64));a.load('rdx',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','rdx');failIf(a,'ae','rt.throwRangeError');
+  a.load('rax',slot(48));a.cmp('rax',3);const countReady=a.unique('countReady');a.jcc('b',countReady);a.load('r10',slot(56));a.load('rax',{base:'r10',disp:32});a.cmp('rax',0);a.jcc('e',countReady);a.load('rax',{base:'r10',disp:32});a.store(slot(96),'rax');a.load('rax',{base:'r10',disp:40});a.store(slot(104),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(96));a.call('rt.toNumber');a.label(countReady);
+  a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.mov('rax',0);a.cvtsi2sd('xmm0','rax');a.storesd({base:'rcx',disp:8},'xmm0');
  });
  rootedFn(b,'rt.Atomics.load.fn.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');

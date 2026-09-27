@@ -43,3 +43,11 @@ test('Atomics compareExchange matches converted expected values',()=>expectProgr
     console.log(C.name,view[3],Atomics.compareExchange(view,3,-5,0),view[3]);
   }
 `,'Uint8Array 251 251 0\nInt8Array -5 -5 0\nUint16Array 65531 65531 0\nInt16Array -5 -5 0\nUint32Array 4294967291 4294967291 0\nInt32Array -5 -5 0\n'));
+
+test('Atomics.notify validates operands and returns zero without waiters',()=>expectProgram(`
+ var shared=new Int32Array(new SharedArrayBuffer(8)),ordinary=new BigInt64Array(1);
+ console.log(Atomics.notify(shared,0),Atomics.notify(shared,1,{valueOf(){console.log('count');return 2}}),Atomics.notify(ordinary,0,1));
+ try{Atomics.notify(new Int16Array(1),{valueOf(){console.log('bad index');return 0}})}catch(error){console.log(error.name)}
+ try{Atomics.notify(shared,2)}catch(error){console.log(error.name)}
+ try{Atomics.notify(shared,0,Symbol())}catch(error){console.log(error.name)}
+`,'count\n0 0 0\nTypeError\nRangeError\nTypeError\n'));
