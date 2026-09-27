@@ -6,6 +6,8 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import {emitDescriptorValidation} from './descriptor-validation.js';
 import {prependFunctionBuiltin} from './function-builtin.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 
 export function emitDefineProperty(b:RuntimeBuilder):void {
  emitDescriptorValidation(b);
@@ -30,14 +32,26 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
  rootedFn(b,'rt.defineOwnProperty',248,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r8',count:6},{kind:'locals',offset:80,count:6},{kind:'locals',offset:184,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rcx',disp:8});a.store(slot(64),'rax');
   a.mov('r10',-1);a.store(slot(72),'r10');a.mov('r10',0);a.store(slot(224),'r10');
-  const lookup=a.unique('lookup'),index=a.unique('index'),no=a.unique('no'),yes=a.unique('yes'),done=a.unique('done');
-  a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',lookup);
+  const lookup=a.unique('lookup'),index=a.unique('index'),typed=a.unique('typed'),no=a.unique('no'),yes=a.unique('yes'),done=a.unique('done');
+  a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('e',typed);a.cmp('rax',1);a.jcc('ne',lookup);
   a.load('rcx',{base:'rdx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',index);
   a.mov('rax',1);a.store(slot(224),'rax');a.load('r8',slot(56));a.load('rax',{base:'r8',disp:D.present});a.and('rax',F.value);a.test('rax','rax');a.jcc('e',lookup);
   a.lea('rcx',slot(184));a.lea('rdx',{base:'r8',disp:D.value});a.call('rt.normalizeArrayLength');a.load('r8',slot(56));
   for(const n of [0,8]){a.load('rax',slot(184+n));a.store({base:'r8',disp:D.value+n},'rax');}a.jmp(lookup);
   a.label(index);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.store(slot(72),'rax');a.cmp('rax',-1);a.jcc('e',lookup);
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',lookup);a.load('r10',{base:'r10',disp:O.flags});a.and('r10',OF.lengthReadonly);a.test('r10','r10');a.jcc('ne',no);
+  a.label(typed);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',lookup);
+  a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',no);a.store(slot(208),'rax');
+  a.load('r8',slot(56));a.load('rax',{base:'r8',disp:D.present});a.and('rax',F.get|F.set);a.test('rax','rax');a.jcc('ne',no);
+  for(const [field,flag] of [[D.configurable,F.configurable],[D.enumerable,F.enumerable],[D.writable,F.writable]] as const){
+   const allowed=a.unique('allowed');a.load('rax',{base:'r8',disp:D.present});a.and('rax',flag);a.test('rax','rax');a.jcc('e',allowed);
+   a.load('rax',{base:'r8',disp:field+8});a.test('rax','rax');a.jcc('e',no);a.label(allowed);
+  }
+  a.load('rax',{base:'r8',disp:D.present});a.and('rax',F.value);a.test('rax','rax');a.jcc('e',yes);
+  a.lea('rcx',{base:'r8',disp:D.value});a.call('rt.toInt32');a.and('rax',255);a.store(slot(200),'rax');
+  a.load('r10',slot(64));a.load('rax',slot(208));a.load('r11',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','r11');
+  a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+  a.load('rax',slot(200));a.store({base:'rdx'},'rax',8);a.jmp(yes);
   a.label(lookup);a.lea('rcx',slot(80));a.load('rdx',slot(40));a.load('r8',slot(48));a.call('rt.getOwnDescriptor');
   a.load('rcx',slot(56));a.lea('rdx',slot(80));a.load('r8',slot(64));a.load('r8',{base:'r8',disp:O.flags});a.and('r8',OF.nonExtensible);a.xor('r8',1);a.call('rt.validateDescriptor');a.test('rax','rax');a.jcc('e',no);
   a.load('rax',slot(224));a.test('rax','rax');const nonLength=a.unique('nonLength');a.jcc('e',nonLength);

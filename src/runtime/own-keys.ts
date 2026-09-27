@@ -5,6 +5,7 @@ import {ValueListLayout as L} from './heap-layout.js';
 import {nativeConstructorNames} from '../global-builtins.js';
 import {emitValueList} from './value-list.js';
 import {emitKeySort} from './key-sort.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 
 export function emitOwnKeys(b:RuntimeBuilder):void {
  emitValueList(b);emitKeySort(b);
@@ -38,7 +39,10 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.load('rax',slot(192));a.add('rax',1);a.store(slot(192),'rax');a.load('rax',slot(200));a.add('rax',24);a.store(slot(200),'rax');a.jmp(countAliases);a.label(aliasesCounted);
   a.load('rcx',slot(48));a.call('rt.stringBase');a.test('rax','rax');const notString=a.unique('notString'),allocate=a.unique('allocate');a.jcc('e',notString);
   a.load('rax',{base:'rax'});a.store(slot(88),'rax');a.add('rax',1);a.store(slot(72),'rax');a.mov('rax',1);a.store(slot(96),'rax');a.jmp(allocate);
-  a.label(notString);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',allocate);a.mov('rax',1);a.store(slot(72),'rax');a.store(slot(96),'rax');
+  a.label(notString);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.kind});
+  const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
+  a.load('rax',slot(56));a.load('rax',{base:'rax',disp:TypedArrayLayout.length});a.store(slot(72),'rax');a.store(slot(88),'rax');a.jmp(allocate);
+  a.label(notTyped);a.cmp('rax',1);a.jcc('ne',allocate);a.mov('rax',1);a.store(slot(72),'rax');a.store(slot(96),'rax');
   a.label(allocate);a.load('rdx',slot(64));a.load('rax',slot(72));a.add('rdx','rax');a.load('rax',slot(80));a.add('rdx','rax');a.store(slot(184),'rdx');a.lea('rcx',slot(128));a.call('rt.newValueList');
   a.load('rcx',slot(184));a.shl('rcx',3);a.call('rt.alloc');a.store(slot(176),'rax');
   // Store temp Value at cursor. The list was initialized by newValueList.

@@ -177,3 +177,23 @@ test('Uint8Array keeps backing bytes through stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'201 47 16\n');
 });
+
+test('Uint8Array index enumeration and descriptors read backing bytes',()=>expectProgram(`
+  var bytes=new Uint8Array(3);bytes[0]=7;bytes[2]=9;
+  console.log(Object.keys(bytes).join(','),Object.getOwnPropertyNames(bytes).join(','));
+  var descriptor=Object.getOwnPropertyDescriptor(bytes,'2');
+  console.log(descriptor.value,descriptor.writable,descriptor.enumerable,descriptor.configurable);
+  console.log(bytes.hasOwnProperty('0'),bytes.propertyIsEnumerable('1'),bytes.hasOwnProperty('3'));
+  console.log(Object.values(bytes).join(','));
+`,'0,1,2 0,1,2\n9 true true true\ntrue true false\n7,0,9\n'));
+
+test('Uint8Array defineProperty updates indexed bytes and enforces attributes',()=>expectProgram(`
+  var bytes=new Uint8Array(2),view=new DataView(bytes.buffer);
+  console.log(Object.defineProperty(bytes,'1',{value:258})===bytes,bytes[1],view.getUint8(1));
+  console.log(Object.defineProperty(bytes,'0',{writable:true,enumerable:true,configurable:true})===bytes);
+  for(var descriptor of [{writable:false},{enumerable:false},{configurable:false},{get(){return 1}}]){
+    try{Object.defineProperty(bytes,'0',descriptor)}catch(error){console.log(error.name)}
+  }
+  try{Object.defineProperty(bytes,'2',{value:9})}catch(error){console.log(error.name)}
+  console.log(bytes[0],bytes[1],Object.keys(bytes).join(','));
+`,'true 2 2\ntrue\nTypeError\nTypeError\nTypeError\nTypeError\nTypeError\n0 2 0,1\n'));

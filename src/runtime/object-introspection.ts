@@ -3,6 +3,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import type {Assembler} from '../backend/x64/assembler.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 
 const methods=[
  ['rt.objectHasOwn','hasOwnProperty',1,'rt.objectPrototype'],
@@ -32,7 +33,12 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('e',normal);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.mov('rax',0);a.jcc('e',done);a.mov('rax',A.enumerable);a.jmp(done);
   a.label(normal);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store(slot(56),'rax');
-  const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',ordinary);
+  const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});
+  const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
+  a.load('rcx',slot(48));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',ordinary);
+  a.load('r10',slot(56));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('ae',missing);
+  a.mov('rax',A.ordinary);a.jmp(done);
+  a.label(notTyped);a.cmp('r10',1);a.jcc('ne',ordinary);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',ordinary);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.flags});a.and('rax',2);a.shr('rax',1);a.xor('rax',1);a.jmp(done);
   a.label(ordinary);a.load('rcx',slot(56));a.load('rdx',slot(48));a.call('rt.findGlobalBinding');a.test('rax','rax');
   const data=a.unique('data');a.jcc('e',data);a.load('rax',{base:'rdx'});a.jmp(done);
