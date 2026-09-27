@@ -114,6 +114,13 @@ test('RegExp simple character classes and ranges',()=>expectProgram(String.raw`
   console.log(/[\n]/.exec('x\n')[0]==='\n',/[\b]/.exec('x\b')[0]==='\b');
 `,'Nevermore bd\n猫 null true\n] a\n1 2\ntrue true\n'));
 
+test('RegExp start and end anchors honor multiline mode',()=>expectProgram(String.raw`
+  console.log(/^cat/.exec('xcat'),/cat$/.exec('xcat').index);
+  console.log(/^cat/m.exec('x\ncat').index,/cat$/m.exec('cat\nx').index);
+  console.log(/$/.exec('abc').index,/^/.exec('abc').index);
+  console.log(/x$/.exec('x\n'),/x$/m.exec('x\n').index,/^$/m.exec('\n').index);
+`,'null 1\n2 0\n3 0\nnull 0 0\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));
