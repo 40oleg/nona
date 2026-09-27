@@ -105,10 +105,10 @@ test('Linux native TypedArray callback methods traverse BigInt elements',t=>{
 });
 
 test('Linux native DataView range and buffer identity',t=>{
- const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,8);v.setBigUint64(0,0x123456789abcdef0n,true);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getBigUint64(0,true).toString(16));`;
+ const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,8);v.setBigUint64(0,0x123456789abcdef0n,true);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getBigUint64(0,true).toString(16),new DataView(b,0,NaN).byteLength,DataView.length);`;
  const result=compile(source,{fileName:'data-view.js',target:'linux-x64'});
  assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
- const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 8 true 123456789abcdef0\n');
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 8 true 123456789abcdef0 0 1\n');
 });
 
 test('Linux native DataView BigInt detachment follows index conversion',t=>{

@@ -170,7 +170,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.load('rax',slot(48));a.cmp('rax',3);a.jcc('b',haveLength);
   a.load('rax',slot(56));a.add('rax',32);a.load('rax',{base:'rax'});a.test('rax','rax');a.jcc('e',haveLength);
   a.lea('rcx',slot(88));a.load('rdx',slot(56));a.add('rdx',32);a.call('rt.toNumber');
-  a.movsd('xmm0',slot(96));a.ucomisd('xmm0','xmm0');a.jcc('p',haveLength);
+  a.movsd('xmm0',slot(96));a.ucomisd('xmm0','xmm0');const lengthNumber=a.unique('lengthNumber');a.jcc('np',lengthNumber);a.mov('rax',0);a.store(slot(80),'rax');a.jmp(haveLength);a.label(lengthNumber);
   a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');
   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
   a.cvttsd2si('rax','xmm0');a.load('r10',slot(80));a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.store(slot(80),'rax');

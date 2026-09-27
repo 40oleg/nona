@@ -46,7 +46,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
    const fixups=[pointer(P.key,'rt.str.'+key)];
    if(i<2)fixups.push(pointer(P.next,symbol+'.'+['name','length'][i]));
-   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,['Symbol','Map','Set','WeakMap','WeakSet'].includes(name)?0:name==='Date'?7:name==='DataView'?3:1,true);
+   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,['Symbol','Map','Set','WeakMap','WeakSet'].includes(name)?0:name==='Date'?7:1,true);
    else fixups.push(pointer(P.value+8,key==='name'?symbol+'.text':prototype));
    b.bundle.fragments.push({name:symbol+'.'+key,section:'.data',alignment:8,bytes:data,symbols:{},fixups});
   }

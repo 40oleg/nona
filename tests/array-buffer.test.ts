@@ -201,6 +201,7 @@ test('DataView construction, getters, brand and bounds',()=>expectProgram(`
   var buffer=new ArrayBuffer(8),view=new DataView(buffer,2,3);
   console.log(view instanceof DataView,view.buffer===buffer,view.byteOffset,view.byteLength,ArrayBuffer.isView(view));
   console.log(new DataView(buffer,2).byteLength,new DataView(buffer).byteLength);
+  console.log(new DataView(buffer,0,NaN).byteLength,new DataView(buffer,0,-0.5).byteLength);
   console.log(Object.prototype.toString.call(view));
   console.log(DataView.length,DataView.name);
   class ChildView extends DataView{}; console.log(new ChildView(buffer) instanceof ChildView);
@@ -209,7 +210,7 @@ test('DataView construction, getters, brand and bounds',()=>expectProgram(`
   try{new DataView(buffer,9)}catch(error){console.log(error.name)}
   try{new DataView(buffer,6,3)}catch(error){console.log(error.name)}
   try{Object.getOwnPropertyDescriptor(DataView.prototype,'buffer').get.call(buffer)}catch(error){console.log(error.name)}
-`,'true true 2 3 true\n6 8\n[object DataView]\n3 DataView\ntrue\nTypeError\nTypeError\nRangeError\nRangeError\nTypeError\n'));
+`,'true true 2 3 true\n6 8\n0 0\n[object DataView]\n1 DataView\ntrue\nTypeError\nTypeError\nRangeError\nRangeError\nTypeError\n'));
 
 test('DataView retains its ArrayBuffer through stress GC',()=>{
  const source=`var kept=new DataView(new ArrayBuffer(32),7,11);for(var i=0;i<40;i++){new ArrayBuffer(i);String(i)+String(i)}console.log(kept.byteOffset,kept.byteLength,kept.buffer.byteLength,ArrayBuffer.isView(kept));`;
