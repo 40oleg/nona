@@ -139,6 +139,13 @@ test('Linux native TypedArray copyWithin handles overlapping BigInt elements',t=
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'1 1 2 3\n');
 });
 
+test('Linux native TypedArray fill preserves BigInt and Float32 values',t=>{
+ const source=`let b=BigInt64Array.of(0n,0n,0n),f=new Float32Array(2);b.fill(-2n,1);f.fill(1/3);console.log(String(b[0]),String(b[1]),String(b[2]),f[0]===Math.fround(1/3),f[1]===f[0]);`;
+ const result=compile(source,{fileName:'typed-array-fill.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 -2 -2 true true\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

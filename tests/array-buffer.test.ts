@@ -430,3 +430,21 @@ test('TypedArray copyWithin keeps receiver and bounds rooted through coercion',(
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'1 1 2\n');
 });
+
+test('TypedArray fill converts once and writes numeric and BigInt element bytes',()=>expectProgram(`
+  var a=Int16Array.of(1,2,3,4);console.log(a.fill(65535,1,-1)===a,Array.from(a).join(','));
+  var c=new Uint8ClampedArray(4);c.fill(2.5);console.log(Array.from(c).join(','));
+  var f=new Float32Array(3);f.fill(-0,1);console.log(f[0],1/f[1],1/f[2]);f.fill(NaN,0,1);console.log(Number.isNaN(f[0]));
+  var b=new BigUint64Array(3);b.fill(-1n,1);console.log(String(b[0]),String(b[1]),String(b[2]));
+  var buffer=new ArrayBuffer(16),view=new Uint32Array(buffer,4,2);view.fill(0x12345678);console.log(new DataView(buffer).getUint32(0,true),new DataView(buffer).getUint32(4,true));
+  console.log(new Uint8Array(0).fill(7).length,Uint8Array.prototype.fill.length);
+  try{b.fill(1)}catch(error){console.log(error.name)}
+  try{Uint8Array.prototype.fill.call({},1)}catch(error){console.log(error.name)}
+`,'true 1,-1,-1,4\n2,2,2,2\n0 -Infinity -Infinity\ntrue\n0 18446744073709551615 18446744073709551615\n0 305419896\n0 1\nTypeError\nTypeError\n'));
+
+test('TypedArray fill roots receiver and converts the value once under stress GC',()=>{
+ const source=`var a=new BigInt64Array(3),calls=0,value={valueOf(){calls++;for(var i=0;i<20;i++)new ArrayBuffer(i);return -2n}},start={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1}};a.fill(value,start);console.log(calls,String(a[0]),String(a[1]),String(a[2]));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'1 0 -2 -2\n');
+});
