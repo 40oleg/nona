@@ -30,6 +30,12 @@ test('RegExp named groups decode Unicode escapes and validate identifiers',()=>e
   try{new RegExp('(?<2bad>x)');console.log('accepted')}catch(error){console.log(error instanceof SyntaxError)}
 `,'x\ntrue\ntrue\n'));
 
+test('RegExp Unicode classes combine astral characters and escaped surrogate pairs',()=>expectProgram(`
+  console.log(/[𝌆]/u.test('𝌆'),/[^𝌆]/u.test('𝌆'));
+  console.log(/[\\ud834\\udf06]/u.test('𝌆'),/[\\u{1d306}]/u.test('𝌆'));
+  console.log(new RegExp('\\\\u{000000003f}','u').test('?'));
+`,'true false\ntrue true\ntrue\n'));
+
 test('RegExp Unicode properties match categories, scripts and supplementary points',()=>expectProgram(`
   console.log(/\\p{L}+/u.exec('12αβ')[0]);
   console.log(/\\P{ASCII}+/u.exec('abαβ')[0]);

@@ -85,7 +85,7 @@ export const regexpVmSource=String.raw`(function(){
             at++;
             while(at<pattern.length&&pattern[at]!=='}'){
               var digitValue=hex(pattern[at++]);if(digitValue<0)error();
-              value=value*16+digitValue;if(++count>6||value>0x10ffff)error()
+              value=value*16+digitValue;count++;if(value>0x10ffff)error()
             }
             if(count===0||pattern[at]!=='}')error();at++
           }else{
@@ -117,7 +117,7 @@ export const regexpVmSource=String.raw`(function(){
         if(c!=='\\'){
           if(unicode&&point>=0xd800&&point<=0xdbff&&cursor<body.length){
             var low=charCodeAt(body,cursor);
-            if(low>=0xdc00&&low<=0xdfff){cursor++;point=0x10000+(point-0xd800)*1024+low}
+            if(low>=0xdc00&&low<=0xdfff){cursor++;point=0x10000+(point-0xd800)*1024+(low-0xdc00)}
           }
           return {point:point,set:false}
         }
@@ -138,7 +138,7 @@ export const regexpVmSource=String.raw`(function(){
             cursor++;count=0;
             while(cursor<body.length&&body[cursor]!=='}'){
               var d=hex(body[cursor++]);if(d<0)error();
-              value=value*16+d;if(++count>6||value>0x10ffff)error()
+              value=value*16+d;count++;if(value>0x10ffff)error()
             }
             if(count===0||body[cursor]!=='}')error();
             cursor++;return {point:value,set:false}
@@ -172,11 +172,21 @@ export const regexpVmSource=String.raw`(function(){
         }
         return {point:point,set:false}
       }
-      while(cursor<body.length){
+      function codePointUnit(){
         var first=unit();
+        if(unicode&&!first.set&&first.point>=0xd800&&first.point<=0xdbff&&cursor<body.length&&body[cursor]!=='-'){
+          var saved=cursor,second=unit();
+          if(!second.set&&second.point>=0xdc00&&second.point<=0xdfff)
+            first.point=0x10000+(first.point-0xd800)*1024+(second.point-0xdc00);
+          else cursor=saved
+        }
+        return first
+      }
+      while(cursor<body.length){
+        var first=codePointUnit();
         if(body[cursor]==='-'&&cursor+1<body.length){
           cursor++;
-          var last=unit();
+          var last=codePointUnit();
           if(first.set||last.set){
             if(unicode)error();
             append(items,first);append(items,{point:45,set:false});append(items,last)
@@ -237,7 +247,7 @@ export const regexpVmSource=String.raw`(function(){
             else error();
             codePoint=codePoint*16+hex;
             digits++;
-            if(digits>6||codePoint>0x10ffff)error()
+            if(codePoint>0x10ffff)error()
           }
           if(digits===0||pattern[at]!=='}')error();
           at++;

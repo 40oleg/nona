@@ -69,6 +69,13 @@ test('Linux native BigInt arithmetic and JSON serialization',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout.toString());
 });
 
+test('Linux native RegExp Unicode classes and escapes',t=>{
+ const source=String.raw`console.log(/[𝌆]/u.test('𝌆'),/[^𝌆]/u.test('𝌆'),/[\ud834\udf06]/u.test('𝌆'),new RegExp('\\u{000000003f}','u').test('?'));`;
+ const result=compile(source,{fileName:'regexp-unicode-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true false true true\n');
+});
+
 test('Linux native ArrayBuffer allocation and byteLength',t=>{
  const source=`let b=new ArrayBuffer(16);console.log(b.byteLength,Object.prototype.toString.call(b));`;
  const result=compile(source,{fileName:'array-buffer.js',target:'linux-x64'});
