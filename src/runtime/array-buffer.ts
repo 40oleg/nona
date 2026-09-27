@@ -7,8 +7,8 @@ import {stringLiteral} from './value.js';
 
 export const ArrayBufferKind=11;
 export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,size:O.size+16} as const;
-export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn'];
-export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer')];
+export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn'];
+export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer')];
 
 export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -18,6 +18,10 @@ export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitArrayBuffer(b:RuntimeBuilder):void {
+ prependFunctionBuiltin(b,'rt.ArrayBuffer.isView.fn','isView',1,'rt.ArrayBuffer');
+ b.fn('rt.ArrayBuffer.isView.fn.code',40,a=>{
+  a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');
+ });
  prependFunctionBuiltin(b,'rt.arrayBufferCopy.fn','__nonaCopyInternal',4,'rt.ArrayBuffer');
  b.fn('rt.arrayBufferCopy.fn.code',88,a=>{
   a.cmp('rdx',4);failIf(a,'b','rt.throwTypeError');

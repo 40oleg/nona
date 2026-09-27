@@ -40,3 +40,9 @@ test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   original.constructor={[Symbol.species]:function(){return new ArrayBuffer(1)}};
   try{original.slice(1,4)}catch(error){console.log(error.name)}
 `,'4 3 0\n4 0\ntrue 3\n3 5\nTypeError\n'));
+
+test('ArrayBuffer.isView identifies current non-view values',()=>expectProgram(`
+  console.log(ArrayBuffer.isView(),ArrayBuffer.isView(null),ArrayBuffer.isView({}),ArrayBuffer.isView(new ArrayBuffer(1)));
+  console.log(ArrayBuffer.isView.length,ArrayBuffer.isView.name);
+  try{new ArrayBuffer.isView({})}catch(error){console.log(error.name)}
+`,'false false false false\n1 isView\nTypeError\n'));
