@@ -3,6 +3,14 @@
 import {regexpUnicodeData} from './regexp-unicode-data.js';
 
 export const regexpVmSource=String.raw`(function(){
+  var intrinsic=typeof __nonaRegexpVm==='function'?__nonaRegexpVm:null;
+  var safeSlice=intrinsic?intrinsic.replaceSlice:String.prototype.slice;
+  var safeIndexOf=intrinsic?intrinsic.replaceIndexOf:String.prototype.indexOf;
+  var safeCharCodeAt=intrinsic?intrinsic.replaceCharCodeAt:String.prototype.charCodeAt;
+  function append(array,value){Object.defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
+  function slice(string,start,end){return safeSlice.call(string,start,end)}
+  function indexOf(string,value){return safeIndexOf.call(string,value)}
+  function charCodeAt(string,index){return safeCharCodeAt.call(string,index)}
   var unicodeData=@@UNICODE_DATA@@;
   var rangeCache={};
   function propertyRanges(name){
@@ -11,7 +19,7 @@ export const regexpVmSource=String.raw`(function(){
     if(typeof index!=='number')throw new SyntaxError('Invalid Unicode property');
     var encoded=unicodeData.values[index];
     var ranges=[];
-    for(var i=0;i<encoded.length;i+=12)ranges.push([parseInt(encoded.slice(i,i+6),16),parseInt(encoded.slice(i+6,i+12),16)]);
+    for(var i=0;i<encoded.length;i+=12)append(ranges,[parseInt(slice(encoded,i,i+6),16),parseInt(slice(encoded,i+6,i+12),16)]);
     rangeCache[name]=ranges;
     return ranges
   }
@@ -26,18 +34,18 @@ export const regexpVmSource=String.raw`(function(){
     function digit(c){return c>='0'&&c<='9'}
     function decimal(){
       var n=0,seen=false;
-      while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(pattern.charCodeAt(at)-48);at++}
+      while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(charCodeAt(pattern,at)-48);at++}
       return seen?n:-1
     }
     function escaped(){
       if(at>=pattern.length)error();
       var c=pattern[at++];
-      if((c==='p'||c==='P')&&flags.indexOf('u')>=0){
+      if((c==='p'||c==='P')&&indexOf(flags,'u')>=0){
         if(pattern[at++]!=='{')error();
         var begin=at;
         while(at<pattern.length&&pattern[at]!=='}')at++;
         if(at===begin||pattern[at]!=='}')error();
-        var property=pattern.slice(begin,at++);
+        var property=slice(pattern,begin,at++);
         return {kind:'property',value:propertyRanges(property),negated:c==='P'}
       }
       if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {kind:'classEscape',value:c};
@@ -49,17 +57,17 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0')return {kind:'char',value:'\0'};
       if(c==='c'){
-        var control=pattern.charCodeAt(at);
+        var control=charCodeAt(pattern,at);
         if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
-        if(flags.indexOf('u')>=0)error();
+        if(indexOf(flags,'u')>=0)error();
         return {kind:'char',value:'c'}
       }
       if(c==='x'||c==='u'){
-        if(c==='u'&&flags.indexOf('u')>=0&&pattern[at]==='{'){
+        if(c==='u'&&indexOf(flags,'u')>=0&&pattern[at]==='{'){
           at++;
           var codePoint=0,digits=0;
           while(at<pattern.length&&pattern[at]!=='}'){
-            var hex=pattern.charCodeAt(at++);
+            var hex=charCodeAt(pattern,at++);
             if(hex>=48&&hex<=57)hex-=48;
             else if(hex>=65&&hex<=70)hex-=55;
             else if(hex>=97&&hex<=102)hex-=87;
@@ -73,17 +81,17 @@ export const regexpVmSource=String.raw`(function(){
           return {kind:'char',value:String.fromCodePoint(codePoint)}
         }
         var count=c==='x'?2:4,n=0;
-        if(flags.indexOf('u')<0){
+        if(indexOf(flags,'u')<0){
           var valid=true;
           for(var probe=0;probe<count;probe++){
-            var digitCode=pattern.charCodeAt(at+probe);
+            var digitCode=charCodeAt(pattern,at+probe);
             if(!(digitCode>=48&&digitCode<=57||digitCode>=65&&digitCode<=70||digitCode>=97&&digitCode<=102))valid=false
           }
           if(!valid)return {kind:'char',value:c}
         }
         for(var j=0;j<count;j++){
           if(at>=pattern.length)error();
-          var k=pattern.charCodeAt(at++);
+          var k=charCodeAt(pattern,at++);
           if(k>=48&&k<=57)k-=48;
           else if(k>=65&&k<=70)k-=55;
           else if(k>=97&&k<=102)k-=87;
@@ -93,17 +101,17 @@ export const regexpVmSource=String.raw`(function(){
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
-        if(flags.indexOf('u')<0&&pattern.indexOf('(?<')<0)return {kind:'char',value:'k'};
+        if(indexOf(flags,'u')<0&&indexOf(pattern,'(?<')<0)return {kind:'char',value:'k'};
         at++;
         var start=at;
         while(at<pattern.length&&pattern[at]!=='>'&&pattern[at]!=='\\')at++;
         if(at===start||pattern[at]!=='>')error();
-        var name=pattern.slice(start,at++);
+        var name=slice(pattern,start,at++);
         return {kind:'namedBackref',value:name}
       }
       if(c>='1'&&c<='9'){
-        var number=c.charCodeAt(0)-48;
-        while(at<pattern.length&&digit(pattern[at]))number=number*10+(pattern.charCodeAt(at++)-48);
+        var number=charCodeAt(c,0)-48;
+        while(at<pattern.length&&digit(pattern[at]))number=number*10+(charCodeAt(pattern,at++)-48);
         return {kind:'backref',value:number}
       }
       return {kind:'char',value:c}
@@ -129,11 +137,11 @@ export const regexpVmSource=String.raw`(function(){
             var start=at;
             while(at<pattern.length&&pattern[at]!=='>'&&pattern[at]!=='\\')at++;
             if(at===start||pattern[at]!=='>')error();
-            name=pattern.slice(start,at++);
+            name=slice(pattern,start,at++);
             for(var i=0;i<names.length;i++)if(names[i].name===name)error()
           }
           capture=++groups;
-          if(name!==undefined)names.push({name:name,index:capture})
+          if(name!==undefined)append(names,{name:name,index:capture})
         }
         var inner=disjunction();
         if(pattern[at]!==')')error();
@@ -145,15 +153,15 @@ export const regexpVmSource=String.raw`(function(){
         var start=at,escapedClass=false;
         while(at<pattern.length){
           var k=pattern[at++];
-          if(k===']'&&!escapedClass)return {kind:'class',value:pattern.slice(start,at-1)};
+          if(k===']'&&!escapedClass)return {kind:'class',value:slice(pattern,start,at-1)};
           if(k==='\\'&&!escapedClass)escapedClass=true;
           else escapedClass=false
         }
         error()
       }
-      if(c==='*'||c==='+'||c==='?'||(flags.indexOf('u')>=0&&(c==='{'||c==='}')))error();
-      if(flags.indexOf('u')>=0&&c.charCodeAt(0)>=0xd800&&c.charCodeAt(0)<=0xdbff&&at<pattern.length){
-        var trail=pattern.charCodeAt(at);
+      if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}')))error();
+      if(indexOf(flags,'u')>=0&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
+        var trail=charCodeAt(pattern,at);
         if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
       }
       return {kind:'char',value:c}
@@ -181,13 +189,13 @@ export const regexpVmSource=String.raw`(function(){
           if(lazy)at++;
           node={kind:'repeat',value:node,min:min,max:max,lazy:lazy}
         }
-        items.push(node)
+        append(items,node)
       }
       return {kind:'sequence',value:items}
     }
     function disjunction(){
       var branches=[sequence()];
-      while(pattern[at]==='|'){at++;branches.push(sequence())}
+      while(pattern[at]==='|'){at++;append(branches,sequence())}
       return branches.length===1?branches[0]:{kind:'alternative',value:branches}
     }
     var tree=disjunction();
@@ -196,7 +204,7 @@ export const regexpVmSource=String.raw`(function(){
   }
   function copy(caps){
     var out=[];
-    for(var i=0;i<caps.length;i++)out[i]=caps[i];
+    for(var i=0;i<caps.length;i++)append(out,caps[i]);
     return out
   }
   function clear(node,caps){
@@ -208,15 +216,15 @@ export const regexpVmSource=String.raw`(function(){
     }else if(node.kind==='repeat'||node.kind==='look')clear(node.value,caps)
   }
   function execute(compiled,input,start,sticky){
-    var flags=compiled.flags,ignore=flags.indexOf('i')>=0,dotAll=flags.indexOf('s')>=0,multiline=flags.indexOf('m')>=0,steps=0;
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,dotAll=indexOf(flags,'s')>=0,multiline=indexOf(flags,'m')>=0,steps=0;
     function same(a,b){return ignore?a.toLowerCase()===b.toLowerCase():a===b}
     function word(c){
       if(c===undefined)return false;
-      var n=c.charCodeAt(0);
+      var n=charCodeAt(c,0);
       return n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95
     }
     function escapedClass(kind,c){
-      var n=c.charCodeAt(0),yes=false;
+      var n=charCodeAt(c,0),yes=false;
       if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
       else if(kind==='w'||kind==='W')yes=word(c);
       else yes=c===' '||c==='\t'||c==='\r'||c==='\n'||c==='\v'||c==='\f'||c==='\u00a0';
@@ -228,12 +236,12 @@ export const regexpVmSource=String.raw`(function(){
         var first=body[i++];
         if(first==='\\'&&i<body.length){
           first=body[i++];
-          if((first==='p'||first==='P')&&flags.indexOf('u')>=0){
+          if((first==='p'||first==='P')&&indexOf(flags,'u')>=0){
             if(body[i++]!=='{')throw new SyntaxError('Invalid Unicode property');
             var begin=i;
             while(i<body.length&&body[i]!=='}')i++;
             if(i===begin||body[i]!=='}')throw new SyntaxError('Invalid Unicode property');
-            var code=c.codePointAt(0),has=propertyMatch(propertyRanges(body.slice(begin,i++)),code);
+            var code=c.codePointAt(0),has=propertyMatch(propertyRanges(slice(body,begin,i++)),code);
             if(first==='P')has=!has;
             if(has)yes=true;
             continue
@@ -303,7 +311,7 @@ export const regexpVmSource=String.raw`(function(){
             var one=run(node.value,end,caps,function(after){return {end:after}});
             steps--;
             if(one===null||one.end===end)break;
-            end=one.end;positions.push(end)
+            end=one.end;append(positions,end)
           }
           if(positions.length-1<node.min)return null;
           if(node.lazy){
@@ -340,8 +348,8 @@ export const regexpVmSource=String.raw`(function(){
       }
       if(k==='anchor'){
         if(node.value==='^'){
-          if(pos===0||multiline&&('\n\r\u2028\u2029'.indexOf(input[pos-1])>=0))return next(pos,caps)
-        }else if(pos===input.length||multiline&&('\n\r\u2028\u2029'.indexOf(input[pos])>=0))return next(pos,caps);
+          if(pos===0||multiline&&(indexOf('\n\r\u2028\u2029',input[pos-1])>=0))return next(pos,caps)
+        }else if(pos===input.length||multiline&&(indexOf('\n\r\u2028\u2029',input[pos])>=0))return next(pos,caps);
         return null
       }
       if(k==='boundary'){
@@ -359,42 +367,42 @@ export const regexpVmSource=String.raw`(function(){
         if(begin===undefined)return next(pos,caps);
         var length=end-begin;
         if(pos+length>input.length)return null;
-        return same(input.slice(pos,pos+length),input.slice(begin,end))?next(pos+length,caps):null
+        return same(slice(input,pos,pos+length),slice(input,begin,end))?next(pos+length,caps):null
       }
       if(pos>=input.length)return null;
       var current=input[pos],matched=false,width=1;
-      if(flags.indexOf('u')>=0&&current.charCodeAt(0)>=0xd800&&current.charCodeAt(0)<=0xdbff&&pos+1<input.length){
-        var trail=input.charCodeAt(pos+1);
+      if(indexOf(flags,'u')>=0&&charCodeAt(current,0)>=0xd800&&charCodeAt(current,0)<=0xdbff&&pos+1<input.length){
+        var trail=charCodeAt(input,pos+1);
         if(trail>=0xdc00&&trail<=0xdfff)width=2
       }
       if(k==='char'){
         width=node.value.length;
-        matched=pos+width<=input.length&&same(input.slice(pos,pos+width),node.value)
+        matched=pos+width<=input.length&&same(slice(input,pos,pos+width),node.value)
       }
-      else if(k==='dot')matched=dotAll||'\n\r\u2028\u2029'.indexOf(current)<0;
+      else if(k==='dot')matched=dotAll||indexOf('\n\r\u2028\u2029',current)<0;
       else if(k==='classEscape')matched=escapedClass(node.value,current);
-      else if(k==='class')matched=classMatch(node.value,input.slice(pos,pos+width));
+      else if(k==='class')matched=classMatch(node.value,slice(input,pos,pos+width));
       else if(k==='property'){
-        var point=current.charCodeAt(0);
-        if(width===2)point=0x10000+(point-0xd800)*1024+(input.charCodeAt(pos+1)-0xdc00);
+        var point=charCodeAt(current,0);
+        if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,pos+1)-0xdc00);
         matched=propertyMatch(node.value,point);
         if(node.negated)matched=!matched
       }
       return matched?next(pos+width,caps):null
     }
-    var unicode=flags.indexOf('u')>=0;
+    var unicode=indexOf(flags,'u')>=0;
     if(unicode&&start>0&&start<input.length){
-      var low=input.charCodeAt(start),high=input.charCodeAt(start-1);
+      var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
     for(var candidate=start;candidate<=input.length;candidate++){
       var caps=[];
-      for(var i=0;i<=compiled.groups;i++){caps.push(undefined);caps.push(undefined)}
+      for(var i=0;i<=compiled.groups;i++){append(caps,undefined);append(caps,undefined)}
       var result=run(compiled.tree,candidate,caps,function(end,updated){return {end:end,captures:updated}});
       if(result!==null){result.start=candidate;return result}
       if(sticky)break
       if(unicode&&candidate+1<input.length){
-        var high=input.charCodeAt(candidate),low=input.charCodeAt(candidate+1);
+        var high=charCodeAt(input,candidate),low=charCodeAt(input,candidate+1);
         if(high>=0xd800&&high<=0xdbff&&low>=0xdc00&&low<=0xdfff)candidate++
       }
     }
@@ -407,16 +415,16 @@ export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,s
     var vm=__nonaRegexpVm.core;
     var compiled=vm.compile(pattern,flags);
     var matched=vm.execute(compiled,input,start,sticky);
-    var globalOrSticky=flags.indexOf('g')>=0||flags.indexOf('y')>=0;
+    var globalOrSticky=__nonaRegexpVm.replaceIndexOf.call(flags,'g')>=0||__nonaRegexpVm.replaceIndexOf.call(flags,'y')>=0;
     if(matched===null){
       if(globalOrSticky)re.lastIndex=0;
       return null
     }
     if(globalOrSticky)re.lastIndex=matched.end;
-    var result=[input.slice(matched.start,matched.end)];
+    var result=[__nonaRegexpVm.replaceSlice.call(input,matched.start,matched.end)];
     for(var i=1;i<=compiled.groups;i++){
       var begin=matched.captures[i*2],end=matched.captures[i*2+1];
-      result.push(begin===undefined?undefined:input.slice(begin,end))
+      Object.defineProperty(result,result.length,{value:begin===undefined?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,end),writable:true,enumerable:true,configurable:true})
     }
     Object.defineProperty(result,'index',{value:matched.start,writable:true,enumerable:true,configurable:true});
     Object.defineProperty(result,'input',{value:input,writable:true,enumerable:true,configurable:true});
@@ -424,7 +432,7 @@ export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,s
       var groups=Object.create(null);
       for(var i=0;i<compiled.names.length;i++){
         var named=compiled.names[i],begin=matched.captures[named.index*2],end=matched.captures[named.index*2+1];
-        groups[named.name]=begin===undefined?undefined:input.slice(begin,end)
+        groups[named.name]=begin===undefined?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,end)
       }
       Object.defineProperty(result,'groups',{value:groups,writable:true,enumerable:true,configurable:true})
     }else Object.defineProperty(result,'groups',{value:undefined,writable:true,enumerable:true,configurable:true});
@@ -499,6 +507,7 @@ Object.defineProperty(String.prototype,'search',{value:({search(regexp){
 }}).search,writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](string,replaceValue){
   'use strict';
+  var safe=__nonaRegexpVm;
   if(this===null||this===undefined)throw new TypeError('Invalid RegExp receiver');
   if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
   var input=String(string),functional=typeof replaceValue==='function';
@@ -515,7 +524,7 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
     var result=this.exec(input);
     if(result===null)break;
     if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
-    results.push(result);
+    Object.defineProperty(results,results.length,{value:result,writable:true,enumerable:true,configurable:true});
     if(!global)break;
     var matched=String(result[0]);
     if(matched===''){
@@ -524,7 +533,7 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
       else if(index>9007199254740991)index=9007199254740991;
       else index=Math.floor(index);
       if(unicode&&index+1<input.length){
-        var first=input.charCodeAt(index),second=input.charCodeAt(index+1);
+        var first=safe.replaceCharCodeAt.call(input,index),second=safe.replaceCharCodeAt.call(input,index+1);
         this.lastIndex=index+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
       }else this.lastIndex=index+1
     }
@@ -544,16 +553,17 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
         if(typeof capture==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
         capture=String(capture)
       }
-      captures.push(capture)
+      Object.defineProperty(captures,captures.length,{value:capture,writable:true,enumerable:true,configurable:true})
     }
     var groups=item.groups,value='';
     if(!functional&&groups===null)throw new TypeError('Invalid named capture groups');
     if(functional){
       var args=[match];
-      for(var j=0;j<captures.length;j++)args.push(captures[j]);
-      args.push(position);args.push(input);
-      if(groups!==undefined)args.push(groups);
-      value=String(replaceValue.apply(undefined,args))
+      for(var j=0;j<captures.length;j++)Object.defineProperty(args,args.length,{value:captures[j],writable:true,enumerable:true,configurable:true});
+      Object.defineProperty(args,args.length,{value:position,writable:true,enumerable:true,configurable:true});
+      Object.defineProperty(args,args.length,{value:input,writable:true,enumerable:true,configurable:true});
+      if(groups!==undefined)Object.defineProperty(args,args.length,{value:groups,writable:true,enumerable:true,configurable:true});
+      value=String(safe.replaceApply.call(replaceValue,undefined,args))
     }else{
       for(var j=0;j<replacement.length;j++){
         var c=replacement[j];
@@ -561,21 +571,21 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
         var next=replacement[j+1];
         if(next==='$'){value+='$';j++;continue}
         if(next==='&'){value+=match;j++;continue}
-        if(next.charCodeAt(0)===96){value+=input.slice(0,position);j++;continue}
-        if(next==="'"){value+=input.slice(position+match.length);j++;continue}
+        if(safe.replaceCharCodeAt.call(next,0)===96){value+=safe.replaceSlice.call(input,0,position);j++;continue}
+        if(next==="'"){value+=safe.replaceSlice.call(input,position+match.length);j++;continue}
         if(next==='<'&&groups!==undefined){
-          var end=replacement.indexOf('>',j+2);
+          var end=safe.replaceIndexOf.call(replacement,'>',j+2);
           if(end>=0){
-            var named=groups[replacement.slice(j+2,end)];
+            var named=groups[safe.replaceSlice.call(replacement,j+2,end)];
             if(named!==undefined)value+=String(named);
             j=end;continue
           }
         }
-        var digit=next.charCodeAt(0)-48;
+        var digit=safe.replaceCharCodeAt.call(next,0)-48;
         if(digit>=0&&digit<=9){
           var number=digit,used=1;
           if(j+2<replacement.length){
-            var secondDigit=replacement.charCodeAt(j+2)-48;
+            var secondDigit=safe.replaceCharCodeAt.call(replacement,j+2)-48;
             if(secondDigit>=0&&secondDigit<=9&&digit*10+secondDigit<=captures.length){number=digit*10+secondDigit;used=2}
           }
           if(number>0&&number<=captures.length){
@@ -588,11 +598,11 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
       }
     }
     if(position>=nextSourcePosition){
-      accumulated+=input.slice(nextSourcePosition,position)+value;
+      accumulated+=safe.replaceSlice.call(input,nextSourcePosition,position)+value;
       nextSourcePosition=position+match.length
     }
   }
-  return accumulated+input.slice(nextSourcePosition)
+  return accumulated+safe.replaceSlice.call(input,nextSourcePosition)
 }})[Symbol.replace],writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](string,limit){
   'use strict';
@@ -775,4 +785,8 @@ Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchVa
     position=nextPosition>input.length?-1:input.indexOf(search,nextPosition)
   }
   return result+input.slice(end)
-}}).replaceAll,writable:true,configurable:true});`;
+}}).replaceAll,writable:true,configurable:true});
+__nonaRegexpVm.replaceSlice=String.prototype.slice;
+__nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
+__nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
+__nonaRegexpVm.replaceApply=Function.prototype.apply;`;
