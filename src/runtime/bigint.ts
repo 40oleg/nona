@@ -3,10 +3,10 @@ import {rootedFn} from './root-scope.js';
 import {stringLiteral} from './value.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
-import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
+import {emitFunctionBuiltin,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
-export const bigintRoots=['rt.bigintToString.fn','rt.bigintValueOf.fn'];
-export const bigintPropertyRoots=['rt.bigintPrototype.@@toStringTag',...builtinPropertyRoots('rt.bigintToString.fn','toString','rt.bigintPrototype'),...builtinPropertyRoots('rt.bigintValueOf.fn','valueOf','rt.bigintPrototype')];
+export const bigintRoots=['rt.bigintToString.fn','rt.bigintValueOf.fn','rt.BigInt.asIntN.fn','rt.BigInt.asUintN.fn'];
+export const bigintPropertyRoots=['rt.bigintPrototype.@@toStringTag',...builtinPropertyRoots('rt.bigintToString.fn','toString','rt.bigintPrototype'),...builtinPropertyRoots('rt.bigintValueOf.fn','valueOf','rt.bigintPrototype'),...builtinPropertyRoots('rt.BigInt.asIntN.fn','asIntN','rt.BigInt'),...builtinPropertyRoots('rt.BigInt.asUintN.fn','asUintN','rt.BigInt')];
 
 export function emitBigInt(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.bigint.minus','-'));
@@ -78,6 +78,27 @@ export function emitBigInt(b:RuntimeBuilder):void {
   a.label(emit);a.xor('rdx','rdx');a.mov('r10',10);a.div('r10');a.store(slot(136),'rax');a.add('rdx',48);a.load('r10',slot(128));a.shl('r10',1);a.load('r11',slot(88));a.add('r11','r10');a.store({base:'r11',disp:8},'rdx',16);for(const offset of [120,128]){a.load('rax',slot(offset));a.sub('rax',1);a.store(slot(offset),'rax');}a.jmp(loop);
   a.label(done);a.load('rax',slot(128));a.add('rax',1);a.store(slot(152),'rax');a.lea('rcx',slot(80));a.load('rdx',slot(88));a.mov('r8','rax');a.load('r9',slot(144));a.call('rt.jsonSlice');a.load('rcx',slot(40));a.mov('rax',7);a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');
  });
+ b.fn('rt.bigintCompareMagnitude',40,a=>{
+  a.load('rcx',{base:'rcx',disp:8});a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rcx'});a.load('r11',{base:'rdx'});a.cmp('r10','r11');const less=a.unique('less'),greater=a.unique('greater'),done=a.unique('done');a.jcc('b',less);a.jcc('a',greater);a.call('rt.compareStrings');a.jmp(done);a.label(less);a.mov('rax',-1);a.jmp(done);a.label(greater);a.mov('rax',1);a.label(done);
+ });
+ rootedFn(b,'rt.bigintAsN',312,[{kind:'output',register:'rcx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:8}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(200),'rdx');a.store(slot(208),'r9');for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store(slot(64+offset),'rax');}
+  a.mov('rax',0);a.store(slot(216),'rax');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:8},16);const positive=a.unique('positive'),absoluteReady=a.unique('absoluteReady'),returnInput=a.unique('returnInput'),returnZero=a.unique('returnZero'),done=a.unique('done');a.cmp('rax',45);a.jcc('ne',positive);a.mov('rax',1);a.store(slot(216),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.bigintNeg');a.jmp(absoluteReady);a.label(positive);for(const offset of [0,8]){a.load('rax',slot(64+offset));a.store(slot(80+offset),'rax');}a.label(absoluteReady);
+  a.load('rax',slot(200));a.test('rax','rax');a.jcc('e',returnZero);a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.mov('r8',2);a.call('rt.bigintToRadix');a.load('r10',slot(104));a.load('rax',{base:'r10'});a.store(slot(232),'rax');a.load('r11',slot(200));a.cmp('r11','rax');const truncate=a.unique('truncate');a.jcc('b',truncate);a.load('r11',slot(216));a.test('r11','r11');const needsModulo=a.unique('needsModulo');a.jcc('ne',needsModulo);a.load('r11',slot(208));a.test('r11','r11');a.jcc('e',returnInput);a.load('r11',slot(200));a.cmp('r11','rax');a.jcc('a',returnInput);a.jmp(truncate);a.label(needsModulo);a.load('r11',slot(208));a.test('r11','r11');a.jcc('e',truncate);a.load('r11',slot(200));a.cmp('r11','rax');a.jcc('a',returnInput);
+  a.label(truncate);a.mov('rax',7);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.bigint.zero'});a.store(slot(120),'rax');a.load('rax',slot(232));a.load('r10',slot(200));a.cmp('rax','r10');const startReady=a.unique('startReady');a.jcc('be',startReady);a.sub('rax','r10');a.jmp('rt.bigintAsN.startStored');a.label(startReady);a.mov('rax',0);a.label('rt.bigintAsN.startStored');a.store(slot(224),'rax');
+  const parse=a.unique('parse'),parseDone=a.unique('parseDone');a.label(parse);a.load('rax',slot(224));a.load('r10',slot(232));a.cmp('rax','r10');a.jcc('ae',parseDone);a.shl('rax',1);a.load('r10',slot(104));a.add('r10','rax');a.load('r9',{base:'r10',disp:8},16);a.sub('r9',48);a.lea('rcx',slot(112));a.lea('rdx',slot(112));a.mov('r8',2);a.call('rt.bigintScaleDigit');a.load('rax',slot(224));a.add('rax',1);a.store(slot(224),'rax');a.jmp(parse);a.label(parseDone);
+  a.load('r10',slot(120));a.load('rax',{base:'r10',disp:8},16);a.cmp('rax',48);a.jcc('e',returnZero);
+  // For unsigned negative values and signed overflows, construct 2^bits.
+  a.mov('rax',7);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.bigint.one'});a.store(slot(136),'rax');a.mov('rax',0);a.store(slot(240),'rax');const power=a.unique('power'),powerReady=a.unique('powerReady');a.label(power);a.load('rax',slot(240));a.load('r10',slot(200));a.cmp('rax','r10');a.jcc('ae',powerReady);a.lea('rcx',slot(128));a.lea('rdx',slot(128));a.mov('r8',2);a.mov('r9',0);a.call('rt.bigintScaleDigit');a.load('rax',slot(240));a.add('rax',1);a.store(slot(240),'rax');a.jmp(power);a.label(powerReady);
+  a.load('rax',slot(216));a.test('rax','rax');const unsignedReady=a.unique('unsignedReady');a.jcc('e',unsignedReady);a.lea('rcx',slot(144));a.lea('rdx',slot(112));a.call('rt.bigintNeg');a.lea('rcx',slot(160));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.call('rt.bigintAdd');for(const offset of [0,8]){a.load('rax',slot(160+offset));a.store(slot(112+offset),'rax');}a.label(unsignedReady);
+  a.load('rax',slot(208));a.test('rax','rax');a.jcc('e','rt.bigintAsN.result');
+  // Half the range is 2^(bits-1); signed values at or above it wrap.
+  a.mov('rax',7);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.bigint.one'});a.store(slot(184),'rax');a.mov('rax',1);a.store(slot(240),'rax');const half=a.unique('half'),halfReady=a.unique('halfReady');a.label(half);a.load('rax',slot(240));a.load('r10',slot(200));a.cmp('rax','r10');a.jcc('ae',halfReady);a.lea('rcx',slot(176));a.lea('rdx',slot(176));a.mov('r8',2);a.mov('r9',0);a.call('rt.bigintScaleDigit');a.load('rax',slot(240));a.add('rax',1);a.store(slot(240),'rax');a.jmp(half);a.label(halfReady);
+  a.lea('rcx',slot(112));a.lea('rdx',slot(176));a.call('rt.bigintCompareMagnitude');a.cmp('rax',0);a.jcc('l','rt.bigintAsN.result');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.call('rt.bigintNeg');a.lea('rcx',slot(160));a.lea('rdx',slot(112));a.lea('r8',slot(144));a.call('rt.bigintAdd');for(const offset of [0,8]){a.load('rax',slot(160+offset));a.store(slot(112+offset),'rax');}
+  a.label('rt.bigintAsN.result');a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(112+offset));a.store({base:'rcx',disp:offset},'rax');}a.jmp(done);
+  a.label(returnInput);a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(64+offset));a.store({base:'rcx',disp:offset},'rax');}a.jmp(done);
+  a.label(returnZero);a.load('rcx',slot(40));a.mov('rax',7);a.store({base:'rcx'},'rax');a.lea('rax',{rip:'rt.bigint.zero'});a.store({base:'rcx',disp:8},'rax');a.label(done);
+ });
  b.fn('rt.BigInt.construct',40,a=>a.call('rt.throwTypeError'));
  rootedFn(b,'rt.BigInt.code',120,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
   a.store(slot(40),'rcx');a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);a.call('rt.throwTypeError');a.label(supplied);for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}
@@ -89,6 +110,17 @@ export function emitBigInt(b:RuntimeBuilder):void {
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
  b.bundle.fragments.push(stringLiteral('rt.bigint.one','1'));
+ for(const method of ['asUintN','asIntN'] as const){
+  const symbol='rt.BigInt.'+method+'.fn';prependFunctionBuiltin(b,symbol,method,2,'rt.BigInt');
+  rootedFn(b,symbol+'.code',184,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],a=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');a.test('rdx','rdx');const first=a.unique('first');a.jcc('e',first);for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store(slot(80+offset),'rax');}a.label(first);
+   a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toNumber');a.movsd('xmm0',slot(120));a.ucomisd('xmm0','xmm0');const nan=a.unique('nan'),bitsReady=a.unique('bitsReady');a.jcc('p',nan);a.cvttsd2si('rax','xmm0');a.cmp('rax',0);const invalid=a.unique('invalid');a.jcc('l',invalid);a.mov('r10',9007199254740991n);a.cmp('rax','r10');a.jcc('a',invalid);a.jmp(bitsReady);a.label(nan);a.mov('rax',0);a.jmp(bitsReady);a.label(invalid);a.call('rt.throwRangeError');a.label(bitsReady);a.store(slot(64),'rax');
+   a.load('rax',slot(48));a.cmp('rax',2);const supplied=a.unique('supplied');a.jcc('ae',supplied);a.call('rt.throwTypeError');a.label(supplied);a.load('r10',slot(56));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:16+offset});a.store(slot(96+offset),'rax');}
+   const inspect=a.unique('inspect'),object=a.unique('object'),convert=a.unique('convert'),converted=a.unique('converted');a.label(inspect);a.load('rax',slot(96));a.cmp('rax',7);a.jcc('e',converted);a.cmp('rax',3);a.jcc('e','rt.throwTypeError');a.cmp('rax',5);a.jcc('e',object);a.jmp(convert);a.label(object);a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.objectToPrimitiveNumber');for(const offset of [0,8]){a.load('rax',slot(112+offset));a.store(slot(96+offset),'rax');}a.jmp(inspect);
+   a.label(convert);a.lea('rcx',slot(80));a.mov('rdx',1);a.lea('r8',slot(96));a.call('rt.BigInt.code');a.jmp('rt.bigintAsN.converted.'+method);a.label(converted);for(const offset of [0,8]){a.load('rax',slot(96+offset));a.store(slot(80+offset),'rax');}a.label('rt.bigintAsN.converted.'+method);
+   a.load('rcx',slot(40));a.load('rdx',slot(64));a.lea('r8',slot(80));a.mov('r9',method==='asIntN'?1:0);a.call('rt.bigintAsN');
+  });
+ }
  emitFunctionBuiltin(b,'rt.bigintToString.fn','toString',0,'rt.bigintPrototype.valueOf','rt.bigintPrototype');
  emitFunctionBuiltin(b,'rt.bigintValueOf.fn','valueOf',0,undefined,'rt.bigintPrototype');
  b.bundle.fragments.push(stringLiteral('rt.bigint.tag','BigInt'));
