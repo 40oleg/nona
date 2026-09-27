@@ -62,6 +62,13 @@ test('Linux native compiler executes a JavaScript program',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'hello 42\n');
 });
 
+test('Linux native BigInt arithmetic and JSON serialization',t=>{
+ const source=`let x=123456789012345678901234567890n,y=98765432109876543210n;console.log(String(x+y),String(x*y),String(x/y),String(x%y),BigInt.asIntN(8,255n),x>Number.MAX_SAFE_INTEGER);BigInt.prototype.toJSON=function(key){return key+':'+this.toString()};console.log(JSON.stringify({value:x}));`;
+ const result=compile(source,{fileName:'bigint-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout.toString());
+});
+
 test('Linux native ArrayBuffer allocation and byteLength',t=>{
  const source=`let b=new ArrayBuffer(16);console.log(b.byteLength,Object.prototype.toString.call(b));`;
  const result=compile(source,{fileName:'array-buffer.js',target:'linux-x64'});

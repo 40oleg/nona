@@ -41,7 +41,7 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
  rootedFn(b,'rt.jsonStringifyValue',328,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'r8');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');a.load('rax',{base:'r9',disp:n});a.store(slot(248+n),'rax');}
   a.load('r10',slot(frame+40));a.store(slot(56),'r10');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(264+n),'rax');}
-  const dispatch=a.unique('dispatch');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',dispatch);
+  const dispatch=a.unique('dispatch'),checkToJson=a.unique('checkToJson');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('e',checkToJson);a.cmp('rax',7);a.jcc('ne',dispatch);a.label(checkToJson);
   a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.json.toJSON'});a.store(slot(104),'rax');
   a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
   a.load('rax',slot(112));a.cmp('rax',5);a.jcc('ne',dispatch);a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',dispatch);
@@ -51,7 +51,7 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.lea('rax',slot(248));a.store(slot(32),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(264));a.mov('r8',2);a.lea('r9',slot(144));a.call('rt.invoke');
   a.label(noReplacer);a.load('rax',slot(64));const primitiveReady=a.unique('primitiveReady'),numberBox=a.unique('numberBox'),stringBox=a.unique('stringBox');a.cmp('rax',5);a.jcc('ne',primitiveReady);
   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',BoxKind);a.jcc('ne',primitiveReady);
-  a.load('rax',{base:'r10',disp:BoxLayout.value});a.cmp('rax',2);const booleanBox=a.unique('booleanBox');a.jcc('e',booleanBox);a.cmp('rax',3);a.jcc('e',numberBox);a.cmp('rax',4);a.jcc('e',stringBox);a.jmp(primitiveReady);
+  a.load('rax',{base:'r10',disp:BoxLayout.value});a.cmp('rax',2);const booleanBox=a.unique('booleanBox');a.jcc('e',booleanBox);a.cmp('rax',7);a.jcc('e',booleanBox);a.cmp('rax',3);a.jcc('e',numberBox);a.cmp('rax',4);a.jcc('e',stringBox);a.jmp(primitiveReady);
   a.label(booleanBox);for(const n of [0,8]){a.load('rax',{base:'r10',disp:BoxLayout.value+n});a.store(slot(64+n),'rax');}a.jmp(primitiveReady);
   a.label(numberBox);a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toNumber');a.jmp(primitiveReady);
   a.label(stringBox);a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toString');
