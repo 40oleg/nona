@@ -20,6 +20,8 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.SharedArrayBuffer':['length','name','prototype','@@species'],
   'rt.Map':['length','name','prototype','@@species'],
   'rt.Set':['length','name','prototype','@@species'],
+  'rt.WeakMap':['length','name','prototype'],
+  'rt.WeakSet':['length','name','prototype'],
   'rt.DataView':['length','name','prototype'],
   'rt.Uint8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
   'rt.Int8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
@@ -50,6 +52,8 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.mapIteratorPrototype':['next','@@toStringTag'],
   'rt.setCollectionPrototype':['constructor','add','clear','delete','forEach','has','size','entries','keys','values','@@iterator','@@toStringTag'],
   'rt.setIteratorPrototype':['next','@@toStringTag'],
+  'rt.weakmapPrototype':['constructor','delete','get','has','set','@@toStringTag'],
+  'rt.weaksetPrototype':['constructor','add','delete','has','@@toStringTag'],
   'rt.typedArrayPrototype':['constructor','buffer','byteOffset','byteLength','length','copyWithin','entries','fill','includes','indexOf','keys','lastIndexOf','values','@@iterator','reverse'],
   'rt.uint8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],
   'rt.int8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],
@@ -65,7 +69,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','Map','Set','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','Atomics','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','Atomics','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

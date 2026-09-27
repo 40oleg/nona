@@ -10,6 +10,7 @@ import {atomicsRoots,atomicsPropertyRoots} from './atomics.js';
 import {MapKind,MapLayout,MapEntryLayout,mapRoots,mapPropertyRoots} from './map.js';
 import {SetKind,setRoots,setPropertyRoots} from './set.js';
 import {SetIteratorKind,SetIteratorLayout,setIteratorRoots,setIteratorPropertyRoots} from './set-iterator.js';
+import {WeakMapKind,WeakSetKind,weakCollectionRoots,weakCollectionPropertyRoots} from './weak-collections.js';
 import {MapIteratorKind,MapIteratorLayout,mapIteratorRoots,mapIteratorPropertyRoots} from './map-iterator.js';
 import {DataViewKind,DataViewLayout,dataViewRoots,dataViewPropertyRoots} from './data-view.js';
 import {TypedArrayKind,TypedArrayLayout,typedArrayRoots,typedArrayPropertyRoots} from './typed-array.js';
@@ -79,6 +80,20 @@ export function emitGc(b:RuntimeBuilder):void {
   a.store({base:'rax',disp:H.greyNext},'r10');a.store({rip:'rt.gcGrey'},'rax');a.jmp(done);
   a.label(lower);a.mov('r9','r10');a.jmp(loop);a.label(upper);a.mov('r8','r10');a.add('r8',1);a.jmp(loop);a.label(done);
  });
+ // A non-heap object (for example an intrinsic prototype) is permanently
+ // reachable. Weak collection keys are always object payload pointers.
+ b.fn('rt.gcIsMarkedPointer',56,a=>{
+  const loop=a.unique('loop'),lower=a.unique('lower'),upper=a.unique('upper'),found=a.unique('found'),done=a.unique('done');
+  a.store(slot(40),'rcx');a.test('rcx','rcx');const nonnull=a.unique('nonnull');a.jcc('ne',nonnull);a.mov('rax',0);a.jmp(done);a.label(nonnull);
+  a.mov('r8',0);a.load('r9',{rip:'rt.gcIndexCount'});a.load('rdx',{rip:'rt.gcIndex'});
+  a.label(loop);a.cmp('r8','r9');a.jcc('ae',found);a.mov('r10','r8');a.add('r10','r9');a.shr('r10',1);
+  a.mov('rax','r10');a.shl('rax',3);a.add('rax','rdx');a.load('rax',{base:'rax'});
+  a.load('rcx',slot(40));a.lea('r11',{base:'rax',disp:H.size});a.cmp('rcx','r11');a.jcc('b',lower);
+  a.sub('rcx','r11');a.load('r11',{base:'rax',disp:H.bytes});a.cmp('rcx','r11');a.jcc('ae',upper);
+  a.load('rax',{base:'rax',disp:H.marked});a.jmp(done);
+  a.label(lower);a.mov('r9','r10');a.jmp(loop);a.label(upper);a.mov('r8','r10');a.add('r8',1);a.jmp(loop);
+  a.label(found);a.mov('rax',1);a.label(done);
+ });
  b.fn('rt.gcMarkValue',40,a=>{
   const mark=a.unique('mark'),done=a.unique('done');a.load('rax',{base:'rcx'});
   a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',7);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
@@ -122,7 +137,7 @@ export function emitGc(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:DataViewLayout.buffer});a.call('rt.gcMarkPointer');a.jmp(done);
   a.label(notView);const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:TypedArrayLayout.buffer});a.call('rt.gcMarkPointer');a.jmp(done);
-  a.label(notTyped);const notMap=a.unique('notMap'),notMapIterator=a.unique('notMapIterator');a.cmp('rax',MapKind);const traceMapLike=a.unique('traceMapLike');a.jcc('e',traceMapLike);a.cmp('rax',SetKind);a.jcc('ne',notMap);a.label(traceMapLike);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:MapLayout.head});a.call('rt.gcMarkPointer');a.jmp(done);a.label(notMap);a.cmp('rax',MapIteratorKind);const traceMapIterator=a.unique('traceMapIterator');a.jcc('e',traceMapIterator);a.cmp('rax',SetIteratorKind);a.jcc('ne',notMapIterator);a.label(traceMapIterator);a.load('rcx',slot(40));a.add('rcx',MapIteratorLayout.map);a.call('rt.gcMarkValue');a.jmp(done);a.label(notMapIterator);a.cmp('rax',GeneratorKind);a.jcc('ne',done);
+  a.label(notTyped);const notMap=a.unique('notMap'),notMapIterator=a.unique('notMapIterator');a.cmp('rax',MapKind);const traceMapLike=a.unique('traceMapLike');a.jcc('e',traceMapLike);a.cmp('rax',SetKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakMapKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakSetKind);a.jcc('ne',notMap);a.label(traceMapLike);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:MapLayout.head});a.call('rt.gcMarkPointer');a.jmp(done);a.label(notMap);a.cmp('rax',MapIteratorKind);const traceMapIterator=a.unique('traceMapIterator');a.jcc('e',traceMapIterator);a.cmp('rax',SetIteratorKind);a.jcc('ne',notMapIterator);a.label(traceMapIterator);a.load('rcx',slot(40));a.add('rcx',MapIteratorLayout.map);a.call('rt.gcMarkValue');a.jmp(done);a.label(notMapIterator);a.cmp('rax',GeneratorKind);a.jcc('ne',done);
   for(const offset of [G.source,G.receiver,G.resumeValue,G.yieldValue,G.returnValue]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:G.arguments});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:G.context+ContextLayout.roots});a.call('rt.gcMarkRootChain');a.label(done);
@@ -143,16 +158,43 @@ export function emitGc(b:RuntimeBuilder):void {
   a.load('rax',slot(40));a.load('rax',{base:'rax',disp:MapEntryLayout.active});a.test('rax','rax');const done=a.unique('done');a.jcc('e',done);
   for(const offset of [MapEntryLayout.key,MapEntryLayout.value]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}a.label(done);
  });
+ b.fn('rt.gcTraceWeakEntry',40,a=>{
+  a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');
+ });
+ // Repeat this pass after ordinary grey objects have drained. Marking an
+ // ephemeron value may reveal another ephemeron key in the next grey pass.
+ b.fn('rt.gcTraceEphemerons',72,a=>{
+  a.load('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');const blocks=a.unique('blocks'),nextBlock=a.unique('nextBlock'),entries=a.unique('entries'),nextEntry=a.unique('nextEntry'),done=a.unique('done');
+  a.label(blocks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.object);a.jcc('ne',nextBlock);a.load('r10',{base:'rax',disp:H.size+O.kind});a.cmp('r10',WeakMapKind);a.jcc('ne',nextBlock);
+  a.load('rax',{base:'rax',disp:H.size+MapLayout.head});a.store(slot(48),'rax');a.label(entries);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',nextEntry);
+  a.load('rcx',{base:'rax',disp:MapEntryLayout.key+8});a.call('rt.gcIsMarkedPointer');a.test('rax','rax');a.jcc('e',nextEntry);a.load('rcx',slot(48));a.add('rcx',MapEntryLayout.value);a.call('rt.gcMarkValue');
+  a.label(nextEntry);a.load('rax',slot(48));a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.store(slot(48),'rax');a.jmp(entries);
+  a.label(nextBlock);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:H.next});a.store(slot(40),'rax');a.jmp(blocks);a.label(done);
+ });
+ b.fn('rt.gcPruneWeakEntries',120,a=>{
+  a.load('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');const blocks=a.unique('blocks'),nextBlock=a.unique('nextBlock'),entries=a.unique('entries'),nextEntry=a.unique('nextEntry'),remove=a.unique('remove'),keep=a.unique('keep'),done=a.unique('done');
+  a.label(blocks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.object);a.jcc('ne',nextBlock);a.load('r10',{base:'rax',disp:H.size+O.kind});a.cmp('r10',WeakMapKind);const weak=a.unique('weak');a.jcc('e',weak);a.cmp('r10',WeakSetKind);a.jcc('ne',nextBlock);a.label(weak);
+  a.lea('rax',{base:'rax',disp:H.size});a.store(slot(48),'rax');a.load('rax',{base:'rax',disp:MapLayout.head});a.store(slot(56),'rax');a.mov('rax',0);a.store(slot(64),'rax');
+  a.label(entries);a.load('rax',slot(56));a.test('rax','rax');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:MapEntryLayout.next});a.store(slot(72),'r10');a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',remove);
+  a.load('rcx',{base:'rax',disp:MapEntryLayout.key+8});a.call('rt.gcIsMarkedPointer');a.test('rax','rax');a.jcc('ne',keep);
+  a.load('r10',slot(48));a.load('rax',{base:'r10',disp:MapLayout.count});a.sub('rax',1);a.store({base:'r10',disp:MapLayout.count},'rax');
+  a.label(remove);a.load('rax',slot(56));a.mov('r10',0);for(const offset of [MapEntryLayout.key,MapEntryLayout.key+8,MapEntryLayout.value,MapEntryLayout.value+8,MapEntryLayout.active])a.store({base:'rax',disp:offset},'r10');
+  a.load('r10',slot(64));const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.load('rax',slot(72));a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.load('r10',slot(48));a.load('rax',slot(72));a.store({base:'r10',disp:MapLayout.head},'rax');a.label(linked);
+  a.load('r10',slot(48));a.load('rax',{base:'r10',disp:MapLayout.tail});a.load('r11',slot(56));a.cmp('rax','r11');const tailDone=a.unique('tailDone');a.jcc('ne',tailDone);a.load('rax',slot(64));a.store({base:'r10',disp:MapLayout.tail},'rax');a.label(tailDone);a.jmp(nextEntry);
+  a.label(keep);a.load('rax',slot(56));a.store(slot(64),'rax');
+  a.label(nextEntry);a.load('rax',slot(72));a.store(slot(56),'rax');a.jmp(entries);
+  a.label(nextBlock);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:H.next});a.store(slot(40),'rax');a.jmp(blocks);a.label(done);
+ });
  b.fn('rt.collect',72,a=>{
   const mark=a.unique('mark'),sweep=a.unique('sweep'),sweepLoop=a.unique('sweepLoop'),keep=a.unique('keep'),finish=a.unique('finish');
   a.load('rax',{rip:'rt.gcCount'});a.add('rax',1);a.store({rip:'rt.gcCount'},'rax');
   a.call('rt.gcBuildIndex');
   a.load('rcx',{rip:'rt.gcGlobals'});a.load('rdx',{rip:'rt.gcGlobalCount'});a.call('rt.gcMarkRange');
-  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','datePrototype','regexpPrototype','mapPrototype','mapIteratorPrototype','setCollectionPrototype','setIteratorPrototype','arraybufferPrototype','sharedarraybufferPrototype','dataviewPrototype','typedArrayPrototype','int8arrayPrototype','uint8arrayPrototype','uint8clampedarrayPrototype','int16arrayPrototype','uint16arrayPrototype','int32arrayPrototype','uint32arrayPrototype','float32arrayPrototype','float64arrayPrototype','bigint64arrayPrototype','biguint64arrayPrototype','symbolPrototype','generatorPrototype','generatorFunctionPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
-  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...dateRoots,...regexpRoots,...mapRoots,...mapIteratorRoots,...setRoots,...setIteratorRoots,...arrayBufferRoots,...sharedArrayBufferRoots,...atomicsRoots,...dataViewRoots,...typedArrayRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...uriRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...arrayBuiltinRoots,...arraySpliceRoots,...arrayOfRoots,...arrayFromRoots,...arrayConcatRoots,...arrayFlatRoots,...arrayLocaleRoots,...arraySortRoots,...arrayUnscopablesRoots,...stringBuiltinRoots,...stringSplitRoots,...stringReplaceRoots,...stringNormalizeRoots,...stringLocaleCompareRoots,...mathRoots,...jsonRoots,...bigintRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
+  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','datePrototype','regexpPrototype','mapPrototype','mapIteratorPrototype','setCollectionPrototype','setIteratorPrototype','weakmapPrototype','weaksetPrototype','arraybufferPrototype','sharedarraybufferPrototype','dataviewPrototype','typedArrayPrototype','int8arrayPrototype','uint8arrayPrototype','uint8clampedarrayPrototype','int16arrayPrototype','uint16arrayPrototype','int32arrayPrototype','uint32arrayPrototype','float32arrayPrototype','float64arrayPrototype','bigint64arrayPrototype','biguint64arrayPrototype','symbolPrototype','generatorPrototype','generatorFunctionPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
+  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...dateRoots,...regexpRoots,...mapRoots,...mapIteratorRoots,...setRoots,...setIteratorRoots,...weakCollectionRoots,...arrayBufferRoots,...sharedArrayBufferRoots,...atomicsRoots,...dataViewRoots,...typedArrayRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...uriRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...arrayBuiltinRoots,...arraySpliceRoots,...arrayOfRoots,...arrayFromRoots,...arrayConcatRoots,...arrayFlatRoots,...arrayLocaleRoots,...arraySortRoots,...arrayUnscopablesRoots,...stringBuiltinRoots,...stringSplitRoots,...stringReplaceRoots,...stringNormalizeRoots,...stringLocaleCompareRoots,...mathRoots,...jsonRoots,...bigintRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
   // Static property nodes are outside the managed heap index. Trace them explicitly.
   for(const name of ['name','length']){a.lea('rcx',{rip:'rt.functionPrototype.'+name});a.call('rt.gcTraceProperty');}
-  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...datePropertyRoots,...regexpPropertyRoots,...mapPropertyRoots,...mapIteratorPropertyRoots,...setPropertyRoots,...setIteratorPropertyRoots,...arrayBufferPropertyRoots,...sharedArrayBufferPropertyRoots,...atomicsPropertyRoots,...dataViewPropertyRoots,...typedArrayPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...uriPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...arrayOfPropertyRoots,...arrayFromPropertyRoots,...arrayConcatPropertyRoots,...arrayFlatPropertyRoots,...arrayLocalePropertyRoots,...arraySortPropertyRoots,...arrayUnscopablesPropertyRoots,...stringBuiltinPropertyRoots,...stringSplitPropertyRoots,...stringReplacePropertyRoots,...stringNormalizePropertyRoots,...stringLocaleComparePropertyRoots,...mathPropertyRoots,...jsonPropertyRoots,...bigintPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...datePropertyRoots,...regexpPropertyRoots,...mapPropertyRoots,...mapIteratorPropertyRoots,...setPropertyRoots,...setIteratorPropertyRoots,...weakCollectionPropertyRoots,...arrayBufferPropertyRoots,...sharedArrayBufferPropertyRoots,...atomicsPropertyRoots,...dataViewPropertyRoots,...typedArrayPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...uriPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...arrayOfPropertyRoots,...arrayFromPropertyRoots,...arrayConcatPropertyRoots,...arrayFlatPropertyRoots,...arrayLocalePropertyRoots,...arraySortPropertyRoots,...arrayUnscopablesPropertyRoots,...stringBuiltinPropertyRoots,...stringSplitPropertyRoots,...stringReplacePropertyRoots,...stringNormalizePropertyRoots,...stringLocaleComparePropertyRoots,...mathPropertyRoots,...jsonPropertyRoots,...bigintPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
   a.load('rax',{rip:'rt.symbolRegistry'});a.store(slot(48),'rax');const symbolRecord=a.unique('symbolRecord'),symbolRecordsDone=a.unique('symbolRecordsDone');
   a.label(symbolRecord);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',symbolRecordsDone);
   a.mov('rcx','rax');a.call('rt.gcMarkPointer');a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:8});a.call('rt.gcMarkPointer');
@@ -167,7 +209,7 @@ export function emitGc(b:RuntimeBuilder):void {
   a.load('rcx',{base:'rax',disp:ContextLayout.roots});a.call('rt.gcMarkRootChain');
   a.load('rax',slot(56));a.load('rax',{base:'rax',disp:ContextLayout.parent});a.store(slot(56),'rax');a.jmp(contexts);
   a.label(contextsDone);
-  a.label(mark);a.load('rax',{rip:'rt.gcGrey'});a.test('rax','rax');a.jcc('e',sweep);
+  const ephemerons=a.unique('ephemerons');a.label(mark);a.load('rax',{rip:'rt.gcGrey'});a.test('rax','rax');a.jcc('e',ephemerons);
   a.load('r10',{base:'rax',disp:H.greyNext});a.store({rip:'rt.gcGrey'},'r10');
   a.load('r10',{base:'rax',disp:H.kind});a.lea('rcx',{base:'rax',disp:H.size});
   const property=a.unique('property');a.cmp('r10',HeapKind.object);a.jcc('ne',property);a.call('rt.gcTraceObject');a.jmp(mark);
@@ -175,10 +217,12 @@ export function emitGc(b:RuntimeBuilder):void {
   a.cmp('r10',HeapKind.property);a.jcc('ne',cell);a.call('rt.gcTraceProperty');a.jmp(mark);
   a.label(cell);a.cmp('r10',HeapKind.cell);a.jcc('ne',environment);a.call('rt.gcMarkValue');a.jmp(mark);
   a.label(environment);const bound=a.unique('bound');a.cmp('r10',HeapKind.environment);a.jcc('ne',bound);a.call('rt.gcTraceEnvironment');a.jmp(mark);
-  a.label(bound);const values=a.unique('values'),symbol=a.unique('symbol'),mapEntry=a.unique('mapEntry');a.cmp('r10',HeapKind.mapEntry);a.jcc('e',mapEntry);a.cmp('r10',HeapKind.symbol);a.jcc('e',symbol);a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
+  a.label(bound);const values=a.unique('values'),symbol=a.unique('symbol'),mapEntry=a.unique('mapEntry'),weakEntry=a.unique('weakEntry');a.cmp('r10',HeapKind.mapEntry);a.jcc('e',mapEntry);a.cmp('r10',HeapKind.weakEntry);a.jcc('e',weakEntry);a.cmp('r10',HeapKind.symbol);a.jcc('e',symbol);a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
   a.label(mapEntry);a.call('rt.gcTraceMapEntry');a.jmp(mark);
+  a.label(weakEntry);a.call('rt.gcTraceWeakEntry');a.jmp(mark);
   a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
+  a.label(ephemerons);a.call('rt.gcTraceEphemerons');a.load('rax',{rip:'rt.gcGrey'});a.test('rax','rax');a.jcc('ne',mark);a.call('rt.gcPruneWeakEntries');
   a.label(sweep);a.lea('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');
   a.label(sweepLoop);a.load('r10',slot(40));a.load('rax',{base:'r10'});a.test('rax','rax');a.jcc('e',finish);
   a.load('r11',{base:'rax',disp:H.marked});a.test('r11','r11');a.jcc('ne',keep);

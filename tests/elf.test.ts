@@ -165,6 +165,12 @@ test('Linux native Set iterates values through GC stress',t=>{
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,'3 true true true 7 NaN 0\n');
 });
 
+test('Linux native WeakMap ephemerons and WeakSet survive GC stress',t=>{
+ const source=`let key={id:7},map=new WeakMap([[key,{id:9}]]),set=new WeakSet([key]);for(let i=0;i<20;i++)({i:i});console.log(map.get(key).id,set.has(key),map.delete(key),map.has(key));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'9 true true false\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});
