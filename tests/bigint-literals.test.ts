@@ -1,5 +1,10 @@
 import {test} from 'node:test';
+import assert from 'node:assert/strict';
 import {expectProgram} from './helpers/program.js';
+import {compileToIR} from '../src/compiler.js';
+import {generate} from '../src/backend/x64/codegen.js';
+import {linkPe} from '../src/backend/pe/writer.js';
+import {runNative} from './helpers/native.js';
 
 test('BigInt literal forms, type, string and Boolean conversion',()=>expectProgram(`console.log(typeof 0n,String(0n),Boolean(0n),Boolean(1n));console.log(String(0xFFn),String(0b101n),String(0o77n),String(9007199254740993n))`,'bigint 0 false true\n255 5 63 9007199254740993\n'));
 test('BigInt literal strict equality and JSON rejection',()=>expectProgram(`console.log(1n===1n,1n===2n,1n===1);try{JSON.stringify(1n)}catch(e){console.log(e.name)}`,'true false false\nTypeError\n'));
@@ -12,3 +17,9 @@ test('BigInt parses binary, octal, and hexadecimal strings at arbitrary precisio
 test('BigInt toString converts arbitrary precision values across radices',()=>expectProgram(`console.log((255n).toString(16),(123456789012345678901234567890n).toString(36),(-42n).toString(2),(0n).toString(8),(36n).toString(36));for(const radix of [0,1,37]){try{(1n).toString(radix)}catch(e){console.log(e.name)}}`,'ff byw97um9s91dlz68tsi -101010 0 10\nRangeError\nRangeError\nRangeError\n'));
 test('Number explicitly converts BigInt while unary plus rejects it',()=>expectProgram(`console.log(Number(0n),Number(-87n),Number(9007199254740993n),new Number(12n).valueOf());try{+1n}catch(e){console.log(e.name)}`,'0 -87 9007199254740992 12\nTypeError\n'));
 test('BigInt.asIntN and asUintN wrap signed values beyond 64 bits',()=>expectProgram(`console.log(BigInt.asUintN(8,-1n),BigInt.asIntN(8,255n),BigInt.asIntN(8,128n),BigInt.asIntN(8,-129n));console.log(BigInt.asUintN(80,-1n).toString(16),BigInt.asIntN(80,1208925819614629174706175n),BigInt.asUintN(0,123n));console.log(BigInt.asIntN(3.9,10n),BigInt.asUintN(NaN,42n))`,'255 -1 -128 127\nffffffffffffffffffff -1 0\n2 0\n'));
+test('BigInt radix and modulo conversions survive stress GC',()=>{
+ const source=`var x=BigInt('0x123456789abcdef0123456789abcdef');console.log(x.toString(2).length,BigInt.asUintN(83,-x).toString(16),BigInt.asIntN(83,x).toString(16));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'121 43210fedcba9876543211 3cdef0123456789abcdef\n');
+});
