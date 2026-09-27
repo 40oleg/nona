@@ -57,7 +57,7 @@
 | Модули ES2015, динамический `import`, `import.meta` | Нет | API компиляции сейчас принимает один скрипт |
 | Map/Set/WeakMap/WeakSet | Нет | Требуют объектов, хеширования и GC для слабых коллекций |
 | Proxy/Reflect | Нет | Требуют полного протокола внутренних операций над объектами |
-| ArrayBuffer/DataView/typed arrays | Частично | Есть native ArrayBuffer с byteLength, @@species, @@toStringTag и GC backing; DataView, typed arrays, slice/detachment и полные границы ещё не реализованы. [Подробный срез](v0.11-buffers-status.md) |
+| ArrayBuffer/DataView/typed arrays | Частично | Есть native ArrayBuffer, slice, DataView с числовыми методами и семь целочисленных typed arrays до 32 бит; detachment, 64-битные и floating-point виды, прочие методы typed arrays и полная семантика видов ещё требуют работы. [Подробный срез](v0.11-buffers-status.md) |
 | Promise, async/await, async generators | Нет | Нет очереди jobs и механизмов приостановки |
 | ES2016: степень и includes | Частично | Number `**`, `**=` и Math.pow реализованы с right-associative grammar для оператора, ES special cases и автономным числовым ядром; Math имеет восемь стандартных констант. Array.prototype.includes поддерживает SameValueZero, holes, generic receiver и fromIndex. String.prototype.includes ищет UTF-16 code units и проверяет Symbol.match; Полная RegExp-интеграция ещё не закрыта. `exponentiation-grammar.test.ts`, `exponentiation-runtime.test.ts`, `math.test.ts`, `array-builtins.test.ts`, `string-builtins.test.ts` |
 | SharedArrayBuffer/Atomics | Нет | Нет shared backing stores и agent model |
