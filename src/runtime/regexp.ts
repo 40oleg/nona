@@ -648,5 +648,10 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(64+offset));a.store({base:'rcx',disp:offset},'rax');}a.jmp(done);
   a.label(create);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.newRegExp');a.label(done);
  });
- b.fn('rt.RegExp.construct',40,a=>a.call('rt.newRegExp'));
+ rootedFn(b,'rt.RegExp.construct',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.call('rt.newRegExp');
+  // The prepared receiver has the prototype selected from new.target.
+  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+  a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.prototype},'r10');
+ });
 }
