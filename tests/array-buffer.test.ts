@@ -77,6 +77,14 @@ test('TypedArray reduce and reduceRight use direction and explicit initial value
   try{new Uint8Array(0).reduceRight(function(){})}catch(error){console.log(error.name)}
 `,'9 9\n123 321\n6\nundefined\nTypeError\nTypeError\n'));
 
+test('TypedArray join and toString format numeric and BigInt elements',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3]),b=new BigInt64Array([4n,5n]);
+  console.log(a.join(),a.join(':'),b.join('|'),a.toString());
+  console.log(Uint8Array.prototype.toString===Array.prototype.toString);
+  try{a.join(Symbol())}catch(error){console.log(error.name)}
+  try{Uint8Array.prototype.join.call({length:2,0:1,1:2})}catch(error){console.log(error.name)}
+`,'1,2,3 1:2:3 4|5 1,2,3\ntrue\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

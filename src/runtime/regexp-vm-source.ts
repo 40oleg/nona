@@ -1040,4 +1040,17 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduceRight',
  else{if(length===0)throw new __nonaRegexpVm.bufferTypeError('Reduce of empty typed array with no initial value');accumulator=this[k];k--}
  for(;k>=0;k--)accumulator=__nonaRegexpVm.safeCall(callbackfn,undefined,accumulator,this[k],k,this);
  return accumulator;
-},writable:true,configurable:true});`;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'join',{value:function join(separator){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ var sep=separator===undefined?',':''+separator,result='';
+ for(var k=0;k<length;k++){
+  if(k>0)result+=sep;
+  var element=this[k];
+  if(element!==undefined)result+=''+element;
+ }
+ return result;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toString',{value:Array.prototype.toString,writable:true,configurable:true});`;
