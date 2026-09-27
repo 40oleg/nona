@@ -68,6 +68,16 @@ test('RegExp VM handles lookahead and lookbehind assertions',()=>expectProgram(S
   console.log(/(?<=(a)b)c/.exec('abc')[1]);
 `,'ab ac\n3 1\na\n'));
 
+test('RegExp VM advances by Unicode code points',()=>expectProgram(String.raw`
+  let first=/(.)x/u.exec('𝌆x');
+  console.log(first[0],first[1].length,first.index);
+  console.log(/\u{1d306}x/u.exec('𝌆x')[0],/(\udf06)/u.exec('𝌆')===null);
+  let sticky=/((.))/uy;sticky.lastIndex=1;
+  let second=sticky.exec('𝌆');
+  console.log(second[0].length,second.index,sticky.lastIndex);
+  console.log(/(\D)/u.exec('𝌆')[1].length,/([^a])/u.exec('𝌆')[1].length,/(\d)/u.exec('𝌆'));
+`,'𝌆x 2 0\n𝌆x true\n2 0 2\n2 2 null\n'));
+
 test('RegExp constructor rejects structurally incomplete patterns',()=>expectProgram(String.raw`
   for(let pattern of ['(','[',')','a\\']){
     try{new RegExp(pattern)}catch(error){console.log(error.name)}

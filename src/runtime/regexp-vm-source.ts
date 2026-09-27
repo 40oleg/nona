@@ -22,6 +22,23 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0')return {kind:'char',value:'\0'};
       if(c==='x'||c==='u'){
+        if(c==='u'&&flags.indexOf('u')>=0&&pattern[at]==='{'){
+          at++;
+          var codePoint=0,digits=0;
+          while(at<pattern.length&&pattern[at]!=='}'){
+            var hex=pattern.charCodeAt(at++);
+            if(hex>=48&&hex<=57)hex-=48;
+            else if(hex>=65&&hex<=70)hex-=55;
+            else if(hex>=97&&hex<=102)hex-=87;
+            else error();
+            codePoint=codePoint*16+hex;
+            digits++;
+            if(digits>6||codePoint>0x10ffff)error()
+          }
+          if(digits===0||pattern[at]!=='}')error();
+          at++;
+          return {kind:'char',value:String.fromCodePoint(codePoint)}
+        }
         var count=c==='x'?2:4,n=0;
         for(var j=0;j<count;j++){
           if(at>=pattern.length)error();
@@ -93,6 +110,10 @@ export const regexpVmSource=String.raw`(function(){
         error()
       }
       if(c==='*'||c==='+'||c==='?'||c==='{'||c==='}')error();
+      if(flags.indexOf('u')>=0&&c.charCodeAt(0)>=0xd800&&c.charCodeAt(0)<=0xdbff&&at<pattern.length){
+        var trail=pattern.charCodeAt(at);
+        if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
+      }
       return {kind:'char',value:c}
     }
     function sequence(){
@@ -266,12 +287,24 @@ export const regexpVmSource=String.raw`(function(){
         return same(input.slice(pos,pos+length),input.slice(begin,end))?next(pos+length,caps):null
       }
       if(pos>=input.length)return null;
-      var current=input[pos],matched=false;
-      if(k==='char')matched=same(current,node.value);
+      var current=input[pos],matched=false,width=1;
+      if(flags.indexOf('u')>=0&&current.charCodeAt(0)>=0xd800&&current.charCodeAt(0)<=0xdbff&&pos+1<input.length){
+        var trail=input.charCodeAt(pos+1);
+        if(trail>=0xdc00&&trail<=0xdfff)width=2
+      }
+      if(k==='char'){
+        width=node.value.length;
+        matched=pos+width<=input.length&&same(input.slice(pos,pos+width),node.value)
+      }
       else if(k==='dot')matched=dotAll||'\n\r\u2028\u2029'.indexOf(current)<0;
       else if(k==='classEscape')matched=escapedClass(node.value,current);
       else if(k==='class')matched=classMatch(node.value,current);
-      return matched?next(pos+1,caps):null
+      return matched?next(pos+width,caps):null
+    }
+    var unicode=flags.indexOf('u')>=0;
+    if(unicode&&start>0&&start<input.length){
+      var low=input.charCodeAt(start),high=input.charCodeAt(start-1);
+      if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
     for(var candidate=start;candidate<=input.length;candidate++){
       var caps=[];
@@ -279,6 +312,10 @@ export const regexpVmSource=String.raw`(function(){
       var result=run(compiled.tree,candidate,caps,function(end,updated){return {end:end,captures:updated}});
       if(result!==null){result.start=candidate;return result}
       if(sticky)break
+      if(unicode&&candidate+1<input.length){
+        var high=input.charCodeAt(candidate),low=input.charCodeAt(candidate+1);
+        if(high>=0xd800&&high<=0xdbff&&low>=0xdc00&&low<=0xdfff)candidate++
+      }
     }
     return null
   }
