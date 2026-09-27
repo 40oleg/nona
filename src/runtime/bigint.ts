@@ -50,7 +50,7 @@ export function emitBigInt(b:RuntimeBuilder):void {
  });
  rootedFn(b,'rt.bigintFromDecimal',200,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:3}],a=>{
   a.store(slot(40),'rcx');a.store(slot(168),'r8');a.mov('rax',4);a.store(slot(64),'rax');a.store(slot(72),'rdx');a.mov('rax',0);a.store(slot(112),'rax');a.load('rax',{base:'rdx'});a.store(slot(120),'rax');
-  const white=(label:string)=>{for(const c of [9,10,11,12,13,32]){a.cmp('r11',c);a.jcc('e',label);}};
+  const white=(label:string)=>{for(const c of [9,10,11,12,13,32,0xa0,0x1680,0x2028,0x2029,0x202f,0x205f,0x3000,0xfeff]){a.cmp('r11',c);a.jcc('e',label);}a.cmp('r11',0x2000);const other=a.unique('other');a.jcc('b',other);a.cmp('r11',0x200a);a.jcc('be',label);a.label(other);};
   const left=a.unique('left'),leftNext=a.unique('leftNext'),right=a.unique('right'),rightNext=a.unique('rightNext'),sign=a.unique('sign'),invalid=a.unique('invalid'),zero=a.unique('zero'),done=a.unique('done');
   a.label(left);a.load('rax',slot(112));a.load('r10',slot(120));a.cmp('rax','r10');a.jcc('ae',zero);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);white(leftNext);a.jmp(right);a.label(leftNext);a.load('rax',slot(112));a.add('rax',1);a.store(slot(112),'rax');a.jmp(left);
   a.label(right);a.load('rax',slot(120));a.load('r10',slot(112));a.cmp('rax','r10');a.jcc('be',zero);a.sub('rax',1);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);white(rightNext);a.jmp(sign);a.label(rightNext);a.load('rax',slot(120));a.sub('rax',1);a.store(slot(120),'rax');a.jmp(right);

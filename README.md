@@ -120,8 +120,8 @@ Nona does not currently implement the complete ECMAScript standard. Major missin
 
 - remaining ES2020 class semantics, including async methods;
 - remaining generator semantics, promises, and async functions;
-- modules, `BigInt`, collections, proxies, typed arrays, and regular expressions;
-- remaining `String` methods that depend on RegExp, plus `Date`, `JSON`, and other standard library APIs scheduled for later releases;
+- modules, collections, proxies, typed arrays, and regular expressions;
+- remaining `String` methods that depend on RegExp and other standard library APIs scheduled for later releases;
 - browser APIs, Node.js APIs, `eval`, and dynamic function constructors;
 - targets other than Windows and Linux x64.
 

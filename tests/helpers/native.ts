@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 const TEMP_PREFIX = 'nona-native-';
 // First execution of a newly emitted PE may wait for Windows antivirus scanning.
-const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_BUFFER_BYTES = 4 * 1024 * 1024;
 
 export interface NativeRun {
