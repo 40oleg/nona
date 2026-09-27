@@ -15,6 +15,11 @@ test('Set stores values with SameValueZero and supports core methods',()=>expect
  try{Set.prototype.has.call({},1)}catch(error){console.log(error.name)}
 `,'true 0 [object Set]\n2 true true false\ntrue 1 false false\n0 false\nTypeError\nTypeError\n'));
 
+test('Set prototype has the intrinsic constructor',()=>expectProgram(`
+ var descriptor=Object.getOwnPropertyDescriptor(Set.prototype,'constructor');
+ console.log(Set.prototype.constructor===Set,descriptor.writable,descriptor.enumerable,descriptor.configurable);
+`,'true true false true\n'));
+
 test('Set retains live object values across GC',()=>{
  const source=`var set=new Set(),value={id:9};set.add(value);for(var i=0;i<40;i++)({i:i});console.log(set.has(value),set.size);set.delete(value);for(var i=0;i<40;i++)({i:i});console.log(set.size,set.has(value));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));

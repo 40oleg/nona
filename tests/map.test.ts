@@ -16,6 +16,11 @@ test('Map stores keys with SameValueZero and updates in insertion order',()=>exp
  try{Map.prototype.get.call({},1)}catch(error){console.log(error.name)}
 `,'true 0 [object Map]\n2 second zero true false\ntrue 1 false false\n0 undefined\nTypeError\nTypeError\n'));
 
+test('Map prototype has the intrinsic constructor',()=>expectProgram(`
+ var descriptor=Object.getOwnPropertyDescriptor(Map.prototype,'constructor');
+ console.log(Map.prototype.constructor===Map,descriptor.writable,descriptor.enumerable,descriptor.configurable);
+`,'true true false true\n'));
+
 test('Map retains live object keys and values across GC',()=>{
  const source=`var map=new Map(),key={id:7},value={id:9};map.set(key,value);for(var i=0;i<40;i++)({i:i});console.log(map.get(key).id,map.has(key),map.size);map.delete(key);for(var i=0;i<40;i++)({i:i});console.log(map.size,map.has(key));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));

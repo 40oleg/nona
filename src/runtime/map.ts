@@ -28,10 +28,11 @@ export function emitMap(b:RuntimeBuilder):void {
  b.fn('rt.Map.species.fn.code',40,a=>{a.load('rdx',slot(80));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'rcx',disp:offset},'rax');}});
  b.bundle.fragments.push(stringLiteral('rt.mapTag','Map'));
  const prototype=b.bundle.fragments.find(f=>f.name==='rt.mapPrototype')!;
+ const prototypeHead=prototype.fixups.find(f=>f.offset===O.properties)!;
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
  b.bundle.fragments.push({name:'rt.mapPrototype.@@toStringTag',section:'.data',alignment:8,bytes:tag,symbols:{},fixups:[
-  {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},{offset:P.value+8,kind:'va64',target:'rt.mapTag',addend:0},
- ]});prototype.fixups.push({offset:O.properties,kind:'va64',target:'rt.mapPrototype.@@toStringTag',addend:0});
+  {offset:P.next,kind:'va64',target:prototypeHead.target,addend:0},{offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},{offset:P.value+8,kind:'va64',target:'rt.mapTag',addend:0},
+ ]});prototypeHead.target='rt.mapPrototype.@@toStringTag';
  emitNativeFunction(b,'rt.mapSize.fn','get size',0);
  const size=new Uint8Array(P.size);size[P.attributes]=A.accessor|A.configurable;size[P.getter]=5;
  b.bundle.fragments.push({name:'rt.mapPrototype.size',section:'.data',alignment:8,bytes:size,symbols:{},fixups:[
