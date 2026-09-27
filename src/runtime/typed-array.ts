@@ -5,6 +5,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {emitNativeFunction,prependFunctionBuiltin} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {ArrayBufferKind,ArrayBufferLayout} from './array-buffer.js';
+import {SharedArrayBufferKind} from './shared-array-buffer.js';
 import {FunctionLayout as F,FunctionKind} from './functions.js';
 
 /** Common layout for future numeric and BigInt typed-array variants. */
@@ -325,7 +326,7 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   const allocate=a.unique('allocate'),view=a.unique('view'),fromObject=a.unique('fromObject'),ready=a.unique('ready');
   a.test('rdx','rdx');a.jcc('e',allocate);
   a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',allocate);
-  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);a.jcc('e',view);a.jmp(fromObject);
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);a.jcc('e',view);a.cmp('rax',SharedArrayBufferKind);a.jcc('e',view);a.jmp(fromObject);
   a.label(fromObject);
   a.mov('rax',5);a.store(slot(144),'rax');a.store(slot(160),'rax');
   a.lea('rax',{rip:'rt.Array.from.fn'});a.store(slot(152),'rax');a.lea('rax',{rip:'rt.Array'});a.store(slot(168),'rax');

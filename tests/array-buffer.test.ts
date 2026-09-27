@@ -153,6 +153,29 @@ test('TypedArray from snapshots iterables and reads array-like values after cons
   var touched=false,bad={get [Symbol.iterator](){touched=true;return undefined}};try{Uint8Array.from.call(()=>{},bad)}catch(error){console.log(error.name,touched)}
 `,'1,3,5\n4,9\n4,5\n7,8\nTypeError false\n'));
 
+test('SharedArrayBuffer constructor and byteLength use a distinct buffer kind',()=>expectProgram(`
+  var buffer=new SharedArrayBuffer(8);console.log(buffer.byteLength,Object.prototype.toString.call(buffer),buffer instanceof SharedArrayBuffer,buffer instanceof ArrayBuffer);
+  console.log(SharedArrayBuffer[Symbol.species]===SharedArrayBuffer,Object.getPrototypeOf(buffer)===SharedArrayBuffer.prototype);
+  var bytes=new Uint8Array(buffer),view=new DataView(buffer);bytes[0]=77;view.setUint16(1,0x1234,true);console.log(view.getUint8(0),bytes[1],bytes[2],bytes.buffer===buffer,view.buffer===buffer);
+  try{SharedArrayBuffer(1)}catch(error){console.log(error.name)}
+  try{Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,'byteLength').get.call(new ArrayBuffer(1))}catch(error){console.log(error.name)}
+`,'8 [object SharedArrayBuffer] true false\ntrue true\n77 52 18 true true\nTypeError\nTypeError\n'));
+
+test('SharedArrayBuffer slice copies bytes and applies species',()=>expectProgram(`
+  var buffer=new SharedArrayBuffer(5),view=new Uint8Array(buffer);view.set([1,2,3,4,5]);
+  var copy=buffer.slice(1,-1);console.log(copy.byteLength,new Uint8Array(copy).join(','),copy!==buffer);
+  buffer.constructor={[Symbol.species]:function(length){return new SharedArrayBuffer(length+2)}};
+  var larger=buffer.slice(2,4);console.log(larger.byteLength,new Uint8Array(larger).join(','));
+  try{SharedArrayBuffer.prototype.slice.call(new ArrayBuffer(3),0)}catch(error){console.log(error.name)}
+`,'3 2,3,4 true\n4 3,4,0,0\nTypeError\n'));
+
+test('SharedArrayBuffer backing survives stress GC through views',()=>{
+ const source=`var buffer=new SharedArrayBuffer(32),view=new Uint8Array(buffer);view[0]=123;for(var i=0;i<40;i++){new SharedArrayBuffer(i);String(i)+String(i)}console.log(Object.getPrototypeOf(buffer)===SharedArrayBuffer.prototype,Object.prototype.toString.call(buffer),buffer.byteLength,view[0],new DataView(buffer).getUint8(0));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'true [object SharedArrayBuffer] 32 123 123\n');
+});
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

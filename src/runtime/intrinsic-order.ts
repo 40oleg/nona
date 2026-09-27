@@ -17,6 +17,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Date':['length','name','prototype','now','parse','UTC'],
   'rt.RegExp':['length','name','prototype','@@species'],
   'rt.ArrayBuffer':['length','name','prototype','@@species','isView','__nonaCopyInternal','__nonaDetachInternal'],
+  'rt.SharedArrayBuffer':['length','name','prototype','@@species'],
   'rt.DataView':['length','name','prototype'],
   'rt.Uint8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
   'rt.Int8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
@@ -57,7 +58,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','ArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

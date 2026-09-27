@@ -4,6 +4,7 @@ import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
+import {SharedArrayBufferKind} from './shared-array-buffer.js';
 
 export const ArrayBufferKind=11;
 export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,detached:O.size+16,size:O.size+24} as const;
@@ -40,10 +41,10 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
  b.fn('rt.arrayBufferCopy.fn.code',88,a=>{
   a.cmp('rdx',4);failIf(a,'b','rt.throwTypeError');
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(40),'r10');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);const sourceReady=a.unique('sourceReady');a.jcc('e',sourceReady);a.cmp('rax',SharedArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.label(sourceReady);a.store(slot(40),'r10');
   a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   a.load('rax',{base:'r8',disp:16});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',{base:'r8',disp:24});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(48),'r10');
+  a.load('r10',{base:'r8',disp:24});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);const targetReady=a.unique('targetReady');a.jcc('e',targetReady);a.cmp('rax',SharedArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.label(targetReady);a.store(slot(48),'r10');
   a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   for(const [source,target] of [[32,56],[48,64]] as const){
    a.load('rax',{base:'r8',disp:source});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');

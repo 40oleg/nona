@@ -934,6 +934,36 @@ Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
   __nonaRegexpVm.arrayBufferCopy(this,result,first,newLength);
   return result
 }}).slice,writable:true,configurable:true});
+__nonaRegexpVm.sharedArrayBufferConstructor=SharedArrayBuffer;
+__nonaRegexpVm.sharedArrayBufferLength=Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,'byteLength').get;
+Object.defineProperty(SharedArrayBuffer.prototype,'slice',{value:({slice(start,end){
+ 'use strict';
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.sharedArrayBufferLength,this);
+ function index(value){
+  if(typeof value==='bigint')throw new __nonaRegexpVm.bufferTypeError('Cannot convert BigInt to Number');
+  var number=__nonaRegexpVm.arrayBufferNumber(value);
+  if(number!==number||number===0)return 0;
+  if(number===Infinity)return length;
+  if(number===-Infinity)return 0;
+  number=__nonaRegexpVm.arrayBufferTrunc(number);
+  return number<0?__nonaRegexpVm.arrayBufferMax(length+number,0):__nonaRegexpVm.arrayBufferMin(number,length)
+ }
+ var first=index(start),final=end===undefined?length:index(end);
+ var newLength=__nonaRegexpVm.arrayBufferMax(final-first,0);
+ var ctor=this.constructor,species;
+ if(ctor===undefined)species=__nonaRegexpVm.sharedArrayBufferConstructor;
+ else{
+  if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new __nonaRegexpVm.bufferTypeError('Invalid SharedArrayBuffer constructor');
+  species=ctor[__nonaRegexpVm.arrayBufferSpecies];
+  if(species===undefined||species===null)species=__nonaRegexpVm.sharedArrayBufferConstructor
+ }
+ var result=new species(newLength);
+ var resultLength=__nonaRegexpVm.safeCall(__nonaRegexpVm.sharedArrayBufferLength,result);
+ if(result===this)throw new __nonaRegexpVm.bufferTypeError('SharedArrayBuffer species returned source buffer');
+ if(resultLength<newLength)throw new __nonaRegexpVm.bufferTypeError('SharedArrayBuffer species returned a short buffer');
+ __nonaRegexpVm.arrayBufferCopy(this,result,first,newLength);
+ return result
+}}).slice,writable:true,configurable:true});
 __nonaRegexpVm.dvLength=Object.getOwnPropertyDescriptor(DataView.prototype,'byteLength').get;
 __nonaRegexpVm.dvGet32=DataView.prototype.getUint32;
 __nonaRegexpVm.dvSet32=DataView.prototype.setUint32;

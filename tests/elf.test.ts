@@ -90,6 +90,13 @@ test('Linux native DataView range and buffer identity',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 8 true 123456789abcdef0\n');
 });
 
+test('Linux native SharedArrayBuffer aliases TypedArray and DataView storage',t=>{
+ const source=`let buffer=new SharedArrayBuffer(8),bytes=new Uint8Array(buffer),view=new DataView(buffer);bytes[0]=77;view.setUint16(1,0x1234,true);let copy=buffer.slice(0,3);console.log(buffer.byteLength,view.getUint8(0),bytes[1],bytes[2],bytes.buffer===buffer,view.buffer===buffer,new Uint8Array(copy).join(':'));`;
+ const result=compile(source,{fileName:'shared-array-buffer.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'8 77 52 18 true true 77:52:18\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});

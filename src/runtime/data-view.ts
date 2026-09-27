@@ -5,6 +5,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {ArrayBufferKind,ArrayBufferLayout} from './array-buffer.js';
+import {SharedArrayBufferKind} from './shared-array-buffer.js';
 
 export const DataViewKind=12;
 export const DataViewLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,size:O.size+24} as const;
@@ -153,7 +154,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);const accepted=a.unique('accepted');a.jcc('e',accepted);a.cmp('rax',SharedArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.label(accepted);
   a.store(slot(64),'r10');a.mov('rax',0);a.store(slot(72),'rax');a.store(slot(80),'rax');
   const haveOffset=a.unique('haveOffset'),haveLength=a.unique('haveLength');
   a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',haveOffset);
