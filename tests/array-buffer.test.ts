@@ -282,6 +282,17 @@ test('DataView BigInt64 and BigUint64 preserve all bits',()=>expectProgram(`
   try{DataView.prototype.getBigInt64.call({})}catch(error){console.log(error.name)}
 `,'123456789abcdef efcdab8967452301\n-2 fffffffffffffffe\n1 35 69 103 137 171 205 239 254 255 255 255 255 255 255 255\n-1 18446744073709551615\n1 2\nTypeError\nRangeError\nTypeError\n'));
 
+test('DataView BigInt access converts index and value before detached-buffer check',()=>expectProgram(`
+  var buffer=new ArrayBuffer(8),view=new DataView(buffer),calls=0;
+  ArrayBuffer.__nonaDetachInternal(buffer);
+  for(var method of ['getBigInt64','getBigUint64']){
+    try{view[method](Infinity)}catch(error){console.log(error.name)}
+    try{view[method](0)}catch(error){console.log(error.name)}
+  }
+  try{view.setBigInt64(Infinity,{valueOf(){calls++;return 1n}})}catch(error){console.log(error.name,calls)}
+  try{view.setBigUint64(0,{valueOf(){calls++;return 1n}})}catch(error){console.log(error.name,calls)}
+`,'RangeError\nTypeError\nRangeError\nTypeError\nRangeError 0\nTypeError 1\n'));
+
 test('DataView BigInt value conversion survives stress GC',()=>{
  const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};v.setBigInt64(0,value,true);console.log(v.getBigUint64(0,true).toString(16),v.buffer.byteLength);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));

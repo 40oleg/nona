@@ -1100,6 +1100,7 @@ Object.defineProperty(SharedArrayBuffer.prototype,'slice',{value:({slice(start,e
  return result
 }}).slice,writable:true,configurable:true});
 __nonaRegexpVm.dvLength=Object.getOwnPropertyDescriptor(DataView.prototype,'byteLength').get;
+__nonaRegexpVm.dvBuffer=Object.getOwnPropertyDescriptor(DataView.prototype,'buffer').get;
 __nonaRegexpVm.dvGet32=DataView.prototype.getUint32;
 __nonaRegexpVm.dvSet32=DataView.prototype.setUint32;
 __nonaRegexpVm.dvNumber=Number;
@@ -1117,7 +1118,8 @@ __nonaRegexpVm.dvIndex=function(value){
  return number
 };
 __nonaRegexpVm.dvReadBig=function(view,offset,little,signed){
- var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view),index=__nonaRegexpVm.dvIndex(offset);
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.dvBuffer,view);
+ var index=__nonaRegexpVm.dvIndex(offset),length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view);
  if(index>length-8)throw new __nonaRegexpVm.bufferRangeError('DataView offset outside buffer');
  var first=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvGet32,view,index,little);
  var second=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvGet32,view,index+4,little);
@@ -1126,8 +1128,9 @@ __nonaRegexpVm.dvReadBig=function(view,offset,little,signed){
  return signed?__nonaRegexpVm.dvAsIntN(64,value):value
 };
 __nonaRegexpVm.dvWriteBig=function(view,offset,value,little){
- var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view),index=__nonaRegexpVm.dvIndex(offset);
- var raw=__nonaRegexpVm.dvAsUintN(64,value);
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.dvBuffer,view);
+ var index=__nonaRegexpVm.dvIndex(offset),raw=__nonaRegexpVm.dvAsUintN(64,value);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view);
  if(index>length-8)throw new __nonaRegexpVm.bufferRangeError('DataView offset outside buffer');
  var low=__nonaRegexpVm.dvNumber(raw%4294967296n);
  var high=__nonaRegexpVm.dvNumber(raw/4294967296n);
