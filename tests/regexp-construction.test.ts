@@ -58,6 +58,21 @@ test('RegExp exec returns match metadata for plain patterns',()=>expectProgram(`
   let empty=new RegExp('').exec('abc');console.log(empty[0],empty.index,empty.length);
 `,'猫 1 黒猫白猫 undefined 1\ntrue\n 0 1\n'));
 
+test('global and sticky plain matches use lastIndex',()=>expectProgram(`
+  let g=/cat/g,s='cat-cat';
+  console.log(g.exec(s).index,g.lastIndex,g.exec(s).index,g.lastIndex,g.exec(s),g.lastIndex);
+  let y=/cat/y;y.lastIndex=4;
+  console.log(y.exec(s).index,y.lastIndex,y.exec(s),y.lastIndex);
+  let plain=/cat/;plain.lastIndex=2;
+  console.log(plain.exec(s).index,plain.lastIndex);
+  let numeric=/cat/g;numeric.lastIndex=3.9;
+  console.log(numeric.exec(s).index,numeric.lastIndex);
+  let sticky=/cat/y;sticky.lastIndex=1;
+  console.log(sticky.exec(s),sticky.lastIndex);
+  let empty=new RegExp('','g');empty.lastIndex=2;
+  console.log(empty.exec('abc').index,empty.lastIndex);
+`,'0 3 4 7 null 0\n4 7 null 0\n0 2\n4 7\nnull 0\n2 2\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));
