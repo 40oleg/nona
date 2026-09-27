@@ -145,6 +145,13 @@ test('TypedArray toLocaleString visits numeric and BigInt elements',()=>expectPr
   try{Uint8Array.prototype.toLocaleString.call([])}catch(error){console.log(error.name)}
 `,'1,2,3 4,5\n42\nTypeError\nTypeError\n'));
 
+test('TypedArray from snapshots iterables and reads array-like values after construction',()=>expectProgram(`
+  var values=[1,2,3],mapped=Uint8Array.from(values,function(value,index){if(index===0)values.length=0;return value+index});console.log(mapped.join(','));
+  var changed={length:2,0:4,1:5},Ctor=function(length){changed[1]=9;return new Uint8Array(length)};console.log(Uint8Array.from.call(Ctor,changed).join(','));
+  console.log(BigInt64Array.from([1n,2n],function(value){return value+3n}).join(','));
+  var target=new Uint8Array(2),Wrap=function(){return target};console.log(Uint8Array.from.call(Wrap,[7,8]).join(','));
+`,'1,3,5\n4,9\n4,5\n7,8\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

@@ -990,6 +990,30 @@ __nonaRegexpVm.typedArrayRawLength=__nonaRegexpVm.typedArrayConstructor.__nonaRa
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
 __nonaRegexpVm.typedArrayRawByteOffset=__nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
+Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,'from',{value:function from(source){
+ 'use strict';
+ var constructor=this,mapfn=arguments[1],thisArg=arguments[2];
+ if(typeof constructor!=='function')throw new __nonaRegexpVm.bufferTypeError('TypedArray.from requires a constructor');
+ if(mapfn!==undefined&&typeof mapfn!=='function')throw new __nonaRegexpVm.bufferTypeError('TypedArray.from mapper is not callable');
+ var method=source[Symbol.iterator],values,length,iterated=method!==undefined&&method!==null;
+ if(iterated){
+  if(typeof method!=='function')throw new __nonaRegexpVm.bufferTypeError('Iterator method is not callable');
+  values=[];var iterator=__nonaRegexpVm.safeCall(method,source);
+  if(iterator===null||(typeof iterator!=='object'&&typeof iterator!=='function'))throw new __nonaRegexpVm.bufferTypeError('Iterator is not an object');
+  var next=iterator.next;
+  if(typeof next!=='function')throw new __nonaRegexpVm.bufferTypeError('Iterator next is not callable');
+  for(;;){var step=__nonaRegexpVm.safeCall(next,iterator);if(step===null||(typeof step!=='object'&&typeof step!=='function'))throw new __nonaRegexpVm.bufferTypeError('Iterator result is not an object');if(step.done)break;values[values.length]=step.value}
+  length=values.length;
+ }else{
+  var rawLength=+source.length;
+  length=rawLength!==rawLength||rawLength<=0?0:rawLength===Infinity?9007199254740991:Math.min(Math.floor(rawLength),9007199254740991);
+ }
+ var result=new constructor(length);
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,result);
+ if(__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,result)<length)throw new __nonaRegexpVm.bufferTypeError('TypedArray.from result is too short');
+ for(var k=0;k<length;k++){var value=iterated?values[k]:source[k];if(mapfn!==undefined)value=__nonaRegexpVm.safeCall(mapfn,thisArg,value,k);if(k<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,result))result[k]=value}
+ return result;
+},writable:true,configurable:true});
 [Uint8Array,Int8Array,Uint8ClampedArray,Uint16Array,Int16Array,Uint32Array,Int32Array,Float32Array,Float64Array,BigInt64Array,BigUint64Array].forEach(function(ctor){delete ctor.prototype[Symbol.toStringTag]});
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor.prototype,Symbol.toStringTag,{get:Object.getOwnPropertyDescriptor({get [Symbol.toStringTag](){'use strict';if(!__nonaRegexpVm.safeCall(__nonaRegexpVm.isTypedArray,undefined,this))return undefined;return __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,this).name}},Symbol.toStringTag).get,configurable:true});
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,Symbol.species,{get:Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get,configurable:true});
