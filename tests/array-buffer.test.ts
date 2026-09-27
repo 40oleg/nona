@@ -129,6 +129,15 @@ test('TypedArray slice copies exact bytes and respects species offsets',()=>expe
   var d=new BigInt64Array([1n,2n]);console.log(d.slice(1).join(','));
 `,'true\n2,3 1,2,3,4\n2 2,3\n1,1,1 1,1,1,1\n2\n'));
 
+test('TypedArray sort uses numeric stable order and handles BigInt',()=>expectProgram(`
+  var a=new Uint8Array([10,2,1]);console.log(a.sort()===a,a.join(','));
+  var b=new Float64Array([NaN,0,-0,2,-1]);b.sort();console.log(b[0],1/b[1],1/b[2],b[3],String(b[4]));
+  var c=new BigInt64Array([10n,-2n,3n]);c.sort();console.log(c.join(','));
+  var d=new Uint8Array([3,1,2]);d.sort(function(x,y){return y-x});console.log(d.join(','));
+  try{d.sort(1)}catch(error){console.log(error.name)}
+  try{d.sort(function(){return 1n})}catch(error){console.log(error.name)}
+`,'true 1,2,10\n-1 -Infinity Infinity 2 NaN\n-2,3,10\n3,2,1\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

@@ -974,6 +974,7 @@ Object.defineProperty(DataView.prototype,'getBigUint64',{value:function getBigUi
 Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
 Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
 __nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
+__nonaRegexpVm.typedArraySort=Array.prototype.sort;
 __nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
 __nonaRegexpVm.typedArrayBuffer=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'buffer').get;
 __nonaRegexpVm.typedArrayByteOffset=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'byteOffset').get;
@@ -1195,4 +1196,22 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'slice',{value
   }else for(var k=0;k<count;k++)result[k]=this[first+k];
  }
  return result;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'sort',{value:function sort(comparefn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(comparefn!==undefined&&typeof comparefn!=='function')throw new __nonaRegexpVm.bufferTypeError('comparefn is not callable');
+ var values=[];for(var k=0;k<length;k++)values[k]=this[k];
+ var compare=comparefn===undefined?function(x,y){
+  if(x!==x)return y!==y?0:1;
+  if(y!==y)return -1;
+  if(x<y)return -1;
+  if(x>y)return 1;
+  if(x===0&&y===0){if(1/x<1/y)return -1;if(1/x>1/y)return 1}
+  return 0;
+ }:function(x,y){var result=+__nonaRegexpVm.safeCall(comparefn,undefined,x,y);return result!==result?0:result};
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArraySort,values,compare);
+ for(var i=0;i<length;i++)if(i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[i]=values[i];
+ return this;
 },writable:true,configurable:true});`;
