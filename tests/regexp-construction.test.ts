@@ -121,6 +121,12 @@ test('RegExp start and end anchors honor multiline mode',()=>expectProgram(Strin
   console.log(/x$/.exec('x\n'),/x$/m.exec('x\n').index,/^$/m.exec('\n').index);
 `,'null 1\n2 0\n3 0\nnull 0 0\n'));
 
+test('RegExp ASCII literals match without case under ignoreCase',()=>expectProgram(`
+  let one=/cat/i.exec('xxCAT');console.log(one[0],one.index);
+  let re=new RegExp('Ab','gi');console.log(re.exec('xabAB')[0],re.lastIndex,re.exec('xabAB')[0],re.lastIndex);
+  console.log(/x/i.test('X'),/x/i.test('猫'));
+`,'CAT 2\nab 3 AB 5\ntrue false\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));

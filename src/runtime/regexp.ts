@@ -169,25 +169,28 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(80),'r8');a.store(slot(88),'r9');
   a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',RegExpKind);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rcx',disp:RegExpLayout.flags});a.load('r9',{base:'r10'});a.add('r10',8);a.mov('rax',0);a.store(slot(96),'rax');
-  const flagScan=a.unique('flagScan'),flagsDone=a.unique('flagsDone');a.label(flagScan);a.test('r9','r9');a.jcc('e',flagsDone);
-  a.load('rax',{base:'r10'},16);a.cmp('rax',105);failIf(a,'e','rt.throwTypeError');
-  a.cmp('rax',115);const checkUnicode=a.unique('checkUnicode'),nextFlag=a.unique('nextFlag');a.jcc('ne',checkUnicode);a.load('rax',slot(96));a.or('rax',1);a.store(slot(96),'rax');a.jmp(nextFlag);
+  const flagScan=a.unique('flagScan'),flagsDone=a.unique('flagsDone'),nextFlag=a.unique('nextFlag');a.label(flagScan);a.test('r9','r9');a.jcc('e',flagsDone);
+  a.load('rax',{base:'r10'},16);a.cmp('rax',105);const checkDotAll=a.unique('checkDotAll');a.jcc('ne',checkDotAll);a.load('rax',slot(96));a.or('rax',8);a.store(slot(96),'rax');a.jmp(nextFlag);
+  a.label(checkDotAll);
+  a.cmp('rax',115);const checkUnicode=a.unique('checkUnicode');a.jcc('ne',checkUnicode);a.load('rax',slot(96));a.or('rax',1);a.store(slot(96),'rax');a.jmp(nextFlag);
   a.label(checkUnicode);a.cmp('rax',117);const checkMultiline=a.unique('checkMultiline');a.jcc('ne',checkMultiline);a.load('rax',slot(96));a.or('rax',2);a.store(slot(96),'rax');a.jmp(nextFlag);
   a.label(checkMultiline);a.cmp('rax',109);a.jcc('ne',nextFlag);a.load('rax',slot(96));a.or('rax',4);a.store(slot(96),'rax');a.label(nextFlag);
   a.add('r10',2);a.sub('r9',1);a.jmp(flagScan);a.label(flagsDone);
+  a.load('rax',slot(96));a.and('rax',10);a.cmp('rax',10);failIf(a,'e','rt.throwTypeError');
   a.load('r10',{base:'rcx',disp:RegExpLayout.pattern});a.store(slot(56),'r10');
   a.load('r9',{base:'r10'});a.lea('rdx',{base:'r10',disp:8});a.mov('r8',0);
   const validate=a.unique('validate'),validated=a.unique('validated'),escape=a.unique('escape'),advance=a.unique('advance'),classValidate=a.unique('classValidate'),startAnchor=a.unique('startAnchor'),endAnchor=a.unique('endAnchor');a.label(validate);a.test('r9','r9');a.jcc('e',validated);
   a.load('rax',{base:'rdx'},16);a.cmp('rax',92);a.jcc('e',escape);a.cmp('rax',91);a.jcc('e',classValidate);
   a.cmp('rax',94);a.jcc('e',startAnchor);a.cmp('rax',36);a.jcc('e',endAnchor);
   for(const code of '*+?()[]{}|'){a.cmp('rax',code.charCodeAt(0));failIf(a,'e','rt.throwTypeError');}
+  a.cmp('rax',127);const asciiPattern=a.unique('asciiPattern');a.jcc('be',asciiPattern);a.load('rax',slot(96));a.and('rax',8);failIf(a,'ne','rt.throwTypeError');a.label(asciiPattern);a.load('rax',{base:'rdx'},16);
   a.cmp('rax',46);const ordinary=a.unique('ordinary');a.jcc('ne',ordinary);a.load('rax',slot(96));a.and('rax',2);failIf(a,'ne','rt.throwTypeError');a.label(ordinary);
   a.add('rdx',2);a.sub('r9',1);a.jmp(advance);
   a.label(escape);a.cmp('r9',1);failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'rdx',disp:2},16);
   const validEscape=a.unique('validEscape');for(const code of 'dDwWsSnrtvf0\\.^$*+?()[]{}|/'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',validEscape);}
   a.call('rt.throwTypeError');a.label(validEscape);a.add('rdx',4);a.sub('r9',2);
   const nextValidated=a.unique('nextValidated');a.jmp(nextValidated);
-  a.label(classValidate);a.load('rax',slot(96));a.and('rax',2);failIf(a,'ne','rt.throwTypeError');
+  a.label(classValidate);a.load('rax',slot(96));a.and('rax',10);failIf(a,'ne','rt.throwTypeError');
   a.store(slot(104),'r8');a.store(slot(112),'r9');a.store(slot(120),'rdx');a.mov('rcx','rdx');a.mov('rdx',0);a.mov('r8','r9');a.call('rt.regexpClassContains');
   a.mov('r10','rdx');a.mov('rax','rdx');a.shl('rax',1);a.load('rdx',slot(120));a.add('rdx','rax');a.load('r9',slot(112));a.sub('r9','r10');
   a.load('r8',slot(104));a.add('r8',1);a.jmp(validate);
@@ -239,7 +242,11 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.label(anchorMatched);a.add('r8',2);a.sub('r9',1);a.jmp(inner);
   a.label(classMatch);a.store(slot(104),'rdx');a.store(slot(112),'r8');a.store(slot(120),'r9');a.mov('rcx','r8');a.mov('rdx','r10');a.mov('r8','r9');a.call('rt.regexpClassContains');
   a.test('rax','rax');a.jcc('e',mismatch);a.mov('r11','rdx');a.load('r9',slot(120));a.sub('r9','r11');a.shl('r11',1);a.load('r8',slot(112));a.add('r8','r11');a.load('rdx',slot(104));a.add('rdx',2);a.jmp(inner);
-  a.label(literal);a.cmp('r10','r11');a.jcc('ne',mismatch);a.label(matched);
+  a.label(literal);a.cmp('r10','r11');a.jcc('e',matched);
+  a.load('rax',slot(96));a.and('rax',8);a.test('rax','rax');a.jcc('e',mismatch);
+  a.mov('rax','r11');a.or('rax',32);a.cmp('rax',97);a.jcc('b',mismatch);a.cmp('rax',122);a.jcc('a',mismatch);
+  a.mov('rax','r10');a.or('rax',32);a.cmp('rax',97);a.jcc('b',mismatch);a.cmp('rax',122);a.jcc('a',mismatch);
+  a.or('r11',32);a.cmp('rax','r11');a.jcc('ne',mismatch);a.label(matched);
   a.add('rdx',2);a.add('r8',2);a.sub('r9',1);a.jmp(inner);
   a.label(mismatch);a.load('rax',slot(88));a.test('rax','rax');a.jcc('ne',no);a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.jmp(outer);
   a.label(yes);a.load('rax',slot(80));a.load('rdx',slot(64));const done=a.unique('done');a.jmp(done);a.label(no);a.mov('rax',-1);a.mov('rdx',0);a.label(done);
