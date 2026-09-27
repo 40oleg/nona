@@ -90,6 +90,13 @@ test('Linux native Int8Array reads shared bytes as signed values',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 -128 255 true\n');
 });
 
+test('Linux native Uint8ClampedArray rounds ties to even',t=>{
+ const source=`let a=new Uint8ClampedArray([0.5,1.5,2.5,255.5]);console.log(a[0],a[1],a[2],a[3]);`;
+ const result=compile(source,{fileName:'uint8-clamped-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 2 2 255\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

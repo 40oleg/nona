@@ -48,7 +48,9 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
    a.load('rax',{base:'r8',disp:field+8});a.test('rax','rax');a.jcc('e',no);a.label(allowed);
   }
   a.load('rax',{base:'r8',disp:D.present});a.and('rax',F.value);a.test('rax','rax');a.jcc('e',yes);
-  a.lea('rcx',{base:'r8',disp:D.value});a.call('rt.toInt32');a.and('rax',255);a.store(slot(200),'rax');
+  const regularByte=a.unique('regularByte'),byteReady=a.unique('byteReady');a.load('r10',slot(64));a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.cmp('rax',3);a.jcc('ne',regularByte);
+  a.lea('rcx',{base:'r8',disp:D.value});a.call('rt.toUint8Clamp');a.jmp(byteReady);
+  a.label(regularByte);a.lea('rcx',{base:'r8',disp:D.value});a.call('rt.toInt32');a.and('rax',255);a.label(byteReady);a.store(slot(200),'rax');
   a.load('r10',slot(64));a.load('rax',slot(208));a.load('r11',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','r11');
   a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
   a.load('rax',slot(200));a.store({base:'rdx'},'rax',8);a.jmp(yes);

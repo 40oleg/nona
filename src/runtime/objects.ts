@@ -178,7 +178,9 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(normal);const ordinaryObject=a.unique('ordinaryObject');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('ne',ordinaryObject);
     a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',ordinaryObject);a.cmp('rax',-2);a.jcc('e',rejected);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',rejected);a.store(slot(80),'rax');
-    a.load('rcx',slot(56));a.call('rt.toInt32');a.and('rax',255);a.store(slot(80),'rax');
+    const regularByte=a.unique('regularByte'),byteReady=a.unique('byteReady');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.cmp('rax',3);a.jcc('ne',regularByte);
+    a.load('rcx',slot(56));a.call('rt.toUint8Clamp');a.jmp(byteReady);
+    a.label(regularByte);a.load('rcx',slot(56));a.call('rt.toInt32');a.and('rax',255);a.label(byteReady);a.store(slot(80),'rax');
     a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','r11');
     a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');

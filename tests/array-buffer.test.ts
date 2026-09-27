@@ -298,3 +298,19 @@ test('Int8Array indexed descriptors and iterator survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'0,1,2 -128 127 -128 -1\n');
 });
+
+test('Uint8ClampedArray clamps and rounds ties to even in every write path',()=>expectProgram(`
+  var bytes=new Uint8ClampedArray([0.5,1.5,2.5,3.5,-1,255.5,Infinity,NaN]);
+  console.log(bytes.length,Array.from(bytes).join(','));
+  bytes[0]=254.5;bytes[1]=254.6;Object.defineProperty(bytes,'2',{value:7.5});
+  console.log(bytes[0],bytes[1],bytes[2],Uint8ClampedArray.of(8.5,9.5)[0],Uint8ClampedArray.of(8.5,9.5)[1]);
+  var shared=new Uint8Array(bytes.buffer);console.log(shared[0],shared[1],shared[2],ArrayBuffer.isView(bytes));
+  console.log(Object.prototype.toString.call(bytes),Object.getPrototypeOf(Uint8ClampedArray)===Object.getPrototypeOf(Uint8Array));
+`,'8 0,2,2,4,0,255,255,0\n254 255 8 8 10\n254 255 8 true\n[object Uint8ClampedArray] true\n'));
+
+test('Uint8ClampedArray conversion survives stress GC',()=>{
+ const source=`var bytes=new Uint8ClampedArray(2),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 12.5}};bytes[0]=value;Object.defineProperty(bytes,'1',{value});console.log(bytes[0],bytes[1],bytes.buffer.byteLength);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'12 12 2\n');
+});
