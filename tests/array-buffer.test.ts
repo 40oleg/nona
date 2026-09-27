@@ -98,6 +98,15 @@ test('TypedArray map and filter preserve content type and respect species',()=>e
   child.constructor={[Symbol.species]:function(){return new Uint8Array(1)}};try{child.map(function(v){return v})}catch(error){console.log(error.name)}
 `,'2,4,6 2,3\n2,3,4 2,3\ntrue\ntrue\ntrue\nTypeError\nTypeError\n'));
 
+test('TypedArray set handles overlapping views and array-like source getters',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3,4]);a.set(a.subarray?new Uint8Array(a.buffer,0,3):new Uint8Array(a.buffer,0,3),1);console.log(a.join(','));
+  var b=new Uint8Array(3),source={length:3,0:1,get 1(){b[0]=9;return 2},2:3};b.set(source);console.log(b.join(','));
+  var c=new BigInt64Array(2);c.set([4n,5n]);console.log(c.join(','));
+  try{c.set(new Uint8Array(0))}catch(error){console.log(error.name)}
+  try{b.set([1,2],2)}catch(error){console.log(error.name)}
+  try{b.set([1],1n)}catch(error){console.log(error.name)}
+`,'1,1,2,3\n9,2,3\n4,5\nTypeError\nRangeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
