@@ -413,6 +413,7 @@ export const regexpVmSource=String.raw`(function(){
 
 export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,sticky,pattern,flags){"use strict";if(__nonaRegexpVm.core===undefined)__nonaRegexpVm.core='+regexpVmSource+String.raw`;
     var vm=__nonaRegexpVm.core;
+    if(re===undefined){vm.compile(pattern,flags);return undefined}
     var compiled=vm.compile(pattern,flags);
     var matched=vm.execute(compiled,input,start,sticky);
     var globalOrSticky=__nonaRegexpVm.replaceIndexOf.call(flags,'g')>=0||__nonaRegexpVm.replaceIndexOf.call(flags,'y')>=0;

@@ -85,6 +85,13 @@ test('RegExp constructor rejects structurally incomplete patterns',()=>expectPro
   console.log(new RegExp('[()]').source,new RegExp('\\(').source);
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n[()] \\(\n'));
 
+test('RegExp constructor validates quantifiers and group grammar before exec',()=>expectProgram(String.raw`
+  for(let pattern of ['a**','a{2,1}','(?x)','(?<name>a)(?<name>b)']){
+    try{new RegExp(pattern)}catch(error){console.log(error.name)}
+  }
+  console.log(new RegExp('a{2,3}').source);
+`,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\na{2,3}\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);

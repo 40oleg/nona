@@ -590,7 +590,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.label(internal);a.load('rdx',slot(40));a.load('rdx',{base:'rdx',disp:8});a.load('rax',{base:'rdx',disp:O.kind});a.cmp('rax',RegExpKind);a.mov('rax',0);a.jcc('ne',done);a.mov('rax',1);a.jmp(done);
   a.label(no);a.mov('rax',0);a.label(done);
  });
- rootedFn(b,'rt.newRegExp',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:5}],a=>{
+ rootedFn(b,'rt.newRegExp',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:5},{kind:'locals',offset:160,count:1},{kind:'locals',offset:176,count:6}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');a.store(slot(96),'rax');a.store(slot(104),'rax');
   const noPattern=a.unique('noPattern');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',noPattern);
@@ -612,6 +612,14 @@ export function emitRegExp(b:RuntimeBuilder):void {
   }
   a.load('rcx',slot(104));a.call('rt.validateRegExpFlags');a.store(slot(72),'rax');
   a.load('rcx',slot(88));a.call('rt.validateRegExpStructure');
+  const withoutVm=a.unique('withoutVm');
+  a.load('rdx',{rip:'rt.regexpVmCell'});a.test('rdx','rdx');a.jcc('e',withoutVm);
+  a.mov('rax',0);
+  for(const offset of [176,192,208,224]){a.store(slot(offset),'rax');a.store(slot(offset+8),'rax');}
+  for(const [source,target] of [[80,240],[96,256]] as const)for(const offset of [0,8]){a.load('rax',slot(source+offset));a.store(slot(target+offset),'rax');}
+  a.lea('rax',{rip:'rt.undefinedValue'});a.store(slot(32),'rax');
+  a.lea('rcx',slot(160));a.mov('r8',6);a.lea('r9',slot(176));a.call('rt.invoke');
+  a.label(withoutVm);
   a.mov('rdx',0);
   for(const bit of [1,2,4,8,16,32]){const next=a.unique('next');a.load('rax',slot(72));a.and('rax',bit);a.test('rax','rax');a.jcc('e',next);a.add('rdx',1);a.label(next);}
   a.store(slot(64),'rdx');a.mov('rcx','rdx');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');
