@@ -982,4 +982,40 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{val
  if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this);
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'every',{value:function every(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var thisArg=arguments[1];
+ for(var k=0;k<length;k++)if(!__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return false;
+ return true;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'some',{value:function some(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var thisArg=arguments[1];
+ for(var k=0;k<length;k++)if(__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return true;
+ return false;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'find',{value:function find(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var thisArg=arguments[1];
+ for(var k=0;k<length;k++){var value=this[k];if(__nonaRegexpVm.safeCall(callbackfn,thisArg,value,k,this))return value}
+ return undefined;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'findIndex',{value:function findIndex(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var thisArg=arguments[1];
+ for(var k=0;k<length;k++)if(__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return k;
+ return -1;
 },writable:true,configurable:true});`;

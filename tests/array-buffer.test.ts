@@ -58,6 +58,15 @@ test('TypedArray forEach visits numeric and BigInt values with callback receiver
   try{a.forEach(function(){})}catch(error){console.log(error.name)}
 `,'undefined\n12 0:true;1:true;2:true;\n3\nTypeError\nTypeError\n'));
 
+test('TypedArray callback search and quantifiers short-circuit and see BigInt',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3]),seen='';
+  console.log(a.every(function(v,i){seen+=i;return v<3}),seen);
+  seen='';console.log(a.some(function(v,i){seen+=i;return v===2}),seen);
+  console.log(a.find(function(v){return v>1}),a.findIndex(function(v){return v>1}));
+  var b=new BigInt64Array([2n,5n]);console.log(String(b.find(function(v){return v>2n})),b.findIndex(function(v){return v>2n}));
+  console.log(a.every(function(){return true}),a.some(function(){return false}),a.find(function(){return false}),a.findIndex(function(){return false}));
+`,'false 012\ntrue 01\n2 1\n5 1\ntrue false undefined -1\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

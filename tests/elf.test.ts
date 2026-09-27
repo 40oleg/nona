@@ -76,6 +76,13 @@ test('Linux native ArrayBuffer detachment invalidates views',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 undefined false\nTypeError\n');
 });
 
+test('Linux native TypedArray callback methods traverse BigInt elements',t=>{
+ const source=`let a=new BigInt64Array([1n,2n,3n]),sum=0n;a.forEach(v=>sum+=v);console.log(String(sum),a.every(v=>v>0n),a.some(v=>v===2n),String(a.find(v=>v>1n)),a.findIndex(v=>v>1n));`;
+ const result=compile(source,{fileName:'typed-array-callbacks.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'6 true true 2 1\n');
+});
+
 test('Linux native DataView range and buffer identity',t=>{
  const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,8);v.setBigUint64(0,0x123456789abcdef0n,true);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getBigUint64(0,true).toString(16));`;
  const result=compile(source,{fileName:'data-view.js',target:'linux-x64'});
