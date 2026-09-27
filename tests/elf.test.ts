@@ -76,6 +76,13 @@ test('Linux native RegExp Unicode classes and escapes',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true false true true\n');
 });
 
+test('Linux native RegExp matchAll iterator has hidden state',t=>{
+ const source=`let iter=/a/g[Symbol.matchAll]('aba');let fake=Object.create(Object.getPrototypeOf(iter));fake.__nonaMatchAllBrand=true;try{fake.next()}catch(error){console.log(error.name)}console.log(Object.getOwnPropertyNames(iter).length,iter.next().value.index,iter.next().value.index,iter.next().done);`;
+ const result=compile(source,{fileName:'regexp-matchall-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'TypeError\n0 0 2 true\n');
+});
+
 test('Linux native ArrayBuffer allocation and byteLength',t=>{
  const source=`let b=new ArrayBuffer(16);console.log(b.byteLength,Object.prototype.toString.call(b));`;
  const result=compile(source,{fileName:'array-buffer.js',target:'linux-x64'});

@@ -875,21 +875,24 @@ Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](stri
   return result
 }})[Symbol.split],writable:true,configurable:true});
 __nonaRegexpVm.matchAllPrototype=Object.create(Object.getPrototypeOf([][Symbol.iterator]()));
+(function(){
+var matchAllSlots=new WeakMap();
 Object.defineProperty(__nonaRegexpVm.matchAllPrototype,'next',{value:({next(){
   'use strict';
-  if(this===null||this===undefined||this.__nonaMatchAllBrand!==true)throw new TypeError('Invalid RegExp String Iterator');
-  if(this.__nonaDone)return {value:undefined,done:true};
-  var matcher=this.__nonaMatcher,input=this.__nonaInput;
+  var slots=matchAllSlots.get(this);
+  if(slots===undefined)throw new TypeError('Invalid RegExp String Iterator');
+  if(slots.done)return {value:undefined,done:true};
+  var matcher=slots.matcher,input=slots.input;
   var result=matcher.exec(input);
-  if(result===null){this.__nonaDone=true;return {value:undefined,done:true}}
+  if(result===null){slots.done=true;return {value:undefined,done:true}}
   if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
-  if(!this.__nonaGlobal)this.__nonaDone=true;
+  if(!slots.global)slots.done=true;
   else if(String(result[0])===''){
     var index=Number(matcher.lastIndex);
     if(index!==index||index<0)index=0;
     else if(index>9007199254740991)index=9007199254740991;
     else index=Math.floor(index);
-    if(this.__nonaUnicode&&index+1<input.length){
+    if(slots.unicode&&index+1<input.length){
       var first=input.charCodeAt(index),second=input.charCodeAt(index+1);
       matcher.lastIndex=index+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
     }else matcher.lastIndex=index+1
@@ -918,16 +921,10 @@ Object.defineProperty(RegExp.prototype,Symbol.matchAll,{value:({[Symbol.matchAll
   else index=Math.floor(index);
   matcher.lastIndex=index;
   var iterator=Object.create(__nonaRegexpVm.matchAllPrototype);
-  Object.defineProperties(iterator,{
-    __nonaMatchAllBrand:{value:true},
-    __nonaMatcher:{value:matcher},
-    __nonaInput:{value:input},
-    __nonaGlobal:{value:flags.indexOf('g')>=0},
-    __nonaUnicode:{value:flags.indexOf('u')>=0},
-    __nonaDone:{value:false,writable:true}
-  });
+  matchAllSlots.set(iterator,{matcher:matcher,input:input,global:flags.indexOf('g')>=0,unicode:flags.indexOf('u')>=0,done:false});
   return iterator
 }})[Symbol.matchAll],writable:true,configurable:true});
+})();
 Object.defineProperty(String.prototype,'matchAll',{value:({matchAll(regexp){
   'use strict';
   if(this===null||this===undefined)throw new TypeError('String.prototype.matchAll called on null or undefined');
@@ -943,8 +940,8 @@ Object.defineProperty(String.prototype,'matchAll',{value:({matchAll(regexp){
       return method.call(regexp,this)
     }
   }
-  var rx=new RegExp(regexp,'g');
-  return rx[Symbol.matchAll](this)
+  var input=String(this),rx=new RegExp(regexp,'g');
+  return rx[Symbol.matchAll](input)
 }}).matchAll,writable:true,configurable:true});
 Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchValue,replaceValue){
   'use strict';
