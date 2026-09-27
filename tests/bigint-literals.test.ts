@@ -18,9 +18,11 @@ test('BigInt toString converts arbitrary precision values across radices',()=>ex
 test('Number explicitly converts BigInt while unary plus rejects it',()=>expectProgram(`console.log(Number(0n),Number(-87n),Number(9007199254740993n),new Number(12n).valueOf());try{+1n}catch(e){console.log(e.name)}`,'0 -87 9007199254740992 12\nTypeError\n'));
 test('BigInt.asIntN and asUintN wrap signed values beyond 64 bits',()=>expectProgram(`console.log(BigInt.asUintN(8,-1n),BigInt.asIntN(8,255n),BigInt.asIntN(8,128n),BigInt.asIntN(8,-129n));console.log(BigInt.asUintN(80,-1n).toString(16),BigInt.asIntN(80,1208925819614629174706175n),BigInt.asUintN(0,123n));console.log(BigInt.asIntN(3.9,10n),BigInt.asUintN(NaN,42n))`,'255 -1 -128 127\nffffffffffffffffffff -1 0\n2 0\n'));
 test('BigInt radix and modulo conversions survive stress GC',()=>{
- const source=`var x=BigInt('0x123456789abcdef0123456789abcdef');console.log(x.toString(2).length,BigInt.asUintN(83,-x).toString(16),BigInt.asIntN(83,x).toString(16),(x*3n).toString(16));`;
+ const source=`var x=BigInt('0x123456789abcdef0123456789abcdef');console.log(x.toString(2).length,BigInt.asUintN(83,-x).toString(16),BigInt.asIntN(83,x).toString(16),(x*3n).toString(16),String(x/123456789n),String(x%123456789n));`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
- assert.equal(run.stdout.toString(),'121 43210fedcba9876543211 3cdef0123456789abcdef 369d0369d0369cd0369d0369d0369cd\n');
+ assert.equal(run.stdout.toString(),'121 43210fedcba9876543211 3cdef0123456789abcdef 369d0369d0369cd0369d0369d0369cd 12250165320630288943037246452 40996587\n');
 });
 test('BigInt multiplication keeps arbitrary precision and signs',()=>expectProgram(`console.log(String(12345678901234567890n*98765432109876543210n),String(-12345678901234567890n*7n),String(-12n*-13n),String(999999999999999999n*0n));try{1n*2}catch(e){console.log(e.name)}`,'1219326311370217952237463801111263526900 -86419752308641975230 156 0\nTypeError\n'));
+test('BigInt division and remainder truncate toward zero',()=>expectProgram(`console.log(String(123456789012345678901234567890n/987654321n),String(123456789012345678901234567890n%987654321n));console.log(String(-13n/5n),String(-13n%5n),String(13n/-5n),String(13n%-5n),String(-13n/-5n),String(-13n%-5n));try{1n/0n}catch(e){console.log(e.name)}`,'124999998873437499901 574845669\n-2 -3 -2 3 2 -3\nRangeError\n'));
+test('BigInt exponentiation squares exact values',()=>expectProgram(`console.log(String(2n**100n),String((-3n)**5n),String((-3n)**6n),String(0n**0n));try{2n**-1n}catch(e){console.log(e.name)}`,'1267650600228229401496703205376 -243 729 1\nRangeError\n'));
