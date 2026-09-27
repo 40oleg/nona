@@ -47,6 +47,16 @@ test('RegExp Unicode classes combine astral characters and escaped surrogate pai
   console.log(new RegExp('\\\\u{000000003f}','u').test('?'));
 `,'true false\ntrue true\ntrue\n'));
 
+test('RegExp simple repeats backtrack after long Unicode runs',()=>expectProgram(String.raw`
+  let letters='A'.repeat(1300);
+  console.log(/^\p{L}+!$/u.test(letters+'!'),/^\p{L}+?A!$/u.test(letters+'!'));
+  let sequence='a'.repeat(1300)+'b';
+  console.log(/a+ab/.test(sequence),/(?<=a{1100})b/.test(sequence));
+  let intrinsic=Uint32Array;
+  Uint32Array=function(){throw new Error('replaced')};
+  try{console.log(/^\p{L}+!$/u.test(letters+'!'))}finally{Uint32Array=intrinsic}
+`,'true true\ntrue true\ntrue\n'));
+
 test('RegExp Unicode properties match categories, scripts and supplementary points',()=>expectProgram(`
   console.log(/\\p{L}+/u.exec('12αβ')[0]);
   console.log(/\\P{ASCII}+/u.exec('abαβ')[0]);

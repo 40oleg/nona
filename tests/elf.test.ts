@@ -70,10 +70,10 @@ test('Linux native BigInt arithmetic and JSON serialization',t=>{
 });
 
 test('Linux native RegExp Unicode classes and escapes',t=>{
- const source=String.raw`console.log(/[𝌆]/u.test('𝌆'),/[^𝌆]/u.test('𝌆'),/[\ud834\udf06]/u.test('𝌆'),new RegExp('\\u{000000003f}','u').test('?'));`;
+ const source=String.raw`console.log(/[𝌆]/u.test('𝌆'),/[^𝌆]/u.test('𝌆'),/[\ud834\udf06]/u.test('𝌆'),new RegExp('\\u{000000003f}','u').test('?'));let long='A'.repeat(1200);console.log(/^\p{L}+!$/u.test(long+'!'),/a+ab/.test('a'.repeat(1200)+'b'));`;
  const result=compile(source,{fileName:'regexp-unicode-linux.js',target:'linux-x64'});
  assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
- const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true false true true\n');
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true false true true\ntrue true\n');
 });
 
 test('Linux native RegExp matchAll iterator has hidden state',t=>{

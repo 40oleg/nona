@@ -8,6 +8,10 @@ const root = resolve(process.env.TEST262_ROOT || 'work/test262');
 const manifest = JSON.parse(readFileSync(new URL('../tests/test262-smoke.json', import.meta.url), 'utf8'));
 const group = process.argv[2];
 const pathFilter = process.env.TEST262_PATH_FILTER || '';
+const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
+if (!Number.isSafeInteger(runtimeTimeout) || runtimeTimeout < 1 || runtimeTimeout > 600000) {
+  throw new Error('TEST262_RUNTIME_TIMEOUT_MS must be an integer from 1 to 600000');
+}
 if (group && (!/^[A-Za-z0-9_./-]+$/.test(group) || group.includes('..') || group.startsWith('/'))) {
   throw new Error('Group must be a relative Test262 test directory');
 }
@@ -58,12 +62,12 @@ for (const path of paths) {
   const exe = resolve('work/test262-smoke', path.replaceAll('/', '_') + '.exe');
   mkdirSync(dirname(exe), {recursive: true});
   writeFileSync(exe, compiled.image);
-  const run = spawnSync(exe, [], {encoding: 'utf8', timeout: 30000, windowsHide: true, maxBuffer: 1024 * 1024});
+  const run = spawnSync(exe, [], {encoding: 'utf8', timeout: runtimeTimeout, windowsHide: true, maxBuffer: 1024 * 1024});
   results.push({path, outcome: !run.error && run.status === 0 ? 'pass' : 'fail', phase: 'runtime',
     status: run.status, error: run.error?.message, stderr: run.stderr?.slice(0, 2000)});
 }
 const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, counts, results};
+const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, runtimeTimeout, counts, results};
 mkdirSync(dirname(reportPath), {recursive: true});
 writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
 console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);

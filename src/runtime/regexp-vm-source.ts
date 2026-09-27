@@ -7,6 +7,7 @@ export const regexpVmSource=String.raw`(function(){
   var safeSlice=intrinsic?intrinsic.replaceSlice:String.prototype.slice;
   var safeIndexOf=intrinsic?intrinsic.replaceIndexOf:String.prototype.indexOf;
   var safeCharCodeAt=intrinsic?intrinsic.replaceCharCodeAt:String.prototype.charCodeAt;
+  var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
   function append(array,value){Object.defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
   function slice(string,start,end){return safeSlice.call(string,start,end)}
   function indexOf(string,value){return safeIndexOf.call(string,value)}
@@ -517,21 +518,44 @@ export const regexpVmSource=String.raw`(function(){
       if(k==='repeat'){
         var simple=node.value.kind;
         if(simple==='char'||simple==='dot'||simple==='class'||simple==='classEscape'||simple==='property'){
-          var positions=[pos],end=pos;
-          while(positions.length-1<node.max){
-            var one=run(node.value,end,caps,function(after){return {end:after}},direction);
-            steps--;
-            if(one===null||one.end===end)break;
-            end=one.end;append(positions,end)
+          var capacity=direction<0?pos:input.length-pos;
+          if(node.max<capacity)capacity=node.max;
+          var packed=capacity>1024;
+          var positions=packed?new PositionArray(capacity+1):[pos],positionCount=1,end=pos;
+          if(packed)positions[0]=pos;
+          while(positionCount-1<node.max){
+            var after=end;
+            if(simple==='property'){
+              if(direction<0?end<=0:end>=input.length)break;
+              var pointIndex=direction<0?end-1:end,point=charCodeAt(input,pointIndex),width=1;
+              if(direction<0&&point>=0xdc00&&point<=0xdfff&&pointIndex>0){
+                var high=charCodeAt(input,pointIndex-1);
+                if(high>=0xd800&&high<=0xdbff){point=0x10000+(high-0xd800)*1024+(point-0xdc00);width=2}
+              }else if(direction>0&&point>=0xd800&&point<=0xdbff&&pointIndex+1<input.length){
+                var low=charCodeAt(input,pointIndex+1);
+                if(low>=0xdc00&&low<=0xdfff){point=0x10000+(point-0xd800)*1024+(low-0xdc00);width=2}
+              }
+              if(!propertyContains(node.value.value,point,node.value.negated))break;
+              after=end+direction*width
+            }else{
+              var one=run(node.value,end,caps,function(after){return {end:after}},direction);
+              steps--;
+              if(one===null)break;
+              after=one.end
+            }
+            if(after===end)break;
+            end=after;
+            if(packed)positions[positionCount]=end;else append(positions,end);
+            positionCount++
           }
-          if(positions.length-1<node.min)return null;
+          if(positionCount-1<node.min)return null;
           if(node.lazy){
-            for(var count=node.min;count<positions.length;count++){
+            for(var count=node.min;count<positionCount;count++){
               var result=next(positions[count],caps);
               if(result!==null)return result
             }
           }else{
-            for(var count=positions.length-1;count>=node.min;count--){
+            for(var count=positionCount-1;count>=node.min;count--){
               var result=next(positions[count],caps);
               if(result!==null)return result
             }
@@ -1003,6 +1027,7 @@ Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchVa
 __nonaRegexpVm.replaceSlice=String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
+__nonaRegexpVm.positionArrayConstructor=Uint32Array;
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
 __nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
 __nonaRegexpVm.arrayBufferConstructor=ArrayBuffer;
