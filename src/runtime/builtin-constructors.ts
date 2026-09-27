@@ -12,7 +12,7 @@ export const constructorRoots=names.map(name=>'rt.'+name);
 const numberConstants=[['MAX_VALUE',Number.MAX_VALUE],['MIN_VALUE',Number.MIN_VALUE],['NaN',NaN],['NEGATIVE_INFINITY',-Infinity],['POSITIVE_INFINITY',Infinity],['EPSILON',Number.EPSILON],['MAX_SAFE_INTEGER',Number.MAX_SAFE_INTEGER],['MIN_SAFE_INTEGER',Number.MIN_SAFE_INTEGER]] as const;
 export const constructorPropertyRoots=names.flatMap(name=>[
  ...['name','length','prototype'].map(key=>'rt.'+name+'.'+key),
- 'rt.globalObject.'+name,'rt.'+name.toLowerCase()+'Prototype.constructor',
+ 'rt.globalObject.'+name,'rt.'+(name==='Set'?'setCollection':name.toLowerCase())+'Prototype.constructor',
 ]).concat(numberConstants.map(([name])=>'rt.Number.'+name));
 const pointer=(offset:number,target:string):Fixup=>({offset,kind:'va64',target,addend:0});
 function copyResult(a:Assembler,offset:number):void {
@@ -35,12 +35,12 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
  const globalThis=b.bundle.fragments.find(f=>f.name==='rt.globalObject.globalThis')!;
  globalThis.fixups.push(pointer(P.next,'rt.globalObject.Object'));
  for(const [index,name] of names.entries()){
-  const symbol='rt.'+name,prototype='rt.'+name.toLowerCase()+'Prototype';
+  const symbol='rt.'+name,prototype='rt.'+(name==='Set'?'setCollection':name.toLowerCase())+'Prototype';
   b.bundle.fragments.push(stringLiteral(symbol+'.text',name),stringLiteral(symbol+'.source','function '+name+'() { [native code] }'));
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date','RegExp','Map','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date','RegExp','Map','Set','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;

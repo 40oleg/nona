@@ -19,6 +19,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.ArrayBuffer':['length','name','prototype','@@species','isView','__nonaCopyInternal','__nonaDetachInternal'],
   'rt.SharedArrayBuffer':['length','name','prototype','@@species'],
   'rt.Map':['length','name','prototype'],
+  'rt.Set':['length','name','prototype'],
   'rt.DataView':['length','name','prototype'],
   'rt.Uint8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
   'rt.Int8Array':['length','name','prototype','BYTES_PER_ELEMENT'],
@@ -47,6 +48,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.dataviewPrototype':['constructor','buffer','byteLength','byteOffset','getInt8','setInt8','getUint8','setUint8','getInt16','setInt16','getUint16','setUint16','getInt32','setInt32','getUint32','setUint32','getFloat32','setFloat32','getFloat64','setFloat64','getBigInt64','setBigInt64','getBigUint64','setBigUint64','@@toStringTag'],
   'rt.mapPrototype':['constructor','clear','delete','forEach','get','has','set','size','entries','keys','values','@@iterator','@@toStringTag'],
   'rt.mapIteratorPrototype':['next','@@toStringTag'],
+  'rt.setCollectionPrototype':['constructor','add','clear','delete','has','size','@@toStringTag'],
   'rt.typedArrayPrototype':['constructor','buffer','byteOffset','byteLength','length','copyWithin','entries','fill','includes','indexOf','keys','lastIndexOf','values','@@iterator','reverse'],
   'rt.uint8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],
   'rt.int8arrayPrototype':['constructor','BYTES_PER_ELEMENT','@@toStringTag'],
@@ -62,16 +64,16 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','Map','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','Atomics','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','Map','Set','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','Atomics','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));
  for(const [owner,order] of Object.entries(orders)){
-  const head=fragments.get(owner)!.fixups.find(f=>f.offset===O.properties)!;
+  const head=fragments.get(owner)!.fixups.find(f=>f.offset===O.properties);if(!head)throw new Error("Missing head: "+owner);
   const nodes:{node:NamedFragment;rank:number}[]=[];let name:string|undefined=head.target;
   while(name){
    const node:NamedFragment=fragments.get(name)!;
-   const key=fragments.get(node.fixups.find(f=>f.offset===P.key)!.target)!;
+   const keyFixup=node.fixups.find(f=>f.offset===P.key);if(!keyFixup)throw new Error("Missing key fixup: "+owner+" "+name);const key=fragments.get(keyFixup.target)!;
    const view=new DataView(key.bytes.buffer,key.bytes.byteOffset,key.bytes.byteLength);
    let text='';if(view.getBigUint64(0,true)===0xffffffffffffffffn)text=key.name==='rt.Symbol.iterator.value'?'@@iterator':key.name==='rt.Symbol.toStringTag.value'?'@@toStringTag':key.name==='rt.Symbol.hasInstance.value'?'@@hasInstance':key.name==='rt.Symbol.species.value'?'@@species':key.name==='rt.Symbol.unscopables.value'?'@@unscopables':'@@toPrimitive';else for(let i=8;i<key.bytes.length;i+=2)text+=String.fromCharCode(view.getUint16(i,true));
    const rank=order.indexOf(text);

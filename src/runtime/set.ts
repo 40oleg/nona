@@ -1,0 +1,65 @@
+import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {rootedFn} from './root-scope.js';
+import {HeapKind,HeapLayout as H} from './heap-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {prependFunctionBuiltin,emitNativeFunction,builtinPropertyRoots} from './function-builtin.js';
+import {MapLayout,MapEntryLayout} from './map.js';
+import {stringLiteral} from './value.js';
+
+export const SetKind=17;
+export const setRoots=['rt.setSize.fn',...['add','clear','delete','has'].map(name=>'rt.set.'+name+'.fn')];
+export const setPropertyRoots=['rt.setCollectionPrototype.size','rt.setCollectionPrototype.@@toStringTag',...setRoots.flatMap(name=>name==='rt.setSize.fn'?[name+'.name',name+'.length']:builtinPropertyRoots(name,name.slice(7,-3),'rt.setCollectionPrototype'))];
+
+export function emitSetPrototype(b:RuntimeBuilder):void {
+ b.bundle.fragments.push({name:'rt.setCollectionPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0}]});
+}
+
+export function emitSet(b:RuntimeBuilder):void {
+ b.bundle.fragments.push(stringLiteral('rt.setTag','Set'));
+ const prototype=b.bundle.fragments.find(f=>f.name==='rt.setCollectionPrototype')!;
+ const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
+ b.bundle.fragments.push({name:'rt.setCollectionPrototype.@@toStringTag',section:'.data',alignment:8,bytes:tag,symbols:{},fixups:[
+  {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},{offset:P.value+8,kind:'va64',target:'rt.setTag',addend:0},
+ ]});prototype.fixups.push({offset:O.properties,kind:'va64',target:'rt.setCollectionPrototype.@@toStringTag',addend:0});
+ emitNativeFunction(b,'rt.setSize.fn','get size',0);
+ const size=new Uint8Array(P.size);size[P.attributes]=A.accessor|A.configurable;size[P.getter]=5;
+ b.bundle.fragments.push({name:'rt.setCollectionPrototype.size',section:'.data',alignment:8,bytes:size,symbols:{},fixups:[
+  {offset:P.next,kind:'va64',target:'rt.setCollectionPrototype.@@toStringTag',addend:0},{offset:P.key,kind:'va64',target:'rt.str.size',addend:0},{offset:P.getter+8,kind:'va64',target:'rt.setSize.fn',addend:0},
+ ]});prototype.fixups.find(f=>f.offset===O.properties)!.target='rt.setCollectionPrototype.size';
+ for(const name of ['add','clear','delete','has'] as const)prependFunctionBuiltin(b,'rt.set.'+name+'.fn',name,name==='clear'?0:1,'rt.setCollectionPrototype');
+ b.fn('rt.Set.code',40,a=>a.call('rt.throwTypeError'));
+ rootedFn(b,'rt.Set.construct',104,[{kind:'output',register:'rcx'},{kind:'locals',offset:80,count:1}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.mov('rcx',MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',SetKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count])a.store({base:'rax',disp:offset},'r10');
+  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});a.store({base:'rax',disp:O.prototype},'r10');
+  a.load('rcx',slot(40));a.mov('r10',5);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ });
+ const receiver=(a:import('../backend/x64/assembler.js').Assembler,frame:number)=>{
+  a.load('r10',slot(frame+40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',SetKind);failIf(a,'ne','rt.throwTypeError');
+ };
+ b.fn('rt.setSize.fn.code',56,a=>{
+  receiver(a,56);a.load('rax',{base:'r10',disp:MapLayout.count});a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+ });
+ for(const name of ['add','clear','delete','has'] as const)rootedFn(b,'rt.set.'+name+'.fn.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:2}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');receiver(a,frame);a.store(slot(72),'r10');
+  a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(80+n),'rax');}
+  if(name!=='clear'){
+   const absent=a.unique('absent');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',absent);a.load('rdx',slot(56));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(96+n),'rax');}a.label(absent);
+   a.load('rcx',slot(72));a.lea('rdx',slot(96));a.call('rt.mapFind');a.store(slot(64),'rax');
+  }
+  if(name==='add'){
+   const finish=a.unique('finish');a.test('rax','rax');a.jcc('ne',finish);
+   a.load('rax',slot(96));a.cmp('rax',3);const valueReady=a.unique('valueReady');a.jcc('ne',valueReady);a.movsd('xmm0',slot(104));a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',valueReady);a.jcc('ne',valueReady);a.store(slot(104),'rax');a.label(valueReady);
+   a.mov('rcx',MapEntryLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.mapEntry);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.next},'r10');
+   for(const n of [0,8]){a.load('r10',slot(96+n));a.store({base:'rax',disp:MapEntryLayout.key+n},'r10');a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');}
+   a.mov('r10',1);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('r11',slot(72));a.load('r10',{base:'r11',disp:MapLayout.tail});const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.store({base:'r11',disp:MapLayout.head},'rax');a.label(linked);a.store({base:'r11',disp:MapLayout.tail},'rax');a.load('r10',{base:'r11',disp:MapLayout.count});a.add('r10',1);a.store({base:'r11',disp:MapLayout.count},'r10');a.label(finish);
+   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
+  }else if(name==='clear'){
+   a.load('r11',slot(72));a.load('rax',{base:'r11',disp:MapLayout.head});const loop=a.unique('loop'),done=a.unique('done');a.label(loop);a.test('rax','rax');a.jcc('e',done);a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.jmp(loop);a.label(done);a.mov('rax',0);a.store({base:'r11',disp:MapLayout.count},'rax');a.load('rcx',slot(40));a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+  }else{
+   a.load('rax',slot(64));a.mov('r10',0);a.test('rax','rax');const missing=a.unique('missing');a.jcc('e',missing);a.mov('r10',1);
+   if(name==='delete'){a.mov('rdx',0);a.store({base:'rax',disp:MapEntryLayout.active},'rdx');a.load('r11',slot(72));a.load('rdx',{base:'r11',disp:MapLayout.count});a.sub('rdx',1);a.store({base:'r11',disp:MapLayout.count},'rdx');}
+   a.label(missing);a.load('rcx',slot(40));a.mov('rax',2);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');
+  }
+ });
+}
