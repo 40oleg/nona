@@ -58,6 +58,31 @@ test('RegExp test matches plain UTF-16 substrings without flags',()=>expectProgr
   console.log(new RegExp('a+').test('aaa'));
 `,'true false true\ntrue true\ntrue\n'));
 
+test('Unicode dot matches surrogate pairs and updates lastIndex in UTF-16 units',()=>expectProgram(`
+  let re=/./ug;
+  let first=re.exec('𝌆x'),second=re.exec('𝌆x');
+  console.log(first[0],first[0].length,first.index,second[0],second.index,re.lastIndex);
+  re.lastIndex=1;let middle=re.exec('𝌆x');
+  console.log(middle[0].length,middle.index,re.lastIndex);
+  let sticky=/./uy;sticky.lastIndex=1;
+  console.log(sticky.exec('𝌆x')[0].length,sticky.lastIndex);
+  console.log(/./u.exec('\\nX')[0],/./su.exec('\\nX')[0]==='\\n');
+`,'𝌆 2 0 x 2 3\n2 0 2\n2 2\nX true\n'));
+
+test('Unicode search does not start inside a surrogate pair',()=>expectProgram(`
+  let low=new RegExp('\\udf06','u');
+  console.log(low.exec('\\ud834\\udf06')===null,low.exec('\\udf06').index);
+  let plain=new RegExp('\\udf06');
+  console.log(plain.exec('\\ud834\\udf06').index);
+`,'true 0\n1\n'));
+
+test('Four digit Unicode escapes match code units',()=>expectProgram(String.raw`
+  console.log(/\u0041/.exec('xA')[0],/\u0061/.exec('xA'),/\u00E9/.exec('é')[0]);
+  let re=/\udf06/uy;re.lastIndex=1;
+  console.log(re.exec('\ud834\udf06'),re.lastIndex);
+  console.log(/\udf06/u.exec('\udf06')[0].length);
+`,'A null é\nnull 0\n1\n'));
+
 test('RegExp exec returns match metadata for plain patterns',()=>expectProgram(`
   let match=new RegExp('猫').exec('黒猫白猫');
   console.log(match[0],match.index,match.input,match.groups,match.length);
