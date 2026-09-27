@@ -975,11 +975,17 @@ Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt
 Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
 __nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
 __nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
+__nonaRegexpVm.typedArrayBuffer=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'buffer').get;
+__nonaRegexpVm.typedArrayByteOffset=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'byteOffset').get;
 __nonaRegexpVm.typedArrayConstructor=Object.getPrototypeOf(Uint8Array);
 __nonaRegexpVm.typedArrayDefaultConstructor=__nonaRegexpVm.typedArrayConstructor.__nonaDefaultConstructorInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaDefaultConstructorInternal;
 __nonaRegexpVm.isTypedArray=__nonaRegexpVm.typedArrayConstructor.__nonaIsTypedArrayInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaIsTypedArrayInternal;
+__nonaRegexpVm.typedArrayRawLength=__nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
+delete __nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
+__nonaRegexpVm.typedArrayRawByteOffset=__nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
+delete __nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,Symbol.species,{get:Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get,configurable:true});
 __nonaRegexpVm.typedArraySpeciesCreate=function(source,length){
  var defaultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,source);
@@ -998,6 +1004,31 @@ __nonaRegexpVm.typedArraySpeciesCreate=function(source,length){
  var resultBig=resultConstructor===BigInt64Array||resultConstructor===BigUint64Array;
  if(sourceBig!==resultBig)throw new __nonaRegexpVm.bufferTypeError('TypedArray species returned incompatible content type');
  return result;
+};
+__nonaRegexpVm.typedArraySpeciesCreateView=function(source,buffer,offset,length){
+ var defaultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,source);
+ var constructor=source.constructor;
+ if(constructor===undefined)constructor=defaultConstructor;
+ else{
+  if(constructor===null||(typeof constructor!=='object'&&typeof constructor!=='function'))throw new __nonaRegexpVm.bufferTypeError('Invalid TypedArray constructor');
+  var species=constructor[Symbol.species];
+  constructor=species===undefined||species===null?defaultConstructor:species;
+ }
+ var result=new constructor(buffer,offset,length);
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,result);
+ var resultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,result);
+ var sourceBig=defaultConstructor===BigInt64Array||defaultConstructor===BigUint64Array;
+ var resultBig=resultConstructor===BigInt64Array||resultConstructor===BigUint64Array;
+ if(sourceBig!==resultBig)throw new __nonaRegexpVm.bufferTypeError('TypedArray species returned incompatible content type');
+ return result;
+};
+__nonaRegexpVm.typedArrayRelativeIndex=function(value,length){
+ var number=+value;
+ if(number!==number||number===0)return 0;
+ if(number===Infinity)return length;
+ if(number===-Infinity)return 0;
+ number=__nonaRegexpVm.arrayBufferTrunc(number);
+ return number<0?__nonaRegexpVm.arrayBufferMax(length+number,0):__nonaRegexpVm.arrayBufferMin(number,length);
 };
 Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{value:function forEach(callbackfn){
  'use strict';
@@ -1129,4 +1160,16 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:f
   var value=sourceIsTyped?values[i]:source[i];
   if(targetOffset+i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[targetOffset+i]=value;
  }
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'subarray',{value:function subarray(begin,end){
+ 'use strict';
+ var length=__nonaRegexpVm.typedArrayRawLength(this);
+ var first=__nonaRegexpVm.typedArrayRelativeIndex(begin,length);
+ var final=end===undefined?length:__nonaRegexpVm.typedArrayRelativeIndex(end,length);
+ var newLength=__nonaRegexpVm.arrayBufferMax(final-first,0);
+ var defaultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,this);
+ var bytesPerElement=defaultConstructor.BYTES_PER_ELEMENT;
+ var buffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,this);
+ var byteOffset=__nonaRegexpVm.typedArrayRawByteOffset(this)+first*bytesPerElement;
+ return __nonaRegexpVm.typedArraySpeciesCreateView(this,buffer,byteOffset,newLength);
 },writable:true,configurable:true});`;

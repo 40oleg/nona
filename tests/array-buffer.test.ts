@@ -107,6 +107,17 @@ test('TypedArray set handles overlapping views and array-like source getters',()
   try{b.set([1],1n)}catch(error){console.log(error.name)}
 `,'1,1,2,3\n9,2,3\n4,5\nTypeError\nRangeError\nTypeError\n'));
 
+test('TypedArray subarray shares bytes and calls species with view arguments',()=>expectProgram(`
+  var a=new Uint16Array([10,20,30,40]),b=a.subarray(1,-1);
+  console.log(b.join(','),b.buffer===a.buffer,b.byteOffset,b.byteLength);
+  b[0]=77;console.log(a[1]);
+  console.log(a.subarray(-2).join(','),a.subarray(3,1).length);
+  var args='';a.constructor={[Symbol.species]:function(buffer,offset,length){args=[buffer===a.buffer,offset,length].join(',');return new Uint16Array(buffer,offset,length)}};
+  console.log(a.subarray(2).join(','),args);
+  var c=new BigInt64Array([1n,2n,3n]);console.log(c.subarray(1).join(','));
+  try{a.subarray(1n)}catch(error){console.log(error.name)}
+`,'20,30 true 2 4\n77\n30,40 0\n30,40 true,4,2\n2,3\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);

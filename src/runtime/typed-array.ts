@@ -11,8 +11,8 @@ import {FunctionLayout as F,FunctionKind} from './functions.js';
 export const TypedArrayKind=13;
 export const TypedArrayLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,length:O.size+24,elementType:O.size+32,size:O.size+40} as const;
 const typedArrayWidths=[['Uint8Array','uint8array',1],['Int8Array','int8array',1],['Uint8ClampedArray','uint8clampedarray',1],['Uint16Array','uint16array',2],['Int16Array','int16array',2],['Uint32Array','uint32array',4],['Int32Array','int32array',4],['Float32Array','float32array',4],['Float64Array','float64array',8],['BigInt64Array','bigint64array',8],['BigUint64Array','biguint64array',8]] as const;
-export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayDefaultConstructor.fn','rt.typedArrayIsTypedArray.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn','rt.typedArrayCopyWithin.fn','rt.typedArrayFill.fn',...['Includes','IndexOf','LastIndexOf'].map(name=>'rt.typedArray'+name+'.fn')];
-export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.TypedArray.__nonaDefaultConstructorInternal','rt.TypedArray.__nonaIsTypedArrayInternal','rt.typedArrayPrototype.constructor',...typedArrayWidths.map(([,lower])=>'rt.'+lower+'Prototype.@@toStringTag'),...typedArrayWidths.flatMap(([name,lower])=>['rt.'+name+'.BYTES_PER_ELEMENT','rt.'+lower+'Prototype.BYTES_PER_ELEMENT']),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill','includes','indexOf','lastIndexOf'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
+export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayDefaultConstructor.fn','rt.typedArrayIsTypedArray.fn','rt.typedArrayRawLength.fn','rt.typedArrayRawByteOffset.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn','rt.typedArrayCopyWithin.fn','rt.typedArrayFill.fn',...['Includes','IndexOf','LastIndexOf'].map(name=>'rt.typedArray'+name+'.fn')];
+export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.TypedArray.__nonaDefaultConstructorInternal','rt.TypedArray.__nonaIsTypedArrayInternal','rt.TypedArray.__nonaRawLengthInternal','rt.TypedArray.__nonaRawByteOffsetInternal','rt.typedArrayPrototype.constructor',...typedArrayWidths.map(([,lower])=>'rt.'+lower+'Prototype.@@toStringTag'),...typedArrayWidths.flatMap(([name,lower])=>['rt.'+name+'.BYTES_PER_ELEMENT','rt.'+lower+'Prototype.BYTES_PER_ELEMENT']),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill','includes','indexOf','lastIndexOf'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
 
 export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.typedArrayPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -65,6 +65,14 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.load('r10',{base:'r8',disp:8});a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',TypedArrayKind);a.jcc('ne',done);
   a.mov('rax',1);a.label(done);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
+ for(const [name,offset] of [['RawLength',TypedArrayLayout.length],['RawByteOffset',TypedArrayLayout.byteOffset]] as const){
+  const symbol='rt.typedArray'+name+'.fn';prependFunctionBuiltin(b,symbol,'__nona'+name+'Internal',1,'rt.TypedArray');
+  b.fn(symbol+'.code',40,a=>{
+   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+   a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+   a.load('rax',{base:'r10',disp:offset});a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+  });
+ }
  b.fn('rt.typedArrayDefaultConstructor.fn.code',40,a=>{
   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
