@@ -266,3 +266,19 @@ test('Uint8Array inherits abstract TypedArray constructor and shared accessors',
   try{new TypedArray(1)}catch(error){console.log(error.name)}
   try{TypedArray()}catch(error){console.log(error.name)}
 `,'TypedArray 0 true true\ntrue false\n2 true\nTypeError\nTypeError\n'));
+
+test('TypedArray.of constructs receiver and converts each element',()=>expectProgram(`
+  var bytes=Uint8Array.of(1,257,-1);console.log(bytes instanceof Uint8Array,bytes.length,bytes[0],bytes[1],bytes[2]);
+  class Child extends Uint8Array{};var child=Child.of(4,260);console.log(child instanceof Child,child.length,child[0],child[1]);
+  var TypedArray=Object.getPrototypeOf(Uint8Array);console.log(TypedArray.of.length,TypedArray.of.call(Uint8Array).length);
+  try{TypedArray.of.call({},1)}catch(error){console.log(error.name)}
+  class Short extends Uint8Array{constructor(){super(1)}}
+  try{Short.of(1,2)}catch(error){console.log(error.name)}
+`,'true 3 1 1 255\ntrue 2 4 4\n0 0\nTypeError\nTypeError\n'));
+
+test('TypedArray.of keeps values rooted during coercion',()=>{
+ const source=`var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 258}};var bytes=Uint8Array.of(value,7);console.log(bytes[0],bytes[1],bytes.length);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'2 7 2\n');
+});
