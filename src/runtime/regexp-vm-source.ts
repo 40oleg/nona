@@ -48,6 +48,12 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='v')return {kind:'char',value:'\v'};
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0')return {kind:'char',value:'\0'};
+      if(c==='c'){
+        var control=pattern.charCodeAt(at);
+        if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
+        if(flags.indexOf('u')>=0)error();
+        return {kind:'char',value:'c'}
+      }
       if(c==='x'||c==='u'){
         if(c==='u'&&flags.indexOf('u')>=0&&pattern[at]==='{'){
           at++;
@@ -67,6 +73,14 @@ export const regexpVmSource=String.raw`(function(){
           return {kind:'char',value:String.fromCodePoint(codePoint)}
         }
         var count=c==='x'?2:4,n=0;
+        if(flags.indexOf('u')<0){
+          var valid=true;
+          for(var probe=0;probe<count;probe++){
+            var digitCode=pattern.charCodeAt(at+probe);
+            if(!(digitCode>=48&&digitCode<=57||digitCode>=65&&digitCode<=70||digitCode>=97&&digitCode<=102))valid=false
+          }
+          if(!valid)return {kind:'char',value:c}
+        }
         for(var j=0;j<count;j++){
           if(at>=pattern.length)error();
           var k=pattern.charCodeAt(at++);
@@ -79,6 +93,7 @@ export const regexpVmSource=String.raw`(function(){
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
+        if(flags.indexOf('u')<0&&pattern.indexOf('(?<')<0)return {kind:'char',value:'k'};
         at++;
         var start=at;
         while(at<pattern.length&&pattern[at]!=='>'&&pattern[at]!=='\\')at++;
@@ -578,4 +593,68 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
     }
   }
   return accumulated+input.slice(nextSourcePosition)
-}})[Symbol.replace],writable:true,configurable:true});`;
+}})[Symbol.replace],writable:true,configurable:true});
+Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](string,limit){
+  'use strict';
+  if(this===null||(typeof this!=='object'&&typeof this!=='function'))throw new TypeError('Invalid RegExp receiver');
+  if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var input=String(string);
+  var ctor=this.constructor,species;
+  if(ctor===undefined)species=RegExp;
+  else{
+    if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new TypeError('Invalid RegExp constructor');
+    species=ctor[Symbol.species];
+    if(species===null||species===undefined)species=RegExp
+  }
+  var flagValue=this.flags;
+  if(typeof flagValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var flags=String(flagValue),unicode=flags.indexOf('u')>=0;
+  var stickyFlags=flags.indexOf('y')>=0?flags:flags+'y';
+  var splitter=new species(this,stickyFlags);
+  var length=input.length,result=[],max=limit===undefined?4294967295:limit>>>0;
+  if(max===0)return result;
+  if(length===0){
+    if(splitter.exec(input)!==null)return result;
+    result[0]=input;return result
+  }
+  var p=0,q=0;
+  while(q<length){
+    splitter.lastIndex=q;
+    var match=splitter.exec(input);
+    if(match===null){
+      var step=1;
+      if(unicode&&q+1<length){
+        var first=input.charCodeAt(q),second=input.charCodeAt(q+1);
+        if(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff)step=2
+      }
+      q+=step;continue
+    }
+    if(typeof match!=='object'&&typeof match!=='function')throw new TypeError('RegExp exec returned invalid result');
+    var e=Number(splitter.lastIndex);
+    if(e!==e||e<0)e=0;
+    else if(e>9007199254740991)e=9007199254740991;
+    else e=Math.floor(e);
+    if(e>length)e=length;
+    if(e===p){
+      var step=1;
+      if(unicode&&q+1<length){
+        var first=input.charCodeAt(q),second=input.charCodeAt(q+1);
+        if(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff)step=2
+      }
+      q+=step;continue
+    }
+    result[result.length]=input.slice(p,q);
+    if(result.length===max)return result;
+    p=e;
+    var captures=Number(match.length);
+    if(captures!==captures||captures<0)captures=0;
+    else captures=Math.floor(captures);
+    for(var i=1;i<captures;i++){
+      result[result.length]=match[i];
+      if(result.length===max)return result
+    }
+    q=p
+  }
+  result[result.length]=input.slice(p,length);
+  return result
+}})[Symbol.split],writable:true,configurable:true});`;

@@ -499,7 +499,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.test('r8','r8');a.jcc('ne',scanNext);
   for(const code of '(){}*+?|'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',vmMatch);}
   a.jmp(scanNext);
-  a.label(scanEscape);a.cmp('r11',1);a.jcc('be',scanNext);a.load('rax',{base:'r10',disp:2},16);a.cmp('rax',112);a.jcc('e',vmMatch);a.cmp('rax',80);a.jcc('e',vmMatch);a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
+  a.label(scanEscape);a.cmp('r11',1);a.jcc('be',scanNext);a.load('rax',{base:'r10',disp:2},16);for(const code of [112,80,107,120,88,99,117]){a.cmp('rax',code);a.jcc('e',vmMatch);}a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
   a.label(scanClass);a.xor('r8',1);
   a.label(scanNext);a.add('r10',2);a.sub('r11',1);a.jmp(scan);
   a.label(vmMatch);
