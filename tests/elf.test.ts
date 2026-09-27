@@ -32,7 +32,7 @@ function executeLinux(image:Uint8Array,t:TestContext):string|null {
   if(process.platform==='linux'){
    chmodSync(file,0o700);run=spawnSync(file,[],{encoding:'utf8',timeout:10000});
   }else if(process.platform==='win32'){
-   const probe=spawnSync('wsl.exe',['--exec','/bin/true'],{timeout:3000});
+   const probe=spawnSync('wsl.exe',['--exec','/bin/true'],{timeout:10000});
    if(probe.error||probe.status!==0){t.skip('WSL Linux is unavailable');return null;}
    const translated=spawnSync('wsl.exe',['--exec','wslpath','-a',file],{encoding:'utf8',timeout:5000});
    assert.equal(translated.status,0,translated.stderr);
@@ -130,6 +130,13 @@ test('Linux native TypedArray reverse swaps 64-bit elements',t=>{
  const result=compile(source,{fileName:'typed-array-reverse.js',target:'linux-x64'});
  assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'3 2 1\n');
+});
+
+test('Linux native TypedArray copyWithin handles overlapping BigInt elements',t=>{
+ const source=`let a=BigUint64Array.of(1n,2n,3n,4n);a.copyWithin(1,0,3);console.log(String(a[0]),String(a[1]),String(a[2]),String(a[3]));`;
+ const result=compile(source,{fileName:'typed-array-copywithin.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'1 1 2 3\n');
 });
 
 test('Linux native output encodes UTF-16 as UTF-8',t=>{

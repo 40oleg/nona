@@ -412,3 +412,21 @@ test('TypedArray reverse keeps shared backing under stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 -1 true\n');
 });
+
+test('TypedArray copyWithin handles overlap, ranges, and exact element bytes',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3,4,5]);console.log(a.copyWithin(1,0,4)===a,Array.from(a).join(','));
+  var b=new Int16Array([1,2,3,4,5]);b.copyWithin(0,1,4);console.log(Array.from(b).join(','));
+  var c=new Float64Array([1,-0,NaN,4]);c.copyWithin(-2,0,2);console.log(c[2],1/c[3]);
+  var big=BigUint64Array.of(1n,2n,3n,4n);big.copyWithin(1,0,3);console.log(Array.from(big).map(String).join(','));
+  var buffer=new ArrayBuffer(16),offset=new Uint16Array(buffer,4,4);offset[0]=10;offset[1]=20;offset[2]=30;offset[3]=40;offset.copyWithin(2,0,2);console.log(Array.from(offset).join(','),new DataView(buffer).getUint16(0,true));
+  var d=new Uint8Array([1,2,3]);d.copyWithin(0,2,1);console.log(Array.from(d).join(','));
+  console.log(new Uint8Array(0).copyWithin(0,0).length,Uint8Array.prototype.copyWithin.length);
+  try{Uint8Array.prototype.copyWithin.call({})}catch(error){console.log(error.name)}
+`,'true 1,1,2,3,4\n2,3,4,4,5\n1 -Infinity\n1,1,2,3\n10,20,10,20 0\n1,2,3\n0 2\nTypeError\n'));
+
+test('TypedArray copyWithin keeps receiver and bounds rooted through coercion',()=>{
+ const source=`var a=BigInt64Array.of(1n,2n,3n),target={valueOf(){for(var i=0;i<30;i++)new ArrayBuffer(i);return 1}};a.copyWithin(target,0,2);console.log(String(a[0]),String(a[1]),String(a[2]));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'1 1 2\n');
+});
