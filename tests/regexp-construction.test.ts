@@ -105,6 +105,14 @@ test('RegExp VM matches decoded character class atoms and ranges',()=>expectProg
   console.log(/[\cA]/.test('\u0001'),/[\b]/.test('\b'));
 `,'true true\ntrue true\ntrue true\n'));
 
+test('RegExp constructor validates Unicode escapes and references',()=>expectProgram(String.raw`
+  for(let pair of [['\\q','u'],['[\\q]','u'],['\\1','u'],['(a)\\2','u'],['(?<x>a)\\k<y>',''],['(?<x>a)\\k<y>','u'],['\\-','u']]){
+    try{new RegExp(pair[0],pair[1])}catch(error){console.log(error.name)}
+  }
+  console.log(new RegExp('\\k<y>').source,new RegExp('[\\-]','u').test('-'));
+  console.log(new RegExp('\\1(a)','u').test('aa'));
+`,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n\\k<y> true\ntrue\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);

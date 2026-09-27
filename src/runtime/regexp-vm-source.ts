@@ -85,7 +85,10 @@ export const regexpVmSource=String.raw`(function(){
           if(control>=65&&control<=90||control>=97&&control<=122){cursor++;point=control%32}
           else if(unicode)error();else point=99
         }
-        else point=charCodeAt(c,0);
+        else{
+          if(unicode&&indexOf('^$\\.*+?()[]{}|/-',c)<0)error();
+          point=charCodeAt(c,0)
+        }
         return {point:point,set:false}
       }
       while(cursor<body.length){
@@ -127,7 +130,10 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='t')return {kind:'char',value:'\t'};
       if(c==='v')return {kind:'char',value:'\v'};
       if(c==='f')return {kind:'char',value:'\f'};
-      if(c==='0')return {kind:'char',value:'\0'};
+      if(c==='0'){
+        if(indexOf(flags,'u')>=0&&digit(pattern[at]))error();
+        return {kind:'char',value:'\0'}
+      }
       if(c==='c'){
         var control=charCodeAt(pattern,at);
         if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
@@ -186,6 +192,7 @@ export const regexpVmSource=String.raw`(function(){
         while(at<pattern.length&&digit(pattern[at]))number=number*10+(charCodeAt(pattern,at++)-48);
         return {kind:'backref',value:number}
       }
+      if(indexOf(flags,'u')>=0&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
       return {kind:'char',value:c}
     }
     function atom(){
@@ -272,6 +279,19 @@ export const regexpVmSource=String.raw`(function(){
     }
     var tree=disjunction();
     if(at!==pattern.length)error();
+    function validateReferences(node){
+      if(node.kind==='backref'){
+        if(indexOf(flags,'u')>=0&&node.value>groups)error()
+      }else if(node.kind==='namedBackref'){
+        var found=false;
+        for(var i=0;i<names.length;i++)if(names[i].name===node.value)found=true;
+        if(!found)error()
+      }else if(node.kind==='group'||node.kind==='look'||node.kind==='repeat')validateReferences(node.value);
+      else if(node.kind==='sequence'||node.kind==='alternative'){
+        for(var i=0;i<node.value.length;i++)validateReferences(node.value[i])
+      }
+    }
+    validateReferences(tree);
     return {tree:tree,groups:groups,flags:flags,names:names}
   }
   function copy(caps){
