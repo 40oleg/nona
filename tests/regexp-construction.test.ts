@@ -22,6 +22,14 @@ test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   }
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n'));
 
+test('RegExp flag accessors and generic flags getter',()=>expectProgram(`
+  let re=new RegExp('x','yimgus');
+  console.log(re.global,re.ignoreCase,re.multiline,re.dotAll,re.unicode,re.sticky,re.flags);
+  let get=Object.getOwnPropertyDescriptor(RegExp.prototype,'flags').get;
+  console.log(get.call({global:1,ignoreCase:0,multiline:'x',dotAll:false,unicode:true,sticky:[]}));
+  console.log(RegExp.prototype.global,RegExp.prototype.flags);
+`,'true true true true true true gimsuy\ngmuy\nundefined \n'));
+
 test('RegExp test matches plain UTF-16 substrings without flags',()=>expectProgram(`
   let re=new RegExp('needle');
   console.log(re.test('hay needle stack'),re.test('haystack'),new RegExp('').test('anything'));
