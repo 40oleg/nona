@@ -57,6 +57,28 @@ def read_ranges(filename, prefix, allowed=None):
 
 read_ranges('Scripts.txt', 'sc=')
 read_ranges('ScriptExtensions.txt', 'scx=')
+def complement(items):
+    merged = []
+    for first, last in sorted(items):
+        if merged and first <= merged[-1][1] + 1:
+            merged[-1] = (merged[-1][0], max(last, merged[-1][1]))
+        else:
+            merged.append((first, last))
+    result = []
+    cursor = 0
+    for first, last in merged:
+        if cursor < first:
+            result.append((cursor, first - 1))
+        cursor = last + 1
+    if cursor <= 0x10ffff:
+        result.append((cursor, 0x10ffff))
+    return result
+
+unassigned = complement(ranges['Assigned'])
+ranges['gc=Cn'] = unassigned
+ranges['gc=C'].extend(unassigned)
+ranges['gc=LC'] = ranges['gc=Lu'] + ranges['gc=Ll'] + ranges['gc=Lt']
+ranges['sc=Unknown'] = complement([span for key, spans in ranges.items() if key.startswith('sc=') for span in spans])
 binary = '''ASCII_Hex_Digit Alphabetic Bidi_Control Case_Ignorable Cased Changes_When_Casefolded Changes_When_Casemapped Changes_When_Lowercased Changes_When_NFKC_Casefolded Changes_When_Titlecased Changes_When_Uppercased Dash Default_Ignorable_Code_Point Deprecated Diacritic Emoji Emoji_Component Emoji_Modifier Emoji_Modifier_Base Emoji_Presentation Extended_Pictographic Extender Grapheme_Base Grapheme_Extend Hex_Digit IDS_Binary_Operator IDS_Trinary_Operator ID_Continue ID_Start Ideographic Join_Control Logical_Order_Exception Lowercase Math Noncharacter_Code_Point Pattern_Syntax Pattern_White_Space Quotation_Mark Radical Regional_Indicator Sentence_Terminal Soft_Dotted Terminal_Punctuation Unified_Ideograph Uppercase Variation_Selector White_Space XID_Continue XID_Start'''.split()
 for filename in ('PropList.txt', 'DerivedCoreProperties.txt', 'emoji-emoji-data.txt', 'DerivedNormalizationProps.txt'):
     read_ranges(filename, '', set(binary))

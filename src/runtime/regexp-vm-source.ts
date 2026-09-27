@@ -6,9 +6,9 @@ export const regexpVmSource=String.raw`(function(){
   var unicodeData=@@UNICODE_DATA@@;
   var rangeCache={};
   function propertyRanges(name){
-    if(rangeCache[name]!==undefined)return rangeCache[name];
+    if(typeof rangeCache[name]==='object')return rangeCache[name];
     var index=unicodeData.names[name];
-    if(index===undefined)throw new SyntaxError('Invalid Unicode property');
+    if(typeof index!=='number')throw new SyntaxError('Invalid Unicode property');
     var encoded=unicodeData.values[index];
     var ranges=[];
     for(var i=0;i<encoded.length;i+=12)ranges.push([parseInt(encoded.slice(i,i+6),16),parseInt(encoded.slice(i+6,i+12),16)]);
@@ -281,6 +281,29 @@ export const regexpVmSource=String.raw`(function(){
         return seen===null?next(pos,caps):null
       }
       if(k==='repeat'){
+        var simple=node.value.kind;
+        if(simple==='char'||simple==='dot'||simple==='class'||simple==='classEscape'||simple==='property'){
+          var positions=[pos],end=pos;
+          while(positions.length-1<node.max){
+            var one=run(node.value,end,caps,function(after){return {end:after}});
+            steps--;
+            if(one===null||one.end===end)break;
+            end=one.end;positions.push(end)
+          }
+          if(positions.length-1<node.min)return null;
+          if(node.lazy){
+            for(var count=node.min;count<positions.length;count++){
+              var result=next(positions[count],caps);
+              if(result!==null)return result
+            }
+          }else{
+            for(var count=positions.length-1;count>=node.min;count--){
+              var result=next(positions[count],caps);
+              if(result!==null)return result
+            }
+          }
+          return null
+        }
         function repeat(count,p,a){
           function more(){
             if(count>=node.max)return null;

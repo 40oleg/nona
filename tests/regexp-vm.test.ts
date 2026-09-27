@@ -21,5 +21,7 @@ test('RegExp Unicode properties match categories, scripts and supplementary poin
   console.log(/\\p{General_Category=Decimal_Number}+/u.exec('ab123')[0]);
   console.log(/\\p{scx=Hira}/u.test('ー'),/\\p{sc=Hira}/u.test('ー'));
   console.log(/\\p{Script=Deseret}/u.test('𐐀'));
+  console.log(/\\p{Cn}/u.test('\u0378'),/\\p{Script=Unknown}/u.test('\u0378'));
+  console.log(/\\p{LC}+/u.exec('12Aa')[0]);
   console.log(/\\p{L}/.test('p{L}'));
-`,'αβ\nαβ\nαβ\n123\ntrue false\ntrue\ntrue\n'));
+`,'αβ\nαβ\nαβ\n123\ntrue false\ntrue\ntrue true\nAa\ntrue\n'));
