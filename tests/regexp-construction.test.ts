@@ -79,6 +79,12 @@ test('plain exec converts lastIndex even without global or sticky flags',()=>exp
   console.log(re.exec('ba').index,count,typeof re.lastIndex);
 `,'1 1 object\n'));
 
+test('dot wildcard respects line terminators and dotAll',()=>expectProgram(String.raw`
+  console.log(/a.c/.test('a猫c'),/a.c/.test('a\nc'),/a.c/s.test('a\nc'));
+  console.log(/./.exec('x')[0],/./.exec('\u2028'),/./s.exec('\u2028')[0]==='\u2028');
+  let re=/c.t/gy;re.lastIndex=1;console.log(re.exec('xcat').index,re.lastIndex);
+`,'true false true\nx null true\n1 4\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));
@@ -90,4 +96,11 @@ test('RegExp internal strings survive stress GC',()=>{
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi true needle 1 true\n');
+});
+
+test('RegExp wildcard match text survives stress GC',()=>{
+ const source=`let re=/a.c/g;let m=re.exec('猫abc');console.log(m[0],m.index,re.lastIndex);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'abc 1 4\n');
 });
