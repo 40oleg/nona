@@ -21,6 +21,8 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.Uint8Array':['length','name','prototype'],
   'rt.Int8Array':['length','name','prototype'],
   'rt.Uint8ClampedArray':['length','name','prototype'],
+  'rt.Int16Array':['length','name','prototype'],
+  'rt.Uint16Array':['length','name','prototype'],
   'rt.TypedArray':['length','name','prototype','of'],
   'rt.String':['length','name','prototype','fromCharCode','fromCodePoint','raw'],
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
@@ -38,10 +40,12 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.uint8arrayPrototype':['constructor','@@toStringTag'],
   'rt.int8arrayPrototype':['constructor','@@toStringTag'],
   'rt.uint8clampedarrayPrototype':['constructor','@@toStringTag'],
+  'rt.int16arrayPrototype':['constructor','@@toStringTag'],
+  'rt.uint16arrayPrototype':['constructor','@@toStringTag'],
   'rt.iteratorPrototype':['next','@@iterator'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables']],
   'rt.console':['log'],
-  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','ArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Symbol','BigInt',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
+  'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','ArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','globalThis','undefined','NaN','Infinity','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };
  const fragments=new Map(b.bundle.fragments.map(f=>[f.name,f]));

@@ -314,3 +314,23 @@ test('Uint8ClampedArray conversion survives stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'12 12 2\n');
 });
+
+test('Uint16Array and Int16Array use two-byte elements and signed reads',()=>expectProgram(`
+  var buffer=new ArrayBuffer(8),unsigned=new Uint16Array(buffer,2,2),signed=new Int16Array(buffer,2,2),view=new DataView(buffer);
+  unsigned[0]=0x1234;signed[1]=-2;
+  console.log(unsigned.length,unsigned.byteLength,unsigned.byteOffset,unsigned[0],unsigned[1],signed[0],signed[1]);
+  console.log(view.getUint16(2,true),view.getUint16(4,true),ArrayBuffer.isView(signed));
+  var a=new Uint16Array([65537,-1,3.9]),b=Int16Array.of(65535,32768,-32769);
+  console.log(a.length,a.byteLength,a.buffer.byteLength,a[0],a[1],a[2]);
+  console.log(b[0],b[1],b[2],Object.prototype.toString.call(b));
+  try{new Uint16Array(buffer,1)}catch(error){console.log(error.name)}
+  try{new Int16Array(new ArrayBuffer(3))}catch(error){console.log(error.name)}
+  console.log(new Uint16Array(new ArrayBuffer(3),0,1).byteLength);
+`,'2 4 2 4660 65534 4660 -2\n4660 65534 true\n3 6 6 1 65535 3\n-1 -32768 32767 [object Int16Array]\nRangeError\nRangeError\n2\n'));
+
+test('sixteen-bit indexed descriptors and iterators survive stress GC',()=>{
+ const source=`var view=new Int16Array([32768,65535]),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 65534}};Object.defineProperty(view,'0',{value});var iterator=view.values();for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(view.byteLength,Object.getOwnPropertyDescriptor(view,'0').value,iterator.next().value,iterator.next().value);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'4 -2 -2 -1\n');
+});

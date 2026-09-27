@@ -97,6 +97,13 @@ test('Linux native Uint8ClampedArray rounds ties to even',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 2 2 255\n');
 });
 
+test('Linux native sixteen-bit typed arrays share buffer bytes',t=>{
+ const source=`let b=new ArrayBuffer(4),u=new Uint16Array(b),s=new Int16Array(b),v=new DataView(b);u[0]=0x1234;s[1]=-2;console.log(u[0],s[1],v.getUint16(0,true),v.getUint16(2,true));`;
+ const result=compile(source,{fileName:'int16-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'4660 -2 4660 65534\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});
