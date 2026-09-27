@@ -23,6 +23,13 @@ test('RegExp lookbehind matches backwards with captures and greedy repeats',()=>
   console.log(choice[0],choice[1],choice[2]);
 `,'def bc\nc bbbbbb\nd bc undefined\n'));
 
+test('RegExp named groups decode Unicode escapes and validate identifiers',()=>expectProgram(`
+  let found=/(?<\\u{72f8}>x)\\k<\\u{72f8}>/u.exec('xx');
+  console.log(found.groups.狸);
+  try{new RegExp('(?<🦊>x)');console.log('accepted')}catch(error){console.log(error instanceof SyntaxError)}
+  try{new RegExp('(?<2bad>x)');console.log('accepted')}catch(error){console.log(error instanceof SyntaxError)}
+`,'x\ntrue\ntrue\n'));
+
 test('RegExp Unicode properties match categories, scripts and supplementary points',()=>expectProgram(`
   console.log(/\\p{L}+/u.exec('12αβ')[0]);
   console.log(/\\P{ASCII}+/u.exec('abαβ')[0]);

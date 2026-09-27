@@ -44,6 +44,42 @@ export const regexpVmSource=String.raw`(function(){
       var n=charCodeAt(c,0);
       return n>=48&&n<=57?n-48:n>=65&&n<=70?n-55:n>=97&&n<=102?n-87:-1
     }
+    function groupName(){
+      var name='';
+      while(at<pattern.length&&pattern[at]!=='>'){
+        var character=pattern[at++];
+        if(character==='\\'){
+          if(pattern[at++]!=='u')error();
+          var value=0,count=0,braced=pattern[at]==='{';
+          if(braced){
+            at++;
+            while(at<pattern.length&&pattern[at]!=='}'){
+              var digitValue=hex(pattern[at++]);if(digitValue<0)error();
+              value=value*16+digitValue;if(++count>6||value>0x10ffff)error()
+            }
+            if(count===0||pattern[at]!=='}')error();at++
+          }else{
+            for(var j=0;j<4;j++){
+              var digitValue=hex(pattern[at++]);if(digitValue<0)error();
+              value=value*16+digitValue
+            }
+          }
+          character=String.fromCodePoint(value)
+        }
+        name+=character
+      }
+      if(pattern[at]!=='>')error();at++;
+      if(name.length===0)error();
+      var starts=propertyRanges('ID_Start'),continues=propertyRanges('ID_Continue');
+      for(var i=0;i<name.length;){
+        var point=name.codePointAt(i),valid;
+        if(i===0)valid=point===36||point===95||propertyMatch(starts,point);
+        else valid=point===36||point===95||point===0x200c||point===0x200d||propertyMatch(continues,point);
+        if(!valid)error();
+        i+=point>0xffff?2:1
+      }
+      return name
+    }
     function parseClass(body){
       var inverted=body[0]==='^',cursor=inverted?1:0,unicode=indexOf(flags,'u')>=0,items=[];
       function unit(){
@@ -200,10 +236,7 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='k'&&pattern[at]==='<'){
         if(indexOf(flags,'u')<0&&indexOf(pattern,'(?<')<0)return {kind:'char',value:'k'};
         at++;
-        var start=at;
-        while(at<pattern.length&&pattern[at]!=='>'&&pattern[at]!=='\\')at++;
-        if(at===start||pattern[at]!=='>')error();
-        var name=slice(pattern,start,at++);
+        var name=groupName();
         return {kind:'namedBackref',value:name}
       }
       if(c>='1'&&c<='9'){
@@ -239,10 +272,7 @@ export const regexpVmSource=String.raw`(function(){
         else{
           if(pattern[at]==='?'&&pattern[at+1]==='<'){
             at+=2;
-            var start=at;
-            while(at<pattern.length&&pattern[at]!=='>'&&pattern[at]!=='\\')at++;
-            if(at===start||pattern[at]!=='>')error();
-            name=slice(pattern,start,at++);
+            name=groupName();
             for(var i=0;i<names.length;i++)if(names[i].name===name)error()
           }
           capture=++groups;
