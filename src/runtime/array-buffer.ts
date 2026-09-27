@@ -6,9 +6,9 @@ import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './
 import {stringLiteral} from './value.js';
 
 export const ArrayBufferKind=11;
-export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,size:O.size+16} as const;
-export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn'];
-export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer')];
+export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,detached:O.size+16,size:O.size+24} as const;
+export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn','rt.arrayBufferDetach.fn'];
+export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferDetach.fn','__nonaDetachInternal','rt.ArrayBuffer')];
 
 export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -18,6 +18,16 @@ export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitArrayBuffer(b:RuntimeBuilder):void {
+ prependFunctionBuiltin(b,'rt.arrayBufferDetach.fn','__nonaDetachInternal',1,'rt.ArrayBuffer');
+ b.fn('rt.arrayBufferDetach.fn.code',40,a=>{
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store({base:'r10',disp:ArrayBufferLayout.byteLength},'rax');
+  a.mov('rax',1);a.store({base:'r10',disp:ArrayBufferLayout.detached},'rax');
+  a.mov('rax',0);
+  a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+ });
  prependFunctionBuiltin(b,'rt.ArrayBuffer.isView.fn','isView',1,'rt.ArrayBuffer');
  b.fn('rt.ArrayBuffer.isView.fn.code',40,a=>{
   a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');
@@ -31,8 +41,10 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
   a.cmp('rdx',4);failIf(a,'b','rt.throwTypeError');
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(40),'r10');
+  a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   a.load('rax',{base:'r8',disp:16});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'r8',disp:24});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(48),'r10');
+  a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   for(const [source,target] of [[32,56],[48,64]] as const){
    a.load('rax',{base:'r8',disp:source});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');
    a.movsd('xmm0',{base:'r8',disp:source+8});a.cvttsd2si('rax','xmm0');a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(target),'rax');
@@ -107,6 +119,7 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(64));a.store({base:'rax',disp:ArrayBufferLayout.bytes},'r10');
   a.load('r10',slot(72));a.store({base:'rax',disp:ArrayBufferLayout.byteLength},'r10');
+  a.mov('r10',0);a.store({base:'rax',disp:ArrayBufferLayout.detached},'r10');
   a.load('rcx',slot(40));a.mov('r10',5);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
 }

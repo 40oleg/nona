@@ -19,7 +19,7 @@ if (revision.error || revision.status !== 0 || revision.stdout.trim() !== PIN) {
 if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error('Native Test262 smoke run currently requires Windows x64');
 }
-const harness = 'var print = function(){};\n' + ['sta.js', 'assert.js'].map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
+const harness = 'var print = function(){}; var $262={detachArrayBuffer:ArrayBuffer.__nonaDetachInternal}; delete ArrayBuffer.__nonaDetachInternal;\n' + ['sta.js', 'assert.js'].map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
 const results = [];
 function filesUnder(directory, prefix) {
   return readdirSync(directory, {withFileTypes: true}).flatMap(entry => {

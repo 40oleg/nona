@@ -6,6 +6,7 @@ import {nativeConstructorNames} from '../global-builtins.js';
 import {emitValueList} from './value-list.js';
 import {emitKeySort} from './key-sort.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 
 export function emitOwnKeys(b:RuntimeBuilder):void {
  emitValueList(b);emitKeySort(b);
@@ -41,7 +42,7 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.load('rax',{base:'rax'});a.store(slot(88),'rax');a.add('rax',1);a.store(slot(72),'rax');a.mov('rax',1);a.store(slot(96),'rax');a.jmp(allocate);
   a.label(notString);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.kind});
   const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
-  a.load('rax',slot(56));a.load('rax',{base:'rax',disp:TypedArrayLayout.length});a.store(slot(72),'rax');a.store(slot(88),'rax');a.jmp(allocate);
+  a.load('rax',slot(56));a.load('r10',{base:'rax',disp:TypedArrayLayout.buffer});a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');const attached=a.unique('attached');a.jcc('e',attached);a.mov('rax',0);a.jmp(attached+'.count');a.label(attached);a.load('rax',{base:'rax',disp:TypedArrayLayout.length});a.label(attached+'.count');a.store(slot(72),'rax');a.store(slot(88),'rax');a.jmp(allocate);
   a.label(notTyped);a.cmp('rax',1);a.jcc('ne',allocate);a.mov('rax',1);a.store(slot(72),'rax');a.store(slot(96),'rax');
   a.label(allocate);a.load('rdx',slot(64));a.load('rax',slot(72));a.add('rdx','rax');a.load('rax',slot(80));a.add('rdx','rax');a.store(slot(184),'rdx');a.lea('rcx',slot(128));a.call('rt.newValueList');
   a.load('rcx',slot(184));a.shl('rcx',3);a.call('rt.alloc');a.store(slot(176),'rax');

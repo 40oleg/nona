@@ -26,6 +26,28 @@ test('ArrayBuffer object and backing survive stress GC',()=>{
  assert.equal(run.stdout.toString(),'128 [object ArrayBuffer]\n');
 });
 
+test('ArrayBuffer detachment clears lengths and rejects buffer copies and DataView access',()=>expectProgram(`
+  var buffer=new ArrayBuffer(4),view=new DataView(buffer),typed=new Uint8Array(buffer);
+  ArrayBuffer.__nonaDetachInternal(buffer);
+  console.log(buffer.byteLength,typed.length,typed.byteLength,typed.byteOffset,typed.buffer===buffer);
+  try{buffer.slice(0)}catch(error){console.log(error.name)}
+  try{view.byteLength}catch(error){console.log(error.name)}
+  try{view.getUint8(0)}catch(error){console.log(error.name)}
+  try{new DataView(buffer)}catch(error){console.log(error.name)}
+  try{new Uint8Array(buffer)}catch(error){console.log(error.name)}
+  console.log(typed[0],0 in typed,Object.keys(typed).length,delete typed[0]);
+  try{Object.defineProperty(typed,'0',{value:9})}catch(error){console.log(error.name)}
+  for(var method of ['reverse','copyWithin','fill','includes','indexOf','lastIndexOf','values']){
+    try{typed[method]()}catch(error){console.log(method,error.name)}
+  }
+`,'0 0 0 0 true\nTypeError\nTypeError\nTypeError\nTypeError\nTypeError\nundefined false 0 true\nTypeError\nreverse TypeError\ncopyWithin TypeError\nfill TypeError\nincludes TypeError\nindexOf TypeError\nlastIndexOf TypeError\nvalues TypeError\n'));
+
+test('TypedArray copyWithin checks detachment after coercing indices',()=>expectProgram(`
+  var a=new Uint8Array(8),b=new Uint8Array(8);
+  try{a.copyWithin(0,{valueOf:function(){ArrayBuffer.__nonaDetachInternal(a.buffer);return 1}},6)}catch(error){console.log(error.name)}
+  try{b.copyWithin(0,1,{valueOf:function(){ArrayBuffer.__nonaDetachInternal(b.buffer);return 6}})}catch(error){console.log(error.name)}
+`,'TypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
