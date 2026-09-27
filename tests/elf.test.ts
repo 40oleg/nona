@@ -159,6 +159,12 @@ test('Linux native Map stores SameValueZero keys through GC stress',t=>{
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,'2 9 second true 1 9,second 9 second\n');
 });
 
+test('Linux native Set iterates values through GC stress',t=>{
+ const source=`let value={id:7},set=new Set([value,NaN,-0]);for(let i=0;i<20;i++)({i:i});let iterator=set.values(),first=iterator.next().value;console.log(set.size,set.has(value),set.has(NaN),set.has(0),first.id,iterator.next().value,iterator.next().value);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'3 true true true 7 NaN 0\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});

@@ -11,14 +11,21 @@ export const MapKind=15;
 export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,size:O.size+24} as const;
 export const MapEntryLayout={next:0,key:8,value:24,active:40,size:48} as const;
 const methods=['clear','delete','get','has','set'] as const;
-export const mapRoots=['rt.mapSize.fn','rt.map.forEach.fn',...methods.map(name=>'rt.map.'+name+'.fn')];
-export const mapPropertyRoots=['rt.mapPrototype.size','rt.mapPrototype.@@toStringTag',...mapRoots.flatMap(name=>name==='rt.mapSize.fn'?[name+'.name',name+'.length']:builtinPropertyRoots(name,name.slice(7,-3),'rt.mapPrototype'))];
+export const mapRoots=['rt.Map.species.fn','rt.mapSize.fn','rt.map.forEach.fn',...methods.map(name=>'rt.map.'+name+'.fn')];
+export const mapPropertyRoots=['rt.Map.@@species','rt.Map.species.fn.name','rt.Map.species.fn.length','rt.mapPrototype.size','rt.mapPrototype.@@toStringTag',...mapRoots.slice(1).flatMap(name=>name==='rt.mapSize.fn'?[name+'.name',name+'.length']:builtinPropertyRoots(name,name.slice(7,-3),'rt.mapPrototype'))];
 
 export function emitMapPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.mapPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0}]});
 }
 
 export function emitMap(b:RuntimeBuilder):void {
+ emitNativeFunction(b,'rt.Map.species.fn','get [Symbol.species]',0);
+ const species=new Uint8Array(P.size);species[P.attributes]=A.accessor|A.configurable;species[P.getter]=5;
+ const constructor=b.bundle.fragments.find(f=>f.name==='rt.Map')!,speciesHead=constructor.fixups.find(f=>f.offset===O.properties)!;
+ b.bundle.fragments.push({name:'rt.Map.@@species',section:'.data',alignment:8,bytes:species,symbols:{},fixups:[
+  {offset:P.next,kind:'va64',target:speciesHead.target,addend:0},{offset:P.key,kind:'va64',target:'rt.Symbol.species.value',addend:0},{offset:P.getter+8,kind:'va64',target:'rt.Map.species.fn',addend:0},
+ ]});speciesHead.target='rt.Map.@@species';
+ b.fn('rt.Map.species.fn.code',40,a=>{a.load('rdx',slot(80));for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'rcx',disp:offset},'rax');}});
  b.bundle.fragments.push(stringLiteral('rt.mapTag','Map'));
  const prototype=b.bundle.fragments.find(f=>f.name==='rt.mapPrototype')!;
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
@@ -42,7 +49,7 @@ export function emitMap(b:RuntimeBuilder):void {
   const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);a.load('r10',slot(56));a.load('rax',{base:'r10'});a.cmp('rax',1);a.jcc('e',done);a.test('rax','rax');a.jcc('e',done);
   for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(96+n),'rax');}
   a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.map.set.fn.key'});a.store(slot(120),'rax');a.lea('rcx',slot(128));a.lea('rdx',slot(80));a.lea('r8',slot(112));a.call('rt.getProperty');
-  a.load('rax',slot(128));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',slot(128));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(136));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.lea('rcx',slot(144));a.lea('rdx',slot(160));a.lea('r8',slot(96));a.call('rt.getIterator');
   const loop=a.unique('loop'),caught=a.unique('caught'),closeFailed=a.unique('closeFailed');a.label(loop);
   a.lea('rcx',slot(176));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.lea('r9',slot(160));a.call('rt.iteratorStep');a.load('rax',slot(200));a.test('rax','rax');a.jcc('ne',done);
