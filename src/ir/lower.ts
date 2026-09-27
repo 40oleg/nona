@@ -340,7 +340,12 @@ class Lowerer {
       case 'Super':throw new Error('Bare super');
       case 'This':{const dest=this.slot();this.emit({kind:'currentThis',dest});return dest;}
       case 'Literal':return this.constant(e.value);
-      case 'RegExpLiteral':throw new CompileError([{code:'E_UNSUPPORTED',message:'Native RegExp execution is not implemented yet',file:'',span:e.span}]);
+      case 'RegExpLiteral':{
+        const dest=this.slot(),pattern=this.constant(e.pattern),flags=this.constant(e.flags);
+        this.maxArguments=Math.max(this.maxArguments,2);
+        this.emit({kind:'call',dest,target:'rt.RegExp.code',arguments:[pattern,flags]});
+        return dest;
+      }
       case 'Yield':{
         if(e.delegate){
           const object=this.expression(e.argument!),iterator=this.slot(),next=this.slot(),result=this.slot(),sent=this.slot(),mode=this.slot(),returning=this.slot(),value=this.slot();

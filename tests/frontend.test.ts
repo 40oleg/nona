@@ -58,13 +58,12 @@ test('lexer separates regular expression literals from division',()=>{
   assert.equal(lex('`${/x/.test("x")}`').filter(token=>token.kind==='regexp').length,1);
   for(const source of ['var r=/x/gg;','var r=/x/z;','var r=/[a/;','var r=/x/uv;'])assert.throws(()=>lex(source));
 });
-test('RegExp literal reaches binding and reports native runtime gap',()=>{
+test('RegExp literal reaches binding and native lowering',()=>{
   const declaration=syntax('var re=/a+/gi;').body[0] as any;
   assert.deepEqual(declaration.declarations[0].init,{kind:'RegExpLiteral',pattern:'a+',flags:'gi',span:{start:7,end:13}});
   assert.doesNotThrow(()=>check('var re=/a+/gi;'));
   const result=compile('var re=/a+/gi;',{fileName:'regexp.js',target:'win32-x64'});
-  assert.equal(result.ok,false);
-  if(!result.ok)assert.equal(result.diagnostics[0]!.code,'E_UNSUPPORTED');
+  assert.equal(result.ok,true);
 });
 test('parser preserves precedence and assignment associativity', () => {
   const p = syntax('var a,b; a=b=1+2*3;');

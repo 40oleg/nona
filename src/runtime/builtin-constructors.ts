@@ -55,12 +55,13 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
    pointer(P.key,symbol+'.text'),pointer(P.value+8,symbol),...(index+1<names.length?[pointer(P.next,'rt.globalObject.'+names[index+1])]:[]),
   ]});
   const header=b.bundle.fragments.find(f=>f.name===prototype)!;
-  const head=header.fixups.find(f=>f.offset===O.properties)!;
+  const head=header.fixups.find(f=>f.offset===O.properties);
   const constructor=new Uint8Array(P.size);constructor[P.value]=5;constructor[P.attributes]=A.writable|A.configurable;
   b.bundle.fragments.push({name:prototype+'.constructor',section:'.data',alignment:8,bytes:constructor,symbols:{},fixups:[
-   pointer(P.key,'rt.str.constructor'),pointer(P.value+8,symbol),pointer(P.next,head.target),
+   pointer(P.key,'rt.str.constructor'),pointer(P.value+8,symbol),...(head?[pointer(P.next,head.target)]:[]),
   ]});
-  head.target=prototype+'.constructor';
+  if(head)head.target=prototype+'.constructor';
+  else header.fixups.push(pointer(O.properties,prototype+'.constructor'));
  }
  const numberHeader=b.bundle.fragments.find(f=>f.name==='rt.Number')!;
  const numberHead=numberHeader.fixups.find(f=>f.offset===O.properties)!;
