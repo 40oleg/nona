@@ -118,6 +118,13 @@ test('Linux native floating-point typed arrays round and share bytes',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true true true\n');
 });
 
+test('Linux native BigInt typed arrays retain all 64 bits',t=>{
+ const source=`let b=new ArrayBuffer(16),a=new BigInt64Array(b),u=new BigUint64Array(b),v=new DataView(b);a[0]=-1n;u[1]=0x8000000000000000n;console.log(String(a[0]),String(u[0]),String(a[1]),v.getBigUint64(8,true)===u[1]);`;
+ const result=compile(source,{fileName:'bigint-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 18446744073709551615 -9223372036854775808 true\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

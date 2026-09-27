@@ -375,3 +375,23 @@ test('floating-point indexed conversion and iteration survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true true true true\n');
 });
+
+test('BigInt64Array and BigUint64Array preserve exact 64-bit values',()=>expectProgram(`
+  var buffer=new ArrayBuffer(24),signed=new BigInt64Array(buffer,8,2),unsigned=new BigUint64Array(buffer,8,2),view=new DataView(buffer);
+  signed[0]=-1n;unsigned[1]=0x8000000000000000n;
+  console.log(signed.length,signed.byteLength,signed.byteOffset,String(signed[0]),String(unsigned[0]),String(signed[1]));
+  console.log(view.getBigUint64(8,true)===18446744073709551615n,view.getBigUint64(16,true)===9223372036854775808n);
+  var a=new BigInt64Array([18446744073709551615n,9223372036854775808n]),b=BigUint64Array.of(-1n,18446744073709551616n);
+  console.log(String(a[0]),String(a[1]),String(b[0]),String(b[1]));
+  Object.defineProperty(a,'0',{value:5n});console.log(String(a[0]),ArrayBuffer.isView(a),Object.prototype.toString.call(b));
+  try{a[0]=1}catch(error){console.log(error.name)}
+  try{new BigUint64Array(buffer,4)}catch(error){console.log(error.name)}
+  try{new BigInt64Array(new ArrayBuffer(9))}catch(error){console.log(error.name)}
+`,'2 16 8 -1 18446744073709551615 -9223372036854775808\ntrue true\n-1 -9223372036854775808 18446744073709551615 0\n5 true [object BigUint64Array]\nTypeError\nRangeError\nRangeError\n'));
+
+test('BigInt typed array coercion and iteration survive stress GC',()=>{
+ const source=`var a=new BigUint64Array(2),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};a[0]=value;Object.defineProperty(a,'1',{value});var it=a.values();for(var j=0;j<20;j++)new ArrayBuffer(j);console.log(a[0]===18446744073709551615n,Object.getOwnPropertyDescriptor(a,'1').value===a[0],it.next().value===a[0],it.next().value===a[1]);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'true true true true\n');
+});

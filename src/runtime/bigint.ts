@@ -12,6 +12,29 @@ export function emitBigInt(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.bigint.minus','-'));
  b.bundle.fragments.push(stringLiteral('rt.bigint.zero','0'));
  b.bundle.fragments.push(stringLiteral('rt.bigint.two','2'),stringLiteral('rt.bigint.minusone','-1'));
+ // RDX Value* -> RAX low 64 bits of ToBigInt(value). Number is deliberately rejected.
+ rootedFn(b,'rt.bigintToUint64',136,[{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
+  for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}a.mov('rax',0);a.store(slot(120),'rax');
+  const inspect=a.unique('inspect'),object=a.unique('object'),string=a.unique('string'),boolean=a.unique('boolean'),parse=a.unique('parse'),positive=a.unique('positive'),loop=a.unique('loop'),end=a.unique('end');
+  a.label(inspect);a.load('rax',slot(64));a.cmp('rax',7);a.jcc('e',parse);a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('e',string);a.cmp('rax',2);a.jcc('e',boolean);a.call('rt.throwTypeError');
+  a.label(object);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.objectToPrimitiveNumber');for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(64+n),'rax');}a.jmp(inspect);
+  a.label(string);a.lea('rcx',slot(80));a.load('rdx',slot(72));a.mov('r8',0);a.call('rt.bigintFromDecimal');for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(64+n),'rax');}a.jmp(parse);
+  a.label(boolean);a.load('rax',slot(72));a.store(slot(96),'rax');a.jmp(end);
+  a.label(parse);a.load('r10',slot(72));a.load('rax',{base:'r10'});a.store(slot(112),'rax');a.mov('rax',0);a.store(slot(96),'rax');a.store(slot(104),'rax');a.store(slot(120),'rax');
+  a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',45);a.jcc('ne',positive);a.mov('rax',1);a.store(slot(104),'rax');a.store(slot(120),'rax');a.label(positive);
+  a.label(loop);a.load('rax',slot(104));a.load('r10',slot(112));a.cmp('rax','r10');a.jcc('ae',end);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);a.sub('r11',48);a.load('rax',slot(96));a.mov('r10',10);a.imul('rax','r10');a.add('rax','r11');a.store(slot(96),'rax');a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.jmp(loop);
+  a.label(end);a.load('rax',slot(96));a.load('r10',slot(120));a.test('r10','r10');const result=a.unique('result');a.jcc('e',result);a.neg('rax');a.label(result);
+ });
+ // RDX raw bits, R8 signed flag -> RCX BigInt Value*. The decimal string is exact.
+ rootedFn(b,'rt.uint64ToBigInt',136,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(96),'rax');
+  a.load('rax',slot(56));a.test('rax','rax');const magnitude=a.unique('magnitude'),write=a.unique('write');a.jcc('e',magnitude);a.load('rax',slot(48));a.cmp('rax',0);a.jcc('ge',magnitude);a.mov('rax',1);a.store(slot(80),'rax');a.load('rax',slot(48));a.neg('rax');a.store(slot(48),'rax');a.label(magnitude);
+  a.mov('rcx',50);a.call('rt.alloc');a.mov('r10',7);a.store(slot(64),'r10');a.store(slot(72),'rax');
+  a.label(write);a.load('rax',slot(48));a.xor('rdx','rdx');a.mov('r10',10);a.div('r10');a.store(slot(48),'rax');a.add('rdx',48);a.load('r10',slot(96));a.shl('r10',1);a.load('r11',slot(72));a.add('r11','r10');a.store({base:'r11',disp:8},'rdx',16);a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.load('rax',slot(48));a.test('rax','rax');a.jcc('ne',write);
+  a.load('rax',slot(80));a.test('rax','rax');const reverse=a.unique('reverse');a.jcc('e',reverse);a.load('rax',slot(96));a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.mov('rax',45);a.store({base:'r10',disp:8},'rax',16);a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.label(reverse);
+  a.load('r10',slot(72));a.load('rax',slot(96));a.store({base:'r10'},'rax');a.mov('r8',0);a.load('r9',slot(96));a.sub('r9',1);const swap=a.unique('swap'),done=a.unique('done');a.label(swap);a.cmp('r8','r9');a.jcc('ae',done);a.mov('r10','r8');a.shl('r10',1);a.load('rax',slot(72));a.add('r10','rax');a.mov('r11','r9');a.shl('r11',1);a.add('r11','rax');a.load('rax',{base:'r10',disp:8},16);a.load('rdx',{base:'r11',disp:8},16);a.store({base:'r10',disp:8},'rdx',16);a.store({base:'r11',disp:8},'rax',16);a.add('r8',1);a.sub('r9',1);a.jmp(swap);a.label(done);
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
+ });
  rootedFn(b,'rt.bigintNeg',136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:3}],a=>{
   a.store(slot(40),'rcx');a.mov('rax',7);a.store(slot(64),'rax');a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax'});
   const zero=a.unique('zero'),negative=a.unique('negative'),done=a.unique('done');a.cmp('r10',1);a.jcc('ne','rt.bigintNeg.sign');a.load('r11',{base:'rax',disp:8},16);a.cmp('r11',48);a.jcc('e',zero);

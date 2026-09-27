@@ -120,9 +120,24 @@ export function emitDataView(b:RuntimeBuilder):void {
   });
  }
  for(const name of bigintMethods){
-  const symbol='rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
-  prependFunctionBuiltin(b,symbol,name,name.startsWith('set')?2:1,'rt.dataviewPrototype');
-  b.fn(symbol+'.code',40,a=>a.call('rt.throwTypeError'));
+  const write=name.startsWith('set'),signed=name.includes('BigInt64'),symbol='rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
+  prependFunctionBuiltin(b,symbol,name,write?2:1,'rt.dataviewPrototype');
+  rootedFn(b,symbol+'.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{
+   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+   a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(80+n),'rax');}
+   a.load('rax',slot(80));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rax',slot(88));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',DataViewKind);failIf(a,'ne','rt.throwTypeError');
+   a.mov('rax',3);a.store(slot(96),'rax');a.mov('rax',0);a.store(slot(104),'rax');const index=a.unique('index');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',index);a.lea('rcx',slot(96));a.load('rdx',slot(56));a.call('rt.toNumber');a.label(index);
+   a.movsd('xmm0',slot(104));a.ucomisd('xmm0','xmm0');const zero=a.unique('zero'),ready=a.unique('ready');a.jcc('p',zero);a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');a.cvttsd2si('rax','xmm0');a.jmp(ready);a.label(zero);a.mov('rax',0);a.label(ready);a.store(slot(72),'rax');
+   if(write){const missing=a.unique('missing'),convert=a.unique('convert');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',missing);a.load('rdx',slot(56));a.add('rdx',16);a.jmp(convert);a.label(missing);a.lea('rdx',{rip:'rt.undefinedValue'});a.label(convert);a.call('rt.bigintToUint64');a.store(slot(128),'rax');}
+   a.mov('rax',0);a.store(slot(64),'rax');const noEndian=a.unique('noEndian');a.load('rax',slot(48));a.cmp('rax',write?3:2);a.jcc('b',noEndian);a.load('rcx',slot(56));a.add('rcx',write?32:16);a.call('rt.toBoolean');a.store(slot(64),'rax');a.label(noEndian);
+   a.load('rdx',slot(88));a.load('rax',{base:'rdx',disp:DataViewLayout.byteLength});a.cmp('rax',8);failIf(a,'b','rt.throwRangeError');a.sub('rax',8);a.load('r10',slot(72));a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');a.load('rax',{base:'rdx',disp:DataViewLayout.byteOffset});a.add('rax','r10');a.load('rdx',{base:'rdx',disp:DataViewLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');
+   const little=a.unique('little'),finish=a.unique('finish');a.load('rax',slot(64));a.test('rax','rax');a.jcc('ne',little);
+   if(write){for(let i=0;i<8;i++){a.load('rax',slot(128));a.shr('rax',56-8*i);a.and('rax',255);a.store({base:'rdx',disp:i},'rax',8);}}
+   else{a.mov('rax',0);for(let i=0;i<8;i++){a.shl('rax',8);a.load('r10',{base:'rdx',disp:i},8);a.or('rax','r10');}}a.jmp(finish);a.label(little);
+   if(write){for(let i=0;i<8;i++){a.load('rax',slot(128));if(i)a.shr('rax',8*i);a.and('rax',255);a.store({base:'rdx',disp:i},'rax',8);}}
+   else{a.mov('rax',0);for(let i=7;i>=0;i--){a.shl('rax',8);a.load('r10',{base:'rdx',disp:i},8);a.or('rax','r10');}}a.label(finish);
+   a.load('rcx',slot(40));if(write){a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');}else{a.mov('rdx','rax');a.mov('r8',signed?1:0);a.call('rt.uint64ToBigInt');}
+  });
  }
  b.bundle.fragments.push(stringLiteral('rt.dataViewTag','DataView'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
