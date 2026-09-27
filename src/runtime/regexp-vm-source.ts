@@ -1,6 +1,25 @@
 // This source is compiled by Nona itself for the native RegExp fallback.
 // It deliberately uses only language features implemented by the frontend.
+import {regexpUnicodeData} from './regexp-unicode-data.js';
+
 export const regexpVmSource=String.raw`(function(){
+  var unicodeData=@@UNICODE_DATA@@;
+  var rangeCache={};
+  function propertyRanges(name){
+    if(rangeCache[name]!==undefined)return rangeCache[name];
+    var index=unicodeData.names[name];
+    if(index===undefined)throw new SyntaxError('Invalid Unicode property');
+    var encoded=unicodeData.values[index];
+    var ranges=[];
+    for(var i=0;i<encoded.length;i+=12)ranges.push([parseInt(encoded.slice(i,i+6),16),parseInt(encoded.slice(i+6,i+12),16)]);
+    rangeCache[name]=ranges;
+    return ranges
+  }
+  function propertyMatch(ranges,point){
+    var low=0,high=ranges.length-1;
+    while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
+    return false
+  }
   function compile(pattern,flags){
     var at=0,groups=0,names=[];
     function error(){throw new SyntaxError('Invalid regular expression')}
@@ -13,6 +32,14 @@ export const regexpVmSource=String.raw`(function(){
     function escaped(){
       if(at>=pattern.length)error();
       var c=pattern[at++];
+      if((c==='p'||c==='P')&&flags.indexOf('u')>=0){
+        if(pattern[at++]!=='{')error();
+        var begin=at;
+        while(at<pattern.length&&pattern[at]!=='}')at++;
+        if(at===begin||pattern[at]!=='}')error();
+        var property=pattern.slice(begin,at++);
+        return {kind:'property',value:propertyRanges(property),negated:c==='P'}
+      }
       if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {kind:'classEscape',value:c};
       if(c==='b'||c==='B')return {kind:'boundary',value:c};
       if(c==='n')return {kind:'char',value:'\n'};
@@ -109,7 +136,7 @@ export const regexpVmSource=String.raw`(function(){
         }
         error()
       }
-      if(c==='*'||c==='+'||c==='?'||c==='{'||c==='}')error();
+      if(c==='*'||c==='+'||c==='?'||(flags.indexOf('u')>=0&&(c==='{'||c==='}')))error();
       if(flags.indexOf('u')>=0&&c.charCodeAt(0)>=0xd800&&c.charCodeAt(0)<=0xdbff&&at<pattern.length){
         var trail=pattern.charCodeAt(at);
         if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
@@ -186,6 +213,16 @@ export const regexpVmSource=String.raw`(function(){
         var first=body[i++];
         if(first==='\\'&&i<body.length){
           first=body[i++];
+          if((first==='p'||first==='P')&&flags.indexOf('u')>=0){
+            if(body[i++]!=='{')throw new SyntaxError('Invalid Unicode property');
+            var begin=i;
+            while(i<body.length&&body[i]!=='}')i++;
+            if(i===begin||body[i]!=='}')throw new SyntaxError('Invalid Unicode property');
+            var code=c.codePointAt(0),has=propertyMatch(propertyRanges(body.slice(begin,i++)),code);
+            if(first==='P')has=!has;
+            if(has)yes=true;
+            continue
+          }
           if(first==='d'||first==='D'||first==='w'||first==='W'||first==='s'||first==='S'){
             if(escapedClass(first,c))yes=true;
             continue
@@ -298,7 +335,13 @@ export const regexpVmSource=String.raw`(function(){
       }
       else if(k==='dot')matched=dotAll||'\n\r\u2028\u2029'.indexOf(current)<0;
       else if(k==='classEscape')matched=escapedClass(node.value,current);
-      else if(k==='class')matched=classMatch(node.value,current);
+      else if(k==='class')matched=classMatch(node.value,input.slice(pos,pos+width));
+      else if(k==='property'){
+        var point=current.charCodeAt(0);
+        if(width===2)point=0x10000+(point-0xd800)*1024+(input.charCodeAt(pos+1)-0xdc00);
+        matched=propertyMatch(node.value,point);
+        if(node.negated)matched=!matched
+      }
       return matched?next(pos+width,caps):null
     }
     var unicode=flags.indexOf('u')>=0;
@@ -320,9 +363,10 @@ export const regexpVmSource=String.raw`(function(){
     return null
   }
   return {compile:compile,execute:execute}
-})()`;
+})()`.replace('@@UNICODE_DATA@@',regexpUnicodeData);
 
-export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,sticky,pattern,flags){"use strict";var vm='+regexpVmSource+String.raw`;
+export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,sticky,pattern,flags){"use strict";if(__nonaRegexpVm.core===undefined)__nonaRegexpVm.core='+regexpVmSource+String.raw`;
+    var vm=__nonaRegexpVm.core;
     var compiled=vm.compile(pattern,flags);
     var matched=vm.execute(compiled,input,start,sticky);
     var globalOrSticky=flags.indexOf('g')>=0||flags.indexOf('y')>=0;
