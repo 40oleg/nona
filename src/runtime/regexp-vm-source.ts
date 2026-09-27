@@ -657,4 +657,76 @@ Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](stri
   }
   result[result.length]=input.slice(p,length);
   return result
-}})[Symbol.split],writable:true,configurable:true});`;
+}})[Symbol.split],writable:true,configurable:true});
+__nonaRegexpVm.matchAllPrototype=Object.create(Object.prototype);
+Object.defineProperty(__nonaRegexpVm.matchAllPrototype,'next',{value:({next(){
+  'use strict';
+  if(this===null||this===undefined||this.__nonaMatchAllBrand!==true)throw new TypeError('Invalid RegExp String Iterator');
+  if(this.__nonaDone)return {value:undefined,done:true};
+  var matcher=this.__nonaMatcher,input=this.__nonaInput;
+  var result=matcher.exec(input);
+  if(result===null){this.__nonaDone=true;return {value:undefined,done:true}}
+  if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
+  if(!this.__nonaGlobal)this.__nonaDone=true;
+  else if(String(result[0])===''){
+    var index=Number(matcher.lastIndex);
+    if(index!==index||index<0)index=0;
+    else if(index>9007199254740991)index=9007199254740991;
+    else index=Math.floor(index);
+    if(this.__nonaUnicode&&index+1<input.length){
+      var first=input.charCodeAt(index),second=input.charCodeAt(index+1);
+      matcher.lastIndex=index+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
+    }else matcher.lastIndex=index+1
+  }
+  return {value:result,done:false}
+}}).next,writable:true,configurable:true});
+Object.defineProperty(__nonaRegexpVm.matchAllPrototype,Symbol.iterator,{value:({[Symbol.iterator](){return this}})[Symbol.iterator],writable:true,configurable:true});
+Object.defineProperty(__nonaRegexpVm.matchAllPrototype,Symbol.toStringTag,{value:'RegExp String Iterator',configurable:true});
+Object.defineProperty(RegExp.prototype,Symbol.matchAll,{value:({[Symbol.matchAll](string){
+  'use strict';
+  if(this===null||(typeof this!=='object'&&typeof this!=='function'))throw new TypeError('Invalid RegExp receiver');
+  if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var input=String(string),ctor=this.constructor,species;
+  if(ctor===undefined)species=RegExp;
+  else{
+    if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new TypeError('Invalid RegExp constructor');
+    species=ctor[Symbol.species];
+    if(species===null||species===undefined)species=RegExp
+  }
+  var flagValue=this.flags;
+  if(typeof flagValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
+  var flags=String(flagValue),matcher=new species(this,flags);
+  var index=Number(this.lastIndex);
+  if(index!==index||index<0)index=0;
+  else if(index>9007199254740991)index=9007199254740991;
+  else index=Math.floor(index);
+  matcher.lastIndex=index;
+  var iterator=Object.create(__nonaRegexpVm.matchAllPrototype);
+  Object.defineProperties(iterator,{
+    __nonaMatchAllBrand:{value:true},
+    __nonaMatcher:{value:matcher},
+    __nonaInput:{value:input},
+    __nonaGlobal:{value:flags.indexOf('g')>=0},
+    __nonaUnicode:{value:flags.indexOf('u')>=0},
+    __nonaDone:{value:false,writable:true}
+  });
+  return iterator
+}})[Symbol.matchAll],writable:true,configurable:true});
+Object.defineProperty(String.prototype,'matchAll',{value:({matchAll(regexp){
+  'use strict';
+  if(this===null||this===undefined)throw new TypeError('String.prototype.matchAll called on null or undefined');
+  if(regexp!==null&&(typeof regexp==='object'||typeof regexp==='function')){
+    var marker=regexp[Symbol.match],isRegExp=marker===undefined?regexp instanceof RegExp:Boolean(marker);
+    if(isRegExp){
+      var flags=String(regexp.flags);
+      if(flags.indexOf('g')<0)throw new TypeError('RegExp must have global flag')
+    }
+    var method=regexp[Symbol.matchAll];
+    if(method!==null&&method!==undefined){
+      if(typeof method!=='function')throw new TypeError('Symbol.matchAll is not callable');
+      return method.call(regexp,String(this))
+    }
+  }
+  var rx=new RegExp(regexp,'g');
+  return rx[Symbol.matchAll](String(this))
+}}).matchAll,writable:true,configurable:true});`;
