@@ -49,13 +49,16 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
    a.load('rax',{base:'r8',disp:source});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');
    a.movsd('xmm0',{base:'r8',disp:source+8});a.cvttsd2si('rax','xmm0');a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(target),'rax');
   }
+  a.mov('rax',0);a.store(slot(72),'rax');const noTargetOffset=a.unique('noTargetOffset');a.cmp('rdx',5);a.jcc('b',noTargetOffset);
+  a.load('rax',{base:'r8',disp:64});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');a.movsd('xmm0',{base:'r8',disp:72});a.cvttsd2si('rax','xmm0');a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(72),'rax');a.label(noTargetOffset);
   a.load('rax',slot(56));a.load('r11',slot(64));a.add('rax','r11');failIf(a,'b','rt.throwRangeError');
   a.load('r10',slot(40));a.load('r10',{base:'r10',disp:ArrayBufferLayout.byteLength});a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');
-  a.load('rax',slot(64));a.load('r10',slot(48));a.load('r10',{base:'r10',disp:ArrayBufferLayout.byteLength});a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');
+  a.load('rax',slot(64));a.load('r11',slot(72));a.add('rax','r11');failIf(a,'b','rt.throwRangeError');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:ArrayBufferLayout.byteLength});a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');
   a.load('rdx',slot(40));a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.load('r11',slot(56));a.add('rdx','r11');
-  a.load('r8',slot(48));a.load('r8',{base:'r8',disp:ArrayBufferLayout.bytes});a.load('r9',slot(64));
-  const copy=a.unique('copy'),done=a.unique('done');a.label(copy);a.test('r9','r9');a.jcc('e',done);
-  a.load('rax',{base:'rdx'},8);a.store({base:'r8'},'rax',8);a.add('rdx',1);a.add('r8',1);a.sub('r9',1);a.jmp(copy);a.label(done);
+  a.load('r8',slot(48));a.load('r8',{base:'r8',disp:ArrayBufferLayout.bytes});a.load('r11',slot(72));a.add('r8','r11');a.load('r9',slot(64));
+  const copy=a.unique('copy'),done=a.unique('done');
+  a.label(copy);a.test('r9','r9');a.jcc('e',done);a.load('rax',{base:'rdx'},8);a.store({base:'r8'},'rax',8);a.add('rdx',1);a.add('r8',1);a.sub('r9',1);a.jmp(copy);
+  a.label(done);
   a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
  });
  b.bundle.fragments.push(stringLiteral('rt.arrayBufferTag','ArrayBuffer'));

@@ -1172,4 +1172,27 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'subarray',{va
  var buffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,this);
  var byteOffset=__nonaRegexpVm.typedArrayRawByteOffset(this)+first*bytesPerElement;
  return __nonaRegexpVm.typedArraySpeciesCreateView(this,buffer,byteOffset,newLength);
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'slice',{value:function slice(start,end){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ var first=__nonaRegexpVm.typedArrayRelativeIndex(start,length);
+ var final=end===undefined?length:__nonaRegexpVm.typedArrayRelativeIndex(end,length);
+ var count=__nonaRegexpVm.arrayBufferMax(final-first,0);
+ var result=__nonaRegexpVm.typedArraySpeciesCreate(this,count);
+ if(count>0){
+  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+  var sourceConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,this);
+  var resultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,result);
+  if(sourceConstructor===resultConstructor){
+   var width=sourceConstructor.BYTES_PER_ELEMENT;
+   var sourceBuffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,this);
+   var resultBuffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,result);
+   var sourceOffset=__nonaRegexpVm.typedArrayRawByteOffset(this)+first*width;
+   var resultOffset=__nonaRegexpVm.typedArrayRawByteOffset(result);
+   __nonaRegexpVm.arrayBufferCopy(sourceBuffer,resultBuffer,sourceOffset,count*width,resultOffset);
+  }else for(var k=0;k<count;k++)result[k]=this[first+k];
+ }
+ return result;
 },writable:true,configurable:true});`;

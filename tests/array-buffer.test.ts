@@ -118,6 +118,17 @@ test('TypedArray subarray shares bytes and calls species with view arguments',()
   try{a.subarray(1n)}catch(error){console.log(error.name)}
 `,'20,30 true 2 4\n77\n30,40 0\n30,40 true,4,2\n2,3\nTypeError\n'));
 
+test('TypedArray slice copies exact bytes and respects species offsets',()=>expectProgram(`
+  var b=new ArrayBuffer(4),v=new DataView(b);v.setUint32(0,0x7fc01234,true);
+  var f=new Float32Array(b),copy=f.slice();console.log(new DataView(copy.buffer).getUint32(0,true)===0x7fc01234);
+  var a=new Uint8Array([1,2,3,4]);console.log(a.slice(1,-1).join(','),a.join(','));
+  a.constructor={[Symbol.species]:function(length){return new Uint8Array(new ArrayBuffer(8),2,length)}};
+  var placed=a.slice(1,3);console.log(placed.byteOffset,placed.join(','));
+  var c=new Uint8Array([1,2,3,4]);c.constructor={[Symbol.species]:function(length){return new Uint8Array(c.buffer,1,length)}};
+  console.log(c.slice(0,3).join(','),c.join(','));
+  var d=new BigInt64Array([1n,2n]);console.log(d.slice(1).join(','));
+`,'true\n2,3 1,2,3,4\n2 2,3\n1,1,1 1,1,1,1\n2\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
