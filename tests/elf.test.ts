@@ -153,6 +153,13 @@ test('Linux native TypedArray search handles NaN and BigInt',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true -1 true 1 2\n');
 });
 
+test('Linux native typed array constructors expose element sizes',t=>{
+ const source=`console.log(Uint8Array.BYTES_PER_ELEMENT,Uint16Array.BYTES_PER_ELEMENT,Float32Array.BYTES_PER_ELEMENT,BigInt64Array.BYTES_PER_ELEMENT,BigInt64Array.prototype.BYTES_PER_ELEMENT);`;
+ const result=compile(source,{fileName:'typed-array-widths.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'1 2 4 8 8\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});

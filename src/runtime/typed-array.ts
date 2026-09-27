@@ -10,8 +10,9 @@ import {FunctionLayout as F,FunctionKind} from './functions.js';
 /** Common layout for future numeric and BigInt typed-array variants. */
 export const TypedArrayKind=13;
 export const TypedArrayLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size+16,length:O.size+24,elementType:O.size+32,size:O.size+40} as const;
+const typedArrayWidths=[['Uint8Array','uint8array',1],['Int8Array','int8array',1],['Uint8ClampedArray','uint8clampedarray',1],['Uint16Array','uint16array',2],['Int16Array','int16array',2],['Uint32Array','uint32array',4],['Int32Array','int32array',4],['Float32Array','float32array',4],['Float64Array','float64array',8],['BigInt64Array','bigint64array',8],['BigUint64Array','biguint64array',8]] as const;
 export const typedArrayRoots=['rt.TypedArray','rt.TypedArray.of.fn','rt.typedArrayBuffer.fn','rt.typedArrayByteOffset.fn','rt.typedArrayByteLength.fn','rt.typedArrayLength.fn','rt.uint8Convert.fn','rt.uint8ClampedConvert.fn','rt.uint16Convert.fn','rt.uint32Convert.fn','rt.float32Convert.fn','rt.float64Convert.fn','rt.bigint64Convert.fn','rt.biguint64Convert.fn','rt.typedArrayValues.fn','rt.typedArrayKeys.fn','rt.typedArrayEntries.fn','rt.typedArrayReverse.fn','rt.typedArrayCopyWithin.fn','rt.typedArrayFill.fn',...['Includes','IndexOf','LastIndexOf'].map(name=>'rt.typedArray'+name+'.fn')];
-export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...['uint8array','int8array','uint8clampedarray','uint16array','int16array','uint32array','int32array','float32array','float64array','bigint64array','biguint64array'].map(name=>'rt.'+name+'Prototype.@@toStringTag'),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill','includes','indexOf','lastIndexOf'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
+export const typedArrayPropertyRoots=['rt.TypedArray.prototype','rt.TypedArray.name','rt.TypedArray.length','rt.TypedArray.of','rt.typedArrayPrototype.constructor',...typedArrayWidths.map(([,lower])=>'rt.'+lower+'Prototype.@@toStringTag'),...typedArrayWidths.flatMap(([name,lower])=>['rt.'+name+'.BYTES_PER_ELEMENT','rt.'+lower+'Prototype.BYTES_PER_ELEMENT']),...['buffer','byteOffset','byteLength','length'].map(name=>'rt.typedArrayPrototype.'+name),...['values','keys','entries','@@iterator','reverse','copyWithin','fill','includes','indexOf','lastIndexOf'].map(name=>'rt.typedArrayPrototype.'+name),...typedArrayRoots.filter(name=>name!=='rt.TypedArray').flatMap(name=>[name+'.name',name+'.length'])];
 
 export function emitTypedArrayPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.typedArrayPrototype',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -179,7 +180,7 @@ export function emitTypedArray(b:RuntimeBuilder):void {
    a.load('rdx',slot(56));a.add('rdx',16);a.lea('rcx',slot(144));a.call('rt.toNumber');a.movsd('xmm0',slot(152));a.ucomisd('xmm0','xmm0');a.jcc('p',startZero);
    a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('b',negative);
    a.load('rax',slot(168));a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',name==='lastIndexOf'?atEnd:notFound);a.cvttsd2si('rax','xmm0');a.store(slot(160),'rax');a.jmp(startReady);
-   a.label(negative);a.load('rax',slot(168));a.neg('rax');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',name==='lastIndexOf'?notFound:startZero);a.cvttsd2si('rax','xmm0');a.load('r10',slot(168));a.add('rax','r10');a.store(slot(160),'rax');a.jmp(startReady);
+   a.label(negative);a.load('rax',slot(168));a.neg('rax');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc(name==='lastIndexOf'?'b':'be',name==='lastIndexOf'?notFound:startZero);a.cvttsd2si('rax','xmm0');a.load('r10',slot(168));a.add('rax','r10');a.store(slot(160),'rax');a.jmp(startReady);
    a.label(startZero);a.mov('rax',0);a.store(slot(160),'rax');a.jmp(startReady);a.label(atEnd);a.load('rax',slot(168));a.sub('rax',1);a.store(slot(160),'rax');a.label(startReady);
    const loop=a.unique('loop'),next=a.unique('next');a.label(loop);if(name!=='lastIndexOf'){a.load('rax',slot(160));a.load('r10',slot(168));a.cmp('rax','r10');a.jcc('ae',notFound);}
    a.lea('rcx',slot(96));a.load('rdx',slot(160));a.call('rt.arrayIndexKey');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
@@ -270,6 +271,15 @@ export function emitTypedArray(b:RuntimeBuilder):void {
    {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},
    {offset:P.value+8,kind:'va64',target:tagName,addend:0},
   ]});if(tagHead)tagHead.target=node;else owner.fixups.push({offset:O.properties,kind:'va64',target:node,addend:0});
+ }
+ b.bundle.fragments.push(stringLiteral('rt.typedArrayBytesPerElement.key','BYTES_PER_ELEMENT'));
+ for(const [name,lower,width] of typedArrayWidths)for(const ownerName of ['rt.'+name,'rt.'+lower+'Prototype']){
+  const owner=b.bundle.fragments.find(f=>f.name===ownerName)!;const head=owner.fixups.find(f=>f.offset===O.properties);
+  const node=ownerName+'.BYTES_PER_ELEMENT',bytes=new Uint8Array(P.size);bytes[P.value]=3;new DataView(bytes.buffer).setFloat64(P.value+8,width,true);
+  b.bundle.fragments.push({name:node,section:'.data',alignment:8,bytes,symbols:{},fixups:[
+   ...(head?[{offset:P.next,kind:'va64' as const,target:head.target,addend:0}]:[]),
+   {offset:P.key,kind:'va64',target:'rt.typedArrayBytesPerElement.key',addend:0},
+  ]});if(head)head.target=node;else owner.fixups.push({offset:O.properties,kind:'va64',target:node,addend:0});
  }
  for(const [name,elementType,width] of [['Uint8Array',1,1],['Int8Array',2,1],['Uint8ClampedArray',3,1],['Uint16Array',4,2],['Int16Array',5,2],['Uint32Array',6,4],['Int32Array',7,4],['Float32Array',8,4],['Float64Array',9,8],['BigInt64Array',10,8],['BigUint64Array',11,8]] as const){
  b.fn('rt.'+name+'.code',40,a=>a.call('rt.throwTypeError'));
