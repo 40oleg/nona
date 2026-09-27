@@ -893,4 +893,36 @@ Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchVa
 __nonaRegexpVm.replaceSlice=String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
-__nonaRegexpVm.replaceApply=Function.prototype.apply;`;
+__nonaRegexpVm.replaceApply=Function.prototype.apply;
+__nonaRegexpVm.arrayBufferConstructor=ArrayBuffer;
+__nonaRegexpVm.arrayBufferLength=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'byteLength').get;
+__nonaRegexpVm.arrayBufferCopy=ArrayBuffer.__nonaCopyInternal;
+delete ArrayBuffer.__nonaCopyInternal;
+Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
+  'use strict';
+  var length=__nonaRegexpVm.arrayBufferLength.call(this);
+  function index(value){
+    if(typeof value==='bigint')throw new TypeError('Cannot convert BigInt to Number');
+    var number=Number(value);
+    if(number!==number||number===0)return 0;
+    if(number===Infinity)return length;
+    if(number===-Infinity)return 0;
+    number=Math.trunc(number);
+    return number<0?Math.max(length+number,0):Math.min(number,length)
+  }
+  var first=index(start),final=end===undefined?length:index(end);
+  var newLength=Math.max(final-first,0);
+  var ctor=this.constructor,species;
+  if(ctor===undefined)species=__nonaRegexpVm.arrayBufferConstructor;
+  else{
+    if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new TypeError('Invalid ArrayBuffer constructor');
+    species=ctor[Symbol.species];
+    if(species===undefined||species===null)species=__nonaRegexpVm.arrayBufferConstructor
+  }
+  var result=new species(newLength);
+  if(result===this)throw new TypeError('ArrayBuffer species returned source buffer');
+  var resultLength=__nonaRegexpVm.arrayBufferLength.call(result);
+  if(resultLength<newLength)throw new TypeError('ArrayBuffer species returned a short buffer');
+  __nonaRegexpVm.arrayBufferCopy(this,result,first,newLength);
+  return result
+}}).slice,writable:true,configurable:true});`;

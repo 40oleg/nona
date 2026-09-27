@@ -2,13 +2,13 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
-import {emitNativeFunction} from './function-builtin.js';
+import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 
 export const ArrayBufferKind=11;
 export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,size:O.size+16} as const;
-export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn'];
-export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.flatMap(name=>[name+'.name',name+'.length'])];
+export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn'];
+export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer')];
 
 export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -18,6 +18,26 @@ export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitArrayBuffer(b:RuntimeBuilder):void {
+ prependFunctionBuiltin(b,'rt.arrayBufferCopy.fn','__nonaCopyInternal',4,'rt.ArrayBuffer');
+ b.fn('rt.arrayBufferCopy.fn.code',88,a=>{
+  a.cmp('rdx',4);failIf(a,'b','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(40),'r10');
+  a.load('rax',{base:'r8',disp:16});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:24});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.store(slot(48),'r10');
+  for(const [source,target] of [[32,56],[48,64]] as const){
+   a.load('rax',{base:'r8',disp:source});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');
+   a.movsd('xmm0',{base:'r8',disp:source+8});a.cvttsd2si('rax','xmm0');a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(target),'rax');
+  }
+  a.load('rax',slot(56));a.load('r11',slot(64));a.add('rax','r11');failIf(a,'b','rt.throwRangeError');
+  a.load('r10',slot(40));a.load('r10',{base:'r10',disp:ArrayBufferLayout.byteLength});a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');
+  a.load('rax',slot(64));a.load('r10',slot(48));a.load('r10',{base:'r10',disp:ArrayBufferLayout.byteLength});a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');
+  a.load('rdx',slot(40));a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.load('r11',slot(56));a.add('rdx','r11');
+  a.load('r8',slot(48));a.load('r8',{base:'r8',disp:ArrayBufferLayout.bytes});a.load('r9',slot(64));
+  const copy=a.unique('copy'),done=a.unique('done');a.label(copy);a.test('r9','r9');a.jcc('e',done);
+  a.load('rax',{base:'rdx'},8);a.store({base:'r8'},'rax',8);a.add('rdx',1);a.add('r8',1);a.sub('r9',1);a.jmp(copy);a.label(done);
+  a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+ });
  b.bundle.fragments.push(stringLiteral('rt.arrayBufferTag','ArrayBuffer'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
  const prototype=b.bundle.fragments.find(f=>f.name==='rt.arraybufferPrototype')!;

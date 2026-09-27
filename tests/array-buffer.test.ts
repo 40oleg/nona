@@ -25,3 +25,18 @@ test('ArrayBuffer object and backing survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'128 [object ArrayBuffer]\n');
 });
+
+test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
+  var original=new ArrayBuffer(8);
+  console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
+  console.log(original.slice(2,-2).byteLength,original.slice(6,2).byteLength);
+  class Larger extends ArrayBuffer{};
+  var sub=new Larger(6),copy=sub.slice(1,4);
+  console.log(copy instanceof Larger,copy.byteLength);
+  var seen=0;
+  original.constructor={[Symbol.species]:function(length){seen=length;return new ArrayBuffer(length+2)}};
+  var grown=original.slice(2,5);
+  console.log(seen,grown.byteLength);
+  original.constructor={[Symbol.species]:function(){return new ArrayBuffer(1)}};
+  try{original.slice(1,4)}catch(error){console.log(error.name)}
+`,'4 3 0\n4 0\ntrue 3\n3 5\nTypeError\n'));
