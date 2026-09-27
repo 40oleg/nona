@@ -22,9 +22,16 @@ test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   }
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n'));
 
+test('RegExp test matches plain UTF-16 substrings without flags',()=>expectProgram(`
+  let re=new RegExp('needle');
+  console.log(re.test('hay needle stack'),re.test('haystack'),new RegExp('').test('anything'));
+  console.log(new RegExp('猫').test('黒猫'),new RegExp('cat').test('concatenate'));
+  try{new RegExp('a+').test('aaa')}catch(error){console.log(error.name)}
+`,'true false true\ntrue true\nTypeError\n'));
+
 test('RegExp internal strings survive stress GC',()=>{
- const source=`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString())`;
+ const source=`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString(),new RegExp('needle').test('xneedle'))`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
- assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi\n');
+ assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi true\n');
 });
