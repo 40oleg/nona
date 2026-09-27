@@ -7,8 +7,8 @@ import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './
 
 export const RegExpKind=10;
 export const RegExpLayout={pattern:O.size,flags:O.size+8,size:O.size+16} as const;
-export const regexpRoots=['rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn'];
-export const regexpPropertyRoots=['rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...['toString','test'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':'Test')+'.fn',name,'rt.regexpPrototype'))];
+export const regexpRoots=['rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn','rt.regexpExec.fn'];
+export const regexpPropertyRoots=['rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...['toString','test','exec'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':name==='test'?'Test':'Exec')+'.fn',name,'rt.regexpPrototype'))];
 
 export function emitRegExpPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -18,11 +18,13 @@ export function emitRegExpPrototype(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.str.lastIndex','lastIndex'));
  b.bundle.fragments.push(stringLiteral('rt.regexpEmptySource','(?:)'));
  b.bundle.fragments.push(stringLiteral('rt.regexpSlash','/'));
+ for(const key of ['0','index','input','groups'])b.bundle.fragments.push(stringLiteral('rt.regexpKey.'+key,key));
 }
 
 export function emitRegExp(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.regexpToString.fn','toString',0,'rt.regexpPrototype');
  prependFunctionBuiltin(b,'rt.regexpTest.fn','test',1,'rt.regexpPrototype');
+ prependFunctionBuiltin(b,'rt.regexpExec.fn','exec',1,'rt.regexpPrototype');
  for(const [name,symbol] of [['source','rt.regexpSource.fn'],['flags','rt.regexpFlags.fn']] as const){
   emitNativeFunction(b,symbol,'get '+name,0);
   const property=new Uint8Array(P.size);property[P.attributes]=A.accessor|A.configurable;property[P.getter]=5;
@@ -61,32 +63,61 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.lea('rcx',slot(128));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.call('rt.concat');
   a.load('rcx',slot(40));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.call('rt.concat');
  });
- rootedFn(b,'rt.regexpTest.fn.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:3}],(a,frame)=>{
+ // Initial matcher for a literal pattern with no flags. RAX is the UTF-16
+ // starting index, or -1. Pattern metacharacters require the full VM.
+ b.fn('rt.regexpFindPlain',104,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',RegExpKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rcx',disp:RegExpLayout.flags});a.load('rax',{base:'r10'});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rcx',disp:RegExpLayout.pattern});a.store(slot(56),'r10');
+  a.load('r9',{base:'r10'});a.store(slot(64),'r9');a.lea('rdx',{base:'r10',disp:8});
+  const validate=a.unique('validate'),validated=a.unique('validated');a.label(validate);a.test('r9','r9');a.jcc('e',validated);
+  a.load('rax',{base:'rdx'},16);for(const code of '.^$*+?()[]{}|\\'){a.cmp('rax',code.charCodeAt(0));failIf(a,'e','rt.throwTypeError');}
+  a.add('rdx',2);a.sub('r9',1);a.jmp(validate);a.label(validated);
+  a.load('r10',slot(48));a.load('rax',{base:'r10'});a.load('r9',slot(64));const no=a.unique('no'),yes=a.unique('yes');a.cmp('rax','r9');a.jcc('b',no);
+  a.sub('rax','r9');a.store(slot(72),'rax');a.mov('rax',0);a.store(slot(80),'rax');
+  const outer=a.unique('outer'),inner=a.unique('inner'),mismatch=a.unique('mismatch');a.label(outer);
+  a.load('rax',slot(80));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('a',no);
+  a.shl('rax',1);a.load('rdx',slot(48));a.add('rdx',8);a.add('rdx','rax');a.load('r8',slot(56));a.add('r8',8);a.load('r9',slot(64));
+  a.label(inner);a.test('r9','r9');a.jcc('e',yes);a.load('r10',{base:'rdx'},16);a.load('r11',{base:'r8'},16);a.cmp('r10','r11');a.jcc('ne',mismatch);
+  a.add('rdx',2);a.add('r8',2);a.sub('r9',1);a.jmp(inner);
+  a.label(mismatch);a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.jmp(outer);
+  a.label(yes);a.load('rax',slot(80));const done=a.unique('done');a.jmp(done);a.label(no);a.mov('rax',-1);a.label(done);
+ });
+ rootedFn(b,'rt.regexpExec.fn.code',216,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:8}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.load('r10',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(64+offset),'rax');}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',RegExpKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'r10',disp:RegExpLayout.flags});a.load('rax',{base:'rax'});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');
   const absent=a.unique('absent');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',absent);
   a.load('r10',slot(56));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(80+offset),'rax');}a.label(absent);
   a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.toString');
-  a.load('r10',slot(72));a.load('r8',{base:'r10',disp:RegExpLayout.pattern});a.load('r9',{base:'r8'});a.store(slot(120),'r9');
-  a.lea('rdx',{base:'r8',disp:8});a.store(slot(128),'rdx');
-  const validate=a.unique('validate'),validated=a.unique('validated');a.label(validate);a.test('r9','r9');a.jcc('e',validated);
-  a.load('rax',{base:'rdx'},16);
-  for(const code of '.^$*+?()[]{}|\\'){a.cmp('rax',code.charCodeAt(0));failIf(a,'e','rt.throwTypeError');}
-  a.add('rdx',2);a.sub('r9',1);a.jmp(validate);a.label(validated);
-  a.load('r10',slot(104));a.load('rax',{base:'r10'});a.store(slot(112),'rax');
-  a.load('r9',slot(120));a.cmp('rax','r9');const no=a.unique('no'),yes=a.unique('yes');a.jcc('b',no);
-  a.sub('rax','r9');a.store(slot(136),'rax');a.mov('rax',0);a.store(slot(144),'rax');
-  const outer=a.unique('outer'),inner=a.unique('inner'),mismatch=a.unique('mismatch');a.label(outer);
-  a.load('rax',slot(144));a.load('r10',slot(136));a.cmp('rax','r10');a.jcc('a',no);
-  a.shl('rax',1);a.load('rdx',slot(104));a.add('rdx',8);a.add('rdx','rax');a.load('r8',slot(128));a.load('r9',slot(120));
-  a.label(inner);a.test('r9','r9');a.jcc('e',yes);a.load('r10',{base:'rdx'},16);a.load('r11',{base:'r8'},16);a.cmp('r10','r11');a.jcc('ne',mismatch);
-  a.add('rdx',2);a.add('r8',2);a.sub('r9',1);a.jmp(inner);
-  a.label(mismatch);a.load('rax',slot(144));a.add('rax',1);a.store(slot(144),'rax');a.jmp(outer);
-  a.label(no);a.mov('rax',0);const done=a.unique('done');a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
+  a.load('rcx',slot(72));a.load('rdx',slot(104));a.call('rt.regexpFindPlain');a.store(slot(192),'rax');
+  const found=a.unique('found'),done=a.unique('done');a.cmp('rax',-1);a.jcc('ne',found);
+  a.load('rcx',slot(40));a.mov('rax',1);a.store({base:'rcx'},'rax');a.mov('rax',0);a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+  a.label(found);a.lea('rcx',slot(112));a.mov('rdx',1);a.mov('r8',1);a.call('rt.newObject');
+  a.load('r10',slot(72));a.load('rax',{base:'r10',disp:RegExpLayout.pattern});a.mov('r11',4);a.store(slot(144),'r11');a.store(slot(152),'rax');
+  const put=(key:string)=>{a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.regexpKey.'+key});a.store(slot(136),'rax');a.lea('rcx',slot(112));a.lea('rdx',slot(128));a.lea('r8',slot(144));a.mov('r9',1);a.call('rt.setProperty');};
+  put('0');
+  a.load('rax',slot(192));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(144),'rax');a.storesd(slot(152),'xmm0');put('index');
+  for(const offset of [0,8]){a.load('rax',slot(96+offset));a.store(slot(144+offset),'rax');}put('input');
+  a.mov('rax',0);a.store(slot(144),'rax');a.store(slot(152),'rax');put('groups');
+  a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(112+offset));a.store({base:'rcx',disp:offset},'rax');}
+  a.label(done);
+ });
+ rootedFn(b,'rt.regexpTest.fn.code',184,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:6}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.load('r10',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(64+offset),'rax');}
+  a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');
+  const absent=a.unique('absent');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',absent);
+  a.load('r10',slot(56));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(80+offset),'rax');}a.label(absent);
+  a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.toString');
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.regexpExec.fn.key'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(64));a.lea('r8',slot(112));a.call('rt.getProperty');
+  a.lea('rax',slot(64));a.store(slot(32),'rax');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.mov('r8',1);a.lea('r9',slot(96));a.call('rt.invoke');
+  a.load('rax',slot(144));a.cmp('rax',1);const empty=a.unique('empty'),done=a.unique('done');a.jcc('e',empty);
+  a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.mov('rax',1);a.jmp(done);a.label(empty);a.mov('rax',0);a.label(done);
   a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
  b.fn('rt.validateRegExpFlags',40,a=>{
