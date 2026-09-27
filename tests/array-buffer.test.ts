@@ -334,3 +334,23 @@ test('sixteen-bit indexed descriptors and iterators survive stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'4 -2 -2 -1\n');
 });
+
+test('Uint32Array and Int32Array use four-byte elements and signed reads',()=>expectProgram(`
+  var buffer=new ArrayBuffer(12),unsigned=new Uint32Array(buffer,4,2),signed=new Int32Array(buffer,4,2),view=new DataView(buffer);
+  unsigned[0]=0x89abcdef;signed[1]=-2;
+  console.log(unsigned.length,unsigned.byteLength,unsigned.byteOffset,unsigned[0],unsigned[1],signed[0],signed[1]);
+  console.log(view.getUint32(4,true),view.getUint32(8,true),ArrayBuffer.isView(signed));
+  var a=new Uint32Array([4294967295,4294967296,-1]),b=Int32Array.of(4294967295,2147483648,-2147483649);
+  console.log(a.length,a.byteLength,a[0],a[1],a[2]);
+  console.log(b[0],b[1],b[2],Object.prototype.toString.call(b));
+  try{new Uint32Array(buffer,2)}catch(error){console.log(error.name)}
+  try{new Int32Array(new ArrayBuffer(5))}catch(error){console.log(error.name)}
+  console.log(new Uint32Array(new ArrayBuffer(5),0,1).byteLength);
+`,'2 8 4 2309737967 4294967294 -1985229329 -2\n2309737967 4294967294 true\n3 12 4294967295 0 4294967295\n-1 -2147483648 2147483647 [object Int32Array]\nRangeError\nRangeError\n4\n'));
+
+test('thirty-two-bit indexed descriptors and iterators survive stress GC',()=>{
+ const source=`var view=Int32Array.of(2147483648,4294967295),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 4294967294}};Object.defineProperty(view,'0',{value});var iterator=view.values();for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(view.byteLength,Object.getOwnPropertyDescriptor(view,'0').value,iterator.next().value,iterator.next().value);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'8 -2 -2 -1\n');
+});
