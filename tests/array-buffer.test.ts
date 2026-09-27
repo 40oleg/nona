@@ -240,3 +240,19 @@ test('Uint8Array source copying survives intrinsic changes and stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 8 3 2\n');
 });
+
+test('Uint8Array values, keys, entries and default iteration use shared bytes',()=>expectProgram(`
+  var bytes=new Uint8Array([4,5]),values=[];for(var value of bytes)values.push(value);
+  console.log(values.join(','),bytes[Symbol.iterator]===bytes.values);
+  var keys=bytes.keys(),entries=bytes.entries();console.log(keys.next().value,keys.next().value,keys.next().done);
+  var first=entries.next().value;bytes[1]=9;var second=entries.next().value;
+  console.log(first[0],first[1],second[0],second[1],entries.next().done);
+  try{Uint8Array.prototype.values.call({})}catch(error){console.log(error.name)}
+`,'4,5 true\n0 1 true\n0 4 1 9 true\nTypeError\n'));
+
+test('Uint8Array iterator retains backing bytes under stress GC',()=>{
+ const source=`var bytes=new Uint8Array([7,8]),iterator=bytes.values();bytes=null;for(var i=0;i<30;i++)new ArrayBuffer(i);console.log(iterator.next().value,iterator.next().value,iterator.next().done);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'7 8 true\n');
+});
