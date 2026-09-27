@@ -191,6 +191,14 @@ export function emitBigInt(b:RuntimeBuilder):void {
   a.label(string);a.lea('rcx',slot(80));a.load('rdx',slot(72));a.mov('r8',0);a.call('rt.bigintFromDecimal');for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(64+n),'rax');}
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ // RDX Value* -> RCX exact ToBigInt(value); unlike BigInt(), Numbers are rejected.
+ rootedFn(b,'rt.toBigIntValue',120,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
+  a.store(slot(40),'rcx');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
+  const inspect=a.unique('inspect'),object=a.unique('object'),convert=a.unique('convert');a.label(inspect);
+  a.load('rax',slot(64));a.cmp('rax',7);a.jcc('e',convert);a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('e',convert);a.cmp('rax',2);a.jcc('e',convert);a.call('rt.throwTypeError');
+  a.label(object);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.objectToPrimitiveNumber');for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(64+n),'rax');}a.jmp(inspect);
+  a.label(convert);a.load('rcx',slot(40));a.mov('rdx',1);a.lea('r8',slot(64));a.call('rt.BigInt.code');
+ });
  b.bundle.fragments.push(stringLiteral('rt.bigint.one','1'));
  for(const method of ['asUintN','asIntN'] as const){
   const symbol='rt.BigInt.'+method+'.fn';prependFunctionBuiltin(b,symbol,method,2,'rt.BigInt');

@@ -16,3 +16,11 @@ test('Atomics.load reads signed and BigInt integer views',()=>expectProgram(`
  try{Atomics.load(new Float32Array(1),0)}catch(error){console.log(error.name)}
  try{Atomics.load(u8,32)}catch(error){console.log(error.name)}
 `,'255 -123 123456789\n-5\n7\nTypeError\nRangeError\n'));
+
+test('Atomics.store writes atomically and returns converted Number or BigInt',()=>expectProgram(`
+ var byte=new Int8Array(new SharedArrayBuffer(1));console.log(Atomics.store(byte,0,257.9),Atomics.load(byte,0));
+ var big=new BigInt64Array(new SharedArrayBuffer(8));console.log(String(Atomics.store(big,0,18446744073709551617n)),String(Atomics.load(big,0)));
+ console.log(String(Atomics.store(big,0,{valueOf(){return 18446744073709551618n}})),String(Atomics.load(big,0)));
+  try{Atomics.store(big,0,1)}catch(error){console.log(error.name)}
+  try{Atomics.store(big,0,{valueOf(){return 1}})}catch(error){console.log(error.name)}
+`,'257 1\n18446744073709551617 1\n18446744073709551618 2\nTypeError\nTypeError\n'));

@@ -111,6 +111,13 @@ test('Linux native Atomics.load reads shared signed and BigInt views',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-7 -5\n');
 });
 
+test('Linux native Atomics.store writes Number and BigInt values',t=>{
+ const source=`let bytes=new Int8Array(new SharedArrayBuffer(1)),big=new BigInt64Array(new SharedArrayBuffer(8));console.log(Atomics.store(bytes,0,257.9),Atomics.load(bytes,0),String(Atomics.store(big,0,18446744073709551617n)),String(Atomics.load(big,0)));`;
+ const result=compile(source,{fileName:'atomics-store.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'257 1 18446744073709551617 1\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});
