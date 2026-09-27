@@ -97,6 +97,20 @@ test('Linux native SharedArrayBuffer aliases TypedArray and DataView storage',t=
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'8 77 52 18 true true 77:52:18\n');
 });
 
+test('Linux native Atomics.isLockFree reports x64 integer widths',t=>{
+ const source=`console.log(Atomics.isLockFree(1),Atomics.isLockFree(2),Atomics.isLockFree(4),Atomics.isLockFree(8),Atomics.isLockFree(3));`;
+ const result=compile(source,{fileName:'atomics-is-lock-free.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true true true true false\n');
+});
+
+test('Linux native Atomics.load reads shared signed and BigInt views',t=>{
+ const source=`let bytes=new Int8Array(new SharedArrayBuffer(2));bytes[0]=-7;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-5n;console.log(Atomics.load(bytes,0),String(Atomics.load(big,0)));`;
+ const result=compile(source,{fileName:'atomics-load.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-7 -5\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});
