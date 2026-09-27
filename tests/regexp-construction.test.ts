@@ -22,6 +22,13 @@ test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   }
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n'));
 
+test('RegExp constructor rejects structurally incomplete patterns',()=>expectProgram(String.raw`
+  for(let pattern of ['(','[',')','a\\']){
+    try{new RegExp(pattern)}catch(error){console.log(error.name)}
+  }
+  console.log(new RegExp('[()]').source,new RegExp('\\(').source);
+`,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n[()] \\(\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);

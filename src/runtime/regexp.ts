@@ -249,6 +249,23 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.or('r10','rcx');a.add('r8',2);a.sub('rdx',1);a.jmp(loop);
   a.label(invalid);a.call('rt.throwSyntaxError');a.label(done);a.mov('rax','r10');
  });
+ b.fn('rt.validateRegExpStructure',40,a=>{
+  a.load('r9',{base:'rcx'});a.lea('r8',{base:'rcx',disp:8});a.mov('r10',0);a.mov('r11',0);
+  const loop=a.unique('loop'),advance=a.unique('advance'),escaped=a.unique('escaped'),inClass=a.unique('inClass'),close=a.unique('close'),done=a.unique('done'),invalid=a.unique('invalid');
+  a.label(loop);a.test('r9','r9');a.jcc('e',done);a.load('rax',{base:'r8'},16);
+  a.cmp('rax',92);a.jcc('e',escaped);a.test('r11','r11');a.jcc('ne',inClass);
+  a.cmp('rax',91);const openClass=a.unique('openClass');a.jcc('e',openClass);
+  a.cmp('rax',40);const openGroup=a.unique('openGroup');a.jcc('e',openGroup);
+  a.cmp('rax',41);a.jcc('e',close);a.jmp(advance);
+  a.label(openClass);a.mov('r11',1);a.jmp(advance);
+  a.label(openGroup);a.add('r10',1);a.jmp(advance);
+  a.label(close);a.test('r10','r10');a.jcc('e',invalid);a.sub('r10',1);a.jmp(advance);
+  a.label(inClass);a.cmp('rax',93);a.jcc('ne',advance);a.mov('r11',0);a.jmp(advance);
+  a.label(escaped);a.add('r8',2);a.sub('r9',1);a.test('r9','r9');a.jcc('e',invalid);
+  a.label(advance);a.add('r8',2);a.sub('r9',1);a.jmp(loop);
+  a.label(done);a.test('r10','r10');a.jcc('ne',invalid);a.test('r11','r11');a.jcc('ne',invalid);const finish=a.unique('finish');a.jmp(finish);
+  a.label(invalid);a.call('rt.throwSyntaxError');a.label(finish);
+ });
  rootedFn(b,'rt.regexpIsRegExp',104,[{kind:'value',register:'rdx'},{kind:'locals',offset:48,count:2}],a=>{
   a.store(slot(40),'rdx');a.load('rax',{base:'rdx'});const no=a.unique('no'),done=a.unique('done'),internal=a.unique('internal');a.cmp('rax',5);a.jcc('ne',no);
   a.mov('rax',6);a.store(slot(48),'rax');a.lea('rax',{rip:'rt.Symbol.match.value'});a.store(slot(56),'rax');
@@ -279,6 +296,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
    a.label(supplied);a.lea('rcx',slot(offset));a.lea('rdx',slot(offset));a.call('rt.toString');a.label(ready);
   }
   a.load('rcx',slot(104));a.call('rt.validateRegExpFlags');a.store(slot(72),'rax');
+  a.load('rcx',slot(88));a.call('rt.validateRegExpStructure');
   a.mov('rdx',0);
   for(const bit of [1,2,4,8,16,32]){const next=a.unique('next');a.load('rax',slot(72));a.and('rax',bit);a.test('rax','rax');a.jcc('e',next);a.add('rdx',1);a.label(next);}
   a.store(slot(64),'rdx');a.mov('rcx','rdx');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');
