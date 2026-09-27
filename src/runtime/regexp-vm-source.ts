@@ -668,7 +668,7 @@ Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](stri
   result[result.length]=input.slice(p,length);
   return result
 }})[Symbol.split],writable:true,configurable:true});
-__nonaRegexpVm.matchAllPrototype=Object.create(Object.prototype);
+__nonaRegexpVm.matchAllPrototype=Object.create(Object.getPrototypeOf([][Symbol.iterator]()));
 Object.defineProperty(__nonaRegexpVm.matchAllPrototype,'next',{value:({next(){
   'use strict';
   if(this===null||this===undefined||this.__nonaMatchAllBrand!==true)throw new TypeError('Invalid RegExp String Iterator');
