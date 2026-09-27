@@ -925,4 +925,43 @@ Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
   if(resultLength<newLength)throw new TypeError('ArrayBuffer species returned a short buffer');
   __nonaRegexpVm.arrayBufferCopy(this,result,first,newLength);
   return result
-}}).slice,writable:true,configurable:true});`;
+}}).slice,writable:true,configurable:true});
+__nonaRegexpVm.dvLength=Object.getOwnPropertyDescriptor(DataView.prototype,'byteLength').get;
+__nonaRegexpVm.dvGet32=DataView.prototype.getUint32;
+__nonaRegexpVm.dvSet32=DataView.prototype.setUint32;
+__nonaRegexpVm.dvNumber=Number;
+__nonaRegexpVm.dvBigInt=BigInt;
+__nonaRegexpVm.dvAsUintN=BigInt.asUintN;
+__nonaRegexpVm.dvAsIntN=BigInt.asIntN;
+__nonaRegexpVm.dvTrunc=Math.trunc;
+__nonaRegexpVm.dvIndex=function(value){
+ if(typeof value==='bigint')throw new TypeError('Cannot convert BigInt to Number');
+ var number=__nonaRegexpVm.dvNumber(value);
+ if(number!==number||number===0)return 0;
+ if(number===Infinity||number===-Infinity)throw new RangeError('Invalid DataView offset');
+ number=__nonaRegexpVm.dvTrunc(number);
+ if(number<0)throw new RangeError('Invalid DataView offset');
+ return number
+};
+__nonaRegexpVm.dvReadBig=function(view,offset,little,signed){
+ var length=__nonaRegexpVm.dvLength.call(view),index=__nonaRegexpVm.dvIndex(offset);
+ if(index>length-8)throw new RangeError('DataView offset outside buffer');
+ var first=__nonaRegexpVm.dvGet32.call(view,index,little);
+ var second=__nonaRegexpVm.dvGet32.call(view,index+4,little);
+ var high=little?second:first,low=little?first:second;
+ var value=__nonaRegexpVm.dvBigInt(high)*4294967296n+__nonaRegexpVm.dvBigInt(low);
+ return signed?__nonaRegexpVm.dvAsIntN(64,value):value
+};
+__nonaRegexpVm.dvWriteBig=function(view,offset,value,little){
+ var length=__nonaRegexpVm.dvLength.call(view),index=__nonaRegexpVm.dvIndex(offset);
+ var raw=__nonaRegexpVm.dvAsUintN(64,value);
+ if(index>length-8)throw new RangeError('DataView offset outside buffer');
+ var low=__nonaRegexpVm.dvNumber(raw%4294967296n);
+ var high=__nonaRegexpVm.dvNumber(raw/4294967296n);
+ if(little){__nonaRegexpVm.dvSet32.call(view,index,low,true);__nonaRegexpVm.dvSet32.call(view,index+4,high,true)}
+ else{__nonaRegexpVm.dvSet32.call(view,index,high,false);__nonaRegexpVm.dvSet32.call(view,index+4,low,false)}
+};
+Object.defineProperty(DataView.prototype,'getBigInt64',{value:function getBigInt64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],true)},writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'getBigUint64',{value:function getBigUint64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],false)},writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});`;

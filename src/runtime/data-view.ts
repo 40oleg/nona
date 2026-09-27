@@ -11,7 +11,8 @@ export const DataViewLayout={buffer:O.size,byteOffset:O.size+8,byteLength:O.size
 const byteMethods=['getInt8','getUint8','setInt8','setUint8'] as const;
 const wordMethods=['getInt16','getUint16','getInt32','getUint32','setInt16','setUint16','setInt32','setUint32'] as const;
 const floatMethods=['getFloat32','getFloat64','setFloat32','setFloat64'] as const;
-const dataMethods=[...byteMethods,...wordMethods,...floatMethods];
+const bigintMethods=['getBigInt64','getBigUint64','setBigInt64','setBigUint64'] as const;
+const dataMethods=[...byteMethods,...wordMethods,...floatMethods,...bigintMethods];
 export const dataViewRoots=['rt.dataViewBuffer.fn','rt.dataViewByteOffset.fn','rt.dataViewByteLength.fn',...dataMethods.map(name=>'rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn')];
 export const dataViewPropertyRoots=['rt.dataviewPrototype.@@toStringTag',...['buffer','byteOffset','byteLength'].map(name=>'rt.dataviewPrototype.'+name),...dataViewRoots.slice(0,3).flatMap(name=>[name+'.name',name+'.length']),...dataMethods.flatMap(name=>builtinPropertyRoots('rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn',name,'rt.dataviewPrototype'))];
 
@@ -117,6 +118,11 @@ export function emitDataView(b:RuntimeBuilder):void {
     else{if(signed){a.shl('rax',64-bits);a.sar('rax',64-bits);}a.cvtsi2sd('xmm0','rax');}
     a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');}
   });
+ }
+ for(const name of bigintMethods){
+  const symbol='rt.dataView'+name.charAt(0).toUpperCase()+name.slice(1)+'.fn';
+  prependFunctionBuiltin(b,symbol,name,name.startsWith('set')?2:1,'rt.dataviewPrototype');
+  b.fn(symbol+'.code',40,a=>a.call('rt.throwTypeError'));
  }
  b.bundle.fragments.push(stringLiteral('rt.dataViewTag','DataView'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;

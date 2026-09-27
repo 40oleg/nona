@@ -70,10 +70,10 @@ test('Linux native ArrayBuffer allocation and byteLength',t=>{
 });
 
 test('Linux native DataView range and buffer identity',t=>{
- const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,5);v.setInt8(1,-2);v.setUint16(2,0x1234,true);v.setFloat32(0,1.5);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getFloat32(0));`;
+ const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,8);v.setBigUint64(0,0x123456789abcdef0n,true);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getBigUint64(0,true).toString(16));`;
  const result=compile(source,{fileName:'data-view.js',target:'linux-x64'});
  assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
- const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 5 true 1.5\n');
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 8 true 123456789abcdef0\n');
 });
 
 test('Linux native output encodes UTF-16 as UTF-8',t=>{

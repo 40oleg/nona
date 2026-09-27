@@ -117,3 +117,28 @@ test('DataView float value coercion survives stress GC',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true 8\n');
 });
+
+test('DataView BigInt64 and BigUint64 preserve all bits',()=>expectProgram(`
+  var view=new DataView(new ArrayBuffer(16));
+  view.setBigUint64(0,0x0123456789abcdefn);
+  view.setBigInt64(8,-2n,true);
+  console.log(view.getBigUint64(0).toString(16),view.getBigUint64(0,true).toString(16));
+  console.log(String(view.getBigInt64(8,true)),view.getBigUint64(8,true).toString(16));
+  var bytes=[];for(var i=0;i<16;i++)bytes.push(view.getUint8(i));console.log(bytes.join(' '));
+  view.setBigUint64(0,-1n);console.log(view.getBigInt64(0),view.getBigUint64(0));
+  console.log(DataView.prototype.getBigInt64.length,DataView.prototype.setBigUint64.length);
+  try{view.setBigInt64(0,1)}catch(error){console.log(error.name)}
+  try{view.getBigUint64(9)}catch(error){console.log(error.name)}
+  try{DataView.prototype.getBigInt64.call({})}catch(error){console.log(error.name)}
+`,'123456789abcdef efcdab8967452301\n-2 fffffffffffffffe\n1 35 69 103 137 171 205 239 254 255 255 255 255 255 255 255\n-1 18446744073709551615\n1 2\nTypeError\nRangeError\nTypeError\n'));
+
+test('DataView BigInt value conversion survives stress GC',()=>{
+ const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};v.setBigInt64(0,value,true);console.log(v.getBigUint64(0,true).toString(16),v.buffer.byteLength);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'ffffffffffffffff 8\n');
+});
+
+test('DataView prototype keeps ES method order',()=>expectProgram(`
+ console.log(Object.getOwnPropertyNames(DataView.prototype).join(','));
+`,'constructor,buffer,byteLength,byteOffset,getInt8,setInt8,getUint8,setUint8,getInt16,setInt16,getUint16,setUint16,getInt32,setInt32,getUint32,setUint32,getFloat32,setFloat32,getFloat64,setFloat64,getBigInt64,setBigInt64,getBigUint64,setBigUint64\n'));
