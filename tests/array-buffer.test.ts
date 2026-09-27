@@ -142,3 +142,12 @@ test('DataView BigInt value conversion survives stress GC',()=>{
 test('DataView prototype keeps ES method order',()=>expectProgram(`
  console.log(Object.getOwnPropertyNames(DataView.prototype).join(','));
 `,'constructor,buffer,byteLength,byteOffset,getInt8,setInt8,getUint8,setUint8,getInt16,setInt16,getUint16,setUint16,getInt32,setInt32,getUint32,setUint32,getFloat32,setFloat32,getFloat64,setFloat64,getBigInt64,setBigInt64,getBigUint64,setBigUint64\n'));
+
+test('buffer methods retain native calls after Function.prototype.call changes',()=>expectProgram(`
+ var buffer=new ArrayBuffer(8),view=new DataView(buffer);
+ Function.prototype.call=function(){throw new Error('poisoned call')};
+ Number=function(){throw new Error('poisoned Number')};
+ Math.trunc=function(){throw new Error('poisoned trunc')};
+ view.setBigUint64(0,0x123456789abcdef0n,true);
+ console.log(view.getBigUint64(0,true).toString(16),buffer.slice(0.9,8).byteLength);
+`,'123456789abcdef0 8\n'));

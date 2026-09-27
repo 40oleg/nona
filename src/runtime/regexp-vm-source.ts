@@ -894,35 +894,43 @@ __nonaRegexpVm.replaceSlice=String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
+__nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
 __nonaRegexpVm.arrayBufferConstructor=ArrayBuffer;
+__nonaRegexpVm.arrayBufferNumber=Number;
+__nonaRegexpVm.arrayBufferTrunc=Math.trunc;
+__nonaRegexpVm.arrayBufferMax=Math.max;
+__nonaRegexpVm.arrayBufferMin=Math.min;
+__nonaRegexpVm.arrayBufferSpecies=Symbol.species;
+__nonaRegexpVm.bufferTypeError=TypeError;
+__nonaRegexpVm.bufferRangeError=RangeError;
 __nonaRegexpVm.arrayBufferLength=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'byteLength').get;
 __nonaRegexpVm.arrayBufferCopy=ArrayBuffer.__nonaCopyInternal;
 delete ArrayBuffer.__nonaCopyInternal;
 Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
   'use strict';
-  var length=__nonaRegexpVm.arrayBufferLength.call(this);
+  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength,this);
   function index(value){
-    if(typeof value==='bigint')throw new TypeError('Cannot convert BigInt to Number');
-    var number=Number(value);
+    if(typeof value==='bigint')throw new __nonaRegexpVm.bufferTypeError('Cannot convert BigInt to Number');
+    var number=__nonaRegexpVm.arrayBufferNumber(value);
     if(number!==number||number===0)return 0;
     if(number===Infinity)return length;
     if(number===-Infinity)return 0;
-    number=Math.trunc(number);
-    return number<0?Math.max(length+number,0):Math.min(number,length)
+    number=__nonaRegexpVm.arrayBufferTrunc(number);
+    return number<0?__nonaRegexpVm.arrayBufferMax(length+number,0):__nonaRegexpVm.arrayBufferMin(number,length)
   }
   var first=index(start),final=end===undefined?length:index(end);
   var newLength=Math.max(final-first,0);
   var ctor=this.constructor,species;
   if(ctor===undefined)species=__nonaRegexpVm.arrayBufferConstructor;
   else{
-    if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new TypeError('Invalid ArrayBuffer constructor');
-    species=ctor[Symbol.species];
+    if(ctor===null||(typeof ctor!=='object'&&typeof ctor!=='function'))throw new __nonaRegexpVm.bufferTypeError('Invalid ArrayBuffer constructor');
+    species=ctor[__nonaRegexpVm.arrayBufferSpecies];
     if(species===undefined||species===null)species=__nonaRegexpVm.arrayBufferConstructor
   }
   var result=new species(newLength);
-  if(result===this)throw new TypeError('ArrayBuffer species returned source buffer');
-  var resultLength=__nonaRegexpVm.arrayBufferLength.call(result);
-  if(resultLength<newLength)throw new TypeError('ArrayBuffer species returned a short buffer');
+  if(result===this)throw new __nonaRegexpVm.bufferTypeError('ArrayBuffer species returned source buffer');
+  var resultLength=__nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength,result);
+  if(resultLength<newLength)throw new __nonaRegexpVm.bufferTypeError('ArrayBuffer species returned a short buffer');
   __nonaRegexpVm.arrayBufferCopy(this,result,first,newLength);
   return result
 }}).slice,writable:true,configurable:true});
@@ -935,31 +943,31 @@ __nonaRegexpVm.dvAsUintN=BigInt.asUintN;
 __nonaRegexpVm.dvAsIntN=BigInt.asIntN;
 __nonaRegexpVm.dvTrunc=Math.trunc;
 __nonaRegexpVm.dvIndex=function(value){
- if(typeof value==='bigint')throw new TypeError('Cannot convert BigInt to Number');
+ if(typeof value==='bigint')throw new __nonaRegexpVm.bufferTypeError('Cannot convert BigInt to Number');
  var number=__nonaRegexpVm.dvNumber(value);
  if(number!==number||number===0)return 0;
- if(number===Infinity||number===-Infinity)throw new RangeError('Invalid DataView offset');
+ if(number===Infinity||number===-Infinity)throw new __nonaRegexpVm.bufferRangeError('Invalid DataView offset');
  number=__nonaRegexpVm.dvTrunc(number);
- if(number<0)throw new RangeError('Invalid DataView offset');
+ if(number<0)throw new __nonaRegexpVm.bufferRangeError('Invalid DataView offset');
  return number
 };
 __nonaRegexpVm.dvReadBig=function(view,offset,little,signed){
- var length=__nonaRegexpVm.dvLength.call(view),index=__nonaRegexpVm.dvIndex(offset);
- if(index>length-8)throw new RangeError('DataView offset outside buffer');
- var first=__nonaRegexpVm.dvGet32.call(view,index,little);
- var second=__nonaRegexpVm.dvGet32.call(view,index+4,little);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view),index=__nonaRegexpVm.dvIndex(offset);
+ if(index>length-8)throw new __nonaRegexpVm.bufferRangeError('DataView offset outside buffer');
+ var first=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvGet32,view,index,little);
+ var second=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvGet32,view,index+4,little);
  var high=little?second:first,low=little?first:second;
  var value=__nonaRegexpVm.dvBigInt(high)*4294967296n+__nonaRegexpVm.dvBigInt(low);
  return signed?__nonaRegexpVm.dvAsIntN(64,value):value
 };
 __nonaRegexpVm.dvWriteBig=function(view,offset,value,little){
- var length=__nonaRegexpVm.dvLength.call(view),index=__nonaRegexpVm.dvIndex(offset);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.dvLength,view),index=__nonaRegexpVm.dvIndex(offset);
  var raw=__nonaRegexpVm.dvAsUintN(64,value);
- if(index>length-8)throw new RangeError('DataView offset outside buffer');
+ if(index>length-8)throw new __nonaRegexpVm.bufferRangeError('DataView offset outside buffer');
  var low=__nonaRegexpVm.dvNumber(raw%4294967296n);
  var high=__nonaRegexpVm.dvNumber(raw/4294967296n);
- if(little){__nonaRegexpVm.dvSet32.call(view,index,low,true);__nonaRegexpVm.dvSet32.call(view,index+4,high,true)}
- else{__nonaRegexpVm.dvSet32.call(view,index,high,false);__nonaRegexpVm.dvSet32.call(view,index+4,low,false)}
+ if(little){__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index,low,true);__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index+4,high,true)}
+ else{__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index,high,false);__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index+4,low,false)}
 };
 Object.defineProperty(DataView.prototype,'getBigInt64',{value:function getBigInt64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],true)},writable:true,configurable:true});
 Object.defineProperty(DataView.prototype,'getBigUint64',{value:function getBigUint64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],false)},writable:true,configurable:true});
