@@ -53,6 +53,9 @@ test('lexer separates regular expression literals from division',()=>{
   const regexps=tokens.filter(token=>token.kind==='regexp');
   assert.deepEqual(regexps.map(token=>[token.pattern,token.flags]),[['a\\/b[0-9]','gi'],['x','']]);
   assert.equal(tokens.filter(token=>token.text==='/').length,1);
+  assert.equal(lex('if(true){} /z/.test("z")').filter(token=>token.kind==='regexp').length,1);
+  assert.equal(lex('var obj={}; obj / 2;').filter(token=>token.text==='/').length,1);
+  assert.equal(lex('`${/x/.test("x")}`').filter(token=>token.kind==='regexp').length,1);
   for(const source of ['var r=/x/gg;','var r=/x/z;','var r=/[a/;','var r=/x/uv;'])assert.throws(()=>lex(source));
 });
 test('RegExp literal reaches binding and reports native runtime gap',()=>{
