@@ -73,6 +73,12 @@ test('global and sticky plain matches use lastIndex',()=>expectProgram(`
   console.log(empty.exec('abc').index,empty.lastIndex);
 `,'0 3 4 7 null 0\n4 7 null 0\n0 2\n4 7\nnull 0\n2 2\n'));
 
+test('plain exec converts lastIndex even without global or sticky flags',()=>expectProgram(`
+  let count=0,re=/a/;
+  re.lastIndex={valueOf(){count++;return 9}};
+  console.log(re.exec('ba').index,count,typeof re.lastIndex);
+`,'1 1 object\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));

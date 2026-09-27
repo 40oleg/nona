@@ -178,7 +178,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.cmp('rax',121);const notSticky=a.unique('notSticky');a.jcc('ne',notSticky);a.or('r11',2);a.label(notSticky);
   a.add('r8',2);a.sub('r9',1);a.jmp(flagScan);a.label(flagsDone);a.store(slot(208),'r11');
   a.mov('rax',0);a.store(slot(192),'rax');a.store(slot(200),'rax');a.mov('rax','r11');a.and('rax',2);a.store(slot(200),'rax');
-  const noIndex=a.unique('noIndex'),indexReady=a.unique('indexReady');a.test('r11','r11');a.jcc('e',noIndex);
+  const indexReady=a.unique('indexReady');
   a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.str.lastIndex'});a.store(slot(136),'rax');
   a.lea('rcx',slot(176));a.lea('rdx',slot(64));a.lea('r8',slot(128));a.call('rt.getProperty');
   a.lea('rcx',slot(160));a.lea('rdx',slot(176));a.call('rt.toNumber');
@@ -186,7 +186,8 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.mov('rax',0);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',indexReady);
   a.load('r10',slot(104));a.load('r10',{base:'r10'});a.cvtsi2sd('xmm1','r10');a.ucomisd('xmm0','xmm1');const tooFar=a.unique('tooFar');a.jcc('a',tooFar);
   a.cvttsd2si('rax','xmm0');a.store(slot(192),'rax');a.jmp(indexReady);
-  a.label(tooFar);a.add('r10',1);a.store(slot(192),'r10');a.label(indexReady);a.label(noIndex);
+  a.label(tooFar);a.add('r10',1);a.store(slot(192),'r10');a.label(indexReady);
+  a.load('rax',slot(208));a.test('rax','rax');const useIndex=a.unique('useIndex');a.jcc('ne',useIndex);a.mov('rax',0);a.store(slot(192),'rax');a.label(useIndex);
   a.load('rcx',slot(72));a.load('rdx',slot(104));a.load('r8',slot(192));a.load('r9',slot(200));a.call('rt.regexpFindPlain');a.store(slot(192),'rax');
   const writeLastIndex=(zero:boolean)=>{
    a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.str.lastIndex'});a.store(slot(136),'rax');
