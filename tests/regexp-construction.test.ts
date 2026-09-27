@@ -144,6 +144,13 @@ test('RegExp repeats a single atom with star plus and optional',()=>expectProgra
   console.log(/[a-z]+/.exec('42abc')[0],/.+/s.exec('a\nb')[0]==='a\nb');
 `,'12 3 345 8 null 0\naaa true true\nabc true\n'));
 
+test('RegExp literal alternatives preserve earliest position and branch order',()=>expectProgram(`
+  console.log(/1|12/.exec('123')[0],/12|1/.exec('123')[0]);
+  console.log(/ab|cd/.exec('xxcd')[0],/ab|cd/.exec('xxcd').index);
+  console.log(/AL|se/i.exec('false')[0],/AL|se/i.exec('false').index);
+  console.log(/a|/.exec('b')[0]==='',/|a/.exec('a')[0]==='');
+`,'1 12\ncd 2\nal 1\ntrue true\n'));
+
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
   re.exec=function(){return null};console.log(re.test('x'));

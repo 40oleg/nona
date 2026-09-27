@@ -238,6 +238,38 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.label(no);a.mov('rax',-1);a.mov('rdx',0);a.jmp(done);
   a.label(unsupported);a.mov('rax',-2);a.mov('rdx',0);a.label(done);
  });
+ b.fn('rt.regexpFindLiteralAlternatives',136,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('r10',{base:'rcx'});a.store(slot(72),'r10');a.lea('r11',{base:'rcx',disp:8});a.mov('r8',0);a.mov('r9',0);
+  const validate=a.unique('validate'),validated=a.unique('validated'),bar=a.unique('bar'),unsupported=a.unique('unsupported'),done=a.unique('done');
+  a.label(validate);a.cmp('r8','r10');a.jcc('ae',validated);a.load('rax',{base:'r11'},16);a.cmp('rax',124);a.jcc('e',bar);
+  for(const code of '.^$*+?()[]{}\\'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',unsupported);}
+  a.load('rdx',slot(64));a.and('rdx',8);a.test('rdx','rdx');const advance=a.unique('advance');a.jcc('e',advance);a.cmp('rax',127);failIf(a,'a','rt.throwTypeError');
+  a.label(advance);a.add('r11',2);a.add('r8',1);a.jmp(validate);
+  a.label(bar);a.mov('r9',1);a.jmp(advance);
+  a.label(validated);a.test('r9','r9');a.jcc('e',unsupported);
+  a.load('r10',slot(48));a.load('r10',{base:'r10'});a.store(slot(112),'r10');a.load('rax',slot(56));a.store(slot(88),'rax');
+  const outer=a.unique('outer'),branch=a.unique('branch'),compare=a.unique('compare'),branchFailed=a.unique('branchFailed'),skipBranch=a.unique('skipBranch'),nextCandidate=a.unique('nextCandidate'),found=a.unique('found'),no=a.unique('no');
+  a.label(outer);a.load('rax',slot(88));a.load('r10',slot(112));a.cmp('rax','r10');a.jcc('a',no);a.mov('rax',0);a.store(slot(96),'rax');
+  a.label(branch);a.mov('rax',0);a.store(slot(104),'rax');
+  a.label(compare);a.load('r10',slot(96));a.load('r11',slot(72));a.cmp('r10','r11');a.jcc('ae',found);
+  a.shl('r10',1);a.load('r11',slot(40));a.add('r11',8);a.add('r11','r10');a.load('r11',{base:'r11'},16);a.cmp('r11',124);a.jcc('e',found);
+  a.load('rax',slot(88));a.load('r10',slot(104));a.add('rax','r10');a.load('r10',slot(112));a.cmp('rax','r10');a.jcc('ae',branchFailed);
+  a.shl('rax',1);a.load('r10',slot(48));a.add('r10',8);a.add('r10','rax');a.load('r10',{base:'r10'},16);a.cmp('r10','r11');const equal=a.unique('equal');a.jcc('e',equal);
+  a.load('rax',slot(64));a.and('rax',8);a.test('rax','rax');a.jcc('e',branchFailed);
+  a.mov('rax','r11');a.or('rax',32);a.cmp('rax',97);a.jcc('b',branchFailed);a.cmp('rax',122);a.jcc('a',branchFailed);
+  a.mov('rax','r10');a.or('rax',32);a.cmp('rax',97);a.jcc('b',branchFailed);a.cmp('rax',122);a.jcc('a',branchFailed);
+  a.or('r11',32);a.cmp('rax','r11');a.jcc('ne',branchFailed);
+  a.label(equal);a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.jmp(compare);
+  a.label(branchFailed);a.label(skipBranch);a.load('rax',slot(96));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',nextCandidate);
+  a.shl('rax',1);a.load('r10',slot(40));a.add('r10',8);a.add('r10','rax');a.load('rax',{base:'r10'},16);a.cmp('rax',124);const skip=a.unique('skip');a.jcc('ne',skip);
+  a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.jmp(branch);
+  a.label(skip);a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.jmp(skipBranch);
+  a.label(nextCandidate);a.load('rax',slot(64));a.and('rax',32);a.test('rax','rax');a.jcc('ne',no);a.load('rax',slot(88));a.add('rax',1);a.store(slot(88),'rax');a.jmp(outer);
+  a.label(found);a.load('rax',slot(88));a.load('rdx',slot(104));a.jmp(done);
+  a.label(no);a.mov('rax',-1);a.mov('rdx',0);a.jmp(done);
+  a.label(unsupported);a.mov('rax',-2);a.mov('rdx',0);a.label(done);
+ });
  b.fn('rt.regexpFindPlain',136,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(80),'r8');a.store(slot(88),'r9');
   const done=a.unique('done');
@@ -253,6 +285,8 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('rax',slot(96));a.and('rax',10);a.cmp('rax',10);failIf(a,'e','rt.throwTypeError');
   a.load('r10',{base:'rcx',disp:RegExpLayout.pattern});a.store(slot(56),'r10');
   a.mov('rcx','r10');a.load('rdx',slot(48));a.load('r8',slot(80));a.load('r9',slot(96));a.load('r10',slot(88));a.test('r10','r10');const notSticky=a.unique('notSticky');a.jcc('e',notSticky);a.or('r9',32);a.label(notSticky);
+  a.store(slot(128),'r9');a.call('rt.regexpFindLiteralAlternatives');a.cmp('rax',-2);a.jcc('ne',done);
+  a.load('rcx',slot(56));a.load('rdx',slot(48));a.load('r8',slot(80));a.load('r9',slot(128));
   a.call('rt.regexpFindSingleQuantifier');a.cmp('rax',-2);a.jcc('ne',done);
   a.load('r10',slot(56));
   a.load('r9',{base:'r10'});a.lea('rdx',{base:'r10',disp:8});a.mov('r8',0);
