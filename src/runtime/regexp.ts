@@ -501,6 +501,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.jmp(scanNext);
   a.label(scanEscape);a.cmp('r11',1);a.jcc('be',scanNext);a.load('rax',{base:'r10',disp:2},16);
   a.test('r8','r8');a.jcc('ne',vmMatch);
+  const notDecimal=a.unique('notDecimal');a.cmp('rax',48);a.jcc('b',notDecimal);a.cmp('rax',57);a.jcc('be',vmMatch);a.label(notDecimal);
   for(const code of [112,80,107,120,88,99,117]){a.cmp('rax',code);a.jcc('e',vmMatch);}a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
   a.label(scanClass);a.xor('r8',1);
   a.label(scanNext);a.add('r10',2);a.sub('r11',1);a.jmp(scan);

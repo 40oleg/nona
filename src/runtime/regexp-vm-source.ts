@@ -29,7 +29,14 @@ export const regexpVmSource=String.raw`(function(){
     return false
   }
   function compile(pattern,flags){
-    var at=0,groups=0,names=[];
+    var at=0,groups=0,names=[],totalGroups=0,inClass=false;
+    for(var scan=0;scan<pattern.length;scan++){
+      var mark=pattern[scan];
+      if(mark==='\\'){scan++;continue}
+      if(inClass){if(mark===']')inClass=false;continue}
+      if(mark==='['){inClass=true;continue}
+      if(mark==='('&&!(pattern[scan+1]==='?'&&(pattern[scan+2]===':'||pattern[scan+2]==='='||pattern[scan+2]==='!'||pattern[scan+2]==='<'&&(pattern[scan+3]==='='||pattern[scan+3]==='!'))))totalGroups++
+    }
     function error(){throw new SyntaxError('Invalid regular expression')}
     function digit(c){return c>='0'&&c<='9'}
     function hex(c){
@@ -79,7 +86,15 @@ export const regexpVmSource=String.raw`(function(){
         }
         if(c==='n')point=10;else if(c==='r')point=13;else if(c==='t')point=9;
         else if(c==='v')point=11;else if(c==='f')point=12;else if(c==='b')point=8;
-        else if(c==='0')point=0;
+        else if(c>='0'&&c<='7'){
+          if(unicode&&c!=='0')error();
+          if(unicode&&body[cursor]>='0'&&body[cursor]<='9')error();
+          point=charCodeAt(c,0)-48;
+          var limit=point<=3?3:2,used=1;
+          while(!unicode&&used<limit&&body[cursor]>='0'&&body[cursor]<='7'){
+            point=point*8+charCodeAt(body,cursor++)-48;used++
+          }
+        }
         else if(c==='c'&&cursor<body.length){
           var control=charCodeAt(body,cursor);
           if(control>=65&&control<=90||control>=97&&control<=122){cursor++;point=control%32}
@@ -132,7 +147,11 @@ export const regexpVmSource=String.raw`(function(){
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0'){
         if(indexOf(flags,'u')>=0&&digit(pattern[at]))error();
-        return {kind:'char',value:'\0'}
+        var octal=0,used=1;
+        while(indexOf(flags,'u')<0&&used<3&&pattern[at]>='0'&&pattern[at]<='7'){
+          octal=octal*8+charCodeAt(pattern,at++)-48;used++
+        }
+        return {kind:'char',value:String.fromCharCode(octal)}
       }
       if(c==='c'){
         var control=charCodeAt(pattern,at);
@@ -188,9 +207,16 @@ export const regexpVmSource=String.raw`(function(){
         return {kind:'namedBackref',value:name}
       }
       if(c>='1'&&c<='9'){
-        var number=charCodeAt(c,0)-48;
-        while(at<pattern.length&&digit(pattern[at]))number=number*10+(charCodeAt(pattern,at++)-48);
-        return {kind:'backref',value:number}
+        var number=charCodeAt(c,0)-48,probe=at;
+        while(probe<pattern.length&&digit(pattern[probe]))number=number*10+(charCodeAt(pattern,probe++)-48);
+        if(number<=totalGroups){at=probe;return {kind:'backref',value:number}}
+        if(indexOf(flags,'u')>=0)error();
+        if(c==='8'||c==='9')return {kind:'char',value:c};
+        var octal=charCodeAt(c,0)-48,limit=octal<=3?3:2,used=1;
+        while(used<limit&&pattern[at]>='0'&&pattern[at]<='7'){
+          octal=octal*8+charCodeAt(pattern,at++)-48;used++
+        }
+        return {kind:'char',value:String.fromCharCode(octal)}
       }
       if(indexOf(flags,'u')>=0&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
       return {kind:'char',value:c}

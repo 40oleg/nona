@@ -113,6 +113,14 @@ test('RegExp constructor validates Unicode escapes and references',()=>expectPro
   console.log(new RegExp('\\1(a)','u').test('aa'));
 `,'SyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\nSyntaxError\n\\k<y> true\ntrue\n'));
 
+test('RegExp non-Unicode decimal escapes use backreferences or legacy octal',()=>expectProgram(String.raw`
+  console.log(new RegExp('\\1').test('\u0001'),new RegExp('\\12').test('\n'));
+  console.log(new RegExp('\\8').test('8'),new RegExp('\\18').test('\u00018'));
+  console.log(new RegExp('\\400').test(' 0'),new RegExp('\\000').test('\u0000'));
+  console.log(new RegExp('[\\1]').test('\u0001'),new RegExp('\\1(a)').test('a'));
+  console.log(new RegExp('(a)'.repeat(8)+'\\8').test('a'.repeat(9)));
+`,'true true\ntrue true\ntrue true\ntrue true\ntrue\n'));
+
 test('RegExp copies native patterns and call reuses an existing instance',()=>expectProgram(`
   let original=/cat/gi;
   console.log(RegExp(original)===original,RegExp(original,undefined)===original);
