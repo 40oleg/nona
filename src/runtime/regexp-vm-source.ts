@@ -972,4 +972,14 @@ __nonaRegexpVm.dvWriteBig=function(view,offset,value,little){
 Object.defineProperty(DataView.prototype,'getBigInt64',{value:function getBigInt64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],true)},writable:true,configurable:true});
 Object.defineProperty(DataView.prototype,'getBigUint64',{value:function getBigUint64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],false)},writable:true,configurable:true});
 Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
-Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});`;
+Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
+__nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
+__nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{value:function forEach(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var thisArg=arguments[1];
+ for(var k=0;k<length;k++)__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this);
+},writable:true,configurable:true});`;

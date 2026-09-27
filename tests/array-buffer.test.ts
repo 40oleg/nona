@@ -48,6 +48,16 @@ test('TypedArray copyWithin checks detachment after coercing indices',()=>expect
   try{b.copyWithin(0,1,{valueOf:function(){ArrayBuffer.__nonaDetachInternal(b.buffer);return 6}})}catch(error){console.log(error.name)}
 `,'TypeError\nTypeError\n'));
 
+test('TypedArray forEach visits numeric and BigInt values with callback receiver',()=>expectProgram(`
+  var a=new Uint8Array([2,4,6]),context={sum:0},seen='';
+  console.log(a.forEach(function(value,index,array){this.sum+=value;seen+=index+':'+(array===a)+';'},context));
+  console.log(context.sum,seen);
+  var b=new BigInt64Array([1n,2n]),sum=0n;b.forEach(function(value){sum+=value});console.log(String(sum));
+  try{a.forEach(null)}catch(error){console.log(error.name)}
+  ArrayBuffer.__nonaDetachInternal(a.buffer);
+  try{a.forEach(function(){})}catch(error){console.log(error.name)}
+`,'undefined\n12 0:true;1:true;2:true;\n3\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
