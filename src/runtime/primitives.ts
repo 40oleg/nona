@@ -33,17 +33,17 @@ export function emitPrimitives(b:RuntimeBuilder):void {
    a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('e','rt.add.string');a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e','rt.add.string');
   }
   const bigDone=a.unique('bigDone');
-  if(op==='add'||op==='sub'){
+  if(op==='add'||op==='sub'||op==='mul'){
    a.load('rdx',slot(48));a.load('rax',{base:'rdx'});const normal=a.unique('normal');a.cmp('rax',7);a.jcc('ne',normal);
    a.load('r8',slot(56));a.load('rax',{base:'r8'});a.cmp('rax',7);a.jcc('ne',normal);
    if(op==='sub'){a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.bigintNeg');a.lea('r8',slot(80));a.load('rdx',slot(48));}
-   a.load('rcx',slot(40));a.call('rt.bigintAdd');a.jmp(op==='add'?'rt.add.done':bigDone);a.label(normal);
+   a.load('rcx',slot(40));a.call(op==='mul'?'rt.bigintMul':'rt.bigintAdd');a.jmp(op==='add'?'rt.add.done':bigDone);a.label(normal);
   }
   a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toNumber');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
   a.movsd('xmm0',slot(72));a.movsd('xmm1',slot(88));if(op==='rem')a.call('rt.remainder');else if(op==='pow')a.call('rt.numberPow');else if(op==='add')a.addsd('xmm0','xmm1');else if(op==='sub')a.subsd('xmm0','xmm1');else if(op==='mul')a.mulsd('xmm0','xmm1');else a.divsd('xmm0','xmm1');
   a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');tag(a,3);
   if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');a.label('rt.add.done');}
-  if(op==='sub')a.label(bigDone);
+  if(op==='sub'||op==='mul')a.label(bigDone);
  });
  for(const op of ['strictEq','eq','lt','le','gt','ge'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
  const p='rt.'+op;const eq=op==='eq'||op==='strictEq';a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');if(!eq){a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');a.lea('rdx',slot(64));a.store(slot(48),'rdx');a.lea('r8',slot(80));a.store(slot(56),'r8');}a.load('r10',{base:'rdx'});a.load('r11',{base:'r8'});
