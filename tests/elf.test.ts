@@ -118,6 +118,27 @@ test('Linux native Atomics.store writes Number and BigInt values',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'257 1 18446744073709551617 1\n');
 });
 
+test('Linux native Atomics add and sub wrap shared integer elements',t=>{
+ const source=`let bytes=new Uint8Array(new SharedArrayBuffer(1));bytes[0]=255;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-1n;console.log(Atomics.add(bytes,0,2),Atomics.sub(bytes,0,3),bytes[0],String(Atomics.add(big,0,2n)),String(Atomics.sub(big,0,3n)),String(big[0]),Atomics.exchange(bytes,0,7),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-add-sub.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'255 1 254 -1 1 -2 254 7\n');
+});
+
+test('Linux native Atomics bitwise operations update shared elements',t=>{
+ const source=`let bytes=new Uint8Array(new SharedArrayBuffer(1));bytes[0]=15;console.log(Atomics.and(bytes,0,10),Atomics.or(bytes,0,1),Atomics.xor(bytes,0,3),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-bitwise.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'15 10 11 8\n');
+});
+
+test('Linux native Atomics.compareExchange handles unsigned wrapped expected values',t=>{
+ const source=`let bytes=new Uint32Array(new SharedArrayBuffer(4));bytes[0]=4294967291;console.log(Atomics.compareExchange(bytes,0,-5,7),bytes[0],Atomics.compareExchange(bytes,0,-5,9),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-compare-exchange.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'4294967291 7 7 7\n');
+});
+
 test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
  const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
  const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});

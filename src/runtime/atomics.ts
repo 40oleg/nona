@@ -6,8 +6,9 @@ import {stringLiteral} from './value.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 
-export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn'];
-export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store'].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
+const rmwNames=['add','sub','exchange','and','or','xor'] as const;
+export const atomicsRoots=['rt.Atomics','rt.Atomics.isLockFree.fn','rt.Atomics.load.fn','rt.Atomics.store.fn','rt.Atomics.compareExchange.fn',...rmwNames.map(name=>'rt.Atomics.'+name+'.fn')];
+export const atomicsPropertyRoots=['rt.globalObject.Atomics','rt.Atomics.@@toStringTag',...['isLockFree','load','store','compareExchange',...rmwNames].flatMap(name=>builtinPropertyRoots('rt.Atomics.'+name+'.fn',name,'rt.Atomics'))];
 
 export function emitAtomics(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.Atomics',section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[
@@ -16,6 +17,8 @@ export function emitAtomics(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.Atomics.isLockFree.fn','isLockFree',1,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.load.fn','load',2,'rt.Atomics');
  prependFunctionBuiltin(b,'rt.Atomics.store.fn','store',3,'rt.Atomics');
+ prependFunctionBuiltin(b,'rt.Atomics.compareExchange.fn','compareExchange',4,'rt.Atomics');
+ for(const name of rmwNames)prependFunctionBuiltin(b,'rt.Atomics.'+name+'.fn',name,3,'rt.Atomics');
  b.bundle.fragments.push(stringLiteral('rt.str.Atomics','Atomics'));
  const atomics=b.bundle.fragments.find(f=>f.name==='rt.Atomics')!;
  const tagHead=atomics.fixups.find(f=>f.offset===O.properties)!;
@@ -87,5 +90,60 @@ export function emitAtomics(b:RuntimeBuilder):void {
   a.load('rdx',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','rdx');a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',slot(144));
   const storeByte=a.unique('storeByte'),storeWord=a.unique('storeWord'),storeQuad=a.unique('storeQuad'),stored=a.unique('stored');a.cmp('r11',3);a.jcc('b',storeByte);a.cmp('r11',6);a.jcc('b',storeWord);a.cmp('r11',10);a.jcc('ae',storeQuad);a.atomicExchange({base:'rdx'},'rax',32);a.jmp(stored);a.label(storeWord);a.atomicExchange({base:'rdx'},'rax',16);a.jmp(stored);a.label(storeQuad);a.atomicExchange({base:'rdx'},'rax',64);a.jmp(stored);a.label(storeByte);a.atomicExchange({base:'rdx'},'rax',8);a.label(stored);
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}
+ });
+ for(const name of rmwNames)rootedFn(b,'rt.Atomics.'+name+'.fn.code',200,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:4}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+  a.store(slot(64),'r10');a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.store(slot(72),'rax');
+  a.cmp('rax',3);failIf(a,'e','rt.throwTypeError');a.cmp('rax',8);const valid=a.unique('valid');a.jcc('b',valid);a.cmp('rax',10);failIf(a,'b','rt.throwTypeError');a.label(valid);
+  a.load('r10',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');const indexReady=a.unique('indexReady');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',indexReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:16+n});a.store(slot(80+n),'rax');}a.label(indexReady);
+  a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.toNumber');a.movsd('xmm0',slot(88));const notNan=a.unique('notNan'),coerced=a.unique('coerced');a.ucomisd('xmm0','xmm0');a.jcc('np',notNan);a.mov('rax',0);a.jmp(coerced);a.label(notNan);a.cvttsd2si('rax','xmm0');a.label(coerced);a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(96),'rax');
+  a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rdx','rdx');failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','rdx');failIf(a,'ae','rt.throwRangeError');
+  a.mov('rax',0);a.store(slot(112),'rax');a.store(slot(120),'rax');const valueReady=a.unique('valueReady');a.load('rax',slot(48));a.cmp('rax',3);a.jcc('b',valueReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:32+n});a.store(slot(112+n),'rax');}a.label(valueReady);
+  a.load('rax',slot(72));a.cmp('rax',10);const number=a.unique('number'),converted=a.unique('converted');a.jcc('b',number);
+  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toBigIntValue');a.lea('rdx',slot(128));a.call('rt.bigintToUint64');a.store(slot(144),'rax');a.jmp(converted);
+  a.label(number);a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toNumber');a.lea('rcx',slot(128));a.call('rt.toInt32');a.store(slot(144),'rax');a.label(converted);
+  a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rdx','rdx');failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',slot(96));a.load('r11',slot(72));const byte=a.unique('byte'),word=a.unique('word'),quad=a.unique('quad'),address=a.unique('address');a.cmp('r11',3);a.jcc('b',byte);a.cmp('r11',6);a.jcc('b',word);a.cmp('r11',10);a.jcc('ae',quad);a.shl('rax',2);a.jmp(address);a.label(word);a.shl('rax',1);a.jmp(address);a.label(quad);a.shl('rax',3);a.label(byte);a.label(address);
+  a.load('rdx',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','rdx');a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',slot(144));if(name==='sub')a.neg('rax');
+  const atomic=(width:8|16|32|64)=>{
+   if(name==='exchange')a.atomicExchange({base:'rdx'},'rax',width);
+   else if(name==='add'||name==='sub')a.atomicXadd({base:'rdx'},'rax',width);
+   else{
+    a.load('r11',slot(144));a.load('rax',{base:'rdx'},width);const retry=a.unique('retry');a.label(retry);a.mov('r10','rax');
+    if(name==='and')a.and('r10','r11');else if(name==='or')a.or('r10','r11');else a.xor('r10','r11');
+    a.atomicCompareExchange({base:'rdx'},'r10',width);a.jcc('ne',retry);
+   }
+  };
+  const opByte=a.unique('opByte'),opWord=a.unique('opWord'),opQuad=a.unique('opQuad'),operated=a.unique('operated');a.cmp('r11',3);a.jcc('b',opByte);a.cmp('r11',6);a.jcc('b',opWord);a.cmp('r11',10);a.jcc('ae',opQuad);atomic(32);a.jmp(operated);a.label(opWord);atomic(16);a.and('rax',65535);a.jmp(operated);a.label(opQuad);atomic(64);a.jmp(operated);a.label(opByte);atomic(8);a.and('rax',255);a.label(operated);
+  const signed8=a.unique('signed8'),signed16=a.unique('signed16'),signed32=a.unique('signed32'),resultNumber=a.unique('resultNumber'),bigint=a.unique('bigint');a.load('r10',slot(72));a.cmp('r10',10);a.jcc('ae',bigint);a.cmp('r10',2);a.jcc('e',signed8);a.cmp('r10',5);a.jcc('e',signed16);a.cmp('r10',7);a.jcc('e',signed32);a.jmp(resultNumber);
+  a.label(signed8);a.shl('rax',56);a.sar('rax',56);a.jmp(resultNumber);a.label(signed16);a.shl('rax',48);a.sar('rax',48);a.jmp(resultNumber);a.label(signed32);a.shl('rax',32);a.sar('rax',32);a.label(resultNumber);a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('r10',3);a.store({base:'rcx'},'r10');a.storesd({base:'rcx',disp:8},'xmm0');const done=a.unique('done');a.jmp(done);
+  a.label(bigint);a.mov('rdx','rax');a.mov('r8',0);a.cmp('r10',10);const unsigned=a.unique('unsigned');a.jcc('ne',unsigned);a.mov('r8',1);a.label(unsigned);a.load('rcx',slot(40));a.call('rt.uint64ToBigInt');a.label(done);
+ });
+ rootedFn(b,'rt.Atomics.compareExchange.fn.code',232,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:7}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);failIf(a,'ne','rt.throwTypeError');
+  a.store(slot(64),'r10');a.load('rax',{base:'r10',disp:TypedArrayLayout.elementType});a.store(slot(72),'rax');
+  a.cmp('rax',3);failIf(a,'e','rt.throwTypeError');a.cmp('rax',8);const valid=a.unique('valid');a.jcc('b',valid);a.cmp('rax',10);failIf(a,'b','rt.throwTypeError');a.label(valid);
+  a.load('r10',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');const indexReady=a.unique('indexReady');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',indexReady);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:16+n});a.store(slot(80+n),'rax');}a.label(indexReady);
+  a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.toNumber');a.movsd('xmm0',slot(88));const notNan=a.unique('notNan'),coerced=a.unique('coerced');a.ucomisd('xmm0','xmm0');a.jcc('np',notNan);a.mov('rax',0);a.jmp(coerced);a.label(notNan);a.cvttsd2si('rax','xmm0');a.label(coerced);a.test('rax','rax');failIf(a,'s','rt.throwRangeError');a.store(slot(96),'rax');
+  a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rdx','rdx');failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','rdx');failIf(a,'ae','rt.throwRangeError');
+  for(const [position,target,minCount] of [[32,112,3],[48,160,4]] as const){a.mov('rax',0);a.store(slot(target),'rax');a.store(slot(target+8),'rax');const absent=a.unique('absent');a.load('rax',slot(48));a.cmp('rax',minCount);a.jcc('b',absent);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:position+n});a.store(slot(target+n),'rax');}a.label(absent);}
+  for(const [source,converted,bits] of [[112,128,144],[160,176,192]] as const){
+   a.load('rax',slot(72));a.cmp('rax',10);const number=a.unique('number'),done=a.unique('done');a.jcc('b',number);
+   a.lea('rcx',slot(converted));a.lea('rdx',slot(source));a.call('rt.toBigIntValue');a.lea('rdx',slot(converted));a.call('rt.bigintToUint64');a.store(slot(bits),'rax');a.jmp(done);
+   a.label(number);a.lea('rcx',slot(converted));a.lea('rdx',slot(source));a.call('rt.toNumber');a.lea('rcx',slot(converted));a.call('rt.toInt32');a.store(slot(bits),'rax');a.label(done);
+  }
+  a.load('r10',slot(64));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rdx','rdx');failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',slot(96));a.load('r11',slot(72));const byte=a.unique('byte'),word=a.unique('word'),quad=a.unique('quad'),address=a.unique('address');a.cmp('r11',3);a.jcc('b',byte);a.cmp('r11',6);a.jcc('b',word);a.cmp('r11',10);a.jcc('ae',quad);a.shl('rax',2);a.jmp(address);a.label(word);a.shl('rax',1);a.jmp(address);a.label(quad);a.shl('rax',3);a.label(byte);a.label(address);
+  a.load('rdx',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('rax','rdx');a.load('rdx',{base:'r10',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.add('rdx','rax');a.load('rax',slot(144));a.load('r10',slot(192));
+  const opByte=a.unique('opByte'),opWord=a.unique('opWord'),opQuad=a.unique('opQuad'),operated=a.unique('operated');a.cmp('r11',3);a.jcc('b',opByte);a.cmp('r11',6);a.jcc('b',opWord);a.cmp('r11',10);a.jcc('ae',opQuad);a.atomicCompareExchange({base:'rdx'},'r10',32);a.mov('r11',0xffffffffn);a.and('rax','r11');a.jmp(operated);a.label(opWord);a.atomicCompareExchange({base:'rdx'},'r10',16);a.and('rax',65535);a.jmp(operated);a.label(opQuad);a.atomicCompareExchange({base:'rdx'},'r10',64);a.jmp(operated);a.label(opByte);a.atomicCompareExchange({base:'rdx'},'r10',8);a.and('rax',255);a.label(operated);
+  const signed8=a.unique('signed8'),signed16=a.unique('signed16'),signed32=a.unique('signed32'),resultNumber=a.unique('resultNumber'),bigint=a.unique('bigint');a.load('r10',slot(72));a.cmp('r10',10);a.jcc('ae',bigint);a.cmp('r10',2);a.jcc('e',signed8);a.cmp('r10',5);a.jcc('e',signed16);a.cmp('r10',7);a.jcc('e',signed32);a.jmp(resultNumber);
+  a.label(signed8);a.shl('rax',56);a.sar('rax',56);a.jmp(resultNumber);a.label(signed16);a.shl('rax',48);a.sar('rax',48);a.jmp(resultNumber);a.label(signed32);a.shl('rax',32);a.sar('rax',32);a.label(resultNumber);a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.mov('r10',3);a.store({base:'rcx'},'r10');a.storesd({base:'rcx',disp:8},'xmm0');const done=a.unique('done');a.jmp(done);
+  a.label(bigint);a.mov('rdx','rax');a.mov('r8',0);a.cmp('r10',10);const unsigned=a.unique('unsigned');a.jcc('ne',unsigned);a.mov('r8',1);a.label(unsigned);a.load('rcx',slot(40));a.call('rt.uint64ToBigInt');a.label(done);
  });
 }

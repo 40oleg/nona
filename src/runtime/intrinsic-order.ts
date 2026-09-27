@@ -34,7 +34,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.String':['length','name','prototype','fromCharCode','fromCodePoint','raw'],
   'rt.Math':['E','LN10','LN2','LOG10E','LOG2E','PI','SQRT1_2','SQRT2','abs','acos','acosh','asin','asinh','atan','atanh','atan2','cbrt','ceil','clz32','cos','cosh','exp','expm1','floor','fround','hypot','imul','log','log1p','log10','log2','max','min','pow','random','round','sign','sin','sinh','sqrt','tan','tanh','trunc','@@toStringTag'],
   'rt.JSON':['parse','stringify','@@toStringTag'],
-  'rt.Atomics':['isLockFree','load','store','@@toStringTag'],
+  'rt.Atomics':['add','and','compareExchange','exchange','isLockFree','load','or','store','sub','xor','@@toStringTag'],
   'rt.booleanPrototype':['constructor','toString','valueOf'],
   'rt.numberPrototype':['constructor','toExponential','toFixed','toLocaleString','toPrecision','toString','valueOf'],
   'rt.stringPrototype':['constructor','toString','valueOf','charAt','charCodeAt','codePointAt','concat','toLowerCase','toLocaleLowerCase','toUpperCase','toLocaleUpperCase','includes','indexOf','lastIndexOf','startsWith','endsWith','localeCompare','normalize','padStart','padEnd','repeat','replace','slice','split','substring','trim','trimStart','trimEnd','trimLeft','trimRight','@@iterator'],
