@@ -55,8 +55,8 @@ test('RegExp test matches plain UTF-16 substrings without flags',()=>expectProgr
   let re=new RegExp('needle');
   console.log(re.test('hay needle stack'),re.test('haystack'),new RegExp('').test('anything'));
   console.log(new RegExp('猫').test('黒猫'),new RegExp('cat').test('concatenate'));
-  try{new RegExp('a+').test('aaa')}catch(error){console.log(error.name)}
-`,'true false true\ntrue true\nTypeError\n'));
+  console.log(new RegExp('a+').test('aaa'));
+`,'true false true\ntrue true\ntrue\n'));
 
 test('RegExp exec returns match metadata for plain patterns',()=>expectProgram(`
   let match=new RegExp('猫').exec('黒猫白猫');
@@ -126,6 +126,12 @@ test('RegExp ASCII literals match without case under ignoreCase',()=>expectProgr
   let re=new RegExp('Ab','gi');console.log(re.exec('xabAB')[0],re.lastIndex,re.exec('xabAB')[0],re.lastIndex);
   console.log(/x/i.test('X'),/x/i.test('猫'));
 `,'CAT 2\nab 3 AB 5\ntrue false\n'));
+
+test('RegExp repeats a single atom with star plus and optional',()=>expectProgram(String.raw`
+  let g=/\d+/g;console.log(g.exec('a12 b345')[0],g.lastIndex,g.exec('a12 b345')[0],g.lastIndex,g.exec('a12 b345'),g.lastIndex);
+  console.log(/a+/.exec('baaa')[0],/a*/.exec('bbb')[0]==='',/z?/.exec('abc')[0]==='');
+  console.log(/[a-z]+/.exec('42abc')[0],/.+/s.exec('a\nb')[0]==='a\nb');
+`,'12 3 345 8 null 0\naaa true true\nabc true\n'));
 
 test('RegExp test invokes an overridden exec method',()=>expectProgram(`
   let re=/x/;re.exec=function(){return {0:'x'}};console.log(re.test('no'));
