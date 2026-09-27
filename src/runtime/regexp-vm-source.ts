@@ -975,6 +975,28 @@ Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt
 Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
 __nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
 __nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
+__nonaRegexpVm.typedArrayConstructor=Object.getPrototypeOf(Uint8Array);
+__nonaRegexpVm.typedArrayDefaultConstructor=__nonaRegexpVm.typedArrayConstructor.__nonaDefaultConstructorInternal;
+delete __nonaRegexpVm.typedArrayConstructor.__nonaDefaultConstructorInternal;
+Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,Symbol.species,{get:Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get,configurable:true});
+__nonaRegexpVm.typedArraySpeciesCreate=function(source,length){
+ var defaultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,source);
+ var constructor=source.constructor;
+ if(constructor===undefined)constructor=defaultConstructor;
+ else{
+  if(constructor===null||(typeof constructor!=='object'&&typeof constructor!=='function'))throw new __nonaRegexpVm.bufferTypeError('Invalid TypedArray constructor');
+  var species=constructor[Symbol.species];
+  constructor=species===undefined||species===null?defaultConstructor:species;
+ }
+ var result=new constructor(length);
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,result);
+ if(__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,result)<length)throw new __nonaRegexpVm.bufferTypeError('TypedArray species returned a short result');
+ var resultConstructor=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,result);
+ var sourceBig=defaultConstructor===BigInt64Array||defaultConstructor===BigUint64Array;
+ var resultBig=resultConstructor===BigInt64Array||resultConstructor===BigUint64Array;
+ if(sourceBig!==resultBig)throw new __nonaRegexpVm.bufferTypeError('TypedArray species returned incompatible content type');
+ return result;
+};
 Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{value:function forEach(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
@@ -1053,4 +1075,24 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'join',{value:
  }
  return result;
 },writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toString',{value:Array.prototype.toString,writable:true,configurable:true});`;
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toString',{value:Array.prototype.toString,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'map',{value:function map(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var result=__nonaRegexpVm.typedArraySpeciesCreate(this,length),thisArg=arguments[1];
+ for(var k=0;k<length;k++)result[k]=__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this);
+ return result;
+},writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'filter',{value:function filter(callbackfn){
+ 'use strict';
+ __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
+ var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
+ if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
+ var kept=[],thisArg=arguments[1];
+ for(var k=0;k<length;k++){var value=this[k];if(__nonaRegexpVm.safeCall(callbackfn,thisArg,value,k,this))kept[kept.length]=value}
+ var result=__nonaRegexpVm.typedArraySpeciesCreate(this,kept.length);
+ for(var i=0;i<kept.length;i++)result[i]=kept[i];
+ return result;
+},writable:true,configurable:true});`;

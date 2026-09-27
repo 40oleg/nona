@@ -85,6 +85,19 @@ test('TypedArray join and toString format numeric and BigInt elements',()=>expec
   try{Uint8Array.prototype.join.call({length:2,0:1,1:2})}catch(error){console.log(error.name)}
 `,'1,2,3 1:2:3 4|5 1,2,3\ntrue\nTypeError\nTypeError\n'));
 
+test('TypedArray map and filter preserve content type and respect species',()=>expectProgram(`
+  var a=new Uint8Array([1,2,3]);
+  console.log(a.map(function(v){return v*2}).join(','),a.filter(function(v){return v>1}).join(','));
+  var b=new BigInt64Array([1n,2n,3n]);
+  console.log(b.map(function(v){return v+1n}).join(','),b.filter(function(v){return v>1n}).join(','));
+  class Child extends Uint8Array{};var child=new Child([1,2]);
+  console.log(child.map(function(v){return v+1}) instanceof Child);
+  child.constructor=undefined;console.log(child.map(function(v){return v+1}) instanceof Uint8Array);
+  child.constructor={[Symbol.species]:Int8Array};console.log(child.filter(function(){return true}) instanceof Int8Array);
+  child.constructor={[Symbol.species]:BigInt64Array};try{child.map(function(v){return v})}catch(error){console.log(error.name)}
+  child.constructor={[Symbol.species]:function(){return new Uint8Array(1)}};try{child.map(function(v){return v})}catch(error){console.log(error.name)}
+`,'2,4,6 2,3\n2,3,4 2,3\ntrue\ntrue\ntrue\nTypeError\nTypeError\n'));
+
 test('ArrayBuffer slice applies bounds and species',()=>expectProgram(`
   var original=new ArrayBuffer(8);
   console.log(original.slice(2,6).byteLength,original.slice(-3).byteLength,original.slice(9).byteLength);
