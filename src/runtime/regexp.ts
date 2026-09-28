@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {selectNativeConstructPrototype} from './constructor-prototype.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -673,7 +674,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
  rootedFn(b,'rt.RegExp.construct',104,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],(a,frame)=>{
   a.store(slot(40),'rcx');a.call('rt.newRegExp');
   // The prepared receiver has the prototype selected from new.target.
-  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+  selectNativeConstructPrototype(a,frame,'rt.regexpPrototype');
   a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.prototype},'r10');
  });
 }

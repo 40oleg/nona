@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {selectNativeConstructPrototype} from './constructor-prototype.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {errorConstructorNames} from '../global-builtins.js';
@@ -37,9 +38,9 @@ export function emitErrors(b:RuntimeBuilder):void {
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
    a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
    a.load('r10',slot(88));a.mov('rax',ErrorKind);a.store({base:'r10',disp:O.kind},'rax');
-   if(construct){a.load('rax',slot(frame+40));a.load('rax',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:O.prototype});}
+   if(construct){selectNativeConstructPrototype(a,frame,prototype);a.mov('rax','r10');}
    else a.lea('rax',{rip:prototype});
-   a.store({base:'r10',disp:O.prototype},'rax');
+   a.load('r10',slot(88));a.store({base:'r10',disp:O.prototype},'rax');
    const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
    a.load('rdx',slot(56));a.load('rax',{base:'rdx'});a.test('rax','rax');a.jcc('e',done);
    a.lea('rcx',slot(96));a.call('rt.toString');

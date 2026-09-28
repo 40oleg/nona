@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {selectNativeConstructPrototype} from './constructor-prototype.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -180,7 +181,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DataViewKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
   for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
-  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});a.store({base:'rax',disp:O.prototype},'r10');
+  selectNativeConstructPrototype(a,frame,'rt.dataviewPrototype');a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(64));a.store({base:'rax',disp:DataViewLayout.buffer},'r10');
   a.load('r10',slot(72));a.store({base:'rax',disp:DataViewLayout.byteOffset},'r10');
   a.load('r10',slot(80));a.store({base:'rax',disp:DataViewLayout.byteLength},'r10');

@@ -6,6 +6,8 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
+test('ArrayBuffer, SharedArrayBuffer and DataView use intrinsic prototypes for primitive newTarget prototypes',()=>expectProgram(`var C=function(){};C.prototype=null;var a=Reflect.construct(ArrayBuffer,[2],C),s=Reflect.construct(SharedArrayBuffer,[3],C),v=Reflect.construct(DataView,[a,0],C);console.log(Object.getPrototypeOf(a)===ArrayBuffer.prototype,a.byteLength,Object.getPrototypeOf(s)===SharedArrayBuffer.prototype,s.byteLength,Object.getPrototypeOf(v)===DataView.prototype,v.byteLength)`,'true 2 true 3 true 2\n'));
+
 test('ArrayBuffer construction allocates zero-length or sized native backing',()=>expectProgram(`
   var a=new ArrayBuffer(4),empty=new ArrayBuffer();
   console.log(a instanceof ArrayBuffer,a.byteLength,empty.byteLength);

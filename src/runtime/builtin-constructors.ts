@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {selectNativeConstructPrototype} from './constructor-prototype.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -114,7 +115,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
    a.label(ready);
    if(construct){
     a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');
-    a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+    selectNativeConstructPrototype(a,frame,'rt.'+name.toLowerCase()+'Prototype');
     a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.prototype},'r10');
    }else copyResult(a,64);
   });
@@ -137,7 +138,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.label(done);
   if(construct){
    // The prepared receiver carries the prototype selected by new.target.
-   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+   selectNativeConstructPrototype(a,frame,'rt.arrayPrototype');
    a.load('rax',slot(88));a.store({base:'rax',disp:O.prototype},'r10');
   }
   copyResult(a,80);
