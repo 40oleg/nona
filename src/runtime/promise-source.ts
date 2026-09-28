@@ -2,8 +2,11 @@
 // This is compiled by the same frontend as user code.
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
-  var jobs=[],head=0,states=new WeakMap();
-  function enqueue(job){jobs.push(job)}
+  var jobs=[],head=0,states=new WeakMap(),defineProperty=Object.defineProperty;
+  function append(array,value){
+    defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})
+  }
+  function enqueue(job){append(jobs,job)}
   function drain(){
     while(head<jobs.length){var job=jobs[head++];job()}
     jobs=[];head=0
@@ -41,8 +44,8 @@ var __nonaPromiseDrainJobs=(function(){
       if(typeof then==='function'){
         enqueue(function(){
           var called=false;
-          try{then.call(value,function(next){if(called)return;called=true;resolvePromise(promise,next)},
-            function(reason){if(called)return;called=true;settle(promise,2,reason)})}
+          try{then.call(value,next=>{if(called)return;called=true;resolvePromise(promise,next)},
+            reason=>{if(called)return;called=true;settle(promise,2,reason)})}
           catch(error){if(!called)settle(promise,2,error)}
         });
         return
@@ -87,7 +90,7 @@ var __nonaPromiseDrainJobs=(function(){
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
-    if(state.kind===0){state.fulfill.push(reaction);state.reject.push(reaction)}
+    if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
     return next.promise
   }}).then;
@@ -104,11 +107,8 @@ var __nonaPromiseDrainJobs=(function(){
   var finallyMethod=({finally(onFinally){
     var C=species(this);
     if(typeof onFinally!=='function')return this.then(onFinally,onFinally);
-    return this.then(value=>{
-      return promiseResolve(C,onFinally()).then(()=>value)
-    },reason=>{
-      return promiseResolve(C,onFinally()).then(()=>{throw reason})
-    })
+    return this.then(value=>promiseResolve(C,onFinally()).then(()=>value),
+      reason=>promiseResolve(C,onFinally()).then(()=>{throw reason}))
   }}).finally;
   function promiseResolve(C,value){
     if(value!==null&&(typeof value==='object'||typeof value==='function')&&states.get(value)!==undefined&&value.constructor===C)return value;
@@ -123,7 +123,7 @@ var __nonaPromiseDrainJobs=(function(){
       for(var item of iterable){
         var promise=resolveMethod.call(C,item);
         if(mode===2){promise.then(resolve,reject);continue}
-        var index=values.length;values.push(undefined);remaining++;
+        var index=values.length;append(values,undefined);remaining++;
         (function(position){
           var called=false;
           if(mode===0)promise.then(value=>{

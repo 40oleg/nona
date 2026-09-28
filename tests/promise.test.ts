@@ -36,3 +36,8 @@ test('Promise self resolution and rejection handlers survive GC stress',()=>expe
  Promise.resolve(1).then(()=>{throw new Error('boom')}).catch(error=>console.log(error.message));
  Promise.reject('reason').finally(()=>2).catch(reason=>console.log(reason));
 `));
+
+test('Promise internal job and result arrays ignore inherited numeric setters',()=>expectStress(`
+ Object.defineProperty(Array.prototype,0,{set(){throw new Error('inherited setter')},configurable:true});
+ Promise.all([42]).then(values=>{delete Array.prototype[0];console.log(values[0])},error=>{delete Array.prototype[0];console.log(error.name)});
+`));

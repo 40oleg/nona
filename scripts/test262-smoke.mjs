@@ -11,6 +11,7 @@ const group = process.argv[2];
 const pathFilter = process.env.TEST262_PATH_FILTER || '';
 const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
+const runAsync = process.env.TEST262_RUN_ASYNC === '1';
 const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
 const jobs = Number(process.env.TEST262_JOBS || 1);
 if (!Number.isSafeInteger(runtimeTimeout) || runtimeTimeout < 1 || runtimeTimeout > 600000) {
@@ -57,10 +58,13 @@ function runCase(path) {
       reason: parsed.ok ? 'Expected compiler diagnostic' : undefined,
       diagnostics: parsed.ok ? undefined : parsed.diagnostics};
   }
-  if (flags.includes('module') || flags.includes('async') || flags.includes('raw') || negativePhase) {
+  const asyncCase=flags.includes('async');
+  if (flags.includes('module') || (asyncCase && !runAsync) || flags.includes('raw') || negativePhase) {
     return {path, outcome: 'skip', reason: 'Unsupported harness mode in smoke runner'};
   }
-  const prelude = harness + '\n' + includes.map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
+  const baseHarness=asyncCase?harness.replace('var print = function(){};', 'var print = function(message){console.log(message)};'):harness;
+  const prelude = baseHarness + '\n' + (asyncCase?readFileSync(join(root,'harness','doneprintHandle.js'),'utf8'):'') + '\n'
+    + includes.map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
   const program = `${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${prelude}\n${source}`;
   const compiled = compile(program, {fileName: path, target: 'win32-x64'});
   if (!compiled.ok) {
@@ -70,8 +74,11 @@ function runCase(path) {
   mkdirSync(dirname(exe), {recursive: true});
   writeFileSync(exe, compiled.image);
   const run = spawnSync(exe, [], {encoding: 'utf8', timeout: runtimeTimeout, windowsHide: true, maxBuffer: 1024 * 1024});
-  return {path, outcome: !run.error && run.status === 0 ? 'pass' : 'fail', phase: 'runtime',
-    status: run.status, error: run.error?.message, stderr: run.stderr?.slice(0, 2000)};
+  const completions=asyncCase?(run.stdout?.match(/Test262:AsyncTestComplete/g)?.length??0):0;
+  const asyncSuccess=!asyncCase||(completions===1&&!run.stdout?.includes('Test262:AsyncTestFailure:'));
+  return {path, outcome: !run.error && run.status === 0 && asyncSuccess ? 'pass' : 'fail', phase: 'runtime',
+    status: run.status, error: run.error?.message, stderr: run.stderr?.slice(0, 2000),
+    ...(asyncCase?{completions,stdout:run.stdout?.slice(0,2000)}:{})};
 }
 if (!isMainThread) {
   for (const path of workerData.paths) parentPort.postMessage(runCase(path));
@@ -82,7 +89,7 @@ if (!isMainThread) {
   if (progressPath) {
     mkdirSync(dirname(progressPath), {recursive: true});
     writeFileSync(progressPath, JSON.stringify({revision: PIN, group: group || 'smoke-manifest',
-      pathFilter, excludePathFilter, directOnly, runtimeTimeout, jobs, expected: paths.length}) + '\n');
+      pathFilter, excludePathFilter, directOnly, runAsync, runtimeTimeout, jobs, expected: paths.length}) + '\n');
   }
   const record = result => {
     if (progressPath) appendFileSync(progressPath, JSON.stringify(result) + '\n');
@@ -110,7 +117,7 @@ if (!isMainThread) {
     }
   }
   const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilter, directOnly, runtimeTimeout, jobs, counts, results};
+  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilter, directOnly, runAsync, runtimeTimeout, jobs, counts, results};
   mkdirSync(dirname(reportPath), {recursive: true});
   writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
   console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);
