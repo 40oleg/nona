@@ -112,6 +112,8 @@ Date и BigInt существенно расширены, но общий gate E
 
 Общий native `IsArray` теперь разворачивает вложенные Proxy и проверяет отзыв. Test262 `Array.isArray` — **29/29**, `Array.prototype.concat` — **67/69** (два оставшихся требуют cross-realm), `flat` — **19/19**, `flatMap` — **24/24**. GC stress тест Proxy-массивов и Linux native compatibility **81/81** прошли. Общий gate ES2020 остаётся открытым.
 
+Повторная проверка ранее отложенных зависимостей BigInt/RegExp: Test262 `Array.prototype.sort` — **50/54** (четыре resizable-buffer теста после ES2020), `Array.prototype.toLocaleString` — **9/12** (три resizable-buffer теста после ES2020). `String.fromCharCode` — **17/17**, `String.prototype.indexOf` — **46/47**, `toUpperCase` — **25/26**, `toLowerCase` — **29/30**; по одному оставшемуся тесту в последних трёх группах использует исключённый `eval`. Эти выборки не заменяют полный gate String/Array.
+
 ### Промежуточная проверка 0.7 (2026-09-27)
 
 Добавлены `JSON.parse` с рекурсивным разбором и reviver, а также
