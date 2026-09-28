@@ -70,7 +70,7 @@ export const reflectPreludeSource=String.raw`(function(){
   method('deleteProperty',2,({deleteProperty(target,key){return delete object(target)[key]}}).deleteProperty);
   method('get',2,({get(target,key,receiver){
     object(target);
-    if(arguments.length<3)receiver=target;
+    if(arguments.length<3)return target[key];
     for(var current=target;current!==null;current=Object.getPrototypeOf(current)){
       var descriptor=Object.getOwnPropertyDescriptor(current,key);
       if(descriptor!==undefined){
@@ -111,5 +111,4 @@ export const reflectPreludeSource=String.raw`(function(){
   for(var i=0;i<propertyOrder.length;i++)delete reflect[propertyOrder[i]];
   for(var i=0;i<propertyOrder.length;i++)Object.defineProperty(reflect,propertyOrder[i],{value:methods[i],writable:true,configurable:true});
 })();
-delete Function.prototype.__nonaMarkNativeInternal;
-delete Function.prototype.__nonaReflectConstructInternal`;
+delete Function.prototype.__nonaReflectConstructInternal;`;
