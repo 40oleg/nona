@@ -34,24 +34,25 @@ export function emitObjectMethods(b:RuntimeBuilder):void {
  b.fn('rt.objectToString.code',40,a=>{a.load('rdx',slot(80));a.call('rt.objectTag');});
  // @@toStringTag is read with the original receiver and can invoke a getter.
  rootedFn(b,'rt.objectTag',184,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:5}],a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rdx'});const defaultTag=a.unique('defaultTag'),dynamicDone=a.unique('dynamicDone');a.cmp('rax',1);a.jcc('be',defaultTag);
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.mov('rax',0);a.store(slot(56),'rax');a.load('rax',{base:'rdx'});const defaultTag=a.unique('defaultTag'),dynamicDone=a.unique('dynamicDone');a.cmp('rax',1);a.jcc('be',defaultTag);
+  a.mov('rcx','rdx');a.call('rt.isArray');a.store(slot(56),'rax');
   a.mov('rax',6);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.Symbol.toStringTag.value'});a.store(slot(72),'rax');
   a.lea('rcx',slot(80));a.load('rdx',slot(48));a.lea('r8',slot(64));a.call('rt.getProperty');a.load('rax',slot(80));a.cmp('rax',4);a.jcc('ne',defaultTag);
   a.mov('rax',4);for(const offset of [96,112])a.store(slot(offset),'rax');a.lea('rax',{rip:'rt.str.tagOpen'});a.store(slot(104),'rax');a.lea('rax',{rip:'rt.str.tagClose'});a.store(slot(120),'rax');
   a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(80));a.call('rt.concat');
   a.load('rcx',slot(40));a.lea('rdx',slot(128));a.lea('r8',slot(112));a.call('rt.concat');a.jmp(dynamicDone);
   a.label(defaultTag);a.load('rcx',slot(40));a.load('rdx',slot(48));
-  const save=a.unique('save');a.load('r10',{base:'rdx'});
+  const save=a.unique('save');a.load('r10',slot(56));const notArray=a.unique('notArray');a.test('r10','r10');a.jcc('e',notArray);a.lea('rax',{rip:'rt.str.arrayValue'});a.jmp(save);a.label(notArray);a.load('r10',{base:'rdx'});
   for(const [tag,name] of ['Undefined','Null','Boolean','Number','String'].entries()){
    const next=a.unique('tag');a.cmp('r10',tag);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.tag'+name});a.jmp(save);a.label(next);
   }
-  const notSymbol=a.unique('notSymbol');a.cmp('r10',6);a.jcc('ne',notSymbol);a.lea('rax',{rip:'rt.str.tagSymbol'});a.jmp(save);a.label(notSymbol);
+  const objectPrimitive=a.unique('objectPrimitive');a.cmp('r10',5);a.jcc('e',objectPrimitive);a.lea('rax',{rip:'rt.str.objectValue'});a.jmp(save);a.label(objectPrimitive);
   a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rdx',disp:O.kind});
   for(const [kind,symbol] of [[1,'arrayValue'],[FunctionKind,'functionValue'],[3,'argumentsValue'],[ErrorKind,'errorValue'],[DateKind,'dateValue'],[RegExpKind,'regexpValue']] as const){
    const next=a.unique('kind');a.cmp('r10',kind);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.'+symbol});a.jmp(save);a.label(next);
   }
   const ordinary=a.unique('ordinary');a.cmp('r10',BoxKind);a.jcc('ne',ordinary);a.load('r10',{base:'rdx',disp:BoxLayout.value});
-  for(const [tag,name] of [[2,'Boolean'],[3,'Number'],[4,'String'],[6,'Symbol']] as const){const next=a.unique('box');a.cmp('r10',tag);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.tag'+name});a.jmp(save);a.label(next);}
+  for(const [tag,name] of [[2,'Boolean'],[3,'Number'],[4,'String']] as const){const next=a.unique('box');a.cmp('r10',tag);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.tag'+name});a.jmp(save);a.label(next);}
   a.label(ordinary);a.lea('rax',{rip:'rt.str.objectValue'});a.label(save);a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');a.label(dynamicDone);
  });
  // Roots receiver and join method before reentrant user JS. The result belongs

@@ -68,6 +68,14 @@ test('Proxy getPrototypeOf trap and instanceof survive GC stress',()=>{
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
+test('Object.prototype.isPrototypeOf follows Proxy getPrototypeOf under GC stress',()=>{
+ const source='let p=[],proxy=new Proxy({},{getPrototypeOf:function(){for(let i=0;i<20;i++)({x:i});return p;}});console.log(p.isPrototypeOf(proxy));';
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
 test('Proxy setPrototypeOf trap, invariants and Reflect result survive GC stress',()=>{
  const source=`let target={},proto={},p=new Proxy(target,{setPrototypeOf:function(t,v){for(let i=0;i<20;i++)({v:i});return false}});
  console.log(Reflect.setPrototypeOf(p,proto));try{Object.setPrototypeOf(p,proto)}catch(e){console.log(e.name)}

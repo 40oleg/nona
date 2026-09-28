@@ -25,6 +25,8 @@ const cases:[string,string][]=[
  ['method mutation and deletion affect lookup and fallback','let p=[].__proto__,saved=p.join;delete p.join;let text=[1,2].toString(),has="join" in [];p.join=saved;console.log(text,has,[1,2].toString());'],
  ['join converts receiver used as separator before cycle guard','let a=[1,2];console.log(a.join(a));'],
  ['Object toString ignores user toString while array fallback ignores it too','let o={toString:function(){return "custom";},join:null},t={}.toString;console.log(t.call(o),[].toString.call(o));'],
+ ['Object toString checks Proxy array status before invoking the tag getter','let t=Object.prototype.toString,p=Proxy.revocable([], {get:function(){p.revoke();return undefined;}});console.log(t.call(p.proxy));let q=Proxy.revocable({}, {get:function(){q.revoke();return undefined;}});console.log(t.call(q.proxy));'],
+ ['Object toString falls back to Object for Symbol and BigInt without string tags','let t=Object.prototype.toString;delete Symbol.prototype[Symbol.toStringTag];Object.defineProperty(BigInt.prototype,Symbol.toStringTag,{value:null});console.log(t.call(Symbol()),t.call(1n),t.call(Object(1n)));'],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 for(const source of ['let v={}.valueOf;v();','({}).valueOf.call(null);','[].join.call(null);','[].toString.call(undefined);','new [].join();'])test('object method protocol error: '+source,()=>{

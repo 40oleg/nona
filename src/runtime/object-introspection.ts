@@ -79,8 +79,10 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   }else if(method==='isPrototypeOf'){
    const no=a.unique('no'),yes=a.unique('yes'),loop=a.unique('loop'),done=a.unique('done');
    a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',no);
-   a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.toObject');a.load('r10',slot(104));a.load('rax',slot(72));
-   a.label(loop);a.load('rax',{base:'rax',disp:O.prototype});a.test('rax','rax');a.jcc('e',no);a.cmp('rax','r10');a.jcc('e',yes);a.jmp(loop);
+   a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.toObject');
+   a.label(loop);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.getPrototype');
+   a.load('rax',slot(80));a.cmp('rax',1);a.jcc('e',no);a.load('rax',slot(88));a.load('r10',slot(104));a.cmp('rax','r10');a.jcc('e',yes);
+   a.mov('rax',5);a.store(slot(64),'rax');a.load('rax',slot(88));a.store(slot(72),'rax');a.jmp(loop);
    a.label(no);a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);booleanResult(a);
   }else if(method==='toLocaleString'){
    a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.str.toString'});a.store(slot(72),'rax');

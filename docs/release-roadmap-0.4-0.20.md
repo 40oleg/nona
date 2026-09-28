@@ -106,6 +106,15 @@ Proxy/Reflect, BigInt, RegExp, коллекции или более поздни
 `Object.getOwnPropertySymbols` дал 8 pass / 4 fail; все четыре отказа требуют
 инвариантов Proxy из 0.15. `Object.is` прошёл 21/21;
 `Object.setPrototypeOf` — 10/12, оставшиеся тесты требуют BigInt и Proxy.
+Повторный срез 28.09.2026 после Proxy и BigInt: `Object/prototype` вырос с
+180/248 до **185/248** после указанных ниже исправлений;
+54 отказа связаны с методами Annex B. Исправлены `isPrototypeOf` с ловушкой
+`getPrototypeOf` (10/10) и `toString` для Proxy и примитивов с нестандартным
+`@@toStringTag` (32/41). Остальные случаи `toString` зависят от динамического
+`Function`, async или Iterator Helpers после ES2020.
+Локальный сценарий `isPrototypeOf` через Proxy с принудительным GC добавлен в
+Proxy suite. Для него требуется полный `compileToIR`, который включает Proxy
+bootstrap; упрощённый путь прямого вызова frontend/IR не эквивалентен ему.
 Date и BigInt существенно расширены, но общий gate ES2020 ещё открыт. RegExp, его интеграция со String, буферы и Agent model для Atomics остаются частичными. Полные каталоги Map/Set проверены; WeakMap/WeakSet реализованы с ephemeron GC и проверкой освобождения памяти. Текущие результаты описаны в статусах 0.9–0.14. PR для 0.6–0.14 пока не открывать.
 
 Повторная проверка 28.09.2026 после реализации Proxy/Reflect: закреплённый Test262 `Object.assign` — **38/38**, `Object.getOwnPropertySymbols` — **12/12**, `Object.setPrototypeOf` — **12/12**. Каталог `Symbol` вырос с 73/98 до **77/98**; оставшийся 21 отказ относится к cross-realm или к `dispose`/`asyncDispose` после ES2020. Это закрывает ранее отложенные зависимости этих групп, но не общий gate 0.6–0.16.
@@ -143,4 +152,4 @@ Set **229/383**; отказы требуют функций после ES2020, R
 Дополнительный полный каталог `Function.prototype.call`: **22/49**. Все 27 отказов используют исключённый динамический конструктор `Function` (включая `new Function`); остальные тесты прошли. Повтор после реализации смежных этапов остаётся открытым.
 Полный каталог `Function.prototype.toString` до корректировки Test262 line endings дал **35/80**. Git checkout на Windows переписывал LF в CRLF в тесте исходного текста; runner теперь читает исходный blob из закреплённой ревизии для трёх тестов line-terminator-normalisation, и они прошли **3/3**. Повтор каталога: **36/80**. Среди оставшихся отказов есть действительный пробел ES2020: функции RegExp `Symbol.match` и getter `Symbol.species`, реализованные в JS-прелюдии, пока показывают исходный текст вместо допустимой NativeFunction-формы. Остальные в основном зависят от классов, async, Proxy/Reflect, динамического Function и генераторов следующих этапов. Этап 0.6 остаётся открытым.
 Исправлен применимый отказ `symbol-named-builtins.js`: функция `RegExp.prototype[Symbol.match]` и getter `RegExp[Symbol.species]`, созданные прелюдией, теперь получают NativeFunction-представление через внутреннюю операцию до запуска пользовательского кода. Операция удаляется из `Function.prototype` после bootstrap. Каталог `Function.prototype.toString` вырос до **37/80**; целевой Test262 и регрессии метаданных/RegExp прошли. Остальные 43 отказа ещё требуют классификации и закрытия на этапах классов, async, Proxy/Reflect, генераторов либо исключённого динамического Function.
-Полный каталог `Function.prototype[Symbol.hasInstance]`: **10/11**. Единственный отказ `value-get-prototype-of-err.js` требует Proxy `getPrototypeOf` из этапа 0.15; остальные проверки прошли.
+Повторный каталог `Function.prototype[Symbol.hasInstance]` после Proxy: **11/11**. Ранее отложенный `value-get-prototype-of-err.js` теперь проходит.
