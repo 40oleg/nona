@@ -125,16 +125,19 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');a.label(done);a.label(proxyDone);
   });
 
+  // Preserve the initial receiver through proxy forwarding and accessor calls.
+  b.fn('rt.getProperty',40,a=>{a.mov('r9','rdx');a.call('rt.getPropertyWithReceiver');});
   // Shared public read/has: arguments are result, base Value, key Value.
-  for(const mode of ['get','has'] as const)rootedFn(b,'rt.'+mode+'Property',136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:3}],a=>{
+  for(const mode of ['get','has'] as const)rootedFn(b,mode==='get'?'rt.getPropertyWithReceiver':'rt.hasProperty',mode==='get'?152:136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},...(mode==='get'?[{kind:'value' as const,register:'r9' as const}]:[]),{kind:'locals',offset:80,count:mode==='get'?4:3}],a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+    if(mode==='get')copyValue(a,slot(128),{base:'r9'});
     a.load('rax',{base:'rdx'});a.cmp('rax',mode==='has'?5:1);failIf(a,mode==='has'?'ne':'be','rt.throwTypeError');
     a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toPropertyKey');a.load('rax',slot(88));a.store(slot(64),'rax');
     const missing=a.unique('missing'),save=a.unique('save'),number=a.unique('number'),string=a.unique('string'),character=a.unique('character'),done=a.unique('done');
     {
       const ordinaryBase=a.unique('ordinaryBase');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryBase);
       a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryBase);
-      a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call(mode==='get'?'rt.proxyGet':'rt.proxyHas');a.jmp(done);a.label(ordinaryBase);
+      a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));if(mode==='get')a.lea('r9',slot(128));a.call(mode==='get'?'rt.proxyGet':'rt.proxyHas');a.jmp(done);a.label(ordinaryBase);
     }
     const object=a.unique('object');a.load('rcx',slot(48));a.call('rt.stringBase');a.test('rax','rax');a.jcc('e',object);a.store(slot(72),'rax');
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');const index=a.unique('index');a.jcc('ne',index);
@@ -172,7 +175,7 @@ export function emitObjects(b:RuntimeBuilder):void {
       a.label(notTypedIndex);a.cmp('rax',3);a.jcc('e',copy);
       a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',dataProperty);
       a.mov('r10','rax');copyValue(a,slot(96),{base:'r10',disp:P.getter});a.load('rax',slot(96));a.test('rax','rax');a.jcc('e',missing);
-      a.load('rdx',slot(48));copyValue(a,slot(112),{base:'rdx'});a.lea('rax',slot(112));a.store(slot(32),'rax');
+      a.lea('rdx',slot(128));copyValue(a,slot(112),{base:'rdx'});a.lea('rax',slot(112));a.store(slot(32),'rax');
       a.load('rcx',slot(40));a.lea('rdx',slot(96));a.mov('r8',0);a.lea('r9',{rip:'rt.undefinedValue'});a.call('rt.invoke');a.jmp(done);
       a.label(dataProperty);a.lea('rdx',{base:'rax',disp:P.value});
       a.label(copy);a.load('rcx',slot(40));a.load('rax',{base:'rdx'});a.cmp('rax',CellTag);
@@ -268,7 +271,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     const ordinaryDelete=a.unique('ordinaryDelete'),proxyDone=a.unique('proxyDone');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryDelete);
     a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryDelete);
     a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyDelete');a.jmp(proxyDone);
-    a.label(ordinaryDelete);
+    a.label(ordinaryDelete);a.load('rax',slot(64));
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');

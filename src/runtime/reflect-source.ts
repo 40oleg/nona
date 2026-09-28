@@ -13,6 +13,7 @@ export const reflectPreludeSource=String.raw`(function(){
   var nativeConstruct=Function.prototype.__nonaReflectConstructInternal;
   var nativePrevent=Function.prototype.__nonaProxyPreventInternal;
   var nativeSetPrototype=Function.prototype.__nonaProxySetPrototypeInternal;
+  var nativeGet=Function.prototype.__nonaReflectGetInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
   function method(name,length,fn){
@@ -75,14 +76,7 @@ export const reflectPreludeSource=String.raw`(function(){
   method('get',2,({get(target,key,receiver){
     object(target);
     if(arguments.length<3)return target[key];
-    for(var current=target;current!==null;current=Object.getPrototypeOf(current)){
-      var descriptor=Object.getOwnPropertyDescriptor(current,key);
-      if(descriptor!==undefined){
-        if('value'in descriptor)return descriptor.value;
-        return descriptor.get===undefined?undefined:descriptor.get.call(receiver)
-      }
-    }
-    return undefined
+    return nativeGet(target,key,receiver)
   }}).get);
   method('set',3,({set(target,key,value,receiver){
     object(target);

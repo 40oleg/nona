@@ -79,3 +79,15 @@ test('Proxy setPrototypeOf trap, invariants and Reflect result survive GC stress
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy get forwarding preserves receiver through nested proxies',()=>{
+ const source=`let target={get attr(){for(let i=0;i<20;i++)({v:i});return this}};
+ let p=new Proxy(target,{get:null}),q=new Proxy(p,{});
+ console.log(p.attr===p,q.attr===q);
+ let seen;let trapped=new Proxy(q,{get:function(t,k,r){seen=r;return Reflect.get(t,k,r)}});
+ console.log(trapped.attr===trapped,seen===trapped)`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
