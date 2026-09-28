@@ -4,7 +4,7 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
-import {ProxyKind,ProxyLayout} from './proxy.js';
+import {ProxyKind} from './proxy.js';
 
 const methods=[
  ['rt.objectHasOwn','hasOwnProperty',1,'rt.objectPrototype'],
@@ -32,8 +32,7 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   const ordinaryProxy=a.unique('ordinaryProxy'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rcx'});a.cmp('r10',5);a.jcc('ne',ordinaryProxy);
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryProxy);
-  a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
-  a.lea('rcx',{base:'r10',disp:ProxyLayout.target});a.load('rdx',slot(48));a.call('rt.ownAttributes');a.jmp(proxyDone);a.label(ordinaryProxy);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.proxyOwnAttributes');a.jmp(proxyDone);a.label(ordinaryProxy);
   const normal=a.unique('normal'),missing=a.unique('missing'),done=a.unique('done');
   a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('e',normal);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.mov('rax',0);a.jcc('e',done);a.mov('rax',A.enumerable);a.jmp(done);

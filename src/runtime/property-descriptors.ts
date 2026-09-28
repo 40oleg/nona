@@ -8,6 +8,7 @@ import {stringLiteral} from './value.js';
 import {emitDefineProperty} from './define-property.js';
 import {emitArrayDescriptors} from './array-descriptors.js';
 import {emitDescriptorConversion} from './descriptor-conversion.js';
+import {ProxyKind} from './proxy.js';
 
 export const descriptorRoots=['rt.objectGetOwnDescriptor','rt.objectDefineProperty','rt.protoGetter','rt.protoSetter'];
 export const descriptorPropertyRoots=[
@@ -74,6 +75,9 @@ export function emitPropertyDescriptors(b:RuntimeBuilder):void {
  rootedFn(b,'rt.getOwnDescriptor',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:9}],a=>{
   a.store(slot(40),'rcx');
   for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(96+n),'rax');a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}
+  const ordinaryDescriptor=a.unique('ordinaryDescriptor'),proxyDescriptorDone=a.unique('proxyDescriptorDone');
+  a.load('rax',slot(96));a.cmp('rax',5);a.jcc('ne',ordinaryDescriptor);a.load('r10',slot(104));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryDescriptor);
+  a.load('rcx',slot(40));a.lea('rdx',slot(96));a.lea('r8',slot(64));a.call('rt.proxyGetOwnDescriptor');a.jmp(proxyDescriptorDone);a.label(ordinaryDescriptor);
   a.lea('rcx',slot(96));a.load('rdx',slot(72));a.call('rt.ownAttributes');a.store(slot(216),'rax');
   const missing=a.unique('missing'),data=a.unique('data'),accessor=a.unique('accessor'),finish=a.unique('finish');
   a.cmp('rax',-1);a.jcc('e',missing);
@@ -104,7 +108,7 @@ export function emitPropertyDescriptors(b:RuntimeBuilder):void {
   a.label(direct);for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store({base:'rcx',disp:n},'rax');}a.label(saved);
   a.mov('rax',F.data);a.store(slot(208),'rax');a.jmp(finish);
   a.label(missing);a.mov('rax',-1);a.store(slot(208),'rax');
-  a.label(finish);a.load('rcx',slot(40));for(let n=0;n<D.size;n+=8){a.load('rax',slot(112+n));a.store({base:'rcx',disp:n},'rax');}
+  a.label(finish);a.load('rcx',slot(40));for(let n=0;n<D.size;n+=8){a.load('rax',slot(112+n));a.store({base:'rcx',disp:n},'rax');}a.label(proxyDescriptorDone);
 
  });
 }

@@ -122,3 +122,19 @@ test('Proxy ownKeys ordering and invariants survive GC stress',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy getOwnPropertyDescriptor trap and invariants survive GC stress',()=>{
+ const source=`let target={x:1},p=new Proxy(target,{getOwnPropertyDescriptor:function(t,k){for(let i=0;i<20;i++)({v:i});return {value:3,writable:true,enumerable:true,configurable:true}}});
+ console.log(Object.getOwnPropertyDescriptor(p,'x').value,Object.keys(p).join(','));
+ let absent=new Proxy(target,{getOwnPropertyDescriptor:function(){return undefined}});
+ console.log(Object.getOwnPropertyDescriptor(absent,'x')===undefined);
+ Object.defineProperty(target,'x',{configurable:false});
+ try{Object.getOwnPropertyDescriptor(absent,'x')}catch(e){console.log(e.name)}
+ let q=new Proxy(target,{getOwnPropertyDescriptor:function(){return {value:2,writable:true,enumerable:true,configurable:false}}});
+ console.log(Object.getOwnPropertyDescriptor(q,'x').value);
+ let rev=Proxy.revocable({},{});rev.revoke();try{Object.getOwnPropertyDescriptor(rev.proxy,'x')}catch(e){console.log(e.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
