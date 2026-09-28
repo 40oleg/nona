@@ -14,6 +14,7 @@ export const reflectPreludeSource=String.raw`(function(){
   var nativePrevent=Function.prototype.__nonaProxyPreventInternal;
   var nativeSetPrototype=Function.prototype.__nonaProxySetPrototypeInternal;
   var nativeGet=Function.prototype.__nonaReflectGetInternal;
+  var nativeSet=Function.prototype.__nonaReflectSetInternal;
   var nativeOwnKeys=Function.prototype.__nonaReflectOwnKeysInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
@@ -79,6 +80,8 @@ export const reflectPreludeSource=String.raw`(function(){
   method('set',3,({set(target,key,value,receiver){
     object(target);
     if(arguments.length<4)receiver=target;
+    var proxyResult=nativeSet(target,key,value,receiver);
+    if(proxyResult!==undefined)return proxyResult;
     var current=target,descriptor;
     while(current!==null){
       descriptor=Object.getOwnPropertyDescriptor(current,key);

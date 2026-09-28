@@ -25,6 +25,7 @@ export const proxyPreludeSource=String.raw`(function(){
   delete Function.prototype.__nonaProxyPreventInternal;
   delete Function.prototype.__nonaProxySetPrototypeInternal;
   delete Function.prototype.__nonaReflectGetInternal;
+  delete Function.prototype.__nonaReflectSetInternal;
   delete Function.prototype.__nonaReflectOwnKeysInternal;
   delete Function.prototype.__nonaMarkNativeInternal;
 })()`;

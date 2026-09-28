@@ -211,7 +211,9 @@ export function emitObjects(b:RuntimeBuilder):void {
     const rejected=a.unique('rejected'),finish=a.unique('finish'),done=a.unique('done'),normal=a.unique('normal'),write=a.unique('write'),create=a.unique('create'),setter=a.unique('setter'),primitive=a.unique('primitive');
     a.load('rax',{base:'rcx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');a.cmp('rax',5);a.jcc('ne',primitive);
     const ordinarySet=a.unique('ordinarySet');a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinarySet);
-    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(88));a.call('rt.proxySet');a.jmp(finish);a.label(ordinarySet);
+    a.load('r10',slot(40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(96+part),'rax');}
+    a.load('rax',slot(88));a.store(slot(112),'rax');
+    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(96));a.call('rt.proxySet');a.jmp(finish);a.label(ordinarySet);
     a.load('rdx',{base:'rdx',disp:8});a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rcx',slot(40));a.load('rdx',slot(48));
     a.load('rax',{base:'rcx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',normal);
@@ -240,6 +242,17 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(afterOwn);
     a.test('rax','rax');a.jcc('ne',write);
     a.load('r10',slot(64));a.test('r10','r10');a.jcc('ne',create);
+    const inheritedOrdinary=a.unique('inheritedOrdinary'),scanAncestor=a.unique('scanAncestor'),nextAncestor=a.unique('nextAncestor'),proxyAncestor=a.unique('proxyAncestor');
+    a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(80),'rax');
+    a.label(scanAncestor);a.load('r10',slot(80));a.test('r10','r10');a.jcc('e',inheritedOrdinary);
+    a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',proxyAncestor);
+    a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',inheritedOrdinary);
+    a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',inheritedOrdinary);
+    a.label(nextAncestor);a.load('r10',slot(80));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(80),'rax');a.jmp(scanAncestor);
+    a.label(proxyAncestor);a.mov('rax',5);a.store(slot(96),'rax');a.load('rax',slot(80));a.store(slot(104),'rax');
+    a.load('r10',slot(40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(112+part),'rax');}a.load('rax',slot(88));a.store(slot(128),'rax');
+    a.lea('rcx',slot(96));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(112));a.call('rt.proxySet');a.jmp(finish);
+    a.label(inheritedOrdinary);
     a.load('rcx',slot(72));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.lookupProperty');a.cmp('rax',2);
     const inherited=a.unique('inherited');a.jcc('ne',inherited);
     a.load('rcx',slot(40));a.load('rdx',slot(56));a.call('rt.setPrototype');a.jmp(done);
@@ -278,7 +291,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');a.jmp(write);
     a.label(invokeSetter);a.mov('r10','rax');copyValue(a,slot(112),{base:'r10',disp:P.setter});a.load('rax',slot(112));a.test('rax','rax');a.jcc('e',rejected);
     a.load('rdx',slot(40));copyValue(a,slot(128),{base:'rdx'});a.load('rdx',slot(56));copyValue(a,slot(144),{base:'rdx'});
-    a.lea('rax',slot(128));a.store(slot(32),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.mov('r8',1);a.lea('r9',slot(144));a.call('rt.invoke');a.label(done);a.jmp(finish);a.label(rejected);a.load('rax',slot(88));a.and('rax',2);a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.label(finish);
+    a.lea('rax',slot(128));a.store(slot(32),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.mov('r8',1);a.lea('r9',slot(144));a.call('rt.invoke');a.label(done);a.mov('rax',1);a.jmp(finish);a.label(rejected);a.load('rax',slot(88));a.and('rax',2);a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.mov('rax',0);a.label(finish);
   });
 
   rootedFn(b,'rt.deleteProperty',136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:1}],a=>{

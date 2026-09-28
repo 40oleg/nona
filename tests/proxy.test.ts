@@ -145,6 +145,11 @@ test('Proxy set trap and frozen target invariant survive GC stress',()=>{
  Object.defineProperty(target,'x',{writable:false,configurable:false});
  try{p.x=3}catch(e){console.log(e.name)}
  let q=new Proxy({},{set:function(){return false}});try{q.x=1}catch(e){console.log(e.name)}
+ console.log(Reflect.set(q,'x',2),Reflect.set(p,'x',1));
+ let receiver={},explicit=new Proxy({},{set:function(t,k,v,r){return r===receiver}});
+ console.log(Reflect.set(explicit,'y',3,receiver));
+ let nested=new Proxy(new Proxy({},{set:function(t,k,v,r){return r===nested}}),{});
+ console.log(Reflect.set(nested,'z',4));
  let f=new Proxy({},{set:null});f.x=4;console.log(f.x);`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
