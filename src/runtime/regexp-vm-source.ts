@@ -349,7 +349,7 @@ export const regexpVmSource=String.raw`(function(){
         }
         error()
       }
-      if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}')))error();
+      if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}'||c===']')))error();
       if(c==='{'){
         var probe=at,seen=false;
         while(digit(pattern[probe])){probe++;seen=true}
@@ -582,7 +582,10 @@ export const regexpVmSource=String.raw`(function(){
             if(count>=node.max)return null;
             var fresh=copy(a);clear(node.value,fresh);
             return run(node.value,p,fresh,function(end,updated){
-              if(end===p)return count+1>=node.min?next(end,updated):null;
+              if(end===p){
+                if(count>=node.min)return null;
+                return count+1>=node.min?next(end,updated):repeat(count+1,end,updated)
+              }
               return repeat(count+1,end,updated)
             },direction)
           }

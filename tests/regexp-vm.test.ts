@@ -75,3 +75,10 @@ test('RegExp Unicode properties match categories, scripts and supplementary poin
   console.log(/\\p{LC}+/u.exec('12Aa')[0]);
   console.log(/\\p{L}/.test('p{L}'));
 `,'αβ\nαβ\nαβ\n123\ntrue false\ntrue\ntrue true\nAa\ntrue\n'));
+
+test('RegExp nullable repeats backtrack and preserve required captures',()=>expectProgram(`
+  let match=/(a?b??)*/.exec('ab');
+  console.log(match[0],match[1]);
+  console.log('abc'.match(/(?:(?=(abc)))?a/)[1]);
+  console.log('abc'.match(/(?:(?=(abc))){1,1}a/)[1]);
+`,'ab b\nundefined\nabc\n'));

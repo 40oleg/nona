@@ -5,6 +5,7 @@ import {RootLayout as R} from './heap-layout.js';
 import {FunctionKind} from './functions.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {DateKind} from './date.js';
+import {RegExpKind} from './regexp.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {rootedFn} from './root-scope.js';
@@ -19,7 +20,7 @@ export const objectMethodRoots=methods.map(([symbol])=>symbol);
 export const objectMethodPropertyRoots=methods.flatMap(([symbol,owner,method])=>builtinPropertyRoots(symbol,method,owner));
 
 export function emitObjectMethods(b:RuntimeBuilder):void {
- for(const [symbol,name] of [['arrayValue','Array'],['functionValue','Function'],['argumentsValue','Arguments'],['errorValue','Error'],['dateValue','Date']])b.bundle.fragments.push(stringLiteral('rt.str.'+symbol,'[object '+name+']'));
+ for(const [symbol,name] of [['arrayValue','Array'],['functionValue','Function'],['argumentsValue','Arguments'],['errorValue','Error'],['dateValue','Date'],['regexpValue','RegExp']])b.bundle.fragments.push(stringLiteral('rt.str.'+symbol,'[object '+name+']'));
  for(const [symbol,owner,method,length,next] of methods)emitFunctionBuiltin(b,symbol,method,length,next,owner);
  for(const name of ['Undefined','Null','Boolean','Number','String','Symbol'])b.bundle.fragments.push(stringLiteral('rt.str.tag'+name,'[object '+name+']'));
  b.bundle.fragments.push(stringLiteral('rt.str.tagOpen','[object '),stringLiteral('rt.str.tagClose',']'));
@@ -46,7 +47,7 @@ export function emitObjectMethods(b:RuntimeBuilder):void {
   }
   const notSymbol=a.unique('notSymbol');a.cmp('r10',6);a.jcc('ne',notSymbol);a.lea('rax',{rip:'rt.str.tagSymbol'});a.jmp(save);a.label(notSymbol);
   a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rdx',disp:O.kind});
-  for(const [kind,symbol] of [[1,'arrayValue'],[FunctionKind,'functionValue'],[3,'argumentsValue'],[ErrorKind,'errorValue'],[DateKind,'dateValue']] as const){
+  for(const [kind,symbol] of [[1,'arrayValue'],[FunctionKind,'functionValue'],[3,'argumentsValue'],[ErrorKind,'errorValue'],[DateKind,'dateValue'],[RegExpKind,'regexpValue']] as const){
    const next=a.unique('kind');a.cmp('r10',kind);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.'+symbol});a.jmp(save);a.label(next);
   }
   const ordinary=a.unique('ordinary');a.cmp('r10',BoxKind);a.jcc('ne',ordinary);a.load('r10',{base:'rdx',disp:BoxLayout.value});

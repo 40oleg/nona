@@ -16,6 +16,32 @@ test('RegExp literal and constructor allocate native objects',()=>expectProgram(
   console.log(literal.toString(),RegExp.prototype.toString.call({source:'x',flags:'m'}));
 `,'object true true 0\nobject true 0\n3\nab+ gi gi (?:) \n/ab+/gi /x/m\n'));
 
+test('RegExp object tag survives an own toString override',()=>expectProgram(`
+  let regexp=new RegExp('x');
+  regexp.toString=Object.prototype.toString;
+  console.log(regexp.toString(),Object.prototype.toString.call(/y/));
+  regexp[Symbol.toStringTag]='Custom';
+  console.log(regexp.toString());
+`,'[object RegExp] [object RegExp]\n[object Custom]\n'));
+
+test('RegExp anchors inside a pattern use full matching semantics',()=>expectProgram(`
+  console.log(/^..^e/.test('ab\\ncde'),/^^^^^^^robot$$$$/.test('robot'));
+  console.log(/^a^/.test('a'),/a$b/.test('ab'));
+`,'false true\nfalse false\n'));
+
+test('Unicode RegExp rejects a standalone closing bracket',()=>expectProgram(`
+  try{new RegExp(']','u')}catch(error){console.log(error.name)}
+  console.log(new RegExp(']').test(']'));
+`,'SyntaxError\ntrue\n'));
+
+test('legacy RegExp identity escapes match punctuation',()=>expectProgram(String.raw`
+  for(let ch of ['~','!','@','#','%','-',':',';','<','>']){
+    let result=new RegExp('\\'+ch).exec(ch);
+    if(result===null||result[0]!==ch)throw new Error('identity escape '+ch);
+  }
+  console.log('ok');
+`,'ok\n'));
+
 test('RegExp constructor rejects invalid and repeated flags',()=>expectProgram(`
   for(let flags of ['gg','z','v','uii']){
     try{new RegExp('x',flags)}catch(error){console.log(error.name)}

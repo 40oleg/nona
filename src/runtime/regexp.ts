@@ -500,12 +500,20 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.mov('r8',0);a.label(scan);a.test('r11','r11');a.jcc('e',nativeMatch);
   a.load('rax',{base:'r10'},16);a.cmp('rax',92);a.jcc('e',scanEscape);a.cmp('rax',91);a.jcc('e',scanClass);a.cmp('rax',93);a.jcc('e',scanClass);
   a.test('r8','r8');a.jcc('ne',scanNext);
+  const scanEndAnchor=a.unique('scanEndAnchor'),scanOther=a.unique('scanOther');
+  a.cmp('rax',94);a.jcc('ne',scanEndAnchor);
+  a.load('rdx',slot(72));a.load('rdx',{base:'rdx',disp:RegExpLayout.pattern});a.add('rdx',8);
+  a.cmp('r10','rdx');a.jcc('ne',vmMatch);a.jmp(scanNext);
+  a.label(scanEndAnchor);a.cmp('rax',36);a.jcc('ne',scanOther);a.cmp('r11',1);a.jcc('ne',vmMatch);a.jmp(scanNext);a.label(scanOther);
   for(const code of '(){}*+?|'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',vmMatch);}
   a.jmp(scanNext);
   a.label(scanEscape);a.cmp('r11',1);a.jcc('be',scanNext);a.load('rax',{base:'r10',disp:2},16);
   a.test('r8','r8');a.jcc('ne',vmMatch);
   const notDecimal=a.unique('notDecimal');a.cmp('rax',48);a.jcc('b',notDecimal);a.cmp('rax',57);a.jcc('be',vmMatch);a.label(notDecimal);
-  for(const code of [112,80,107,120,88,99,117]){a.cmp('rax',code);a.jcc('e',vmMatch);}a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
+  for(const code of [112,80,107,120,88,99,117]){a.cmp('rax',code);a.jcc('e',vmMatch);}
+  const nativeEscape=a.unique('nativeEscape');
+  for(const code of 'dDwWsSbBnrtvf0\\.^$*+?()[]{}|/'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',nativeEscape);}
+  a.jmp(vmMatch);a.label(nativeEscape);a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
   a.label(scanClass);a.xor('r8',1);
   a.label(scanNext);a.add('r10',2);a.sub('r11',1);a.jmp(scan);
   a.label(vmMatch);
