@@ -41,3 +41,10 @@ test('Promise internal job and result arrays ignore inherited numeric setters',(
  Object.defineProperty(Array.prototype,0,{set(){throw new Error('inherited setter')},configurable:true});
  Promise.all([42]).then(values=>{delete Array.prototype[0];console.log(values[0])},error=>{delete Array.prototype[0];console.log(error.name)});
 `));
+
+test('Reflect.construct validates Promise executor before newTarget prototype',()=>expectStress(`
+ var target=(function(){}).bind(null);
+ Object.defineProperty(target,'prototype',{get(){throw new Error('prototype accessed')}});
+ try{Reflect.construct(Promise,[],target)}catch(error){console.log(error.name)}
+ try{Reflect.construct(Promise,[function(){}],target)}catch(error){console.log(error.name)}
+`));

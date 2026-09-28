@@ -160,6 +160,7 @@ var __nonaPromiseDrainJobs=(function(){
   Object.defineProperty(Promise.prototype,Symbol.toStringTag,{value:'Promise',configurable:true});
   Object.defineProperty(globalThis,'Promise',{value:Promise,writable:true,configurable:true});
   Function.prototype.__nonaMarkNativeInternal(Promise);
+  Function.prototype.__nonaMarkPromiseInternal(Promise);
   return drain
 })();
 `;
