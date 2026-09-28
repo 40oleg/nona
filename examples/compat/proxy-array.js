@@ -7,3 +7,5 @@ console.log([proxy].flat().join(','),[proxy].flatMap(value=>value).join(','));
 const handle=Proxy.revocable([],{});
 handle.revoke();
 try{Array.isArray(handle.proxy)}catch(error){console.log(error.name)}
+const callable=new Proxy(new Proxy(function(){},{}),{});
+console.log(Object.prototype.toString.call(callable));

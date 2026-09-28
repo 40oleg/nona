@@ -1,6 +1,6 @@
 import {ErrorKind} from './errors.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ProxyKind,ProxyCallable} from './object-layout.js';
 import {RootLayout as R} from './heap-layout.js';
 import {FunctionKind} from './functions.js';
 import {BoxKind,BoxLayout} from './boxing.js';
@@ -48,6 +48,7 @@ export function emitObjectMethods(b:RuntimeBuilder):void {
   }
   const objectPrimitive=a.unique('objectPrimitive');a.cmp('r10',5);a.jcc('e',objectPrimitive);a.lea('rax',{rip:'rt.str.objectValue'});a.jmp(save);a.label(objectPrimitive);
   a.load('rdx',{base:'rdx',disp:8});a.load('r10',{base:'rdx',disp:O.kind});
+  const notCallableProxy=a.unique('notCallableProxy');a.cmp('r10',ProxyKind);a.jcc('ne',notCallableProxy);a.load('r10',{base:'rdx',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');a.jcc('e',notCallableProxy);a.lea('rax',{rip:'rt.str.functionValue'});a.jmp(save);a.label(notCallableProxy);a.load('r10',{base:'rdx',disp:O.kind});
   for(const [kind,symbol] of [[1,'arrayValue'],[FunctionKind,'functionValue'],[3,'argumentsValue'],[ErrorKind,'errorValue'],[DateKind,'dateValue'],[RegExpKind,'regexpValue']] as const){
    const next=a.unique('kind');a.cmp('r10',kind);a.jcc('ne',next);a.lea('rax',{rip:'rt.str.'+symbol});a.jmp(save);a.label(next);
   }

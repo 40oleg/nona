@@ -112,6 +112,9 @@ Proxy/Reflect, BigInt, RegExp, коллекции или более поздни
 `getPrototypeOf` (10/10) и `toString` для Proxy и примитивов с нестандартным
 `@@toStringTag` (32/41). Остальные случаи `toString` зависят от динамического
 `Function`, async или Iterator Helpers после ES2020.
+Отдельная локальная проверка подтвердила, что вложенный callable Proxy без
+строкового `@@toStringTag` получает `[object Function]`; полный файл Test262
+`proxy-function.js` пока не компилируется из-за других видов функций в нём.
 Локальный сценарий `isPrototypeOf` через Proxy с принудительным GC добавлен в
 Proxy suite. Для него требуется полный `compileToIR`, который включает Proxy
 bootstrap; упрощённый путь прямого вызова frontend/IR не эквивалентен ему.
