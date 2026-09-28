@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
-import {HeapLayout as H,HeapKind} from './heap-layout.js';
+import {HeapLayout as H,HeapKind,ValueListLayout as L} from './heap-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 
@@ -11,7 +11,8 @@ export const proxyPropertyRoots=[...builtinPropertyRoots('rt.proxyCreateInternal
  ...builtinPropertyRoots('rt.proxyRevokeInternal','__nonaProxyRevokeInternal'),
  ...builtinPropertyRoots('rt.proxyPreventInternal','__nonaProxyPreventInternal'),
  ...builtinPropertyRoots('rt.proxySetPrototypeInternal','__nonaProxySetPrototypeInternal'),
- ...builtinPropertyRoots('rt.reflectGetInternal','__nonaReflectGetInternal')];
+ ...builtinPropertyRoots('rt.reflectGetInternal','__nonaReflectGetInternal'),
+ ...builtinPropertyRoots('rt.reflectOwnKeysInternal','__nonaReflectOwnKeysInternal')];
 
 export function emitProxy(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.proxyCreateInternal','__nonaProxyCreateInternal',2,'rt.functionPrototype');
@@ -65,6 +66,20 @@ export function emitProxy(b:RuntimeBuilder):void {
   for(const index of [0,1,2])for(const part of [0,8]){a.load('rax',{base:'r8',disp:index*16+part});a.store(slot(64+index*16+part),'rax');}
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.lea('r9',slot(96));a.call('rt.getPropertyWithReceiver');
  });
+ prependFunctionBuiltin(b,'rt.reflectOwnKeysInternal','__nonaReflectOwnKeysInternal',1,'rt.functionPrototype');
+ rootedFn(b,'rt.reflectOwnKeysInternal.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:4}],a=>{
+  a.store(slot(40),'rcx');a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  for(const part of [0,8]){a.load('rax',{base:'r8',disp:part});a.store(slot(64+part),'rax');}
+  a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.ownKeys');
+  a.lea('rcx',slot(96));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
+  a.mov('rax',0);a.store(slot(48),'rax');const loop=a.unique('loop'),done=a.unique('done');a.label(loop);
+  a.load('rax',slot(48));a.load('r10',slot(88));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',done);
+  a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(112+part),'rax');}
+  a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.appendArrayValue');
+  a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
+  a.label(done);a.load('rcx',slot(40));for(const part of [0,8]){a.load('rax',slot(96+part));a.store({base:'rcx',disp:part},'rax');}
+ });
  b.bundle.fragments.push(stringLiteral('rt.proxyGetKey','get'));
  b.bundle.fragments.push(stringLiteral('rt.proxyHasKey','has'));
  b.bundle.fragments.push(stringLiteral('rt.proxyDeleteKey','deleteProperty'));
@@ -72,6 +87,60 @@ export function emitProxy(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.proxyPreventExtensionsKey','preventExtensions'));
  b.bundle.fragments.push(stringLiteral('rt.proxyGetPrototypeKey','getPrototypeOf'));
  b.bundle.fragments.push(stringLiteral('rt.proxySetPrototypeKey','setPrototypeOf'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyOwnKeysKey','ownKeys'));
+ rootedFn(b,'rt.proxyOwnKeys',312,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:80,count:13}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyOwnKeysKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),done=a.unique('done'),returned=a.unique('returned');a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(272+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.mov('r8',1);a.lea('r9',slot(272));a.call('rt.invoke');
+  a.load('rax',slot(144));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.mov('rax',4);a.store(slot(160),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(168),'rax');
+  a.lea('rcx',slot(176));a.lea('rdx',slot(144));a.lea('r8',slot(160));a.call('rt.getProperty');
+  a.lea('rcx',slot(176));a.lea('rdx',slot(176));a.call('rt.toNumber');
+  a.movsd('xmm0',slot(184));a.ucomisd('xmm0','xmm0');const finite=a.unique('finite'),lengthReady=a.unique('lengthReady');a.jcc('np',finite);a.mov('rax',0);a.jmp(lengthReady);
+  a.label(finite);a.cvttsd2si('rax','xmm0');a.test('rax','rax');a.jcc('ns',lengthReady);a.mov('rax',0);a.label(lengthReady);a.store(slot(56),'rax');
+  a.lea('rcx',slot(208));a.mov('rdx','rax');a.call('rt.newValueList');a.mov('rax',0);a.store(slot(64),'rax');
+  const collect=a.unique('collect'),collected=a.unique('collected'),dup=a.unique('dup'),store=a.unique('store');a.label(collect);
+  a.load('rax',slot(64));a.load('r10',slot(56));a.cmp('rax','r10');a.jcc('ae',collected);
+  a.cvtsi2sd('xmm0','rax');a.storesd(slot(200),'xmm0');a.mov('rax',3);a.store(slot(192),'rax');
+  a.lea('rcx',slot(192));a.lea('rdx',slot(192));a.call('rt.toString');
+  a.lea('rcx',slot(256));a.lea('rdx',slot(144));a.lea('r8',slot(192));a.call('rt.getProperty');
+  a.load('rax',slot(256));a.cmp('rax',4);a.jcc('e',dup);a.cmp('rax',6);failIf(a,'ne','rt.throwTypeError');
+  a.label(dup);a.mov('rax',0);a.store(slot(72),'rax');const dupLoop=a.unique('dupLoop');a.label(dupLoop);
+  a.load('rax',slot(72));a.load('r10',slot(64));a.cmp('rax','r10');a.jcc('ae',store);
+  a.shl('rax',4);a.load('r10',slot(216));a.add('r10',L.values);a.add('r10','rax');
+  a.mov('rcx','r10');a.lea('rdx',slot(256));a.call('rt.sameValue');a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(dupLoop);
+  a.label(store);a.load('rax',slot(64));a.shl('rax',4);a.load('r10',slot(216));a.add('r10',L.values);a.add('r10','rax');
+  for(const part of [0,8]){a.load('rax',slot(256+part));a.store({base:'r10',disp:part},'rax');}
+  a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(collect);
+  a.label(collected);a.lea('rcx',slot(224));a.lea('rdx',slot(80));a.call('rt.ownKeys');
+  a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);const ordinaryTarget=a.unique('ordinaryTarget');a.jcc('e',done);a.label(ordinaryTarget);
+  a.load('r10',slot(88));a.load('r10',{base:'r10',disp:O.flags});a.and('r10',1);a.store(slot(296),'r10');
+  a.test('r10','r10');const countsOkay=a.unique('countsOkay');a.jcc('e',countsOkay);
+  a.load('r10',slot(232));a.load('rax',{base:'r10',disp:L.count});a.load('r10',slot(56));a.cmp('rax','r10');failIf(a,'ne','rt.throwTypeError');a.label(countsOkay);
+  a.mov('rax',0);a.store(slot(64),'rax');const targetLoop=a.unique('targetLoop'),targetDone=a.unique('targetDone');a.label(targetLoop);
+  a.load('rax',slot(64));a.load('r10',slot(232));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',targetDone);
+  a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(240+part),'rax');}
+  a.lea('rcx',slot(80));a.load('rdx',slot(248));a.call('rt.ownAttributes');
+  a.load('r10',slot(296));a.test('r10','r10');const required=a.unique('required'),targetNext=a.unique('targetNext');a.jcc('ne',required);
+  a.and('rax',A.configurable);a.test('rax','rax');a.jcc('ne',targetNext);
+  a.label(required);a.mov('rax',0);a.store(slot(72),'rax');const find=a.unique('find'),found=a.unique('found');a.label(find);
+  a.load('rax',slot(72));a.load('r10',slot(56));a.cmp('rax','r10');failIf(a,'ae','rt.throwTypeError');
+  a.shl('rax',4);a.load('r10',slot(216));a.add('r10',L.values);a.add('r10','rax');
+  a.mov('rcx','r10');a.lea('rdx',slot(240));a.call('rt.sameValue');a.test('rax','rax');a.jcc('ne',found);
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(find);
+  a.label(found);a.label(targetNext);a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(targetLoop);
+  a.label(targetDone);a.jmp(done);
+  a.label(forward);a.load('rcx',slot(40));a.lea('rdx',slot(80));a.call('rt.ownKeys');a.jmp(returned);
+  a.label(done);a.load('rcx',slot(40));for(const part of [0,8]){a.load('rax',slot(208+part));a.store({base:'rcx',disp:part},'rax');}
+  a.label(returned);
+ });
  rootedFn(b,'rt.proxySetPrototype',216,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:80,count:8}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');

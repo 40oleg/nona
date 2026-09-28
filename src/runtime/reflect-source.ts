@@ -14,6 +14,7 @@ export const reflectPreludeSource=String.raw`(function(){
   var nativePrevent=Function.prototype.__nonaProxyPreventInternal;
   var nativeSetPrototype=Function.prototype.__nonaProxySetPrototypeInternal;
   var nativeGet=Function.prototype.__nonaReflectGetInternal;
+  var nativeOwnKeys=Function.prototype.__nonaReflectOwnKeysInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
   function method(name,length,fn){
@@ -39,10 +40,7 @@ export const reflectPreludeSource=String.raw`(function(){
     for(var i=0;i<length;i++)Object.defineProperty(args,args.length,{value:argumentsList[i],writable:true,enumerable:true,configurable:true});
     return nativeConstruct(target,args,newTarget)
   }}).construct);
-  method('ownKeys',1,({ownKeys(target){
-    object(target);
-    return Object.getOwnPropertyNames(target).concat(Object.getOwnPropertySymbols(target))
-  }}).ownKeys);
+  method('ownKeys',1,({ownKeys(target){return nativeOwnKeys(object(target))}}).ownKeys);
   method('has',2,({has(target,key){return key in object(target)}}).has);
   method('getOwnPropertyDescriptor',2,({getOwnPropertyDescriptor(target,key){return Object.getOwnPropertyDescriptor(object(target),key)}}).getOwnPropertyDescriptor);
   method('getPrototypeOf',1,({getPrototypeOf(target){return Object.getPrototypeOf(object(target))}}).getPrototypeOf);

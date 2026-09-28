@@ -107,3 +107,18 @@ test('Inherited Proxy get and has respect ordinary own properties',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy ownKeys ordering and invariants survive GC stress',()=>{
+ const source=`let t={a:1,b:2},p=new Proxy(t,{ownKeys:function(){for(let i=0;i<20;i++)({v:i});return ['b','a','extra']}});
+ console.log(Reflect.ownKeys(p).join(','),Object.keys(p).join(','));
+ Object.defineProperty(t,'a',{configurable:false});
+ try{Reflect.ownKeys(new Proxy(t,{ownKeys:function(){return ['b']}}))}catch(e){console.log(e.name)}
+ try{Reflect.ownKeys(new Proxy(t,{ownKeys:function(){return ['a','a']}}))}catch(e){console.log(e.name)}
+ Object.preventExtensions(t);try{Reflect.ownKeys(p)}catch(e){console.log(e.name)}
+ let nested=new Proxy(new Proxy({x:1},{}),{});console.log(Reflect.ownKeys(nested).join(','));
+ let rev=Proxy.revocable({},{});rev.revoke();try{Reflect.ownKeys(rev.proxy)}catch(e){console.log(e.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

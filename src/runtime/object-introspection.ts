@@ -4,6 +4,7 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ProxyKind,ProxyLayout} from './proxy.js';
 
 const methods=[
  ['rt.objectHasOwn','hasOwnProperty',1,'rt.objectPrototype'],
@@ -29,6 +30,10 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
  // Coercion happens in the rooted public caller.
  b.fn('rt.ownAttributes',88,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  const ordinaryProxy=a.unique('ordinaryProxy'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rcx'});a.cmp('r10',5);a.jcc('ne',ordinaryProxy);
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryProxy);
+  a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.lea('rcx',{base:'r10',disp:ProxyLayout.target});a.load('rdx',slot(48));a.call('rt.ownAttributes');a.jmp(proxyDone);a.label(ordinaryProxy);
   const normal=a.unique('normal'),missing=a.unique('missing'),done=a.unique('done');
   a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('e',normal);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.mov('rax',0);a.jcc('e',done);a.mov('rax',A.enumerable);a.jmp(done);
@@ -47,7 +52,7 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.label(virtual);a.load('rax',slot(56));a.lea('r10',{rip:'rt.objectPrototype'});a.cmp('rax','r10');a.jcc('ne',missing);
   a.load('rax',{rip:'rt.protoAccessorEnabled'});a.test('rax','rax');a.jcc('e',missing);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.proto'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',missing);
-  a.mov('rax',A.configurable);a.jmp(done);a.label(missing);a.mov('rax',-1);a.label(done);
+  a.mov('rax',A.configurable);a.jmp(done);a.label(missing);a.mov('rax',-1);a.label(done);a.label(proxyDone);
  });
  for(const [symbol,method] of methods)rootedFn(b,symbol+'.code',136,[
   {kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:4},
