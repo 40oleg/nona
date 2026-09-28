@@ -8,6 +8,8 @@ KERNEL32, or the Windows calling convention.
 This is **not** a claim that Nona currently conforms. The current implementation
 is documented in [language-support.md](language-support.md). This contract is the
 completion checklist and must be reviewed whenever a feature is added.
+The concrete outstanding work for draft PR #5 is tracked in
+[pr5-es2020-remaining-work.md](pr5-es2020-remaining-work.md).
 
 ## Scope decisions
 
