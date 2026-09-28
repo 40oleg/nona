@@ -10,6 +10,7 @@ import { RootLayout as R } from '../../runtime/heap-layout.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
+import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {lex} from '../../frontend/lexer.js';
 import {parse} from '../../frontend/parser.js';
 import {bind} from '../../frontend/binder.js';
@@ -23,7 +24,7 @@ let cachedRegExpPrelude:ModuleIR|undefined;
 
 export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
-  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource)))))):undefined;
+  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource)))))):undefined;
   if(prelude&&prelude.globalCount!==1)throw new Error('RegExp VM prelude must have one global binding');
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
   module={...module,globalCount:userGlobalCount+(prelude?.globalCount??0),functions:[

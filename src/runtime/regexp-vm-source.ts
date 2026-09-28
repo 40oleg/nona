@@ -1462,4 +1462,4 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleStrin
 },writable:true,configurable:true});
 Function.prototype.__nonaMarkNativeInternal(RegExp.prototype[Symbol.match]);
 Function.prototype.__nonaMarkNativeInternal(Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get);
-delete Function.prototype.__nonaMarkNativeInternal;`;
+`;
