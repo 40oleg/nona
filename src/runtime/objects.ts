@@ -128,10 +128,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rax',{base:'rdx'});a.cmp('rax',mode==='has'?5:1);failIf(a,mode==='has'?'ne':'be','rt.throwTypeError');
     a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toPropertyKey');a.load('rax',slot(88));a.store(slot(64),'rax');
     const missing=a.unique('missing'),save=a.unique('save'),number=a.unique('number'),string=a.unique('string'),character=a.unique('character'),done=a.unique('done');
-    if(mode==='get'){
+    {
       const ordinaryBase=a.unique('ordinaryBase');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryBase);
       a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryBase);
-      a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyGet');a.jmp(done);a.label(ordinaryBase);
+      a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call(mode==='get'?'rt.proxyGet':'rt.proxyHas');a.jmp(done);a.label(ordinaryBase);
     }
     const object=a.unique('object');a.load('rcx',slot(48));a.call('rt.stringBase');a.test('rax','rax');a.jcc('e',object);a.store(slot(72),'rax');
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');const index=a.unique('index');a.jcc('ne',index);
