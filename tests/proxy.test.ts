@@ -27,3 +27,17 @@ import {linkPe} from '../src/backend/pe/writer.js';
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy isExtensible trap and target invariant survive GC stress',()=>{
+ const source=`let target={x:1};let p=new Proxy(target,{isExtensible:function(t){for(let i=0;i<20;i++)({v:i});return true}});
+ console.log(Object.isExtensible(p),Reflect.isExtensible(p));
+ Object.preventExtensions(target);
+ try{console.log(Object.isExtensible(p))}catch(e){console.log(e.name)}
+ let inner=new Proxy(target,{}),outer=new Proxy(inner,{isExtensible:function(){return false}});
+ console.log(Object.isExtensible(outer));
+ let rev=Proxy.revocable({},{});rev.revoke();try{console.log(Object.isExtensible(rev.proxy))}catch(e){console.log(e.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

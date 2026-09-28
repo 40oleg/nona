@@ -38,6 +38,25 @@ export function emitProxy(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.proxyGetKey','get'));
  b.bundle.fragments.push(stringLiteral('rt.proxyHasKey','has'));
  b.bundle.fragments.push(stringLiteral('rt.proxyDeleteKey','deleteProperty'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyIsExtensibleKey','isExtensible'));
+ rootedFn(b,'rt.proxyIsExtensible',184,[{kind:'value',register:'rcx'},{kind:'locals',offset:80,count:6}],a=>{
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyIsExtensibleKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),compare=a.unique('compare'),ordinary=a.unique('ordinary'),finish=a.unique('finish'),doneExt=a.unique('doneExt');
+  a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(160+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.mov('r8',1);a.lea('r9',slot(160));a.call('rt.invoke');
+  a.lea('rcx',slot(144));a.call('rt.toBoolean');a.store(slot(72),'rax');a.jmp(compare);
+  a.label(forward);a.jmp(compare);
+  a.label(compare);a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
+  a.lea('rcx',slot(80));a.call('rt.proxyIsExtensible');a.jmp(finish);
+  a.label(ordinary);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.cmp('rax',0);a.mov('rax',0);const nonext=a.unique('nonext');a.jcc('ne',nonext);a.mov('rax',1);a.label(nonext);
+  a.label(finish);a.load('r10',slot(128));a.cmp('r10',1);a.jcc('be',doneExt);
+  a.load('r10',slot(72));a.cmp('rax','r10');failIf(a,'ne','rt.throwTypeError');a.label(doneExt);
+ });
  rootedFn(b,'rt.proxyGet',216,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},
   {kind:'value',register:'r8'},{kind:'locals',offset:80,count:8}],a=>{
   a.store(slot(48),'rcx');a.store(slot(56),'rdx');a.store(slot(64),'r8');
