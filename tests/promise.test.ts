@@ -73,3 +73,9 @@ test('Bound Promise constructors use the earliest bound executor',()=>expectStre
  try{Reflect.construct(invalid,[],newTarget)}catch(error){console.log(error.name)}
  try{Reflect.construct(first,[],newTarget)}catch(error){console.log(error.name)}
 `));
+
+test('Promise Symbol.species getter has native accessor metadata',()=>expectStress(`
+ var getter=Object.getOwnPropertyDescriptor(Promise,Symbol.species).get;
+ console.log(getter.name,getter.length,getter.prototype===undefined,Function.prototype.toString.call(getter).includes('[native code]'));
+ console.log(Object.getOwnPropertyDescriptor(Promise,'prototype').writable);
+`));

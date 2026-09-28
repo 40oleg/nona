@@ -156,10 +156,13 @@ var __nonaPromiseDrainJobs=(function(){
   method(Promise,'all',all);
   method(Promise,'allSettled',allSettled);
   method(Promise,'race',race);
-  Object.defineProperty(Promise,Symbol.species,{get:function(){return this},configurable:true});
+  var speciesGetter=Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get;
+  Object.defineProperty(Promise,Symbol.species,{get:speciesGetter,configurable:true});
+  Object.defineProperty(Promise,'prototype',{writable:false});
   Object.defineProperty(Promise.prototype,Symbol.toStringTag,{value:'Promise',configurable:true});
   Object.defineProperty(globalThis,'Promise',{value:Promise,writable:true,configurable:true});
   Function.prototype.__nonaMarkNativeInternal(Promise);
+  Function.prototype.__nonaMarkNativeInternal(speciesGetter);
   Function.prototype.__nonaMarkPromiseInternal(Promise);
   return drain
 })();
