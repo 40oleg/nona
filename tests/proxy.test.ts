@@ -198,3 +198,15 @@ test('Proxy construct trap, newTarget and nested forwarding survive GC stress',(
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Reflect.set reaches an inherited Proxy set trap and preserves receiver',()=>{
+ const source=`let seen=[],target=new Proxy({},{set(t,k,v,r){for(let i=0;i<20;i++)({i});seen.push(k,v,r===other);return k==='foo'}});
+ let child=Object.create(target),other={};console.log(Reflect.set(child,'foo',3,other),Reflect.set(child,'bar',4,other),seen.join('|'));
+ let conversions=0,key={toString(){conversions++;return 'foo'}};console.log(Reflect.set(child,key,6,other),conversions,seen.length);
+ Object.defineProperty(child,'own',{value:1,writable:true,configurable:true});console.log(Reflect.set(child,'own',5),child.own,seen.length);
+ let array=[];Object.setPrototypeOf(array,target);console.log(Reflect.set(array,'length',2),array.length,seen.length);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

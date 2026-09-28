@@ -83,6 +83,8 @@ export const reflectPreludeSource=String.raw`(function(){
   method('set',3,({set(target,key,value,receiver){
     object(target);
     if(arguments.length<4)receiver=target;
+    var keyHolder={[key]:0},names=Object.getOwnPropertyNames(keyHolder);
+    key=names.length?names[0]:Object.getOwnPropertySymbols(keyHolder)[0];
     var proxyResult=nativeSet(target,key,value,receiver);
     if(proxyResult!==undefined)return proxyResult;
     var current=target,descriptor;

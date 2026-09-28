@@ -84,7 +84,21 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');
   a.mov('rax',0);a.store(slot(144),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(96));a.lea('r9',slot(128));a.call('rt.proxySet');
   a.load('rcx',slot(40));a.mov('r10','rax');a.mov('rax',2);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');a.jmp(done);
-  a.label(ordinary);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
+  a.label(ordinary);
+  const fallback=a.unique('fallback'),scan=a.unique('scan'),next=a.unique('next'),inheritedProxy=a.unique('inheritedProxy');
+  a.load('rax',slot(80));a.cmp('rax',4);a.jcc('e',scan);a.cmp('rax',6);a.jcc('ne',fallback);
+  a.label(scan);a.load('r10',slot(72));a.store(slot(152),'r10');
+  a.label(next);a.load('r10',slot(152));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',inheritedProxy);
+  const notArray=a.unique('notArray');a.cmp('rax',1);a.jcc('ne',notArray);
+  a.load('rcx',slot(88));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',fallback);
+  a.label(notArray);
+  a.load('rcx',slot(152));a.load('rdx',slot(88));a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',fallback);
+  a.load('r10',slot(152));a.load('rax',{base:'r10',disp:O.prototype});a.test('rax','rax');a.jcc('e',fallback);a.store(slot(152),'rax');a.jmp(next);
+  a.label(inheritedProxy);a.mov('rax',5);a.store(slot(112),'rax');a.load('rax',slot(152));a.store(slot(120),'rax');
+  a.lea('rcx',slot(80));a.mov('rdx','rcx');a.call('rt.toPropertyKey');
+  a.mov('rax',0);a.store(slot(144),'rax');a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.lea('r9',slot(128));a.call('rt.proxySet');
+  a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+  a.label(fallback);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
  prependFunctionBuiltin(b,'rt.reflectDefineInternal','__nonaReflectDefineInternal',3,'rt.functionPrototype');
  rootedFn(b,'rt.reflectDefineInternal.code',264,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},
