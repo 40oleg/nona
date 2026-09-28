@@ -454,7 +454,9 @@ export const regexpVmSource=String.raw`(function(){
       var n=charCodeAt(c,0),yes=false;
       if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
       else if(kind==='w'||kind==='W')yes=word(c);
-      else yes=c===' '||c==='\t'||c==='\r'||c==='\n'||c==='\v'||c==='\f'||c==='\u00a0';
+      else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
+        n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
+        n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
       return kind==='D'||kind==='W'||kind==='S'?!yes:yes
     }
     function propertyContains(ranges,point,negated){
@@ -494,7 +496,7 @@ export const regexpVmSource=String.raw`(function(){
       return spec.inverted?!yes:yes
     }
     function run(node,pos,caps,next,direction){
-      if(++steps>100000)throw new RangeError('RegExp backtracking limit');
+      if(++steps>500000)throw new RangeError('RegExp backtracking limit');
       var k=node.kind;
       if(k==='sequence'){
         function part(i,p,a){
@@ -535,6 +537,13 @@ export const regexpVmSource=String.raw`(function(){
           var packed=capacity>1024;
           var positions=packed?new PositionArray(capacity+1):[pos],positionCount=1,end=pos;
           var bitmap=simple==='property'&&packed&&!ignore?propertyBitmap(node.value.value):null;
+          var classPoint=-1,classInverted=false;
+          if(simple==='class'&&direction>0&&!unicode&&!ignore){
+            var classSpec=node.value.value;
+            if(classSpec.items.length===1&&!classSpec.items[0].set&&!classSpec.items[0].range){
+              classPoint=classSpec.items[0].point;classInverted=classSpec.inverted
+            }
+          }
           if(packed)positions[0]=pos;
           while(positionCount-1<node.max){
             var after=end;
@@ -552,6 +561,11 @@ export const regexpVmSource=String.raw`(function(){
                 if((bitmap[point]!==0)===node.value.negated)break
               }else if(!propertyContains(node.value.value,point,node.value.negated))break;
               after=end+direction*width
+            }else if(simple==='class'&&direction>0&&!unicode){
+              if(end>=input.length)break;
+              if(classPoint>=0){if((charCodeAt(input,end)===classPoint)===classInverted)break}
+              else if(!classMatch(node.value.value,input[end]))break;
+              after=end+1
             }else{
               var one=run(node.value,end,caps,function(after){return {end:after}},direction);
               steps--;

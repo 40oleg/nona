@@ -82,3 +82,10 @@ test('RegExp nullable repeats backtrack and preserve required captures',()=>expe
   console.log('abc'.match(/(?:(?=(abc)))?a/)[1]);
   console.log('abc'.match(/(?:(?=(abc))){1,1}a/)[1]);
 `,'ab b\nundefined\nabc\n'));
+
+test('RegExp whitespace escapes include ES2020 Unicode spaces',()=>expectProgram(`
+  for(let code of [0x1680,0x2000,0x202f,0x205f,0x3000,0xfeff]){
+    let value=String.fromCharCode(code);
+    console.log(/\\s/.test(value),/\\S/.test(value),value.replace(/\\S+/g,'x')===value);
+  }
+`,'true false true\n'.repeat(6)));
