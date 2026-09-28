@@ -114,11 +114,10 @@ export const regexpVmSource=String.raw`(function(){
       }
       if(pattern[at]!=='>')error();at++;
       if(name.length===0)error();
-      var starts=propertyRanges('ID_Start'),continues=propertyRanges('ID_Continue');
       for(var i=0;i<name.length;){
         var point=name.codePointAt(i),valid;
-        if(i===0)valid=point===36||point===95||propertyMatch(starts,point);
-        else valid=point===36||point===95||point===0x200c||point===0x200d||propertyMatch(continues,point);
+        if(i===0)valid=point===36||point===95||point>=65&&point<=90||point>=97&&point<=122||point>127&&propertyMatch(propertyRanges('ID_Start'),point);
+        else valid=point===36||point===95||point>=65&&point<=90||point>=97&&point<=122||point>=48&&point<=57||point===0x200c||point===0x200d||point>127&&propertyMatch(propertyRanges('ID_Continue'),point);
         if(!valid)error();
         i+=point>0xffff?2:1
       }

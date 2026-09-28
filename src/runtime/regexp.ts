@@ -499,7 +499,8 @@ export function emitRegExp(b:RuntimeBuilder):void {
   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:RegExpLayout.pattern});a.load('r11',{base:'r10'});a.add('r10',8);
   const scan=a.unique('vmScan'),scanEscape=a.unique('vmScanEscape'),scanClass=a.unique('vmScanClass'),scanNext=a.unique('vmScanNext'),inClass=a.unique('vmInClass');
   a.mov('r8',0);a.label(scan);a.test('r11','r11');a.jcc('e',nativeMatch);
-  a.load('rax',{base:'r10'},16);a.cmp('rax',92);a.jcc('e',scanEscape);a.cmp('rax',91);a.jcc('e',scanClass);a.cmp('rax',93);a.jcc('e',scanClass);
+  a.load('rax',{base:'r10'},16);a.cmp('rax',92);a.jcc('e',scanEscape);a.cmp('rax',91);a.jcc('e',scanClass);
+  const closeClass=a.unique('closeClass');a.cmp('rax',93);a.jcc('e',closeClass);
   a.test('r8','r8');a.jcc('ne',scanNext);
   const scanEndAnchor=a.unique('scanEndAnchor'),scanOther=a.unique('scanOther');
   a.cmp('rax',94);a.jcc('ne',scanEndAnchor);
@@ -515,6 +516,7 @@ export function emitRegExp(b:RuntimeBuilder):void {
   const nativeEscape=a.unique('nativeEscape');
   for(const code of 'dDwWsSbBnrtvf0\\.^$*+?()[]{}|/'){a.cmp('rax',code.charCodeAt(0));a.jcc('e',nativeEscape);}
   a.jmp(vmMatch);a.label(nativeEscape);a.add('r10',2);a.sub('r11',1);a.jmp(scanNext);
+  a.label(closeClass);a.test('r8','r8');a.jcc('e',vmMatch);a.jmp(scanClass);
   a.label(scanClass);a.xor('r8',1);
   a.label(scanNext);a.add('r10',2);a.sub('r11',1);a.jmp(scan);
   a.label(vmMatch);
