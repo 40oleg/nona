@@ -41,3 +41,17 @@ test('Proxy isExtensible trap and target invariant survive GC stress',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy preventExtensions trap and Reflect boolean result survive GC stress',()=>{
+ const source=`let t={x:1},p=new Proxy(t,{preventExtensions:function(target){for(let i=0;i<20;i++)({v:i});return false}});
+ console.log(Reflect.preventExtensions(p),Object.isExtensible(t));
+ try{Object.preventExtensions(p)}catch(e){console.log(e.name)}
+ let q=new Proxy(t,{preventExtensions:function(target){Object.preventExtensions(target);return true}});
+ console.log(Reflect.preventExtensions(q),Object.isExtensible(t));
+ let nested=new Proxy(q,{});console.log(Reflect.preventExtensions(nested));
+ let rev=Proxy.revocable({},{});rev.revoke();try{Reflect.preventExtensions(rev.proxy)}catch(e){console.log(e.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

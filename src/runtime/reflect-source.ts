@@ -11,6 +11,7 @@ export const reflectPreludeSource=String.raw`(function(){
   }
   var reflect={};
   var nativeConstruct=Function.prototype.__nonaReflectConstructInternal;
+  var nativePrevent=Function.prototype.__nonaProxyPreventInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
   function method(name,length,fn){
@@ -44,7 +45,7 @@ export const reflectPreludeSource=String.raw`(function(){
   method('getOwnPropertyDescriptor',2,({getOwnPropertyDescriptor(target,key){return Object.getOwnPropertyDescriptor(object(target),key)}}).getOwnPropertyDescriptor);
   method('getPrototypeOf',1,({getPrototypeOf(target){return Object.getPrototypeOf(object(target))}}).getPrototypeOf);
   method('isExtensible',1,({isExtensible(target){return Object.isExtensible(object(target))}}).isExtensible);
-  method('preventExtensions',1,({preventExtensions(target){Object.preventExtensions(object(target));return true}}).preventExtensions);
+  method('preventExtensions',1,({preventExtensions(target){return nativePrevent(object(target))}}).preventExtensions);
   method('defineProperty',3,({defineProperty(target,key,attributes){
     object(target);
     var keyHolder={[key]:0},names=Object.getOwnPropertyNames(keyHolder);

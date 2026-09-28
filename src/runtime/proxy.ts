@@ -8,7 +8,8 @@ import {stringLiteral} from './value.js';
 export const ProxyKind=21;
 export const ProxyLayout={target:O.size,handler:O.size+16,revoked:O.size+32,size:O.size+40} as const;
 export const proxyPropertyRoots=[...builtinPropertyRoots('rt.proxyCreateInternal','__nonaProxyCreateInternal'),
- ...builtinPropertyRoots('rt.proxyRevokeInternal','__nonaProxyRevokeInternal')];
+ ...builtinPropertyRoots('rt.proxyRevokeInternal','__nonaProxyRevokeInternal'),
+ ...builtinPropertyRoots('rt.proxyPreventInternal','__nonaProxyPreventInternal')];
 
 export function emitProxy(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.proxyCreateInternal','__nonaProxyCreateInternal',2,'rt.functionPrototype');
@@ -35,10 +36,39 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.mov('r10',0);for(const offset of [ProxyLayout.target,ProxyLayout.handler]){a.mov('r11',1);a.store({base:'rax',disp:offset},'r11');a.store({base:'rax',disp:offset+8},'r10');}
   a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'r10');
  });
+ prependFunctionBuiltin(b,'rt.proxyPreventInternal','__nonaProxyPreventInternal',1,'rt.functionPrototype');
+ rootedFn(b,'rt.proxyPreventInternal.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:48,count:1}],a=>{
+  a.store(slot(40),'rcx');a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  for(const part of [0,8]){a.load('rax',{base:'r8',disp:part});a.store(slot(48+part),'rax');}
+  const ordinary=a.unique('ordinary'),done=a.unique('done');a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
+  a.lea('rcx',slot(48));a.call('rt.proxyPreventExtensions');a.jmp(done);
+  a.label(ordinary);a.load('rax',{base:'r10',disp:O.flags});a.or('rax',1);a.store({base:'r10',disp:O.flags},'rax');a.mov('rax',1);
+  a.label(done);a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
+ });
  b.bundle.fragments.push(stringLiteral('rt.proxyGetKey','get'));
  b.bundle.fragments.push(stringLiteral('rt.proxyHasKey','has'));
  b.bundle.fragments.push(stringLiteral('rt.proxyDeleteKey','deleteProperty'));
  b.bundle.fragments.push(stringLiteral('rt.proxyIsExtensibleKey','isExtensible'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyPreventExtensionsKey','preventExtensions'));
+ rootedFn(b,'rt.proxyPreventExtensions',184,[{kind:'value',register:'rcx'},{kind:'locals',offset:80,count:6}],a=>{
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyPreventExtensionsKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),done=a.unique('done'),ordinary=a.unique('ordinary');
+  a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(160+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.mov('r8',1);a.lea('r9',slot(160));a.call('rt.invoke');
+  a.lea('rcx',slot(144));a.call('rt.toBoolean');a.test('rax','rax');a.jcc('e',done);
+  a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
+  a.lea('rcx',slot(80));a.call('rt.proxyIsExtensible');a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.mov('rax',1);a.jmp(done);
+  a.label(ordinary);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.mov('rax',1);a.jmp(done);
+  a.label(forward);a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);const ordinaryForward=a.unique('ordinaryForward');a.jcc('ne',ordinaryForward);
+  a.lea('rcx',slot(80));a.call('rt.proxyPreventExtensions');a.jmp(done);
+  a.label(ordinaryForward);a.load('rax',{base:'r10',disp:O.flags});a.or('rax',1);a.store({base:'r10',disp:O.flags},'rax');a.mov('rax',1);a.label(done);
+ });
  rootedFn(b,'rt.proxyIsExtensible',184,[{kind:'value',register:'rcx'},{kind:'locals',offset:80,count:6}],a=>{
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)

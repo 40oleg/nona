@@ -22,5 +22,6 @@ export const proxyPreludeSource=String.raw`(function(){
   markNative(revocable);
   delete Function.prototype.__nonaProxyCreateInternal;
   delete Function.prototype.__nonaProxyRevokeInternal;
+  delete Function.prototype.__nonaProxyPreventInternal;
   delete Function.prototype.__nonaMarkNativeInternal;
 })()`;
