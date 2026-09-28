@@ -12,6 +12,7 @@ import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout
 import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource} from '../../runtime/proxy-source.js';
+import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {lex} from '../../frontend/lexer.js';
 import {parse} from '../../frontend/parser.js';
 import {bind} from '../../frontend/binder.js';
@@ -25,8 +26,8 @@ let cachedRegExpPrelude:ModuleIR|undefined;
 
 export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
-  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+proxyPreludeSource)))))):undefined;
-  if(prelude&&prelude.globalCount!==1)throw new Error('RegExp VM prelude must have one global binding');
+  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+promisePreludeSource+'\n'+proxyPreludeSource)))))):undefined;
+  if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
   module={...module,globalCount:userGlobalCount+(prelude?.globalCount??0),functions:[
     ...module.functions,
@@ -295,6 +296,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
     entry.call('js.regexpVm.main');
     entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
   }
-  entry.call('js.main');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  entry.call('js.main');
+  if(prelude){
+    entry.lea('rcx',stack(48));entry.lea('rdx',{rip:'js.globals'});entry.add('rdx',(userGlobalCount+1)*16);
+    entry.mov('r8',0);entry.lea('r9',stack(48));entry.call('rt.invoke');
+  }
+  entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }
