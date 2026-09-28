@@ -1,5 +1,5 @@
 import {spawnSync} from 'node:child_process';
-import {readFileSync, mkdirSync, writeFileSync, readdirSync} from 'node:fs';
+import {readFileSync, mkdirSync, writeFileSync, appendFileSync, readdirSync} from 'node:fs';
 import {resolve, join, dirname} from 'node:path';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {compile} from '../dist/src/compiler.js';
@@ -23,6 +23,7 @@ if (group && (!/^[A-Za-z0-9_./-]+$/.test(group) || group.includes('..') || group
   throw new Error('Group must be a relative Test262 test directory');
 }
 const reportPath = resolve(process.env.TEST262_REPORT || 'work/test262-smoke-report.json');
+const progressPath = process.env.TEST262_PROGRESS_LOG ? resolve(process.env.TEST262_PROGRESS_LOG) : '';
 const revision = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 'utf8'});
 if (revision.error || revision.status !== 0 || revision.stdout.trim() !== PIN) {
   throw new Error(`Test262 checkout must be pinned at ${PIN}; found ${revision.stdout?.trim() || revision.stderr}`);
@@ -78,8 +79,20 @@ if (!isMainThread) {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
     .filter(path => path.includes(pathFilter) && (!excludePathFilter || !path.includes(excludePathFilter))
       && (!directOnly || !group || !path.slice(group.length + 1).includes('/')));
+  if (progressPath) {
+    mkdirSync(dirname(progressPath), {recursive: true});
+    writeFileSync(progressPath, JSON.stringify({revision: PIN, group: group || 'smoke-manifest',
+      pathFilter, excludePathFilter, directOnly, runtimeTimeout, jobs, expected: paths.length}) + '\n');
+  }
+  const record = result => {
+    if (progressPath) appendFileSync(progressPath, JSON.stringify(result) + '\n');
+  };
   let results;
-  if (jobs === 1 || paths.length < 2) results = paths.map(runCase);
+  if (jobs === 1 || paths.length < 2) results = paths.map(path => {
+    const result = runCase(path);
+    record(result);
+    return result;
+  });
   else {
     const received = new Map();
     const activeJobs = Math.min(jobs, paths.length);
@@ -87,7 +100,7 @@ if (!isMainThread) {
     paths.forEach((path,index) => batches[index % activeJobs].push(path));
     await Promise.all(batches.map(batch => new Promise((resolveWorker,rejectWorker) => {
       const worker = new Worker(new URL(import.meta.url), {workerData: {paths: batch}});
-      worker.on('message', result => received.set(result.path, result));
+      worker.on('message', result => {received.set(result.path, result); record(result);});
       worker.on('error', rejectWorker);
       worker.on('exit', code => code === 0 ? resolveWorker() : rejectWorker(new Error(`Test262 worker exited with ${code}`)));
     })));
