@@ -61,3 +61,15 @@ test('Promise job drain is not exposed to user code',()=>expectStress(`
  console.log(typeof __nonaPromiseDrainJobs,'__nonaPromiseDrainJobs' in globalThis);
  Promise.resolve(1).then(value=>console.log('job',value));
 `));
+
+test('Bound Promise constructors use the earliest bound executor',()=>expectStress(`
+ var first=Promise.bind(null,resolve=>resolve(8));
+ var outer=first.bind(null,0);
+ new outer(1).then(value=>console.log('value',value));
+ var invalid=Promise.bind(null,1).bind(null,resolve=>resolve(2));
+ try{new invalid()}catch(error){console.log(error.name)}
+ var newTarget=(function(){}).bind(null);
+ Object.defineProperty(newTarget,'prototype',{get(){throw new Error('prototype')}});
+ try{Reflect.construct(invalid,[],newTarget)}catch(error){console.log(error.name)}
+ try{Reflect.construct(first,[],newTarget)}catch(error){console.log(error.name)}
+`));

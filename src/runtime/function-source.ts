@@ -36,15 +36,7 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
    a.load('rax',{base:'r10',disp:F.constructable});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(valid);
    a.label(proxy);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyConstructable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.label(valid);
   }
-  const ordinaryTarget=a.unique('ordinaryTarget'),validExecutor=a.unique('validExecutor'),callableProxy=a.unique('callableProxy');
-  a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',ordinaryTarget);
-  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',PromiseConstructorFlag);a.test('rax','rax');a.jcc('e',ordinaryTarget);
-  a.mov('rax',4);a.store(slot(144),'rax');a.lea('rax',{rip:'rt.promiseIndexZero'});a.store(slot(152),'rax');
-  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(144));a.call('rt.getProperty');
-  a.load('rax',slot(128));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(136));a.load('rax',{base:'r10',disp:O.kind});
-  a.cmp('rax',FunctionKind);a.jcc('e',validExecutor);a.cmp('rax',ProxyKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyCallable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
-  a.label(validExecutor);a.label(ordinaryTarget);
+  a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.call('rt.validatePromiseExecutorArray');
   for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(160+part),'rax');}
   const bound=a.unique('reflectBound'),ready=a.unique('reflectTargetReady'),unchanged=a.unique('reflectUnchanged');
   a.label(bound);a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',ready);a.load('r11',{base:'r10',disp:F.bound});a.test('r11','r11');a.jcc('e',ready);
@@ -72,13 +64,21 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
  });
  b.fn('rt.isPromiseConstructor',40,a=>{
-  const no=a.unique('no'),done=a.unique('done');a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);
+  const no=a.unique('no'),done=a.unique('done'),unwrap=a.unique('unwrap'),target=a.unique('target');a.label(unwrap);
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',no);
-  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',PromiseConstructorFlag);a.test('rax','rax');a.jcc('e',no);
+  a.load('rax',{base:'r10',disp:F.bound});a.test('rax','rax');a.jcc('e',target);
+  a.lea('rcx',{base:'rax',disp:B.target});a.jmp(unwrap);
+  a.label(target);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',PromiseConstructorFlag);a.test('rax','rax');a.jcc('e',no);
   a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
  });
  b.fn('rt.validatePromiseExecutor',56,a=>{
-  a.store(slot(40),'rdx');a.call('rt.isPromiseConstructor');const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);
+  a.store(slot(40),'rdx');a.store(slot(48),'rcx');a.call('rt.isPromiseConstructor');const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);
+  const bound=a.unique('bound'),effective=a.unique('effective');a.load('rcx',slot(48));a.label(bound);
+  a.load('r10',{base:'rcx',disp:8});a.load('r11',{base:'r10',disp:F.bound});a.test('r11','r11');a.jcc('e',effective);
+  a.load('rax',{base:'r11',disp:B.count});a.test('rax','rax');const noArgs=a.unique('noArgs');a.jcc('e',noArgs);
+  a.lea('rax',{base:'r11',disp:B.args});a.store(slot(40),'rax');a.label(noArgs);
+  a.lea('rcx',{base:'r11',disp:B.target});a.jmp(bound);a.label(effective);
   a.load('rdx',slot(40));a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('e',done);
   a.cmp('rax',ProxyKind);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyCallable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
@@ -86,9 +86,10 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
  });
  rootedFn(b,'rt.validatePromiseExecutorArray',104,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.call('rt.isPromiseConstructor');const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);
-  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.length});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(80+part),'rax');}
+  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.length});a.test('rax','rax');const argumentReady=a.unique('argumentReady');a.jcc('e',argumentReady);
   a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.promiseIndexZero'});a.store(slot(72),'rax');
-  a.lea('rcx',slot(80));a.load('rdx',slot(48));a.lea('r8',slot(64));a.call('rt.getProperty');
+  a.lea('rcx',slot(80));a.load('rdx',slot(48));a.lea('r8',slot(64));a.call('rt.getProperty');a.label(argumentReady);
   a.load('rcx',slot(40));a.lea('rdx',slot(80));a.call('rt.validatePromiseExecutor');a.label(done);
  });
  b.fn('rt.functionToString.code',40,a=>{a.load('rdx',slot(80));a.call('rt.functionSource');});
