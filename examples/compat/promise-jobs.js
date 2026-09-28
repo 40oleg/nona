@@ -7,3 +7,6 @@ try { Reflect.construct(Promise.bind(null, 1), [], function Other() {}); }
 catch (error) { console.log('bound error', error.name); }
 console.log(Object.getOwnPropertyDescriptor(Promise, Symbol.species).get.name);
 console.log(Object.getOwnPropertyDescriptor(Promise, 'prototype').writable);
+const wrappedPromise=new Proxy(new Proxy(Promise,{}),{});
+const promiseNewTarget=new Proxy(function(){},{get(target,key){if(key==='prototype')console.log('promise prototype');return Reflect.get(target,key)}});
+try { Reflect.construct(wrappedPromise,[],promiseNewTarget); } catch (error) { console.log('proxy promise error',error.name); }

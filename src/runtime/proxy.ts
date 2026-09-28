@@ -161,6 +161,7 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.load('r10',slot(40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.jmp(done);
   a.label(forward);
   a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});const prepared=a.unique('prepared');a.cmp('rax',ProxyKind);a.jcc('e',prepared);
+  const noExecutor=a.unique('noExecutor'),executorReady=a.unique('executorReady');a.load('rax',slot(56));a.test('rax','rax');a.jcc('e',noExecutor);a.load('rdx',slot(64));a.jmp(executorReady);a.label(noExecutor);a.lea('rdx',{rip:'rt.undefinedValue'});a.label(executorReady);a.lea('rcx',slot(80));a.call('rt.validatePromiseExecutor');
   a.lea('rcx',slot(208));a.lea('rdx',slot(192));a.call('rt.newInstanceRaw');a.label(prepared);
   a.lea('rax',slot(208));a.store(slot(32),'rax');a.lea('rax',slot(192));a.store(slot(40),'rax');a.load('rcx',slot(224));a.lea('rdx',slot(80));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.invokeConstruct');
   a.load('rcx',slot(224));a.mov('rdx','rcx');a.lea('r8',slot(208));a.call('rt.constructorResult');a.label(done);

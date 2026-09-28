@@ -156,3 +156,9 @@ Set **229/383**; отказы требуют функций после ES2020, R
 Полный каталог `Function.prototype.toString` до корректировки Test262 line endings дал **35/80**. Git checkout на Windows переписывал LF в CRLF в тесте исходного текста; runner теперь читает исходный blob из закреплённой ревизии для трёх тестов line-terminator-normalisation, и они прошли **3/3**. Повтор каталога: **36/80**. Среди оставшихся отказов есть действительный пробел ES2020: функции RegExp `Symbol.match` и getter `Symbol.species`, реализованные в JS-прелюдии, пока показывают исходный текст вместо допустимой NativeFunction-формы. Остальные в основном зависят от классов, async, Proxy/Reflect, динамического Function и генераторов следующих этапов. Этап 0.6 остаётся открытым.
 Исправлен применимый отказ `symbol-named-builtins.js`: функция `RegExp.prototype[Symbol.match]` и getter `RegExp[Symbol.species]`, созданные прелюдией, теперь получают NativeFunction-представление через внутреннюю операцию до запуска пользовательского кода. Операция удаляется из `Function.prototype` после bootstrap. Каталог `Function.prototype.toString` вырос до **37/80**; целевой Test262 и регрессии метаданных/RegExp прошли. Остальные 43 отказа ещё требуют классификации и закрытия на этапах классов, async, Proxy/Reflect, генераторов либо исключённого динамического Function.
 Повторный каталог `Function.prototype[Symbol.hasInstance]` после Proxy: **11/11**. Ранее отложенный `value-get-prototype-of-err.js` теперь проходит.
+
+28.09.2026: прозрачная пересылка Proxy к Promise проверяет executor до
+`newTarget.prototype`, включая вложенные и bound конструкции. GC stress
+регрессия для `Reflect.construct` и прямого `new` сверена с Node.js 26;
+Proxy с собственной ловушкой `construct` проверяется отдельно. Gate 0.16
+остаётся открытым по причинам, перечисленным в статусе Promise.

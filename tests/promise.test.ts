@@ -79,3 +79,16 @@ test('Promise Symbol.species getter has native accessor metadata',()=>expectStre
  console.log(getter.name,getter.length,getter.prototype===undefined,Function.prototype.toString.call(getter).includes('[native code]'));
  console.log(Object.getOwnPropertyDescriptor(Promise,'prototype').writable);
 `));
+
+test('Proxy forwarding to Promise validates executor before newTarget prototype',()=>expectStress(`
+ var Wrapped=new Proxy(new Proxy(Promise,{}),{});
+ var newTarget=new Proxy(function(){},{get(target,key){if(key==='prototype'){console.log('prototype');return {}}return Reflect.get(target,key)}});
+ try{Reflect.construct(Wrapped,[],newTarget)}catch(error){console.log(error.name)}
+ try{Reflect.construct(Wrapped,[function(resolve){resolve(3)}],newTarget).then(value=>console.log('value',value))}catch(error){console.log(error.name)}
+ var intercepted=new Proxy(Promise,{construct(){console.log('trap');return {}}});
+ console.log(typeof Reflect.construct(intercepted,[],newTarget));
+ var direct=new Proxy(Promise,{get(target,key,receiver){if(key==='prototype')console.log('direct prototype');return Reflect.get(target,key,receiver)}});
+ try{new direct()}catch(error){console.log('direct',error.name)}
+ var boundWrapped=new Proxy(Promise.bind(null,1),{});
+ try{Reflect.construct(boundWrapped,[],newTarget)}catch(error){console.log('bound',error.name)}
+`));
