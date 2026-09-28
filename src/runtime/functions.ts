@@ -1,6 +1,6 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
@@ -138,9 +138,10 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
-  if(!raw){a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
+  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});const proxyInstance=a.unique('proxyInstance');a.cmp('r10',ProxyKind);a.jcc('e',proxyInstance);a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');const validInstance=a.unique('validInstance');a.jmp(validInstance);
+  a.label(proxyInstance);a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyConstructable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');a.label(validInstance);
+  if(!raw){a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('e',unwrapped);a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
    a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');

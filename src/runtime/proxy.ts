@@ -124,6 +124,29 @@ export function emitProxy(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.proxyGetOwnDescriptorKey','getOwnPropertyDescriptor'));
  b.bundle.fragments.push(stringLiteral('rt.proxyDefinePropertyKey','defineProperty'));
  b.bundle.fragments.push(stringLiteral('rt.proxyApplyKey','apply'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyConstructKey','construct'));
+ rootedFn(b,'rt.proxyConstruct',248,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},
+  {kind:'range',register:'r9',count:'r8'},{kind:'locals',offset:80,count:9}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(224),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('r10',slot(frame+40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(208+part),'rax');}
+  a.load('r10',slot(frame+48));const defaultNewTarget=a.unique('defaultNewTarget'),newTargetReady=a.unique('newTargetReady');a.test('r10','r10');a.jcc('e',defaultNewTarget);a.jmp(newTargetReady);
+  a.label(defaultNewTarget);a.load('r10',slot(48));a.label(newTargetReady);for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(192+part),'rax');}
+  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyConstructKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),done=a.unique('done');a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  a.lea('rcx',slot(144));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
+  a.mov('rax',0);a.store(slot(72),'rax');const loop=a.unique('loop'),argsReady=a.unique('argsReady');a.label(loop);
+  a.load('rax',slot(72));a.load('r10',slot(56));a.cmp('rax','r10');a.jcc('ae',argsReady);
+  a.shl('rax',4);a.load('rdx',slot(64));a.add('rdx','rax');a.lea('rcx',slot(144));a.call('rt.appendArrayValue');
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
+  a.label(argsReady);for(const [from,to] of [[80,160],[144,176]] as const)for(const part of [0,8]){a.load('rax',slot(from+part));a.store(slot(to+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(128));a.mov('r8',3);a.lea('r9',slot(160));a.call('rt.invoke');
+  a.load('r10',slot(40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.jmp(done);
+  a.label(forward);a.lea('rax',slot(208));a.store(slot(32),'rax');a.lea('rax',slot(192));a.store(slot(40),'rax');a.load('rcx',slot(224));a.lea('rdx',slot(80));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.invokeConstruct');a.label(done);
+ });
  rootedFn(b,'rt.proxyApply',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},
   {kind:'range',register:'r9',count:'r8'},{kind:'locals',offset:80,count:8}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');

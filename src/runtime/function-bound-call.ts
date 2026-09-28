@@ -2,7 +2,7 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {RootLayout as R} from './heap-layout.js';
 import {FunctionLayout as F} from './functions.js';
 import {FunctionKind} from './functions.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ProxyKind,ProxyConstructable} from './object-layout.js';
 import {BoundDataLayout as B,maxBoundArguments} from './bound-layout.js';
 
 export function emitBoundCalls(b:RuntimeBuilder):void {
@@ -12,8 +12,10 @@ export function emitBoundCalls(b:RuntimeBuilder):void {
   a.load('rax',slot(96));a.store(slot(32),'rax');
   a.load('rax',slot(104));a.store(slot(40),'rax');
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});const proxy=a.unique('proxy');a.cmp('r10',ProxyKind);a.jcc('e',proxy);a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rax',disp:F.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+  const valid=a.unique('valid');a.jmp(valid);a.label(proxy);a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyConstructable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+  a.call('rt.proxyConstruct');const doneProxy=a.unique('doneProxy');a.jmp(doneProxy);a.label(valid);
   a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax',disp:F.bound});
   const unbound=a.unique('unbound'),ordinary=a.unique('ordinary'),done=a.unique('done');a.test('rax','rax');a.jcc('e',unbound);
   a.call('rt.invokeBound');a.jmp(done);a.label(unbound);
@@ -21,7 +23,7 @@ export function emitBoundCalls(b:RuntimeBuilder):void {
   // Native construct entry uses the builtin call ABI, with the prepared
   // receiver in the fifth argument. It must never infer new from thisArg.
   a.mov('r11','r9');a.mov('r9','rax');a.mov('rdx','r8');a.mov('r8','r11');a.callRegister('r10');a.jmp(done);
-  a.label(ordinary);a.call('rt.invokeSourceConstruct');a.label(done);
+  a.label(ordinary);a.call('rt.invokeSourceConstruct');a.label(done);a.label(doneProxy);
  });
  // RCX out, RDX bound Value*, R8 argc, R9 argv. Fifth argument is either
  // null (ordinary call) or the constructed receiver Value*. Root records

@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ProxyKind,ProxyConstructable} from './object-layout.js';
 import {FunctionLayout as F,FunctionKind} from './functions.js';
 import {emitFunctionBuiltin,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {rootedFn} from './root-scope.js';
@@ -26,12 +26,13 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   }
   for(const offset of [80,112]){
    a.load('rax',slot(offset));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-   a.load('r10',slot(offset+8));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
-   a.load('rax',{base:'r10',disp:F.constructable});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+   a.load('r10',slot(offset+8));a.load('rax',{base:'r10',disp:O.kind});const proxy=a.unique('proxy'),valid=a.unique('valid');a.cmp('rax',ProxyKind);a.jcc('e',proxy);a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+   a.load('rax',{base:'r10',disp:F.constructable});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(valid);
+   a.label(proxy);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyConstructable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.label(valid);
   }
   for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(160+part),'rax');}
   const bound=a.unique('reflectBound'),ready=a.unique('reflectTargetReady'),unchanged=a.unique('reflectUnchanged');
-  a.label(bound);a.load('r10',slot(168));a.load('r11',{base:'r10',disp:F.bound});a.test('r11','r11');a.jcc('e',ready);
+  a.label(bound);a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',ready);a.load('r11',{base:'r10',disp:F.bound});a.test('r11','r11');a.jcc('e',ready);
   a.load('rax',slot(120));a.cmp('rax','r10');a.jcc('ne',unchanged);
   for(const part of [0,8]){a.load('rax',{base:'r11',disp:B.target+part});a.store(slot(112+part),'rax');}
   a.label(unchanged);
