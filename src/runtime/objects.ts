@@ -108,7 +108,10 @@ export function emitObjects(b:RuntimeBuilder):void {
   });
 
   // Explicit prototype literal / inherited __proto__ setter. Reject cycles.
-  b.fn('rt.setPrototype',40,a=>{
+  rootedFn(b,'rt.setPrototype',40,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'}],a=>{
+    a.load('r10',{base:'rcx'});a.cmp('r10',5);const ordinaryBase=a.unique('ordinaryBase');a.jcc('ne',ordinaryBase);
+    a.load('r10',{base:'rcx',disp:8});a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryBase);
+    a.call('rt.proxySetPrototype');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');const proxyDone=a.unique('proxyDone');a.jmp(proxyDone);a.label(ordinaryBase);
     const done=a.unique('done'),set=a.unique('set'),loop=a.unique('loop');
     a.load('r10',{base:'rdx'});a.cmp('r10',1);a.mov('rax',0);a.jcc('e',set);
     a.cmp('r10',5);a.jcc('ne',done);a.load('rax',{base:'rdx',disp:8});
@@ -119,7 +122,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.label(mutable);
     a.mov('r10','rax');a.label(loop);a.test('r10','r10');const write=a.unique('write');a.jcc('e',write);
     a.cmp('r10','rcx');failIf(a,'e','rt.throwTypeError');a.load('r10',{base:'r10',disp:O.prototype});a.jmp(loop);
-    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');a.label(done);
+    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');a.label(done);a.label(proxyDone);
   });
 
   // Shared public read/has: arguments are result, base Value, key Value.

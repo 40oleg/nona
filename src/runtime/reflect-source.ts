@@ -12,6 +12,7 @@ export const reflectPreludeSource=String.raw`(function(){
   var reflect={};
   var nativeConstruct=Function.prototype.__nonaReflectConstructInternal;
   var nativePrevent=Function.prototype.__nonaProxyPreventInternal;
+  var nativeSetPrototype=Function.prototype.__nonaProxySetPrototypeInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
   function method(name,length,fn){
@@ -65,6 +66,8 @@ export const reflectPreludeSource=String.raw`(function(){
   method('setPrototypeOf',2,({setPrototypeOf(target,prototype){
     object(target);
     if(prototype!==null&&(typeof prototype!=='object'&&typeof prototype!=='function'))throw new TypeError('Prototype must be an object or null');
+    var proxyResult=nativeSetPrototype(target,prototype);
+    if(proxyResult!==undefined)return proxyResult;
     try{Object.setPrototypeOf(target,prototype);return true}
     catch(error){if(error instanceof TypeError)return false;throw error}
   }}).setPrototypeOf);
