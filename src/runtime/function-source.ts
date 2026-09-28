@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags as OF,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {FunctionLayout as F,FunctionKind} from './functions.js';
 import {emitFunctionBuiltin,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {rootedFn} from './root-scope.js';
@@ -46,11 +46,12 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   for(const part of [0,8]){a.load('rax',{base:'r11',disp:B.target+part});a.store(slot(160+part),'rax');}
   a.jmp(bound);a.label(ready);
   a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});const proxyTarget=a.unique('proxyTarget'),receiverReady=a.unique('receiverReady');a.cmp('rax',ProxyKind);a.jcc('e',proxyTarget);
-  // Native constructors allocate their result after validating arguments.
-  // Their own construct code obtains newTarget.prototype at the spec step;
-  // preparing an ordinary receiver here would observe it too early.
-  a.load('rax',{base:'r10',disp:F.constructCode});a.test('rax','rax');a.jcc('ne',proxyTarget);
+  // DataView validates the offset before obtaining newTarget.prototype.
+  // Its construct code allocates the result after that validation.
+  a.load('rax',{base:'r10',disp:F.constructCode});a.lea('r11',{rip:'rt.DataView.construct'});a.cmp('rax','r11');const dataViewReceiver=a.unique('dataViewReceiver');a.jcc('e',dataViewReceiver);
   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.newInstanceRaw');a.jmp(receiverReady);
+  a.label(dataViewReceiver);a.lea('rcx',slot(128));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
+  a.load('r10',slot(136));a.mov('rax',OF.deferredConstructPrototype);a.store({base:'r10',disp:O.flags},'rax');a.jmp(receiverReady);
   a.label(proxyTarget);a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(128+part),'rax');}a.label(receiverReady);
   a.mov('rax',1);a.store(slot(32),'rax');a.lea('rax',slot(112));a.store(slot(40),'rax');
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.lea('r9',slot(128));a.call('rt.invokeArray');
