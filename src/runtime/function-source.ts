@@ -46,6 +46,10 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   for(const part of [0,8]){a.load('rax',{base:'r11',disp:B.target+part});a.store(slot(160+part),'rax');}
   a.jmp(bound);a.label(ready);
   a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});const proxyTarget=a.unique('proxyTarget'),receiverReady=a.unique('receiverReady');a.cmp('rax',ProxyKind);a.jcc('e',proxyTarget);
+  // Native constructors allocate their result after validating arguments.
+  // Their own construct code obtains newTarget.prototype at the spec step;
+  // preparing an ordinary receiver here would observe it too early.
+  a.load('rax',{base:'r10',disp:F.constructCode});a.test('rax','rax');a.jcc('ne',proxyTarget);
   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.newInstanceRaw');a.jmp(receiverReady);
   a.label(proxyTarget);a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(128+part),'rax');}a.label(receiverReady);
   a.mov('rax',1);a.store(slot(32),'rax');a.lea('rax',slot(112));a.store(slot(40),'rax');
