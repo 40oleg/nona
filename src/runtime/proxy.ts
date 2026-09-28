@@ -138,7 +138,7 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.load('rax',slot(320));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:D.present});a.and('rax',F.configurable);const absentConfig=a.unique('absentConfig');a.test('rax','rax');a.jcc('e',absentConfig);
   a.load('rax',{base:'r10',disp:D.configurable+8});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(yes);
-  a.label(absentConfig);failIf(a,'e','rt.throwTypeError');
+  a.label(absentConfig);a.jmp(yes);
   a.label(existing);a.load('rax',slot(208+D.configurable+8));a.store(slot(328),'rax');a.load('rax',slot(208+D.writable+8));a.store(slot(336),'rax');
   a.load('rcx',slot(56));a.lea('rdx',slot(208));a.mov('r8',1);a.call('rt.validateDescriptor');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   const checkConfig=a.unique('checkConfig');a.load('rax',slot(328));a.test('rax','rax');a.jcc('ne',checkConfig);

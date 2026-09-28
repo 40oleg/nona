@@ -161,6 +161,7 @@ test('Proxy defineProperty trap and set forwarding survive GC stress',()=>{
  const source=`let target={},seen=[],p=new Proxy(target,{defineProperty:function(t,k,d){for(let i=0;i<20;i++)({v:i});seen.push(k,d.value,d.configurable);return true}});
  Object.defineProperty(p,'x',{value:3,configurable:true});console.log(seen.join(','),Object.getOwnPropertyDescriptor(target,'x')===undefined);
  console.log(Reflect.defineProperty(new Proxy({},{defineProperty:function(){return false}}),'x',{value:1}));
+ console.log(Reflect.defineProperty(new Proxy({},{defineProperty:function(){return true}}),'omitted',{}));
  Object.preventExtensions(target);try{Object.defineProperty(p,'new',{value:1,configurable:true})}catch(e){console.log(e.name)}
  let keys=[],q=new Proxy({x:1},{getOwnPropertyDescriptor:function(t,k){keys.push('get');return Reflect.getOwnPropertyDescriptor(t,k)},defineProperty:function(t,k,d){keys.push('define');return Reflect.defineProperty(t,k,d)}});
  q.x=2;console.log(q.x,keys.join(','));`;
