@@ -187,6 +187,9 @@ test('Proxy construct trap, newTarget and nested forwarding survive GC stress',(
  const source=`let Target=function(x){this.x=x},seen=[],p=new Proxy(Target,{construct:function(t,args,n){for(let i=0;i<20;i++)({v:i});seen.push(t===Target,args[0],n===p);return {value:args[0]}}});
  console.log((new p(3)).value,seen.join(','));
  let nested=new Proxy(new Proxy(Target,{}),{});console.log((new nested(4)).x);
+ class Base{constructor(x){this.x=x}}class Child extends Base{get marker(){return 7}}
+ let nestedClass=new Proxy(new Proxy(Base,{}),{}),instance=Reflect.construct(nestedClass,[6],Child);
+ console.log(instance instanceof Child,instance.x,instance.marker);
  let Other=function(){};console.log(Reflect.construct(p,[5],Other).value);
  let bad=new Proxy(Target,{construct:function(){return 1}});try{new bad()}catch(e){console.log(e.name)}
  let rev=Proxy.revocable(Target,{});rev.revoke();try{new rev.proxy()}catch(e){console.log(e.name)}`;

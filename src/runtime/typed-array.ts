@@ -65,7 +65,7 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   const done=a.unique('done');a.mov('rax',0);a.test('rdx','rdx');a.jcc('e',done);
   a.load('r10',{base:'r8'});a.cmp('r10',5);a.jcc('ne',done);
   a.load('r10',{base:'r8',disp:8});a.load('r11',{base:'r10',disp:O.kind});const proxyConstructor=a.unique('proxyConstructor');a.cmp('r11',ProxyKind);a.jcc('e',proxyConstructor);a.cmp('r11',FunctionKind);a.jcc('ne',done);
-  a.load('rax',{base:'r10',disp:F.constructable});a.jmp(done);a.label(proxyConstructor);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyConstructable);a.test('rax','rax');const notConstructor=a.unique('notConstructor');a.jcc('e',notConstructor);a.mov('rax',1);a.label(notConstructor);a.label(done);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+  a.load('rax',{base:'r10',disp:F.constructable});a.test('rax','rax');a.jcc('e',done);a.mov('rax',1);a.jmp(done);a.label(proxyConstructor);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyConstructable);a.test('rax','rax');const notConstructor=a.unique('notConstructor');a.jcc('e',notConstructor);a.mov('rax',1);a.label(notConstructor);a.label(done);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
  b.fn('rt.typedArrayIsTypedArray.fn.code',40,a=>{
   const done=a.unique('done');a.mov('rax',0);a.test('rdx','rdx');a.jcc('e',done);
