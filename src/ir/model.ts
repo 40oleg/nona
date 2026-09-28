@@ -28,7 +28,7 @@ export type Operation =
   | {kind:'yieldDelegated';dest:number;mode:number;source:number}
   | {kind:'generatorInitialSuspend'}
   | {kind:'requireObject';source:number}
-  | {kind:'newInstance';dest:number;callee:number}
+  | {kind:'newInstance';dest:number;callee:number;firstArgument?:number;argumentArray?:number}
   | {kind:'constructorResult';dest:number;result:number;instance:number}
   | {kind:'derivedReturn';dest:number;source:number}
   | {kind:'newArguments';dest:number;parameters:number[]} // -1: earlier duplicate, no mapping

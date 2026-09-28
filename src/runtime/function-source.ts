@@ -71,6 +71,26 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:O.flags});a.or('r10',PromiseConstructorFlag);a.store({base:'rax',disp:O.flags},'r10');
   a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
  });
+ b.fn('rt.isPromiseConstructor',40,a=>{
+  const no=a.unique('no'),done=a.unique('done');a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',no);
+  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',PromiseConstructorFlag);a.test('rax','rax');a.jcc('e',no);
+  a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
+ });
+ b.fn('rt.validatePromiseExecutor',56,a=>{
+  a.store(slot(40),'rdx');a.call('rt.isPromiseConstructor');const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);
+  a.load('rdx',slot(40));a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('e',done);
+  a.cmp('rax',ProxyKind);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ProxyCallable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.label(done);
+ });
+ rootedFn(b,'rt.validatePromiseExecutorArray',104,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.call('rt.isPromiseConstructor');const done=a.unique('done');a.test('rax','rax');a.jcc('e',done);
+  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.length});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.promiseIndexZero'});a.store(slot(72),'rax');
+  a.lea('rcx',slot(80));a.load('rdx',slot(48));a.lea('r8',slot(64));a.call('rt.getProperty');
+  a.load('rcx',slot(40));a.lea('rdx',slot(80));a.call('rt.validatePromiseExecutor');a.label(done);
+ });
  b.fn('rt.functionToString.code',40,a=>{a.load('rdx',slot(80));a.call('rt.functionSource');});
  // RCX output, RDX receiver Value*. Source descriptors are immutable static
  // literals; neither name mutation nor deletion changes this representation.

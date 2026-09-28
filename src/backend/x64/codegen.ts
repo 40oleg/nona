@@ -192,7 +192,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.label(direct);copy(value(op.dest),stack(thisBase));a.label(done);
           a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
         }
-        case 'newInstance':pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+        case 'newInstance':
+          pointer('rcx',op.callee);
+          if(op.argumentArray!==undefined){pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');}
+          else{if(op.firstArgument!==undefined)pointer('rdx',op.firstArgument);else a.lea('rdx',{rip:'rt.undefinedValue'});a.call('rt.validatePromiseExecutor');}
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
         case 'newArguments':
           a.mov('rax',op.parameters.length);a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));

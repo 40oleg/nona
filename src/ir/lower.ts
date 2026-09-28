@@ -497,7 +497,8 @@ class Lowerer {
       case 'New': {
         const callee=this.expression(e.callee),args=this.lowerArguments(e.arguments);
         const instance=this.slot(),result=this.slot(),dest=this.slot();
-        this.emit({kind:'newInstance',dest:instance,callee});
+        this.emit({kind:'newInstance',dest:instance,callee,
+          ...('array'in args?{argumentArray:args.array}:args.fixed.length?{firstArgument:args.fixed[0]}:{})});
         this.invokeWithArguments(result,callee,args,instance,true);
         this.emit({kind:'constructorResult',dest,result,instance});return dest;
       }

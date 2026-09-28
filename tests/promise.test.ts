@@ -48,3 +48,16 @@ test('Reflect.construct validates Promise executor before newTarget prototype',(
  try{Reflect.construct(Promise,[],target)}catch(error){console.log(error.name)}
  try{Reflect.construct(Promise,[function(){}],target)}catch(error){console.log(error.name)}
 `));
+
+test('Direct Promise construction checks fixed and spread executors',()=>expectStress(`
+ for(var args of [[],[1],[function(resolve){resolve(7)}]]){
+   try{new Promise(...args).then(value=>console.log('value',value))}
+   catch(error){console.log(error.name)}
+ }
+ try{new Promise(1)}catch(error){console.log(error.name)}
+`));
+
+test('Promise job drain is not exposed to user code',()=>expectStress(`
+ console.log(typeof __nonaPromiseDrainJobs,'__nonaPromiseDrainJobs' in globalThis);
+ Promise.resolve(1).then(value=>console.log('job',value));
+`));
