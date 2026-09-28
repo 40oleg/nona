@@ -38,7 +38,12 @@ function filesUnder(directory, prefix) {
   });
 }
 function runCase(path) {
-  const source = readFileSync(join(root, 'test', path), 'utf8');
+  // Windows Git may rewrite checkout line endings. Tests of source text must
+  // use the pinned blob so their intended CR, LF, and CRLF bytes survive.
+  const blob = path.includes('line-terminator-normalisation-')
+    ? spawnSync('git', ['-C', root, 'show', `HEAD:test/${path}`], {encoding: 'utf8'}) : null;
+  if (blob && blob.status !== 0) throw new Error(blob.stderr || `Cannot read Test262 blob ${path}`);
+  const source = blob ? blob.stdout : readFileSync(join(root, 'test', path), 'utf8');
   const metadata = source.match(/\/\*---([\s\S]*?)---\*\//)?.[1] || '';
   const flags = metadata.match(/^flags:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
   const includes = metadata.match(/^includes:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
