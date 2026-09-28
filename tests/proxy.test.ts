@@ -91,3 +91,19 @@ test('Proxy get forwarding preserves receiver through nested proxies',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Inherited Proxy get and has respect ordinary own properties',()=>{
+ const source=`let target={get x(){for(let i=0;i<20;i++)({v:i});return this}};
+ let p=new Proxy(target,{has:function(t,k){return false}}),child=Object.create(p);
+ console.log(child.x===child,'x' in child);
+ Object.defineProperty(child,'x',{value:3});console.log(child.x,'x' in child);
+ let a=Object.create(new Proxy({foo:7},{get:function(t,k,r){return r===a?11:0},has:function(){return true}}));
+ console.log(a.foo,'bar' in a);
+ let b=Object.create(new Proxy({},{get:function(){throw new Error('get')},has:function(){throw new Error('has')}}));
+ Object.defineProperty(b,'foo',{value:9});console.log(b.foo,'foo' in b);
+ let arr=[];Object.setPrototypeOf(arr,new Proxy({x:1},{}));console.log(arr.length,'x' in arr)`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

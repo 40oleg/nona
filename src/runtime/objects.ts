@@ -147,7 +147,23 @@ export function emitObjects(b:RuntimeBuilder):void {
     if(mode==='has'){a.mov('rax',1);a.jmp(save);}
     a.label(character);a.load('r10',slot(72));a.shl('rax',1);a.add('r10','rax');a.load('rax',{base:'r10',disp:8},16);a.store(slot(104),'rax');
     a.mov('rcx',10);a.call('rt.alloc');a.mov('r10',1);a.store({base:'rax'},'r10');a.load('r10',slot(104));a.store({base:'rax',disp:8},'r10',16);a.jmp(string);
-    a.label(object);a.load('rcx',slot(48));a.call('rt.propertyBase');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.lookupProperty');
+    a.label(object);
+    // Ordinary own properties before a proxy in the prototype chain win;
+    // otherwise hand [[Get]]/[[HasProperty]] to that proxy.
+    a.load('rcx',slot(48));a.call('rt.propertyBase');a.store(slot(72),'rax');
+    const ancestor=a.unique('ancestor'),nextAncestor=a.unique('nextAncestor'),ordinaryLookup=a.unique('ordinaryLookup'),proxyAncestor=a.unique('proxyAncestor');
+    a.label(ancestor);a.load('r10',slot(72));a.test('r10','r10');a.jcc('e',ordinaryLookup);
+    a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',proxyAncestor);
+    a.cmp('rax',1);const checkTyped=a.unique('checkTyped');a.jcc('ne',checkTyped);
+    a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',ordinaryLookup);
+    a.label(checkTyped);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);const checkOwn=a.unique('checkOwn');a.jcc('ne',checkOwn);
+    a.load('rcx',slot(64));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('ne',ordinaryLookup);
+    a.label(checkOwn);a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',ordinaryLookup);
+    a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',ordinaryLookup);
+    a.label(nextAncestor);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(72),'rax');a.jmp(ancestor);
+    a.label(proxyAncestor);a.mov('rax',5);a.store(slot(96),'rax');a.load('rax',slot(72));a.store(slot(104),'rax');
+    a.load('rcx',slot(40));a.lea('rdx',slot(96));a.lea('r8',slot(80));if(mode==='get')a.lea('r9',slot(128));a.call(mode==='get'?'rt.proxyGet':'rt.proxyHas');a.jmp(done);
+    a.label(ordinaryLookup);a.load('rcx',slot(48));a.call('rt.propertyBase');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.lookupProperty');
     if(mode==='has'){
       a.test('rax','rax');a.mov('rax',0);a.jcc('e',save);a.mov('rax',1);a.jmp(save);
     }else{
