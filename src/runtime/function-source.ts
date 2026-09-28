@@ -99,7 +99,9 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
  // literals; neither name mutation nor deletion changes this representation.
  b.fn('rt.functionSource',40,a=>{
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'rdx',disp:8});
-  a.load('rax',{base:'rdx',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:F.sourceText});a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');
+  a.load('rax',{base:'rdx',disp:O.kind});const ordinary=a.unique('ordinary');a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
+  a.load('rax',{base:'rdx',disp:O.flags});a.and('rax',ProxyCallable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.lea('rax',{rip:'rt.str.nativeFunction'});const save=a.unique('save');a.jmp(save);
+  a.label(ordinary);a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'rdx',disp:F.sourceText});a.label(save);a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');
  });
 }

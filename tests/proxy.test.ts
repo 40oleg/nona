@@ -77,7 +77,7 @@ test('Object.prototype.isPrototypeOf follows Proxy getPrototypeOf under GC stres
 });
 
 test('Object.prototype.toString identifies callable Proxy',()=>{
- const source='let fn=new Proxy(new Proxy(function(){},{}),{}),obj=new Proxy({},{});console.log(Object.prototype.toString.call(fn),Object.prototype.toString.call(obj));';
+ const source='let fn=new Proxy(new Proxy(function(){},{}),{}),obj=new Proxy({},{});console.log(Object.prototype.toString.call(fn),Object.prototype.toString.call(obj),Function.prototype.toString.call(fn));';
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());

@@ -24,9 +24,10 @@ const cases:[string,string][]=[
  ['deleting inherited toString uses object Function tag','function f(){}delete f.__proto__.toString;console.log(""+f);'],
  ['toString metadata','function f(){}let t=f.toString;console.log(t.name,t.length,typeof t,"prototype" in t);'],
  ['bootstrap functions have native source without exposing the marker',`function user(){};let species=Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get;console.log(RegExp.prototype[Symbol.match].toString().includes('[native code]'),species.toString().includes('[native code]'),Object.prototype.hasOwnProperty.call(Function.prototype,'__nonaMarkNativeInternal'),user.toString().includes('[native code]'));`],
+ ['callable Proxy has native function source','let p=new Proxy(new Proxy(function(){},{}),{});console.log(Function.prototype.toString.call(p));'],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
-for(const source of ['function f(){}let t=f.toString;t();','function f(){}f.toString.call({});','function f(){}f.toString.call(3);','function f(){}new f.toString();'])test('function toString protocol error: '+source,()=>{
+for(const source of ['function f(){}let t=f.toString;t();','function f(){}f.toString.call({});','function f(){}f.toString.call(3);','function f(){}new f.toString();','Function.prototype.toString.call(new Proxy({},{}));'])test('function toString protocol error: '+source,()=>{
  const result=compile(source,{fileName:'function-source-error.js',target:'win32-x64'});assert.equal(result.ok,true);if(!result.ok)return;
  const run=runNative(result.image);assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
 });
