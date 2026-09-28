@@ -317,3 +317,64 @@ jobs:
           name: test262-sharedarraybuffer-report
           path: work/test262-sharedarraybuffer-report.json
           if-no-files-found: ignore
+  windows-date-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Date
+      - run: node scripts/test262-smoke.mjs built-ins/Date
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/toTemporalInstant/,proto-from-ctor-realm'
+          TEST262_REPORT: 'work/test262-date-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-date-report
+          path: work/test262-date-report.json
+          if-no-files-found: ignore
+  windows-json-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/JSON
+      - run: node scripts/test262-smoke.mjs built-ins/JSON
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/isRawJSON/,/rawJSON/,replacer-array-proxy-revoked-realm.js,value-bigint-cross-realm.js'
+          TEST262_EXCLUDE_FEATURES: 'json-parse-with-source'
+          TEST262_REPORT: 'work/test262-json-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-json-report
+          path: work/test262-json-report.json
+          if-no-files-found: ignore
