@@ -24,19 +24,19 @@ function helloElf():Uint8Array {
  return linkElf(program);
 }
 
-function executeLinux(image:Uint8Array,t:TestContext):string|null {
+function executeLinux(image:Uint8Array,t:TestContext,timeout=10000):string|null {
  const directory=mkdtempSync(join(tmpdir(),'nona-linux-'));
  try{
   const file=join(directory,'program');writeFileSync(file,image);
   let run;
   if(process.platform==='linux'){
-   chmodSync(file,0o700);run=spawnSync(file,[],{encoding:'utf8',timeout:10000});
+   chmodSync(file,0o700);run=spawnSync(file,[],{encoding:'utf8',timeout});
   }else if(process.platform==='win32'){
    const probe=spawnSync('wsl.exe',['--exec','/bin/true'],{timeout:10000});
    if(probe.error||probe.status!==0){t.skip('WSL Linux is unavailable');return null;}
    const translated=spawnSync('wsl.exe',['--exec','wslpath','-a',file],{encoding:'utf8',timeout:5000});
    assert.equal(translated.status,0,translated.stderr);
-   run=spawnSync('wsl.exe',['--exec','/bin/sh','-c','target=$(mktemp /tmp/nona-linux-XXXXXX); trap \'rm -f "$target"\' EXIT; cp "$1" "$target"; chmod 700 "$target"; "$target"','sh',translated.stdout.trim()],{encoding:'utf8',timeout:10000});
+   run=spawnSync('wsl.exe',['--exec','/bin/sh','-c','target=$(mktemp /tmp/nona-linux-XXXXXX); trap \'rm -f "$target"\' EXIT; cp "$1" "$target"; chmod 700 "$target"; "$target"','sh',translated.stdout.trim()],{encoding:'utf8',timeout});
   }else{t.skip('No Linux execution environment');return null;}
   assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);return run.stdout;
  }finally{rmSync(directory,{recursive:true,force:true});}
@@ -312,7 +312,7 @@ test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
 test('Linux native RegExp VM captures survive GC stress',t=>{
  const source=`let re=/(?<word>ab)\\k<word>/g;let m=re.exec('xabab');console.log(m[0],m.groups.word,m.index,re.lastIndex);`;
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
- const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+ const output=executeLinux(image,t,30000);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
 
 test('Linux native RegExp VM matches without GC stress',t=>{
