@@ -1,5 +1,25 @@
 import {test} from 'node:test';
+import assert from 'node:assert/strict';
 import {expectProgram} from './helpers/program.js';
+import {runOracle} from './helpers/oracle.js';
+import {runNative} from './helpers/native.js';
+import {compileToIR} from '../src/compiler.js';
+import {generate} from '../src/backend/x64/codegen.js';
+import {linkPe} from '../src/backend/pe/writer.js';
+
+test('JSON Proxy traversal preserves values during GC stress',()=>{
+ const source=`var replacer=new Proxy(['b'],{get:function(t,k){for(var i=0;i<12;i++)({i:i});return t[k]}});
+ console.log(JSON.stringify({a:1,b:2},replacer));
+ var values=new Proxy([1,2],{get:function(t,k){for(var i=0;i<12;i++)({i:i});return t[k]}});
+ console.log(JSON.stringify(values));
+ var lengthProxy=new Proxy(['b'],{get:function(t,k){if(k==='length')return {valueOf:function(){for(var i=0;i<12;i++)({i:i});return 1}};return t[k]}});
+ console.log(JSON.stringify({a:1,b:2},lengthProxy));
+ var seen=[];JSON.parse('[0,0]',function(k,v){if(k==='0')this[1]=new Proxy([3],{});seen.push(k);return v});console.log(seen.join(','))`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
 
 test('JSON intrinsic metadata',()=>expectProgram(`console.log(Object.prototype.toString.call(JSON),typeof JSON.parse,JSON.parse.length,typeof JSON.stringify,JSON.stringify.length,Object.getPrototypeOf(JSON)===Object.prototype)`,'[object JSON] function 2 function 3 true\n'));
 test('JSON.parse exact primitive literals',()=>expectProgram(`let errors=[];for(let s of ['null','true','false','other']){try{let v=JSON.parse(s);console.log(typeof v,String(v))}catch(e){console.log(e.name)}}`,'object null\nboolean true\nboolean false\nSyntaxError\n'));
@@ -27,4 +47,5 @@ test('JSON.stringify invokes BigInt toJSON before the replacer',()=>expectProgra
 `,'bigint n\n{"n":"converted"}\nTypeError\nTypeError\n'));
 test('JSON.stringify replacer function receives holder and key',()=>expectProgram(`let a={x:1,y:2};console.log(JSON.stringify(a,function(k,v){if(k==='x')return v+5;if(k==='y')return undefined;return v}));console.log(JSON.stringify([1,2],function(k,v){if(k==='1')return undefined;return v}))`,'{"x":6}\n[1,null]\n'));
 test('JSON.stringify replacer array controls object keys recursively',()=>expectProgram(`let a={a:{b:2,c:3},b:1,c:4};console.log(JSON.stringify(a,['c','b','a','b']));console.log(JSON.stringify({a:1},[]))`,'{"c":4,"b":1,"a":{"c":3,"b":2}}\n{}\n'));
+test('JSON operations recognize array proxies and observe their length',()=>expectProgram(`let r=new Proxy(['b'],{});console.log(JSON.stringify({a:1,b:2},r));let a=new Proxy([], {get(t,k){if(k==='length')return 2;return Number(k)}});console.log(JSON.stringify(a));let seen=0;JSON.parse('[null,null]',function(k,v){if(k==='0')this[1]=new Proxy([],{});if(k==='other')seen++;return v});console.log(seen)`,'{"b":2}\n[0,1]\n0\n'));
 test('JSON.stringify space indents nested arrays and objects',()=>expectProgram(`console.log(JSON.stringify({a:[1,{b:2}]},null,'  '));console.log(JSON.stringify([1,2],null,1))`,'{\n  "a": [\n    1,\n    {\n      "b": 2\n    }\n  ]\n}\n[\n 1,\n 2\n]\n'));

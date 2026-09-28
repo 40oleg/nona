@@ -10,7 +10,7 @@ export function emitJsonReviver(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');for(const [register,offset] of [['rdx',80],['r8',96],['r9',112]] as const)for(const n of [0,8]){a.load('rax',{base:register,disp:n});a.store(slot(offset+n),'rax');}
   a.lea('rcx',slot(128));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.call('rt.getProperty');
   const invoke=a.unique('invoke'),array=a.unique('array'),object=a.unique('object'),loop=a.unique('loop'),next=a.unique('next');
-  a.load('rax',slot(128));a.cmp('rax',5);a.jcc('ne',invoke);a.load('r10',slot(136));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',array);a.jmp(object);
+  a.load('rax',slot(128));a.cmp('rax',5);a.jcc('ne',invoke);a.lea('rcx',slot(128));a.call('rt.isArray');a.test('rax','rax');a.jcc('ne',array);a.jmp(object);
   a.label(array);a.mov('rax',1);a.store(slot(256),'rax');a.mov('rax',4);a.store(slot(160),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(168),'rax');
   a.lea('rcx',slot(224));a.lea('rdx',slot(128));a.lea('r8',slot(160));a.call('rt.getProperty');a.lea('rcx',slot(224));a.lea('rdx',slot(224));a.call('rt.toNumber');
   a.movsd('xmm0',slot(232));a.ucomisd('xmm0','xmm0');const zero=a.unique('zero'),lengthReady=a.unique('lengthReady');a.jcc('p',zero);a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',zero);

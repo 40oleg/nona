@@ -20,11 +20,14 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.label(string);a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toString');a.load('r10',slot(72));a.load('rax',{base:'r10'});a.cmp('rax',10);const copy=a.unique('copy');a.jcc('be',copy);a.lea('rcx',slot(80));a.mov('rdx','r10');a.mov('r8',0);a.mov('r9',10);a.call('rt.jsonSlice');a.jmp(done);a.label(copy);for(const n of [0,8]){a.load('rax',slot(64+n));a.store(slot(80+n),'rax');}
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
  });
- rootedFn(b,'rt.jsonBuildPropertyList',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:7}],a=>{
+ rootedFn(b,'rt.jsonBuildPropertyList',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:8}],a=>{
   a.store(slot(40),'rcx');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
   const original=a.unique('original'),loop=a.unique('loop'),next=a.unique('next'),check=a.unique('check'),append=a.unique('append'),done=a.unique('done');
-  a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',original);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',original);
-  a.load('rax',{base:'r10',disp:O.length});a.store(slot(200),'rax');a.lea('rcx',slot(80));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');a.mov('rax',0);a.store(slot(192),'rax');
+  a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',original);a.lea('rcx',slot(64));a.call('rt.isArray');a.test('rax','rax');a.jcc('e',original);
+  a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(184),'rax');
+  a.lea('rcx',slot(176));a.lea('rdx',slot(64));a.lea('r8',slot(176));a.call('rt.getProperty');a.lea('rcx',slot(176));a.lea('rdx',slot(176));a.call('rt.toNumber');
+  a.movsd('xmm0',slot(184));a.ucomisd('xmm0','xmm0');const zeroLength=a.unique('zeroLength'),lengthReady=a.unique('lengthReady');a.jcc('p',zeroLength);a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',zeroLength);a.mov('rax',9007199254740991n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',lengthReady);a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zeroLength);a.mov('rax',0);a.label(lengthReady);a.store(slot(200),'rax');
+  a.lea('rcx',slot(80));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');a.mov('rax',0);a.store(slot(192),'rax');
   a.label(loop);a.load('rax',slot(192));a.load('r10',slot(200));a.cmp('rax','r10');a.jcc('ae',done);
   a.lea('rcx',slot(96));a.mov('rdx','rax');a.call('rt.arrayIndexKey');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
   a.load('rax',slot(112));a.cmp('rax',3);a.jcc('e',append);a.cmp('rax',4);a.jcc('e',append);a.cmp('rax',5);a.jcc('ne',next);
@@ -65,13 +68,16 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.label(composite);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('e',omitted);
   a.load('rax',{base:'r10',disp:O.stringifying});a.test('rax','rax');const enter=a.unique('enter');a.jcc('e',enter);a.call('rt.throwTypeError');a.label(enter);
   a.mov('rax',1);a.store({base:'r10',disp:O.stringifying},'rax');a.load('rax',{rip:'rt.cleanupHead'});a.store(slot(224),'rax');a.store(slot(232),'r10');a.lea('rax',slot(224));a.store({rip:'rt.cleanupHead'},'rax');
-  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',array);a.mov('rax',1);a.store(slot(208),'rax');
+  a.lea('rcx',slot(64));a.call('rt.isArray');a.test('rax','rax');a.jcc('ne',array);a.mov('rax',1);a.store(slot(208),'rax');
   const ordinaryKeys=a.unique('ordinaryKeys'),keysReady=a.unique('keysReady');a.load('rax',slot(264));a.cmp('rax',5);a.jcc('ne',ordinaryKeys);a.load('r10',slot(272));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',ordinaryKeys);
   for(const n of [0,8]){a.load('rax',slot(264+n));a.store(slot(144+n),'rax');}a.jmp(keysReady);
   a.label(ordinaryKeys);a.lea('rcx',slot(144));a.mov('rdx',1);a.lea('r8',slot(64));a.call('rt.Object.keys.fn.code');
   a.label(keysReady);a.load('r10',slot(152));a.load('rax',{base:'r10',disp:O.length});a.store(slot(216),'rax');
   a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.json.openObject'});a.store(slot(88),'rax');a.jmp(loop);
-  a.label(array);a.mov('rax',0);a.store(slot(208),'rax');a.load('rax',{base:'r10',disp:O.length});a.store(slot(216),'rax');
+  a.label(array);a.mov('rax',0);a.store(slot(208),'rax');
+  a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(184),'rax');
+  a.lea('rcx',slot(176));a.lea('rdx',slot(64));a.lea('r8',slot(176));a.call('rt.getProperty');a.lea('rcx',slot(176));a.lea('rdx',slot(176));a.call('rt.toNumber');
+  a.movsd('xmm0',slot(184));a.ucomisd('xmm0','xmm0');const zeroLength=a.unique('zeroLength'),lengthReady=a.unique('lengthReady');a.jcc('p',zeroLength);a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',zeroLength);a.mov('rax',9007199254740991n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',lengthReady);a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zeroLength);a.mov('rax',0);a.label(lengthReady);a.store(slot(216),'rax');
   a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.json.openArray'});a.store(slot(88),'rax');
   a.label(loop);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:32+n});a.store(slot(296+n),'rax');}
   a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noIndent=a.unique('noIndent');a.jcc('e',noIndent);

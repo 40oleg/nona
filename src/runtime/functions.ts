@@ -1,6 +1,6 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
@@ -148,8 +148,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
    a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
-  const done=a.unique('done');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',done);
-  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.label(done);a.label(complete);
+  const done=a.unique('done'),fallback=a.unique('fallback');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',fallback);
+  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.jmp(done);
+  a.label(fallback);a.load('r10',slot(40));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.flags});a.or('rax',OF.defaultPrototypeFallback);a.store({base:'r10',disp:O.flags},'rax');a.label(done);a.label(complete);
  });
  b.fn('rt.constructorResult',40,a=>{
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');

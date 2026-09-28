@@ -195,3 +195,16 @@ async, классы/приватные методы или исключённы�
 плотных массивов: `ASCII.js` прошёл за 14,4 секунды, ранее истекавший по
 тайм-ауту `General_Category_-_Uppercase_Letter.js` — за 63,6 секунды.
 Полный Unicode gate требуется повторить на этой версии.
+
+Аудит Date и JSON после интеграции Proxy: прямые Test262 `built-ins/Date`
+**75/78** (три оставшихся требуют cross-realm). `Reflect.construct(Date, …,
+newTarget)` теперь использует `%Date.prototype%`, если `newTarget.prototype`
+не является объектом; `subclassing.js` прошёл. Рекурсивный каталог
+`built-ins/JSON` вырос с **134/165** до **142/165** после подключения
+`IsArray` к reviver, replacer и сериализации Proxy-массивов. Из 23
+оставшихся отказов 16 относятся к `rawJSON`/`isRawJSON`, пять к контексту
+`source` для `JSON.parse` (оба API новее ES2020), два требуют cross-realm.
+Локальный JSON набор 21/21 и адресные Proxy/Date регрессии прошли.
+Новый Linux ELF пример Date/JSON/Proxy проходит; общая native
+совместимость с Node.js — **83/83**. JSON Proxy traversal также прошёл
+под принудительным GC, включая объект `length` с выделениями в `valueOf`.

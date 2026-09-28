@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags as OF} from './object-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {dateFields} from './date-components.js';
 import {dateSecondSetters} from './date-second-setters.js';
@@ -180,7 +180,7 @@ export function emitDate(b:RuntimeBuilder):void {
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DateKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
   for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
-  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});a.store({base:'rax',disp:O.prototype},'r10');
+  a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.and('r11',OF.defaultPrototypeFallback);const inherited=a.unique('inherited');a.test('r11','r11');a.jcc('e',inherited);a.lea('r10',{rip:'rt.datePrototype'});const prototypeReady=a.unique('prototypeReady');a.jmp(prototypeReady);a.label(inherited);a.load('r10',{base:'r10',disp:O.prototype});a.label(prototypeReady);a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(88));a.store({base:'rax',disp:DateLayout.time},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
  });
