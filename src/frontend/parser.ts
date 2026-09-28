@@ -82,8 +82,8 @@ class Parser {
     this.need('{');const methods:A.ClassMethod[]=[];let constructorMethod:A.FunctionExpression|null=null;
     while(!this.at('}')){
       if(this.match(';'))continue;
-      const methodStart=this.token.span.start;let isStatic=false,accessor:'get'|'set'|undefined,computed=false;
-      if(this.at('static')&&this.tokens[this.index+1]?.text!=='('){this.take();isStatic=true;}
+      let methodStart=this.token.span.start;let isStatic=false,accessor:'get'|'set'|undefined,computed=false;
+      if(this.at('static')&&this.tokens[this.index+1]?.text!=='('){this.take();isStatic=true;methodStart=this.token.span.start;}
       if((this.at('get')||this.at('set'))&&this.tokens[this.index+1]?.text!=='('){accessor=this.take().text as 'get'|'set';}
       const generator=this.match('*');if(generator&&accessor)this.error('Generator method cannot be an accessor');
       let key:A.Expression;
@@ -102,7 +102,7 @@ class Parser {
     this.need('}');
     const defaultClassConstructor=!constructorMethod;
     constructorMethod??={kind:'FunctionExpression',method:true,classMethod:true,classConstructor:true,id:null,parameters:[],defaults:[],rest:null,body:{kind:'Block',body:[],span:this.span(start)},span:this.span(start)};
-    constructorMethod.derivedConstructor=!!superClass;constructorMethod.defaultClassConstructor=defaultClassConstructor;
+    constructorMethod.derivedConstructor=!!superClass;constructorMethod.defaultClassConstructor=defaultClassConstructor;constructorMethod.sourceSpan=this.span(start);
     return {kind:'ClassExpression',id,superClass,methods,constructorMethod,span:this.span(start)};
   }
   private semi(): void {

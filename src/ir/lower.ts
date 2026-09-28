@@ -52,8 +52,9 @@ class Lowerer {
   private closure(fn:BoundFunction,inferredName?:string|number,homeObject?:number):number {
     const dest=this.slot(),captures=fn.captures.map(binding=>this.cellSlot(binding));
     const name=fn.declaration.id?.name??inferredName??'';
+    const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
     this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,target:`js.fn.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
-      sourceText:this.bound.ast.source?.slice(fn.declaration.span.start,fn.declaration.span.end),
+      sourceText:this.bound.ast.source?.slice(sourceSpan.start,sourceSpan.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
   private globalObject():number {const dest=this.slot();this.emit({kind:'globalObject',dest});return dest;}

@@ -15,3 +15,6 @@ console.log(sum.call.apply(sum, [{base: 30}, 3, 4]));
 function count() { return arguments.length; }
 console.log(count.apply(), count.apply(null, null), count.apply(null, {length: 2.9}));
 console.log(count.apply.name, count.apply.length, "prototype" in count.apply);
+const dense=[];for(let i=0;i<1000;i++)dense[i]=i;
+function endpoints(){return arguments.length+arguments[0]+arguments[999]}
+console.log(endpoints.apply(null,dense));

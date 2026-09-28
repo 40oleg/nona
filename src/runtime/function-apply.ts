@@ -1,7 +1,7 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {RootLayout as R} from './heap-layout.js';
-import {ObjectLayout as O,ProxyKind,ProxyCallable} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable} from './object-layout.js';
 import {FunctionKind} from './functions.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
@@ -35,6 +35,26 @@ export function emitFunctionApply(b:RuntimeBuilder):void {
   a.mov('rax',maxApplyArguments+1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'ae','rt.throwRangeError');
   a.cvttsd2si('rax','xmm0');a.store(slot(152),'rax');a.test('rax','rax');a.jcc('e',invoke);
   a.shl('rax',4);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(144),'rax');a.store(slot(120+R.values),'rax');
+  // A dense ordinary array built by ascending indexed writes has exactly
+  // length own data nodes in descending order. Verify the whole chain before
+  // copying, so a failed check leaves the destination uninitialized and the
+  // generic Get loop can still observe accessors, holes and inherited keys.
+  const slow=a.unique('slow'),check=a.unique('denseCheck'),checked=a.unique('denseChecked'),copyDense=a.unique('denseCopy'),fastReady=a.unique('fastReady');
+  a.load('r10',slot(192));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',slow);
+  a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',slow);
+  a.load('rax',{base:'r10',disp:O.properties});a.store(slot(232),'rax');a.load('rax',slot(152));a.store(slot(240),'rax');
+  a.label(check);a.load('rax',slot(240));a.test('rax','rax');a.jcc('e',checked);a.sub('rax',1);a.store(slot(240),'rax');
+  a.load('r10',slot(232));a.test('r10','r10');a.jcc('e',slow);
+  a.load('rax',{base:'r10',disp:P.attributes});a.cmp('rax',A.ordinary);a.jcc('ne',slow);
+  a.load('rcx',{base:'r10',disp:P.key});a.call('rt.arrayIndex');a.load('r10',slot(240));a.cmp('rax','r10');a.jcc('ne',slow);
+  a.load('r10',slot(232));a.load('rax',{base:'r10',disp:P.next});a.store(slot(232),'rax');a.jmp(check);
+  a.label(checked);a.load('rax',slot(232));a.test('rax','rax');a.jcc('ne',slow);
+  a.load('r10',slot(192));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.properties});a.store(slot(232),'rax');a.load('rax',slot(152));a.store(slot(240),'rax');
+  a.label(copyDense);a.load('rax',slot(240));a.test('rax','rax');a.jcc('e',fastReady);a.sub('rax',1);a.store(slot(240),'rax');a.shl('rax',4);
+  a.load('r10',slot(144));a.add('r10','rax');a.load('rdx',slot(232));for(const part of [0,8]){a.load('rax',{base:'rdx',disp:P.value+part});a.store({base:'r10',disp:part},'rax');}
+  a.load('rax',{base:'rdx',disp:P.next});a.store(slot(232),'rax');a.jmp(copyDense);
+  a.label(fastReady);a.load('rax',slot(152));a.store(slot(120+R.count),'rax');a.jmp(invoke);
+  a.label(slow);
   a.label(loop);a.load('rax',slot(160));a.load('r10',slot(152));a.cmp('rax','r10');a.jcc('ae',invoke);
   a.cvtsi2sd('xmm0','rax');a.storesd(slot(176),'xmm0');a.mov('rax',3);a.store(slot(168),'rax');
   a.lea('rcx',slot(168));a.lea('rdx',slot(168));a.call('rt.toString');
