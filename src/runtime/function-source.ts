@@ -45,7 +45,9 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.label(unchanged);
   for(const part of [0,8]){a.load('rax',{base:'r11',disp:B.target+part});a.store(slot(160+part),'rax');}
   a.jmp(bound);a.label(ready);
-  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.newInstanceRaw');
+  a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});const proxyTarget=a.unique('proxyTarget'),receiverReady=a.unique('receiverReady');a.cmp('rax',ProxyKind);a.jcc('e',proxyTarget);
+  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.newInstanceRaw');a.jmp(receiverReady);
+  a.label(proxyTarget);a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(128+part),'rax');}a.label(receiverReady);
   a.mov('rax',1);a.store(slot(32),'rax');a.lea('rax',slot(112));a.store(slot(40),'rax');
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.lea('r9',slot(128));a.call('rt.invokeArray');
   a.load('rcx',slot(48));a.lea('rdx',slot(144));a.lea('r8',slot(128));a.call('rt.constructorResult');

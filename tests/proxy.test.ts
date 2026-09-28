@@ -210,3 +210,21 @@ test('Reflect.set reaches an inherited Proxy set trap and preserves receiver',()
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy construct trap does not read newTarget prototype before trap',()=>{
+ const source=`let seen=[],Target=function(){};
+ let proxy=new Proxy(Target,{
+  get(target,key,receiver){if(key==='prototype')seen.push('prototype');return Reflect.get(target,key,receiver)},
+  construct(target,args,newTarget){seen.push('construct');return {ok:1}}
+ });
+ let result=new proxy();console.log(result.ok,seen.join(','));
+ let newTarget=(function(){}).bind(null);
+ Object.defineProperty(newTarget,'prototype',{get(){seen.push('newTarget prototype');return {}},configurable:true});
+ seen=[];console.log(Reflect.construct(proxy,[],newTarget).ok,seen.join(','));
+ let forwarded=new Proxy(Target,{get(target,key,receiver){if(key==='prototype')seen.push('forward prototype');return Reflect.get(target,key,receiver)}});
+ seen=[];console.log(new forwarded() instanceof Target,seen.join(','));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

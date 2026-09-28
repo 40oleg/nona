@@ -136,17 +136,20 @@ export function emitFunctions(b:RuntimeBuilder):void {
  // choose returned object or instance. No unregistered runtime locals span JS.
  for(const raw of [false,true])rootedFn(b,raw?'rt.newInstanceRaw':'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  const complete=a.unique('complete');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});const proxyInstance=a.unique('proxyInstance');a.cmp('r10',ProxyKind);a.jcc('e',proxyInstance);a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');const validInstance=a.unique('validInstance');a.jmp(validInstance);
-  a.label(proxyInstance);a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyConstructable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');a.label(validInstance);
+  a.label(proxyInstance);a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyConstructable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+  if(!raw){a.load('rcx',slot(40));a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store({base:'rcx',disp:part},'rax');}a.jmp(complete);}
+  a.label(validInstance);
   if(!raw){a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('e',unwrapped);a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
    a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   const done=a.unique('done');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',done);
-  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.label(done);
+  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.label(done);a.label(complete);
  });
  b.fn('rt.constructorResult',40,a=>{
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');
