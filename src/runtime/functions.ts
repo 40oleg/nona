@@ -146,7 +146,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');
   a.label(copy);a.load('rax',{base:'rdx'});a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');
  });
- rootedFn(b,'rt.ordinaryHasInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:1}],a=>{
+ rootedFn(b,'rt.ordinaryHasInstance',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
@@ -157,8 +157,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',no);
   a.lea('rcx',slot(64));a.mov('rdx','r8');a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rdx',slot(72));
-  a.load('rax',slot(48));a.load('rax',{base:'rax',disp:8});
-  a.label(loop);a.load('rax',{base:'rax',disp:O.prototype});a.test('rax','rax');a.jcc('e',no);a.cmp('rax','rdx');a.jcc('e',yes);a.jmp(loop);
+  a.load('r10',slot(48));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(80+part),'rax');}
+  a.label(loop);a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.getPrototype');
+  a.load('rax',slot(80));a.cmp('rax',1);a.jcc('e',no);a.load('rax',slot(88));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('e',yes);a.jmp(loop);
   a.label(no);a.mov('rax',0);a.jmp(save);a.label(yes);a.mov('rax',1);
   a.label(save);a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
  });

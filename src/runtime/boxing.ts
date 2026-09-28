@@ -1,6 +1,8 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
+import {rootedFn} from './root-scope.js';
+import {ProxyKind} from './proxy.js';
 
 export const BoxKind=4;
 export const BoxLayout={value:O.size,size:O.size+16} as const;
@@ -51,10 +53,12 @@ export function emitBoxing(b:RuntimeBuilder):void {
   a.load('r10',slot(48));a.load('r10',{base:'r10'});a.cmp('rax','r10');a.jcc('b',yes);
   a.label(no);a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
  });
- b.fn('rt.getPrototype',56,a=>{
+ rootedFn(b,'rt.getPrototype',56,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.mov('rcx','rdx');a.call('rt.propertyBase');
   a.load('rdx',slot(48));a.load('r10',{base:'rdx'});a.cmp('r10',5);const save=a.unique('save');a.jcc('ne',save);
+  const ordinary=a.unique('ordinary'),done=a.unique('done');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinary);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.proxyGetPrototype');a.jmp(done);a.label(ordinary);
   a.load('rax',{base:'rax',disp:O.prototype});a.label(save);a.mov('r10',5);a.test('rax','rax');const object=a.unique('object');a.jcc('ne',object);a.mov('r10',1);
-  a.label(object);a.load('rcx',slot(40));a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+  a.label(object);a.load('rcx',slot(40));a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
 }

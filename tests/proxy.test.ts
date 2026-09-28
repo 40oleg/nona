@@ -55,3 +55,15 @@ test('Proxy preventExtensions trap and Reflect boolean result survive GC stress'
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy getPrototypeOf trap and instanceof survive GC stress',()=>{
+ const source=`function C(){};let target={},p=new Proxy(target,{getPrototypeOf:function(){for(let i=0;i<20;i++)({v:i});return C.prototype}});
+ console.log(Object.getPrototypeOf(p)===C.prototype,Reflect.getPrototypeOf(p)===C.prototype,p instanceof C);
+ Object.preventExtensions(target);try{console.log(Object.getPrototypeOf(p))}catch(e){console.log(e.name)}
+ let q=new Proxy(target,{});console.log(Object.getPrototypeOf(q)===Object.prototype);
+ let rev=Proxy.revocable({},{});rev.revoke();try{Object.getPrototypeOf(rev.proxy)}catch(e){console.log(e.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

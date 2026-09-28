@@ -51,6 +51,28 @@ export function emitProxy(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.proxyDeleteKey','deleteProperty'));
  b.bundle.fragments.push(stringLiteral('rt.proxyIsExtensibleKey','isExtensible'));
  b.bundle.fragments.push(stringLiteral('rt.proxyPreventExtensionsKey','preventExtensions'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyGetPrototypeKey','getPrototypeOf'));
+ rootedFn(b,'rt.proxyGetPrototype',200,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:80,count:7}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyGetPrototypeKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),done=a.unique('done'),extensible=a.unique('extensible'),compare=a.unique('compare');
+  a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  for(const part of [0,8]){a.load('rax',slot(80+part));a.store(slot(176+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.mov('r8',1);a.lea('r9',slot(176));a.call('rt.invoke');
+  a.load('rax',slot(144));a.cmp('rax',1);a.jcc('e',extensible);a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.label(extensible);a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);const ordinary=a.unique('ordinary');a.jcc('ne',ordinary);
+  a.lea('rcx',slot(80));a.call('rt.proxyIsExtensible');a.test('rax','rax');a.jcc('e',compare);a.jmp(done);
+  a.label(ordinary);a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.test('rax','rax');a.jcc('e',done);
+  a.label(compare);a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.call('rt.getPrototype');
+  a.lea('rcx',slot(144));a.lea('rdx',slot(160));a.call('rt.sameValue');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(done);
+  a.label(forward);a.load('rcx',slot(40));a.lea('rdx',slot(80));a.call('rt.getPrototype');a.jmp(done);
+  a.label(done);a.load('r10',slot(128));a.cmp('r10',1);const already=a.unique('already');a.jcc('be',already);
+  a.load('rcx',slot(40));for(const part of [0,8]){a.load('rax',slot(144+part));a.store({base:'rcx',disp:part},'rax');}a.label(already);
+ });
  rootedFn(b,'rt.proxyPreventExtensions',184,[{kind:'value',register:'rcx'},{kind:'locals',offset:80,count:6}],a=>{
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
   for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
