@@ -23,6 +23,7 @@ const cases:[string,string][]=[
  ['function source participates in primitive conversion and array join','function f(a){return a;}console.log(""+f,""+[f],f==f.toString());'],
  ['deleting inherited toString uses object Function tag','function f(){}delete f.__proto__.toString;console.log(""+f);'],
  ['toString metadata','function f(){}let t=f.toString;console.log(t.name,t.length,typeof t,"prototype" in t);'],
+ ['bootstrap functions have native source without exposing the marker',`function user(){};let species=Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get;console.log(RegExp.prototype[Symbol.match].toString().includes('[native code]'),species.toString().includes('[native code]'),Object.prototype.hasOwnProperty.call(Function.prototype,'__nonaMarkNativeInternal'),user.toString().includes('[native code]'));`],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 for(const source of ['function f(){}let t=f.toString;t();','function f(){}f.toString.call({});','function f(){}f.toString.call(3);','function f(){}new f.toString();'])test('function toString protocol error: '+source,()=>{

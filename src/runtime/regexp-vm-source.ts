@@ -1442,4 +1442,7 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleStrin
   if(value!==undefined&&value!==null){var localized=value.toLocaleString();if(typeof localized==='symbol')throw new __nonaRegexpVm.bufferTypeError('Cannot convert Symbol to string');result+=__nonaRegexpVm.typedArrayLocaleString(localized)}
  }
  return result;
-},writable:true,configurable:true});`;
+},writable:true,configurable:true});
+Function.prototype.__nonaMarkNativeInternal(RegExp.prototype[Symbol.match]);
+Function.prototype.__nonaMarkNativeInternal(Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get);
+delete Function.prototype.__nonaMarkNativeInternal;`;
