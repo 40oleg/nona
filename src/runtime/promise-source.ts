@@ -2,17 +2,22 @@
 // This is compiled by the same frontend as user code.
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
-  var jobs=[],head=0,states=new WeakMap(),defineProperty=Object.defineProperty;
+  var jobs=[],head=0,unhandled=[],states=new WeakMap(),defineProperty=Object.defineProperty;
+  var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
   function append(array,value){
     defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})
   }
   function enqueue(job){append(jobs,job)}
   function drain(){
     while(head<jobs.length){var job=jobs[head++];job()}
-    jobs=[];head=0
+    jobs=[];head=0;
+    for(var i=0;i<unhandled.length;i++){
+      if(!unhandled[i].handled)throw unhandled[i].value
+    }
+    unhandled=[]
   }
   function record(value){
-    var state=states.get(value);
+    var state=getState(value);
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');
     return state
   }
@@ -20,6 +25,7 @@ var __nonaPromiseDrainJobs=(function(){
     var state=record(promise);
     if(state.kind!==0)return;
     state.kind=kind;state.value=value;
+    if(kind===2&&!state.handled)append(unhandled,state);
     var reactions=kind===1?state.fulfill:state.reject;
     state.fulfill=[];state.reject=[];
     for(var i=0;i<reactions.length;i++){
@@ -66,7 +72,7 @@ var __nonaPromiseDrainJobs=(function(){
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
-    states.set(this,{kind:0,value:undefined,fulfill:[],reject:[]});
+    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false});
     var functions=resolving(this);
     try{executor(functions.resolve,functions.reject)}catch(error){functions.reject(error)}
   }
@@ -90,6 +96,7 @@ var __nonaPromiseDrainJobs=(function(){
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
+    state.handled=true;
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
     return next.promise
@@ -98,7 +105,7 @@ var __nonaPromiseDrainJobs=(function(){
   var resolved=({resolve(value){
     var C=this;
     if(!__nonaRegexpVm.isConstructor(C))throw new TypeError('Promise.resolve receiver is not a constructor');
-    if(value!==null&&(typeof value==='object'||typeof value==='function')&&states.get(value)!==undefined&&value.constructor===C)return value;
+    if(value!==null&&(typeof value==='object'||typeof value==='function')&&getState(value)!==undefined&&value.constructor===C)return value;
     var next=capability(C),resolve=next.resolve;resolve(value);return next.promise
   }}).resolve;
   var rejected=({reject(reason){
@@ -111,7 +118,7 @@ var __nonaPromiseDrainJobs=(function(){
       reason=>promiseResolve(C,onFinally()).then(()=>{throw reason}))
   }}).finally;
   function promiseResolve(C,value){
-    if(value!==null&&(typeof value==='object'||typeof value==='function')&&states.get(value)!==undefined&&value.constructor===C)return value;
+    if(value!==null&&(typeof value==='object'||typeof value==='function')&&getState(value)!==undefined&&value.constructor===C)return value;
     var next=capability(C),resolve=next.resolve;resolve(value);return next.promise
   }
   function combinator(C,iterable,mode){

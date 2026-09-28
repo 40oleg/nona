@@ -62,6 +62,28 @@ test('Promise job drain is not exposed to user code',()=>expectStress(`
  Promise.resolve(1).then(value=>console.log('job',value));
 `));
 
+test('Promise state survives changes to WeakMap prototype methods',()=>expectStress(`
+ var savedGet=WeakMap.prototype.get,savedSet=WeakMap.prototype.set;
+ WeakMap.prototype.get=function(){throw new Error('poisoned get')};
+ WeakMap.prototype.set=function(){throw new Error('poisoned set')};
+ Promise.resolve(3).then(value=>console.log('resolved',value));
+ new Promise(resolve=>resolve(4)).then(value=>console.log('constructed',value));
+ WeakMap.prototype.get=savedGet;WeakMap.prototype.set=savedSet;
+`));
+
+test('Promise rejection handled by a later job does not fail the host',()=>expectStress(`
+ var rejected=Promise.reject('handled later');
+ Promise.resolve().then(()=>rejected.catch(reason=>console.log(reason)));
+`));
+
+test('Unhandled Promise rejection fails the host after draining jobs',()=>{
+ for(const source of [`Promise.reject('unhandled');`,`Promise.reject(undefined);`]){
+  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+  assert.equal(run.error,undefined);
+  assert.notEqual(run.status,0);
+ }
+});
+
 test('Bound Promise constructors use the earliest bound executor',()=>expectStress(`
  var first=Promise.bind(null,resolve=>resolve(8));
  var outer=first.bind(null,0);
