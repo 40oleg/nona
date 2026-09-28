@@ -255,3 +255,34 @@ jobs:
           name: test262-dataview-report
           path: work/test262-dataview-report.json
           if-no-files-found: ignore
+  windows-arraybuffer-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/ArrayBuffer
+      - run: node scripts/test262-smoke.mjs built-ins/ArrayBuffer
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/detached/,/prototype/immutable/,/prototype/maxByteLength/,/prototype/resizable/,/prototype/resize/,/prototype/sliceToImmutable/,/prototype/transfer/,/prototype/transferToFixedLength/,/prototype/transferToImmutable/,proto-from-ctor-realm.js'
+          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
+          TEST262_REPORT: 'work/test262-arraybuffer-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-arraybuffer-report
+          path: work/test262-arraybuffer-report.json
+          if-no-files-found: ignore
