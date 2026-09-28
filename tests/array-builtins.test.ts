@@ -7,6 +7,21 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 import {runNative} from './helpers/native.js';
 
+test('IsArray unwraps nested proxies for concat and species under GC stress',()=>{
+ const source=`var array=[3],proxy=new Proxy(new Proxy(array,{}),{});
+ console.log(Array.isArray(proxy),[].concat(proxy).join(','));
+ function Ctor(){}array.constructor={[Symbol.species]:Ctor};
+ console.log(Object.getPrototypeOf(Array.prototype.concat.call(proxy))===Ctor.prototype);
+ console.log([proxy].flat().join(','),[proxy].flatMap(value=>value).join(','));
+ var handle=Proxy.revocable([],{});handle.revoke();
+ try{Array.isArray(handle.proxy)}catch(error){console.log(error.name)}
+ try{[].concat(handle.proxy)}catch(error){console.log(error.name)}
+ try{[handle.proxy].flat()}catch(error){console.log(error.name)}`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});
+
 const cases:[string,string][]=[
  ['sparse million element map completes',`var a=[];a[999999]=1;var b=a.map(function(x){return x+1});console.log(b.length,0 in b,b[999999]);`],
  ['Array unscopables object can be modified',`var u=Array.prototype[Symbol.unscopables];u.flat=false;u.extra=true;console.log(u.flat,u.extra,Object.prototype.hasOwnProperty.call(u,'extra'),Array.prototype[Symbol.unscopables]===u);`],

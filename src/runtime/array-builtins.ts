@@ -1,6 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind} from './object-layout.js';
+import {ProxyLayout} from './proxy.js';
 import {prependFunctionBuiltin,builtinPropertyRoots,emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
@@ -40,17 +41,24 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.arrayReverse.fn','reverse',0,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayShift.fn','shift',0,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayUnshift.fn','unshift',1,'rt.arrayPrototype');
- b.fn('rt.Array.isArray.fn.code',40,a=>{
-  a.mov('rax',0);const save=a.unique('save');a.test('rdx','rdx');a.jcc('e',save);a.load('r10',{base:'r8'});a.cmp('r10',5);a.jcc('ne',save);a.load('r10',{base:'r8',disp:8});a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',1);a.jcc('ne',save);a.mov('rax',1);
-  a.label(save);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ b.fn('rt.isArray',40,a=>{
+  const check=a.unique('check'),proxy=a.unique('proxy'),yes=a.unique('yes'),no=a.unique('no'),done=a.unique('done');a.label(check);
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',yes);a.cmp('rax',ProxyKind);a.jcc('e',proxy);a.jmp(no);
+  a.label(proxy);a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.lea('rcx',{base:'r10',disp:ProxyLayout.target});a.jmp(check);
+  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
+ });
+ b.fn('rt.Array.isArray.fn.code',56,a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);const save=a.unique('save');a.test('rdx','rdx');a.jcc('e',save);
+  a.mov('rcx','r8');a.call('rt.isArray');a.label(save);
+  a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
  // RCX result, RDX original receiver, R8 integer length. Constructor,
  // candidate, prepared instance and returned value stay rooted across getters.
  rootedFn(b,'rt.arraySpeciesCreate',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:80,count:8}],a=>{
   a.store(slot(48),'rcx');a.store(slot(56),'rdx');a.store(slot(64),'r8');
   const fallback=a.unique('fallback'),construct=a.unique('construct'),done=a.unique('done');
-  a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',fallback);
-  a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',fallback);
+  a.mov('rcx','rdx');a.call('rt.isArray');a.test('rax','rax');a.jcc('e',fallback);
   a.lea('rcx',slot(80));a.load('rdx',slot(56));a.lea('r8',{rip:'rt.key.constructor'});a.call('rt.getProperty');
   a.load('rax',slot(80));a.test('rax','rax');a.jcc('e',fallback);a.cmp('rax',5);a.jcc('ne',construct);
   a.mov('rax',6);a.store(slot(160),'rax');a.lea('rax',{rip:'rt.Symbol.species.value'});a.store(slot(168),'rax');

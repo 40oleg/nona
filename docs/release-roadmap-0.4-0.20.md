@@ -108,6 +108,10 @@ Proxy/Reflect, BigInt, RegExp, коллекции или более поздни
 `Object.setPrototypeOf` — 10/12, оставшиеся тесты требуют BigInt и Proxy.
 Date и BigInt существенно расширены, но общий gate ES2020 ещё открыт. RegExp, его интеграция со String, буферы и Agent model для Atomics остаются частичными. Полные каталоги Map/Set проверены; WeakMap/WeakSet реализованы с ephemeron GC и проверкой освобождения памяти. Текущие результаты описаны в статусах 0.9–0.14. PR для 0.6–0.14 пока не открывать.
 
+Повторная проверка 28.09.2026 после реализации Proxy/Reflect: закреплённый Test262 `Object.assign` — **38/38**, `Object.getOwnPropertySymbols` — **12/12**, `Object.setPrototypeOf` — **12/12**. Каталог `Symbol` вырос с 73/98 до **77/98**; оставшийся 21 отказ относится к cross-realm или к `dispose`/`asyncDispose` после ES2020. Это закрывает ранее отложенные зависимости этих групп, но не общий gate 0.6–0.16.
+
+Общий native `IsArray` теперь разворачивает вложенные Proxy и проверяет отзыв. Test262 `Array.isArray` — **29/29**, `Array.prototype.concat` — **67/69** (два оставшихся требуют cross-realm), `flat` — **19/19**, `flatMap` — **24/24**. GC stress тест Proxy-массивов и Linux native compatibility **81/81** прошли. Общий gate ES2020 остаётся открытым.
+
 ### Промежуточная проверка 0.7 (2026-09-27)
 
 Добавлены `JSON.parse` с рекурсивным разбором и reviver, а также
