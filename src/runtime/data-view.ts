@@ -153,11 +153,12 @@ export function emitDataView(b:RuntimeBuilder):void {
   {offset:P.value+8,kind:'va64',target:'rt.dataViewTag',addend:0},
  ]});tagHead.target='rt.dataviewPrototype.@@toStringTag';
  b.fn('rt.DataView.code',40,a=>a.call('rt.throwTypeError'));
- rootedFn(b,'rt.DataView.construct',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:88,count:1}],(a,frame)=>{
+ rootedFn(b,'rt.DataView.construct',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:88,count:2}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);const accepted=a.unique('accepted');a.jcc('e',accepted);a.cmp('rax',SharedArrayBufferKind);failIf(a,'ne','rt.throwTypeError');a.label(accepted);
+  a.mov('rax',5);a.store(slot(104),'rax');a.store(slot(112),'r10');
   a.store(slot(64),'r10');a.mov('rax',0);a.store(slot(72),'rax');a.store(slot(80),'rax');
   const haveOffset=a.unique('haveOffset'),haveLength=a.unique('haveLength');
   a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',haveOffset);
@@ -167,7 +168,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');
   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
   a.cvttsd2si('rax','xmm0');a.store(slot(72),'rax');a.label(zero);
-  a.label(haveOffset);a.load('rax',slot(64));a.load('r10',{base:'rax',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rax',disp:ArrayBufferLayout.byteLength});a.load('r10',slot(72));a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');a.sub('rax','r10');a.store(slot(80),'rax');
+  a.label(haveOffset);a.load('rax',slot(112));a.store(slot(64),'rax');a.load('r10',{base:'rax',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rax',disp:ArrayBufferLayout.byteLength});a.load('r10',slot(72));a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');a.sub('rax','r10');a.store(slot(80),'rax');
   a.load('rax',slot(48));a.cmp('rax',3);a.jcc('b',haveLength);
   a.load('rax',slot(56));a.add('rax',32);a.load('rax',{base:'rax'});a.test('rax','rax');a.jcc('e',haveLength);
   a.lea('rcx',slot(88));a.load('rdx',slot(56));a.add('rdx',32);a.call('rt.toNumber');
@@ -176,12 +177,12 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
   a.cvttsd2si('rax','xmm0');a.load('r10',slot(80));a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.store(slot(80),'rax');
   a.label(haveLength);
-  a.load('r10',slot(64));a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',slot(112));a.store(slot(64),'r10');a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
   const ordinaryPrototype=a.unique('ordinaryPrototype'),prototypeResolved=a.unique('prototypeResolved');
   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.and('r11',OF.deferredConstructPrototype);a.test('r11','r11');a.jcc('e',ordinaryPrototype);
   a.lea('rcx',slot(88));a.load('rdx',slot(frame+48));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.jmp(prototypeResolved);a.label(ordinaryPrototype);a.mov('rax',0);a.store(slot(88),'rax');a.label(prototypeResolved);
-  a.load('r10',slot(64));a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',slot(112));a.store(slot(64),'r10');a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
   a.mov('rcx',DataViewLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DataViewKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
@@ -190,7 +191,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   selectNativeConstructPrototype(a,frame,'rt.dataviewPrototype');a.jmp(prototypeReady);
   a.label(deferredPrototype);a.load('r10',slot(88));a.cmp('r10',5);const intrinsicPrototype=a.unique('intrinsicPrototype');a.jcc('ne',intrinsicPrototype);a.load('r10',slot(96));a.jmp(prototypeReady);
   a.label(intrinsicPrototype);a.lea('r10',{rip:'rt.dataviewPrototype'});a.label(prototypeReady);a.store({base:'rax',disp:O.prototype},'r10');
-  a.load('r10',slot(64));a.store({base:'rax',disp:DataViewLayout.buffer},'r10');
+  a.load('r10',slot(112));a.store({base:'rax',disp:DataViewLayout.buffer},'r10');
   a.load('r10',slot(72));a.store({base:'rax',disp:DataViewLayout.byteOffset},'r10');
   a.load('r10',slot(80));a.store({base:'rax',disp:DataViewLayout.byteLength},'r10');
   a.load('rcx',slot(40));a.mov('r10',5);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
