@@ -12,6 +12,7 @@ const pathFilter = process.env.TEST262_PATH_FILTER || '';
 const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
+const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').map(value => value.trim()).filter(Boolean);
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
 const runAsync = process.env.TEST262_RUN_ASYNC === '1';
 const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
@@ -42,6 +43,13 @@ function filesUnder(directory, prefix) {
       : entry.isFile() && entry.name.endsWith('.js') ? [path] : [];
   });
 }
+function hasExcludedFeature(path) {
+  if(!excludeFeatures.length)return false;
+  const source=readFileSync(join(root,'test',path),'utf8');
+  const metadata=source.match(/\/\*---([\s\S]*?)---\*\//)?.[1] || '';
+  const features=metadata.match(/^features:\s*\[([^\]]*)\]/m)?.[1].split(',').map(value=>value.trim()) || [];
+  return excludeFeatures.some(value=>features.includes(value));
+}
 function runCase(path) {
   // Windows Git may rewrite checkout line endings. Tests of source text must
   // use the pinned blob so their intended CR, LF, and CRLF bytes survive.
@@ -68,7 +76,10 @@ function runCase(path) {
   const prelude = baseHarness + '\n' + (asyncCase?readFileSync(join(root,'harness','doneprintHandle.js'),'utf8'):'') + '\n'
     + includes.map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
   const program = `${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${prelude}\n${source}`;
-  const compiled = compile(program, {fileName: path, target: 'win32-x64'});
+  // Test262 leaves the host's unhandled-rejection policy unspecified. Several
+  // Promise tests intentionally abandon a rejected result after checking the
+  // synchronous semantics, so use the non-failing host policy for this harness.
+  const compiled = compile(program, {fileName: path, target: 'win32-x64', unhandledRejections: 'ignore'});
   if (!compiled.ok) {
     return {path, outcome: 'fail', phase: 'compile', diagnostics: compiled.diagnostics};
   }
@@ -87,11 +98,12 @@ if (!isMainThread) {
 } else {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
     .filter(path => path.includes(pathFilter) && !excludePathFilters.some(value => path.includes(value))
+      && !hasExcludedFeature(path)
       && (!directOnly || !group || !path.slice(group.length + 1).includes('/')));
   if (progressPath) {
     mkdirSync(dirname(progressPath), {recursive: true});
     writeFileSync(progressPath, JSON.stringify({revision: PIN, group: group || 'smoke-manifest',
-      pathFilter, excludePathFilters, directOnly, runAsync, runtimeTimeout, jobs, expected: paths.length}) + '\n');
+      pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, runtimeTimeout, jobs, expected: paths.length}) + '\n');
   }
   const record = result => {
     if (progressPath) appendFileSync(progressPath, JSON.stringify(result) + '\n');
@@ -119,7 +131,7 @@ if (!isMainThread) {
     }
   }
   const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilters, directOnly, runAsync, runtimeTimeout, jobs, counts, results};
+  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, runtimeTimeout, jobs, counts, results};
   mkdirSync(dirname(reportPath), {recursive: true});
   writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
   console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);

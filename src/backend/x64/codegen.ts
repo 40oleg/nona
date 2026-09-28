@@ -22,11 +22,17 @@ const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
-let cachedRegExpPrelude:ModuleIR|undefined;
+const cachedRuntimePreludes=new Map<'throw'|'ignore',ModuleIR>();
 
-export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore'}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
-  const prelude=module.runtimePrelude?(cachedRegExpPrelude??(cachedRegExpPrelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+promisePreludeSource+'\n'+proxyPreludeSource)))))):undefined;
+  const rejectionPolicy=options.unhandledRejections??'throw';
+  let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
+  if(module.runtimePrelude&&!prelude){
+    const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+promiseSource+'\n'+proxyPreludeSource))));
+    cachedRuntimePreludes.set(rejectionPolicy,prelude);
+  }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
   module={...module,globalCount:userGlobalCount+(prelude?.globalCount??0),functions:[

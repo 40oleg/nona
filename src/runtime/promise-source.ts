@@ -3,6 +3,7 @@
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
   var jobs=[],head=0,unhandled=[],states=new WeakMap(),defineProperty=Object.defineProperty;
+  var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
   function append(array,value){
     defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})
@@ -12,7 +13,7 @@ var __nonaPromiseDrainJobs=(function(){
     while(head<jobs.length){var job=jobs[head++];job()}
     jobs=[];head=0;
     for(var i=0;i<unhandled.length;i++){
-      if(!unhandled[i].handled)throw unhandled[i].value
+      if(failOnUnhandled&&!unhandled[i].handled)throw unhandled[i].value
     }
     unhandled=[]
   }

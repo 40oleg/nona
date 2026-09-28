@@ -84,6 +84,13 @@ test('Unhandled Promise rejection fails the host after draining jobs',()=>{
  }
 });
 
+test('Non-failing host rejection policy leaves Test262-style abandoned results alone',()=>{
+ const run=runNative(linkPe(generate(compileToIR(`Promise.reject('abandoned');console.log('checked');`),{unhandledRejections:'ignore'})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),'checked\n');
+});
+
 test('Bound Promise constructors use the earliest bound executor',()=>expectStress(`
  var first=Promise.bind(null,resolve=>resolve(8));
  var outer=first.bind(null,0);
