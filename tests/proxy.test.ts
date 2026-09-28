@@ -6,7 +6,7 @@ import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 
- test('Proxy get and has traps, invariants and revocation survive GC stress',()=>{
+ test('Proxy get, has and delete traps, invariants and revocation survive GC stress',()=>{
  const source=`let target={x:4},handler={get:function(t,k,r){for(let i=0;i<30;i++)({v:i});return t[k]+5}};
  let p=new Proxy(target,handler);console.log(p.x,Reflect.get(p,'x'));
  Object.defineProperty(target,'x',{value:4,writable:false,configurable:false});
@@ -15,7 +15,13 @@ import {linkPe} from '../src/backend/pe/writer.js';
  try{console.log(rev.proxy.y)}catch(e){console.log(e.name)}
  let own={z:2},hasProxy=new Proxy(own,{has:function(t,k){return false}});
  console.log('z' in hasProxy);Object.defineProperty(own,'z',{configurable:false});
- try{console.log('z' in hasProxy)}catch(e){console.log(e.name)}`;
+ try{console.log('z' in hasProxy)}catch(e){console.log(e.name)}
+ let deleted={a:1},deleteProxy=new Proxy(deleted,{deleteProperty:function(t,k){for(let i=0;i<20;i++)({v:i});return true}});
+ console.log(delete deleteProxy.a,deleted.a,Reflect.deleteProperty(deleteProxy,'a'));
+ Object.defineProperty(deleted,'a',{configurable:false});
+ try{console.log(delete deleteProxy.a)}catch(e){console.log(e.name)}
+ let delRev=Proxy.revocable({q:1},{});delRev.revoke();
+ try{console.log(Reflect.deleteProperty(delRev.proxy,'q'))}catch(e){console.log(e.name)}`;
  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());

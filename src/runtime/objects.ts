@@ -262,6 +262,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rax',{base:'rdx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
     const yes=a.unique('yes'),no=a.unique('no'),save=a.unique('save'),object=a.unique('object'),loop=a.unique('loop'),next=a.unique('next');
     a.lea('rcx',slot(80));a.mov('rdx','r8');a.call('rt.toPropertyKey');a.load('rax',slot(88));a.store(slot(64),'rax');
+    const ordinaryDelete=a.unique('ordinaryDelete'),proxyDone=a.unique('proxyDone');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryDelete);
+    a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryDelete);
+    a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyDelete');a.jmp(proxyDone);
+    a.label(ordinaryDelete);
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');
@@ -290,6 +294,6 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.jmp(yes);
     a.label(next);a.load('rax',slot(112));a.add('rax',P.next);a.store(slot(104),'rax');a.jmp(loop);
     a.label(no);a.mov('rax',0);a.jmp(save);a.label(yes);a.mov('rax',1);a.label(save);
-    a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
+    a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');a.label(proxyDone);
   });
 }
