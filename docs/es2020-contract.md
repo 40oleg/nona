@@ -40,13 +40,13 @@ chapter works. A row closes only with runnable conformance evidence.
 | Proper tail calls in strict code | Missing | Tail-position Test262 groups, bounded native stack use |
 | Objects, descriptors, classes, `super`, symbols | Partial | Internal-method invariants and class groups |
 | Iterators and generators | Partial | Iterator protocol and generator state groups, including delegated `yield*` and abrupt completion |
-| Promises, jobs, async functions/generators | Missing | Job ordering, assimilation, async completion groups |
+| Promises, jobs, async functions/generators | Partial | Job ordering, assimilation, async completion groups |
 | Script and module linking, dynamic import, `import.meta` | Missing | Multi-file graph, cycles, live bindings, errors |
 | BigInt and all numeric semantics | Partial | Numeric and BigInt groups, boundary values |
-| RegExp and Unicode matching | Missing | RegExp syntax, execution and String integration |
-| Collections and weak collections | Missing | Key equality, order, GC and weak reachability |
-| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Partial | Native ArrayBuffer allocation and byteLength exist; views, detachment, shared memory and Atomics remain |
-| Proxy and Reflect | Missing | Every trap and invariant, abrupt completion |
+| RegExp and Unicode matching | Partial | RegExp syntax, execution and String integration |
+| Collections and weak collections | Partial | Key equality, order, GC and weak reachability |
+| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Partial | Full buffer/typed array Test262 and a multi-agent model for Atomics |
+| Proxy and Reflect | Partial | Every trap and invariant, abrupt completion and cross-realm integration |
 | All ECMA-262 built-in constructors, methods and properties | Partial | Per-object Test262 groups and property descriptors |
 | Native memory safety and portability | Partial | GC stress, callback roots, Windows and Linux native suites |
 
@@ -65,9 +65,8 @@ chapter works. A row closes only with runnable conformance evidence.
 
 The frontend (lex/parse/bind), IR, and ECMAScript runtime semantics should remain
 target-independent. Machine calling convention, OS memory and IO, object-file
-format, linker, and native execution harness are target-specific. The existing
-`compile()` API currently hard-codes `win32-x64`; adding Linux must introduce a
-target boundary there rather than fork semantic behavior.
+format, linker, and native execution harness are target-specific. The `compile()`
+API accepts `win32-x64` and `linux-x64`; semantic behavior must remain shared.
 
 Reference: [ECMA-262 11th edition](https://262.ecma-international.org/11.0/).
 
