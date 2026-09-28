@@ -8,6 +8,7 @@ import {emitDescriptorValidation} from './descriptor-validation.js';
 import {prependFunctionBuiltin} from './function-builtin.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
+import {ProxyKind} from './proxy.js';
 
 export function emitDefineProperty(b:RuntimeBuilder):void {
  emitDescriptorValidation(b);
@@ -31,6 +32,8 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
  // length normalization may call JS, so all records and temporaries are roots.
  rootedFn(b,'rt.defineOwnProperty',280,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r8',count:6},{kind:'locals',offset:80,count:6},{kind:'locals',offset:184,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rcx',disp:8});a.store(slot(64),'rax');
+  a.load('r10',{base:'rax',disp:O.kind});const ordinaryDefine=a.unique('ordinaryDefine');a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryDefine);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.proxyDefineOwnProperty');const proxyDone=a.unique('proxyDone');a.jmp(proxyDone);a.label(ordinaryDefine);
   a.mov('r10',-1);a.store(slot(72),'r10');a.mov('r10',0);a.store(slot(224),'r10');
   const lookup=a.unique('lookup'),index=a.unique('index'),typed=a.unique('typed'),no=a.unique('no'),yes=a.unique('yes'),done=a.unique('done');
   a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('e',typed);a.cmp('rax',1);a.jcc('ne',lookup);
@@ -79,6 +82,6 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.label(accessor);a.load('r11',slot(208));a.mov('rax',0);a.store({base:'r11',disp:P.value},'rax');a.store({base:'r11',disp:P.value+8},'rax');
   for(const [field,offset] of [[D.get,P.getter],[D.set,P.setter]])for(const n of [0,8]){a.load('rax',slot(80+field!+n));a.store({base:'r11',disp:offset!+n},'rax');}
   a.label(stored);a.load('rax',slot(72));a.cmp('rax',-1);a.jcc('e',yes);a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',yes);a.add('rax',1);a.store({base:'r10',disp:O.length},'rax');
-  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
+  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);a.label(proxyDone);
  });
 }

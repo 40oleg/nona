@@ -15,6 +15,7 @@ export const reflectPreludeSource=String.raw`(function(){
   var nativeSetPrototype=Function.prototype.__nonaProxySetPrototypeInternal;
   var nativeGet=Function.prototype.__nonaReflectGetInternal;
   var nativeSet=Function.prototype.__nonaReflectSetInternal;
+  var nativeDefine=Function.prototype.__nonaReflectDefineInternal;
   var nativeOwnKeys=Function.prototype.__nonaReflectOwnKeysInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
@@ -60,6 +61,8 @@ export const reflectPreludeSource=String.raw`(function(){
     if('get'in attributes)descriptor.get=attributes.get;
     if('set'in attributes)descriptor.set=attributes.set;
     Object.defineProperty({},'validate',descriptor);
+    var proxyResult=nativeDefine(target,key,descriptor);
+    if(proxyResult!==undefined)return proxyResult;
     try{Object.defineProperty(target,key,descriptor);return true}
     catch(error){if(error instanceof TypeError)return false;throw error}
   }}).defineProperty);
