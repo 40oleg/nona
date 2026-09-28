@@ -51,7 +51,15 @@ export function emitBoundCalls(b:RuntimeBuilder):void {
   const construct=a.unique('construct'),returned=a.unique('returned');a.test('rax','rax');a.jcc('ne',construct);
   a.lea('rax',{base:'rdx',disp:B.receiver});a.store(slot(32),'rax');a.add('rdx',B.target);
   a.load('rcx',slot(40));a.load('r8',slot(88));a.load('r9',slot(96));a.call('rt.invoke');a.jmp(returned);
-  a.label(construct);a.store(slot(32),'rax');a.load('rcx',slot(40));a.load('rax',slot(192));a.store(slot(40),'rax');a.add('rdx',B.target);
+  a.label(construct);a.store(slot(32),'rax');a.load('rcx',slot(40));
+  // Bound [[Construct]] substitutes its target when new.target is this bound
+  // function. Apply this at every level of a nested bound-function chain.
+  const sameTarget=a.unique('sameNewTarget'),targetReady=a.unique('boundTargetReady');
+  a.load('rax',slot(192));a.test('rax','rax');a.jcc('e',sameTarget);
+  a.load('r10',{base:'rax',disp:8});a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});
+  a.cmp('r10','r11');a.jcc('ne',targetReady);
+  a.label(sameTarget);a.lea('rax',{base:'rdx',disp:B.target});
+  a.label(targetReady);a.store(slot(40),'rax');a.add('rdx',B.target);
   a.load('r8',slot(88));a.load('r9',slot(96));a.call('rt.invokeConstruct');
   a.label(returned);a.load('rax',slot(104+R.next));a.store({rip:'rt.gcRoots'},'rax');
  });

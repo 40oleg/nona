@@ -129,14 +129,14 @@ export function emitFunctions(b:RuntimeBuilder):void {
  });
  // Construction is split at IR safepoints: prepare rooted instance, invoke JS,
  // choose returned object or instance. No unregistered runtime locals span JS.
- rootedFn(b,'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+ for(const raw of [false,true])rootedFn(b,raw?'rt.newInstanceRaw':'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
-  a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
-  a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);a.label(unwrapped);
+  if(!raw){a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
+   a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   const done=a.unique('done');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',done);

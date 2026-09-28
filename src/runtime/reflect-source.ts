@@ -10,6 +10,7 @@ export const reflectPreludeSource=String.raw`(function(){
     return value
   }
   var reflect={};
+  var nativeConstruct=Function.prototype.__nonaReflectConstructInternal;
   Object.defineProperty(globalThis,'Reflect',{value:reflect,writable:true,configurable:true});
   Object.defineProperty(reflect,Symbol.toStringTag,{value:'Reflect',configurable:true});
   function method(name,length,fn){
@@ -22,6 +23,19 @@ export const reflectPreludeSource=String.raw`(function(){
     if(typeof target!=='function')throw new TypeError('Reflect.apply target must be callable');
     return Function.prototype.apply.call(target,thisArgument,list(argumentsList))
   }}).apply);
+  method('construct',2,({construct(target,argumentsList,newTarget){
+    if(!__nonaRegexpVm.isConstructor(target))throw new TypeError('Reflect.construct target must be a constructor');
+    if(arguments.length<3)newTarget=target;
+    if(!__nonaRegexpVm.isConstructor(newTarget))throw new TypeError('newTarget must be a constructor');
+    list(argumentsList);
+    var length=+argumentsList.length;
+    if(length!==length||length<=0)length=0;
+    else if(length>65536)throw new RangeError('Too many constructor arguments');
+    else length=Math.floor(length);
+    var args=[];
+    for(var i=0;i<length;i++)Object.defineProperty(args,args.length,{value:argumentsList[i],writable:true,enumerable:true,configurable:true});
+    return nativeConstruct(target,args,newTarget)
+  }}).construct);
   method('ownKeys',1,({ownKeys(target){
     object(target);
     return Object.getOwnPropertyNames(target).concat(Object.getOwnPropertySymbols(target))
@@ -91,5 +105,11 @@ export const reflectPreludeSource=String.raw`(function(){
     if(!Object.isExtensible(receiver))return false;
     Object.defineProperty(receiver,key,{value:value,writable:true,enumerable:true,configurable:true});return true
   }}).set);
+  var propertyOrder=['defineProperty','deleteProperty','apply','construct','get','getOwnPropertyDescriptor','getPrototypeOf','has','isExtensible','ownKeys','preventExtensions','set','setPrototypeOf'];
+  var methods=[];
+  for(var i=0;i<propertyOrder.length;i++)methods[i]=reflect[propertyOrder[i]];
+  for(var i=0;i<propertyOrder.length;i++)delete reflect[propertyOrder[i]];
+  for(var i=0;i<propertyOrder.length;i++)Object.defineProperty(reflect,propertyOrder[i],{value:methods[i],writable:true,configurable:true});
 })();
-delete Function.prototype.__nonaMarkNativeInternal`;
+delete Function.prototype.__nonaMarkNativeInternal;
+delete Function.prototype.__nonaReflectConstructInternal`;

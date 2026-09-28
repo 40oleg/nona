@@ -30,6 +30,7 @@ const cases:[string,string][]=[
  ['bind method metadata','function f(){}console.log(f.bind.name,f.bind.length,"prototype" in f.bind);'],
  ['bound length handles zero NaN negative fractional and huge values','function f(){}let bind=f.bind;delete f.length;f.__proto__=null;let values=[NaN,-Infinity,-3,0,0.9,2.9,1e30];for(let i=0;i<values.length;i++){f.length=values[i];console.log(bind.call(f,null,1).length);}'],
  ['bound constructor reads target prototype after caller arguments','function C(a,b){this.sum=a+b;}let B=C.bind(null,2);function arg(){C.prototype={x:8};return 3;}let o=new B(arg());console.log(o.sum,o.x);'],
+ ['Reflect.construct with nested and unrelated bound newTarget','function A(){this.seen=new.target;}function B(){}let C=A.bind(null),D=C.bind(null),E=B.bind(null);let x=Reflect.construct(D,[],C),y=Reflect.construct(A,[],E);console.log(x.seen===A,Object.getPrototypeOf(x)===A.prototype,y.seen===E,Object.getPrototypeOf(y)===Object.prototype);'],
 ];
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 for(const source of ['function f(){}let b=f.bind;b();','function f(){}f.bind.call(3);','function f(){}new f.bind();','function f(){}let B=f.call.bind(f);new B();','function f(){}f.bind(null,1).apply(null,{length:65536});'])test('bind protocol or resource error: '+source,()=>{
