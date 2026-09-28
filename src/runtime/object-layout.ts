@@ -6,3 +6,6 @@ export const PropertyAttributes={writable:1,enumerable:2,configurable:4,ordinary
 
 /** Zero is extensible with writable array length. */
 export const ObjectFlags={nonExtensible:1,lengthReadonly:2} as const;
+export const ProxyKind=21;
+export const ProxyCallable=8;
+export const ProxyConstructable=16;

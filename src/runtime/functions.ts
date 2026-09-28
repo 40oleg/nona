@@ -1,6 +1,6 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
@@ -91,8 +91,13 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   a.load('r10',slot(144));a.store(slot(72),'r10');
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});
   const ready=a.unique('ready'),box=a.unique('box'),ordinary=a.unique('ordinary'),done=a.unique('done');
+  if(!construct){const ordinaryCallee=a.unique('ordinaryCallee');a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryCallee);
+   a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+   a.load('rax',slot(72));a.store(slot(32),'rax');a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.proxyApply');a.jmp(done);a.label(ordinaryCallee);
+   a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  }else{a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');}
   a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',ordinary);
   a.mov('rax',0);a.store(slot(32),'rax');a.call('rt.invokeBound');a.jmp(done);
   a.label(ordinary);

@@ -1,12 +1,13 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind,ValueListLayout as L} from './heap-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
+import {FunctionKind,FunctionLayout} from './functions.js';
 
-export const ProxyKind=21;
+export {ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 export const ProxyLayout={target:O.size,handler:O.size+16,revoked:O.size+32,size:O.size+40} as const;
 export const proxyPropertyRoots=[...builtinPropertyRoots('rt.proxyCreateInternal','__nonaProxyCreateInternal'),
  ...builtinPropertyRoots('rt.proxyRevokeInternal','__nonaProxyRevokeInternal'),
@@ -28,6 +29,12 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',ProxyKind);a.store({base:'rax',disp:O.kind},'r10');
   a.mov('r10',0);for(const offset of [O.properties,O.length,O.stringifying,O.flags,ProxyLayout.revoked])a.store({base:'rax',disp:offset},'r10');
+  a.load('r11',slot(56));a.load('r11',{base:'r11',disp:8});a.load('r10',{base:'r11',disp:O.kind});
+  const targetProxy=a.unique('targetProxy'),targetReady=a.unique('targetReady');a.cmp('r10',FunctionKind);a.jcc('ne',targetProxy);
+  a.mov('r10',ProxyCallable);a.load('r11',{base:'r11',disp:FunctionLayout.constructable});a.test('r11','r11');a.jcc('e',targetReady);a.or('r10',ProxyConstructable);a.jmp(targetReady);
+  a.label(targetProxy);a.cmp('r10',ProxyKind);const nonCallableTarget=a.unique('nonCallableTarget');a.jcc('ne',nonCallableTarget);a.load('r10',{base:'r11',disp:O.flags});a.and('r10',ProxyCallable|ProxyConstructable);a.jmp(targetReady);
+  a.label(nonCallableTarget);a.mov('r10',0);
+  a.label(targetReady);a.store({base:'rax',disp:O.flags},'r10');
   a.lea('r10',{rip:'rt.objectPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r11',slot(56));for(const [index,offset] of [[0,ProxyLayout.target],[1,ProxyLayout.handler]] as const)
    for(const part of [0,8]){a.load('r10',{base:'r11',disp:index*16+part});a.store({base:'rax',disp:offset+part},'r10');}
@@ -116,6 +123,26 @@ export function emitProxy(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.proxyOwnKeysKey','ownKeys'));
  b.bundle.fragments.push(stringLiteral('rt.proxyGetOwnDescriptorKey','getOwnPropertyDescriptor'));
  b.bundle.fragments.push(stringLiteral('rt.proxyDefinePropertyKey','defineProperty'));
+ b.bundle.fragments.push(stringLiteral('rt.proxyApplyKey','apply'));
+ rootedFn(b,'rt.proxyApply',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},
+  {kind:'range',register:'r9',count:'r8'},{kind:'locals',offset:80,count:8}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('r10',slot(frame+40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(176+part),'rax');}
+  a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  for(const [offset,to] of [[ProxyLayout.target,80],[ProxyLayout.handler,96]] as const)
+   for(const part of [0,8]){a.load('rax',{base:'r10',disp:offset+part});a.store(slot(to+part),'rax');}
+  a.mov('rax',4);a.store(slot(112),'rax');a.lea('rax',{rip:'rt.proxyApplyKey'});a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.call('rt.getProperty');
+  const forward=a.unique('forward'),done=a.unique('done');a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',forward);
+  a.lea('rcx',slot(144));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
+  a.mov('rax',0);a.store(slot(72),'rax');const loop=a.unique('loop'),argsReady=a.unique('argsReady');a.label(loop);
+  a.load('rax',slot(72));a.load('r10',slot(56));a.cmp('rax','r10');a.jcc('ae',argsReady);
+  a.shl('rax',4);a.load('rdx',slot(64));a.add('rdx','rax');a.lea('rcx',slot(144));a.call('rt.appendArrayValue');
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
+  a.label(argsReady);for(const [from,to] of [[80,160],[144,192]] as const)for(const part of [0,8]){a.load('rax',slot(from+part));a.store(slot(to+part),'rax');}
+  a.lea('rax',slot(96));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(128));a.mov('r8',3);a.lea('r9',slot(160));a.call('rt.invoke');a.jmp(done);
+  a.label(forward);a.lea('rax',slot(176));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(80));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.invoke');a.label(done);
+ });
  rootedFn(b,'rt.proxyDefineOwnProperty',344,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},
   {kind:'range',register:'r8',count:6},{kind:'locals',offset:80,count:8},{kind:'locals',offset:208,count:6}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');

@@ -1,7 +1,7 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {RootLayout as R} from './heap-layout.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ProxyKind,ProxyCallable} from './object-layout.js';
 import {FunctionKind} from './functions.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
@@ -18,7 +18,8 @@ export function emitFunctionApply(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.load('rax',slot(frame+40));a.store(slot(64),'rax');
   a.load('r10',{base:'rax'});a.cmp('r10',5);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rax',disp:8});
-  a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rax',disp:O.kind});const callable=a.unique('callable');a.cmp('r10',FunctionKind);a.jcc('e',callable);a.cmp('r10',ProxyKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');a.label(callable);
   a.load('rax',{rip:'rt.gcRoots'});a.store(slot(72+R.next),'rax');a.load('rax',slot(64));a.store(slot(72+R.values),'rax');a.mov('rax',1);a.store(slot(72+R.count),'rax');
   a.lea('rax',slot(72));a.store(slot(96+R.next),'rax');a.load('rax',slot(56));a.store(slot(96+R.values),'rax');a.load('rax',slot(48));a.store(slot(96+R.count),'rax');
   a.lea('rax',slot(96));a.store(slot(120+R.next),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(slot(120+R.values),'rax');a.store(slot(144),'rax');a.store(slot(184),'rax');

@@ -170,3 +170,15 @@ test('Proxy defineProperty trap and set forwarding survive GC stress',()=>{
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Callable Proxy apply and nested forwarding survive GC stress',()=>{
+ const source=`let target=function(a,b){return this.base+a+b},seen=[],p=new Proxy(target,{apply:function(t,r,args){for(let i=0;i<20;i++)({v:i});seen.push(t===target,r.base,args.join(','));return 9}});
+ console.log(typeof p,p.call({base:3},1,2),seen.join('|'));
+ let nested=new Proxy(new Proxy(target,{}),{});console.log(Reflect.apply(nested,{base:4},[5,6]));
+ let rev=Proxy.revocable(target,{});rev.revoke();try{rev.proxy()}catch(e){console.log(e.name)}
+ console.log(typeof new Proxy({},{}));`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

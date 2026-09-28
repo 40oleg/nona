@@ -3,6 +3,7 @@ import {rootedFn,type RuntimeRoot} from './root-scope.js';
 const unaryRoots:RuntimeRoot[]=[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'}];
 const binaryRoots:RuntimeRoot[]=[...unaryRoots,{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}];
 import type {Assembler} from '../backend/x64/assembler.js';
+import {ObjectLayout as O,ProxyKind,ProxyCallable} from './object-layout.js';
 const copy=(a:Assembler)=>{a.load('rax',{base:'rdx'});a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');};
 const tag=(a:Assembler,n:number)=>{a.mov('rax',n);a.store({base:'rcx'},'rax');};
 export function emitPrimitives(b:RuntimeBuilder):void {
@@ -28,7 +29,7 @@ export function emitPrimitives(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.lea('rdx',slot(56));copy(a);a.jmp(done);
   a.label(convert);a.load('rcx',slot(40));a.lea('rdx',slot(56));a.call('rt.toString');a.label(done);
  });
- b.fn('rt.typeof',40,a=>{a.load('r10',{base:'rdx'});for(const [n,s] of ['undefined','object','boolean','number','string','object','symbol','bigint'].entries()){a.cmp('r10',n);a.jcc('ne','rt.typeof.next'+n);a.lea('rax',{rip:'rt.str.'+s});if(n===5){a.load('r11',{base:'rdx',disp:8});a.load('r11',{base:'r11'});a.cmp('r11',2);a.jcc('ne','rt.typeof.save');a.lea('rax',{rip:'rt.str.function'});}a.jmp('rt.typeof.save');a.label('rt.typeof.next'+n);}a.label('rt.typeof.save');a.store({base:'rcx',disp:8},'rax');tag(a,4);});
+ b.fn('rt.typeof',40,a=>{a.load('r10',{base:'rdx'});for(const [n,s] of ['undefined','object','boolean','number','string','object','symbol','bigint'].entries()){a.cmp('r10',n);a.jcc('ne','rt.typeof.next'+n);a.lea('rax',{rip:'rt.str.'+s});if(n===5){a.load('r11',{base:'rdx',disp:8});a.load('r10',{base:'r11'});a.cmp('r10',2);a.jcc('e','rt.typeof.function');a.cmp('r10',ProxyKind);a.jcc('ne','rt.typeof.save');a.load('r10',{base:'r11',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');a.jcc('e','rt.typeof.save');a.label('rt.typeof.function');a.lea('rax',{rip:'rt.str.function'});}a.jmp('rt.typeof.save');a.label('rt.typeof.next'+n);}a.label('rt.typeof.save');a.store({base:'rcx',disp:8},'rax');tag(a,4);});
  for(const op of ['add','sub','mul','div','rem','pow'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   if(op==='add'){
