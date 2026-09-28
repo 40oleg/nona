@@ -138,3 +138,16 @@ test('Proxy getOwnPropertyDescriptor trap and invariants survive GC stress',()=>
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+test('Proxy set trap and frozen target invariant survive GC stress',()=>{
+ const source=`let target={x:1},seen=[];let p=new Proxy(target,{set:function(t,k,v,r){for(let i=0;i<20;i++)({v:i});seen.push(t===target,k,v,r===p);return true}});
+ p.x=2;console.log(seen.join(','),target.x);
+ Object.defineProperty(target,'x',{writable:false,configurable:false});
+ try{p.x=3}catch(e){console.log(e.name)}
+ let q=new Proxy({},{set:function(){return false}});try{q.x=1}catch(e){console.log(e.name)}
+ let f=new Proxy({},{set:null});f.x=4;console.log(f.x);`;
+ const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(run.error,undefined);
+ assert.equal(run.status,0,run.stderr.toString());
+ assert.equal(run.stdout.toString(),runOracle(source).stdout);
+});

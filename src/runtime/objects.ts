@@ -210,6 +210,8 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(88),'r9');a.and('r9',1);a.store(slot(64),'r9');
     const rejected=a.unique('rejected'),finish=a.unique('finish'),done=a.unique('done'),normal=a.unique('normal'),write=a.unique('write'),create=a.unique('create'),setter=a.unique('setter'),primitive=a.unique('primitive');
     a.load('rax',{base:'rcx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');a.cmp('rax',5);a.jcc('ne',primitive);
+    const ordinarySet=a.unique('ordinarySet');a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinarySet);
+    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(88));a.call('rt.proxySet');a.jmp(finish);a.label(ordinarySet);
     a.load('rdx',{base:'rdx',disp:8});a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rcx',slot(40));a.load('rdx',slot(48));
     a.load('rax',{base:'rcx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',normal);
