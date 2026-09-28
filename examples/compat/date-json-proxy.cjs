@@ -24,7 +24,11 @@ console.log(Object.getPrototypeOf(ordinaryBuffer) === ArrayBuffer.prototype, ord
 console.log(Object.getPrototypeOf(sharedBuffer) === SharedArrayBuffer.prototype, sharedBuffer.byteLength);
 console.log(Object.getPrototypeOf(view) === DataView.prototype, view.byteLength);
 
-for (var NativeConstructor of [Map, Set, WeakMap, WeakSet, RegExp, Array, Boolean, Number, String, Error, TypeError, Uint8Array, Float64Array]) {
-  var constructed = Reflect.construct(NativeConstructor, [], BufferConstructor);
+for (var NativeConstructor of [Object, Array, Boolean, Number, String, Date, RegExp, Map, Set, WeakMap, WeakSet,
+  ArrayBuffer, SharedArrayBuffer, DataView, Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
+  Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array, Error, EvalError,
+  RangeError, ReferenceError, SyntaxError, TypeError, URIError]) {
+  var args = NativeConstructor === DataView ? [new ArrayBuffer(0)] : [];
+  var constructed = Reflect.construct(NativeConstructor, args, BufferConstructor);
   console.log(NativeConstructor.name, Object.getPrototypeOf(constructed) === NativeConstructor.prototype);
 }
