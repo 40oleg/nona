@@ -650,3 +650,11 @@ test('typed array constructors and prototypes expose immutable BYTES_PER_ELEMENT
   var a=new Uint16Array([0,1,2,3]);var view=new Uint16Array(a.buffer,Uint16Array.BYTES_PER_ELEMENT);view.copyWithin(2,0);
   console.log(Array.from(a).join(','),Array.from(view).join(','));
 `,'1,1,1,2,2,4,4,4,8,8,8\ntrue\n2 false false false 2 false false false\n0,1,2,1 1,2,1\n'));
+
+test('bootstrap buffer and typed array methods are not constructors',()=>expectProgram(`
+ var methods=[Uint8Array.prototype.map,Uint8Array.prototype.filter,DataView.prototype.getBigInt64,BigInt.prototype.toLocaleString,Object.getPrototypeOf(Uint8Array).from];
+ for(var method of methods){
+   var constructable=true;try{Reflect.construct(function(){},[],method)}catch(error){constructable=false}
+   console.log(method.name,constructable,Object.prototype.hasOwnProperty.call(method,'prototype'),Function.prototype.toString.call(method).includes('[native code]'));
+ }
+`,'map false false true\nfilter false false true\ngetBigInt64 false false true\ntoLocaleString false false true\nfrom false false true\n'));

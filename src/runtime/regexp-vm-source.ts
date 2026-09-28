@@ -1171,15 +1171,15 @@ __nonaRegexpVm.dvWriteBig=function(view,offset,value,little){
  if(little){__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index,low,true);__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index+4,high,true)}
  else{__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index,high,false);__nonaRegexpVm.safeCall(__nonaRegexpVm.dvSet32,view,index+4,low,false)}
 };
-Object.defineProperty(DataView.prototype,'getBigInt64',{value:function getBigInt64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],true)},writable:true,configurable:true});
-Object.defineProperty(DataView.prototype,'getBigUint64',{value:function getBigUint64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],false)},writable:true,configurable:true});
-Object.defineProperty(DataView.prototype,'setBigInt64',{value:function setBigInt64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
-Object.defineProperty(DataView.prototype,'setBigUint64',{value:function setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])},writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'getBigInt64',{value:({getBigInt64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],true)}}).getBigInt64,writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'getBigUint64',{value:({getBigUint64(byteOffset){'use strict';return __nonaRegexpVm.dvReadBig(this,byteOffset,!!arguments[1],false)}}).getBigUint64,writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'setBigInt64',{value:({setBigInt64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])}}).setBigInt64,writable:true,configurable:true});
+Object.defineProperty(DataView.prototype,'setBigUint64',{value:({setBigUint64(byteOffset,value){'use strict';return __nonaRegexpVm.dvWriteBig(this,byteOffset,value,!!arguments[2])}}).setBigUint64,writable:true,configurable:true});
 __nonaRegexpVm.typedArrayValues=Uint8Array.prototype.values;
 __nonaRegexpVm.typedArraySort=Array.prototype.sort;
 __nonaRegexpVm.bigintToString=BigInt.prototype.toString;
 __nonaRegexpVm.typedArrayLocaleString=String;
-Object.defineProperty(BigInt.prototype,'toLocaleString',{value:function toLocaleString(){'use strict';return __nonaRegexpVm.safeCall(__nonaRegexpVm.bigintToString,this)},writable:true,configurable:true});
+Object.defineProperty(BigInt.prototype,'toLocaleString',{value:({toLocaleString(){'use strict';return __nonaRegexpVm.safeCall(__nonaRegexpVm.bigintToString,this)}}).toLocaleString,writable:true,configurable:true});
 __nonaRegexpVm.typedArrayLength=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'length').get;
 __nonaRegexpVm.typedArrayBuffer=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'buffer').get;
 __nonaRegexpVm.typedArrayByteOffset=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype),'byteOffset').get;
@@ -1194,7 +1194,7 @@ __nonaRegexpVm.typedArrayRawLength=__nonaRegexpVm.typedArrayConstructor.__nonaRa
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawLengthInternal;
 __nonaRegexpVm.typedArrayRawByteOffset=__nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaRawByteOffsetInternal;
-Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,'from',{value:function from(source){
+Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,'from',{value:({from(source){
  'use strict';
  var constructor=this,mapfn=arguments[1],thisArg=arguments[2];
  if(!__nonaRegexpVm.safeCall(__nonaRegexpVm.isConstructor,undefined,constructor))throw new __nonaRegexpVm.bufferTypeError('TypedArray.from requires a constructor');
@@ -1217,7 +1217,7 @@ Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,'from',{value:functio
  if(__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,result)<length)throw new __nonaRegexpVm.bufferTypeError('TypedArray.from result is too short');
  for(var k=0;k<length;k++){var value=iterated?values[k]:source[k];if(mapfn!==undefined)value=__nonaRegexpVm.safeCall(mapfn,thisArg,value,k);if(k<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,result))result[k]=value}
  return result;
-},writable:true,configurable:true});
+}}).from,writable:true,configurable:true});
 [Uint8Array,Int8Array,Uint8ClampedArray,Uint16Array,Int16Array,Uint32Array,Int32Array,Float32Array,Float64Array,BigInt64Array,BigUint64Array].forEach(function(ctor){delete ctor.prototype[Symbol.toStringTag]});
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor.prototype,Symbol.toStringTag,{get:Object.getOwnPropertyDescriptor({get [Symbol.toStringTag](){'use strict';if(!__nonaRegexpVm.safeCall(__nonaRegexpVm.isTypedArray,undefined,this))return undefined;return __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayDefaultConstructor,undefined,this).name}},Symbol.toStringTag).get,configurable:true});
 Object.defineProperty(__nonaRegexpVm.typedArrayConstructor,Symbol.species,{get:Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get,configurable:true});
@@ -1264,15 +1264,15 @@ __nonaRegexpVm.typedArrayRelativeIndex=function(value,length){
  number=__nonaRegexpVm.arrayBufferTrunc(number);
  return number<0?__nonaRegexpVm.arrayBufferMax(length+number,0):__nonaRegexpVm.arrayBufferMin(number,length);
 };
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{value:function forEach(callbackfn){
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'forEach',{value:({forEach(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
  if(typeof callbackfn!=='function')throw new __nonaRegexpVm.bufferTypeError('callbackfn is not callable');
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this);
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'every',{value:function every(callbackfn){
+}}).forEach,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'every',{value:({every(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1280,8 +1280,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'every',{value
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)if(!__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return false;
  return true;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'some',{value:function some(callbackfn){
+}}).every,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'some',{value:({some(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1289,8 +1289,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'some',{value:
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)if(__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return true;
  return false;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'find',{value:function find(callbackfn){
+}}).some,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'find',{value:({find(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1298,8 +1298,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'find',{value:
  var thisArg=arguments[1];
  for(var k=0;k<length;k++){var value=this[k];if(__nonaRegexpVm.safeCall(callbackfn,thisArg,value,k,this))return value}
  return undefined;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'findIndex',{value:function findIndex(callbackfn){
+}}).find,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'findIndex',{value:({findIndex(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1307,8 +1307,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'findIndex',{v
  var thisArg=arguments[1];
  for(var k=0;k<length;k++)if(__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this))return k;
  return -1;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduce',{value:function reduce(callbackfn){
+}}).findIndex,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduce',{value:({reduce(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1318,8 +1318,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduce',{valu
  else{if(length===0)throw new __nonaRegexpVm.bufferTypeError('Reduce of empty typed array with no initial value');accumulator=this[0];k=1}
  for(;k<length;k++)accumulator=__nonaRegexpVm.safeCall(callbackfn,undefined,accumulator,this[k],k,this);
  return accumulator;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduceRight',{value:function reduceRight(callbackfn){
+}}).reduce,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduceRight',{value:({reduceRight(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1329,8 +1329,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'reduceRight',
  else{if(length===0)throw new __nonaRegexpVm.bufferTypeError('Reduce of empty typed array with no initial value');accumulator=this[k];k--}
  for(;k>=0;k--)accumulator=__nonaRegexpVm.safeCall(callbackfn,undefined,accumulator,this[k],k,this);
  return accumulator;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'join',{value:function join(separator){
+}}).reduceRight,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'join',{value:({join(separator){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1341,9 +1341,9 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'join',{value:
   if(element!==undefined)result+=''+element;
  }
  return result;
-},writable:true,configurable:true});
+}}).join,writable:true,configurable:true});
 Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toString',{value:Array.prototype.toString,writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'map',{value:function map(callbackfn){
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'map',{value:({map(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1351,8 +1351,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'map',{value:f
  var result=__nonaRegexpVm.typedArraySpeciesCreate(this,length),thisArg=arguments[1];
  for(var k=0;k<length;k++)result[k]=__nonaRegexpVm.safeCall(callbackfn,thisArg,this[k],k,this);
  return result;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'filter',{value:function filter(callbackfn){
+}}).map,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'filter',{value:({filter(callbackfn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1362,8 +1362,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'filter',{valu
  var result=__nonaRegexpVm.typedArraySpeciesCreate(this,kept.length);
  for(var i=0;i<kept.length;i++)result[i]=kept[i];
  return result;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:function set(source){
+}}).filter,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:({set(source){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var targetLength=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1395,8 +1395,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:f
   var value=sourceIsTyped?values[i]:source[i];
   if(targetOffset+i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[targetOffset+i]=value;
  }
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'subarray',{value:function subarray(begin,end){
+}}).set,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'subarray',{value:({subarray(begin,end){
  'use strict';
  var length=__nonaRegexpVm.typedArrayRawLength(this);
  var first=__nonaRegexpVm.typedArrayRelativeIndex(begin,length);
@@ -1407,8 +1407,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'subarray',{va
  var buffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,this);
  var byteOffset=__nonaRegexpVm.typedArrayRawByteOffset(this)+first*bytesPerElement;
  return __nonaRegexpVm.typedArraySpeciesCreateView(this,buffer,byteOffset,newLength);
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'slice',{value:function slice(start,end){
+}}).subarray,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'slice',{value:({slice(start,end){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1430,8 +1430,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'slice',{value
   }else for(var k=0;k<count;k++)result[k]=this[first+k];
  }
  return result;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'sort',{value:function sort(comparefn){
+}}).slice,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'sort',{value:({sort(comparefn){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this);
@@ -1448,8 +1448,8 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'sort',{value:
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArraySort,values,compare);
  for(var i=0;i<length;i++)if(i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[i]=values[i];
  return this;
-},writable:true,configurable:true});
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleString',{value:function toLocaleString(){
+}}).sort,writable:true,configurable:true});
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleString',{value:({toLocaleString(){
  'use strict';
  __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues,this);
  var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this),result='';
@@ -1459,7 +1459,16 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'toLocaleStrin
   if(value!==undefined&&value!==null){var localized=value.toLocaleString();if(typeof localized==='symbol')throw new __nonaRegexpVm.bufferTypeError('Cannot convert Symbol to string');result+=__nonaRegexpVm.typedArrayLocaleString(localized)}
  }
  return result;
-},writable:true,configurable:true});
+}}).toLocaleString,writable:true,configurable:true});
 Function.prototype.__nonaMarkNativeInternal(RegExp.prototype[Symbol.match]);
 Function.prototype.__nonaMarkNativeInternal(Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get);
+(function(){
+ var markNative=Function.prototype.__nonaMarkNativeInternal;
+ var methods=['forEach','every','some','find','findIndex','reduce','reduceRight','join','map','filter','set','subarray','slice','sort','toLocaleString'];
+ var prototype=Object.getPrototypeOf(Uint8Array.prototype);
+ for(var i=0;i<methods.length;i++)markNative(prototype[methods[i]]);
+ for(var name of ['getBigInt64','getBigUint64','setBigInt64','setBigUint64'])markNative(DataView.prototype[name]);
+ markNative(BigInt.prototype.toLocaleString);
+ markNative(__nonaRegexpVm.typedArrayConstructor.from);
+})();
 `;
