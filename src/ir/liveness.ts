@@ -51,7 +51,7 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'call':for(const argument of operation.arguments)live.add(argument);return;
   case 'invoke':live.add(operation.callee);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);for(const argument of operation.arguments)live.add(argument);return;
   case 'invokeArray':live.add(operation.callee);live.add(operation.array);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);return;
-  case 'yield':live.add(operation.source);return;
+  case 'yield':case 'await':live.add(operation.source);return;
   case 'yieldDelegated':live.add(operation.source);return;
   case 'requireObject':live.add(operation.source);return;
   default:unreachable(operation);

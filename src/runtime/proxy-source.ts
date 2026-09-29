@@ -30,4 +30,5 @@ export const proxyPreludeSource=String.raw`(function(){
   delete Function.prototype.__nonaReflectOwnKeysInternal;
   delete Function.prototype.__nonaMarkNativeInternal;
   delete Function.prototype.__nonaMarkPromiseInternal;
+  delete Function.prototype.__nonaSharedQueueInternal;
 })()`;

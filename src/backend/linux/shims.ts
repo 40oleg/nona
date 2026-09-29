@@ -68,6 +68,34 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(infinite);a.load('rdi',slot(56));a.mov('rsi',128);a.mov('rax',202);a.emit([0x0f,0x05]);
   const failed=a.unique('failed'),done=a.unique('done');a.test('rax','rax');a.jcc('ne',failed);a.mov('rax',1);a.jmp(done);a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
+ // Threads for Test262 agents: RCX attributes, RDX stack size, R8 start
+ // address, R9 parameter. The child runs start(parameter) on a fresh mapped
+ // stack, then exits only its own thread.
+ b.fn('linux.CreateThread.code',72,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  const bad=a.unique('bad'),done=a.unique('done'),child=a.unique('child');
+  a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.cmp('rax',-4095);a.jcc('ae',bad);
+  a.mov('rsi','rax');a.add('rsi',64*1024*1024-16);
+  a.load('r10',slot(56));a.store({base:'rsi'},'r10');a.load('r10',slot(64));a.store({base:'rsi',disp:8},'r10');
+  a.mov('rdi',0x50f00);a.mov('rdx',0);a.mov('r10',0);a.mov('r8',0);a.mov('rax',56);a.emit([0x0f,0x05]);
+  a.test('rax','rax');a.jcc('e',child);a.cmp('rax',-4095);a.jcc('ae',bad);a.jmp(done);
+  a.label(child);
+  a.load('r11',{base:'rsp'});a.load('rcx',{base:'rsp',disp:8});a.add('rsp',16);a.sub('rsp',48);a.callRegister('r11');
+  a.mov('rdi',0);a.mov('rax',60);a.emit([0x0f,0x05]);
+  a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
+ b.fn('linux.Sleep.code',72,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+  a.mov('rax','rcx');a.mov('rdx',0);a.mov('r11',1000);a.div('r11');a.store(slot(56),'rax');a.mov('rax','rdx');a.mov('r11',1000000);a.imul('rax','r11');a.store(slot(64),'rax');
+  a.lea('rdi',slot(56));a.mov('rsi',0);a.mov('rax',35);a.emit([0x0f,0x05]);
+  a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
+ b.fn('linux.WakeByAddressSingle.code',56,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+  a.mov('rdi','rcx');a.mov('rsi',129);a.mov('rdx',1);a.mov('rax',202);a.emit([0x0f,0x05]);
+  a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
  b.fn('linux.GetSystemTimeAsFileTime.code',104,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
   a.mov('rdi',0);a.lea('rsi',slot(72));a.mov('rax',228);a.emit([0x0f,0x05]);

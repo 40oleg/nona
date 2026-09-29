@@ -67,7 +67,10 @@ export function emitSharedArrayBuffer(b:RuntimeBuilder):void {
   a.cvttsd2si('rax','xmm0');a.store(slot(72),'rax');a.jmp(ready);
   a.label(zero);a.mov('rax',0);a.store(slot(72),'rax');a.jmp(ready);
   a.label(invalid);a.call('rt.throwRangeError');a.label(ready);
-  a.load('rcx',slot(72));a.call('rt.alloc');a.store(slot(64),'rax');
+  // Shared backing stores live outside the GC heap: other agents may alias
+  // them, so they are zero-initialized raw blocks that are never reclaimed.
+  a.load('r8',slot(72));a.add('r8',8);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',8);a.callImport('HeapAlloc');a.test('rax','rax');failIf(a,'e');
+  a.store(slot(64),'rax');
   a.load('r8',slot(72));a.load('rdx',slot(64));a.mov('r10',0);
   const fill=a.unique('fill'),filled=a.unique('filled');a.label(fill);a.test('r8','r8');a.jcc('e',filled);
   a.store({base:'rdx'},'r10',8);a.add('rdx',1);a.sub('r8',1);a.jmp(fill);a.label(filled);

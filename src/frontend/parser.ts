@@ -5,15 +5,17 @@ import {boundNames} from './declarations.js';
 
 const reserved = new Set(('break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super implements interface let package private protected public static yield null true false').split(' '));
 const precedence: Record<string,number> = { '??':1,'||':1,'&&':2,'|':3,'^':4,'&':5,'==':6,'!=':6,'===':6,'!==':6,'<':7,'<=':7,'>':7,'>=':7,'in':7,'instanceof':7,'<<':8,'>>':8,'>>>':8,'+':9,'-':9,'*':10,'/':10,'%':10 };
-export function parse(tokens: TokenStream): A.Program { return new Parser(tokens).program(); }
+export function parse(tokens: TokenStream,options:{module?:boolean}={}): A.Program { return new Parser(tokens,!!options.module).program(); }
 
 class Parser {
   private index = 0;
   private generatorContext = false;
   private yieldIdentifierForbidden = false;
+  private asyncContext = false;
+  private awaitIdentifierForbidden = false;
   private parenthesized = new WeakSet<A.Expression>();
   private computedMembers = new WeakSet<A.Member>();
-  constructor(private tokens: TokenStream) {}
+  constructor(private tokens: TokenStream,private module=false) {}
   private get token(): Token { return this.tokens[this.index]!; }
   private at(s: string): boolean { return this.token.text === s; }
   private take(): Token { return this.tokens[this.index++]!; }
@@ -21,14 +23,30 @@ class Parser {
   private error(message:string, token=this.token): never { throw new CompileError([{ code:'E_SYNTAX',message,file:'',span:token.span }]); }
   private need(s:string): Token { if (!this.at(s)) this.error(`Expected '${s}', found '${this.token.text}'`); return this.take(); }
   private span(start:number): {start:number;end:number} { return {start,end:this.tokens[Math.max(0,this.index-1)]!.span.end}; }
-  private reservedIdentifier(name:string):boolean {return reserved.has(name)&&!(name==='yield'&&!this.generatorContext&&!this.yieldIdentifierForbidden);}
+  private reservedIdentifier(name:string):boolean {
+    if(name==='await')return this.module||this.asyncContext||this.awaitIdentifierForbidden;
+    return reserved.has(name)&&!(name==='yield'&&!this.generatorContext&&!this.yieldIdentifierForbidden);
+  }
+  /** `async` followed, without a line terminator, by `function`. */
+  private atAsyncFunction():boolean {
+    const next=this.tokens[this.index+1];
+    return this.at('async')&&this.token.kind==='word'&&next?.text==='function'&&!next.lineBreakBefore;
+  }
+  /** `async` introducing a method name (not a property named async). */
+  private atAsyncMethod():boolean {
+    const next=this.tokens[this.index+1];
+    return this.at('async')&&this.token.kind==='word'&&!!next&&!next.lineBreakBefore&&!['(',':',',','}','=',';'].includes(next.text)&&next.kind!=='eof';
+  }
   private id(): A.Identifier {
     const t = this.token,name=String(t.value??t.text); if (t.kind !== 'word' || this.reservedIdentifier(name)) this.error('Expected an identifier');
     this.take(); return {kind:'Identifier',name,span:t.span};
   }
-  private functionIdentifier(generator:boolean):A.Identifier {
-    const previous=this.generatorContext;this.generatorContext=generator;
-    try{return this.id();}finally{this.generatorContext=previous;}
+  private functionIdentifier(generator:boolean,isAsync=false,expression=false):A.Identifier {
+    // Declarations take their name from the enclosing context; expressions
+    // bind the name inside their own generator/async context.
+    const previous=this.generatorContext,previousAsync=this.asyncContext;
+    if(expression){this.generatorContext=generator;this.asyncContext=isAsync;}
+    try{return this.id();}finally{this.generatorContext=previous;this.asyncContext=previousAsync;}
   }
   private bindingPattern():A.BindingPattern {
     if(this.at('{')){
@@ -68,14 +86,16 @@ class Parser {
     }
     this.need(')');return {parameters,defaults,rest};
   }
-  private functionParameters(generator=false):ReturnType<Parser['formalParameters']> {
-    const previous=this.generatorContext,previousYield=this.yieldIdentifierForbidden;this.generatorContext=false;this.yieldIdentifierForbidden=generator;
-    try{return this.formalParameters();}finally{this.generatorContext=previous;this.yieldIdentifierForbidden=previousYield;}
+  private functionParameters(generator=false,isAsync=false):ReturnType<Parser['formalParameters']> {
+    const previous=this.generatorContext,previousYield=this.yieldIdentifierForbidden,previousAsync=this.asyncContext,previousAwait=this.awaitIdentifierForbidden;
+    this.generatorContext=false;this.yieldIdentifierForbidden=generator;this.asyncContext=false;this.awaitIdentifierForbidden=isAsync;
+    try{return this.formalParameters();}finally{this.generatorContext=previous;this.yieldIdentifierForbidden=previousYield;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
   }
-  private functionBody(generator:boolean):A.Block {
-    const previous=this.generatorContext;this.generatorContext=generator;
+  private functionBody(generator:boolean,isAsync=false):A.Block {
+    const previous=this.generatorContext,previousAsync=this.asyncContext,previousAwait=this.awaitIdentifierForbidden;
+    this.generatorContext=generator;this.asyncContext=isAsync;this.awaitIdentifierForbidden=false;
     try{const body=this.block(true);body.strict=this.checkDirective(body.body);return body;}
-    finally{this.generatorContext=previous;}
+    finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
   }
   private classTail(start:number,id:A.Identifier|null):A.ClassExpression {
     const superClass=this.match('extends')?this.leftHandSide():null;
@@ -84,19 +104,20 @@ class Parser {
       if(this.match(';'))continue;
       let methodStart=this.token.span.start;let isStatic=false,accessor:'get'|'set'|undefined,computed=false;
       if(this.at('static')&&this.tokens[this.index+1]?.text!=='('){this.take();isStatic=true;methodStart=this.token.span.start;}
-      if((this.at('get')||this.at('set'))&&this.tokens[this.index+1]?.text!=='('){accessor=this.take().text as 'get'|'set';}
+      const isAsync=this.atAsyncMethod()&&!!this.take();
+      if(!isAsync&&(this.at('get')||this.at('set'))&&this.tokens[this.index+1]?.text!=='('){accessor=this.take().text as 'get'|'set';}
       const generator=this.match('*');if(generator&&accessor)this.error('Generator method cannot be an accessor');
       let key:A.Expression;
       if(this.match('[')){computed=true;key=this.assignment();this.need(']');}
       else{const token=this.token;if(!['word','string','number'].includes(token.kind))this.error('Expected a class method name');this.take();key={kind:'Literal',value:String(token.value??token.text),span:token.span};}
       if(isStatic&&!computed&&key.kind==='Literal'&&key.value==='prototype')this.error('Static prototype method is not allowed');
-      const {parameters,defaults,rest}=this.functionParameters(generator);
+      const {parameters,defaults,rest}=this.functionParameters(generator,isAsync);
       if(accessor==='get'&&(parameters.length||rest))this.error('Getter requires no parameters');
       if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
-      const body=this.functionBody(generator);
-      const value:A.FunctionExpression={kind:'FunctionExpression',generator,method:true,classMethod:true,id:null,parameters,defaults,rest,body,span:this.span(methodStart)};
+      const body=this.functionBody(generator,isAsync);
+      const value:A.FunctionExpression={kind:'FunctionExpression',generator,...(isAsync?{async:true}:{}),method:true,classMethod:true,id:null,parameters,defaults,rest,body,span:this.span(methodStart)};
       const constructor=!isStatic&&!computed&&!accessor&&key.kind==='Literal'&&key.value==='constructor';
-      if(constructor){if(generator)this.error('Class constructor cannot be a generator');if(constructorMethod)this.error('Duplicate constructor');value.classConstructor=true;constructorMethod=value;}
+      if(constructor){if(generator)this.error('Class constructor cannot be a generator');if(isAsync)this.error('Class constructor cannot be async');if(constructorMethod)this.error('Duplicate constructor');value.classConstructor=true;constructorMethod=value;}
       else methods.push({key,computed,isStatic,...(accessor?{accessor}:{}),value});
     }
     this.need('}');
@@ -111,9 +132,100 @@ class Parser {
   }
   program(): A.Program {
     const body:A.Statement[]=[];
-    while (this.token.kind !== 'eof') body.push(this.statement(true));
-    const strict=this.checkDirective(body);
-    return {kind:'Program',body,strict,span:{start:0,end:this.token.span.end},source:this.tokens.source};
+    while (this.token.kind !== 'eof') body.push(this.module?this.moduleItem():this.statement(true));
+    const strict=this.module||this.checkDirective(body);
+    return {kind:'Program',body,strict,...(this.module?{module:true}:{}),span:{start:0,end:this.token.span.end},source:this.tokens.source};
+  }
+  private moduleSpecifier():string {
+    const token=this.token;if(token.kind!=='string')this.error('Expected a module specifier string');
+    this.take();return String(token.value);
+  }
+  /** ModuleExportName: IdentifierName or (later editions) a string literal. */
+  private exportName():string {
+    const token=this.token;
+    if(token.kind==='string'){this.take();const value=String(token.value);if(/[\uD800-\uDFFF]/.test(value.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g,'')))this.error('Export name must be well-formed Unicode',token);return value;}
+    if(token.kind!=='word')this.error('Expected an export name');
+    this.take();return String(token.value??token.text);
+  }
+  private moduleItem():A.Statement {
+    const start=this.token.span.start,next=this.tokens[this.index+1]?.text;
+    if(this.at('import')&&next!=='('&&next!=='.'){
+      this.take();
+      if(this.token.kind==='string'){const source=this.moduleSpecifier();this.semi();return {kind:'Import',source,specifiers:[],span:this.span(start)};}
+      const specifiers:A.ImportSpecifier[]=[];
+      if(this.token.kind==='word'&&!this.at('{')){
+        specifiers.push({kind:'default',local:this.id()});
+        if(!this.match(','))return this.importFrom(start,specifiers);
+      }
+      if(this.match('*')){
+        if(!this.at('as'))this.error("Expected 'as'");this.take();specifiers.push({kind:'namespace',local:this.id()});
+      }else{
+        this.need('{');
+        while(!this.at('}')){
+          const nameToken=this.token,imported=this.exportName();
+          if(this.at('as')){this.take();specifiers.push({kind:'named',imported,local:this.id()});}
+          else{
+            if(nameToken.kind!=='word'||this.reservedIdentifier(imported))this.error('Imported binding must be an identifier',nameToken);
+            specifiers.push({kind:'named',imported,local:{kind:'Identifier',name:imported,span:nameToken.span}});
+          }
+          if(!this.match(','))break;
+        }
+        this.need('}');
+      }
+      return this.importFrom(start,specifiers);
+    }
+    if(this.match('export')){
+      if(this.match('*')){
+        let namespace:string|undefined;
+        if(this.at('as')){this.take();namespace=this.exportName();}
+        if(!this.at('from'))this.error("Expected 'from'");this.take();const source=this.moduleSpecifier();this.semi();
+        return {kind:'Export',star:true,...(namespace===undefined?{}:{namespace}),source,span:this.span(start)};
+      }
+      if(this.match('default')){
+        const defaultId:A.Identifier={kind:'Identifier',name:'*default*',span:this.token.span};
+        if(this.atAsyncFunction()||this.at('function')){
+          const declarationStart=this.token.span.start,isAsync=this.atAsyncFunction();if(isAsync)this.take();this.need('function');
+          const generator=this.match('*'),id=this.at('(')?null:this.functionIdentifier(generator);
+          const {parameters,defaults,rest}=this.functionParameters(generator,isAsync),body=this.functionBody(generator,isAsync);
+          const declaration:A.FunctionDeclaration={kind:'Function',generator,...(isAsync?{async:true}:{}),id:id??defaultId,parameters,defaults,rest,body,span:this.span(declarationStart)};
+          return {kind:'Export',declaration,isDefault:true,span:this.span(start)};
+        }
+        if(this.at('class')){
+          const declarationStart=this.take().span.start;
+          const id=this.at('{')||this.at('extends')?null:this.id(),node=this.classTail(declarationStart,id);
+          const declaration:A.ClassDeclaration={...node,kind:'Class',id:id??defaultId};
+          return {kind:'Export',declaration,isDefault:true,span:this.span(start)};
+        }
+        const defaultExpression=this.assignment();this.semi();
+        return {kind:'Export',defaultExpression,defaultId,span:this.span(start)};
+      }
+      if(this.at('{')){
+        this.take();const specifiers:A.ExportSpecifier[]=[];const localTokens:Token[]=[];
+        while(!this.at('}')){
+          const localToken=this.token,local=this.exportName(),exported=this.at('as')?(this.take(),this.exportName()):local;
+          specifiers.push({local,exported,...(localToken.kind==='word'?{localId:{kind:'Identifier' as const,name:local,span:localToken.span}}:{})});localTokens.push(localToken);
+          if(!this.match(','))break;
+        }
+        this.need('}');
+        let source:string|undefined;
+        if(this.at('from')){this.take();source=this.moduleSpecifier();}
+        else localTokens.forEach(token=>{if(token.kind!=='word'||reserved.has(String(token.value??token.text))||String(token.value??token.text)==='await')this.error('Exported local binding must be an identifier',token);});
+        this.semi();
+        return {kind:'Export',specifiers:source===undefined?specifiers:specifiers.map(({local,exported})=>({local,exported})),...(source===undefined?{}:{source}),span:this.span(start)};
+      }
+      if(this.at('var')||this.at('let')||this.at('const')){const declaration=this.variable(true);return {kind:'Export',declaration,span:this.span(start)};}
+      if(this.atAsyncFunction()||this.at('function')||this.at('class')){
+        const declaration=this.statement(true) as A.FunctionDeclaration|A.ClassDeclaration;
+        return {kind:'Export',declaration,span:this.span(start)};
+      }
+      this.error('Unsupported export declaration');
+    }
+    return this.statement(true);
+  }
+  private importFrom(start:number,specifiers:A.ImportSpecifier[]):A.ImportDeclaration {
+    if(!this.at('from'))this.error("Expected 'from'");this.take();
+    const source=this.moduleSpecifier();this.semi();
+    return {kind:'Import',source,specifiers,span:this.span(start)};
   }
   private checkDirective(body:A.Statement[]): boolean {
     for (const s of body) {
@@ -152,19 +264,26 @@ class Parser {
       return {kind:'Try',body,parameter,handler,finalizer,span:this.span(start)};
     }
     if(this.match('debugger')){this.semi();return {kind:'Debugger',span:this.span(start)};}
+    if(this.match('with')){
+      this.need('(');const object=this.expression();this.need(')');const body=this.statement(false,false);
+      return {kind:'With',object,body,span:this.span(start)};
+    }
     if(this.token.kind==='word'&&this.tokens[this.index+1]?.text===':') {
       const label=this.id();this.need(':');const body=this.statement(false,false);
       return {kind:'Labeled',label,body,span:this.span(start)};
     }
-    if(this.at('var')||this.at('let')||this.at('const')) {
+    // In a single-statement position `let` is an identifier unless it starts `let [`.
+    const letIdentifier=!allowLexical&&this.at('let')&&this.tokens[this.index+1]?.text!=='['&&(this.tokens[this.index+1]?.lineBreakBefore||!['word','punct'].includes(this.tokens[this.index+1]?.kind??'')||this.tokens[this.index+1]?.text!=='{'&&this.tokens[this.index+1]?.kind!=='word');
+    if(!letIdentifier&&(this.at('var')||this.at('let')||this.at('const'))) {
       if(!allowLexical&&!this.at('var'))this.error('Lexical declaration requires a block');
       return this.variable(true);
     }
-    if(this.match('function')) {
+    if(this.atAsyncFunction()||this.at('function')) {
+      const isAsync=this.atAsyncFunction();if(isAsync)this.take();this.need('function');
       if(!allowDeclaration)this.error('Function declaration requires a StatementList');
-      const generator=this.match('*'),id=this.functionIdentifier(generator),{parameters,defaults,rest}=this.functionParameters(generator);
-      const body=this.functionBody(generator);
-      return {kind:'Function',generator,id,parameters,defaults,rest,body,span:this.span(start)};
+      const generator=this.match('*'),id=this.functionIdentifier(generator),{parameters,defaults,rest}=this.functionParameters(generator,isAsync);
+      const body=this.functionBody(generator,isAsync);
+      return {kind:'Function',generator,...(isAsync?{async:true}:{}),id,parameters,defaults,rest,body,span:this.span(start)};
     }
     if(this.match('class')){
       if(!allowDeclaration||!allowLexical)this.error('Class declaration requires a StatementList');
@@ -207,13 +326,15 @@ class Parser {
       this.need('}');return {kind:'Switch',discriminant,cases,span:this.span(start)};
     }
     if(this.match('for')) {
+      const isAwait=this.asyncContext&&this.match('await');
       this.need('(');const init=this.at(';')?null:['var','let','const'].includes(this.token.text)?this.variable(false,true):this.expression();
       if(init?.kind==='Yield'&&init.argument?.kind==='Binary'&&init.argument.operator==='in'&&!this.parenthesized.has(init.argument))
         this.error('Unparenthesized in is not allowed in a for initializer');
       if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
         if(init.declarations.length!==1||init.declarations[0]!.init)this.error('Only a single binding without initializer is supported in for...in/of');
-        const kind=this.take().text==='in'?'ForIn':'ForOf';const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
-        return {kind,left:init,right,body,span:this.span(start)};
+        const kind=this.take().text==='in'?'ForIn':'ForOf';if(isAwait&&kind!=='ForOf')this.error('for await requires of');
+        const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
+        return {kind,left:init,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
       }
       if(init?.kind==='Binary'&&init.operator==='in'&&(init.left.kind==='Identifier'||init.left.kind==='Member')&&this.at(')')){
         this.take();const body=this.statement(false,false);
@@ -222,8 +343,9 @@ class Parser {
       if((init?.kind==='Identifier'||init?.kind==='Member')&&this.match('of')){
         if(init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
         const right=this.assignment();this.need(')');const body=this.statement(false,false);
-        return {kind:'ForOf',left:init,right,body,span:this.span(start)};
+        return {kind:'ForOf',left:init,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
       }
+      if(isAwait)this.error('for await requires of');
       if(init?.kind==='Var'&&init.declarationKind==='const'&&init.declarations.some(d=>!d.init))this.error('Const declaration requires an initializer');
       this.need(';');
       const test=this.at(';')?null:this.expression();this.need(';');
@@ -298,8 +420,20 @@ class Parser {
   }
   private arrow():A.FunctionExpression|null {
     const start=this.token.span.start;
+    // async ArrowParameters: no line terminator between async and the parameters.
+    const next=this.tokens[this.index+1];
+    const isAsync=this.at('async')&&this.token.kind==='word'&&!!next&&!next.lineBreakBefore&&(next.text==='('||next.kind==='word'&&this.tokens[this.index+2]?.text==='=>');
+    if(isAsync){
+      const saved=this.index;this.index++;
+      const result=this.arrowTail(start,true);
+      if(result)return result;
+      this.index=saved;
+    }
+    return this.arrowTail(start,false);
+  }
+  private arrowTail(start:number,isAsync:boolean):A.FunctionExpression|null {
     let end=-1;
-    if(this.token.kind==='word'&&!this.reservedIdentifier(String(this.token.value??this.token.text))&&this.tokens[this.index+1]?.text==='=>')end=this.index+1;
+    if(this.token.kind==='word'&&this.tokens[this.index+1]?.text==='=>'&&!this.reservedIdentifier(String(this.token.value??this.token.text))&&!(isAsync&&this.token.text==='await'))end=this.index+1;
     else if(this.at('(')){
       let cursor=this.index,depth=0;
       do {const token=this.tokens[cursor];if(!token||token.kind==='eof')break;
@@ -310,17 +444,19 @@ class Parser {
     if(end<0||this.tokens[end]!.lineBreakBefore)return null;
     let parameters:A.BindingPattern[]=[],defaults:(A.Expression|null)[]=[],rest:A.BindingPattern|null=null;
     if(this.at('(')){
-      ({parameters,defaults,rest}=this.functionParameters());
+      // Arrow parameters keep the enclosing yield/await restrictions.
+      ({parameters,defaults,rest}=this.functionParameters(false,isAsync||this.asyncContext||this.awaitIdentifierForbidden));
     }else {parameters.push(this.id());defaults.push(null);}
     this.need('=>');
     let body:A.Block;
-    if(this.at('{'))body=this.functionBody(false);
+    if(this.at('{'))body=this.functionBody(false,isAsync);
     else{
-      const previous=this.generatorContext;this.generatorContext=false;
-      let argument:A.Expression;try{argument=this.assignment();}finally{this.generatorContext=previous;}
+      const previous=this.generatorContext,previousAsync=this.asyncContext,previousAwait=this.awaitIdentifierForbidden;
+      this.generatorContext=false;this.asyncContext=isAsync;this.awaitIdentifierForbidden=false;
+      let argument:A.Expression;try{argument=this.assignment();}finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
       body={kind:'Block',body:[{kind:'Return',argument,span:argument.span}],span:argument.span};
     }
-    return {kind:'FunctionExpression',arrow:true,id:null,parameters,defaults,rest,body,span:this.span(start)};
+    return {kind:'FunctionExpression',arrow:true,...(isAsync?{async:true}:{}),id:null,parameters,defaults,rest,body,span:this.span(start)};
   }
   private conditional(): A.Expression {
     const test=this.binary(1);if(!this.match('?'))return test;
@@ -350,6 +486,9 @@ class Parser {
   }
   private unary(): A.Expression {
     const start=this.token.span.start;
+    if(this.asyncContext&&this.at('await')){
+      this.take();const argument=this.unary();return {kind:'Await',argument,span:this.span(start)};
+    }
     if(['+','-','!','~','typeof','void','delete'].includes(this.token.text)) {
       const operator=this.take().text,argument=this.unary();return {kind:'Unary',operator,argument,span:this.span(start)};
     }
@@ -466,10 +605,21 @@ class Parser {
     if(t.kind==='templateNoSub'||t.kind==='templateHead')return this.template();
     if(this.match('super')){if(!this.at('.')&&!this.at('[')&&!this.at('('))this.error('Expected super property or call');return {kind:'Super',span:t.span};}
     if(this.match('this'))return {kind:'This',span:t.span};
-    if(this.match('function')){
-      const generator=this.match('*'),id=this.at('(')?null:this.functionIdentifier(generator),{parameters,defaults,rest}=this.functionParameters(generator);
-      const body=this.functionBody(generator);
-      return {kind:'FunctionExpression',generator,id,parameters,defaults,rest,body,span:this.span(t.span.start)};
+    if(this.at('import')){
+      this.take();
+      if(this.match('.')){
+        const property=this.token;if(property.text!=='meta'||property.kind!=='word'||property.value!=='meta'&&property.text!=='meta')this.error('Expected import.meta');this.take();
+        if(!this.module)this.error('import.meta is only valid in module code',property);
+        return {kind:'ImportMeta',span:this.span(t.span.start)};
+      }
+      this.need('(');const argument=this.assignment();this.need(')');
+      return {kind:'ImportCall',argument,span:this.span(t.span.start)};
+    }
+    if(this.atAsyncFunction()||this.at('function')){
+      const isAsync=this.atAsyncFunction();if(isAsync)this.take();this.need('function');
+      const generator=this.match('*'),id=this.at('(')?null:this.functionIdentifier(generator,isAsync,true),{parameters,defaults,rest}=this.functionParameters(generator,isAsync);
+      const body=this.functionBody(generator,isAsync);
+      return {kind:'FunctionExpression',generator,...(isAsync?{async:true}:{}),id,parameters,defaults,rest,body,span:this.span(t.span.start)};
     }
     if(this.match('class')){
       const id=this.at('{')||this.at('extends')?null:this.id();return this.classTail(t.span.start,id);
@@ -491,6 +641,7 @@ class Parser {
         const propertyStart=this.token.span.start;
         let key:A.Expression,value:A.Expression,prototype=false,coverInitialized=false,accessor:'get'|'set'|undefined;
         let shorthand:Token|undefined,computed=false;
+        const isAsync=this.atAsyncMethod()&&!!this.take();
         const generator=this.match('*');
         const readKey=():A.Expression=>{
           if(this.match('[')){computed=true;const key=this.assignment();this.need(']');return key;}
@@ -499,18 +650,19 @@ class Parser {
         };
         key=readKey();
         if(!computed&&shorthand?.kind==='word'&&(shorthand.text==='get'||shorthand.text==='set')&&(key.kind==='Literal'&&(key.value==='get'||key.value==='set'))&&!this.at('(')&&!this.at(':')&&!this.at(',')&&!this.at('}')){
+          if(isAsync)this.error('Accessor cannot be async');
           accessor=key.value;key=readKey();
         }
         if(this.at('(')){
-          const {parameters,defaults,rest}=this.functionParameters(generator);
+          const {parameters,defaults,rest}=this.functionParameters(generator,isAsync);
           const names=parameters.flatMap(p=>boundNames(p).map(id=>id.name));
           if(new Set(names).size!==names.length)this.error('Duplicate method parameter');
           if(accessor==='get'&&(parameters.length!==0||rest))this.error('Getter requires no parameters');
           if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
           if(generator&&accessor)this.error('Generator method cannot be an accessor');
-          const body=this.functionBody(generator);
-          value={kind:'FunctionExpression',generator,method:true,id:null,parameters,defaults,rest,body,span:this.span(propertyStart)};
-        }else if(accessor)this.error('Expected accessor parameter list');
+          const body=this.functionBody(generator,isAsync);
+          value={kind:'FunctionExpression',generator,...(isAsync?{async:true}:{}),method:true,id:null,parameters,defaults,rest,body,span:this.span(propertyStart)};
+        }else if(accessor||isAsync)this.error('Expected method parameter list');
         else if(generator)this.error('Expected generator method parameter list');
         else if(this.match(':')){
           prototype=!computed&&key.kind==='Literal'&&key.value==='__proto__';
@@ -529,6 +681,7 @@ class Parser {
     if(t.kind==='regexp'){this.take();return {kind:'RegExpLiteral',pattern:t.pattern!,flags:t.flags!,span:t.span};}
     if(['true','false','null'].includes(t.text)) {this.take();return {kind:'Literal',value:t.text==='null'?null:t.text==='true',span:t.span};}
     if(this.match('(')) {const e=this.expression();this.need(')');this.parenthesized.add(e);return e;}
+    if(t.kind==='word'&&t.text==='let'&&!this.module){this.take();return {kind:'Identifier',name:'let',span:t.span};}
     if(t.kind==='word'&&!this.reservedIdentifier(t.text))return this.id();
     return this.error(`Unsupported or unexpected syntax '${t.text}'`);
   }

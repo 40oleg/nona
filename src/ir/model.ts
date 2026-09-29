@@ -1,6 +1,6 @@
 export type Constant = undefined|null|boolean|number|bigint|string;
 export type Operation =
-  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
+  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;async?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
   | {kind:'defineDataProperty';object:number;key:number;source:number;attributes:number}
   | {kind:'newCell';dest:number;source:number}
   | {kind:'readCell';dest:number;cell:number}
@@ -22,10 +22,11 @@ export type Operation =
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}
   | {kind:'readGlobalProperty';dest:number;name:string;allowMissing:boolean}
-  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number}
+  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean}
   | {kind:'invokeArray';dest:number;callee:number;array:number;receiver?:number;construct?:boolean;newTarget?:number}
   | {kind:'yield';dest:number;source:number}
-  | {kind:'yieldDelegated';dest:number;mode:number;source:number}
+  | {kind:'await';dest:number;source:number}
+  | {kind:'yieldDelegated';dest:number;mode:number;source:number;value?:boolean}
   | {kind:'generatorInitialSuspend'}
   | {kind:'requireObject';source:number}
   | {kind:'newInstance';dest:number;callee:number;firstArgument?:number;argumentArray?:number}

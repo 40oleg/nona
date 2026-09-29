@@ -24,6 +24,9 @@ export function collectDeclarations(
   functionDeclarationKind:'var'|'lexical',
 ):DeclarationInfo {
   const lexicals:LexicalDeclaration[]=[],vars:A.Identifier[]=[],bodyFunctions:A.FunctionDeclaration[]=[];
+  // Module export declarations declare their inner statement.
+  const unwrap=(list:readonly A.Statement[]):A.Statement[]=>list.map(s=>s.kind==='Export'&&s.declaration?s.declaration:s);
+  statements=unwrap(statements);
   for(const statement of statements){
     if(statement.kind==='Var'&&statement.declarationKind!=='var')for(const declaration of statement.declarations)
       for(const id of boundNames(declaration.id))lexicals.push({name:id.name,id,kind:statement.declarationKind,statement});
@@ -39,7 +42,7 @@ export function collectDeclarations(
       case 'Try':visitVars(statement.body.body);if(statement.handler)visitVars(statement.handler.body);if(statement.finalizer)visitVars(statement.finalizer.body);break;
       case 'Block':visitVars(statement.body);break;
       case 'If':visitVars([statement.consequent,...(statement.alternate?[statement.alternate]:[])]);break;
-      case 'While':case 'DoWhile':case 'Labeled':visitVars([statement.body]);break;
+      case 'While':case 'DoWhile':case 'Labeled':case 'With':visitVars([statement.body]);break;
       case 'Switch':for(const clause of statement.cases)visitVars(clause.body);break;
       case 'For':if(statement.init?.kind==='Var')visitVars([statement.init]);visitVars([statement.body]);break;
       case 'ForIn':case 'ForOf':if(statement.left.kind==='Var')visitVars([statement.left]);visitVars([statement.body]);break;

@@ -6,6 +6,40 @@ claim of conformance. The normative target and exceptions are in
 [`language-support.md`](language-support.md). PR #5 must stay draft until
 every applicable item below has implementation and conformance evidence.
 
+## Progress 2026-09-29 (Linux x64 evidence only; Windows pending CI)
+
+Implemented in this batch. Test262 counts are from the Linux runner at the
+pinned revision; "eval" means the documented exception.
+
+- **async functions, `await`, async arrows/methods, async generators,
+  `for await`, `yield*` in async generators** (0.16): coroutines on the
+  existing generator stacks, driven by the Promise prelude with one job queue.
+  Test262: `expressions/await` 22/22, `statements/async-function` 70/74,
+  `expressions/async-function` 89/93, `statements/async-generator` 300/301,
+  `expressions/async-generator` 618/623, `AsyncGeneratorPrototype` 48/48;
+  remaining failures use eval. `for-await-of` rerun pending.
+  `tests/async.test.ts` (20, GC stress, compared with Node).
+- **`with`** (sloppy scripts): object environment records with
+  `Symbol.unscopables`, closures, strict-mode rejection. Test262 125/181 before
+  the `eval` stub; nearly all failures used eval. `tests/with.test.ts`.
+- **Modules**: import/export (named, default, namespace, `export * [as ns]`),
+  live bindings, cycles, TDZ, namespace exotic objects, `import.meta`,
+  `import()` from modules and scripts for statically named targets
+  (`nona build x.mjs` or `--module`). `tests/modules.test.ts` (12).
+  Test262 module catalogs pending.
+- **Proper tail calls** in strict code (bounded stack, 1e6-deep recursion).
+  `tests/tail-calls.test.ts`.
+- **Realms**: `$262.createRealm` via per-realm runtime copies sharing one heap,
+  GC, symbol registry and job queue; GetFunctionRealm for prototype fallback
+  and ArraySpeciesCreate. Only compiled in when requested (`realms` option).
+- **Agents**: `$262.agent.*` via agent threads compiled into the image; shared
+  SharedArrayBuffer backing stores; Atomics.wait/notify use a FIFO waiter
+  registry. Verified on Linux with a notify/wait scenario; Atomics catalog
+  pending.
+- `eval` now exists (metadata; non-strings returned; strings throw EvalError);
+  `Function()` without arguments works, with source throws EvalError.
+- Test262 runner: Linux x64, modules, realms, agents, fixtures skipped.
+
 ## Verified baseline to preserve
 
 - Pinned Test262 revision: `7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd`.

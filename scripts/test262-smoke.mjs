@@ -3,6 +3,8 @@ import {readFileSync, mkdirSync, writeFileSync, appendFileSync, readdirSync, chm
 import {resolve, join, dirname} from 'node:path';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {compile} from '../dist/src/compiler.js';
+import {lex} from '../dist/src/frontend/lexer.js';
+import {parse} from '../dist/src/frontend/parser.js';
 
 const PIN = '7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd';
 const root = resolve(process.env.TEST262_ROOT || 'work/test262');
@@ -37,13 +39,69 @@ if ((process.platform !== 'win32' && process.platform !== 'linux') || process.ar
   throw new Error('Native Test262 smoke run requires Windows x64 or Linux x64');
 }
 const target = process.platform === 'linux' ? 'linux-x64' : 'win32-x64';
-const harness = 'var print = function(){}; var $262={detachArrayBuffer:ArrayBuffer.__nonaDetachInternal}; delete ArrayBuffer.__nonaDetachInternal;\n' + ['sta.js', 'assert.js'].map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
+// Realms are compiled in only for tests that create them (each adds a full runtime copy).
+const realmHarness = '(function(){var create=typeof __nonaCreateRealm==="function"?__nonaCreateRealm:undefined;delete globalThis.__nonaCreateRealm;'
+  + 'function wrap(g){var detach=g.ArrayBuffer.__nonaDetachInternal;delete g.ArrayBuffer.__nonaDetachInternal;'
+  + 'return {global:g,detachArrayBuffer:detach,gc:function(){},createRealm:createRealm,evalScript:function(){throw new g.SyntaxError("evalScript requires dynamic code")}}}'
+  + 'function createRealm(){if(!create)throw new Error("createRealm is unavailable");return wrap(create())}'
+  + '$262.createRealm=createRealm;$262.global=globalThis;$262.gc=function(){}})();\n';
+const harness = 'var print = function(){}; var $262={detachArrayBuffer:ArrayBuffer.__nonaDetachInternal}; delete ArrayBuffer.__nonaDetachInternal;\n' + realmHarness + ['sta.js', 'assert.js'].map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
 function filesUnder(directory, prefix) {
   return readdirSync(directory, {withFileTypes: true}).flatMap(entry => {
     const path = `${prefix}/${entry.name}`;
     return entry.isDirectory() ? filesUnder(join(directory, entry.name), path)
-      : entry.isFile() && entry.name.endsWith('.js') ? [path] : [];
+      : entry.isFile() && entry.name.endsWith('.js') && !entry.name.includes('_FIXTURE') ? [path] : [];
   });
+}
+// $262.agent.start(source) arguments must be static strings: each is compiled
+// into the image as a separate agent program (AOT has no runtime compilation).
+function agentSources(source) {
+  if (!source.includes('agent.start')) return [];
+  let ast;
+  try { ast = parse(lex(source)); } catch { return []; }
+  const found = [], constants = new Map();
+  // Top-level `const NAME = literal` values may appear in agent templates.
+  for (const statement of ast.body) if (statement.kind === 'Var' && statement.declarationKind === 'const')
+    for (const declaration of statement.declarations)
+      if (declaration.id.kind === 'Identifier' && declaration.init?.kind === 'Literal') constants.set(declaration.id.name, declaration.init.value);
+  const constant = node => {
+    if (!node) return undefined;
+    if (node.kind === 'Identifier' && constants.has(node.name)) return String(constants.get(node.name));
+    if (node.kind === 'Literal' && typeof node.value === 'number') return String(node.value);
+    if (node.kind === 'Template') {
+      let text = node.quasis[0];
+      for (let i = 0; i < node.expressions.length; i++) {
+        const value = constant(node.expressions[i]);if (value === undefined || node.quasis[i + 1] === undefined) return undefined;
+        text += value + node.quasis[i + 1];
+      }
+      return text;
+    }
+    if (node.kind === 'Literal' && typeof node.value === 'string') return node.value;
+    if (node.kind === 'Template' && node.expressions.length === 0) return node.quasis[0];
+    if (node.kind === 'Binary' && node.operator === '+') {
+      const left = constant(node.left), right = constant(node.right);
+      return left === undefined || right === undefined ? undefined : left + right;
+    }
+    return undefined;
+  };
+  const visit = node => {
+    if (Array.isArray(node)) { node.forEach(visit); return; }
+    if (!node || typeof node !== 'object') return;
+    if (node.kind === 'Call' && node.callee?.kind === 'Member' && node.callee.property?.value === 'start'
+      && node.callee.object?.kind === 'Member' && node.callee.object.property?.value === 'agent') {
+      const value = constant(node.arguments[0]);
+      if (value !== undefined && !found.includes(value)) found.push(value);
+    }
+    for (const [key, value] of Object.entries(node)) if (key !== 'span') visit(value);
+  };
+  visit(ast.body);
+  return found;
+}
+function agentHarness(sources) {
+  if (!sources.length) return '';
+  return 'var __nonaAgentSources=' + JSON.stringify(sources) + ';$262.agent={start:function(source){var index=__nonaAgentSources.indexOf(source);'
+    + 'if(index<0)throw new Error("agent source was not compiled");__nonaAgentStart(index)},broadcast:function(sab,id){__nonaAgentBroadcast(sab,id)},'
+    + 'getReport:function(){return __nonaAgentGetReport()},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}};\n';
 }
 function hasExcludedFeature(path) {
   if(!excludeFeatures.length)return false;
@@ -63,25 +121,31 @@ function runCase(path) {
   const flags = metadata.match(/^flags:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
   const includes = metadata.match(/^includes:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
   const negativePhase = metadata.match(/^negative:\s*\r?\n\s*phase:\s*(\w+)/m)?.[1];
-  if (negativePhase === 'parse') {
-    const parsed = compile(`${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${source}`,
-      {fileName: path, target});
+  const moduleCase = flags.includes('module');
+  if (negativePhase === 'parse' || moduleCase && negativePhase === 'resolution') {
+    const parsed = moduleCase
+      ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: harness})
+      : compile(`${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${source}`, {fileName: path, target});
     return {path, outcome: parsed.ok ? 'fail' : 'pass', phase: 'parse',
       reason: parsed.ok ? 'Expected compiler diagnostic' : undefined,
       diagnostics: parsed.ok ? undefined : parsed.diagnostics};
   }
   const asyncCase=flags.includes('async');
-  if (flags.includes('module') || (asyncCase && !runAsync) || flags.includes('raw') || negativePhase) {
+  if ((asyncCase && !runAsync) || flags.includes('raw') || negativePhase) {
     return {path, outcome: 'skip', reason: 'Unsupported harness mode in smoke runner'};
   }
   const baseHarness=asyncCase?harness.replace('var print = function(){};', 'var print = function(message){console.log(message)};'):harness;
-  const prelude = baseHarness + '\n' + (asyncCase?readFileSync(join(root,'harness','doneprintHandle.js'),'utf8'):'') + '\n'
+  const agents = agentSources(source);
+  const prelude = baseHarness + '\n' + agentHarness(agents) + (asyncCase?readFileSync(join(root,'harness','doneprintHandle.js'),'utf8'):'') + '\n'
     + includes.map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
   const program = `${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${prelude}\n${source}`;
   // Test262 leaves the host's unhandled-rejection policy unspecified. Several
   // Promise tests intentionally abandon a rejected result after checking the
   // synchronous semantics, so use the non-failing host policy for this harness.
-  const compiled = compile(program, {fileName: path, target, unhandledRejections: 'ignore'});
+  const realms = Math.min(3, (source.match(/createRealm/g) || []).length + includes.reduce((count, file) => count + (readFileSync(join(root, 'harness', file), 'utf8').match(/createRealm\(/g) || []).length, 0));
+  const compiled = moduleCase
+    ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents})
+    : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents});
   if (!compiled.ok) {
     return {path, outcome: 'fail', phase: 'compile', diagnostics: compiled.diagnostics};
   }

@@ -1,32 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {chmodSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {runOracle} from './helpers/oracle.js';
-import {runNative} from './helpers/native.js';
-import {compileToIR} from '../src/compiler.js';
-import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
-import {linkLinux} from '../src/backend/linux/index.js';
-
-// Run on the host's native target with GC stress so the tests execute on both
-// Windows and Linux CI runners.
-function run(source:string):{status:number|null;stdout:string;stderr:string;error?:Error}{
- const program=generate(compileToIR(source),{gcStress:true});
- if(process.platform!=='linux'){
-  const result=runNative(linkPe(program));
-  return {status:result.status,stdout:result.stdout.toString(),stderr:result.stderr.toString(),error:result.error};
- }
- const directory=mkdtempSync(join(tmpdir(),'nona-annexb-'));
- try{
-  const executable=join(directory,'image');
-  writeFileSync(executable,linkLinux(program));chmodSync(executable,0o755);
-  const result=spawnSync(executable,[],{encoding:'utf8',timeout:60_000});
-  return {status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
- }finally{rmSync(directory,{recursive:true,force:true});}
-}
+import {runOnHost as run} from './helpers/host.js';
 
 const cases:[string,string][]=[
  ['metadata','let p=Object.prototype;for(const n of ["__defineGetter__","__defineSetter__","__lookupGetter__","__lookupSetter__"]){let d=Object.getOwnPropertyDescriptor(p,n),f=d.value;console.log(n,f.name,f.length,d.writable,d.enumerable,d.configurable,typeof f,"prototype" in f,p.propertyIsEnumerable(n));}'],

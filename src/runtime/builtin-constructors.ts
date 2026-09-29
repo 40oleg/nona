@@ -77,7 +77,15 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
  }
  // Function exists for reflection/prototype identity. Dynamic compilation is
  // deliberately excluded from this compiler's scope, including via constructor.
- b.fn('rt.Function.code',40,a=>a.call('rt.fail'));
+ // Function() with no arguments needs no compilation: it is an empty
+ // sloppy function named "anonymous". Any source text remains an exception.
+ b.bundle.fragments.push(stringLiteral('rt.Function.anonymous','anonymous'),stringLiteral('rt.Function.emptySource','function anonymous(\n) {\n\n}'));
+ b.fn('rt.Function.code',56,a=>{
+  a.test('rdx','rdx');const empty=a.unique('empty');a.jcc('e',empty);a.call('rt.throwEvalError');a.label(empty);
+  a.store(slot(40),'rcx');a.lea('rdx',{rip:'rt.emptyFunction'});a.mov('r8',0);a.mov('r9',0);a.call('rt.newFunction');
+  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.Function.anonymous'});a.mov('r8',0);a.call('rt.initFunctionMetadata');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rax',{rip:'rt.Function.emptySource'});a.store({base:'rcx',disp:F.sourceText},'rax');
+ });
  b.fn('rt.Symbol.construct',40,a=>a.call('rt.throwTypeError'));
  rootedFn(b,'rt.Symbol.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(72),'rax');

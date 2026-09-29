@@ -18,6 +18,10 @@ import {lex} from '../../frontend/lexer.js';
 import {parse} from '../../frontend/parser.js';
 import {bind} from '../../frontend/binder.js';
 import {lower} from '../../ir/lower.js';
+import {cloneRealms,realmSymbol} from '../realms.js';
+import {mergeAgentPrograms,agentSymbol} from '../agents.js';
+import {realmTableIntrinsics} from '../../runtime/constructor-prototype.js';
+import {stringLiteral} from '../../runtime/value.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -25,7 +29,7 @@ const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 const cachedRuntimePreludes=new Map<'throw'|'ignore',ModuleIR>();
 
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore'}={}):NativeProgram {
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[]}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
@@ -46,7 +50,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       }),
     }))})),
   ]};
-  const runtime=emitRuntime();
+  const realms=prelude?options.realms??0:0;
+  const runtime=emitRuntime({operations:new Set(),realms});
   if(prelude)runtime.fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push(
     {offset:0,kind:'va64',target:'js.globals',addend:userGlobalCount*16});
   const fragments:NamedFragment[]=[...runtime.fragments];
@@ -131,9 +136,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'readGlobalProperty':pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',op.allowMissing?1:0);a.call('rt.readGlobalProperty');break;
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
-          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow?'rt.newMethod':'rt.newFunction');
+          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');
           if(op.classConstructor){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
-          if(op.generator){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
+          if(op.async){
+            a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
+            if(op.generator){pointer('rcx',op.dest);a.call('rt.initializeAsyncGeneratorFunction');}
+            else{a.lea('rax',{rip:'rt.asyncFunctionPrototype'});a.store({base:'r10',disp:O.prototype},'rax');}
+          }
+          else if(op.generator){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
           if(op.strict||op.arrow){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
           if(op.arrow){
             a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
@@ -225,7 +235,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
           a.store(stack(40),'rax');
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.construct?'rt.invokeConstruct':'rt.invoke');break;
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');break;
         case 'invokeArray':
           a.mov('rax',op.construct?1:0);a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
@@ -234,7 +244,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           if(op.receiver===undefined)a.lea('r9',{rip:'rt.undefinedValue'});else pointer('r9',op.receiver);
           a.call('rt.invokeArray');break;
         case 'yield':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.generatorYield');break;
-        case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call('rt.generatorYieldDelegated');break;
+        case 'await':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.generatorAwait');break;
+        case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
         case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);a.call('rt.newObject');break;
@@ -295,23 +306,101 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     finish(a,fn.id,allocation,prologSize);
   }
   module.functions.forEach(emitFunction);
+  // Host functions installed as properties of the global object before the prelude.
+  const hostGlobals:string[]=[];
+  const hostGlobal=(name:string,code:string,length:number):void=>{
+    const base='host.'+name;
+    fragments.push(stringLiteral(base+'.key',name),stringLiteral(base+'.source',`function ${name}() { [native code] }`));
+    const callable=new Uint8Array(FunctionLayout.size);callable[O.kind]=FunctionKind;callable[FunctionLayout.rawThis]=1;
+    const lengthProperty=new Uint8Array(P.size);lengthProperty[P.value]=3;lengthProperty[P.attributes]=A.configurable;new DataView(lengthProperty.buffer).setFloat64(P.value+8,length,true);
+    fragments.push({name:base+'.length',section:'.data',alignment:8,bytes:lengthProperty,symbols:{},fixups:[{offset:P.key,kind:'va64',target:'rt.str.length',addend:0}]});
+    const nameProperty=new Uint8Array(P.size);nameProperty[P.value]=4;nameProperty[P.attributes]=A.configurable;
+    fragments.push({name:base+'.name',section:'.data',alignment:8,bytes:nameProperty,symbols:{},fixups:[
+      {offset:P.next,kind:'va64',target:base+'.length',addend:0},{offset:P.key,kind:'va64',target:'rt.str.name',addend:0},{offset:P.value+8,kind:'va64',target:base+'.key',addend:0}]});
+    fragments.push({name:base+'.fn',section:'.data',alignment:8,bytes:callable,symbols:{},fixups:[
+      {offset:O.properties,kind:'va64',target:base+'.name',addend:0},
+      {offset:O.prototype,kind:'va64',target:'rt.functionPrototype',addend:0},
+      {offset:FunctionLayout.code,kind:'va64',target:code,addend:0},
+      {offset:FunctionLayout.sourceText,kind:'va64',target:base+'.source',addend:0},
+    ]});
+    const keyValue=new Uint8Array(16);keyValue[0]=4;const fnValue=new Uint8Array(16);fnValue[0]=5;
+    fragments.push({name:base+'.keyValue',section:'.rdata',alignment:8,bytes:keyValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.key',addend:0}]});
+    fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
+    hostGlobals.push(base);
+  };
+  const agentPrograms=options.agentPrograms??[];
+  if(options.agent){
+    hostGlobal('__nonaAgentReceiveBroadcast','rt.agentReceiveBroadcast.code',1);
+    hostGlobal('__nonaAgentReport','rt.agentReport.code',1);
+    hostGlobal('__nonaAgentSleep','rt.agentSleep.code',1);
+  }
+  if(agentPrograms.length){
+    hostGlobal('__nonaAgentStart','rt.agentStart.code',1);
+    hostGlobal('__nonaAgentBroadcast','rt.agentBroadcast.code',2);
+    hostGlobal('__nonaAgentGetReport','rt.agentGetReport.code',0);
+    hostGlobal('__nonaAgentSleep','rt.agentSleep.code',1);
+  }
+  if(realms>0){
+    // realm.createRealm(): initialize the next cloned realm and return its global.
+    hostGlobal('__nonaCreateRealm','realm.createRealm.code',0);
+    fragments.push({name:'realm.count',section:'.data',alignment:8,bytes:new Uint8Array(8),fixups:[],symbols:{}});
+    const a=new Assembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
+    a.store(stack(72),'rcx');
+    a.load('rax',{rip:'realm.count'});a.add('rax',1);a.cmp('rax',realms);failIf(a,'a','rt.throwRangeError');a.store({rip:'realm.count'},'rax');
+    const done=a.unique('done');
+    for(let realm=1;realm<=realms;realm++){
+      const next=a.unique('next');a.load('rax',{rip:'realm.count'});a.cmp('rax',realm);a.jcc('ne',next);
+      const r=(name:string)=>realmSymbol(realm,name);
+      a.lea('rax',{rip:r('js.globals')});a.store({rip:r('rt.gcGlobals')},'rax');
+      a.mov('rax',module.globalCount);a.store({rip:r('rt.gcGlobalCount')},'rax');
+      a.lea('rax',{rip:r('js.globalBindings')});a.store({rip:r('rt.globalBindings')},'rax');
+      a.mov('rax',0);a.store({rip:r('rt.globalBindingCount')},'rax');
+      a.mov('rax',1);a.store({rip:r('rt.realmReady')},'rax');
+      a.lea('rax',{rip:r('rt.globalValue')});a.store(stack(32),'rax');
+      a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+      a.lea('rcx',stack(48));a.mov('rdx',0);a.lea('r8',stack(48));a.mov('r9',0);a.call(r('js.regexpVm.main'));
+      a.load('rcx',stack(72));for(const offset of [0,8]){a.load('rax',{rip:r('rt.globalValue'),addend:offset});a.store({base:'rcx',disp:offset},'rax');}
+      a.jmp(done);a.label(next);
+    }
+    a.label(done);a.add('rsp',size);a.ret();finish(a,'realm.createRealm.code',size,prolog);
+    cloneRealms(fragments,functions,realms,FunctionLayout.size,FunctionLayout.realm);
+  }
+  // Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts).
+  for(const intrinsic of realmTableIntrinsics)fragments.push({name:'realm.table.'+intrinsic,section:'.rdata',alignment:8,bytes:new Uint8Array(8*(realms+1)),symbols:{},
+    fixups:Array.from({length:realms+1},(_,realm)=>({offset:8*realm,kind:'va64' as const,target:realm===0?intrinsic:realmSymbol(realm,intrinsic),addend:0}))});
+  // Thread entries of the linked agent programs.
+  const count=new Uint8Array(8);new DataView(count.buffer).setBigUint64(0,BigInt(agentPrograms.length),true);
+  fragments.push({name:'agent.entryCount',section:'.rdata',alignment:8,bytes:count,symbols:{},fixups:[]});
+  fragments.push({name:'agent.entries',section:'.rdata',alignment:8,bytes:new Uint8Array(Math.max(8,8*agentPrograms.length)),symbols:{},
+    fixups:agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}))});
+  mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
   entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
   entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
-  entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');
-  entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
-  entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
-  if(prelude){
-    entry.call('js.regexpVm.main');
-    entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  for(const base of hostGlobals){
+    entry.lea('rcx',{rip:'rt.globalValue'});entry.lea('rdx',{rip:base+'.keyValue'});entry.lea('r8',{rip:base+'.fnValue'});
+    entry.mov('r9',A.writable|A.configurable);entry.call('rt.setProperty');
   }
-  entry.call('js.main');
-  if(prelude){
+  const callArguments=()=>{
+    entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
+    entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  };
+  const drain=()=>{
     entry.lea('rcx',stack(48));entry.lea('rdx',{rip:'js.globals'});entry.add('rdx',(userGlobalCount+1)*16);
     entry.mov('r8',0);entry.lea('r9',stack(48));entry.call('rt.invoke');
+  };
+  callArguments();
+  if(prelude){entry.call('js.regexpVm.main');callArguments();}
+  entry.call('js.main');
+  if(prelude)drain();
+  if(options.agent){
+    // An agent thread handles one broadcast, runs its jobs and returns.
+    entry.call('rt.agentAwaitBroadcast');if(prelude)drain();
+    entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  }else{
+    entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }
-  entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

@@ -1,3 +1,5 @@
+import {realmTable} from './constructor-prototype.js';
+import {FunctionKind} from './functions.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind} from './object-layout.js';
@@ -61,6 +63,12 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.mov('rcx','rdx');a.call('rt.isArray');a.test('rax','rax');a.jcc('e',fallback);
   a.lea('rcx',slot(80));a.load('rdx',slot(56));a.lea('r8',{rip:'rt.key.constructor'});a.call('rt.getProperty');
   a.load('rax',slot(80));a.test('rax','rax');a.jcc('e',fallback);a.cmp('rax',5);a.jcc('ne',construct);
+  // Another realm's %Array% constructor is replaced by this realm's default.
+  const sameRealm=a.unique('sameRealm');
+  a.load('rcx',slot(88));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',sameRealm);
+  a.call('rt.functionRealm');a.load('r10',{rip:'rt.realmIndex'});a.cmp('rax','r10');a.jcc('e',sameRealm);
+  a.shl('rax',3);a.lea('r10',{rip:realmTable('rt.Array')});a.add('r10','rax');a.load('r10',{base:'r10'});a.load('r11',slot(88));a.cmp('r10','r11');a.jcc('e',fallback);
+  a.label(sameRealm);
   a.mov('rax',6);a.store(slot(160),'rax');a.lea('rax',{rip:'rt.Symbol.species.value'});a.store(slot(168),'rax');
   a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.lea('r8',slot(160));a.call('rt.getProperty');
   a.load('rax',slot(96));a.cmp('rax',1);a.jcc('be',fallback);

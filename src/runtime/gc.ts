@@ -24,6 +24,7 @@ import {emitGcIndex} from './gc-index.js';
 import {FunctionLayout,FunctionKind} from './functions.js';
 import {ContextLayout} from './context-switch.js';
 import {GeneratorKind,GeneratorLayout as G,generatorRoots,generatorPropertyRoots} from './generator.js';
+import {asyncRoots,asyncPropertyRoots} from './async.js';
 import {CellTag,EnvironmentLayout as E} from './environment-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {callStaticProperties} from './function-call.js';
@@ -59,10 +60,13 @@ import {stringLocaleCompareRoots,stringLocaleComparePropertyRoots} from './strin
 import {stringReplaceRoots,stringReplacePropertyRoots} from './string-replace.js';
 
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
-export function emitGc(b:RuntimeBuilder):void {
+/** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
+export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  emitGcIndex(b);
  for(const name of ['gcGlobals','gcGlobalCount','gcRoots','gcGrey','gcCount'])
   b.data('rt.'+name,new Uint8Array(8),'.data');
+ // Nonzero once a cloned realm is initialized; the main realm is always live.
+ b.data('rt.realmReady',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
  const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,1048576n,true);
  b.data('rt.gcThreshold',threshold,'.data');
 
@@ -188,16 +192,27 @@ export function emitGc(b:RuntimeBuilder):void {
   a.label(nextEntry);a.load('rax',slot(72));a.store(slot(56),'rax');a.jmp(entries);
   a.label(nextBlock);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:H.next});a.store(slot(40),'rax');a.jmp(blocks);a.label(done);
  });
+ // Roots owned by one realm: its global storage, intrinsics and static properties.
+ b.fn('rt.gcMarkRealm',40,a=>{
+  a.load('rcx',{rip:'rt.gcGlobals'});a.load('rdx',{rip:'rt.gcGlobalCount'});a.call('rt.gcMarkRange');
+  a.lea('rcx',{rip:'rt.agentCallback'});a.mov('rdx',1);a.call('rt.gcMarkRange');
+  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','bigintPrototype','datePrototype','regexpPrototype','mapPrototype','mapIteratorPrototype','setCollectionPrototype','setIteratorPrototype','weakmapPrototype','weaksetPrototype','arraybufferPrototype','sharedarraybufferPrototype','dataviewPrototype','typedArrayPrototype','int8arrayPrototype','uint8arrayPrototype','uint8clampedarrayPrototype','int16arrayPrototype','uint16arrayPrototype','uint32arrayPrototype','int32arrayPrototype','uint32arrayPrototype','float32arrayPrototype','float64arrayPrototype','bigint64arrayPrototype','biguint64arrayPrototype','symbolPrototype','generatorPrototype','generatorFunctionPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
+  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...dateRoots,...regexpRoots,...mapRoots,...mapIteratorRoots,...setRoots,...setIteratorRoots,...weakCollectionRoots,...arrayBufferRoots,...sharedArrayBufferRoots,...atomicsRoots,...dataViewRoots,...typedArrayRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...uriRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...asyncRoots,...arrayBuiltinRoots,...arraySpliceRoots,...arrayOfRoots,...arrayFromRoots,...arrayConcatRoots,...arrayFlatRoots,...arrayLocaleRoots,...arraySortRoots,...arrayUnscopablesRoots,...stringBuiltinRoots,...stringSplitRoots,...stringReplaceRoots,...stringNormalizeRoots,...stringLocaleCompareRoots,...mathRoots,...jsonRoots,...bigintRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
+  // Static property nodes are outside the managed heap index. Trace them explicitly.
+  for(const name of ['name','length']){a.lea('rcx',{rip:'rt.functionPrototype.'+name});a.call('rt.gcTraceProperty');}
+  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...datePropertyRoots,...regexpPropertyRoots,...mapPropertyRoots,...mapIteratorPropertyRoots,...setPropertyRoots,...setIteratorPropertyRoots,...weakCollectionPropertyRoots,...arrayBufferPropertyRoots,...sharedArrayBufferPropertyRoots,...atomicsPropertyRoots,...dataViewPropertyRoots,...typedArrayPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...proxyPropertyRoots,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...uriPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...asyncPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...arrayOfPropertyRoots,...arrayFromPropertyRoots,...arrayConcatPropertyRoots,...arrayFlatPropertyRoots,...arrayLocalePropertyRoots,...arraySortPropertyRoots,...arrayUnscopablesPropertyRoots,...stringBuiltinPropertyRoots,...stringSplitPropertyRoots,...stringReplacePropertyRoots,...stringNormalizePropertyRoots,...stringLocaleComparePropertyRoots,...mathPropertyRoots,...jsonPropertyRoots,...bigintPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+ });
  b.fn('rt.collect',72,a=>{
   const mark=a.unique('mark'),sweep=a.unique('sweep'),sweepLoop=a.unique('sweepLoop'),keep=a.unique('keep'),finish=a.unique('finish');
   a.load('rax',{rip:'rt.gcCount'});a.add('rax',1);a.store({rip:'rt.gcCount'},'rax');
   a.call('rt.gcBuildIndex');
-  a.load('rcx',{rip:'rt.gcGlobals'});a.load('rdx',{rip:'rt.gcGlobalCount'});a.call('rt.gcMarkRange');
-  for(const prototype of ['objectPrototype','arrayPrototype','functionPrototype','functionCall','functionApply','functionBind','functionToString','booleanPrototype','numberPrototype','stringPrototype','bigintPrototype','datePrototype','regexpPrototype','mapPrototype','mapIteratorPrototype','setCollectionPrototype','setIteratorPrototype','weakmapPrototype','weaksetPrototype','arraybufferPrototype','sharedarraybufferPrototype','dataviewPrototype','typedArrayPrototype','int8arrayPrototype','uint8arrayPrototype','uint8clampedarrayPrototype','int16arrayPrototype','uint16arrayPrototype','uint32arrayPrototype','int32arrayPrototype','uint32arrayPrototype','float32arrayPrototype','float64arrayPrototype','bigint64arrayPrototype','biguint64arrayPrototype','symbolPrototype','generatorPrototype','generatorFunctionPrototype','globalObject']){a.lea('rcx',{rip:'rt.'+prototype});a.call('rt.gcTraceObject');}
-  for(const symbol of [...consoleRoots,...strictRoots,...errorRoots,...dateRoots,...regexpRoots,...mapRoots,...mapIteratorRoots,...setRoots,...setIteratorRoots,...weakCollectionRoots,...arrayBufferRoots,...sharedArrayBufferRoots,...atomicsRoots,...dataViewRoots,...typedArrayRoots,...objectMethodRoots,...wrapperMethodRoots,...constructorRoots,...numberBuiltinRoots,...uriRoots,...symbolRoots,...iteratorRoots,...generatorRoots,...arrayBuiltinRoots,...arraySpliceRoots,...arrayOfRoots,...arrayFromRoots,...arrayConcatRoots,...arrayFlatRoots,...arrayLocaleRoots,...arraySortRoots,...arrayUnscopablesRoots,...stringBuiltinRoots,...stringSplitRoots,...stringReplaceRoots,...stringNormalizeRoots,...stringLocaleCompareRoots,...mathRoots,...jsonRoots,...bigintRoots,...inspectionRoots,...descriptorRoots,...collectionRoots,...integrityRoots]){a.lea('rcx',{rip:symbol});a.call('rt.gcTraceObject');}
-  // Static property nodes are outside the managed heap index. Trace them explicitly.
-  for(const name of ['name','length']){a.lea('rcx',{rip:'rt.functionPrototype.'+name});a.call('rt.gcTraceProperty');}
-  for(const name of [...consolePropertyRoots,...strictPropertyRoots,...errorPropertyRoots,...datePropertyRoots,...regexpPropertyRoots,...mapPropertyRoots,...mapIteratorPropertyRoots,...setPropertyRoots,...setIteratorPropertyRoots,...weakCollectionPropertyRoots,...arrayBufferPropertyRoots,...sharedArrayBufferPropertyRoots,...atomicsPropertyRoots,...dataViewPropertyRoots,...typedArrayPropertyRoots,...callStaticProperties,...applyStaticProperties,...bindStaticProperties,...sourceStaticProperties,...proxyPropertyRoots,...objectMethodPropertyRoots,...wrapperMethodPropertyRoots,...globalStaticProperties,...constructorPropertyRoots,...numberBuiltinPropertyRoots,...uriPropertyRoots,...symbolPropertyRoots,...iteratorPropertyRoots,...generatorPropertyRoots,...arrayBuiltinPropertyRoots,...arraySplicePropertyRoots,...arrayOfPropertyRoots,...arrayFromPropertyRoots,...arrayConcatPropertyRoots,...arrayFlatPropertyRoots,...arrayLocalePropertyRoots,...arraySortPropertyRoots,...arrayUnscopablesPropertyRoots,...stringBuiltinPropertyRoots,...stringSplitPropertyRoots,...stringReplacePropertyRoots,...stringNormalizePropertyRoots,...stringLocaleComparePropertyRoots,...mathPropertyRoots,...jsonPropertyRoots,...bigintPropertyRoots,...inspectionPropertyRoots,...descriptorPropertyRoots,...collectionPropertyRoots,...integrityPropertyRoots]){a.lea('rcx',{rip:name});a.call('rt.gcTraceProperty');}
+  a.lea('rcx',{rip:'rt.tailPending'});a.mov('rdx',3);a.call('rt.gcMarkRange');
+  a.lea('rcx',{rip:'rt.sharedJobQueue'});a.mov('rdx',1);a.call('rt.gcMarkRange');
+  a.call('rt.gcMarkRealm');
+  for(let realm=1;realm<=extraRealms;realm++){
+   const skip=a.unique('realmSkip');a.load('rax',{rip:`R${realm}$rt.realmReady`});a.test('rax','rax');a.jcc('e',skip);
+   a.call(`R${realm}$rt.gcMarkRealm`);a.label(skip);
+  }
   a.load('rax',{rip:'rt.symbolRegistry'});a.store(slot(48),'rax');const symbolRecord=a.unique('symbolRecord'),symbolRecordsDone=a.unique('symbolRecordsDone');
   a.label(symbolRecord);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',symbolRecordsDone);
   a.mov('rcx','rax');a.call('rt.gcMarkPointer');a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:8});a.call('rt.gcMarkPointer');

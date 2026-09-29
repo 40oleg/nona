@@ -18,7 +18,7 @@ export function emitErrors(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.error.runtimeMessageValue',section:'.rdata',alignment:8,bytes:runtimeMessage,symbols:{},fixups:[pointer(8,'rt.error.runtimeMessage')]});
  // Intrinsic construction with a static string has no callbacks or safepoints.
  // The thrown object is copied into the catch root before collection can run.
- for(const name of ['TypeError','ReferenceError','RangeError','SyntaxError','URIError'])b.fn('rt.throw'+name,72,a=>{
+ for(const name of ['TypeError','ReferenceError','RangeError','SyntaxError','URIError','EvalError'])b.fn('rt.throw'+name,72,a=>{
   a.lea('rcx',slot(48));a.mov('rdx',1);a.lea('r8',{rip:'rt.error.runtimeMessageValue'});a.call('rt.'+name+'.code');
   a.lea('rcx',slot(48));a.call('rt.throw');
  });

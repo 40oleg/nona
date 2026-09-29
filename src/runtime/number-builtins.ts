@@ -1,12 +1,12 @@
-import {RuntimeBuilder,slot} from './abi.js';
+import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {stringLiteral} from './value.js';
 
 const names=['isFinite','isInteger','isNaN','isSafeInteger'] as const;
-export const numberBuiltinRoots=[...names.map(name=>'rt.Number.'+name+'.fn'),...['isFinite','isNaN','parseInt','parseFloat'].map(name=>'rt.global.'+name+'.fn')];
-export const numberBuiltinPropertyRoots=[...names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number')),...['isFinite','isNaN','parseInt','parseFloat'].flatMap(name=>builtinPropertyRoots('rt.global.'+name+'.fn',name,'rt.globalObject')),'rt.Number.parseInt','rt.Number.parseFloat'];
+export const numberBuiltinRoots=[...names.map(name=>'rt.Number.'+name+'.fn'),...['isFinite','isNaN','parseInt','parseFloat','eval'].map(name=>'rt.global.'+name+'.fn')];
+export const numberBuiltinPropertyRoots=[...names.flatMap(name=>builtinPropertyRoots('rt.Number.'+name+'.fn',name,'rt.Number')),...['isFinite','isNaN','parseInt','parseFloat','eval'].flatMap(name=>builtinPropertyRoots('rt.global.'+name+'.fn',name,'rt.globalObject')),'rt.Number.parseInt','rt.Number.parseFloat'];
 
 function aliasNumberMethod(b:RuntimeBuilder,name:string,symbol:string):void {
  const owner=b.bundle.fragments.find(f=>f.name==='rt.Number')!;
@@ -49,6 +49,16 @@ export function emitNumberBuiltins(b:RuntimeBuilder):void {
    a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.movqFromXmm('rax','xmm0');a.store({base:'rcx',disp:8},'rax');
   });
  }
+ // eval is a documented exception: it exists with its standard metadata and
+ // returns non-string arguments unchanged (PerformEval step 2), but source
+ // text would need runtime compilation and throws EvalError instead.
+ prependFunctionBuiltin(b,'rt.global.eval.fn','eval',1,'rt.globalObject');
+ b.fn('rt.global.eval.fn.code',40,a=>{
+  const undefinedResult=a.unique('undefinedResult'),done=a.unique('done');a.test('rdx','rdx');a.jcc('e',undefinedResult);
+  a.load('rax',{base:'r8'});a.cmp('rax',4);failIf(a,'e','rt.throwEvalError');
+  for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store({base:'rcx',disp:offset},'rax');}a.jmp(done);
+  a.label(undefinedResult);a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
+ });
  for(const name of ['isFinite','isNaN'] as const){
   const symbol='rt.global.'+name+'.fn';
   prependFunctionBuiltin(b,symbol,name,1,'rt.globalObject');
