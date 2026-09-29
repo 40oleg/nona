@@ -443,7 +443,7 @@ class Parser {
     const left=this.conditional();
     if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>='].includes(this.token.text)) {
       const opToken=this.take(), operator=opToken.text;
-      if(left.kind!=='Identifier'&&left.kind!=='Member'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')))this.error('Assignment requires a variable or property',opToken);
+      if(left.kind!=='Identifier'&&left.kind!=='Member'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')&&!this.parenthesized.has(left)))this.error('Assignment requires a variable or property',opToken);
       const target=left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral'?this.assignmentPattern(left):left;
       const right=this.assignment();return {kind:'Assignment',operator,left:target,right,span:{start:left.span.start,end:right.span.end}};
     }
@@ -476,7 +476,18 @@ class Parser {
     let parameters:A.BindingPattern[]=[],defaults:(A.Expression|null)[]=[],rest:A.BindingPattern|null=null;
     if(this.at('(')){
       // Arrow parameters keep the enclosing yield/await restrictions.
+      const inGenerator=this.generatorContext;
       ({parameters,defaults,rest}=this.functionParameters(false,isAsync||this.asyncContext||this.awaitIdentifierForbidden));
+      // ArrowFormalParameters may not contain YieldExpression or AwaitExpression (ES2020 14.2.1, 14.8.1).
+      const found=(node:unknown):boolean=>{
+        if(!node||typeof node!=='object')return false;
+        if(Array.isArray(node))return node.some(found);
+        const kind=(node as A.Node).kind;
+        if(kind==='Yield'||kind==='Await'||inGenerator&&kind==='Identifier'&&(node as A.Identifier).name==='yield')return true;
+        if(kind==='FunctionExpression'||kind==='Function'||kind==='Class'||kind==='ClassExpression')return false;
+        return Object.entries(node).some(([key,value])=>key!=='span'&&found(value));
+      };
+      if(found([parameters,defaults,rest]))this.error('Arrow parameters cannot contain yield or await expressions');
     }else {parameters.push(this.id());defaults.push(null);}
     this.need('=>');
     let body:A.Block;
@@ -667,7 +678,7 @@ class Parser {
       this.need(']');return {kind:'ArrayLiteral',elements,trailingCommaAfterSpread,span:this.span(t.span.start)};
     }
     if(this.match('{')) {
-      const properties:A.ObjectLiteral['properties']=[];let hasPrototype=false,trailingCommaAfterSpread=false;
+      const properties:A.ObjectLiteral['properties']=[];let hasPrototype=false,trailingCommaAfterSpread=false,duplicateProto=false;
       while(!this.at('}')) {
         if(this.match('...')){properties.push({spread:this.assignment()});if(!this.match(','))break;if(this.at('}'))trailingCommaAfterSpread=true;continue;}
         const propertyStart=this.token.span.start;
@@ -698,7 +709,7 @@ class Parser {
         else if(generator)this.error('Expected generator method parameter list');
         else if(this.match(':')){
           prototype=!computed&&key.kind==='Literal'&&key.value==='__proto__';
-          if(prototype&&hasPrototype)this.error('Duplicate __proto__ property');hasPrototype ||= prototype;
+          if(prototype&&hasPrototype)duplicateProto=true;hasPrototype ||= prototype;
           value=this.assignment();
         }else{
           if(computed||!shorthand||shorthand.kind!=='word'||this.reservedIdentifier(String(shorthand.value??shorthand.text)))this.error('Invalid shorthand property');
@@ -707,7 +718,7 @@ class Parser {
         }
         properties.push({key,value,prototype,computed,coverInitialized,...(accessor?{accessor}:{})});if(!this.match(','))break;
       }
-      this.need('}');return {kind:'ObjectLiteral',properties,trailingCommaAfterSpread,span:this.span(t.span.start)};
+      this.need('}');return {kind:'ObjectLiteral',properties,trailingCommaAfterSpread,...(duplicateProto?{duplicateProto:true}:{}),span:this.span(t.span.start)};
     }
     if(t.kind==='number'||t.kind==='string') {this.take();return {kind:'Literal',value:t.value!,span:t.span,...(t.legacyOctal?{legacyOctal:true}:{})};}
     if(t.kind==='regexp'){this.take();return {kind:'RegExpLiteral',pattern:t.pattern!,flags:t.flags!,span:t.span};}

@@ -191,11 +191,19 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
           {const nonnull=a.unique('superBaseObject'),done=a.unique('superBaseDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superConstructor':
-          a.load('rax',stack(64));a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
+          if(op.func!==undefined)a.load('rax',stack(valueBase+16*op.func+8));else a.load('rax',stack(64));
+          a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
           {const nonnull=a.unique('superConstructorObject'),done=a.unique('superConstructorDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superReceiver':copy(value(op.dest),stack(superReceiverBase));break;
         case 'setFunctionHomeObject':a.load('r10',stack(valueBase+16*op.func+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');break;
-        case 'setCurrentThis':if(fn.derivedConstructor){
+        case 'setCurrentThis':if(!fn.derivedConstructor){
+          // An arrow's lexical this may be its derived constructor's this cell.
+          const direct=a.unique('directSetThis'),done=a.unique('setThisDone');
+          a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('ne',direct);
+          a.load('r10',stack(thisBase+8));a.load('rax',{base:'r10'});a.cmp('rax',255);failIf(a,'ne','rt.throwReferenceError');
+          a.lea('rcx',stack(thisBase));pointer('rdx',op.source);a.call('rt.writeCell');a.jmp(done);
+          a.label(direct);copy(stack(thisBase),value(op.source));a.label(done);
+        }else if(fn.derivedConstructor){
           a.load('r10',stack(thisBase+8));a.load('rax',{base:'r10'});a.cmp('rax',255);failIf(a,'ne','rt.throwReferenceError');
           a.lea('rcx',stack(thisBase));pointer('rdx',op.source);a.call('rt.writeCell');
         }else copy(stack(thisBase),value(op.source));break;

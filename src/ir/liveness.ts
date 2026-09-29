@@ -17,6 +17,7 @@ function transfer(operation:Operation,live:Set<number>):void {
  if(operation.kind==='getIterator')live.delete(operation.iterator),live.delete(operation.next);
   if(operation.kind==='iteratorStep')live.delete(operation.done);
  if(operation.kind==='yieldDelegated')live.delete(operation.mode);
+ if(operation.kind==='superConstructor'&&operation.func!==undefined)live.add(operation.func);
  switch(operation.kind){
   case 'pushHandler':case 'popHandler':case 'generatorInitialSuspend':return;
   case 'newTarget':case 'superBase':case 'superConstructor':case 'superReceiver':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'newRestArray':case 'uninitialized':case 'immutableWrite':

@@ -294,7 +294,8 @@ class Lowerer {
         if(ref.resolvable!==undefined)this.emit({kind:'checkResolvable',slot:ref.resolvable});
         this.emit({kind:'checkResolvable',slot:this.globalExists(binding.name)});
       }
-      this.write(ref.id,source);
+      // The reference was already resolved (with objects included) by reference().
+      this.writeStatic(ref.id,source);
     }
     else if(ref.receiver!==undefined){this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
     else {
@@ -663,8 +664,9 @@ class Lowerer {
       }
       case 'Call': {
         if(e.callee.kind==='Super'){
-          const base=this.slot(),receiver=this.slot(),result=this.slot(),dest=this.slot();
-          this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});
+          const result=this.slot(),dest=this.slot();let base=this.slot(),receiver=this.slot();
+          if(e.superRefs){this.emit({kind:'superConstructor',dest:base,func:this.read(e.superRefs.func)});receiver=this.read(e.superRefs.receiver);}
+          else{this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});}
           const target=this.slot();this.emit({kind:'newTarget',dest:target});
           this.invokeWithArguments(result,base,this.lowerArguments(e.arguments),receiver,true,target);
           this.emit({kind:'constructorResult',dest,result,instance:receiver});this.emit({kind:'setCurrentThis',source:dest});return dest;
@@ -1045,6 +1047,12 @@ class Lowerer {
       this.store(this.binding(fn.declaration.id!),this.closure(fn));
     }
     if(this.fn?.declaration.generator)this.emit({kind:'generatorInitialSuspend'});
+    if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor){
+      for(const binding of this.fn.locals)if(binding.name==='#superFunction'||binding.name==='#superReceiver'){
+        const value=this.slot();this.emit(binding.name==='#superFunction'?{kind:'currentFunction',dest:value}:{kind:'superReceiver',dest:value});
+        this.store(binding,value);
+      }
+    }
     if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor&&this.fn.declaration.defaultClassConstructor){
       const base=this.slot(),receiver=this.slot(),args=this.slot(),result=this.slot(),dest=this.slot();
       this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});this.emit({kind:'newRestArray',dest:args,start:0});

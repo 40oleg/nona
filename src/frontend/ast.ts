@@ -15,7 +15,7 @@ export interface RegExpLiteral extends Node {kind:'RegExpLiteral';pattern:string
 export interface Unary extends Node { kind: 'Unary'; operator: string; argument: Expression }
 export interface Member extends Node {kind:'Member';object:Expression;property:Expression}
 export type Assignable = Identifier|Member;
-export interface ObjectLiteral extends Node {kind:'ObjectLiteral';trailingCommaAfterSpread?:boolean;properties:({key:Expression;value:Expression;prototype:boolean;computed?:boolean;coverInitialized?:boolean;accessor?:'get'|'set'}|{spread:Expression})[]}
+export interface ObjectLiteral extends Node {kind:'ObjectLiteral';trailingCommaAfterSpread?:boolean;/** Early error unless the literal becomes an assignment pattern. */duplicateProto?:boolean;properties:({key:Expression;value:Expression;prototype:boolean;computed?:boolean;coverInitialized?:boolean;accessor?:'get'|'set'}|{spread:Expression})[]}
 export interface SpreadElement extends Node {kind:'SpreadElement';argument:Expression}
 export interface ArrayLiteral extends Node {kind:'ArrayLiteral';trailingCommaAfterSpread?:boolean;elements:(Expression|SpreadElement|null)[]}
 export interface Template extends Node {kind:'Template';quasis:string[];expressions:Expression[]}
@@ -27,7 +27,7 @@ export interface Binary extends Node { kind: 'Binary'; operator: string; left: E
 export interface Assignment extends Node { kind: 'Assignment'; operator: string; left: Assignable|ArrayPattern|ObjectPattern; right: Expression }
 export interface Conditional extends Node { kind: 'Conditional'; test: Expression; consequent: Expression; alternate: Expression }
 export type Argument=Expression|SpreadElement;
-export interface Call extends Node { kind: 'Call'; callee: Expression; arguments: Argument[] }
+export interface Call extends Node { kind: 'Call'; callee: Expression; arguments: Argument[]; /** super() inside an arrow: the derived constructor's function and receiver. */superRefs?:{func:Identifier;receiver:Identifier} }
 export interface New extends Node {kind:'New';callee:Expression;arguments:Argument[]}
 export type OptionalLink=
   | {kind:'property';property:Expression;computed:boolean;optional:boolean;span:Span}

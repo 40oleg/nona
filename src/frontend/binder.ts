@@ -85,6 +85,9 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       fn.self=self;fn.locals.push(self);bindings.set(fn.declaration.id,self);scopes.push(new Map([[self.name,self]]));
     }
     scopes.push(functionNames);
+    // Arrow functions may call super(); they reach the constructor through these hidden bindings.
+    if(fn?.declaration.kind==='FunctionExpression'&&fn.declaration.derivedConstructor)
+      for(const name of ['#superFunction','#superReceiver']){const b:StorageBinding={kind:'local',name,index:fn.locals.length,owner:fn.index};fn.locals.push(b);functionNames.set(name,b);}
     const declareLexicals=(node:A.Node,statements:A.Statement[],scope:Map<string,Binding>,functionKind:'var'|'lexical'):void=>{
       const entries:StorageBinding[]=[],info=collectDeclarations(statements,functionKind),varNames=new Set(info.vars.map(id=>id.name));
       for(const declaration of info.lexicals){
@@ -178,11 +181,16 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'TaggedTemplate':expression(e.tag);e.expressions.forEach(expression);break;
         case 'Yield':if(!fn?.declaration.generator)fail(e,'yield outside generator');if(e.argument)expression(e.argument);break;
         case 'Await':if(!fn?.declaration.async)fail(e,'await outside async function');expression(e.argument);break;
-        case 'ObjectLiteral':for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
+        case 'ObjectLiteral':if(e.duplicateProto)fail(e,'Duplicate __proto__ property');for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
         case 'Binary':expression(e.left);expression(e.right);break;
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
         case 'New':case 'Call':if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
-          if(fn?.declaration.kind!=='FunctionExpression'||!fn.declaration.derivedConstructor)fail(e.callee,'super() requires a derived class constructor');
+          let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
+          if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.derivedConstructor)fail(e.callee,'super() requires a derived class constructor');
+          if(owner!==fn){
+            const func:A.Identifier={kind:'Identifier',name:'#superFunction',span:e.span},receiver:A.Identifier={kind:'Identifier',name:'#superReceiver',span:e.span};
+            e.superRefs={func,receiver};resolve(func);resolve(receiver);
+          }
         }else expression(e.callee);e.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
       }
     };

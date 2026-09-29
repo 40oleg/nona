@@ -105,8 +105,8 @@ export function emitIterators(b:RuntimeBuilder):void {
   a.load('rax',slot(56));a.store(slot(32),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.mov('r8',0);a.lea('r9',{rip:'rt.undefinedValue'});a.call('rt.invoke');
   a.load('rax',slot(96));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.iter.next'});a.store(slot(72),'rax');
+  // GetIterator only reads next (ES2020 7.4.1); calling it later reports a non-callable value.
   a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.lea('r8',slot(64));a.call('rt.getProperty');
-  a.load('rax',slot(112));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(96+n));a.store({base:'rcx',disp:n},'rax');}
   a.load('rcx',slot(48));for(const n of [0,8]){a.load('rax',slot(112+n));a.store({base:'rcx',disp:n},'rax');}
  });

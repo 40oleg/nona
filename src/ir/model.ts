@@ -7,7 +7,7 @@ export type Operation =
   | {kind:'writeCell';cell:number;source:number}
   | {kind:'loadCapture';dest:number;index:number}
   | {kind:'currentFunction';dest:number}
-  | {kind:'superConstructor';dest:number}
+  | {kind:'superConstructor';dest:number;/** Constructor whose [[Prototype]] is used; default: the running function. */func?:number}
   | {kind:'superReceiver';dest:number}
   | {kind:'setFunctionHomeObject';func:number;homeObject:number}
   | {kind:'setCurrentThis';source:number}
