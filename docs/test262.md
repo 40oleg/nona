@@ -14,6 +14,12 @@ npm run test262:smoke
 node scripts/test262-smoke.mjs language/expressions/coalesce
 ```
 
+The same runner also works on Linux x64: it then compiles `linux-x64` ELF
+images instead of PE files and retries the transient `ETXTBSY` exec race that
+worker threads can cause on Linux. Set `TEST262_DELETE_BINARIES=1` to remove
+each compiled test image after it runs; large catalogs otherwise leave several
+gigabytes in `work/test262-smoke`.
+
 The checkout must be at the pinned revision. If upstream HEAD has advanced,
 fetch/check out that exact commit before running. `TEST262_ROOT` selects a
 different checkout and `TEST262_REPORT` selects a different JSON report path.

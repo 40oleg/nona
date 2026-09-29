@@ -1,5 +1,5 @@
 import {spawnSync} from 'node:child_process';
-import {readFileSync, mkdirSync, writeFileSync, appendFileSync, readdirSync} from 'node:fs';
+import {readFileSync, mkdirSync, writeFileSync, appendFileSync, readdirSync, chmodSync, rmSync} from 'node:fs';
 import {resolve, join, dirname} from 'node:path';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {compile} from '../dist/src/compiler.js';
@@ -15,6 +15,7 @@ const excludePathFilters = [excludePathFilter,
 const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').map(value => value.trim()).filter(Boolean);
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
 const runAsync = process.env.TEST262_RUN_ASYNC === '1';
+const deleteBinaries = process.env.TEST262_DELETE_BINARIES === '1';
 const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
 const jobs = Number(process.env.TEST262_JOBS || 1);
 if (!Number.isSafeInteger(runtimeTimeout) || runtimeTimeout < 1 || runtimeTimeout > 600000) {
@@ -32,9 +33,10 @@ const revision = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 
 if (revision.error || revision.status !== 0 || revision.stdout.trim() !== PIN) {
   throw new Error(`Test262 checkout must be pinned at ${PIN}; found ${revision.stdout?.trim() || revision.stderr}`);
 }
-if (process.platform !== 'win32' || process.arch !== 'x64') {
-  throw new Error('Native Test262 smoke run currently requires Windows x64');
+if ((process.platform !== 'win32' && process.platform !== 'linux') || process.arch !== 'x64') {
+  throw new Error('Native Test262 smoke run requires Windows x64 or Linux x64');
 }
+const target = process.platform === 'linux' ? 'linux-x64' : 'win32-x64';
 const harness = 'var print = function(){}; var $262={detachArrayBuffer:ArrayBuffer.__nonaDetachInternal}; delete ArrayBuffer.__nonaDetachInternal;\n' + ['sta.js', 'assert.js'].map(file => readFileSync(join(root, 'harness', file), 'utf8')).join('\n');
 function filesUnder(directory, prefix) {
   return readdirSync(directory, {withFileTypes: true}).flatMap(entry => {
@@ -63,7 +65,7 @@ function runCase(path) {
   const negativePhase = metadata.match(/^negative:\s*\r?\n\s*phase:\s*(\w+)/m)?.[1];
   if (negativePhase === 'parse') {
     const parsed = compile(`${flags.includes('onlyStrict') ? '"use strict";\n' : ''}${source}`,
-      {fileName: path, target: 'win32-x64'});
+      {fileName: path, target});
     return {path, outcome: parsed.ok ? 'fail' : 'pass', phase: 'parse',
       reason: parsed.ok ? 'Expected compiler diagnostic' : undefined,
       diagnostics: parsed.ok ? undefined : parsed.diagnostics};
@@ -79,14 +81,23 @@ function runCase(path) {
   // Test262 leaves the host's unhandled-rejection policy unspecified. Several
   // Promise tests intentionally abandon a rejected result after checking the
   // synchronous semantics, so use the non-failing host policy for this harness.
-  const compiled = compile(program, {fileName: path, target: 'win32-x64', unhandledRejections: 'ignore'});
+  const compiled = compile(program, {fileName: path, target, unhandledRejections: 'ignore'});
   if (!compiled.ok) {
     return {path, outcome: 'fail', phase: 'compile', diagnostics: compiled.diagnostics};
   }
-  const exe = resolve('work/test262-smoke', path.replaceAll('/', '_') + '.exe');
+  const exe = resolve('work/test262-smoke', path.replaceAll('/', '_') + (target === 'win32-x64' ? '.exe' : ''));
   mkdirSync(dirname(exe), {recursive: true});
-  writeFileSync(exe, compiled.image);
-  const run = spawnSync(exe, [], {encoding: 'utf8', timeout: runtimeTimeout, windowsHide: true, maxBuffer: 1024 * 1024});
+  writeFileSync(exe, compiled.image, {mode: 0o755});
+  if (target !== 'win32-x64') chmodSync(exe, 0o755);
+  // Linux worker threads can briefly leak another thread's write descriptor
+  // into a forked child, making exec report ETXTBSY; retry that host race.
+  let run;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    run = spawnSync(exe, [], {encoding: 'utf8', timeout: runtimeTimeout, windowsHide: true, maxBuffer: 1024 * 1024});
+    if (run.error?.code !== 'ETXTBSY') break;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+  }
+  if (deleteBinaries) rmSync(exe, {force: true});
   const completions=asyncCase?(run.stdout?.match(/Test262:AsyncTestComplete/g)?.length??0):0;
   const asyncSuccess=!asyncCase||(completions===1&&!run.stdout?.includes('Test262:AsyncTestFailure:'));
   return {path, outcome: !run.error && run.status === 0 && asyncSuccess ? 'pass' : 'fail', phase: 'runtime',
@@ -131,7 +142,7 @@ if (!isMainThread) {
     }
   }
   const counts = Object.fromEntries(['pass', 'fail', 'skip'].map(k => [k, results.filter(r => r.outcome === k).length]));
-  const report = {date: new Date().toISOString(), revision: PIN, target: 'win32-x64', group: group || 'smoke-manifest', pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, runtimeTimeout, jobs, counts, results};
+  const report = {date: new Date().toISOString(), revision: PIN, target, group: group || 'smoke-manifest', pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, runtimeTimeout, jobs, counts, results};
   mkdirSync(dirname(reportPath), {recursive: true});
   writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
   console.log(`Test262 smoke: ${counts.pass} pass, ${counts.fail} fail, ${counts.skip} skip`);
