@@ -14,7 +14,21 @@ const pathFilter = process.env.TEST262_PATH_FILTER || '';
 const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
-const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').map(value => value.trim()).filter(Boolean);
+// Test262 feature tags introduced after ES2020; `post-es2020` in
+// TEST262_EXCLUDE_FEATURES expands to this list for gate audits.
+const postEs2020Features = ['AggregateError','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
+  'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','class-fields-private','class-fields-private-in','class-fields-public',
+  'class-methods-private','class-static-block','class-static-fields-private','class-static-fields-public','class-static-methods-private','decorators',
+  'Error.isError','error-cause','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
+  'import-attributes','import-defer','import-bytes','import-text','iterator-helpers','iterator-sequencing','joint-iteration','json-modules','json-parse-with-source',
+  'legacy-regexp','logical-assignment-operators','Math.sumPrecise','nonextensible-applies-to-private','numeric-separator-literal','Object.hasOwn',
+  'promise-try','promise-with-resolvers','Promise.any','Promise.allKeyed','RegExp.escape','regexp-duplicate-named-groups','regexp-match-indices',
+  'regexp-modifiers','regexp-v-flag','resizable-arraybuffer','set-methods','ShadowRealm','source-phase-imports','String.prototype.at',
+  'String.prototype.isWellFormed','String.prototype.replaceAll','String.prototype.toWellFormed','symbols-as-weakmap-keys','Temporal',
+  'top-level-await','TypedArray.prototype.at','uint8array-base64','upsert','WeakRef','well-formed-unicode-strings','await-dictionary','Intl.Locale-info',
+  'canonical-tz','Intl.DurationFormat','Intl.Era-monthcode'];
+const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').map(value => value.trim()).filter(Boolean)
+  .flatMap(value => value === 'post-es2020' ? postEs2020Features : [value]);
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
 const runAsync = process.env.TEST262_RUN_ASYNC === '1';
 const deleteBinaries = process.env.TEST262_DELETE_BINARIES === '1';
@@ -61,36 +75,59 @@ function agentSources(source) {
   try { ast = parse(lex(source)); } catch { return []; }
   const found = [], constants = new Map();
   // Top-level `const NAME = literal` values may appear in agent templates.
-  for (const statement of ast.body) if (statement.kind === 'Var' && statement.declarationKind === 'const')
+  for (const statement of ast.body) if (statement.kind === 'Var' && statement.declarationKind !== 'let')
     for (const declaration of statement.declarations)
-      if (declaration.id.kind === 'Identifier' && declaration.init?.kind === 'Literal') constants.set(declaration.id.name, declaration.init.value);
+      if (declaration.id.kind === 'Identifier' && declaration.init) constants.set(declaration.id.name, declaration.init);
+  const timeouts = {yield: 100, small: 200, long: 1000, huge: 10000}; // harness/atomicsHelper.js
+  // Counting loops (`for (var i = 0; i < N; i++)`) bind their variable to
+  // each value in turn so per-agent templates such as `${i}` expand.
+  const loopValues = new Map();
   const constant = node => {
     if (!node) return undefined;
-    if (node.kind === 'Identifier' && constants.has(node.name)) return String(constants.get(node.name));
-    if (node.kind === 'Literal' && typeof node.value === 'number') return String(node.value);
+    if (node.kind === 'Identifier' && loopValues.has(node.name)) return loopValues.get(node.name);
+    if (node.kind === 'Identifier' && constants.has(node.name)) return constant(constants.get(node.name));
+    if (node.kind === 'Member' && !node.computed && node.object?.kind === 'Member' && node.object.property?.value === 'timeouts'
+      && Object.hasOwn(timeouts, node.property?.value)) return timeouts[node.property.value];
+    if (node.kind === 'Literal' && typeof node.value === 'number') return node.value;
     if (node.kind === 'Template') {
       let text = node.quasis[0];
       for (let i = 0; i < node.expressions.length; i++) {
         const value = constant(node.expressions[i]);if (value === undefined || node.quasis[i + 1] === undefined) return undefined;
-        text += value + node.quasis[i + 1];
+        text += String(value) + node.quasis[i + 1];
       }
       return text;
     }
     if (node.kind === 'Literal' && typeof node.value === 'string') return node.value;
     if (node.kind === 'Template' && node.expressions.length === 0) return node.quasis[0];
-    if (node.kind === 'Binary' && node.operator === '+') {
+    if (node.kind === 'Binary' && ['+', '-', '*'].includes(node.operator)) {
       const left = constant(node.left), right = constant(node.right);
-      return left === undefined || right === undefined ? undefined : left + right;
+      return left === undefined || right === undefined ? undefined : node.operator === '+' ? left + right : node.operator === '-' ? left - right : left * right;
     }
     return undefined;
   };
   const visit = node => {
     if (Array.isArray(node)) { node.forEach(visit); return; }
     if (!node || typeof node !== 'object') return;
+    if (node.kind === 'For' && node.init?.kind === 'Var' && node.init.declarations.length === 1 && node.init.declarations[0].id.kind === 'Identifier'
+      && node.init.declarations[0].init?.kind === 'Literal' && typeof node.init.declarations[0].init.value === 'number'
+      && node.test?.kind === 'Binary' && node.test.operator === '<' && node.test.left.kind === 'Identifier'
+      && node.test.left.name === node.init.declarations[0].id.name && node.update?.kind === 'Update' && node.update.operator === '++') {
+      const name = node.test.left.name, limit = Number(constant(node.test.right));
+      if (Number.isInteger(limit) && limit <= 16) {
+        const saved = loopValues.get(name);
+        for (let value = node.init.declarations[0].init.value; value < limit; value++) { loopValues.set(name, value); visit(node.body); }
+        if (saved === undefined) loopValues.delete(name); else loopValues.set(name, saved);
+        return;
+      }
+    }
+    if (node.kind === 'Var' && loopValues.size) for (const declaration of node.declarations) {
+      const value = declaration.id.kind === 'Identifier' ? constant(declaration.init) : undefined;
+      if (value !== undefined) loopValues.set(declaration.id.name, value);
+    }
     if (node.kind === 'Call' && node.callee?.kind === 'Member' && node.callee.property?.value === 'start'
       && node.callee.object?.kind === 'Member' && node.callee.object.property?.value === 'agent') {
       const value = constant(node.arguments[0]);
-      if (value !== undefined && !found.includes(value)) found.push(value);
+      if (typeof value === 'string') found.push(value); // one program per started agent
     }
     for (const [key, value] of Object.entries(node)) if (key !== 'span') visit(value);
   };
@@ -99,7 +136,8 @@ function agentSources(source) {
 }
 function agentHarness(sources) {
   if (!sources.length) return '';
-  return 'var __nonaAgentSources=' + JSON.stringify(sources) + ';$262.agent={start:function(source){var index=__nonaAgentSources.indexOf(source);'
+  return 'var __nonaAgentSources=' + JSON.stringify(sources) + ';$262.agent={start:function(source){var index=-1;for(var k=0;k<__nonaAgentSources.length;k++)'
+    + 'if(__nonaAgentSources[k]===source){index=k;__nonaAgentSources[k]=null;break}'
     + 'if(index<0)throw new Error("agent source was not compiled");__nonaAgentStart(index)},broadcast:function(sab,id){__nonaAgentBroadcast(sab,id)},'
     + 'getReport:function(){return __nonaAgentGetReport()},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}};\n';
 }
@@ -131,6 +169,8 @@ function runCase(path) {
       diagnostics: parsed.ok ? undefined : parsed.diagnostics};
   }
   const asyncCase=flags.includes('async');
+  // Nona's main agent can block ([[CanBlock]] is true), so CanBlockIsFalse tests do not apply.
+  if (flags.includes('CanBlockIsFalse')) return {path, outcome: 'skip', reason: 'Host agent can block'};
   if ((asyncCase && !runAsync) || flags.includes('raw') || negativePhase) {
     return {path, outcome: 'skip', reason: 'Unsupported harness mode in smoke runner'};
   }
@@ -168,8 +208,13 @@ function runCase(path) {
     status: run.status, error: run.error?.message, stderr: run.stderr?.slice(0, 2000),
     ...(asyncCase?{completions,stdout:run.stdout?.slice(0,2000)}:{})};
 }
+// A compiler crash is reported as that test's failure instead of aborting the run.
+function safeRunCase(path) {
+  try { return runCase(path); }
+  catch (error) { return {path, outcome: 'fail', phase: 'compiler-crash', error: String(error?.stack || error).slice(0, 2000)}; }
+}
 if (!isMainThread) {
-  for (const path of workerData.paths) parentPort.postMessage(runCase(path));
+  for (const path of workerData.paths) parentPort.postMessage(safeRunCase(path));
 } else {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
     .filter(path => path.includes(pathFilter) && !excludePathFilters.some(value => path.includes(value))
@@ -185,7 +230,7 @@ if (!isMainThread) {
   };
   let results;
   if (jobs === 1 || paths.length < 2) results = paths.map(path => {
-    const result = runCase(path);
+    const result = safeRunCase(path);
     record(result);
     return result;
   });

@@ -20,7 +20,6 @@ import {bind} from '../../frontend/binder.js';
 import {lower} from '../../ir/lower.js';
 import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
-import {realmTableIntrinsics} from '../../runtime/constructor-prototype.js';
 import {stringLiteral} from '../../runtime/value.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
@@ -28,6 +27,9 @@ const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',ty
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 const cachedRuntimePreludes=new Map<'throw'|'ignore',ModuleIR>();
+/** Runtime and prelude code are identical for equal options: generate them once. */
+interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>}
+const baseImages=new Map<string,BaseImage>();
 
 export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[]}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
@@ -40,34 +42,40 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
-  module={...module,globalCount:userGlobalCount+(prelude?.globalCount??0),functions:[
-    ...module.functions,
-    ...(prelude?.functions??[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
+  const preludeFunctions=(prelude?.functions??[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
       operations:block.operations.map(op=>{
         if(op.kind==='newFunction')return {...op,target:prefix(op.target)};
-        if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,index:op.index+userGlobalCount};
+        if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,prelude:true};
         return op;
       }),
-    }))})),
-  ]};
+    }))}));
   const realms=prelude?options.realms??0:0;
-  const runtime=emitRuntime({operations:new Set(),realms});
-  if(prelude)runtime.fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push(
-    {offset:0,kind:'va64',target:'js.globals',addend:userGlobalCount*16});
-  const fragments:NamedFragment[]=[...runtime.fragments];
-  const functions:UnwindFunction[]=[...runtime.functions];
-  for(const name of module.globalFunctionProperties??[]){
-    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
-    if(!property)throw new Error('Missing intrinsic global property '+name);
-    property.bytes[P.attributes]=A.writable|A.enumerable;
+  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms});
+  const base=baseImages.get(baseKey);
+  let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
+  const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.slice()}));
+  if(base){fragments=copyFragments(base.fragments);functions=[...base.functions];imports=[...base.imports];literals=new Map(base.literals);}
+  else{
+    const runtime=emitRuntime({operations:new Set(),realms});
+    fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
+    if(prelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }
-  const literals=new Map<string,string>();
+  const runtime={imports};
   const literal=(value:string):string=>{
     const existing=literals.get(value);if(existing)return existing;
     const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
     v.setBigUint64(0,BigInt(value.length),true);for(let i=0;i<value.length;i++)v.setUint16(8+2*i,value.charCodeAt(i),true);
     literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
   };
+  if(!base){
+    preludeFunctions.forEach(fn=>emitFunction(fn));
+    baseImages.set(baseKey,{fragments:copyFragments(fragments),functions:[...functions],imports:[...imports],literals:new Map(literals)});
+  }
+  for(const name of module.globalFunctionProperties??[]){
+    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
+    if(!property)throw new Error('Missing intrinsic global property '+name);
+    property.bytes[P.attributes]=A.writable|A.enumerable;
+  }
   fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
   const globalProperties=module.globalProperties??[];
   const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
@@ -274,8 +282,9 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           a.store(stack(valueBase+16*op.dest+8),'rax');break;
         }
         case 'copy':copy(value(op.dest),value(op.source));break;
-        case 'loadGlobal':copy(value(op.dest),{rip:'js.globals',addend:16*op.index});break;
+        case 'loadGlobal':copy(value(op.dest),{rip:op.prelude?'rt.preludeGlobals':'js.globals',addend:16*op.index});break;
         case 'storeGlobal':{
+          if(op.prelude){copy({rip:'rt.preludeGlobals',addend:16*op.index},value(op.source));break;}
           const alias=globalProperties.findIndex(p=>p.index===op.index),done=a.unique('globalStoreDone');
           if(alias>=0){a.load('rax',{rip:'js.globalBindings',addend:alias*24+16});a.and('rax',1);a.test('rax','rax');if(op.strict)failIf(a,'e','rt.throwTypeError');else a.jcc('e',done);}
           copy({rip:'js.globals',addend:16*op.index},value(op.source));a.label(done);break;
@@ -305,7 +314,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     }
     finish(a,fn.id,allocation,prologSize);
   }
-  module.functions.forEach(emitFunction);
+  module.functions.forEach(fn=>emitFunction(fn));
   // Host functions installed as properties of the global object before the prelude.
   const hostGlobals:string[]=[];
   const hostGlobal=(name:string,code:string,length:number):void=>{
@@ -365,14 +374,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     a.label(done);a.add('rsp',size);a.ret();finish(a,'realm.createRealm.code',size,prolog);
     cloneRealms(fragments,functions,realms,FunctionLayout.size,FunctionLayout.realm);
   }
-  // Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts).
-  for(const intrinsic of realmTableIntrinsics)fragments.push({name:'realm.table.'+intrinsic,section:'.rdata',alignment:8,bytes:new Uint8Array(8*(realms+1)),symbols:{},
-    fixups:Array.from({length:realms+1},(_,realm)=>({offset:8*realm,kind:'va64' as const,target:realm===0?intrinsic:realmSymbol(realm,intrinsic),addend:0}))});
   // Thread entries of the linked agent programs.
-  const count=new Uint8Array(8);new DataView(count.buffer).setBigUint64(0,BigInt(agentPrograms.length),true);
-  fragments.push({name:'agent.entryCount',section:'.rdata',alignment:8,bytes:count,symbols:{},fixups:[]});
-  fragments.push({name:'agent.entries',section:'.rdata',alignment:8,bytes:new Uint8Array(Math.max(8,8*agentPrograms.length)),symbols:{},
-    fixups:agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}))});
+  const countFragment=fragments.find(f=>f.name==='agent.entryCount')!,entriesFragment=fragments.find(f=>f.name==='agent.entries')!;
+  new DataView(countFragment.bytes.buffer).setBigUint64(0,BigInt(agentPrograms.length),true);
+  entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
+  entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
   entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
@@ -388,7 +394,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
   };
   const drain=()=>{
-    entry.lea('rcx',stack(48));entry.lea('rdx',{rip:'js.globals'});entry.add('rdx',(userGlobalCount+1)*16);
+    entry.lea('rcx',stack(48));entry.lea('rdx',{rip:'rt.preludeGlobals'});entry.add('rdx',16);
     entry.mov('r8',0);entry.lea('r9',stack(48));entry.call('rt.invoke');
   };
   callArguments();

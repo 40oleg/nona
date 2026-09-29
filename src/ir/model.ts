@@ -52,8 +52,8 @@ export type Operation =
   | {kind:'immutableWrite';error?:'ReferenceError'}
   | {kind:'constant';dest:number;value:Constant}
   | {kind:'copy';dest:number;source:number}
-  | {kind:'loadGlobal';dest:number;index:number}
-  | {kind:'storeGlobal';strict?:boolean;source:number;index:number}
+  | {kind:'loadGlobal';dest:number;index:number;prelude?:boolean}
+  | {kind:'storeGlobal';strict?:boolean;source:number;index:number;prelude?:boolean}
   | {kind:'unary';dest:number;operator:string;argument:number}
   | {kind:'binary';dest:number;operator:string;left:number;right:number}
   | {kind:'call';dest:number;target:string;arguments:number[]};
