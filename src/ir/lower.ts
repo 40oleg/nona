@@ -374,8 +374,9 @@ class Lowerer {
     this.select(closeFailed);this.end({kind:'jump',target:rethrow.id});
     this.select(rethrow);this.end({kind:'throw',value:error});this.select(after);
   }
-  private assignLoopTarget(left:A.Var|A.Assignable,value:number):void {
+  private assignLoopTarget(left:A.Var|A.Assignable|A.ArrayPattern|A.ObjectPattern,value:number):void {
     if(left.kind==='Var')this.bindPattern(left.declarations[0]!.id,value,left.declarationKind!=='var');
+    else if(left.kind==='ArrayPattern'||left.kind==='ObjectPattern')this.bindPattern(left,value,false,true);
     else if(left.kind==='Identifier')this.write(left,value);
     else this.putReference(this.reference(left),value);
   }

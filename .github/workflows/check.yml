@@ -130,7 +130,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js dist/tests/object-annexb.test.js
+      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js dist/tests/object-annexb.test.js dist/tests/async.test.js dist/tests/with.test.js dist/tests/modules.test.js dist/tests/tail-calls.test.js
       - run: npm run compare:linux
       - uses: actions/checkout@v4
         with:

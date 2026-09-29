@@ -340,10 +340,11 @@ class Parser {
         this.take();const body=this.statement(false,false);
         return {kind:'ForIn',left:init.left,right:init.right,body,span:this.span(start)};
       }
-      if((init?.kind==='Identifier'||init?.kind==='Member')&&this.match('of')){
-        if(init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
+      if((init?.kind==='Identifier'||init?.kind==='Member'||(init?.kind==='ArrayLiteral'||init?.kind==='ObjectLiteral')&&!this.parenthesized.has(init))&&this.match('of')){
+        if(!isAwait&&init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
+        const left=init.kind==='ArrayLiteral'||init.kind==='ObjectLiteral'?this.assignmentPattern(init) as A.ArrayPattern|A.ObjectPattern:init;
         const right=this.assignment();this.need(')');const body=this.statement(false,false);
-        return {kind:'ForOf',left:init,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
+        return {kind:'ForOf',left,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
       }
       if(isAwait)this.error('for await requires of');
       if(init?.kind==='Var'&&init.declarationKind==='const'&&init.declarations.some(d=>!d.init))this.error('Const declaration requires an initializer');

@@ -260,7 +260,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'ForIn':case 'ForOf':{
           const left=s.left;
           if(left.kind==='Var'&&left.declarationKind!=='var')scoped(s,[left],()=>{expression(s.right);patternInitializers(left.declarations[0]!.id);statements([s.body],loops+1,switches);});
-          else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);else if(s.left.kind==='Var'){patternInitializers(s.left.declarations[0]!.id);if(scopes.some(scope=>scope instanceof WithScope))boundNames(s.left.declarations[0]!.id).forEach(id=>resolve(id,'write'));}expression(s.right);statements([s.body],loops+1,switches);}
+          else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);else if(s.left.kind==='ArrayPattern'||s.left.kind==='ObjectPattern'){for(const id of boundNames(s.left))resolve(id,'write');patternInitializers(s.left);}else if(s.left.kind==='Var'){patternInitializers(s.left.declarations[0]!.id);if(scopes.some(scope=>scope instanceof WithScope))boundNames(s.left.declarations[0]!.id).forEach(id=>resolve(id,'write'));}expression(s.right);statements([s.body],loops+1,switches);}
           break;
         }
         case 'Switch':

@@ -48,8 +48,8 @@ export interface DoWhile extends Node { kind: 'DoWhile'; test: Expression; body:
 export interface Switch extends Node { kind: 'Switch'; discriminant: Expression; cases: {test:Expression|null;body:Statement[]}[] }
 export interface Labeled extends Node { kind: 'Labeled'; label: Identifier; body: Statement }
 export interface For extends Node { kind: 'For'; init: Var|Expression|null; test: Expression|null; update: Expression|null; body: Statement }
-export interface ForIn extends Node {kind:'ForIn';left:Var|Assignable;right:Expression;body:Statement}
-export interface ForOf extends Node {kind:'ForOf';left:Var|Assignable;right:Expression;body:Statement;await?:boolean}
+export interface ForIn extends Node {kind:'ForIn';left:Var|Assignable|ArrayPattern|ObjectPattern;right:Expression;body:Statement}
+export interface ForOf extends Node {kind:'ForOf';left:Var|Assignable|ArrayPattern|ObjectPattern;right:Expression;body:Statement;await?:boolean}
 export interface Throw extends Node {kind:'Throw';argument:Expression}
 export interface With extends Node {kind:'With';object:Expression;body:Statement}
 export interface ImportSpecifier {kind:'default'|'namespace'|'named';imported?:string;local:Identifier}
