@@ -15,6 +15,7 @@ export function lex(source: string): TokenStream {
   let i = 0, lineBreak = false, regexpAllowed = true;
   const parentheses:boolean[]=[];
   const braces:boolean[]=[];
+  const expressionBodyDepth:number[]=[];
   const fail = (message: string, start = i): never => { throw new CompileError([{ code: 'E_LEX', message, file: '', span: { start, end: Math.max(start + 1, i) } }]); };
   const newline = (c: string) => /[\n\r\u2028\u2029]/.test(c);
   const identifierStart = (c:string) => /^[$_\p{ID_Start}]$/u.test(c);
@@ -38,7 +39,14 @@ export function lex(source: string): TokenStream {
     tokens.push({ kind, text, value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
     if(kind==='punct'&&text==='(')parentheses.push(previous?.kind==='word'&&['if','while','for','with','switch','catch'].includes(String(previous.value)));
     if(kind==='punct'&&text===')'){regexpAllowed=parentheses.pop()??false;return;}
-    if(kind==='punct'&&text==='{')braces.push(!previous||!(previous.kind==='punct'&&['=','(','[',',',':','?'].includes(previous.text))&&!(previous.kind==='word'&&['return','yield'].includes(String(previous.value))));
+    // A function expression's body ends an expression: `function(){} / x` divides.
+    if(kind==='word'&&(value==='function'||value==='class')){
+      const before=previous?.kind==='word'&&previous.value==='async'?tokens.at(-3):previous;
+      const expressionPosition=!!before&&(before.kind==='punct'&&![';','{','}',')',']'].includes(before.text)||before.kind==='word'&&['return','throw','typeof','void','delete','new','in','instanceof','yield','await','case'].includes(String(before.value)));
+      if(expressionPosition)expressionBodyDepth.push(parentheses.length);
+    }
+    if(kind==='punct'&&text==='{'&&expressionBodyDepth.at(-1)===parentheses.length&&(previous?.text===')'||previous?.kind==='word')){expressionBodyDepth.pop();braces.push(false);}
+    else if(kind==='punct'&&text==='{')braces.push(!previous||!(previous.kind==='punct'&&['=','(','[',',',':','?'].includes(previous.text))&&!(previous.kind==='word'&&['return','yield'].includes(String(previous.value))));
     if(kind==='punct'&&text==='}'){regexpAllowed=braces.pop()??true;return;}
     if(kind==='word'){regexpAllowed=['return','throw','case','delete','void','typeof','instanceof','in','new','yield','await','else','do'].includes(String(value));return;}
     if(kind==='number'||kind==='string'||kind==='regexp'||kind==='templateTail'||kind==='templateNoSub'){regexpAllowed=false;return;}

@@ -2,7 +2,7 @@ import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/excepti
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import { Assembler, type Mem } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
-import type { ModuleIR, FunctionIR } from '../../ir/model.js';
+import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
@@ -128,11 +128,32 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     a.mov('rax',fn.slotCount+3);a.store(stack(rootBase+R.count),'rax');
     a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
     if(fn.derivedConstructor){a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');}
+    // Slots that may hold stale values when a block starts: whatever its
+    // predecessors left (live slots and their last destination). Handler
+    // targets can be entered from any operation, so they assume every slot.
+    const allSlots=Array.from({length:fn.slotCount},(_,i)=>i);
+    const handlerTargets=new Set<number>();for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='pushHandler')handlerTargets.add(op.target);
+    const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
+    for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
+    const entrySets=new Map<number,Set<number>>(),exitSets=new Map<number,Set<number>>();
+    const exitOf=(block:BlockIR,entry:Set<number>):Set<number>=>{
+      if(!block.operations.length)return entry;
+      const last=block.operations.length-1,exit=new Set(liveness.get(block.id)!.before[last]!);const op=block.operations[last]!;if('dest'in op)exit.add(op.dest as number);return exit;
+    };
+    for(let changed=true;changed;){
+      changed=false;
+      for(const [index,block] of fn.blocks.entries()){
+        let entry:Set<number>;
+        if(index===0||handlerTargets.has(block.id))entry=new Set(allSlots);
+        else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
+        const previous=entrySets.get(block.id);
+        if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
+      }
+    }
     for(const block of fn.blocks){
       a.label(fn.id+'.block.'+block.id);
-      // Any predecessor may have left obsolete values in these slots. After the
-      // first safepoint only previously live slots/new destinations need clearing.
-      let possible=new Set(Array.from({length:fn.slotCount},(_,i)=>i));
+      // After the first safepoint only previously live slots/new destinations need clearing.
+      let possible=new Set(entrySets.get(block.id)??allSlots);
       for(const [index,op] of block.operations.entries()){
        const live=liveness.get(block.id)!.before[index]!;
        const dead=[...possible].filter(slot=>!live.has(slot));

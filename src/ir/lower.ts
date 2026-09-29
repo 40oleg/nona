@@ -275,6 +275,12 @@ class Lowerer {
     const object=this.expression(e.object),key=this.expression(e.property);
     return {object,key};
   }
+  /** Read-modify-write references convert the key once (ToPropertyKey before GetValue). */
+  private settledReference(ref:Reference):Reference {
+    if('id'in ref)return ref;
+    const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
+    return {...ref,key};
+  }
   private globalExists(name:string):number {
     const object=this.globalObject(),key=this.constant(name),dest=this.slot();
     this.emit({kind:'property',operation:'has',dest,object,key});return dest;
@@ -629,7 +635,8 @@ class Lowerer {
             return staticDelete();
           }
           if(e.argument.kind==='Member'){
-            if(e.argument.object.kind==='Super'){this.expression(e.argument.property);this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);}
+            // SuperProperty evaluation reads this (GetThisEnvironment) before the key.
+            if(e.argument.object.kind==='Super'){this.currentThis();this.expression(e.argument.property);this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);}
             const ref=this.reference(e.argument);if('id'in ref)throw new Error('Expected property');
             if(ref.receiver!==undefined){this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);}
             const dest=this.slot();this.emit({kind:'property',operation:'delete',strict:this.strict,dest,...ref});return dest;
@@ -640,7 +647,7 @@ class Lowerer {
         const dest=this.slot();this.emit({kind:'unary',dest,operator:e.operator,argument});return dest;
       }
       case 'Update': {
-        const ref=this.reference(e.argument),previous=this.getReference(ref),numeric=this.slot();this.emit({kind:'unary',dest:numeric,operator:'numeric',argument:previous});
+        const ref=this.settledReference(this.reference(e.argument)),previous=this.getReference(ref),numeric=this.slot();this.emit({kind:'unary',dest:numeric,operator:'numeric',argument:previous});
         const next=this.slot();this.emit({kind:'unary',dest:next,operator:e.operator==='++'?'increment':'decrement',argument:numeric});
         this.putReference(ref,next);return e.prefix?next:numeric;
       }
@@ -649,7 +656,7 @@ class Lowerer {
           const right=this.expression(e.right);this.bindPattern(e.left,right,false,true);return right;
         }
         // Compound assignment reads its left value BEFORE evaluating the RHS.
-        const ref=this.reference(e.left,e.operator==='='),previous=e.operator==='='?null:this.getReference(ref);
+        const raw=this.reference(e.left,e.operator==='='),ref=e.operator==='='?raw:this.settledReference(raw),previous=e.operator==='='?null:this.getReference(ref);
         const right=this.expression(e.right,e.operator==='='&&e.left.kind==='Identifier'?e.left.name:undefined);
         let result=right;if(previous!==null){result=this.slot();this.emit({kind:'binary',dest:result,operator:e.operator.slice(0,-1),left:previous,right});}
         this.putReference(ref,result);return result;
