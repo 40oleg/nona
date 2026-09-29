@@ -32,6 +32,12 @@ const cases:[string,string,string][]=[
  ['duplicate __proto__ is allowed in assignment patterns',
   "var x, y; ({__proto__: x, __proto__: y} = {}); console.log(x === Object.prototype, y === x);",
   'true true\n'],
+ ['empty dynamic generator/async function constructors',
+  "var GF = Object.getPrototypeOf(function* () {}).constructor; class G extends GF { constructor() { super(); } } var g = new G(); console.log(g instanceof G, g.name, typeof g().next); try { GF('yield 1'); } catch (e) { console.log(e.name); }",
+  'true anonymous function\nEvalError\n'],
+ ['class names from computed symbol keys and super() in optional chains',
+  "var s = Symbol('t'), a = Symbol(); var o = {[s]: class {}, [a]: class {}}; console.log(o[s].name, JSON.stringify(o[a].name)); class A {} class B extends A { constructor() { console.log(super()?.x); } } new B();",
+  '[t] ""\nundefined\n'],
  ['GetIterator does not require a callable next',
   "var i = { [Symbol.iterator]() { return { return() { console.log('closed'); return {}; } }; } }; function* g() { [ {}[ yield ] ] = i; } var it = g(); it.next(); it.return();",
   'closed\n'],
@@ -65,6 +71,10 @@ for(const [name,source] of [
  ['yield in generator arrow parameters','function* g() { (x = yield) => {}; }'],
  ['new import()',"new import('./x.js');"],
  ['duplicate __proto__ in an object literal','var o = {__proto__: null, __proto__: null};'],
+ ['var in a for-of body repeating a let head name','for (let x of []) { var x; }'],
+ ['let starting a for-of target','for (let of []) ;'],
+ ['strict yield label','"use strict"; yield: 1;'],
+ ['super() in an optional chain outside a derived constructor','class C { constructor() { super()?.a; } }'],
 ] as [string,string][])test('language audit early error: '+name,()=>{
  assert.equal(compile(source,{fileName:'early.js',target:'linux-x64'}).ok,false);
 });

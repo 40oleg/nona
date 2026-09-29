@@ -335,7 +335,7 @@ class Parser {
     }
     if(this.match('for')) {
       const isAwait=this.asyncContext&&this.match('await');
-      this.need('(');
+      this.need('(');const headStart=this.index;
       // `let` starts a declaration only before a binding (ES2020 13.7: for ( [lookahead ≠ let [] ...).
       const next=this.tokens[this.index+1];
       const letDeclaration=this.at('let')&&!!next&&(next.text==='['||next.text==='{'||next.kind==='word'&&next.text!=='in'&&next.text!=='of');
@@ -359,6 +359,8 @@ class Parser {
       }
       if(this.at(';')&&init&&(init.kind==='Var'?init.declarations.some(d=>d.init&&this.topLevelIn(d.init)):this.topLevelIn(init)))this.error('in is not allowed in a for statement initializer');
       if((init?.kind==='Identifier'||init?.kind==='Member'||(init?.kind==='ArrayLiteral'||init?.kind==='ObjectLiteral')&&!this.parenthesized.has(init))&&this.match('of')){
+        // for ( [lookahead ∉ {let, async of}] LeftHandSideExpression of ...
+        if(this.tokens[headStart]?.text==='let')this.error('let cannot start a for...of target');
         if(!isAwait&&init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
         const left=init.kind==='ArrayLiteral'||init.kind==='ObjectLiteral'?this.assignmentPattern(init) as A.ArrayPattern|A.ObjectPattern:init;
         const right=this.assignment();this.need(')');const body=this.statement(false,false);

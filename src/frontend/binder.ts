@@ -282,6 +282,11 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         });break;
         case 'ForIn':case 'ForOf':{
           const left=s.left;
+          // The body's var names may not repeat the head's lexical names (ES2020 13.7.5.1).
+          if(left.kind==='Var'&&left.declarationKind!=='var'){
+            const lexical=new Set(boundNames(left.declarations[0]!.id).map(id=>id.name));
+            for(const v of collectDeclarations([s.body],'var').vars)if(lexical.has(v.name))fail(v,'Loop body var conflicts with a lexical loop binding');
+          }
           if(left.kind==='Var'&&left.declarationKind!=='var')scoped(s,[left],()=>{expression(s.right);patternInitializers(left.declarations[0]!.id);statements([s.body],loops+1,switches);});
           else{if(s.left.kind==='Identifier')resolve(s.left,'write');else if(s.left.kind==='Member')expression(s.left);else if(s.left.kind==='ArrayPattern'||s.left.kind==='ObjectPattern'){for(const id of boundNames(s.left))resolve(id,'write');patternInitializers(s.left);}else if(s.left.kind==='Var'){patternInitializers(s.left.declarations[0]!.id);if(scopes.some(scope=>scope instanceof WithScope))boundNames(s.left.declarations[0]!.id).forEach(id=>resolve(id,'write'));}expression(s.right);statements([s.body],loops+1,switches);}
           break;
@@ -293,6 +298,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           });break;
         case 'Labeled': {
           if(labels.has(s.label.name))fail(s.label,'Duplicate label');
+          if(strict&&(s.label.name==='yield'||s.label.name==='let'||strictReserved.has(s.label.name)))fail(s.label,'Restricted strict label');
           let target=s.body;while(target.kind==='Labeled')target=target.body;
           labels.set(s.label.name,['While','DoWhile','For','ForIn','ForOf'].includes(target.kind));
           statements([s.body],loops,switches);labels.delete(s.label.name);break;

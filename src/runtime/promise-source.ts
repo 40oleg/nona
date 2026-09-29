@@ -499,8 +499,18 @@ var __nonaPromiseDrainJobs=(function(){
   };
   // Dynamic async function constructors are part of the documented
   // eval/Function exception; they exist for reflection only.
-  function dynamicConstructor(name,prototype){
-    var constructor=function(){throw new EvalError(name+' constructor requires dynamic code, which Nona does not support')};
+  // An empty source needs no compiler: it yields a fresh anonymous function of that kind.
+  function dynamicConstructor(name,prototype,makeEmpty){
+    var constructor=function(){
+      for(var i=0;i<arguments.length;i++)if(String(arguments[i]).trim()!=='')throw new EvalError(name+' constructor requires dynamic code, which Nona does not support');
+      var fn=makeEmpty();
+      define(fn,'name','anonymous',false);
+      if(new.target!==undefined&&new.target!==constructor){
+        var proto=new.target.prototype;
+        if(proto!==null&&(typeof proto==='object'||typeof proto==='function'))Object.setPrototypeOf(fn,proto)
+      }
+      return fn
+    };
     define(constructor,'name',name,false);
     define(constructor,'length',1,false);
     Object.defineProperty(constructor,'prototype',{value:prototype,writable:false,enumerable:false,configurable:false});
@@ -511,14 +521,14 @@ var __nonaPromiseDrainJobs=(function(){
   }
   var asyncFunctionPrototype=getPrototypeOf(async function(){});
   define(asyncFunctionPrototype,Symbol.toStringTag,'AsyncFunction',false);
-  dynamicConstructor('AsyncFunction',asyncFunctionPrototype);
+  dynamicConstructor('AsyncFunction',asyncFunctionPrototype,function(){return async function(){}});
   var asyncGeneratorFunctionPrototype=getPrototypeOf(async function*(){});
   define(asyncGeneratorFunctionPrototype,Symbol.toStringTag,'AsyncGeneratorFunction',false);
   define(asyncGeneratorFunctionPrototype,'prototype',asyncGeneratorPrototype,false);
   define(asyncGeneratorPrototype,'constructor',asyncGeneratorFunctionPrototype,false);
-  dynamicConstructor('AsyncGeneratorFunction',asyncGeneratorFunctionPrototype);
+  dynamicConstructor('AsyncGeneratorFunction',asyncGeneratorFunctionPrototype,function(){return async function*(){}});
   var generatorFunctionPrototype=getPrototypeOf(function*(){});
-  if(!hasOwn.call(generatorFunctionPrototype,'constructor'))dynamicConstructor('GeneratorFunction',generatorFunctionPrototype);
+  if(!hasOwn.call(generatorFunctionPrototype,'constructor'))dynamicConstructor('GeneratorFunction',generatorFunctionPrototype,function(){return function*(){}});
   if(!hasOwn.call(generatorFunctionPrototype,Symbol.toStringTag))define(generatorFunctionPrototype,Symbol.toStringTag,'GeneratorFunction',false);
   return drain
 })();
