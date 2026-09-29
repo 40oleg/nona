@@ -92,7 +92,7 @@ test('all supported expression operators and statements bind', () => {
 for (const source of [
   'new;', 'this=1;',
   'function f(a,a){"use strict";}',
-  '"use strict";delete missing;', 'var x=012;', 'var x="\\12";',
+  '"use strict";delete missing;', '"use strict";var x=012;', '"use strict";var x="\\12";',
   'while(true){break label;}', 'return 1;', 'break;', 'continue;',
   'try{}catch(){}',
   'if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',

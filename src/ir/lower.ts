@@ -1,3 +1,4 @@
+import {boundNames} from '../frontend/declarations.js';
 import type * as A from '../frontend/ast.js';
 import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../frontend/bound.js';
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
@@ -37,6 +38,8 @@ class Lowerer {
   private controls:Control[]=[];
   private finalizers:Finalizer[]=[];
   private asyncIterators=new Set<number>();
+  /** Done flags of destructuring iterators; a return completion closes them only while not done. */
+  private iteratorDoneFlags=new Map<number,number>();
   private tailCalls=new Set<A.Expression>();
   constructor(private bound:BoundProgram,private fn:BoundFunction|null,private templateCaches:{next:number},private moduleIndex?:number) {
     this.slots=fn?.locals.length??bound.mainLocals.length;this.current=this.block();
@@ -82,12 +85,12 @@ class Lowerer {
     const prefixed=this.slot();this.emit({kind:'binary',dest:prefixed,operator:'+',left:this.constant(prefix),right:result});return prefixed;
   }
   private classValue(node:A.ClassExpression|A.ClassDeclaration,inferredName?:string|number):number {
-    if(node.kind==='ClassExpression'&&node.id)this.enterScope(node);
+    const classScope=this.bound.lexicalScopes.get(node);if(classScope)this.enterScope(node);
     const base=node.superClass?this.expression(node.superClass):null;
-    const prototypeKey=this.constant('prototype');let basePrototype:number|null=null;
+    const prototypeKey=this.constant('prototype');let basePrototype:number|null=null;const isNull=this.slot();
     if(base!==null){
       this.emit({kind:'validateClassHeritage',base});
-      basePrototype=this.slot();const nullValue=this.constant(null),isNull=this.slot(),nullBranch=this.block(),objectBranch=this.block(),join=this.block();
+      basePrototype=this.slot();const nullValue=this.constant(null),nullBranch=this.block(),objectBranch=this.block(),join=this.block();
       this.emit({kind:'binary',dest:isNull,operator:'===',left:base,right:nullValue});
       this.end({kind:'branch',condition:isNull,yes:nullBranch.id,no:objectBranch.id});
       this.select(nullBranch);this.emit({kind:'copy',dest:basePrototype,source:nullValue});this.end({kind:'jump',target:join.id});
@@ -95,14 +98,22 @@ class Lowerer {
       this.select(join);this.emit({kind:'validateClassPrototype',prototype:basePrototype});
     }
     const constructor=this.closure(this.bound.functionNodes.get(node.constructorMethod)!,node.id?.name==='*default*'?'default':node.id?.name??inferredName??'');
-    if(node.kind==='ClassExpression'&&node.id)this.write(node.id,constructor,true);
+    if(classScope)this.store(classScope[0]!,constructor);
     const prototype=this.slot();this.emit({kind:'property',operation:'get',dest:prototype,object:constructor,key:prototypeKey});
-    if(base!==null){this.emit({kind:'setPrototype',object:constructor,prototype:base});this.emit({kind:'setPrototype',object:prototype,prototype:basePrototype!});}
+    if(base!==null){
+      // extends null keeps %Function.prototype% as the constructor's parent.
+      const objectParent=this.block(),join=this.block();
+      this.end({kind:'branch',condition:isNull,yes:join.id,no:objectParent.id});
+      this.select(objectParent);this.emit({kind:'setPrototype',object:constructor,prototype:base});this.end({kind:'jump',target:join.id});
+      this.select(join);this.emit({kind:'setPrototype',object:prototype,prototype:basePrototype!});
+    }
     this.emit({kind:'setFunctionHomeObject',func:constructor,homeObject:prototype});
     this.emit({kind:'defineDataProperty',object:constructor,key:prototypeKey,source:prototype,attributes:0});
     for(const method of node.methods){
-      const rawKey=this.expression(method.key),key=this.slot(),target=method.isStatic?constructor:prototype;
+      const rawKey=this.expression(method.key),target=method.isStatic?constructor:prototype;
+      let key=this.slot();
       this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:rawKey});
+      if(method.isStatic&&method.computed)key=this.preludeCall('staticMethodKey',[key]);
       const value=this.closure(this.bound.functionNodes.get(method.value)!,this.methodName(key,method.accessor?method.accessor+' ':undefined),target);
       if(method.accessor)this.emit({kind:'defineAccessor',object:target,key,source:value,setter:method.accessor==='set',nonEnumerable:true});
       else this.emit({kind:'defineDataProperty',object:target,key,source:value,attributes:5});
@@ -307,6 +318,10 @@ class Lowerer {
         const rawKey=this.expression(property.key),key=this.slot(),item=this.slot();
         this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:rawKey});
         excluded.push(key);
+        // The target reference is resolved before the property is read (KeyedDestructuringAssignmentEvaluation step 1).
+        const target=property.value.id;
+        const earlyWith=target.kind==='Identifier'&&!initializing?this.withResolution(target):undefined;
+        const earlyReference=assignment&&target.kind==='Member'?this.reference(target):null;
         this.emit({kind:'property',operation:'get',dest:item,object:value,key});
         const boundValue=this.slot();this.emit({kind:'copy',dest:boundValue,source:item});
         if(property.value.init){
@@ -316,7 +331,12 @@ class Lowerer {
           this.select(fallback);this.emit({kind:'copy',dest:boundValue,source:this.expression(property.value.init,property.value.id.kind==='Identifier'?property.value.id.name:undefined)});this.end({kind:'jump',target:ready.id});
           this.select(ready);
         }
-        this.bindPattern(property.value.id,boundValue,initializing,assignment);
+        if(earlyReference)this.putReference(earlyReference,boundValue);
+        else if(earlyWith&&target.kind==='Identifier'){
+          if(this.strict){const binding=this.binding(target);if(binding.kind==='globalProperty')this.emit({kind:'checkResolvable',slot:this.globalExists(binding.name)});}
+          this.write(target,boundValue,false,earlyWith);
+        }
+        else this.bindPattern(target,boundValue,initializing,assignment);
       }
       if(pattern.rest){
         const rest=this.slot(),copied=this.slot();this.emit({kind:'newObject',dest:rest,array:false,length:0});
@@ -329,7 +349,10 @@ class Lowerer {
     const iterator=this.slot(),next=this.slot(),doneFlag=this.slot(),falseValue=this.constant(false),trueValue=this.constant(true);
     this.emit({kind:'getIterator',iterator,next,object:value});this.emit({kind:'copy',dest:doneFlag,source:falseValue});
     const caught=this.block(),after=this.block(),error=this.slot(),handlerIndex=this.handlerCount++;
-    this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error});this.handlers.push(caught.id);
+    this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error,handlerKind:'finally'});this.handlers.push(caught.id);
+    // A return completion inside the pattern (generator.return() at a yield) closes the iterator too.
+    this.iteratorDoneFlags.set(iterator,doneFlag);
+    this.controls.push({stop:after.id,labels:[],unlabelledBreak:false,handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,iterator});
     for(const element of pattern.elements){
       const earlyReference=assignment&&element?.id.kind==='Member'?this.reference(element.id):null;
       const missing=this.block(),step=this.block(),join=this.block(),item=this.slot(),done=this.slot();
@@ -361,6 +384,7 @@ class Lowerer {
       const increment=this.slot();this.emit({kind:'binary',dest:increment,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:increment});this.end({kind:'jump',target:condition.id});
       this.select(join);if(earlyReference)this.putReference(earlyReference,array);else this.bindPattern(pattern.rest,array,initializing,assignment);
     }
+    this.controls.pop();
     this.emit({kind:'popHandler'});this.handlers.pop();
     if(!pattern.rest){
       const close=this.block(),join=this.block();this.end({kind:'branch',condition:doneFlag,yes:join.id,no:close.id});
@@ -368,12 +392,28 @@ class Lowerer {
     }
     this.end({kind:'jump',target:after.id});
     const rethrow=this.block(),close=this.block();this.select(caught);
+    this.returnMarkerBranch(error,()=>{
+      const returnClose=this.block(),closed=this.block();this.end({kind:'branch',condition:doneFlag,yes:closed.id,no:returnClose.id});
+      this.select(returnClose);this.emit({kind:'iteratorClose',iterator});this.end({kind:'jump',target:closed.id});this.select(closed);
+    });
     this.end({kind:'branch',condition:doneFlag,yes:rethrow.id,no:close.id});this.select(close);
     const closeFailed=this.block(),closeError=this.slot(),closeIndex=this.handlerCount++;
     this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
     this.emit({kind:'iteratorClose',iterator});this.emit({kind:'popHandler'});this.end({kind:'jump',target:rethrow.id});this.handlers.pop();
     this.select(closeFailed);this.end({kind:'jump',target:rethrow.id});
     this.select(rethrow);this.end({kind:'throw',value:error});this.select(after);
+  }
+  /**
+   * In an iterator-closing handler: generator.return() unwinds with a marker
+   * (a return completion), which closes the iterator with its errors
+   * propagating, then continues unwinding.
+   */
+  private returnMarkerBranch(error:number,onReturn:()=>void):void {
+    const isMarker=this.slot(),returning=this.block(),other=this.block();
+    this.emit({kind:'unary',dest:isMarker,operator:'isReturnMarker',argument:error});
+    this.end({kind:'branch',condition:isMarker,yes:returning.id,no:other.id});
+    this.select(returning);onReturn();if(!this.terminated)this.end({kind:'throw',value:error});
+    this.select(other);
   }
   private assignLoopTarget(left:A.Var|A.Assignable|A.ArrayPattern|A.ObjectPattern,value:number):void {
     if(left.kind==='Var')this.bindPattern(left.declarations[0]!.id,value,left.declarationKind!=='var');
@@ -681,8 +721,18 @@ class Lowerer {
     if(!this.terminated){
       while(this.handlers.length>handlerDepth){this.emit({kind:'popHandler'});this.handlers.pop();}
       for(const iterator of closeIterators){
-        if(this.asyncIterators.has(iterator))this.asyncIteratorClose(iterator);
+        const doneFlag=this.iteratorDoneFlags.get(iterator);
+        if(doneFlag!==undefined){
+          const close=this.block(),skip=this.block();this.end({kind:'branch',condition:doneFlag,yes:skip.id,no:close.id});
+          this.select(close);this.emit({kind:'iteratorClose',iterator});this.end({kind:'jump',target:skip.id});this.select(skip);
+        }
+        else if(this.asyncIterators.has(iterator))this.asyncIteratorClose(iterator);
         else this.emit({kind:'iteratorClose',iterator});
+      }
+      // A derived constructor checks its result after leaving every try block ([[Construct]] step 10-12).
+      if(term.kind==='return'&&this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor){
+        const entry=this.block();this.end({kind:'jump',target:entry.id});this.select(entry);
+        const checked=this.slot();this.emit({kind:'derivedReturn',dest:checked,source:term.value});term={kind:'return',value:checked};
       }
       this.end(term);
     }
@@ -762,7 +812,7 @@ class Lowerer {
     this.select(valueBlock);this.emit({kind:'property',operation:'get',dest:key,object:awaited,key:this.constant('value')});
     this.end({kind:'jump',target:bodyEntry.id});
     this.controls.push({handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,stop:join.id,next:update.id,labels,unlabelledBreak:true,iterator});
-    this.select(bodyEntry);this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error});this.handlers.push(caught.id);
+    this.select(bodyEntry);this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error,handlerKind:'finally'});this.handlers.push(caught.id);
     const body=this.block();this.end({kind:'jump',target:body.id});this.select(body);
     if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
     this.assignLoopTarget(s.left,key);this.statement(s.body);
@@ -770,7 +820,7 @@ class Lowerer {
     this.handlers.pop();
     // A throw completion closes the iterator and then rethrows the original error.
     const rethrow=this.block(),closeFailed=this.block(),closeError=this.slot(),closeIndex=this.handlerCount++;
-    this.select(caught);this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
+    this.select(caught);this.returnMarkerBranch(error,()=>this.asyncIteratorClose(iterator));this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
     const closing=this.block();this.end({kind:'jump',target:closing.id});this.select(closing);
     const method=this.slot(),missing=this.slot(),closeResult=this.slot(),closeAwaited=this.slot(),call=this.block(),closed=this.block();
     this.emit({kind:'property',operation:'get',dest:method,object:iterator,key:this.constant('return')});
@@ -790,7 +840,15 @@ class Lowerer {
     const body=this.block();this.end({kind:'jump',target:body.id});this.select(body);this.statement(s.body);
     if(!this.terminated){this.emit({kind:'popHandler'});this.end({kind:'jump',target:join.id});}
     this.handlers.pop();this.select(caught);
-    if(s.parameter){const binding=this.binding(s.parameter) as StorageBinding;if(binding.captured)this.emit({kind:'newCell',dest:binding.index,source:error});else this.store(binding,error);}
+    if(s.parameter?.kind==='Identifier'){const binding=this.binding(s.parameter) as StorageBinding;if(binding.captured)this.emit({kind:'newCell',dest:binding.index,source:error});else this.store(binding,error);}
+    else if(s.parameter){
+      // Pattern bindings start uninitialized (TDZ for initializers), then bind like a let declaration.
+      for(const id of boundNames(s.parameter)){
+        const binding=this.binding(id) as StorageBinding,empty=this.slot();this.emit({kind:'uninitialized',dest:empty});
+        if(binding.captured)this.emit({kind:'newCell',dest:binding.index,source:empty});else this.store(binding,empty);
+      }
+      this.bindPattern(s.parameter,error,true);
+    }
     this.statement(s.handler);if(!this.terminated)this.end({kind:'jump',target:join.id});this.select(join);
   }
   private statement(s:A.Statement,labels:string[]=[]):void {
@@ -826,15 +884,18 @@ class Lowerer {
         this.statement(s.body);break;
       }
       case 'Var':for(const d of s.declarations){
-        if(d.init)this.bindPattern(d.id,this.expression(d.init,d.id.kind==='Identifier'?d.id.name:undefined),s.declarationKind!=='var');
+        if(d.init&&s.declarationKind==='var'&&d.id.kind==='Identifier'&&this.bound.withChains.has(d.id)){
+          // The reference is resolved through with objects before the initializer runs.
+          const ref=this.withResolution(d.id)!;this.write(d.id,this.expression(d.init,d.id.name),false,ref);
+        }
+        else if(d.init)this.bindPattern(d.id,this.expression(d.init,d.id.kind==='Identifier'?d.id.name:undefined),s.declarationKind!=='var');
         else if(s.declarationKind!=='var'&&d.id.kind==='Identifier')this.write(d.id,this.constant(undefined),true);
       }break;
       case 'ExpressionStatement':this.expression(s.expression);break;
       case 'Return':{
         const derived=this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor;
         if(s.argument&&this.tailPosition())this.collectTailCalls(s.argument);
-        let value=s.argument?this.expression(s.argument):derived?this.currentThis():this.constant(undefined);
-        if(derived&&s.argument){const checked=this.slot();this.emit({kind:'derivedReturn',dest:checked,source:value});value=checked;}
+        let value=s.argument?this.expression(s.argument):this.constant(undefined);
         // Async generator return awaits its operand (ES2020 14.4.14 Return).
         if(s.argument&&this.fn?.declaration.async&&this.fn.declaration.generator){const awaited=this.slot();this.emit({kind:'await',dest:awaited,source:value});value=awaited;}
         this.complete({kind:'return',value},0,0,[...this.controls].reverse().flatMap(c=>c.iterator===undefined?[]:[c.iterator]));break;
@@ -889,14 +950,14 @@ class Lowerer {
         const key=this.slot(),done=this.slot();this.emit({kind:'iteratorStep',dest:key,done,iterator,next});
         this.end({kind:'branch',condition:done,yes:join.id,no:bodyEntry.id});
         this.controls.push({handlerDepth:this.handlers.length,finalizerDepth:this.finalizers.length,stop:join.id,next:update.id,labels,unlabelledBreak:true,iterator});
-        this.select(bodyEntry);this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error});this.handlers.push(caught.id);
+        this.select(bodyEntry);this.emit({kind:'pushHandler',index:handlerIndex,target:caught.id,error,handlerKind:'finally'});this.handlers.push(caught.id);
         const body=this.block();this.end({kind:'jump',target:body.id});this.select(body);
         if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
         this.assignLoopTarget(s.left,key);this.statement(s.body);
         if(!this.terminated){this.emit({kind:'popHandler'});this.end({kind:'jump',target:update.id});}
         this.handlers.pop();
         const rethrow=this.block(),closeFailed=this.block(),closeError=this.slot(),closeIndex=this.handlerCount++;
-        this.select(caught);this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
+        this.select(caught);this.returnMarkerBranch(error,()=>this.emit({kind:'iteratorClose',iterator}));this.emit({kind:'pushHandler',index:closeIndex,target:closeFailed.id,error:closeError});this.handlers.push(closeFailed.id);
         const closing=this.block();this.end({kind:'jump',target:closing.id});this.select(closing);
         this.emit({kind:'iteratorClose',iterator});this.emit({kind:'popHandler'});this.end({kind:'jump',target:rethrow.id});this.handlers.pop();
         this.select(closeFailed);this.end({kind:'jump',target:rethrow.id});this.select(rethrow);this.end({kind:'throw',value:error});

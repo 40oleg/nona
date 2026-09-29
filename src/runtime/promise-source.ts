@@ -406,6 +406,8 @@ var __nonaPromiseDrainJobs=(function(){
   var proxyCreate=Function.prototype.__nonaProxyCreateInternal,preventExtensions=Object.preventExtensions,toStringTagSymbol=Symbol.toStringTag;
   function sameValue(a,b){return a===b?a!==0||1/a===1/b:a!==a&&b!==b}
   __nonaRegexpVm.createImportMeta=function(){return objectCreate(null)};
+  // A computed static class element named "prototype" fails DefinePropertyOrThrow.
+  __nonaRegexpVm.staticMethodKey=function(key){if(key==='prototype')throw new TypeError('Classes may not have a static property named \'prototype\'');return key};
   __nonaRegexpVm.createNamespace=function(names,getters){
     var target=objectCreate(null),lookup=objectCreate(null),keys=[];
     for(var i=0;i<names.length;i++){

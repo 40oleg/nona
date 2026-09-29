@@ -126,14 +126,25 @@ export function lex(source: string): TokenStream {
     if (/[0-9]/.test(c) || c === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
       const match = /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)/.exec(source.slice(i));
       if (!match) fail('Invalid numeric literal');
-      const spelling = match![0]; i += spelling.length;
-      if (/^0[0-9]/.test(spelling)) fail('Legacy octal and leading-zero literals are unsupported', start);
+      let spelling = match![0];
+      // Annex B.1.1: LegacyOctalIntegerLiteral and NonOctalDecimalIntegerLiteral (sloppy mode only).
+      const legacy = /^0[0-9]/.test(spelling);
+      if (legacy && /^0[0-7]+(?![0-9])/.test(source.slice(i))) {
+        spelling = /^0[0-7]+/.exec(source.slice(i))![0]; i += spelling.length;
+        if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
+        push('number', start, parseInt(spelling.slice(1), 8)); tokens.at(-1)!.legacyOctal = true; continue;
+      }
+      i += spelling.length;
+      if (legacy) {
+        if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
+        push('number', start, Number(spelling.replace(/^0+(?=[0-9])/, ''))); tokens.at(-1)!.legacyOctal = true; continue;
+      }
       if(source[i]==='n'&&(/^[0-9]+$/.test(spelling)||/^0[xXbBoO]/.test(spelling))){i++;if(i<source.length&&(identifierPart(codePoint())||source[i]==='\\'))fail('Invalid BigInt literal',start);push('number',start,BigInt(spelling));continue;}
       if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
       push('number', start, Number(spelling)); continue;
     }
     if (c === '"' || c === "'") {
-      const quote = c; let value = ''; i++;
+      const quote = c; let value = '', legacyOctal = false; i++;
       while (i < source.length && source[i] !== quote) {
         const char = source[i++]!;
         if (char==='\r'||char==='\n') fail('Unescaped line terminator in string', start);
@@ -147,12 +158,20 @@ export function lex(source: string): TokenStream {
           if (digits.length !== count || !/^[0-9a-f]+$/i.test(digits)) fail('Invalid hexadecimal escape', i - 2);
           value += String.fromCharCode(parseInt(digits, 16)); i += count; continue;
         }
-        if (/[0-9]/.test(escape) && (escape !== '0' || /[0-9]/.test(source[i] ?? ''))) fail('Legacy octal escapes are unsupported', i - 2);
+        if (/[0-9]/.test(escape) && (escape !== '0' || /[0-9]/.test(source[i] ?? ''))) {
+          // Annex B.1.2: LegacyOctalEscapeSequence and NonOctalDecimalEscapeSequence (sloppy mode only).
+          legacyOctal = true;
+          if (escape === '8' || escape === '9') { value += escape; continue; }
+          let digits = escape;
+          const limit = escape <= '3' ? 3 : 2;
+          while (digits.length < limit && /[0-7]/.test(source[i] ?? '')) digits += source[i++];
+          value += String.fromCharCode(parseInt(digits, 8)); continue;
+        }
         const escapes: Record<string,string> = { n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0', '\\':'\\', '"':'"', "'":"'" };
         value += escapes[escape]??escape;
       }
       if (i >= source.length) fail('Unterminated string', start);
-      i++; push('string', start, value); continue;
+      i++; push('string', start, value); if (legacyOctal) tokens.at(-1)!.legacyOctal = true; continue;
     }
     if(c==='/'&&regexpAllowed){
       i++;let inClass=false,closed=false;

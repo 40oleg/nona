@@ -53,8 +53,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms});
   const base=baseImages.get(baseKey);
   let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
-  const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.slice()}));
-  if(base){fragments=copyFragments(base.fragments);functions=[...base.functions];imports=[...base.imports];literals=new Map(base.literals);}
+  const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
+  if(base){fragments=copyFragments(base.fragments);functions=base.functions.map(fn=>({...fn}));imports=[...base.imports];literals=new Map(base.literals);}
   else{
     const runtime=emitRuntime({operations:new Set(),realms});
     fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
@@ -69,7 +69,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   };
   if(!base){
     preludeFunctions.forEach(fn=>emitFunction(fn));
-    baseImages.set(baseKey,{fragments:copyFragments(fragments),functions:[...functions],imports:[...imports],literals:new Map(literals)});
+    baseImages.set(baseKey,{fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals)});
   }
   for(const name of module.globalFunctionProperties??[]){
     const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
@@ -289,7 +289,13 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           if(alias>=0){a.load('rax',{rip:'js.globalBindings',addend:alias*24+16});a.and('rax',1);a.test('rax','rax');if(op.strict)failIf(a,'e','rt.throwTypeError');else a.jcc('e',done);}
           copy({rip:'js.globals',addend:16*op.index},value(op.source));a.label(done);break;
         }
-        case 'unary':pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
+        case 'unary':
+          if(op.operator==='isReturnMarker'){
+            // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
+            a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
+            a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
+          }
+          pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
         case 'binary':{
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
           if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}break;

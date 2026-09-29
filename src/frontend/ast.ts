@@ -10,7 +10,7 @@ export type BindingPattern=Identifier|Member|ArrayPattern|ObjectPattern;
 export interface NewTarget extends Node {kind:'NewTarget'}
 export interface Super extends Node {kind:'Super'}
 export interface This extends Node {kind:'This'}
-export interface Literal extends Node { kind: 'Literal'; value: string|number|bigint|boolean|null|undefined }
+export interface Literal extends Node { kind: 'Literal'; value: string|number|bigint|boolean|null|undefined; legacyOctal?:boolean }
 export interface RegExpLiteral extends Node {kind:'RegExpLiteral';pattern:string;flags:string}
 export interface Unary extends Node { kind: 'Unary'; operator: string; argument: Expression }
 export interface Member extends Node {kind:'Member';object:Expression;property:Expression}
@@ -59,7 +59,7 @@ export interface ExportSpecifier {local:string;exported:string;localId?:Identifi
 export interface ExportDeclaration extends Node {kind:'Export';declaration?:Var|FunctionDeclaration|ClassDeclaration;specifiers?:ExportSpecifier[];source?:string;star?:boolean;namespace?:string;defaultExpression?:Expression;defaultId?:Identifier;isDefault?:boolean}
 export interface ImportMeta extends Node {kind:'ImportMeta'}
 export interface ImportCall extends Node {kind:'ImportCall';argument:Expression}
-export interface Try extends Node {kind:'Try';body:Block;parameter:Identifier|null;handler:Block|null;finalizer:Block|null}
+export interface Try extends Node {kind:'Try';body:Block;parameter:BindingPattern|null;handler:Block|null;finalizer:Block|null}
 export interface Return extends Node { kind: 'Return'; argument: Expression|null }
 export interface Simple extends Node { kind: 'Empty'|'Debugger' }
 export interface Jump extends Node { kind: 'Break'|'Continue'; label:Identifier|null }

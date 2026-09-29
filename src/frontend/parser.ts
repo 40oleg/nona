@@ -3,7 +3,9 @@ import type { Token,TokenStream } from './token.js';
 import type * as A from './ast.js';
 import {boundNames} from './declarations.js';
 
-const reserved = new Set(('break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super implements interface let package private protected public static yield null true false').split(' '));
+const reserved = new Set(('break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super yield null true false').split(' '));
+/** Reserved only in strict mode code; the binder rejects them there. */
+export const strictReserved=new Set(['implements','interface','package','private','protected','public','static']);
 const precedence: Record<string,number> = { '??':1,'||':1,'&&':2,'|':3,'^':4,'&':5,'==':6,'!=':6,'===':6,'!==':6,'<':7,'<=':7,'>':7,'>=':7,'in':7,'instanceof':7,'<<':8,'>>':8,'>>>':8,'+':9,'-':9,'*':10,'/':10,'%':10 };
 export function parse(tokens: TokenStream,options:{module?:boolean}={}): A.Program { return new Parser(tokens,!!options.module).program(); }
 
@@ -25,6 +27,7 @@ class Parser {
   private span(start:number): {start:number;end:number} { return {start,end:this.tokens[Math.max(0,this.index-1)]!.span.end}; }
   private reservedIdentifier(name:string):boolean {
     if(name==='await')return this.module||this.asyncContext||this.awaitIdentifierForbidden;
+    if(this.module&&(strictReserved.has(name)||name==='let'))return true;
     return reserved.has(name)&&!(name==='yield'&&!this.generatorContext&&!this.yieldIdentifierForbidden);
   }
   /** `async` followed, without a line terminator, by `function`. */
@@ -111,6 +114,7 @@ class Parser {
       if(this.match('[')){computed=true;key=this.assignment();this.need(']');}
       else{const token=this.token;if(!['word','string','number'].includes(token.kind))this.error('Expected a class method name');this.take();key={kind:'Literal',value:String(token.value??token.text),span:token.span};}
       if(isStatic&&!computed&&key.kind==='Literal'&&key.value==='prototype')this.error('Static prototype method is not allowed');
+      if(!isStatic&&!computed&&accessor&&key.kind==='Literal'&&key.value==='constructor')this.error('Class constructor cannot be an accessor');
       const {parameters,defaults,rest}=this.functionParameters(generator,isAsync);
       if(accessor==='get'&&(parameters.length||rest))this.error('Getter requires no parameters');
       if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
@@ -245,6 +249,7 @@ class Parser {
     const keyword=this.take(),start=keyword.span.start,declarationKind=keyword.text as A.Var['declarationKind'], declarations:A.Var['declarations']=[];
     do {
       const id=this.bindingPattern(), init=this.match('=')?this.assignment():null;
+      if(declarationKind!=='var'&&JSON.stringify(id,(key,value)=>key==='span'?undefined:value).includes('"name":"let"'))this.error('let is not allowed as a lexically bound name',keyword);
       if(declarationKind==='const'&&!init&&!forHead)this.error('Const declaration requires an initializer');
       if(id.kind!=='Identifier'&&!init&&!forHead)this.error('Destructuring declaration requires an initializer');
       declarations.push({id,init});
@@ -257,8 +262,8 @@ class Parser {
     if(this.match(';'))return {kind:'Empty',span:this.span(start)};
     if(this.match('throw')){if(this.token.lineBreakBefore)this.error('Line break after throw');const argument=this.expression();this.semi();return {kind:'Throw',argument,span:this.span(start)};}
     if(this.match('try')){
-      const body=this.block();let parameter:A.Identifier|null=null,handler:A.Block|null=null,finalizer:A.Block|null=null;
-      if(this.match('catch')){if(this.match('(')){parameter=this.id();this.need(')');}handler=this.block();}
+      const body=this.block();let parameter:A.BindingPattern|null=null,handler:A.Block|null=null,finalizer:A.Block|null=null;
+      if(this.match('catch')){if(this.match('(')){parameter=this.bindingPattern();this.need(')');}handler=this.block();}
       if(this.match('finally'))finalizer=this.block();
       if(!handler&&!finalizer)this.error('Expected catch or finally');
       return {kind:'Try',body,parameter,handler,finalizer,span:this.span(start)};
@@ -273,7 +278,10 @@ class Parser {
       return {kind:'Labeled',label,body,span:this.span(start)};
     }
     // In a single-statement position `let` is an identifier unless it starts `let [`.
-    const letIdentifier=!allowLexical&&this.at('let')&&this.tokens[this.index+1]?.text!=='['&&(this.tokens[this.index+1]?.lineBreakBefore||!['word','punct'].includes(this.tokens[this.index+1]?.kind??'')||this.tokens[this.index+1]?.text!=='{'&&this.tokens[this.index+1]?.kind!=='word');
+    const afterLet=this.tokens[this.index+1];
+    // In a declaration position `let` declares only before a binding identifier or pattern.
+    const letExpression=allowLexical&&this.at('let')&&!!afterLet&&!(afterLet.text==='['||afterLet.text==='{'||afterLet.kind==='word'&&!['in','instanceof'].includes(afterLet.text));
+    const letIdentifier=letExpression||!allowLexical&&this.at('let')&&this.tokens[this.index+1]?.text!=='['&&(this.tokens[this.index+1]?.lineBreakBefore||!['word','punct'].includes(this.tokens[this.index+1]?.kind??'')||this.tokens[this.index+1]?.text!=='{'&&this.tokens[this.index+1]?.kind!=='word');
     if(!letIdentifier&&(this.at('var')||this.at('let')||this.at('const'))) {
       if(!allowLexical&&!this.at('var'))this.error('Lexical declaration requires a block');
       return this.variable(true);
@@ -327,7 +335,11 @@ class Parser {
     }
     if(this.match('for')) {
       const isAwait=this.asyncContext&&this.match('await');
-      this.need('(');const init=this.at(';')?null:['var','let','const'].includes(this.token.text)?this.variable(false,true):this.expression();
+      this.need('(');
+      // `let` starts a declaration only before a binding (ES2020 13.7: for ( [lookahead ≠ let [] ...).
+      const next=this.tokens[this.index+1];
+      const letDeclaration=this.at('let')&&!!next&&(next.text==='['||next.text==='{'||next.kind==='word'&&next.text!=='in'&&next.text!=='of');
+      const init=this.at(';')?null:this.at('var')||this.at('const')||letDeclaration?this.variable(false,true):this.expression();
       if(init?.kind==='Yield'&&init.argument?.kind==='Binary'&&init.argument.operator==='in'&&!this.parenthesized.has(init.argument))
         this.error('Unparenthesized in is not allowed in a for initializer');
       if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
@@ -336,10 +348,16 @@ class Parser {
         const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
         return {kind,left:init,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
       }
-      if(init?.kind==='Binary'&&init.operator==='in'&&(init.left.kind==='Identifier'||init.left.kind==='Member')&&this.at(')')){
+      // for ( LHS in Expression ): the expression may be a comma sequence.
+      let first:A.Expression|null=init&&init.kind!=='Var'?init:null;
+      while(first&&first.kind==='Binary'&&first.operator===','&&!this.parenthesized.has(first))first=first.left;
+      if(first?.kind==='Binary'&&first.operator==='in'&&!this.parenthesized.has(first)&&(first.left.kind==='Identifier'||first.left.kind==='Member'||(first.left.kind==='ArrayLiteral'||first.left.kind==='ObjectLiteral')&&!this.parenthesized.has(first.left))&&this.at(')')){
         this.take();const body=this.statement(false,false);
-        return {kind:'ForIn',left:init.left,right:init.right,body,span:this.span(start)};
+        const replace=(e:A.Expression):A.Expression=>e===first?(first as A.Binary).right:{...(e as A.Binary),left:replace((e as A.Binary).left)};
+        const inLeft=first.left.kind==='ArrayLiteral'||first.left.kind==='ObjectLiteral'?this.assignmentPattern(first.left) as A.ArrayPattern|A.ObjectPattern:first.left as A.Assignable;
+        return {kind:'ForIn',left:inLeft,right:replace(init as A.Expression),body,span:this.span(start)};
       }
+      if(this.at(';')&&init&&(init.kind==='Var'?init.declarations.some(d=>d.init&&this.topLevelIn(d.init)):this.topLevelIn(init)))this.error('in is not allowed in a for statement initializer');
       if((init?.kind==='Identifier'||init?.kind==='Member'||(init?.kind==='ArrayLiteral'||init?.kind==='ObjectLiteral')&&!this.parenthesized.has(init))&&this.match('of')){
         if(!isAwait&&init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
         const left=init.kind==='ArrayLiteral'||init.kind==='ObjectLiteral'?this.assignmentPattern(init) as A.ArrayPattern|A.ObjectPattern:init;
@@ -363,6 +381,18 @@ class Parser {
       this.semi();return {kind,label,span:this.span(start)};
     }
     const expression=this.expression();this.semi();return {kind:'ExpressionStatement',expression,span:this.span(start)};
+  }
+  /** Whether an unparenthesized `in` appears where [~In] forbids it (for initializers). */
+  private topLevelIn(e:A.Expression):boolean {
+    if(this.parenthesized.has(e))return false;
+    switch(e.kind){
+      case 'Binary':return e.operator==='in'||this.topLevelIn(e.left)||this.topLevelIn(e.right);
+      case 'Assignment':return this.topLevelIn(e.right);
+      case 'Conditional':return this.topLevelIn(e.test)||this.topLevelIn(e.alternate);
+      case 'Unary':case 'Await':return this.topLevelIn(e.argument);
+      case 'Yield':return !!e.argument&&this.topLevelIn(e.argument);
+      default:return false;
+    }
   }
   private expression(): A.Expression {
     let left=this.assignment();
@@ -679,7 +709,7 @@ class Parser {
       }
       this.need('}');return {kind:'ObjectLiteral',properties,trailingCommaAfterSpread,span:this.span(t.span.start)};
     }
-    if(t.kind==='number'||t.kind==='string') {this.take();return {kind:'Literal',value:t.value!,span:t.span};}
+    if(t.kind==='number'||t.kind==='string') {this.take();return {kind:'Literal',value:t.value!,span:t.span,...(t.legacyOctal?{legacyOctal:true}:{})};}
     if(t.kind==='regexp'){this.take();return {kind:'RegExpLiteral',pattern:t.pattern!,flags:t.flags!,span:t.span};}
     if(['true','false','null'].includes(t.text)) {this.take();return {kind:'Literal',value:t.text==='null'?null:t.text==='true',span:t.span};}
     if(this.match('(')) {const e=this.expression();this.need(')');this.parenthesized.add(e);return e;}

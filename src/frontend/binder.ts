@@ -1,3 +1,4 @@
+import {strictReserved} from './parser.js';
 import {CompileError} from '../diagnostics.js';
 import {immutableGlobalNames,runtimeGlobalNames} from '../global-builtins.js';
 import type * as A from './ast.js';
@@ -15,8 +16,9 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const argumentOwners=new Map<StorageBinding,BoundFunction>();
   const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>();
   const fail=(node:A.Node,message:string):never=>{throw new CompileError([{code:'E_BIND',message,file:'',span:node.span}]);};
+  let classCode=0; // > 0 while analyzing class heritage and element names (strict mode code)
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
-    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
+    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||classCode>0||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
     functions.push(entry);functionNodes.set(node,entry);return entry;
   };
   let currentModule:number|undefined;
@@ -25,7 +27,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     const strict=fn?.strict??(!!ast.strict||!!moduleNames);
     const nonSimple=!!fn&&(!!fn.declaration.rest||!!fn.declaration.defaults?.some(Boolean)||fn.declaration.parameters.some(p=>p.kind!=='Identifier'));
     let parameterArguments:StorageBinding|undefined;
-    const checkName=(id:A.Identifier)=>{if(strict&&(id.name==='eval'||id.name==='arguments'||id.name==='yield'))fail(id,'Restricted strict binding');};
+    const checkName=(id:A.Identifier)=>{if(strict&&(id.name==='eval'||id.name==='arguments'||id.name==='yield'||id.name==='let'||strictReserved.has(id.name)))fail(id,'Restricted strict binding');};
     if(fn?.declaration.id)checkName(fn.declaration.id);
     const functionNames=fn?new Map<string,Binding>():moduleNames??globalNames;
     if(fn){
@@ -122,7 +124,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       scopes.push(scope);action();scopes.pop();
     };
     const resolve=(id:A.Identifier,mode:'value'|'write'|'call'|'typeof'='value'):Binding=>{
-      if(strict&&(id.name==='yield'||id.name==='let'))fail(id,'Restricted strict identifier');
+      if(strict&&(id.name==='yield'||id.name==='let'||strictReserved.has(id.name)))fail(id,'Restricted strict identifier');
       if(strict&&mode==='write'&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict assignment');
       let b:Binding|undefined;const withs:StorageBinding[]=[];
       for(let i=scopes.length-1;i>=0&&!b;i--){const scope=scopes[i]!;if(scope instanceof WithScope)withs.push(scope.binding);else b=scope.get(id.name);}
@@ -158,7 +160,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
           if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.method)fail(e,'Super property requires a method');break;
         }
-        case 'This':case 'Literal':case 'RegExpLiteral':case 'ImportMeta':break;
+        case 'Literal':if(strict&&e.legacyOctal)fail(e,'Legacy octal literals and escapes are not allowed in strict mode');break;
+        case 'This':case 'RegExpLiteral':case 'ImportMeta':break;
         case 'ImportCall':expression(e.argument);break;
         case 'FunctionExpression':{
           const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
@@ -184,16 +187,19 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       }
     };
     const analyzeClass=(node:A.ClassExpression|A.ClassDeclaration):void=>{
-      const namedExpression=node.kind==='ClassExpression'&&node.id;
+      // The class scope has an immutable binding of the class name (ClassDefinitionEvaluation step 4),
+      // separate from the outer binding a declaration creates.
+      const namedExpression=node.id&&node.id.name!=='*default*'?node.id:null;
       if(namedExpression){
-        checkName(namedExpression);
+        // All parts of a class, including its name, are strict mode code.
+        if(['eval','arguments','yield','let'].includes(namedExpression.name)||strictReserved.has(namedExpression.name))fail(namedExpression,'Restricted class name');
         const storage=fn?fn.locals:mainLocals;
         const binding:StorageBinding={kind:'local',name:namedExpression.name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:false};
-        storage.push(binding);bindings.set(namedExpression,binding);lexicalScopes.set(node,[binding]);
+        storage.push(binding);if(node.kind==='ClassExpression')bindings.set(namedExpression,binding);lexicalScopes.set(node,[binding]);
         scopes.push(new Map([[namedExpression.name,binding]]));
       }
-      if(node.superClass)expression(node.superClass);
-      for(const method of node.methods){if(method.computed)expression(method.key);const nested=register(method.value,fn);analyze(method.value.body.body,nested,method.value.body,scopes);}
+      classCode++;if(node.superClass)expression(node.superClass);classCode--;
+      for(const method of node.methods){if(method.computed){classCode++;expression(method.key);classCode--;}const nested=register(method.value,fn);analyze(method.value.body.body,nested,method.value.body,scopes);}
       const constructor=register(node.constructorMethod,fn);analyze(node.constructorMethod.body.body,constructor,node.constructorMethod.body,scopes);
       if(namedExpression)scopes.pop();
     };
@@ -221,11 +227,19 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'Try':{
           statements([s.body],loops,switches);
           const scope=new Map<string,Binding>();
-          if(s.parameter){checkName(s.parameter);const storage=fn?fn.locals:mainLocals;const binding:StorageBinding={kind:'local',name:s.parameter.name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:true};storage.push(binding);catchBindings.add(binding);bindings.set(s.parameter,binding);scope.set(binding.name,binding);
-            for(const declaration of collectDeclarations(s.handler!.body,'lexical').lexicals)
-              if(declaration.name===binding.name)fail(declaration.id,'Catch parameter conflicts with lexical declaration');
+          if(s.parameter){
+            const names=boundNames(s.parameter),declared=collectDeclarations(s.handler!.body,'lexical');
+            for(const id of names){
+              checkName(id);if(scope.has(id.name))fail(id,'Duplicate catch parameter');
+              const storage=fn?fn.locals:mainLocals;const binding:StorageBinding={kind:'local',name:id.name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:true};storage.push(binding);bindings.set(id,binding);scope.set(binding.name,binding);
+              // Annex B.3.5 allows `var e` only for a simple catch parameter.
+              if(s.parameter.kind==='Identifier')catchBindings.add(binding);
+              else for(const v of declared.vars)if(v.name===id.name)fail(v,'Catch parameter conflicts with var declaration');
+              for(const declaration of declared.lexicals)
+                if(declaration.name===binding.name)fail(declaration.id,'Catch parameter conflicts with lexical declaration');
+            }
           }
-          if(s.handler){scopes.push(scope);statements([s.handler],loops,switches);scopes.pop();}
+          if(s.handler){scopes.push(scope);if(s.parameter&&s.parameter.kind!=='Identifier')patternInitializers(s.parameter);statements([s.handler],loops,switches);scopes.pop();}
           if(s.finalizer)statements([s.finalizer],loops,switches);break;
         }
         case 'Empty':case 'Debugger':case 'Import':break;
