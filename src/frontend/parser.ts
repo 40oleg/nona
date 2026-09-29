@@ -534,6 +534,7 @@ class Parser {
     const start=this.token.span.start;let expression:A.Expression;
     if(this.match('new')){
       if(this.match('.')){this.need('target');expression={kind:'NewTarget',span:this.span(start)};}else{
+      if(this.at('import')&&this.tokens[this.index+1]?.text!=='.')this.error('import() cannot be a new target');
       const callee=this.leftHandSide(false);
       if(callee.kind==='OptionalChain'&&!this.parenthesized.has(callee))this.error('Optional chain cannot be a new target');
       const args=this.at('(')?this.arguments():[];

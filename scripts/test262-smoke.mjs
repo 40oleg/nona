@@ -2,7 +2,16 @@ import {spawnSync} from 'node:child_process';
 import {readFileSync, mkdirSync, writeFileSync, appendFileSync, readdirSync, chmodSync, rmSync} from 'node:fs';
 import {resolve, join, dirname} from 'node:path';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
-import {compile} from '../dist/src/compiler.js';
+import {compile, fileModuleHost} from '../dist/src/compiler.js';
+// Computed import() specifiers in Test262 name the test's own fixtures; the
+// host declares those files as the modules such imports may load.
+const moduleHost = {...fileModuleHost, candidates: referrer => {
+  try {
+    const text = readFileSync(referrer, 'utf8');
+    return readdirSync(dirname(referrer)).filter(name => name.endsWith('_FIXTURE.js') && text.includes(name)).map(name => './' + name);
+  }
+  catch { return []; }
+}};
 import {lex} from '../dist/src/frontend/lexer.js';
 import {parse} from '../dist/src/frontend/parser.js';
 
@@ -184,8 +193,8 @@ function runCase(path) {
   // synchronous semantics, so use the non-failing host policy for this harness.
   const realms = Math.min(3, (source.match(/createRealm/g) || []).length + includes.reduce((count, file) => count + (readFileSync(join(root, 'harness', file), 'utf8').match(/createRealm\(/g) || []).length, 0));
   const compiled = moduleCase
-    ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents})
-    : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents});
+    ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents, moduleHost})
+    : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents, moduleHost});
   if (!compiled.ok) {
     return {path, outcome: 'fail', phase: 'compile', diagnostics: compiled.diagnostics};
   }

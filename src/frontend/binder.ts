@@ -16,7 +16,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>();
   const fail=(node:A.Node,message:string):never=>{throw new CompileError([{code:'E_BIND',message,file:'',span:node.span}]);};
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
-    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:!!(node.body.strict||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
+    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
     functions.push(entry);functionNodes.set(node,entry);return entry;
   };
   let currentModule:number|undefined;
@@ -158,7 +158,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
           if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.method)fail(e,'Super property requires a method');break;
         }
-        case 'This':case 'Literal':case 'RegExpLiteral':break;
+        case 'This':case 'Literal':case 'RegExpLiteral':case 'ImportMeta':break;
+        case 'ImportCall':expression(e.argument);break;
         case 'FunctionExpression':{
           const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
         }
@@ -306,7 +307,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const scriptLexicals=lexicalScopes.get(ast)??[];
   // Every module environment binding is persistent storage.
   const hidden=(name:string,mutable=false):StorageBinding=>{const b:StorageBinding={kind:'global',name,index:globals.length,owner:-1,module:true,mutable};globals.push(b);return b;};
-  type Placeholder={binding:StorageBinding;from:number;imported:string|null;node:A.Node};
+  type Placeholder={binding:StorageBinding;owner:number;from:number;imported:string|null;node:A.Node};
   const placeholders:Placeholder[]=[],moduleNames=moduleRecords.map(()=>new Map<string,Binding>());
   const modules:BoundModule[]=moduleRecords.map(record=>({record,namespace:hidden('#namespace'+record.index),meta:hidden('#meta'+record.index),exportNames:[],getters:[]}));
   const mainLexicals:StorageBinding[]=[...scriptLexicals];
@@ -318,7 +319,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         if(specifier.local.name==='eval'||specifier.local.name==='arguments')fail(specifier.local,'Restricted import binding');
         const binding:StorageBinding={kind:'global',name:specifier.local.name,index:-1,owner:-1,module:true,mutable:false,silentImmutable:false};
         names.set(binding.name,binding);importPlaceholders.add(binding);bindings.set(specifier.local,binding);
-        placeholders.push({binding,from:record.requests.get(statement.source)!,imported:specifier.kind==='namespace'?null:specifier.kind==='default'?'default':specifier.imported!,node:specifier.local});
+        placeholders.push({binding,owner:record.index,from:record.requests.get(statement.source)!,imported:specifier.kind==='namespace'?null:specifier.kind==='default'?'default':specifier.imported!,node:specifier.local});
       }
       if(statement.kind==='Export'&&statement.defaultExpression){
         const binding:StorageBinding={kind:'global',name:'*default*',index:globals.length,owner:-1,module:true,lexical:true,mutable:false};
@@ -389,13 +390,25 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     for(const from of starExports(index))for(const name of exportedNames(from,visited))if(name!=='default'&&!names.includes(name))names.push(name);
     return names;
   };
+  // Modules reached from the entry through static imports must link at compile
+  // time; a graph only reachable through import() reports its link error then.
+  const statics=new Set<number>();
+  const reach=(index:number):void=>{if(statics.has(index))return;statics.add(index);for(const next of moduleRecords[index]!.staticRequests)reach(next);};
+  if(ast.module&&moduleRecords.length)reach(0);
+  const linkFailure=(owner:number,node:A.Node,message:string):void=>{
+    if(statics.has(owner))fail(node,message);
+    modules[owner]!.linkError??=message;
+  };
+  for(const record of moduleRecords)if(record.loadError!==undefined)linkFailure(record.index,record.ast,record.loadError);
   for(const placeholder of placeholders){
     let target:StorageBinding;
     if(placeholder.imported===null)target=modules[placeholder.from]!.namespace;
     else{
       const resolution=resolveExport(placeholder.from,placeholder.imported,new Set());
-      if(resolution===null||resolution==='ambiguous')return fail(placeholder.node,`Module '${moduleRecords[placeholder.from]!.path}' does not provide an unambiguous export named '${placeholder.imported}'`);
-      target=resolution.binding;
+      if(resolution===null||resolution==='ambiguous'){
+        linkFailure(placeholder.owner,placeholder.node,`Module '${moduleRecords[placeholder.from]!.path}' does not provide an unambiguous export named '${placeholder.imported}'`);
+        target=modules[placeholder.from]!.namespace;
+      }else target=resolution.binding;
     }
     placeholder.binding.index=target.index;
     if(target.lexical)placeholder.binding.lexical=true;
@@ -405,7 +418,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     // Indirect exports must resolve even when nothing imports them.
     for(const entry of indirectExports(index))if(entry.imported!==null){
       const resolution=resolveExport(entry.from,entry.imported,new Set());
-      if(resolution===null||resolution==='ambiguous')fail(record.ast,`Module '${moduleRecords[entry.from]!.path}' does not provide an export named '${entry.imported}'`);
+      if(resolution===null||resolution==='ambiguous')linkFailure(index,record.ast,`Module '${moduleRecords[entry.from]!.path}' does not provide an export named '${entry.imported}'`);
     }
     const names=exportedNames(index,new Set()).filter(name=>{const r=resolveExport(index,name,new Set());return r!==null&&r!=='ambiguous';});
     names.sort((a,b)=>a<b?-1:a>b?1:0);

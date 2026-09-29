@@ -437,9 +437,9 @@ var __nonaPromiseDrainJobs=(function(){
     })
   };
   var moduleTable=[],modulePaths=objectCreate(null);
-  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets){
+  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
-    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,resolved:resolved,status:0,error:undefined,failed:false};
+    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
     modulePaths[path]=index
   };
   var scriptRecord;
@@ -459,6 +459,13 @@ var __nonaPromiseDrainJobs=(function(){
     record.status=2
   }
   __nonaRegexpVm.evaluateModule=evaluateModule;
+  // Link errors anywhere in the static graph of an imported module.
+  function linkError(index,seen){
+    if(seen[index])return undefined;seen[index]=true;
+    var record=moduleTable[index];if(record.linkError!==undefined)return record.linkError;
+    for(var i=0;i<record.requests.length;i++){var error=linkError(record.requests[i],seen);if(error!==undefined)return error}
+    return undefined
+  }
   function resolveSpecifier(specifier,referrerPath){
     if(!(specifier.slice(0,2)==='./'||specifier.slice(0,3)==='../'||specifier.slice(0,1)==='/'))return undefined;
     var parts=[],segments=specifier.split('/'),i;
@@ -479,6 +486,8 @@ var __nonaPromiseDrainJobs=(function(){
       if(record&&hasOwn.call(record.resolved,text))target=record.resolved[text];
       else if(record){var path=resolveSpecifier(text,record.path);if(path!==undefined&&hasOwn.call(modulePaths,path))target=modulePaths[path]}
       if(target===undefined)throw new TypeError('Cannot find module \''+text+'\'');
+      var failure=linkError(target,objectCreate(null));
+      if(failure!==undefined)throw new SyntaxError(failure);
       enqueue(function(){
         try{evaluateModule(target)}catch(error){var reject=functions.reject;reject(error);return}
         var resolve=functions.resolve;resolve(moduleTable[target].namespace)

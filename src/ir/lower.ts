@@ -56,11 +56,12 @@ class Lowerer {
   private closure(fn:BoundFunction,inferredName?:string|number,homeObject?:number):number {
     const dest=this.slot(),captures=fn.captures.map(binding=>this.cellSlot(binding));
     const declared=fn.declaration.id?.name;
-    const name=declared==='*default*'?'default':declared??inferredName??'';
+    const override=fn.declaration.kind==='FunctionExpression'?fn.declaration:undefined;
+    const name=override?.nameOverride??(declared==='*default*'?'default':declared??inferredName??'');
     const sourceText=fn.module!==undefined?this.bound.modules![fn.module]!.record.ast.source:this.bound.ast.source;
     const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
     this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`js.fn.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
-      sourceText:sourceText?.slice(sourceSpan.start,sourceSpan.end),
+      sourceText:override?.sourceText??sourceText?.slice(sourceSpan.start,sourceSpan.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
   private globalObject():number {const dest=this.slot();this.emit({kind:'globalObject',dest});return dest;}
@@ -147,7 +148,7 @@ class Lowerer {
       const requests=this.arrayOf(module.record.staticRequests.map(index=>this.constant(index)));
       const specifiers=this.arrayOf([...module.record.requests.keys()].map(key=>this.constant(key)));
       const targets=this.arrayOf([...module.record.requests.values()].map(index=>this.constant(index)));
-      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.readStorage(module.namespace),specifiers,targets]);
+      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.readStorage(module.namespace),specifiers,targets,module.linkError===undefined?this.constant(undefined):this.constant(module.linkError)]);
     }
     const script=this.bound.ast;
     if(!script.module){

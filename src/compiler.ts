@@ -1,4 +1,5 @@
 import type { Diagnostic } from './diagnostics.js';
+import {lowerDynamicFunctions} from './frontend/dynamic-functions.js';
 import { CompileError } from './diagnostics.js';
 import { lex } from './frontend/lexer.js';
 import { parse } from './frontend/parser.js';
@@ -29,15 +30,16 @@ export const fileModuleHost:ModuleHost={
 export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=fileModuleHost,scriptPrelude=''):ModuleIR {
   const records=loadModuleGraph(modulePath(fileName),source,host);
   // An optional classic script (such as a test harness) runs before the graph.
-  const script=parse(lex(scriptPrelude));
+  const script=lowerDynamicFunctions(parse(lex(scriptPrelude)));
   const main:Program={...script,module:true,source:scriptPrelude};
   return {...lower(bind(main,records)),runtimePrelude:true};
 }
 export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost):ModuleIR {
-  const script=parse(lex(source));
-  const dynamic=fileName===undefined?[]:moduleRequests(script).dynamic;
+  const script=lowerDynamicFunctions(parse(lex(source)));
+  const requests=fileName===undefined?undefined:moduleRequests(script);
+  const dynamic=requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])].filter((s,i,all)=>all.indexOf(s)===i);
   if(!dynamic.length)return {...lower(bind(script)),runtimePrelude:true};
   // Scripts may import() modules; the statically named targets are compiled in.
   const path=modulePath(fileName!),records=loadModuleGraph(path,null,host,dynamic);

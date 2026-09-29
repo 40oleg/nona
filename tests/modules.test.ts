@@ -49,6 +49,16 @@ const cases:[string,Record<string,string>][]=[
    "boom.mjs": "throw new Error('eval failed');\n",
    "once.mjs": "console.log('once');\n"
   }
+ ],
+ [
+  "import() of a module that fails to link or parse rejects with SyntaxError",
+  {
+   "main.mjs": "import('./bad-link.mjs').catch(e => console.log('link', e.name))\n .then(() => import('./bad-parse.mjs')).catch(e => console.log('parse', e.name))\n .then(() => import('./dup.mjs')).catch(e => console.log('dup', e.name));\n",
+   "bad-link.mjs": "import {nope} from './ok.mjs';\nconsole.log('never');\n",
+   "ok.mjs": "console.log('never either');\nexport const yes = 1;\n",
+   "bad-parse.mjs": "export default 1 +;\n",
+   "dup.mjs": "var smoosh; function smoosh() {}\n"
+  }
  ]
 ];
 for(const [name,files] of cases)test('modules: '+name,()=>{
@@ -65,6 +75,9 @@ for(const [name,files] of [
  ['assignment to import is a runtime error but import in declaration conflicts',{'main.mjs':"import {x} from './m.mjs';let x;",'m.mjs':'export const x=1;'}],
  ['missing module',{'main.mjs':"import './nope.mjs';"}],
  ['await identifier in module',{'main.mjs':'var await;'}],
+ ['function and var with one name',{'main.mjs':'var f; function f(){}'}],
+ ['duplicate exported name',{'main.mjs':'var x, y; export {x as z}; export {y as z};'}],
+ ['duplicate default export',{'main.mjs':'var x; export default x; export {x as default};'}],
 ] as [string,Record<string,string>][])test('module link error: '+name,()=>{
  assert.equal(compile(files['main.mjs']!,{fileName:'/main.mjs',target:'linux-x64',module:true,moduleHost:host(files)}).ok,false);
 });
