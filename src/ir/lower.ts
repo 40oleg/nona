@@ -126,7 +126,7 @@ class Lowerer {
   }
   /** Calls in tail position of a return (ES2020 14.9 IsInTailPosition), strict code only. */
   private collectTailCalls(e:A.Expression):void {
-    if(e.kind==='Call'&&e.callee.kind!=='Super'&&!e.arguments.some(arg=>arg.kind==='SpreadElement'))this.tailCalls.add(e);
+    if(e.kind==='Call'&&e.callee.kind!=='Super'&&!e.arguments.some(arg=>arg.kind==='SpreadElement')||e.kind==='TaggedTemplate'&&e.tag.kind!=='OptionalChain')this.tailCalls.add(e);
     else if(e.kind==='Conditional'){this.collectTailCalls(e.consequent);this.collectTailCalls(e.alternate);}
     else if(e.kind==='Binary'&&[',','&&','||','??'].includes(e.operator))this.collectTailCalls(e.right);
   }
@@ -570,7 +570,7 @@ class Lowerer {
         this.emit({kind:'storeGlobal',index:cache,source:cooked});this.end({kind:'jump',target:ready.id});
         this.select(ready);const template=this.slot();this.emit({kind:'loadGlobal',dest:template,index:cache});
         const substitutions=e.expressions.map(expression=>this.expression(expression)),dest=this.slot();
-        this.invokeWithArguments(dest,callee,{fixed:[template,...substitutions]},receiver);return dest;
+        this.invokeWithArguments(dest,callee,{fixed:[template,...substitutions]},receiver,false,undefined,this.tailCalls.has(e));return dest;
       }
       case 'Template':{
         let result=this.constant(e.quasis[0]!);
@@ -610,7 +610,7 @@ class Lowerer {
         else for(const p of e.properties){
           if('spread'in p){const source=this.expression(p.spread),copied=this.slot();this.maxArguments=Math.max(this.maxArguments,2);this.emit({kind:'call',dest:copied,target:'rt.copyDataProperties',arguments:[dest,source]});continue;}
           const raw=this.expression(p.key),key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:raw});
-          const functionName=p.value.kind==='FunctionExpression'?this.methodName(key,p.accessor?p.accessor+' ':undefined):key;
+          const functionName=p.value.kind==='FunctionExpression'||p.value.kind==='ClassExpression'?this.methodName(key,p.accessor?p.accessor+' ':undefined):key;
           const source=p.value.kind==='FunctionExpression'&&p.value.method?this.closure(this.bound.functionNodes.get(p.value)!,functionName,dest):this.expression(p.value,p.prototype?undefined:functionName);
           if(p.prototype)this.emit({kind:'setPrototype',object:dest,prototype:source});
           else if(p.accessor)this.emit({kind:'defineAccessor',object:dest,key,source,setter:p.accessor==='set'});

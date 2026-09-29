@@ -559,7 +559,7 @@ class Parser {
       const prior=this.chainParts(expression.object);
       return {base:prior.base,links:[...prior.links,{kind:'property',property:expression.property,computed:this.computedMembers.has(expression),optional:false,span:expression.span}]};
     }
-    if(expression.kind==='Call'){
+    if(expression.kind==='Call'&&expression.callee.kind!=='Super'){
       const prior=this.chainParts(expression.callee);
       return {base:prior.base,links:[...prior.links,{kind:'call',arguments:expression.arguments,optional:false,span:expression.span}]};
     }
