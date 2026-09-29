@@ -28,12 +28,21 @@ every applicable item below has implementation and conformance evidence.
   static method and property descriptor, including strict/sloppy calls, key
   order, coercion side effects and callbacks that trigger GC. Classify every
   failure against ES2020, a documented exception or a real defect.
-- Implement and verify the four Annex B Object.prototype methods
-  `__defineGetter__`, `__defineSetter__`, `__lookupGetter__` and
-  `__lookupSetter__` (54 pinned Test262 files), or document an explicit
-  host deviation under the contract. They are absent today. Check receiver
-  coercion, callable validation before key conversion, single ToPropertyKey,
-  accessor attributes, prototype traversal, Proxy traps and metadata.
+- ~~Implement and verify the four Annex B Object.prototype methods~~ Done
+  2026-09-29: `__defineGetter__`, `__defineSetter__`, `__lookupGetter__` and
+  `__lookupSetter__` are bootstrapped in the runtime prelude
+  (`src/runtime/object-annexb-source.ts`) from intrinsics captured before
+  user code runs. Pinned Test262 **54/54** on Linux x64 (new Linux mode of
+  the runner, also added to the `linux-native` CI job) and
+  `object-annexb.test.ts` (17 GC-stress cases compared with Node.js: receiver
+  coercion, callable check before one ToPropertyKey, accessor merge,
+  prototype walk, Proxy trap order and abrupt traps, metadata, native source).
+  Full Linux `built-ins/Object`: 3304/3411; 71 failures are post-ES2020
+  `groupBy`/`hasOwn`, and the other 36 fail identically on the previous
+  commit. Windows evidence comes from the next CI `check` run. Known deviation: the
+  four properties are appended after the static Object.prototype properties,
+  so `Object.getOwnPropertyNames(Object.prototype)` order differs from V8;
+  ECMA-262 does not specify intrinsic creation order.
 - Recheck `Function.prototype.toString`, `bind`/`apply`/`call`,
   callable/constructable metadata and native method source after async,
   classes, Proxy, realms and RegExp are finished. The earlier full Function

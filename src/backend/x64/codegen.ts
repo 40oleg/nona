@@ -13,6 +13,7 @@ import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
+import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {lex} from '../../frontend/lexer.js';
 import {parse} from '../../frontend/parser.js';
 import {bind} from '../../frontend/binder.js';
@@ -30,7 +31,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+promiseSource+'\n'+proxyPreludeSource))));
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+promiseSource+'\n'+proxyPreludeSource))));
     cachedRuntimePreludes.set(rejectionPolicy,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');

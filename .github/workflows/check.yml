@@ -130,8 +130,29 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js
+      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js dist/tests/object-annexb.test.js
       - run: npm run compare:linux
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Object/prototype
+      - run: node scripts/test262-smoke.mjs built-ins/Object/prototype
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_PATH_FILTER: '/__'
+          TEST262_EXCLUDE_PATH_FILTER: '/__proto__/'
+          TEST262_REPORT: 'work/test262-object-annexb-linux-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-object-annexb-linux-report
+          path: work/test262-object-annexb-linux-report.json
+          if-no-files-found: ignore
   windows-reflect-test262:
     runs-on: windows-latest
     steps:
