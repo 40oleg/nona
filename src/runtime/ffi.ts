@@ -35,7 +35,13 @@ export function emitFfi(declarations:FfiDeclaration[]):RuntimeBuilder {
   const imported=new Set<string>();
   declarations.forEach((declaration,index)=>{
     const signature=parseFfiSignature(declaration.signature),symbol=ffiImportSymbol(declaration);
-    if(!imported.has(symbol)){imported.add(symbol);b.bundle.imports.push({dll:declaration.dll,name:declaration.name,symbol});}
+    if(!imported.has(symbol)){
+      imported.add(symbol);b.bundle.imports.push({dll:declaration.dll,name:declaration.name,symbol});
+      if(declaration.dll==='syscall'){
+        if(signature.parameters.length>6)throw new Error('System calls take at most six arguments');
+        syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
+      }
+    }
     const base='ffi.'+index;
     functionObject(b,base,declaration.name,signature.parameters.length);
     b.fn(base+'.get',40,a=>{
@@ -44,6 +50,18 @@ export function emitFfi(declarations:FfiDeclaration[]):RuntimeBuilder {
     thunk(b,base+'.code',symbol,signature.parameters,signature.result);
   });
   return b;
+}
+
+/** Linux system call with Win64 arguments (the ELF linker binds the import cell to it). */
+function syscallStub(b:RuntimeBuilder,name:string,number:number):void {
+  b.fn(name,56,a=>{
+    a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+    a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('r10','r9');
+    // Arguments 5 and 6 above the return address and the caller's shadow space.
+    a.load('r8',slot(56+40));a.load('r9',slot(56+48));
+    a.mov('rax',number);a.emit([0x0f,0x05]);
+    a.load('rsi',slot(40));a.load('rdi',slot(48));
+  });
 }
 
 function functionObject(b:RuntimeBuilder,base:string,name:string,length:number):void {
