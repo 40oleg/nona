@@ -203,8 +203,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'ClassExpression':analyzeClass(e);break;
         case 'Identifier':resolve(e);break;
         case 'Unary':if(strict&&e.operator==='delete'&&e.argument.kind==='Identifier')fail(e,'Strict delete of identifier');if((e.operator==='typeof'||e.operator==='delete')&&e.argument.kind==='Identifier')resolve(e.argument,'typeof');else expression(e.argument);break;
-        case 'Update':if(e.argument.kind==='Identifier')resolve(e.argument,'write');else expression(e.argument);break;
-        case 'Assignment':if(e.left.kind==='Identifier')resolve(e.left,'write');else if(e.left.kind==='ArrayPattern'||e.left.kind==='ObjectPattern'){for(const id of boundNames(e.left))resolve(id,'write');patternInitializers(e.left);}else expression(e.left);expression(e.right);break;
+        case 'Update':if((e.argument as A.Expression).kind==='Call'&&strict)fail(e,'Invalid update target in strict mode code');if(e.argument.kind==='Identifier')resolve(e.argument,'write');else expression(e.argument);break;
+        case 'Assignment':if((e.left as A.Expression).kind==='Call'&&(strict||!['=','+=','-=','*=','/=','%=','**=','<<=','>>=','>>>=','&=','^=','|='].includes(e.operator)))fail(e,'Invalid assignment target');if(e.left.kind==='Identifier')resolve(e.left,'write');else if(e.left.kind==='ArrayPattern'||e.left.kind==='ObjectPattern'){for(const id of boundNames(e.left))resolve(id,'write');patternInitializers(e.left);}else expression(e.left);expression(e.right);break;
         case 'Member':expression(e.object);expression(e.property);break;
         case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property')expression(link.property);else link.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
         case 'ArrayLiteral':for(const item of e.elements)if(item)expression(item.kind==='SpreadElement'?item.argument:item);break;
@@ -313,6 +313,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         });break;
         case 'ForIn':case 'ForOf':{
           const left=s.left;
+          if((left as A.Node).kind==='Call'){if(strict)fail(left,'Invalid for-in/of target in strict mode code');expression(left as unknown as A.Expression);}
           if(left.kind==='Var'&&left.annexBInitializer){
             if(strict)fail(left,'for-in variable initializers are not allowed in strict mode');
             const id=left.declarations[0]!.id as A.Identifier;resolve(id,'write');expression(left.declarations[0]!.init!);
