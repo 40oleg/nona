@@ -95,7 +95,7 @@ for (const source of [
   '"use strict";delete missing;', '"use strict";var x=012;', '"use strict";var x="\\12";',
   'while(true){break label;}', 'return 1;', 'break;', 'continue;',
   'try{}catch(){}',
-  'if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
+  '"use strict";if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
 ]) test(`unsupported input rejected: ${source}`, () => assert.throws(() => check(source)));
 
 test('explicit exceptions bind with named and optional catch parameters', () => {

@@ -1,7 +1,7 @@
 import type { Span } from '../source.js';
 export interface Node { kind: string; span: Span }
 export interface Program extends Node { kind: 'Program'; body: Statement[]; source?:string;strict?:boolean;module?:boolean;scriptPath?:string;scriptRequests?:[string,number][] }
-export interface Block extends Node { kind: 'Block'; body: Statement[];strict?:boolean }
+export interface Block extends Node { kind: 'Block'; body: Statement[];strict?:boolean;/** Annex B.3.4 if-statement function body */annexBIf?:boolean }
 export interface Identifier extends Node { kind: 'Identifier'; name: string }
 export interface BindingElement {id:BindingPattern;init:Expression|null}
 export interface ArrayPattern extends Node {kind:'ArrayPattern';elements:(BindingElement|null)[];rest:BindingPattern|null}
@@ -34,7 +34,7 @@ export type OptionalLink=
   | {kind:'call';arguments:Argument[];optional:boolean;span:Span};
 export interface OptionalChain extends Node {kind:'OptionalChain';base:Expression;links:OptionalLink[]}
 export type Expression = NewTarget|Super|This|Identifier|Literal|RegExpLiteral|Unary|Update|Binary|Assignment|Conditional|Call|New|Member|OptionalChain|ObjectLiteral|ArrayLiteral|Template|TaggedTemplate|Yield|Await|ImportMeta|ImportCall|FunctionExpression|ClassExpression;
-export interface Var extends Node { kind: 'Var'; declarationKind:'var'|'let'|'const'; declarations: { id: BindingPattern; init: Expression|null }[] }
+export interface Var extends Node { kind: 'Var'; declarationKind:'var'|'let'|'const'; declarations: { id: BindingPattern; init: Expression|null }[]; /** Annex B.3.6 for-in var initializer */annexBInitializer?:boolean }
 export interface FunctionDeclaration extends Node { kind: 'Function'; generator?:boolean; async?:boolean; id: Identifier; parameters: BindingPattern[]; defaults?:(Expression|null)[]; rest?:BindingPattern|null; body: Block }
 export interface FunctionExpression extends Node {kind:'FunctionExpression';/** Created by Function(): global scope, own strictness, fixed name and source. */dynamic?:boolean;nameOverride?:string;sourceText?:string;generator?:boolean;async?:boolean;method?:boolean;classMethod?:boolean;classConstructor?:boolean;derivedConstructor?:boolean;defaultClassConstructor?:boolean;arrow?:boolean;sourceSpan?:Span;id:Identifier|null;parameters:BindingPattern[];defaults?:(Expression|null)[];rest?:BindingPattern|null;body:Block}
 export interface ClassMethod {key:Expression;computed:boolean;isStatic:boolean;accessor?:'get'|'set';value:FunctionExpression}

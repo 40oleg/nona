@@ -256,6 +256,14 @@ class Parser {
     } while(this.match(','));
     if(semicolon)this.semi(); return {kind:'Var',declarationKind,declarations,span:this.span(start)};
   }
+  /** Annex B.3.4: `if (x) function f(){}` behaves like a block around the declaration (sloppy only). */
+  private ifBody():A.Statement {
+    if(this.at('function')&&this.tokens[this.index+1]?.text!=='*'){
+      const start=this.token.span.start,declaration=this.statement(true,true);
+      return {kind:'Block',body:[declaration],annexBIf:true,span:this.span(start)} as A.Block;
+    }
+    return this.statement(false,false);
+  }
   private statement(allowDeclaration:boolean,allowLexical=true): A.Statement {
     const start=this.token.span.start;
     if(this.at('{'))return this.block();
@@ -299,8 +307,8 @@ class Parser {
       return {...node,kind:'Class',id};
     }
     if(this.match('if')) {
-      this.need('(');const test=this.expression();this.need(')');const consequent=this.statement(false,false);
-      const alternate=this.match('else')?this.statement(false,false):null;
+      this.need('(');const test=this.expression();this.need(')');const consequent=this.ifBody();
+      const alternate=this.match('else')?this.ifBody():null;
       return {kind:'If',test,consequent,alternate,span:this.span(start)};
     }
     if(this.match('while')) {
@@ -342,6 +350,14 @@ class Parser {
       const init=this.at(';')?null:this.at('var')||this.at('const')||letDeclaration?this.variable(false,true):this.expression();
       if(init?.kind==='Yield'&&init.argument?.kind==='Binary'&&init.argument.operator==='in'&&!this.parenthesized.has(init.argument))
         this.error('Unparenthesized in is not allowed in a for initializer');
+      // Annex B.3.6: for (var x = init in obj) — the initializer swallowed the `in`.
+      const annexInit=init?.kind==='Var'&&init.declarationKind==='var'&&init.declarations.length===1&&init.declarations[0]!.id.kind==='Identifier'
+        &&init.declarations[0]!.init?.kind==='Binary'&&init.declarations[0]!.init.operator==='in'&&!this.parenthesized.has(init.declarations[0]!.init)&&this.at(')')?init.declarations[0]!.init as A.Binary:null;
+      if(init?.kind==='Var'&&annexInit){
+        this.take();const body=this.statement(false,false);
+        const left:A.Var={...init,declarations:[{id:init.declarations[0]!.id,init:annexInit.left}],annexBInitializer:true};
+        return {kind:'ForIn',left,right:annexInit.right,body,span:this.span(start)};
+      }
       if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
         if(init.declarations.length!==1||init.declarations[0]!.init)this.error('Only a single binding without initializer is supported in for...in/of');
         const kind=this.take().text==='in'?'ForIn':'ForOf';if(isAwait&&kind!=='ForOf')this.error('for await requires of');

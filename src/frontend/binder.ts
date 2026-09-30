@@ -14,7 +14,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const declarations:BoundFunction[]=[],functionNodes=new Map<A.FunctionNode,BoundFunction>();
   const lexicalScopes=new Map<A.Node,StorageBinding[]>(),scopeFunctions=new Map<A.Node,BoundFunction[]>(),globalNames=new Map<string,Binding>();
   const argumentOwners=new Map<StorageBinding,BoundFunction>();
-  const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>();
+  const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>(),annexBFunctions=new Map<A.Node,Binding>();
   const fail=(node:A.Node,message:string):never=>{throw new CompileError([{code:'E_BIND',message,file:'',span:node.span}]);};
   let classCode=0; // > 0 while analyzing class heritage and element names (strict mode code)
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
@@ -78,23 +78,45 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       variable(statement.id,true);(fn?.declarations??declarations).push(register(statement,fn));
     }
     bodyDeclarations.vars.forEach(id=>variable(id));
+    // Annex B.3.3.1/B.3.3.2: in sloppy code a plain function declared in a block also
+    // gets a var binding (unless a parameter or top-level lexical has its name).
+    if(!strict){
+      const topLexicals=new Set(collectDeclarations(body,'var').lexicals.map(d=>d.name));
+      const parameterNames=new Set(fn?.parameters.map(p=>p.name)??[]);
+      for(const declaration of bodyDeclarations.blockFunctions){
+        const name=declaration.id.name;
+        if(topLexicals.has(name)||parameterNames.has(name)||name==='arguments'&&fn)continue;
+        const existing=functionNames.get(name);if(existing&&'lexical'in existing&&existing.lexical)continue;
+        variable({kind:'Identifier',name,span:declaration.id.span});
+        annexBFunctions.set(declaration,functionNames.get(name)!);
+      }
+    }
     const scopes=[...outerScopes],labels=new Map<string,boolean>();
     if(fn?.declaration.kind==='FunctionExpression'&&fn.declaration.id){
       checkName(fn.declaration.id);
       const self:StorageBinding={kind:'local',name:fn.declaration.id.name,index:fn.locals.length,owner:fn.index,mutable:false,silentImmutable:!strict};
       fn.self=self;fn.locals.push(self);bindings.set(fn.declaration.id,self);scopes.push(new Map([[self.name,self]]));
     }
-    scopes.push(functionNames);
+    scopes.push(functionNames);const functionScopeIndex=scopes.length-1;
     // Arrow functions may call super(); they reach the constructor through these hidden bindings.
     if(fn?.declaration.kind==='FunctionExpression'&&fn.declaration.derivedConstructor)
       for(const name of ['#superFunction','#superReceiver']){const b:StorageBinding={kind:'local',name,index:fn.locals.length,owner:fn.index};fn.locals.push(b);functionNames.set(name,b);}
     const declareLexicals=(node:A.Node,statements:A.Statement[],scope:Map<string,Binding>,functionKind:'var'|'lexical'):void=>{
-      const entries:StorageBinding[]=[],info=collectDeclarations(statements,functionKind),varNames=new Set(info.vars.map(id=>id.name));
+      const entries:StorageBinding[]=[],info=collectDeclarations(statements,functionKind),varNames=new Set(info.vars.map(id=>id.name)),plainFunctionNames=new Set<string>();
       for(const declaration of info.lexicals){
         const d={id:declaration.id};
         checkName(d.id);
         if(!fn&&!moduleNames&&node===owner&&immutableGlobalNames.has(d.id.name))fail(d.id,'Restricted global lexical declaration');
+        // Annex B.3.2.4: sloppy blocks may repeat a plain function declaration; the last one wins.
+        const plain=(f:A.Statement)=>f.kind==='Function'&&!f.generator&&!f.async;
+        if(!strict&&declaration.kind==='function'&&plain(declaration.statement)&&plainFunctionNames.has(d.id.name)&&scope.has(d.id.name)){
+          const existing=scope.get(d.id.name)!;bindings.set(d.id,existing);
+          const blockFunction=register(declaration.statement as A.FunctionDeclaration,fn);
+          const list=scopeFunctions.get(node)??[];list.push(blockFunction);scopeFunctions.set(node,list);
+          continue;
+        }
         if(scope.has(d.id.name)||varNames.has(d.id.name))fail(d.id,'Duplicate or conflicting lexical declaration');
+        if(declaration.kind==='function'&&plain(declaration.statement))plainFunctionNames.add(d.id.name);
         // Only script-level lexicals belong to the persistent global environment.
         // Nested scopes in main use frame slots, just like scopes in a function.
         const storage=fn?fn.locals:node===owner?globals:mainLocals;
@@ -124,6 +146,15 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     }
     const scoped=(node:A.Node,statements:A.Statement[],action:()=>void):void=>{
       const scope=new Map<string,Binding>();declareLexicals(node,statements,scope,'lexical');
+      // A lexical binding of the same name between the block and the function scope
+      // would make `var F` an early error, so B.3.3 does not apply.
+      for(const statement of statements)if(statement.kind==='Function'&&annexBFunctions.has(statement)){
+        for(let i=functionScopeIndex+1;i<scopes.length;i++){
+          const s=scopes[i]!;if(s instanceof WithScope)continue;
+          const b=s.get(statement.id.name);
+          if(b&&'lexical'in b&&b.lexical&&!catchBindings.has(b)){annexBFunctions.delete(statement);break;}
+        }
+      }
       scopes.push(scope);action();scopes.pop();
     };
     const resolve=(id:A.Identifier,mode:'value'|'write'|'call'|'typeof'='value'):Binding=>{
@@ -272,7 +303,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           // var initializers inside with assign through the object environment.
           if(s.declarationKind==='var'&&scopes.some(scope=>scope instanceof WithScope))for(const id of boundNames(d.id))if(id!==d.id||!d.init)resolve(id,'write');
           patternInitializers(d.id);}break;
-        case 'Block':scoped(s,s.body,()=>statements(s.body,loops,switches));break;
+        case 'Block':if(s.annexBIf&&strict)fail(s,'Function declaration requires a StatementList');scoped(s,s.body,()=>statements(s.body,loops,switches));break;
         case 'ExpressionStatement':expression(s.expression);break;
         case 'If':expression(s.test);statements([s.consequent],loops,switches);if(s.alternate)statements([s.alternate],loops,switches);break;
         case 'While':case 'DoWhile':expression(s.test);statements([s.body],loops+1,switches);break;
@@ -282,6 +313,10 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         });break;
         case 'ForIn':case 'ForOf':{
           const left=s.left;
+          if(left.kind==='Var'&&left.annexBInitializer){
+            if(strict)fail(left,'for-in variable initializers are not allowed in strict mode');
+            const id=left.declarations[0]!.id as A.Identifier;resolve(id,'write');expression(left.declarations[0]!.init!);
+          }
           // The body's var names may not repeat the head's lexical names (ES2020 13.7.5.1).
           if(left.kind==='Var'&&left.declarationKind!=='var'){
             const lexical=new Set(boundNames(left.declarations[0]!.id).map(id=>id.name));
@@ -328,7 +363,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   };
   if(!moduleRecords){
     analyze(ast.body,null,ast);
-    return {ast,globals,mainLocals,functions,declarations,functionNodes,bindings,withChains,lexicalScopes,scopeFunctions};
+    return {ast,globals,mainLocals,functions,declarations,functionNodes,bindings,withChains,lexicalScopes,scopeFunctions,annexBFunctions};
   }
   // Module graph: an optional classic script prelude binds first, in the global scope.
   analyze(ast.body,null,ast);
@@ -461,5 +496,5 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       modules[index]!.getters.push(getter);
     }
   }
-  return {ast,globals,mainLocals,functions,declarations,functionNodes,bindings,withChains,lexicalScopes,scopeFunctions,modules};
+  return {ast,globals,mainLocals,functions,declarations,functionNodes,bindings,withChains,lexicalScopes,scopeFunctions,modules,annexBFunctions};
 }

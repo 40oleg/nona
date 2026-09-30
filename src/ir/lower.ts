@@ -887,7 +887,13 @@ class Lowerer {
         this.select(caught);this.statement(s.finalizer);if(!this.terminated)this.end({kind:'throw',value:error});
         this.select(join);break;
       }
-      case 'Empty':case 'Debugger':case 'Function':case 'Import':break;
+      case 'Function':{
+        // Annex B.3.3: evaluating the declaration copies the block binding to the var binding.
+        const target=this.bound.annexBFunctions?.get(s);
+        if(target)this.store(target,this.readStatic(s.id));
+        break;
+      }
+      case 'Empty':case 'Debugger':case 'Import':break;
       case 'Export':{
         if(s.declaration)this.statement(s.declaration);
         else if(s.defaultExpression){
@@ -985,6 +991,7 @@ class Lowerer {
         this.controls.pop();this.select(join);break;
       }
       case 'ForIn':{
+        if(s.left.kind==='Var'&&s.left.annexBInitializer){const d=s.left.declarations[0]!;this.write(d.id as A.Identifier,this.expression(d.init!,(d.id as A.Identifier).name));}
         if(s.left.kind==='Var'&&s.left.declarationKind!=='var')this.enterScope(s);
         const object=this.expression(s.right),keys=this.slot();
         this.emit({kind:'forInKeys',dest:keys,object});

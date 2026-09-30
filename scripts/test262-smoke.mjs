@@ -37,7 +37,9 @@ const postEs2020Features = ['AggregateError','Array.fromAsync','Array.prototype.
   'top-level-await','TypedArray.prototype.at','uint8array-base64','upsert','WeakRef','well-formed-unicode-strings','await-dictionary','Intl.Locale-info',
   'canonical-tz','Intl.DurationFormat','Intl.Era-monthcode','error-stack-accessor',
   // Non-standard extension: own caller/arguments on sloppy functions (ES2020 16.2 leaves it optional).
-  'caller'];
+  'caller',
+  // Host-defined [[IsHTMLDDA]] objects (Annex B.3.7) are optional; Nona's host has none.
+  'IsHTMLDDA'];
 const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').map(value => value.trim()).filter(Boolean)
   .flatMap(value => value === 'post-es2020' ? postEs2020Features : [value]);
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
