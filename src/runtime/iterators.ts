@@ -5,22 +5,24 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {FunctionKind} from './functions.js';
 import {emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 
 export const IteratorKind=8;
 const Source=O.size,Index=O.size+16,IteratorSize=O.size+32;
-export const iteratorRoots=['rt.arrayIterator.fn','rt.arrayKeys.fn','rt.arrayEntries.fn','rt.stringIterator.fn','rt.iteratorNext.fn','rt.iteratorSelf.fn','rt.iteratorPrototype'];
-export const iteratorPropertyRoots=['rt.arrayPrototype.@@iterator','rt.arrayPrototype.values','rt.arrayPrototype.keys','rt.arrayPrototype.entries','rt.stringPrototype.@@iterator','rt.iteratorPrototype.next','rt.iteratorPrototype.@@iterator',
+export const iteratorRoots=['rt.arrayIterator.fn','rt.arrayKeys.fn','rt.arrayEntries.fn','rt.stringIterator.fn','rt.iteratorNext.fn','rt.iteratorSelf.fn','rt.iteratorPrototype','rt.arrayIteratorPrototype','rt.stringIteratorPrototype'];
+export const iteratorPropertyRoots=['rt.arrayPrototype.@@iterator','rt.arrayPrototype.values','rt.arrayPrototype.keys','rt.arrayPrototype.entries','rt.stringPrototype.@@iterator','rt.arrayIteratorPrototype.next','rt.stringIteratorPrototype.next','rt.arrayIteratorPrototype.@@toStringTag','rt.stringIteratorPrototype.@@toStringTag','rt.iteratorPrototype.@@iterator',
  ...['rt.arrayIterator.fn','rt.arrayKeys.fn','rt.arrayEntries.fn','rt.stringIterator.fn','rt.iteratorNext.fn','rt.iteratorSelf.fn'].flatMap(name=>[name+'.name',name+'.length'])];
 
 function symbolMethod(b:RuntimeBuilder,owner:string,node:string,method:string,symbol:string):void {
  const header=b.bundle.fragments.find(f=>f.name===owner)!;
- const head=header.fixups.find(f=>f.offset===O.properties)!;
+ const head=header.fixups.find(f=>f.offset===O.properties);
  const bytes=new Uint8Array(P.size);bytes[P.value]=5;bytes[P.attributes]=A.writable|A.configurable;
  b.bundle.fragments.push({name:node,section:'.data',alignment:8,bytes,symbols:{},fixups:[
-  {offset:P.next,kind:'va64',target:head.target,addend:0},
+  ...(head?[{offset:P.next,kind:'va64' as const,target:head.target,addend:0}]:[]),
   {offset:P.key,kind:'va64',target:'rt.Symbol.iterator.value',addend:0},
   {offset:P.value+8,kind:'va64',target:symbol,addend:0},
- ]});head.target=node;
+ ]});if(head)head.target=node;else header.fixups.push({offset:O.properties,kind:'va64',target:node,addend:0});
 }
 function ordinaryMethod(b:RuntimeBuilder,owner:string,node:string,key:string,symbol:string):void {
  const header=b.bundle.fragments.find(f=>f.name===owner)!;
@@ -46,7 +48,16 @@ export function emitIterators(b:RuntimeBuilder):void {
  ordinaryMethod(b,'rt.arrayPrototype','rt.arrayPrototype.values','rt.iter.values','rt.arrayIterator.fn');
  for(const method of ['keys','entries'] as const){b.bundle.fragments.push(stringLiteral('rt.iter.'+method,method));ordinaryMethod(b,'rt.arrayPrototype','rt.arrayPrototype.'+method,'rt.iter.'+method,'rt.array'+(method==='keys'?'Keys':'Entries')+'.fn');}
  symbolMethod(b,'rt.stringPrototype','rt.stringPrototype.@@iterator','iterator','rt.stringIterator.fn');
- ordinaryMethod(b,'rt.iteratorPrototype','rt.iteratorPrototype.next','rt.iter.next','rt.iteratorNext.fn');
+ // %ArrayIteratorPrototype% and %StringIteratorPrototype% (ES2020 22.1.5.2, 21.1.5.2) share one generic next.
+ for(const [owner,tag] of [['rt.arrayIteratorPrototype','Array Iterator'],['rt.stringIteratorPrototype','String Iterator']] as const){
+  b.bundle.fragments.push({name:owner,section:'.data',alignment:8,bytes:new Uint8Array(O.size),symbols:{},fixups:[{offset:O.prototype,kind:'va64',target:'rt.iteratorPrototype',addend:0}]});
+  b.bundle.fragments.push(stringLiteral(owner+'.tag',tag));
+  const bytes=new Uint8Array(P.size);bytes[P.value]=4;bytes[P.attributes]=A.configurable;
+  b.bundle.fragments.push({name:owner+'.@@toStringTag',section:'.data',alignment:8,bytes,symbols:{},fixups:[
+   {offset:P.key,kind:'va64',target:'rt.Symbol.toStringTag.value',addend:0},{offset:P.value+8,kind:'va64',target:owner+'.tag',addend:0}]});
+  b.bundle.fragments.find(f=>f.name===owner)!.fixups.push({offset:O.properties,kind:'va64',target:owner+'.@@toStringTag',addend:0});
+  ordinaryMethod(b,owner,owner+'.next','rt.iter.next','rt.iteratorNext.fn');
+ }
  symbolMethod(b,'rt.iteratorPrototype','rt.iteratorPrototype.@@iterator','iterator','rt.iteratorSelf.fn');
  b.fn('rt.iteratorSelf.fn.code',56,a=>{a.load('rdx',slot(96));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store({base:'rcx',disp:n},'rax');}});
  // Internal allocation of a stateful iterator; receiver Value is rooted.
@@ -54,7 +65,7 @@ export function emitIterators(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',IteratorSize);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',IteratorKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
   for(const offset of [O.properties,O.length,O.stringifying])a.store({base:'rax',disp:offset},'r10');a.load('r10',slot(56));a.store({base:'rax',disp:O.flags},'r10');
-  a.lea('r10',{rip:'rt.iteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+  a.lea('r10',{rip:'rt.arrayIteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('rdx',slot(48));for(const n of [0,8]){a.load('r10',{base:'rdx',disp:n});a.store({base:'rax',disp:Source+n},'r10');}
   a.mov('r10',3);a.store({base:'rax',disp:Index},'r10');a.mov('r10',0);a.store({base:'rax',disp:Index+8},'r10');
   a.load('rcx',slot(40));a.mov('r10',5);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
@@ -63,6 +74,7 @@ export function emitIterators(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));a.lea('rcx',slot(64));
   if(kind==='string'){a.load('rax',{base:'rdx'});a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');a.call('rt.toString');}else a.call('rt.toObject');
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.mov('r8',mode);a.call('rt.newIterator');
+  if(kind==='string'){a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:8});a.lea('r10',{rip:'rt.stringIteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');}
  });
  // The next method is intentionally generic over Array and String iterator
  // state, but validates that its receiver is one of our iterator records.
@@ -71,6 +83,9 @@ export function emitIterators(b:RuntimeBuilder):void {
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',IteratorKind);failIf(a,'ne','rt.throwTypeError');
   const finished=a.unique('finished'),construct=a.unique('construct');
   a.load('rax',{base:'r10',disp:Source});a.test('rax','rax');a.jcc('e',finished);
+  // A typed array source whose buffer was detached throws (ES2020 22.1.5.2.1 step 8.a).
+  {const notTyped=a.unique('notTyped');a.cmp('rax',5);a.jcc('ne',notTyped);a.load('r11',{base:'r10',disp:Source+8});a.load('rax',{base:'r11',disp:O.kind});a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
+   a.load('r11',{base:'r11',disp:TypedArrayLayout.buffer});a.load('rax',{base:'r11',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.label(notTyped);}
   a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(88),'rax');
   a.lea('rcx',slot(96));a.lea('rdx',{base:'r10',disp:Source});a.lea('r8',slot(80));a.call('rt.getProperty');
   a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toNumber');

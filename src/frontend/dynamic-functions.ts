@@ -19,6 +19,8 @@ export const dynamicFactoryPrefix='__nonaDynamicFunction$';
 const stringValue=(argument:A.Argument):string|undefined=>{
   if(argument.kind==='Literal'&&typeof argument.value==='string')return argument.value;
   if(argument.kind==='Template'&&argument.expressions.length===0&&typeof argument.quasis[0]==='string')return argument.quasis[0];
+  // Other primitive literals have a fixed ToString.
+  if(argument.kind==='Literal'&&(argument.value===null||typeof argument.value==='number'||typeof argument.value==='boolean'||typeof argument.value==='bigint'))return String(argument.value);
   return undefined;
 };
 
@@ -67,13 +69,19 @@ function compileSource(parameters:string,body:string):{expression:A.FunctionExpr
 }
 
 export function lowerDynamicFunctions(program:A.Program):A.Program {
-  if(!program.source||!/\bFunction\s*\(/.test(program.source)||declaresFunction(program))return program;
+  if(!program.source||!/\bFunction\b/.test(program.source)||declaresFunction(program))return program;
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{
     if(node.kind!=='Call'&&node.kind!=='New')return;
     const call=node as A.Call|A.New;
-    if(call.callee.kind!=='Identifier'||call.callee.name!=='Function')return;
-    const values=call.arguments.map(stringValue);
+    // Function(...), new Function(...) and Function.call(thisArg, ...): thisArg is evaluated and ignored.
+    const isFunction=(e:A.Expression)=>e.kind==='Identifier'&&e.name==='Function';
+    let args=call.arguments,thisArg:A.Expression|undefined;
+    if(call.kind==='Call'&&call.callee.kind==='Member'&&isFunction(call.callee.object)&&call.callee.property.kind==='Literal'&&call.callee.property.value==='call'&&!args.some(a=>a.kind==='SpreadElement')){
+      thisArg=(args[0] as A.Expression|undefined)??{kind:'Identifier',name:'undefined',span:call.span};args=args.slice(1);
+    }
+    else if(!isFunction(call.callee))return;
+    const values=args.map(stringValue);
     if(values.some(value=>value===undefined))return;
     const strings=values as string[];
     const parameters=strings.slice(0,-1).join(','),body=strings.at(-1)??'';
@@ -83,7 +91,8 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
       ?{kind:'Return',argument:result.expression,span}
       :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
     factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:[],body:{kind:'Block',body:[returned],span},span} as A.FunctionDeclaration);
-    replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[],span} as A.Call);
+    const created:A.Call={kind:'Call',callee:{kind:'Identifier',name,span},arguments:[],span};
+    replace(thisArg?{kind:'Binary',operator:',',left:thisArg,right:created,span} as A.Binary:created);
   });
   if(!factories.length)return program;
   return {...program,body:[...factories,...program.body]};
