@@ -12,6 +12,7 @@ import { linkPe } from './backend/pe/writer.js';
 import { linkLinux } from './backend/linux/index.js';
 import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
+import {withBuiltinModules} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
 export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
 /** $262 inside an agent thread (Test262 host API subset). */
@@ -28,6 +29,7 @@ export const fileModuleHost:ModuleHost={
 };
 /** Frontend and lowering for a module graph rooted at the entry source. */
 export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=fileModuleHost,scriptPrelude=''):ModuleIR {
+  host=withBuiltinModules(host);
   const records=loadModuleGraph(modulePath(fileName),source,host);
   // An optional classic script (such as a test harness) runs before the graph.
   const script=lowerDynamicFunctions(parse(lex(scriptPrelude)));
@@ -37,6 +39,7 @@ export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=
 export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost):ModuleIR {
+  host=withBuiltinModules(host);
   const script=lowerDynamicFunctions(parse(lex(source)));
   const requests=fileName===undefined?undefined:moduleRequests(script);
   const dynamic=requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])].filter((s,i,all)=>all.indexOf(s)===i);
@@ -54,7 +57,10 @@ export function compile(source:string, options:CompileOptions):CompileResult {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent),{agent:true,unhandledRejections:options.unhandledRejections}));
-    const program=generate(options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude):compileToIR(source,options.fileName,options.moduleHost),{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
+    const ir=options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude):compileToIR(source,options.fileName,options.moduleHost);
+    const ffi=ir.ffi??[];
+    if(options.target==='linux-x64'&&ffi.length)throw new CompileError(ffi.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
+    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
     return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};

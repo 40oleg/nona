@@ -3,6 +3,8 @@ import type * as A from '../frontend/ast.js';
 import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../frontend/bound.js';
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
 import {CompileError} from '../diagnostics.js';
+import {checkFfiNames,parseFfiSignature} from '../ffi.js';
+import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
 type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
@@ -10,13 +12,14 @@ type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;h
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
 
 export function lower(bound:BoundProgram):ModuleIR {
-  const templateCaches={next:bound.globals.length};
+  const templateCaches={next:bound.globals.length,ffi:[] as FfiDeclarationIR[]};
   const functions=[new Lowerer(bound,null,templateCaches,bound.modules?-1:undefined).run(bound.ast.body)];
   for(const module of bound.modules??[])functions.push(new Lowerer(bound,null,templateCaches,module.record.index).run(module.record.ast.body));
   for(const f of bound.functions){
     functions.push(new Lowerer(bound,f,templateCaches).run(f.declaration.body.body));
   }
   return {
+    ...(templateCaches.ffi.length?{ffi:templateCaches.ffi}:{}),
     globalCount:templateCaches.next,
     functions,
     globalProperties:bound.globals.filter(b=>!b.lexical&&!b.module).map(({name,index})=>({name,index})),
@@ -41,7 +44,7 @@ class Lowerer {
   /** Done flags of destructuring iterators; a return completion closes them only while not done. */
   private iteratorDoneFlags=new Map<number,number>();
   private tailCalls=new Set<A.Expression>();
-  constructor(private bound:BoundProgram,private fn:BoundFunction|null,private templateCaches:{next:number},private moduleIndex?:number) {
+  constructor(private bound:BoundProgram,private fn:BoundFunction|null,private templateCaches:{next:number;ffi:FfiDeclarationIR[]},private moduleIndex?:number) {
     this.slots=fn?.locals.length??bound.mainLocals.length;this.current=this.block();
   }
   private get strict():boolean{return this.fn?.strict??(this.moduleIndex!==undefined&&this.moduleIndex>=0||!!this.bound.ast.strict);}
@@ -174,6 +177,23 @@ class Lowerer {
     if(b.kind==='global'){this.emit({kind:'loadGlobal',dest,index:b.index});return dest;}
     if(b.captured)this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});else this.emit({kind:'copy',dest,source:b.index});
     return dest;
+  }
+  /** define(dll, name, signature) from nona:ffi: a static import and a native thunk. */
+  private ffiDefine(e:A.Call):number {
+    const fail=(message:string,node:A.Node=e):never=>{throw new CompileError([{code:'E_FFI_STATIC',message,file:'',span:node.span}]);};
+    if(e.arguments.length!==3)fail('define() expects exactly three arguments: dll, name and signature');
+    const text=e.arguments.map(argument=>{
+      if(argument.kind==='Literal'&&typeof argument.value==='string')return argument.value;
+      if(argument.kind==='Template'&&argument.expressions.length===0)return argument.quasis[0]!;
+      return fail('define() arguments must be string literals',argument);
+    });
+    const [dll,name,signature]=text as [string,string,string];
+    try{checkFfiNames(dll,name);parseFfiSignature(signature);}
+    catch(error){fail((error as Error).message);}
+    const list=this.templateCaches.ffi;
+    let index=list.findIndex(d=>d.dll.toLowerCase()===dll.toLowerCase()&&d.name===name&&d.signature.replace(/\s+/g,'')===signature.replace(/\s+/g,''));
+    if(index<0){index=list.length;list.push({dll,name,signature,span:e.span});}
+    const dest=this.slot();this.emit({kind:'call',dest,target:'ffi.'+index+'.get',arguments:[]});return dest;
   }
   private preludeCall(name:string,args:number[]):number {
     const dest=this.slot();this.maxArguments=Math.max(this.maxArguments,args.length);
@@ -681,6 +701,10 @@ class Lowerer {
         this.emit({kind:'constructorResult',dest,result,instance});return dest;
       }
       case 'Call': {
+        if(e.callee.kind==='Identifier'){
+          const binding=this.bound.bindings.get(e.callee);
+          if(binding&&binding.kind!=='globalProperty'&&binding.ffiDefine)return this.ffiDefine(e);
+        }
         if(e.callee.kind==='Super'){
           const result=this.slot(),dest=this.slot();let base=this.slot(),receiver=this.slot();
           if(e.superRefs){this.emit({kind:'superConstructor',dest:base,func:this.read(e.superRefs.func)});receiver=this.read(e.superRefs.receiver);}
