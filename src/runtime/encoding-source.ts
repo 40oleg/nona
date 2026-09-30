@@ -39,7 +39,7 @@ export const encodingPreludeSource=String.raw`
     throw new TypeError('The "input" argument must be an ArrayBuffer or ArrayBufferView')
   }
   function decode(bytes,fatal,ignoreBOM){
-    var n=bytes.length,i=0,out='',chunk=[],k=0,c,need,cp,min;
+    var n=bytes.length,i=0,out='',chunk=new Uint16Array(4100),k=0,c,need,cp,min;
     if(!ignoreBOM&&n>=3&&bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf)i=3;
     function bad(){if(fatal)throw new TypeError('The encoded data was not valid for encoding utf-8');chunk[k++]=0xfffd}
     while(i<n){
@@ -67,9 +67,9 @@ export const encodingPreludeSource=String.raw`
           }
         }
       }
-      if(k>=4096){out+=apply(fromCharCode,undefined,chunk);chunk=[];k=0}
+      if(k>=4096){out+=apply(fromCharCode,undefined,chunk.subarray(0,k));k=0}
     }
-    return out+apply(fromCharCode,undefined,chunk)
+    return out+apply(fromCharCode,undefined,chunk.subarray(0,k))
   }
   function TextEncoder(){
     if(new.target===undefined)throw new TypeError("Class constructor TextEncoder cannot be invoked without 'new'");

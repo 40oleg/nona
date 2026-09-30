@@ -59,14 +59,14 @@ export function compile(source:string, options:CompileOptions):CompileResult {
   try {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     // Test262 agents: each source becomes its own thread program in the image.
-    const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent),{agent:true,unhandledRejections:options.unhandledRejections}));
+    const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent,undefined,undefined,options.target),{agent:true,unhandledRejections:options.unhandledRejections}));
     const ir=options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target);
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(options.target==='linux-x64'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
-    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
+    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
     throw error;
