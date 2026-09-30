@@ -33,6 +33,27 @@ The no-argument command runs the reviewed manifest in
 file beneath that Test262 group. Reports distinguish compile failures, runtime
 failures, and skips.
 
+## Full audits
+
+`scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux)
+run every Test262 directory under `language/`, `annexB/` and `built-ins/` with
+`TEST262_EXCLUDE_FEATURES=post-es2020`, one report per directory in
+`work/test262-audit` (resumable). `-Dirs 'a,b' -Tag r1` (PowerShell) or
+`TAG=r1 scripts/test262-audit.sh <out> a b` reruns selected directories into a
+subdirectory whose results override the full run. Summarize and classify:
+
+```
+node scripts/test262-summary.mjs work/test262-audit --others work/others.txt
+node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audit
+```
+
+The summary classifies each failure as `eval` (the documented eval/dynamic
+Function exception), `post` (post-ES2020 semantics under an older or missing
+feature tag) or `other`, and lists `other` files. A checkout without git
+metadata (for example one copied to another machine) is accepted when
+`work/test262/.nona-test262-revision` contains the pinned commit hash; line
+terminator tests then read the files directly.
+
 Runner features added for the ES2020 gate (2026-09):
 
 - `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests
