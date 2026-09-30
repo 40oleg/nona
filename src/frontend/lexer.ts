@@ -9,7 +9,7 @@ function validateRegExpPattern(pattern:string,flags:string):void {
   compileRegExpPattern(pattern,flags);
 }
 
-export function lex(source: string): TokenStream {
+export function lex(source: string, options: {module?: boolean} = {}): TokenStream {
   const tokens: TokenStream = [];
   Object.defineProperty(tokens,'source',{value:source});
   let i = 0, lineBreak = false, regexpAllowed = true;
@@ -98,6 +98,8 @@ export function lex(source: string): TokenStream {
   while (i < source.length) {
     const c = source[i]!;
     if (/\s/.test(c)) { if (newline(c)) lineBreak = true; i++; continue; }
+    // Annex B.1.3 HTML-like comments (script goal only).
+    if (!options.module && (source.startsWith('<!--', i) || lineBreak && source.startsWith('-->', i))) { while (i < source.length && !newline(source[i]!)) i++; continue; }
     if (source.startsWith('//', i)) { i += 2; while (i < source.length && !newline(source[i]!)) i++; continue; }
     if (source.startsWith('/*', i)) {
       const start = i; i += 2;
