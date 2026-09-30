@@ -400,7 +400,7 @@ test('Uint8Array copies iterable and array-like sources',()=>expectProgram(`
   var iterated=new Uint8Array(iterable);console.log(iterated.length,iterated[0],iterated[1]);
 `,'3 1 255 3\n5 0 2 3\n2 6 3\n'));
 
-test('Uint8Array converts iterable values during iteration and closes on error',()=>expectProgram(`
+test('Uint8Array collects iterable values before converting them (ES2020 22.2.4.4)',()=>expectProgram(`
   var trace='',source={
     [Symbol.iterator](){var i=0;return {
       next(){trace+='n';return i++<2?{value:i===1?{valueOf(){trace+='c';return 257}}:{valueOf(){trace+='x';throw Error('bad')}},done:false}:{done:true}},
@@ -408,7 +408,7 @@ test('Uint8Array converts iterable values during iteration and closes on error',
     }}
   };
   try{new Uint8Array(source)}catch(error){console.log(error.message,trace)}
-`,'bad ncnxr\n'));
+`,'bad nnncx\n'));
 
 test('Uint8Array source copying survives intrinsic changes and stress GC',()=>{
  const source=`var source=new Uint8Array(2);source[0]=8;source[1]=259;Array.from=function(){throw Error('changed')};var copy=new Uint8Array(source);var values=new Uint8Array([{valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 258}}]);console.log(copy.length,copy[0],copy[1],values[0]);`;

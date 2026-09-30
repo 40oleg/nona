@@ -333,7 +333,10 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.lea('rax',{rip:'rt.Array.from.fn'});a.store(slot(152),'rax');a.lea('rax',{rip:'rt.Array'});a.store(slot(168),'rax');
   a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(176+n),'rax');}
   a.mov('rax',5);a.store(slot(192),'rax');a.lea('rax',{rip:elementType===3?'rt.uint8ClampedConvert.fn':elementType===8?'rt.float32Convert.fn':elementType===9?'rt.float64Convert.fn':elementType===10?'rt.bigint64Convert.fn':elementType===11?'rt.biguint64Convert.fn':width===4?'rt.uint32Convert.fn':width===2?'rt.uint16Convert.fn':'rt.uint8Convert.fn'});a.store(slot(200),'rax');
-  a.lea('rax',slot(160));a.store(slot(32),'rax');a.lea('rcx',slot(224));a.lea('rdx',slot(144));a.mov('r8',2);a.lea('r9',slot(176));a.call('rt.invoke');
+  // thisArg marker: Array.from converts array-like elements as it reads them
+  // (ES2020 22.2.4.4 step 8) but leaves iterated values raw (IteratorToList first).
+  a.mov('rax',5);a.store(slot(208),'rax');a.lea('rax',{rip:'rt.typedArrayRawLength.fn'});a.store(slot(216),'rax');
+  a.lea('rax',slot(160));a.store(slot(32),'rax');a.lea('rcx',slot(224));a.lea('rdx',slot(144));a.mov('r8',3);a.lea('r9',slot(176));a.call('rt.invoke');
   a.load('r10',slot(232));a.load('rax',{base:'r10',disp:O.length});a.store(slot(280),'rax');
   a.mov('r10',3);a.store(slot(96),'r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');
   a.mov('r10',1);a.store(slot(48),'r10');a.store(slot(288),'r10');a.lea('r10',slot(96));a.store(slot(56),'r10');a.jmp(allocate);
@@ -401,7 +404,7 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.label(copyLoop);a.load('rax',slot(272));a.load('r10',slot(280));a.cmp('rax','r10');a.jcc('ae',copyDone);
   a.lea('rcx',slot(240));a.mov('rdx','rax');a.call('rt.arrayIndexKey');
   a.lea('rcx',slot(256));a.lea('rdx',slot(224));a.lea('r8',slot(240));a.call('rt.getProperty');
-  a.lea('rcx',slot(256));if(elementType>=10){a.mov('rdx','rcx');a.call('rt.bigintToUint64');}
+  a.lea('rcx',slot(256));if(elementType>=10){a.lea('rcx',slot(240));a.lea('rdx',slot(256));a.call('rt.toBigIntValue');a.lea('rcx',slot(240));a.mov('rdx','rcx');a.call('rt.bigintToUint64');}
   else if(elementType>=8){a.mov('rdx','rcx');a.lea('rcx',slot(304));a.call('rt.toNumber');a.movsd('xmm0',slot(312));if(elementType===8)a.cvtsd2ss('xmm0','xmm0');a.movqFromXmm('rax','xmm0');}
   else{a.call(elementType===3?'rt.toUint8Clamp':'rt.toInt32');if(elementType!==3){if(width===4){a.mov('r10',0xffffffffn);a.and('rax','r10');}else a.and('rax',width===2?65535:255);}}
   a.load('rdx',slot(40));a.load('rdx',{base:'rdx',disp:8});a.load('rdx',{base:'rdx',disp:TypedArrayLayout.buffer});a.load('rdx',{base:'rdx',disp:ArrayBufferLayout.bytes});a.load('r10',slot(272));if(width>1)a.shl('r10',width===8?3:width===4?2:1);a.add('rdx','r10');a.store({base:'rdx'},'rax',width===8?64:width===4?32:width===2?16:8);
