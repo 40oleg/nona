@@ -13,7 +13,7 @@ import { linkLinux } from './backend/linux/index.js';
 import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
 import {resolve as resolvePath} from 'node:path';
-export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
+export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -52,10 +52,11 @@ export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileM
 export function compile(source:string, options:CompileOptions):CompileResult {
   try {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent),{agent:true,unhandledRejections:options.unhandledRejections}));
     const program=generate(options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude):compileToIR(source,options.fileName,options.moduleHost),{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
-    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
+    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem}),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
     throw error;
