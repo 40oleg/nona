@@ -4,6 +4,7 @@ import {ObjectLayout as O,ObjectFlags as OF,PropertyAttributes as A} from './obj
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
 import {ValueListLayout as L} from './heap-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
+import {ProxyKind} from './proxy.js';
 
 const methods=['preventExtensions','isExtensible','seal','freeze','isSealed','isFrozen'] as const;
 export const integrityRoots=methods.map(name=>'rt.Object.'+name+'.fn');
@@ -20,6 +21,11 @@ export function emitObjectIntegrity(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');const absent=a.unique('absent');a.test('rdx','rdx');a.jcc('e',absent);
   for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(absent);
   a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',query?(name==='isExtensible'?no:yes):done);
+  if(name==='isExtensible'||name==='preventExtensions'){
+   const ordinary=a.unique('ordinary');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
+   a.lea('rcx',slot(64));a.call(name==='isExtensible'?'rt.proxyIsExtensible':'rt.proxyPreventExtensions');a.test('rax','rax');
+   if(name==='isExtensible'){a.jcc('ne',yes);a.jmp(no);}else{failIf(a,'e','rt.throwTypeError');a.jmp(done);}a.label(ordinary);
+  }
   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.flags});
   if(query){
    a.and('rax',OF.nonExtensible);a.test('rax','rax');

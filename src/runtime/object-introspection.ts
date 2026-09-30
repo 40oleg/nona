@@ -3,6 +3,8 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import type {Assembler} from '../backend/x64/assembler.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ProxyKind} from './proxy.js';
 
 const methods=[
  ['rt.objectHasOwn','hasOwnProperty',1,'rt.objectPrototype'],
@@ -25,14 +27,22 @@ function booleanResult(a:Assembler):void {
 export function emitObjectIntrospection(b:RuntimeBuilder):void {
  for(const [symbol,method,length,owner] of methods)prependFunctionBuiltin(b,symbol,method,length,owner);
  // RCX boxed receiver Value*, RDX normalized string descriptor; RAX attrs or -1.
- // This lookup is leaf-only: coercion happens in the rooted public caller.
+ // Coercion happens in the rooted public caller.
  b.fn('rt.ownAttributes',88,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  const ordinaryProxy=a.unique('ordinaryProxy'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rcx'});a.cmp('r10',5);a.jcc('ne',ordinaryProxy);
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryProxy);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.proxyOwnAttributes');a.jmp(proxyDone);a.label(ordinaryProxy);
   const normal=a.unique('normal'),missing=a.unique('missing'),done=a.unique('done');
   a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('e',normal);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.mov('rax',0);a.jcc('e',done);a.mov('rax',A.enumerable);a.jmp(done);
   a.label(normal);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store(slot(56),'rax');
-  const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',ordinary);
+  const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});
+  const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
+  a.load('rcx',slot(48));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',ordinary);a.cmp('rax',-2);a.jcc('e',missing);
+  a.load('r10',slot(56));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('ae',missing);
+  a.mov('rax',A.ordinary);a.jmp(done);
+  a.label(notTyped);a.cmp('r10',1);a.jcc('ne',ordinary);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',ordinary);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.flags});a.and('rax',2);a.shr('rax',1);a.xor('rax',1);a.jmp(done);
   a.label(ordinary);a.load('rcx',slot(56));a.load('rdx',slot(48));a.call('rt.findGlobalBinding');a.test('rax','rax');
   const data=a.unique('data');a.jcc('e',data);a.load('rax',{base:'rdx'});a.jmp(done);
@@ -41,7 +51,7 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.label(virtual);a.load('rax',slot(56));a.lea('r10',{rip:'rt.objectPrototype'});a.cmp('rax','r10');a.jcc('ne',missing);
   a.load('rax',{rip:'rt.protoAccessorEnabled'});a.test('rax','rax');a.jcc('e',missing);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.proto'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',missing);
-  a.mov('rax',A.configurable);a.jmp(done);a.label(missing);a.mov('rax',-1);a.label(done);
+  a.mov('rax',A.configurable);a.jmp(done);a.label(missing);a.mov('rax',-1);a.label(done);a.label(proxyDone);
  });
  for(const [symbol,method] of methods)rootedFn(b,symbol+'.code',136,[
   {kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:4},
@@ -69,8 +79,10 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   }else if(method==='isPrototypeOf'){
    const no=a.unique('no'),yes=a.unique('yes'),loop=a.unique('loop'),done=a.unique('done');
    a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',no);
-   a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.toObject');a.load('r10',slot(104));a.load('rax',slot(72));
-   a.label(loop);a.load('rax',{base:'rax',disp:O.prototype});a.test('rax','rax');a.jcc('e',no);a.cmp('rax','r10');a.jcc('e',yes);a.jmp(loop);
+   a.lea('rcx',slot(96));a.lea('rdx',slot(112));a.call('rt.toObject');
+   a.label(loop);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.getPrototype');
+   a.load('rax',slot(80));a.cmp('rax',1);a.jcc('e',no);a.load('rax',slot(88));a.load('r10',slot(104));a.cmp('rax','r10');a.jcc('e',yes);
+   a.mov('rax',5);a.store(slot(64),'rax');a.load('rax',slot(88));a.store(slot(72),'rax');a.jmp(loop);
    a.label(no);a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);booleanResult(a);
   }else if(method==='toLocaleString'){
    a.mov('rax',4);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.str.toString'});a.store(slot(72),'rax');

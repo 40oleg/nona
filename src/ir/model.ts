@@ -1,13 +1,13 @@
-export type Constant = undefined|null|boolean|number|string;
+export type Constant = undefined|null|boolean|number|bigint|string;
 export type Operation =
-  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
+  | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;async?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
   | {kind:'defineDataProperty';object:number;key:number;source:number;attributes:number}
   | {kind:'newCell';dest:number;source:number}
   | {kind:'readCell';dest:number;cell:number}
   | {kind:'writeCell';cell:number;source:number}
   | {kind:'loadCapture';dest:number;index:number}
   | {kind:'currentFunction';dest:number}
-  | {kind:'superConstructor';dest:number}
+  | {kind:'superConstructor';dest:number;/** Constructor whose [[Prototype]] is used; default: the running function. */func?:number}
   | {kind:'superReceiver';dest:number}
   | {kind:'setFunctionHomeObject';func:number;homeObject:number}
   | {kind:'setCurrentThis';source:number}
@@ -22,16 +22,17 @@ export type Operation =
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}
   | {kind:'readGlobalProperty';dest:number;name:string;allowMissing:boolean}
-  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number}
+  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean}
   | {kind:'invokeArray';dest:number;callee:number;array:number;receiver?:number;construct?:boolean;newTarget?:number}
   | {kind:'yield';dest:number;source:number}
-  | {kind:'yieldDelegated';dest:number;mode:number;source:number}
+  | {kind:'await';dest:number;source:number}
+  | {kind:'yieldDelegated';dest:number;mode:number;source:number;value?:boolean}
   | {kind:'generatorInitialSuspend'}
   | {kind:'requireObject';source:number}
-  | {kind:'newInstance';dest:number;callee:number}
+  | {kind:'newInstance';dest:number;callee:number;firstArgument?:number;argumentArray?:number}
   | {kind:'constructorResult';dest:number;result:number;instance:number}
   | {kind:'derivedReturn';dest:number;source:number}
-  | {kind:'newArguments';dest:number;parameters:number[]} // -1: earlier duplicate, no mapping
+  | {kind:'newArguments';dest:number;parameters:number[];/** Non-simple parameter list: unmapped, callee is %ThrowTypeError%. */unmapped?:boolean} // -1: earlier duplicate, no mapping
   | {kind:'newRestArray';dest:number;start:number}
   | {kind:'newObject';dest:number;array:boolean;length:number}
   | {kind:'forInKeys';dest:number;object:number}
@@ -51,12 +52,12 @@ export type Operation =
   | {kind:'immutableWrite';error?:'ReferenceError'}
   | {kind:'constant';dest:number;value:Constant}
   | {kind:'copy';dest:number;source:number}
-  | {kind:'loadGlobal';dest:number;index:number}
-  | {kind:'storeGlobal';strict?:boolean;source:number;index:number}
+  | {kind:'loadGlobal';dest:number;index:number;prelude?:boolean}
+  | {kind:'storeGlobal';strict?:boolean;source:number;index:number;prelude?:boolean}
   | {kind:'unary';dest:number;operator:string;argument:number}
   | {kind:'binary';dest:number;operator:string;left:number;right:number}
   | {kind:'call';dest:number;target:string;arguments:number[]};
 export type Terminator = {kind:'throw';value:number}| {kind:'jump';target:number}|{kind:'branch';condition:number;yes:number;no:number}|{kind:'return';value:number};
 export interface BlockIR {id:number;exceptionTarget?:number;operations:Operation[];terminator:Terminator}
 export interface FunctionIR {id:string;name:string;parameterCount:number;localCount:number;slotCount:number;maxArguments:number;handlerCount?:number;derivedConstructor?:boolean;generator?:boolean;blocks:BlockIR[]}
-export interface ModuleIR {globalCount:number;functions:FunctionIR[];globalProperties?:{name:string;index:number}[];globalFunctionProperties?:string[]}
+export interface ModuleIR {globalCount:number;functions:FunctionIR[];globalProperties?:{name:string;index:number}[];globalFunctionProperties?:string[];runtimePrelude?:boolean}

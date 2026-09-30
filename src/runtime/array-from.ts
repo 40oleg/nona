@@ -93,6 +93,8 @@ export function emitArrayFrom(b:RuntimeBuilder):void {
   a.load('rax',slot(264));a.test('rax','rax');a.jcc('ne',iterDone);
   pushHandler(a,368,caught,320);
   a.load('rax',slot(72));a.test('rax','rax');const rawIter=a.unique('rawIter'),definedIter=a.unique('definedIter');a.jcc('e',rawIter);
+  // Internal TypedArray construction marker (unreachable from script): keep iterated values raw.
+  a.load('rax',slot(112));a.cmp('rax',5);const mapIter=a.unique('mapIter');a.jcc('ne',mapIter);a.load('rax',slot(120));a.lea('r10',{rip:'rt.typedArrayRawLength.fn'});a.cmp('rax','r10');a.jcc('e',rawIter);a.label(mapIter);
   a.load('rax',slot(344));a.store(slot(32),'rax');a.lea('rcx',slot(240));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.lea('r9',slot(224));a.call('rt.arrayFromMap');a.jmp(definedIter);
   a.label(rawIter);for(const offset of [0,8]){a.load('rax',slot(224+offset));a.store(slot(240+offset),'rax');}a.label(definedIter);
   a.lea('rcx',slot(192));a.load('rdx',slot(344));a.lea('r8',slot(240));a.call('rt.arrayFromDefine');popHandler(a);

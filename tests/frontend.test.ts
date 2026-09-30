@@ -48,6 +48,23 @@ test('lexer decodes literals and keeps line breaks across comments', () => {
   assert.equal(t[5]!.lineBreakBefore, true);
   assert.equal(t[7]!.value, 50);
 });
+test('lexer separates regular expression literals from division',()=>{
+  const tokens=lex('var re=/a\\/b[0-9]/gi; var q=12/3; if(q) /x/.test("x");');
+  const regexps=tokens.filter(token=>token.kind==='regexp');
+  assert.deepEqual(regexps.map(token=>[token.pattern,token.flags]),[['a\\/b[0-9]','gi'],['x','']]);
+  assert.equal(tokens.filter(token=>token.text==='/').length,1);
+  assert.equal(lex('if(true){} /z/.test("z")').filter(token=>token.kind==='regexp').length,1);
+  assert.equal(lex('var obj={}; obj / 2;').filter(token=>token.text==='/').length,1);
+  assert.equal(lex('`${/x/.test("x")}`').filter(token=>token.kind==='regexp').length,1);
+  for(const source of ['var r=/x/gg;','var r=/x/z;','var r=/[a/;','var r=/x/uv;'])assert.throws(()=>lex(source));
+});
+test('RegExp literal reaches binding and native lowering',()=>{
+  const declaration=syntax('var re=/a+/gi;').body[0] as any;
+  assert.deepEqual(declaration.declarations[0].init,{kind:'RegExpLiteral',pattern:'a+',flags:'gi',span:{start:7,end:13}});
+  assert.doesNotThrow(()=>check('var re=/a+/gi;'));
+  const result=compile('var re=/a+/gi;',{fileName:'regexp.js',target:'win32-x64'});
+  assert.equal(result.ok,true);
+});
 test('parser preserves precedence and assignment associativity', () => {
   const p = syntax('var a,b; a=b=1+2*3;');
   const expr = (p.body[1] as any).expression;
@@ -75,11 +92,10 @@ test('all supported expression operators and statements bind', () => {
 for (const source of [
   'new;', 'this=1;',
   'function f(a,a){"use strict";}',
-  '"use strict";delete missing;', 'var x=012;', 'var x="\\12";',
+  '"use strict";delete missing;', '"use strict";var x=012;', '"use strict";var x="\\12";',
   'while(true){break label;}', 'return 1;', 'break;', 'continue;',
   'try{}catch(){}',
-  'var x=/a/;',
-  'if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
+  '"use strict";if(true)function f(){}', '1=2;', 'var x=1e;', 'var x="unterminated',
 ]) test(`unsupported input rejected: ${source}`, () => assert.throws(() => check(source)));
 
 test('explicit exceptions bind with named and optional catch parameters', () => {

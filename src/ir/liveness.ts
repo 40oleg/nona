@@ -17,6 +17,7 @@ function transfer(operation:Operation,live:Set<number>):void {
  if(operation.kind==='getIterator')live.delete(operation.iterator),live.delete(operation.next);
   if(operation.kind==='iteratorStep')live.delete(operation.done);
  if(operation.kind==='yieldDelegated')live.delete(operation.mode);
+ if(operation.kind==='superConstructor'&&operation.func!==undefined)live.add(operation.func);
  switch(operation.kind){
   case 'pushHandler':case 'popHandler':case 'generatorInitialSuspend':return;
   case 'newTarget':case 'superBase':case 'superConstructor':case 'superReceiver':case 'currentThis':case 'currentFunction':case 'loadCapture':case 'newObject':case 'newRestArray':case 'uninitialized':case 'immutableWrite':
@@ -51,7 +52,7 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'call':for(const argument of operation.arguments)live.add(argument);return;
   case 'invoke':live.add(operation.callee);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);for(const argument of operation.arguments)live.add(argument);return;
   case 'invokeArray':live.add(operation.callee);live.add(operation.array);if(operation.receiver!==undefined)live.add(operation.receiver);if(operation.newTarget!==undefined)live.add(operation.newTarget);return;
-  case 'yield':live.add(operation.source);return;
+  case 'yield':case 'await':live.add(operation.source);return;
   case 'yieldDelegated':live.add(operation.source);return;
   case 'requireObject':live.add(operation.source);return;
   default:unreachable(operation);

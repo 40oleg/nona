@@ -35,7 +35,7 @@ export function emitArrayFlat(b:RuntimeBuilder):void {
   a.load('rax',slot(224));a.store(slot(32),'rax');a.lea('rcx',slot(128));a.load('rdx',slot(216));a.mov('r8',3);a.lea('r9',slot(144));a.call('rt.invoke');
   for(const offset of [0,8]){a.load('rax',slot(128+offset));a.store(slot(112+offset),'rax');}
   a.label(noMapper);a.load('rax',slot(232));a.test('rax','rax');a.jcc('e',append);
-  a.load('rax',slot(112));a.cmp('rax',5);a.jcc('ne',append);a.load('rax',slot(120));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',append);
+  a.lea('rcx',slot(112));a.call('rt.isArray');a.test('rax','rax');a.jcc('e',append);
   a.lea('rcx',slot(112));a.call('rt.arrayFlattenLength');a.store(slot(248),'rax');
   a.load('rax',slot(232));a.sub('rax',1);a.store(slot(32),'rax');a.mov('rax',0);a.store(slot(40),'rax');a.store(slot(48),'rax');
   a.load('rcx',slot(56));a.lea('rdx',slot(112));a.load('r8',slot(248));a.load('r9',slot(240));a.call('rt.arrayFlattenInto');a.store(slot(240),'rax');a.jmp(next);

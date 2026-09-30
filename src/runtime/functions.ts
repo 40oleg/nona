@@ -1,11 +1,13 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
+import {TailCallTag} from './tail-calls.js';
+import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,size:O.size+112} as const;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,size:O.size+120} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -74,6 +76,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
   for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator])a.store({base:'rax',disp:offset},'r10');
+  a.load('r10',{rip:'rt.realmIndex'});a.store({base:'rax',disp:FunctionLayout.realm},'r10');
   a.lea('r10',{rip:'rt.functionPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
   a.load('r10',slot(48));a.store({base:'rax',disp:FunctionLayout.code},'r10');
@@ -87,12 +90,19 @@ export function emitFunctions(b:RuntimeBuilder):void {
  // RCX result, RDX callee Value*, R8 argc, R9 argv. Caller Value slots retain
  // callee and arguments across the nested JS frame's safepoints. Fifth argument
  // is a receiver Value*. The callee roots a copy before its first safepoint.
- for(const construct of [false,true])b.fn(construct?'rt.invokeSourceConstruct':'rt.invoke',104,a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+ // rt.invokeTailTarget is the call path used by rt.tailDispatch: it returns a
+ // further tail call marker to the dispatch loop instead of nesting.
+ for(const [name,construct,tailTarget] of [['rt.invoke',false,false],['rt.invokeSourceConstruct',true,false],['rt.invokeTailTarget',false,true]] as const)b.fn(name,104,a=>{
+  a.store(slot(40),'rcx');a.store(slot(96),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   a.load('r10',slot(144));a.store(slot(72),'r10');
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});
   const ready=a.unique('ready'),box=a.unique('box'),ordinary=a.unique('ordinary'),done=a.unique('done');
+  if(!construct){const ordinaryCallee=a.unique('ordinaryCallee');a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryCallee);
+   a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+   a.load('rax',slot(72));a.store(slot(32),'rax');a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.proxyApply');a.jmp(done);a.label(ordinaryCallee);
+   a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  }else{a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');}
   a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',ordinary);
   a.mov('rax',0);a.store(slot(32),'rax');a.call('rt.invokeBound');a.jmp(done);
   a.label(ordinary);
@@ -109,6 +119,16 @@ export function emitFunctions(b:RuntimeBuilder):void {
   if(!construct){
    const ordinaryCall=a.unique('ordinaryCall');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});
    a.load('r10',{base:'r10',disp:FunctionLayout.generator});a.test('r10','r10');a.jcc('e',ordinaryCall);
+   // 2: async function, 3: async generator. The internal coroutine is handed
+   // to the Promise prelude, which returns the public promise or generator.
+   const syncGenerator=a.unique('syncGenerator'),asyncGenerator=a.unique('asyncGenerator');
+   a.cmp('r10',1);a.jcc('e',syncGenerator);a.cmp('r10',3);a.jcc('e',asyncGenerator);
+   a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newAsyncCoroutine');
+   a.load('rcx',slot(40));a.mov('rdx',2);a.call('rt.startAsync');a.jmp(done);
+   a.label(asyncGenerator);
+   a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newGenerator');
+   a.load('rcx',slot(40));a.mov('rdx',3);a.call('rt.startAsync');a.jmp(done);
+   a.label(syncGenerator);
    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newGenerator');a.jmp(done);
    a.label(ordinaryCall);
   }
@@ -125,28 +145,43 @@ export function emitFunctions(b:RuntimeBuilder):void {
     a.lea('rax',{base:'r11',disp:FunctionLayout.lexicalNewTarget});a.jmp(targetReady);
     a.label(ordinaryTarget);a.lea('rax',{rip:'rt.undefinedValue'});a.label(targetReady);
   }a.store(slot(40),'rax');
-  a.callRegister('r10');a.label(done);
+  a.callRegister('r10');
+  if(!tailTarget){
+   const value=a.unique('value');a.load('rcx',slot(96));a.load('rax',{base:'rcx'});a.cmp('rax',TailCallTag);a.jcc('ne',value);
+   a.call('rt.tailDispatch');a.label(value);
+  }
+  a.label(done);
  });
  // Construction is split at IR safepoints: prepare rooted instance, invoke JS,
  // choose returned object or instance. No unregistered runtime locals span JS.
- rootedFn(b,'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+ for(const raw of [false,true])rootedFn(b,raw?'rt.newInstanceRaw':'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  const complete=a.unique('complete');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
-  a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
-  a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);a.label(unwrapped);
+  a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'rax',disp:O.kind});const proxyInstance=a.unique('proxyInstance');a.cmp('r10',ProxyKind);a.jcc('e',proxyInstance);a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');const validInstance=a.unique('validInstance');a.jmp(validInstance);
+  a.label(proxyInstance);a.load('r10',{base:'rax',disp:O.flags});a.and('r10',ProxyConstructable);a.test('r10','r10');failIf(a,'e','rt.throwTypeError');
+  if(!raw){a.load('rcx',slot(40));a.lea('r10',{rip:'rt.undefinedValue'});for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store({base:'rcx',disp:part},'rax');}a.jmp(complete);}
+  a.label(validInstance);
+  if(!raw){a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('e',unwrapped);a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
+   a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
-  const done=a.unique('done');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',done);
-  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.label(done);
+  const done=a.unique('done'),fallback=a.unique('fallback');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',fallback);
+  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.jmp(done);
+  // GetPrototypeFromConstructor falls back to the intrinsic of new.target's realm.
+  a.label(fallback);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.functionRealm');
+  a.load('r10',slot(40));a.load('r10',{base:'r10',disp:8});
+  a.mov('r11','rax');a.shl('r11',RealmFlagShift);a.or('r11',OF.defaultPrototypeFallback);a.load('rcx',{base:'r10',disp:O.flags});a.or('rcx','r11');a.store({base:'r10',disp:O.flags},'rcx');
+  a.shl('rax',3);a.lea('r11',{rip:realmTable('rt.objectPrototype')});a.add('r11','rax');a.load('r11',{base:'r11'});a.store({base:'r10',disp:O.prototype},'r11');
+  a.label(done);a.label(complete);
  });
  b.fn('rt.constructorResult',40,a=>{
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');
   a.label(copy);a.load('rax',{base:'rdx'});a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');
  });
- rootedFn(b,'rt.ordinaryHasInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:1}],a=>{
+ rootedFn(b,'rt.ordinaryHasInstance',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
   a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
@@ -157,8 +192,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',no);
   a.lea('rcx',slot(64));a.mov('rdx','r8');a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rdx',slot(72));
-  a.load('rax',slot(48));a.load('rax',{base:'rax',disp:8});
-  a.label(loop);a.load('rax',{base:'rax',disp:O.prototype});a.test('rax','rax');a.jcc('e',no);a.cmp('rax','rdx');a.jcc('e',yes);a.jmp(loop);
+  a.load('r10',slot(48));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(80+part),'rax');}
+  a.label(loop);a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.getPrototype');
+  a.load('rax',slot(80));a.cmp('rax',1);a.jcc('e',no);a.load('rax',slot(88));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('e',yes);a.jmp(loop);
   a.label(no);a.mov('rax',0);a.jmp(save);a.label(yes);a.mov('rax',1);
   a.label(save);a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
  });

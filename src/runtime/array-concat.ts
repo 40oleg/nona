@@ -1,7 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
-import {ObjectLayout as O} from './object-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
 export const arrayConcatRoots=['rt.arrayConcat.fn'];
@@ -34,7 +33,7 @@ export function emitArrayConcat(b:RuntimeBuilder):void {
   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.lea('r8',slot(176));a.call('rt.getProperty');
   a.load('rax',slot(128));a.test('rax','rax');const defaultSpread=a.unique('defaultSpread');a.jcc('e',defaultSpread);
   a.lea('rcx',slot(128));a.call('rt.toBoolean');a.test('rax','rax');a.jcc('ne',spread);a.jmp(single);
-  a.label(defaultSpread);a.load('rax',slot(120));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',single);
+  a.label(defaultSpread);a.lea('rcx',slot(112));a.call('rt.isArray');a.test('rax','rax');a.jcc('e',single);
   a.label(spread);a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.arrayPush.length'});a.store(slot(184),'rax');
   a.lea('rcx',slot(144));a.lea('rdx',slot(112));a.lea('r8',slot(176));a.call('rt.getProperty');
   a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.call('rt.toNumber');a.movsd('xmm0',slot(168));

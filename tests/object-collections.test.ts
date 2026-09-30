@@ -41,6 +41,12 @@ const cases:[string,string][]=[
  ['numeric descriptor keys define in numeric order','let o={};Object.defineProperties(o,{10:{value:10,enumerable:true},2:{value:2,enumerable:true},a:{value:3,enumerable:true}});console.log(Object.keys(o).join("|"));'],
  ['enumeration scales over reverse numeric keys','let o={};for(let i=511;i>=0;i--)o[i]=i;let k=Object.keys(o);console.log(k.length,k[0],k[255],k[511]);'],
  ['method metadata','console.log(Object.create.length,Object.defineProperties.length,Object.keys.length,Object.values.length,Object.entries.length,Object.getOwnPropertyNames.length,"prototype" in Object.create);'],
+ ['fromEntries basic ordering and symbols',`let s=Symbol('s'),o=Object.fromEntries([['b',2],['1',3],[s,4],['b',5]]);console.log(Object.keys(o).join('|'),o.b,o[1],o[s],Object.getPrototypeOf(o)===Object.prototype,Object.fromEntries.length);`],
+ ['fromEntries defines own proto data property',`let o=Object.fromEntries([['__proto__',7]]);console.log(Object.getPrototypeOf(o)===Object.prototype,Object.prototype.hasOwnProperty.call(o,'__proto__'),o.__proto__);`],
+ ['fromEntries bypasses inherited setter',`let n=0;Object.defineProperty(Object.prototype,'x',{set:function(){n++},configurable:true});let o=Object.fromEntries([['x',4]]);delete Object.prototype.x;console.log(n,o.x,Object.prototype.hasOwnProperty.call(o,'x'));`],
+ ['fromEntries closes iterator on invalid entry',`let closed=0,iter={next:function(){return {value:3,done:false}},return:function(){closed++;return {}}};try{Object.fromEntries({[Symbol.iterator]:function(){return iter}})}catch(e){console.log(e.name,closed)}`],
+ ['assign uses getters setters and symbol keys',`let s=Symbol('s'),n=0,t={};Object.defineProperty(t,'x',{set:function(v){n=v},configurable:true});let source={x:7,[s]:8};let r=Object.assign(t,source);console.log(r===t,n,Object.prototype.hasOwnProperty.call(t,'x'),t[s],Object.assign.length);`],
+ ['assign skips nullish and returns boxed target',`let o=Object.assign(3,null,{x:2},undefined);console.log(typeof o,o.x,Object.getPrototypeOf(o)===Number.prototype);`],
 ];
 function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('Object collections: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});

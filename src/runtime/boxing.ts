@@ -1,12 +1,14 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
+import {rootedFn} from './root-scope.js';
+import {ProxyKind} from './proxy.js';
 
 export const BoxKind=4;
 export const BoxLayout={value:O.size,size:O.size+16} as const;
 export function emitBoxing(b:RuntimeBuilder):void {
- for(const [name,tag] of [['boolean',2],['number',3],['string',4],['symbol',6]] as const){
-  const bytes=new Uint8Array(BoxLayout.size);bytes[O.kind]=BoxKind;bytes[BoxLayout.value]=tag;
+ for(const [name,tag] of [['boolean',2],['number',3],['string',4],['symbol',6],['bigint',7]] as const){
+  const bytes=new Uint8Array(BoxLayout.size);if(name!=='bigint'){bytes[O.kind]=BoxKind;bytes[BoxLayout.value]=tag;}
   const fixups:{offset:number;kind:'va64';target:string;addend:number}[]=[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0}];
   fixups.push({offset:O.properties,kind:'va64',target:'rt.'+name+'Prototype.toString',addend:0});
   if(tag===4)fixups.push({offset:BoxLayout.value+8,kind:'va64',target:'rt.str.empty',addend:0});
@@ -17,10 +19,10 @@ export function emitBoxing(b:RuntimeBuilder):void {
  b.fn('rt.propertyBase',40,a=>{
   const boolean=a.unique('boolean'),number=a.unique('number'),string=a.unique('string'),symbol=a.unique('symbol'),done=a.unique('done');
   a.load('rax',{base:'rcx'});a.cmp('rax',2);a.jcc('e',boolean);a.cmp('rax',3);a.jcc('e',number);a.cmp('rax',4);a.jcc('e',string);a.cmp('rax',6);a.jcc('e',symbol);
-  a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rcx',disp:8});a.jmp(done);
+  a.cmp('rax',7);a.jcc('e','rt.propertyBase.bigint');a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rax',{base:'rcx',disp:8});a.jmp(done);
   a.label(boolean);a.lea('rax',{rip:'rt.booleanPrototype'});a.jmp(done);
   a.label(number);a.lea('rax',{rip:'rt.numberPrototype'});a.jmp(done);
-  a.label(string);a.lea('rax',{rip:'rt.stringPrototype'});a.jmp(done);a.label(symbol);a.lea('rax',{rip:'rt.symbolPrototype'});a.label(done);
+  a.label(string);a.lea('rax',{rip:'rt.stringPrototype'});a.jmp(done);a.label(symbol);a.lea('rax',{rip:'rt.symbolPrototype'});a.jmp(done);a.label('rt.propertyBase.bigint');a.lea('rax',{rip:'rt.bigintPrototype'});a.label(done);
  });
  // RCX result, RDX primitive Value*. Caller publishes result before any safepoint.
  b.fn('rt.boxReceiver',72,a=>{
@@ -51,10 +53,12 @@ export function emitBoxing(b:RuntimeBuilder):void {
   a.load('r10',slot(48));a.load('r10',{base:'r10'});a.cmp('rax','r10');a.jcc('b',yes);
   a.label(no);a.mov('rax',0);a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
  });
- b.fn('rt.getPrototype',56,a=>{
+ rootedFn(b,'rt.getPrototype',56,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.mov('rcx','rdx');a.call('rt.propertyBase');
   a.load('rdx',slot(48));a.load('r10',{base:'rdx'});a.cmp('r10',5);const save=a.unique('save');a.jcc('ne',save);
+  const ordinary=a.unique('ordinary'),done=a.unique('done');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinary);
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.proxyGetPrototype');a.jmp(done);a.label(ordinary);
   a.load('rax',{base:'rax',disp:O.prototype});a.label(save);a.mov('r10',5);a.test('rax','rax');const object=a.unique('object');a.jcc('ne',object);a.mov('r10',1);
-  a.label(object);a.load('rcx',slot(40));a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+  a.label(object);a.load('rcx',slot(40));a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
 }

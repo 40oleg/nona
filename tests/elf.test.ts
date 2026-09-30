@@ -24,19 +24,19 @@ function helloElf():Uint8Array {
  return linkElf(program);
 }
 
-function executeLinux(image:Uint8Array,t:TestContext):string|null {
+function executeLinux(image:Uint8Array,t:TestContext,timeout=10000):string|null {
  const directory=mkdtempSync(join(tmpdir(),'nona-linux-'));
  try{
   const file=join(directory,'program');writeFileSync(file,image);
   let run;
   if(process.platform==='linux'){
-   chmodSync(file,0o700);run=spawnSync(file,[],{encoding:'utf8',timeout:10000});
+   chmodSync(file,0o700);run=spawnSync(file,[],{encoding:'utf8',timeout});
   }else if(process.platform==='win32'){
-   const probe=spawnSync('wsl.exe',['--exec','/bin/true'],{timeout:3000});
+   const probe=spawnSync('wsl.exe',['--exec','/bin/true'],{timeout:10000});
    if(probe.error||probe.status!==0){t.skip('WSL Linux is unavailable');return null;}
    const translated=spawnSync('wsl.exe',['--exec','wslpath','-a',file],{encoding:'utf8',timeout:5000});
    assert.equal(translated.status,0,translated.stderr);
-   run=spawnSync('wsl.exe',['--exec','/bin/sh','-c','target=$(mktemp /tmp/nona-linux-XXXXXX); trap \'rm -f "$target"\' EXIT; cp "$1" "$target"; chmod 700 "$target"; "$target"','sh',translated.stdout.trim()],{encoding:'utf8',timeout:10000});
+   run=spawnSync('wsl.exe',['--exec','/bin/sh','-c','target=$(mktemp /tmp/nona-linux-XXXXXX); trap \'rm -f "$target"\' EXIT; cp "$1" "$target"; chmod 700 "$target"; "$target"','sh',translated.stdout.trim()],{encoding:'utf8',timeout});
   }else{t.skip('No Linux execution environment');return null;}
   assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);return run.stdout;
  }finally{rmSync(directory,{recursive:true,force:true});}
@@ -62,6 +62,234 @@ test('Linux native compiler executes a JavaScript program',t=>{
  const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'hello 42\n');
 });
 
+test('Linux native BigInt arithmetic and JSON serialization',t=>{
+ const source=`let x=123456789012345678901234567890n,y=98765432109876543210n;console.log(String(x+y),String(x*y),String(x/y),String(x%y),BigInt.asIntN(8,255n),x>Number.MAX_SAFE_INTEGER);BigInt.prototype.toJSON=function(key){return key+':'+this.toString()};console.log(JSON.stringify({value:x}));`;
+ const result=compile(source,{fileName:'bigint-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout.toString());
+});
+
+test('Linux native RegExp Unicode classes and escapes',t=>{
+ const source=String.raw`console.log(/[𝌆]/u.test('𝌆'),/[^𝌆]/u.test('𝌆'),/[\ud834\udf06]/u.test('𝌆'),new RegExp('\\u{000000003f}','u').test('?'));let long='A'.repeat(1200);console.log(/^\p{L}+!$/u.test(long+'!'),/a+ab/.test('a'.repeat(1200)+'b'));`;
+ const result=compile(source,{fileName:'regexp-unicode-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true false true true\ntrue true\n');
+});
+
+test('Linux native RegExp matchAll iterator has hidden state',t=>{
+ const source=`let iter=/a/g[Symbol.matchAll]('aba');let fake=Object.create(Object.getPrototypeOf(iter));fake.__nonaMatchAllBrand=true;try{fake.next()}catch(error){console.log(error.name)}console.log(Object.getOwnPropertyNames(iter).length,iter.next().value.index,iter.next().value.index,iter.next().done);`;
+ const result=compile(source,{fileName:'regexp-matchall-linux.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'TypeError\n0 0 2 true\n');
+});
+
+test('Linux native ArrayBuffer allocation and byteLength',t=>{
+ const source=`let b=new ArrayBuffer(16);console.log(b.byteLength,Object.prototype.toString.call(b));`;
+ const result=compile(source,{fileName:'array-buffer.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'16 [object ArrayBuffer]\n');
+});
+
+test('Linux native ArrayBuffer detachment invalidates views',t=>{
+ const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b),v=new DataView(b);ArrayBuffer.__nonaDetachInternal(b);console.log(b.byteLength,a.length,a[0],0 in a);try{v.getUint8(0)}catch(e){console.log(e.name)}`;
+ const result=compile(source,{fileName:'array-buffer-detach.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 undefined false\nTypeError\n');
+});
+
+test('Linux native array append keeps indexed values and length',t=>{
+ const source=`let values=[];for(let i=0;i<10000;i++)values[i]=i;console.log(values.length,values[0],values[9999]);`;
+ const result=compile(source,{fileName:'array-append.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'10000 0 9999\n');
+});
+
+test('Linux native TypedArray callback methods traverse BigInt elements',t=>{
+ const source=`let a=new BigInt64Array([1n,2n,3n]),sum=0n;a.forEach(v=>sum+=v);let copy=new BigInt64Array(3);copy.set(a);let sorted=new BigInt64Array([3n,1n,2n]);sorted.sort();console.log(String(sum),a.every(v=>v>0n),a.some(v=>v===2n),String(a.find(v=>v>1n)),a.findIndex(v=>v>1n),String(a.reduce((x,y)=>x+y,0n)),String(a.reduceRight((x,y)=>x*10n+y,0n)),a.join(':'),a.toString(),a.map(v=>v+1n).join(':'),a.filter(v=>v>1n).join(':'),copy.join(':'),a.subarray(1).join(':'),a.slice(1).join(':'),sorted.join(':'),a.toLocaleString(),BigInt64Array.from([4n,5n],v=>v+1n).join(':'));`;
+ const result=compile(source,{fileName:'typed-array-callbacks.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'6 true true 2 1 6 321 1:2:3 1,2,3 2:3:4 2:3 1:2:3 2:3 2:3 1:2:3 1,2,3 5:6\n');
+});
+
+test('Linux native DataView range and buffer identity',t=>{
+ const source=`let b=new ArrayBuffer(16),v=new DataView(b,3,8);v.setBigUint64(0,0x123456789abcdef0n,true);console.log(v.buffer===b,v.byteOffset,v.byteLength,ArrayBuffer.isView(v),v.getBigUint64(0,true).toString(16),new DataView(b,0,NaN).byteLength,DataView.length);`;
+ const result=compile(source,{fileName:'data-view.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true 3 8 true 123456789abcdef0 0 1\n');
+});
+
+test('Linux native DataView BigInt detachment follows index conversion',t=>{
+ const source=`let b=new ArrayBuffer(8),v=new DataView(b);ArrayBuffer.__nonaDetachInternal(b);try{v.getBigInt64(Infinity)}catch(error){console.log(error.name)}try{v.getBigUint64(0)}catch(error){console.log(error.name)}try{v.setFloat64(9,0)}catch(error){console.log(error.name)}`;
+ const result=compile(source,{fileName:'data-view-detach-bigint.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'RangeError\nTypeError\nTypeError\n');
+});
+
+test('Linux native SharedArrayBuffer aliases TypedArray and DataView storage',t=>{
+ const source=`let buffer=new SharedArrayBuffer(8),bytes=new Uint8Array(buffer),view=new DataView(buffer);bytes[0]=77;view.setUint16(1,0x1234,true);let copy=buffer.slice(0,3);console.log(buffer.byteLength,view.getUint8(0),bytes[1],bytes[2],bytes.buffer===buffer,view.buffer===buffer,new Uint8Array(copy).join(':'));`;
+ const result=compile(source,{fileName:'shared-array-buffer.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'8 77 52 18 true true 77:52:18\n');
+});
+
+test('Linux native Atomics.isLockFree reports x64 integer widths',t=>{
+ const source=`console.log(Atomics.isLockFree(1),Atomics.isLockFree(2),Atomics.isLockFree(4),Atomics.isLockFree(8),Atomics.isLockFree(3));`;
+ const result=compile(source,{fileName:'atomics-is-lock-free.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true true true true false\n');
+});
+
+test('Linux native Atomics.load reads shared signed and BigInt views',t=>{
+ const source=`let bytes=new Int8Array(new SharedArrayBuffer(2));bytes[0]=-7;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-5n;console.log(Atomics.load(bytes,0),String(Atomics.load(big,0)));`;
+ const result=compile(source,{fileName:'atomics-load.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-7 -5\n');
+});
+
+test('Linux native Atomics.store writes Number and BigInt values',t=>{
+ const source=`let bytes=new Int8Array(new SharedArrayBuffer(1)),big=new BigInt64Array(new SharedArrayBuffer(8));console.log(Atomics.store(bytes,0,257.9),Atomics.load(bytes,0),String(Atomics.store(big,0,18446744073709551617n)),String(Atomics.load(big,0)));`;
+ const result=compile(source,{fileName:'atomics-store.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'257 1 18446744073709551617 1\n');
+});
+
+test('Linux native Atomics add and sub wrap shared integer elements',t=>{
+ const source=`let bytes=new Uint8Array(new SharedArrayBuffer(1));bytes[0]=255;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-1n;console.log(Atomics.add(bytes,0,2),Atomics.sub(bytes,0,3),bytes[0],String(Atomics.add(big,0,2n)),String(Atomics.sub(big,0,3n)),String(big[0]),Atomics.exchange(bytes,0,7),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-add-sub.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'255 1 254 -1 1 -2 254 7\n');
+});
+
+test('Linux native Atomics bitwise operations update shared elements',t=>{
+ const source=`let bytes=new Uint8Array(new SharedArrayBuffer(1));bytes[0]=15;console.log(Atomics.and(bytes,0,10),Atomics.or(bytes,0,1),Atomics.xor(bytes,0,3),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-bitwise.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'15 10 11 8\n');
+});
+
+test('Linux native Atomics.compareExchange handles unsigned wrapped expected values',t=>{
+ const source=`let bytes=new Uint32Array(new SharedArrayBuffer(4));bytes[0]=4294967291;console.log(Atomics.compareExchange(bytes,0,-5,7),bytes[0],Atomics.compareExchange(bytes,0,-5,9),bytes[0]);`;
+ const result=compile(source,{fileName:'atomics-compare-exchange.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'4294967291 7 7 7\n');
+});
+
+test('Linux native Atomics.notify returns zero without waiters',t=>{
+ const source=`let view=new Int32Array(new SharedArrayBuffer(4));console.log(Atomics.notify(view,0),Atomics.notify(view,0,1),Atomics.notify(new Int32Array(1),0,1));`;
+ const result=compile(source,{fileName:'atomics-notify.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 0 0\n');
+});
+
+test('Linux native Atomics.wait handles mismatch and finite timeout',t=>{
+ const source=`let word=new Int32Array(new SharedArrayBuffer(4));word[0]=7;let big=new BigInt64Array(new SharedArrayBuffer(8));big[0]=-5n;console.log(Atomics.wait(word,0,8),Atomics.wait(word,0,7,0),Atomics.wait(word,0,7,2),Atomics.wait(big,0,-4n),Atomics.wait(big,0,-5n,2));`;
+ const result=compile(source,{fileName:'atomics-wait.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'not-equal timed-out timed-out not-equal timed-out\n');
+});
+
+test('Linux native Map stores SameValueZero keys through GC stress',t=>{
+ const source=`let key={id:7},map=new Map([[key,{id:9}],[NaN,'first']]);map.set(NaN,'second');for(let i=0;i<20;i++)({i:i});let seen=[];map.forEach((value,key)=>seen.push(String(value.id||value)));let iterator=map.values(),first=iterator.next().value;console.log(map.size,map.get(key).id,map.get(NaN),map.delete(key),map.size,seen.join(','),first.id,iterator.next().value);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'2 9 second true 1 9,second 9 second\n');
+});
+
+test('Linux native Set iterates values through GC stress',t=>{
+ const source=`let value={id:7},set=new Set([value,NaN,-0]);for(let i=0;i<20;i++)({i:i});let iterator=set.values(),first=iterator.next().value;console.log(set.size,set.has(value),set.has(NaN),set.has(0),first.id,iterator.next().value,iterator.next().value);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'3 true true true 7 NaN 0\n');
+});
+
+test('Linux native WeakMap ephemerons and WeakSet survive GC stress',t=>{
+ const source=`let key={id:7},map=new WeakMap([[key,{id:9}]]),set=new WeakSet([key]);for(let i=0;i<20;i++)({i:i});console.log(map.get(key).id,set.has(key),map.delete(key),map.has(key));`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t);if(output!==null)assert.equal(output,'9 true true false\n');
+});
+
+test('Linux native Uint8Array shares ArrayBuffer bytes',t=>{
+ const source=`let b=new ArrayBuffer(4),a=new Uint8Array(b);a[1]=255;console.log(a[1],new DataView(b).getUint8(1),ArrayBuffer.isView(a));`;
+ const result=compile(source,{fileName:'uint8-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'255 255 true\n');
+});
+
+test('Linux native Int8Array reads shared bytes as signed values',t=>{
+ const source=`let b=new ArrayBuffer(2),a=new Int8Array(b),u=new Uint8Array(b);a[0]=-1;u[1]=128;console.log(a[0],a[1],u[0],ArrayBuffer.isView(a));`;
+ const result=compile(source,{fileName:'int8-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 -128 255 true\n');
+});
+
+test('Linux native Uint8ClampedArray rounds ties to even',t=>{
+ const source=`let a=new Uint8ClampedArray([0.5,1.5,2.5,255.5]);console.log(a[0],a[1],a[2],a[3]);`;
+ const result=compile(source,{fileName:'uint8-clamped-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 2 2 255\n');
+});
+
+test('Linux native sixteen-bit typed arrays share buffer bytes',t=>{
+ const source=`let b=new ArrayBuffer(4),u=new Uint16Array(b),s=new Int16Array(b),v=new DataView(b);u[0]=0x1234;s[1]=-2;console.log(u[0],s[1],v.getUint16(0,true),v.getUint16(2,true));`;
+ const result=compile(source,{fileName:'int16-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'4660 -2 4660 65534\n');
+});
+
+test('Linux native thirty-two-bit typed arrays share buffer bytes',t=>{
+ const source=`let b=new ArrayBuffer(8),u=new Uint32Array(b),s=new Int32Array(b),v=new DataView(b);u[0]=0x89abcdef;s[1]=-2;console.log(u[0],s[0],s[1],v.getUint32(0,true),v.getUint32(4,true));`;
+ const result=compile(source,{fileName:'int32-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'2309737967 -1985229329 -2 2309737967 4294967294\n');
+});
+
+test('Linux native floating-point typed arrays round and share bytes',t=>{
+ const source=`let b=new ArrayBuffer(16),a=new Float32Array(b),d=new Float64Array(b,8),v=new DataView(b);a[0]=1/3;d[0]=Math.PI;console.log(a[0]===Math.fround(1/3),v.getFloat32(0,true)===a[0],d[0]===Math.PI);`;
+ const result=compile(source,{fileName:'float-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true true true\n');
+});
+
+test('Linux native BigInt typed arrays retain all 64 bits',t=>{
+ const source=`let b=new ArrayBuffer(16),a=new BigInt64Array(b),u=new BigUint64Array(b),v=new DataView(b);a[0]=-1n;u[1]=0x8000000000000000n;console.log(String(a[0]),String(u[0]),String(a[1]),v.getBigUint64(8,true)===u[1]);`;
+ const result=compile(source,{fileName:'bigint-array.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'-1 18446744073709551615 -9223372036854775808 true\n');
+});
+
+test('Linux native TypedArray reverse swaps 64-bit elements',t=>{
+ const source=`let a=BigUint64Array.of(1n,2n,3n);a.reverse();console.log(String(a[0]),String(a[1]),String(a[2]));`;
+ const result=compile(source,{fileName:'typed-array-reverse.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'3 2 1\n');
+});
+
+test('Linux native TypedArray copyWithin handles overlapping BigInt elements',t=>{
+ const source=`let a=BigUint64Array.of(1n,2n,3n,4n);a.copyWithin(1,0,3);console.log(String(a[0]),String(a[1]),String(a[2]),String(a[3]));`;
+ const result=compile(source,{fileName:'typed-array-copywithin.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'1 1 2 3\n');
+});
+
+test('Linux native TypedArray fill preserves BigInt and Float32 values',t=>{
+ const source=`let b=BigInt64Array.of(0n,0n,0n),f=new Float32Array(2);b.fill(-2n,1);f.fill(1/3);console.log(String(b[0]),String(b[1]),String(b[2]),f[0]===Math.fround(1/3),f[1]===f[0]);`;
+ const result=compile(source,{fileName:'typed-array-fill.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'0 -2 -2 true true\n');
+});
+
+test('Linux native TypedArray search handles NaN and BigInt',t=>{
+ const source=`let a=new Float32Array([1,NaN,-0]),b=BigInt64Array.of(1n,2n,1n);console.log(a.includes(NaN),a.indexOf(NaN),a.includes(0),b.indexOf(2n),b.lastIndexOf(1n));`;
+ const result=compile(source,{fileName:'typed-array-search.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'true -1 true 1 2\n');
+});
+
+test('Linux native typed array constructors expose element sizes',t=>{
+ const source=`console.log(Uint8Array.BYTES_PER_ELEMENT,Uint16Array.BYTES_PER_ELEMENT,Float32Array.BYTES_PER_ELEMENT,BigInt64Array.BYTES_PER_ELEMENT,BigInt64Array.prototype.BYTES_PER_ELEMENT);`;
+ const result=compile(source,{fileName:'typed-array-widths.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,'1 2 4 8 8\n');
+});
+
 test('Linux native output encodes UTF-16 as UTF-8',t=>{
  const source=`console.log('Привет','😀','\ud800');`;
  const result=compile(source,{fileName:'unicode.js',target:'linux-x64'});
@@ -79,6 +307,33 @@ test('Linux native Array.prototype.forEach calls back under GC stress',t=>{
  const source=`let a=[1,,3],s='';a.forEach(function(v,i){for(let j=0;j<20;j++)({x:j});s+=v+':'+i+';';});console.log(s);`;
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
  const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native RegExp VM captures survive GC stress',t=>{
+ const source=`let re=/(?<word>ab)\\k<word>/g;let m=re.exec('xabab');console.log(m[0],m.groups.word,m.index,re.lastIndex);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ const output=executeLinux(image,t,30000);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native RegExp VM matches without GC stress',t=>{
+ const source=`let m=/(a+)(b)/.exec('xaab');console.log(m[0],m[1],m[2],m.index);`;
+ const result=compile(source,{fileName:'regexp.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native simple RegExp matches without VM',t=>{
+ const source=`let m=/abc/.exec('xabc');console.log(m[0],m.index);`;
+ const result=compile(source,{fileName:'regexp-simple.js',target:'linux-x64'});
+ assert.equal(result.ok,true,JSON.stringify(result));if(!result.ok)return;
+ const output=executeLinux(result.image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+});
+
+test('Linux native simple RegExp survives GC stress',t=>{
+ const source=`let m=/abc/.exec('xabc');console.log(m[0],m.index);`;
+ const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
+ // The RegExp VM prelude collects at every safepoint under GC stress (about 12 s).
+ const output=executeLinux(image,t,120000);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
 
 test('Linux native Array.prototype.some and every call back under GC stress',t=>{

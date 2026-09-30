@@ -1,0 +1,43 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {runOnHost} from './helpers/host.js';
+
+// Function() with string-literal arguments is compiled ahead of time; see src/frontend/dynamic-functions.ts.
+test('Function with literal source creates global-scope sloppy functions', () => {
+ const run = runOnHost(`"use strict";
+var g = Function("return this;")();
+console.log(g === globalThis);
+var add = new Function("a", "b", "return a + b;");
+console.log(add(2, 3), add.name, add.length, String(add) === "function anonymous(a,b\\n) {\\nreturn a + b;\\n}");
+console.log(add !== new Function("a", "b", "return a + b;"), Object.getPrototypeOf(add) === Function.prototype);
+let top = 7;
+function f() { var top = 1; return Function("return top")(); }
+console.log(f(), Function("'use strict'; return this")(), Function()());
+try { Function("a,a", "'use strict';"); console.log('no error'); } catch (e) { console.log(e instanceof SyntaxError); }
+try { Function("a){", "}"); console.log('no error'); } catch (e) { console.log(e instanceof SyntaxError); }
+try { Function("", "return 1 +;"); console.log('no error'); } catch (e) { console.log(e instanceof SyntaxError); }
+try { Function(String("return 1")); } catch (e) { console.log(e.name); }
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'true\n5 anonymous 2 true\ntrue true\n7 undefined undefined\ntrue\ntrue\ntrue\nEvalError\n');
+});
+
+test('a program that binds its own Function is left alone', () => {
+ const run = runOnHost(`function Function(s) { return 'shadowed ' + s; }
+console.log(Function("x"));
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'shadowed x\n');
+});
+
+test('GeneratorFunction/AsyncFunction with literal source compile ahead of time', () => {
+ const run = runOnHost(`var GeneratorFunction = Object.getPrototypeOf(function*(){}).constructor;
+var g = GeneratorFunction('x', 'y', 'yield x + y;'); console.log(g.name, g.length, g(1, 2).next().value);
+var AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+new AsyncFunction('a', 'return await a;')(5).then(v => console.log('async', v));
+try { GeneratorFunction('x = yield', ''); } catch (e) { console.log(e.name); }
+(function(){ var GeneratorFunction = function(){ return 'shadowed'; }; console.log(GeneratorFunction('yield 1')); })();
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'anonymous 2 3\nSyntaxError\nshadowed\nasync 5\n');
+});

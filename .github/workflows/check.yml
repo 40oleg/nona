@@ -2,6 +2,9 @@ name: check
 on:
   push:
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   windows:
     runs-on: windows-latest
@@ -127,5 +130,272 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js
+      - run: node --test dist/tests/frontend.test.js dist/tests/lowering.test.js dist/tests/liveness.test.js dist/tests/elf.test.js dist/tests/object-annexb.test.js dist/tests/async.test.js dist/tests/with.test.js dist/tests/modules.test.js dist/tests/tail-calls.test.js dist/tests/dynamic-functions.test.js dist/tests/language-audit.test.js dist/tests/annexb-builtins.test.js
       - run: npm run compare:linux
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Object/prototype
+      - run: node scripts/test262-smoke.mjs built-ins/Object/prototype
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_PATH_FILTER: '/__'
+          TEST262_EXCLUDE_PATH_FILTER: '/__proto__/'
+          TEST262_REPORT: 'work/test262-object-annexb-linux-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-object-annexb-linux-report
+          path: work/test262-object-annexb-linux-report.json
+          if-no-files-found: ignore
+  windows-reflect-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Reflect
+      - run: node scripts/test262-smoke.mjs built-ins/Reflect
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTER: 'arguments-list-is-not-array-like-but-still-valid.js'
+          TEST262_REPORT: 'work/test262-reflect-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-reflect-report
+          path: work/test262-reflect-report.json
+          if-no-files-found: ignore
+  windows-promise-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Promise
+      - run: node scripts/test262-smoke.mjs built-ins/Promise
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUN_ASYNC: '1'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: 'built-ins/Promise/any/,built-ins/Promise/allKeyed/,built-ins/Promise/allSettledKeyed/,built-ins/Promise/try/,built-ins/Promise/withResolvers/,ctx-non-ctor.js,proto-from-ctor-realm.js'
+          TEST262_REPORT: 'work/test262-promise-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-promise-report
+          path: work/test262-promise-report.json
+          if-no-files-found: ignore
+  windows-typedarray-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/TypedArray
+      - run: node scripts/test262-smoke.mjs built-ins/TypedArray
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '600000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/at/,/prototype/findLast/,/prototype/findLastIndex/,/prototype/toReversed/,/prototype/toSorted/,/prototype/with/'
+          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
+          TEST262_REPORT: 'work/test262-typedarray-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-typedarray-report
+          path: work/test262-typedarray-report.json
+          if-no-files-found: ignore
+  windows-dataview-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/DataView
+      - run: node scripts/test262-smoke.mjs built-ins/DataView
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/getFloat16/,/prototype/setFloat16/,proto-from-ctor-realm'
+          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
+          TEST262_REPORT: 'work/test262-dataview-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-dataview-report
+          path: work/test262-dataview-report.json
+          if-no-files-found: ignore
+  windows-arraybuffer-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/ArrayBuffer
+      - run: node scripts/test262-smoke.mjs built-ins/ArrayBuffer
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/detached/,/prototype/immutable/,/prototype/maxByteLength/,/prototype/resizable/,/prototype/resize/,/prototype/sliceToImmutable/,/prototype/transfer/,/prototype/transferToFixedLength/,/prototype/transferToImmutable/,proto-from-ctor-realm.js'
+          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
+          TEST262_REPORT: 'work/test262-arraybuffer-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-arraybuffer-report
+          path: work/test262-arraybuffer-report.json
+          if-no-files-found: ignore
+  windows-sharedarraybuffer-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/SharedArrayBuffer
+      - run: node scripts/test262-smoke.mjs built-ins/SharedArrayBuffer
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/grow/,/prototype/growable/,/prototype/maxByteLength/,options-maxbytelength-,options-non-object.js,proto-from-ctor-realm.js'
+          TEST262_EXCLUDE_FEATURES: 'growable-sharedarraybuffer,resizable-arraybuffer,immutable-arraybuffer'
+          TEST262_REPORT: 'work/test262-sharedarraybuffer-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-sharedarraybuffer-report
+          path: work/test262-sharedarraybuffer-report.json
+          if-no-files-found: ignore
+  windows-date-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/Date
+      - run: node scripts/test262-smoke.mjs built-ins/Date
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/toTemporalInstant/,proto-from-ctor-realm'
+          TEST262_REPORT: 'work/test262-date-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-date-report
+          path: work/test262-date-report.json
+          if-no-files-found: ignore
+  windows-json-test262:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          path: work/test262
+          sparse-checkout: |
+            harness
+            test/built-ins/JSON
+      - run: node scripts/test262-smoke.mjs built-ins/JSON
+        env:
+          TEST262_JOBS: '4'
+          TEST262_RUNTIME_TIMEOUT_MS: '120000'
+          TEST262_EXCLUDE_PATH_FILTERS: '/isRawJSON/,/rawJSON/,replacer-array-proxy-revoked-realm.js,value-bigint-cross-realm.js'
+          TEST262_EXCLUDE_FEATURES: 'json-parse-with-source'
+          TEST262_REPORT: 'work/test262-json-report.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test262-json-report
+          path: work/test262-json-report.json
+          if-no-files-found: ignore

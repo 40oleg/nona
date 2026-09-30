@@ -10,6 +10,8 @@ import assert from 'node:assert/strict';
 const cases:[string,string][]=[
  ['declaration, constructor, methods and static method',`class Point{constructor(x){this.x=x;}value(){return this.x;}static make(x){return new Point(x);}}var p=Point.make(5);console.log(p.value(),p instanceof Point,Object.getOwnPropertyDescriptor(Point.prototype,'value').enumerable);`],
  ['class expression name',`var C=class Inner{value(){return Inner.name;}};console.log(new C().value(),C.name);`],
+ ['static method source excludes static prefix',`var C=class{static /* before */f /* a */(){return 1}static get x(){return 2}static set x(v){}};console.log(C.f.toString(),Object.getOwnPropertyDescriptor(C,'x').get.toString(),Object.getOwnPropertyDescriptor(C,'x').set.toString());`],
+ ['explicit class constructor source spans the entire class',`class /* before */C /* after */ {constructor /* c */ () {} method() {}};console.log(C.toString());`],
  ['method strict receiver',`class C{m(){return this;}}var m=new C().m;console.log(m()===undefined);`],
  ['class constructor requires new',`class C{}try{C();}catch(e){console.log(e.name);}`],
  ['accessors and computed keys',`var k='m';class C{constructor(){this.v=2;}get x(){return this.v;}set x(v){this.v=v;}[k](){return this.x;}static get y(){return 5;}}var c=new C();c.x=4;console.log(c.m(),C.y,Object.getOwnPropertyDescriptor(C.prototype,'x').enumerable);`],

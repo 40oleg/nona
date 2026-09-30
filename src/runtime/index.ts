@@ -1,9 +1,14 @@
+import {realmTableIntrinsics} from './constructor-prototype.js';
 import {emitStrict} from './strict.js';
 import {emitErrors} from './errors.js';
 import {emitExceptions} from './exceptions.js';
 import {emitContextSwitch} from './context-switch.js';
 import {emitGeneratorStack} from './generator-stack.js';
 import {emitGenerators} from './generator.js';
+import {emitAsync} from './async.js';
+import {emitTailCalls} from './tail-calls.js';
+import {emitFunctionRealm} from './function-realm.js';
+import {emitAgents} from './agents.js';
 import {emitSuperProperties} from './super-properties.js';
 import {emitLiteralAccessor} from './literal-accessor.js';
 import {emitObjectIntegrity} from './object-integrity.js';
@@ -33,6 +38,7 @@ import {emitInvokeArray} from './invoke-array.js';
 import {emitFunctionBind} from './function-bind.js';
 import {emitBoundCalls} from './function-bound-call.js';
 import {emitFunctionSource} from './function-source.js';
+import {emitProxy} from './proxy.js';
 import {emitObjectMethods} from './object-methods.js';
 import {emitWrapperMethods} from './wrapper-methods.js';
 import {emitRadix} from './numeric/radix.js';
@@ -57,6 +63,44 @@ import {emitStringSplit} from './string-split.js';
 import {emitStringReplace} from './string-replace.js';
 import {emitStringNormalize} from './string-normalize.js';
 import {emitStringLocaleCompare} from './string-locale-compare.js';
+import {emitDateClock} from './date-clock.js';
+import {emitDatePrototype,emitDate} from './date.js';
+import {emitDateCalendar} from './date-calendar.js';
+import {emitDateComponents} from './date-components.js';
+import {emitDateSecondSetters} from './date-second-setters.js';
+import {emitDateMinuteSetters} from './date-minute-setters.js';
+import {emitDateHourSetters} from './date-hour-setters.js';
+import {emitDateDaySetters} from './date-day-setters.js';
+import {emitDateMonthSetters} from './date-month-setters.js';
+import {emitDateYearSetters} from './date-year-setters.js';
+import {emitDateIso} from './date-iso.js';
+import {emitDateJson} from './date-json.js';
+import {emitDatePrimitive} from './date-primitive.js';
+import {emitDateStrings} from './date-strings.js';
+import {emitDateParse} from './date-parse.js';
+import {emitJson} from './json.js';
+import {emitJsonComposite} from './json-composite.js';
+import {emitJsonReviver} from './json-reviver.js';
+import {emitJsonStringify} from './json-stringify.js';
+import {emitBigInt} from './bigint.js';
+import {emitRegExpPrototype,emitRegExp} from './regexp.js';
+import {emitArrayBufferPrototype,emitArrayBuffer} from './array-buffer.js';
+import {emitSharedArrayBufferPrototype,emitSharedArrayBuffer} from './shared-array-buffer.js';
+import {emitAtomics} from './atomics.js';
+import {emitMapPrototype,emitMap} from './map.js';
+import {emitMapIterators} from './map-iterator.js';
+import {emitSetPrototype,emitSet} from './set.js';
+import {emitSetIterators} from './set-iterator.js';
+import {emitWeakCollectionPrototypes,emitWeakCollections} from './weak-collections.js';
+import {emitDataViewPrototype,emitDataView} from './data-view.js';
+import {emitTypedArrayPrototype,emitTypedArray} from './typed-array.js';
 import {emitConsole} from './console.js';
-export function emitRuntime(_request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitBuiltinConstructors(b);emitNumberBuiltins(b);emitUri(b);emitSymbols(b);emitIterators(b);emitGenerators(b);emitArrayBuiltins(b);emitArraySplice(b);emitArrayOf(b);emitArrayFrom(b);emitArrayConcat(b);emitArrayFlat(b);emitArrayLocale(b);emitArraySort(b);emitArrayUnscopables(b);emitStringBuiltins(b);emitStringSplit(b);emitStringReplace(b);emitStringNormalize(b);emitStringLocaleCompare(b);emitMath(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b);emitIo(b);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
+/** Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts), and the default (empty) agent entry list. */
+function emitRealmTables(b:RuntimeBuilder,realms:number):void {
+  for(const intrinsic of realmTableIntrinsics)b.bundle.fragments.push({name:'realm.table.'+intrinsic,section:'.rdata',alignment:8,bytes:new Uint8Array(8*(realms+1)),symbols:{},
+    fixups:Array.from({length:realms+1},(_,realm)=>({offset:8*realm,kind:'va64' as const,target:realm===0?intrinsic:`R${realm}$${intrinsic}`,addend:0}))});
+  b.bundle.fragments.push({name:'agent.entryCount',section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]});
+  b.bundle.fragments.push({name:'agent.entries',section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]});
+}
+export function emitRuntime(request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitDateClock(b);emitDateCalendar(b);emitDateComponents(b);emitDateSecondSetters(b);emitDateMinuteSetters(b);emitDateHourSetters(b);emitDateDaySetters(b);emitDateMonthSetters(b);emitDateYearSetters(b);emitDateIso(b);emitDateJson(b);emitDateStrings(b);emitDateParse(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitProxy(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitDatePrototype(b);emitDatePrimitive(b);emitRegExpPrototype(b);emitMapPrototype(b);emitSetPrototype(b);emitWeakCollectionPrototypes(b);emitArrayBufferPrototype(b);emitSharedArrayBufferPrototype(b);emitDataViewPrototype(b);emitTypedArrayPrototype(b);emitBuiltinConstructors(b);emitDate(b);emitRegExp(b);emitMap(b);emitSet(b);emitWeakCollections(b);emitArrayBuffer(b);emitSharedArrayBuffer(b);emitDataView(b);emitTypedArray(b);emitNumberBuiltins(b);emitUri(b);emitSymbols(b);emitIterators(b);emitMapIterators(b);emitSetIterators(b);emitGenerators(b);emitAsync(b);emitTailCalls(b);emitFunctionRealm(b);emitAgents(b);emitArrayBuiltins(b);emitArraySplice(b);emitArrayOf(b);emitArrayFrom(b);emitArrayConcat(b);emitArrayFlat(b);emitArrayLocale(b);emitArraySort(b);emitArrayUnscopables(b);emitStringBuiltins(b);emitStringSplit(b);emitStringReplace(b);emitStringNormalize(b);emitStringLocaleCompare(b);emitMath(b);emitAtomics(b);emitJson(b);emitJsonComposite(b);emitJsonReviver(b);emitJsonStringify(b);emitBigInt(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b,request.realms??0);emitIo(b);emitRealmTables(b,request.realms??0);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
 export type {RuntimeRequest,RuntimeBundle} from './abi.js';

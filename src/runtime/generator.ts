@@ -43,14 +43,13 @@ export function emitGenerators(b:RuntimeBuilder):void {
   {offset:P.key,kind:'va64',target:'rt.str.constructor',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.generatorFunctionPrototype',addend:0},
  ]});
- const functionPrototype=new Uint8Array(F.size);functionPrototype[O.kind]=FunctionKind;
+ // %GeneratorFunction.prototype% is an ordinary object, not a function.
+ const functionPrototype=new Uint8Array(O.size);
  b.bundle.fragments.push({name:'rt.generatorFunctionPrototype',section:'.data',alignment:8,bytes:functionPrototype,symbols:{},fixups:[
   {offset:O.prototype,kind:'va64',target:'rt.functionPrototype',addend:0},
   {offset:O.properties,kind:'va64',target:'rt.generatorFunctionPrototype.prototype',addend:0},
-  {offset:F.code,kind:'va64',target:'rt.emptyFunction',addend:0},
-  {offset:F.sourceText,kind:'va64',target:'rt.str.nativeFunction',addend:0},
  ]});
- const generatorPrototypeProperty=new Uint8Array(P.size);generatorPrototypeProperty[P.value]=5;
+ const generatorPrototypeProperty=new Uint8Array(P.size);generatorPrototypeProperty[P.value]=5;generatorPrototypeProperty[P.attributes]=A.configurable;
  b.bundle.fragments.push({name:'rt.generatorFunctionPrototype.prototype',section:'.data',alignment:8,bytes:generatorPrototypeProperty,symbols:{},fixups:[
   {offset:P.key,kind:'va64',target:'rt.str.prototype',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.generatorPrototype',addend:0},
@@ -66,6 +65,7 @@ export function emitGenerators(b:RuntimeBuilder):void {
   {offset:P.value+8,kind:'va64',target:'rt.generatorReturn.fn',addend:0},
  ]});
  b.bundle.fragments.push(stringLiteral('rt.gen.throw','throw'));
+ b.bundle.fragments.push(stringLiteral('rt.gen.await','await'));
  const throwProperty=new Uint8Array(P.size);throwProperty[P.value]=5;throwProperty[P.attributes]=A.writable|A.configurable;
  b.bundle.fragments.push({name:'rt.generatorPrototype.throw',section:'.data',alignment:8,bytes:throwProperty,symbols:{},fixups:[
   {offset:P.next,kind:'va64',target:'rt.generatorPrototype.@@iterator',addend:0},
@@ -91,7 +91,7 @@ export function emitGenerators(b:RuntimeBuilder):void {
  // RCX output, RDX source function Value*, R8 argc, R9 argv; the receiver
  // Value* is the fifth Win64 argument. Copy arguments into managed storage
  // before publishing the generator, since the caller frame may later suspend.
- rootedFn(b,'rt.newGenerator',184,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r9',count:'r8'},{kind:'locals',offset:64,count:3},{kind:'locals',offset:120,count:1},{kind:'locals',offset:136,count:2}],(a,frame)=>{
+ for(const coroutine of [false,true])rootedFn(b,coroutine?'rt.newAsyncCoroutine':'rt.newGenerator',184,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r9',count:'r8'},{kind:'locals',offset:64,count:3},{kind:'locals',offset:120,count:1},{kind:'locals',offset:136,count:2}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(112),'r9');
   for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store(slot(64+offset),'rax');}
   a.load('r10',slot(frame+40));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store(slot(80+offset),'rax');}
@@ -110,6 +110,9 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.load('r10',slot(104));a.store({base:'rax',disp:GeneratorLayout.arguments},'r10');
   a.load('r10',slot(56));a.store({base:'rax',disp:GeneratorLayout.count},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
+  // An async function body starts on the driver's first resume, so parameter
+  // errors reject its promise; its internal coroutine keeps the default prototype.
+  if(coroutine)return;
   // Run parameter binding and declaration instantiation at call time. The
   // compiled body pauses immediately afterward, before its first statement.
   a.mov('rax',0);a.store(slot(32),'rax');a.lea('rcx',slot(136));a.load('rdx',slot(40));a.lea('r8',{rip:'rt.undefinedValue'});a.lea('r9',slot(168));a.call('rt.resumeGenerator');
@@ -240,11 +243,26 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.label(normal);
   for(const offset of [0,8]){a.load('rax',{base:'r11',disp:GeneratorLayout.resumeValue+offset});a.store({base:'rcx',disp:offset},'rax');}
  });
+ // Await suspends like yield; yieldRaw 2 lets the async driver distinguish it.
+ b.fn('rt.generatorAwait',72,a=>{
+  a.store(slot(40),'rcx');a.load('r11',{rip:'rt.currentGenerator'});
+  a.mov('rax',2);a.store({base:'r11',disp:GeneratorLayout.yieldRaw},'rax');
+  for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'r11',disp:GeneratorLayout.yieldValue+offset},'rax');}
+  a.mov('rax',2);a.store({base:'r11',disp:GeneratorLayout.state},'rax');
+  a.lea('rcx',{base:'r11',disp:GeneratorLayout.context});a.load('rdx',{base:'rcx',disp:ContextLayout.parent});a.call('rt.switchContext');
+  a.load('r11',{rip:'rt.currentGenerator'});a.load('rcx',slot(40));
+  a.load('rax',{base:'r11',disp:GeneratorLayout.resumeMode});a.test('rax','rax');const normal=a.unique('normal');a.jcc('e',normal);
+  a.mov('rax',0);a.store({base:'r11',disp:GeneratorLayout.resumeMode},'rax');a.lea('rcx',{base:'r11',disp:GeneratorLayout.resumeValue});a.call('rt.throw');
+  a.label(normal);
+  for(const offset of [0,8]){a.load('rax',{base:'r11',disp:GeneratorLayout.resumeValue+offset});a.store({base:'rcx',disp:offset},'rax');}
+ });
  // A delegated yield returns the caller's resume mode to the compiled loop.
  // That loop forwards throw/return to the inner iterator before it resumes.
- b.fn('rt.generatorYieldDelegated',72,a=>{
+ // The Value variant (async generator yield*) yields an ordinary value that
+ // the driver wraps, but still reports the resumption mode to compiled code.
+ for(const raw of [true,false])b.fn(raw?'rt.generatorYieldDelegated':'rt.generatorYieldDelegatedValue',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'r8');a.load('r11',{rip:'rt.currentGenerator'});
-  a.mov('rax',1);a.store({base:'r11',disp:GeneratorLayout.yieldRaw},'rax');
+  a.mov('rax',raw?1:0);a.store({base:'r11',disp:GeneratorLayout.yieldRaw},'rax');
   for(const offset of [0,8]){a.load('rax',{base:'rdx',disp:offset});a.store({base:'r11',disp:GeneratorLayout.yieldValue+offset},'rax');}
   a.mov('rax',2);a.store({base:'r11',disp:GeneratorLayout.state},'rax');
   a.lea('rcx',{base:'r11',disp:GeneratorLayout.context});a.load('rdx',{base:'rcx',disp:ContextLayout.parent});a.call('rt.switchContext');
@@ -260,9 +278,12 @@ export function emitGenerators(b:RuntimeBuilder):void {
   const noArgument=a.unique('noArgument'),argumentReady=a.unique('argumentReady');a.test('rdx','rdx');a.jcc('e',noArgument);
   for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store(slot(80+offset),'rax');}a.jmp(argumentReady);
   a.label(noArgument);a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');a.label(argumentReady);
+  a.mov('rax',0);a.store(slot(160),'rax');
   a.mov('rax',mode);a.store(slot(32),'rax');a.lea('rcx',slot(96));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.lea('r9',slot(120));a.call('rt.resumeGenerator');
   const wrapped=a.unique('wrapped');a.load('rax',slot(120));a.test('rax','rax');a.jcc('ne',wrapped);
   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:GeneratorLayout.yieldRaw});a.test('rax','rax');a.jcc('e',wrapped);
+  // Internal async coroutines report awaits as {value, done:false, await:true}.
+  a.cmp('rax',2);const rawResult=a.unique('rawResult');a.jcc('ne',rawResult);a.mov('rax',1);a.store(slot(160),'rax');a.jmp(wrapped);a.label(rawResult);
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(96+offset));a.store({base:'rcx',disp:offset},'rax');}
   const methodDone=a.unique('methodDone');a.jmp(methodDone);a.label(wrapped);
   a.mov('rax',2);a.store(slot(112),'rax');
@@ -271,6 +292,10 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.lea('rcx',slot(128));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.mov('r9',A.writable|A.enumerable|A.configurable);a.call('rt.setProperty');
   a.lea('rax',{rip:'rt.iter.done'});a.store(slot(152),'rax');
   a.lea('rcx',slot(128));a.lea('rdx',slot(144));a.lea('r8',slot(112));a.mov('r9',A.writable|A.enumerable|A.configurable);a.call('rt.setProperty');
+  const notAwait=a.unique('notAwait');a.load('rax',slot(160));a.test('rax','rax');a.jcc('e',notAwait);
+  a.lea('rax',{rip:'rt.gen.await'});a.store(slot(152),'rax');a.mov('rax',2);a.store(slot(112),'rax');a.mov('rax',1);a.store(slot(120),'rax');
+  a.lea('rcx',slot(128));a.lea('rdx',slot(144));a.lea('r8',slot(112));a.mov('r9',A.writable|A.enumerable|A.configurable);a.call('rt.setProperty');
+  a.label(notAwait);
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(128+offset));a.store({base:'rcx',disp:offset},'rax');}
   a.label(methodDone);
  });

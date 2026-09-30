@@ -2,35 +2,83 @@ import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/excepti
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import { Assembler, type Mem } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
-import type { ModuleIR, FunctionIR } from '../../ir/model.js';
+import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
+import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
+import {reflectPreludeSource} from '../../runtime/reflect-source.js';
+import {proxyPreludeSource} from '../../runtime/proxy-source.js';
+import {promisePreludeSource} from '../../runtime/promise-source.js';
+import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
+import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
+import {objectIntegrityPreludeSource} from '../../runtime/object-integrity-source.js';
+import {annexBBuiltinsPreludeSource} from '../../runtime/annexb-builtins-source.js';
+import {lex} from '../../frontend/lexer.js';
+import {parse} from '../../frontend/parser.js';
+import {bind} from '../../frontend/binder.js';
+import {lower} from '../../ir/lower.js';
+import {cloneRealms,realmSymbol} from '../realms.js';
+import {mergeAgentPrograms,agentSymbol} from '../agents.js';
+import {stringLiteral} from '../../runtime/value.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
-const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString'};
+const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
+const cachedRuntimePreludes=new Map<'throw'|'ignore',ModuleIR>();
+/** Runtime and prelude code are identical for equal options: generate them once. */
+interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>}
+const baseImages=new Map<string,BaseImage>();
 
-export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeProgram {
-  const runtime=emitRuntime();
-  const fragments:NamedFragment[]=[...runtime.fragments];
-  const functions:UnwindFunction[]=[...runtime.functions];
-  for(const name of module.globalFunctionProperties??[]){
-    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
-    if(!property)throw new Error('Missing intrinsic global property '+name);
-    property.bytes[P.attributes]=A.writable|A.enumerable;
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[]}={}):NativeProgram {
+  const userGlobalCount=module.globalCount;
+  const rejectionPolicy=options.unhandledRejections??'throw';
+  let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
+  if(module.runtimePrelude&&!prelude){
+    const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+proxyPreludeSource))));
+    cachedRuntimePreludes.set(rejectionPolicy,prelude);
   }
-  const literals=new Map<string,string>();
+  if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
+  const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
+  const preludeFunctions=(prelude?.functions??[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
+      operations:block.operations.map(op=>{
+        if(op.kind==='newFunction')return {...op,target:prefix(op.target)};
+        if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,prelude:true};
+        return op;
+      }),
+    }))}));
+  const realms=prelude?options.realms??0:0;
+  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms});
+  const base=baseImages.get(baseKey);
+  let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
+  const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
+  if(base){fragments=copyFragments(base.fragments);functions=base.functions.map(fn=>({...fn}));imports=[...base.imports];literals=new Map(base.literals);}
+  else{
+    const runtime=emitRuntime({operations:new Set(),realms});
+    fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
+    if(prelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
+  }
+  const runtime={imports};
   const literal=(value:string):string=>{
     const existing=literals.get(value);if(existing)return existing;
     const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
     v.setBigUint64(0,BigInt(value.length),true);for(let i=0;i<value.length;i++)v.setUint16(8+2*i,value.charCodeAt(i),true);
     literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
   };
+  if(!base){
+    preludeFunctions.forEach(fn=>emitFunction(fn));
+    baseImages.set(baseKey,{fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals)});
+  }
+  for(const name of module.globalFunctionProperties??[]){
+    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
+    if(!property)throw new Error('Missing intrinsic global property '+name);
+    property.bytes[P.attributes]=A.writable|A.enumerable;
+  }
   fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
   const globalProperties=module.globalProperties??[];
   const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
@@ -83,11 +131,32 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
     a.mov('rax',fn.slotCount+3);a.store(stack(rootBase+R.count),'rax');
     a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
     if(fn.derivedConstructor){a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');}
+    // Slots that may hold stale values when a block starts: whatever its
+    // predecessors left (live slots and their last destination). Handler
+    // targets can be entered from any operation, so they assume every slot.
+    const allSlots=Array.from({length:fn.slotCount},(_,i)=>i);
+    const handlerTargets=new Set<number>();for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='pushHandler')handlerTargets.add(op.target);
+    const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
+    for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
+    const entrySets=new Map<number,Set<number>>(),exitSets=new Map<number,Set<number>>();
+    const exitOf=(block:BlockIR,entry:Set<number>):Set<number>=>{
+      if(!block.operations.length)return entry;
+      const last=block.operations.length-1,exit=new Set(liveness.get(block.id)!.before[last]!);const op=block.operations[last]!;if('dest'in op)exit.add(op.dest as number);return exit;
+    };
+    for(let changed=true;changed;){
+      changed=false;
+      for(const [index,block] of fn.blocks.entries()){
+        let entry:Set<number>;
+        if(index===0||handlerTargets.has(block.id))entry=new Set(allSlots);
+        else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
+        const previous=entrySets.get(block.id);
+        if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
+      }
+    }
     for(const block of fn.blocks){
       a.label(fn.id+'.block.'+block.id);
-      // Any predecessor may have left obsolete values in these slots. After the
-      // first safepoint only previously live slots/new destinations need clearing.
-      let possible=new Set(Array.from({length:fn.slotCount},(_,i)=>i));
+      // After the first safepoint only previously live slots/new destinations need clearing.
+      let possible=new Set(entrySets.get(block.id)??allSlots);
       for(const [index,op] of block.operations.entries()){
        const live=liveness.get(block.id)!.before[index]!;
        const dead=[...possible].filter(slot=>!live.has(slot));
@@ -99,9 +168,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
         case 'readGlobalProperty':pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',op.allowMissing?1:0);a.call('rt.readGlobalProperty');break;
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
-          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow?'rt.newMethod':'rt.newFunction');
+          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');
           if(op.classConstructor){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
-          if(op.generator){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
+          if(op.async){
+            a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
+            if(op.generator){pointer('rcx',op.dest);a.call('rt.initializeAsyncGeneratorFunction');}
+            else{a.lea('rax',{rip:'rt.asyncFunctionPrototype'});a.store({base:'r10',disp:O.prototype},'rax');}
+          }
+          else if(op.generator){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
           if(op.strict||op.arrow){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
           if(op.arrow){
             a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
@@ -141,11 +215,19 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
           {const nonnull=a.unique('superBaseObject'),done=a.unique('superBaseDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superConstructor':
-          a.load('rax',stack(64));a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
+          if(op.func!==undefined)a.load('rax',stack(valueBase+16*op.func+8));else a.load('rax',stack(64));
+          a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
           {const nonnull=a.unique('superConstructorObject'),done=a.unique('superConstructorDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superReceiver':copy(value(op.dest),stack(superReceiverBase));break;
         case 'setFunctionHomeObject':a.load('r10',stack(valueBase+16*op.func+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');break;
-        case 'setCurrentThis':if(fn.derivedConstructor){
+        case 'setCurrentThis':if(!fn.derivedConstructor){
+          // An arrow's lexical this may be its derived constructor's this cell.
+          const direct=a.unique('directSetThis'),done=a.unique('setThisDone');
+          a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('ne',direct);
+          a.load('r10',stack(thisBase+8));a.load('rax',{base:'r10'});a.cmp('rax',255);failIf(a,'ne','rt.throwReferenceError');
+          a.lea('rcx',stack(thisBase));pointer('rdx',op.source);a.call('rt.writeCell');a.jmp(done);
+          a.label(direct);copy(stack(thisBase),value(op.source));a.label(done);
+        }else if(fn.derivedConstructor){
           a.load('r10',stack(thisBase+8));a.load('rax',{base:'r10'});a.cmp('rax',255);failIf(a,'ne','rt.throwReferenceError');
           a.lea('rcx',stack(thisBase));pointer('rdx',op.source);a.call('rt.writeCell');
         }else copy(stack(thisBase),value(op.source));break;
@@ -167,9 +249,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.label(direct);copy(value(op.dest),stack(thisBase));a.label(done);
           a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
         }
-        case 'newInstance':pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+        case 'newInstance':
+          pointer('rcx',op.callee);
+          if(op.argumentArray!==undefined){pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');}
+          else{if(op.firstArgument!==undefined)pointer('rdx',op.firstArgument);else a.lea('rdx',{rip:'rt.undefinedValue'});a.call('rt.validatePromiseExecutor');}
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
         case 'newArguments':
-          a.mov('rax',op.parameters.length);a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
+          // Bit 62 of the formal count marks an unmapped (non-simple parameter list) object.
+          a.mov('rax',BigInt(op.parameters.length)|(op.unmapped?1n<<62n:0n));a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
           pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
         case 'newRestArray':pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.mov('r9',op.start);a.call('rt.newRestArray');break;
@@ -189,7 +276,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
           a.store(stack(40),'rax');
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.construct?'rt.invokeConstruct':'rt.invoke');break;
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');break;
         case 'invokeArray':
           a.mov('rax',op.construct?1:0);a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
@@ -198,7 +285,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
           if(op.receiver===undefined)a.lea('r9',{rip:'rt.undefinedValue'});else pointer('r9',op.receiver);
           a.call('rt.invokeArray');break;
         case 'yield':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.generatorYield');break;
-        case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call('rt.generatorYieldDelegated');break;
+        case 'await':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.generatorAwait');break;
+        case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
         case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);a.call('rt.newObject');break;
@@ -219,21 +307,28 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
         case 'checkResolvable':a.load('rax',stack(valueBase+16*op.slot+8));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
         case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
         case 'constant':{
-          const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:4;
+          const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
           a.mov('rax',tag);a.store(value(op.dest),'rax');
-          if(typeof v==='string')a.lea('rax',{rip:literal(v)});
+          if(typeof v==='string'||typeof v==='bigint')a.lea('rax',{rip:literal(String(v))});
           else if(typeof v==='number'){const bytes=new DataView(new ArrayBuffer(8));bytes.setFloat64(0,v,true);a.mov('rax',bytes.getBigUint64(0,true));}
           else a.mov('rax',v===true?1:0);
           a.store(stack(valueBase+16*op.dest+8),'rax');break;
         }
         case 'copy':copy(value(op.dest),value(op.source));break;
-        case 'loadGlobal':copy(value(op.dest),{rip:'js.globals',addend:16*op.index});break;
+        case 'loadGlobal':copy(value(op.dest),{rip:op.prelude?'rt.preludeGlobals':'js.globals',addend:16*op.index});break;
         case 'storeGlobal':{
+          if(op.prelude){copy({rip:'rt.preludeGlobals',addend:16*op.index},value(op.source));break;}
           const alias=globalProperties.findIndex(p=>p.index===op.index),done=a.unique('globalStoreDone');
           if(alias>=0){a.load('rax',{rip:'js.globalBindings',addend:alias*24+16});a.and('rax',1);a.test('rax','rax');if(op.strict)failIf(a,'e','rt.throwTypeError');else a.jcc('e',done);}
           copy({rip:'js.globals',addend:16*op.index},value(op.source));a.label(done);break;
         }
-        case 'unary':pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
+        case 'unary':
+          if(op.operator==='isReturnMarker'){
+            // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
+            a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
+            a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
+          }
+          pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
         case 'binary':{
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
           if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}break;
@@ -258,15 +353,99 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean}={}):NativeP
     }
     finish(a,fn.id,allocation,prologSize);
   }
-  module.functions.forEach(emitFunction);
+  module.functions.forEach(fn=>emitFunction(fn));
+  // Host functions installed as properties of the global object before the prelude.
+  const hostGlobals:string[]=[];
+  const hostGlobal=(name:string,code:string,length:number):void=>{
+    const base='host.'+name;
+    fragments.push(stringLiteral(base+'.key',name),stringLiteral(base+'.source',`function ${name}() { [native code] }`));
+    const callable=new Uint8Array(FunctionLayout.size);callable[O.kind]=FunctionKind;callable[FunctionLayout.rawThis]=1;
+    const lengthProperty=new Uint8Array(P.size);lengthProperty[P.value]=3;lengthProperty[P.attributes]=A.configurable;new DataView(lengthProperty.buffer).setFloat64(P.value+8,length,true);
+    fragments.push({name:base+'.length',section:'.data',alignment:8,bytes:lengthProperty,symbols:{},fixups:[{offset:P.key,kind:'va64',target:'rt.str.length',addend:0}]});
+    const nameProperty=new Uint8Array(P.size);nameProperty[P.value]=4;nameProperty[P.attributes]=A.configurable;
+    fragments.push({name:base+'.name',section:'.data',alignment:8,bytes:nameProperty,symbols:{},fixups:[
+      {offset:P.next,kind:'va64',target:base+'.length',addend:0},{offset:P.key,kind:'va64',target:'rt.str.name',addend:0},{offset:P.value+8,kind:'va64',target:base+'.key',addend:0}]});
+    fragments.push({name:base+'.fn',section:'.data',alignment:8,bytes:callable,symbols:{},fixups:[
+      {offset:O.properties,kind:'va64',target:base+'.name',addend:0},
+      {offset:O.prototype,kind:'va64',target:'rt.functionPrototype',addend:0},
+      {offset:FunctionLayout.code,kind:'va64',target:code,addend:0},
+      {offset:FunctionLayout.sourceText,kind:'va64',target:base+'.source',addend:0},
+    ]});
+    const keyValue=new Uint8Array(16);keyValue[0]=4;const fnValue=new Uint8Array(16);fnValue[0]=5;
+    fragments.push({name:base+'.keyValue',section:'.rdata',alignment:8,bytes:keyValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.key',addend:0}]});
+    fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
+    hostGlobals.push(base);
+  };
+  const agentPrograms=options.agentPrograms??[];
+  if(options.agent){
+    hostGlobal('__nonaAgentReceiveBroadcast','rt.agentReceiveBroadcast.code',1);
+    hostGlobal('__nonaAgentReport','rt.agentReport.code',1);
+    hostGlobal('__nonaAgentSleep','rt.agentSleep.code',1);
+  }
+  if(agentPrograms.length){
+    hostGlobal('__nonaAgentStart','rt.agentStart.code',1);
+    hostGlobal('__nonaAgentBroadcast','rt.agentBroadcast.code',2);
+    hostGlobal('__nonaAgentGetReport','rt.agentGetReport.code',0);
+    hostGlobal('__nonaAgentSleep','rt.agentSleep.code',1);
+  }
+  if(realms>0){
+    // realm.createRealm(): initialize the next cloned realm and return its global.
+    hostGlobal('__nonaCreateRealm','realm.createRealm.code',0);
+    fragments.push({name:'realm.count',section:'.data',alignment:8,bytes:new Uint8Array(8),fixups:[],symbols:{}});
+    const a=new Assembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
+    a.store(stack(72),'rcx');
+    a.load('rax',{rip:'realm.count'});a.add('rax',1);a.cmp('rax',realms);failIf(a,'a','rt.throwRangeError');a.store({rip:'realm.count'},'rax');
+    const done=a.unique('done');
+    for(let realm=1;realm<=realms;realm++){
+      const next=a.unique('next');a.load('rax',{rip:'realm.count'});a.cmp('rax',realm);a.jcc('ne',next);
+      const r=(name:string)=>realmSymbol(realm,name);
+      a.lea('rax',{rip:r('js.globals')});a.store({rip:r('rt.gcGlobals')},'rax');
+      a.mov('rax',module.globalCount);a.store({rip:r('rt.gcGlobalCount')},'rax');
+      a.lea('rax',{rip:r('js.globalBindings')});a.store({rip:r('rt.globalBindings')},'rax');
+      a.mov('rax',0);a.store({rip:r('rt.globalBindingCount')},'rax');
+      a.mov('rax',1);a.store({rip:r('rt.realmReady')},'rax');
+      a.lea('rax',{rip:r('rt.globalValue')});a.store(stack(32),'rax');
+      a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+      a.lea('rcx',stack(48));a.mov('rdx',0);a.lea('r8',stack(48));a.mov('r9',0);a.call(r('js.regexpVm.main'));
+      a.load('rcx',stack(72));for(const offset of [0,8]){a.load('rax',{rip:r('rt.globalValue'),addend:offset});a.store({base:'rcx',disp:offset},'rax');}
+      a.jmp(done);a.label(next);
+    }
+    a.label(done);a.add('rsp',size);a.ret();finish(a,'realm.createRealm.code',size,prolog);
+    cloneRealms(fragments,functions,realms,FunctionLayout.size,FunctionLayout.realm);
+  }
+  // Thread entries of the linked agent programs.
+  const countFragment=fragments.find(f=>f.name==='agent.entryCount')!,entriesFragment=fragments.find(f=>f.name==='agent.entries')!;
+  new DataView(countFragment.bytes.buffer).setBigUint64(0,BigInt(agentPrograms.length),true);
+  entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
+  entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
+  mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
   entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
   entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
-  entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');
-  entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
-  entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
-  entry.call('js.main');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  for(const base of hostGlobals){
+    entry.lea('rcx',{rip:'rt.globalValue'});entry.lea('rdx',{rip:base+'.keyValue'});entry.lea('r8',{rip:base+'.fnValue'});
+    entry.mov('r9',A.writable|A.configurable);entry.call('rt.setProperty');
+  }
+  const callArguments=()=>{
+    entry.lea('rax',{rip:'rt.globalValue'});entry.store(stack(32),'rax');entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(40),'rax');
+    entry.lea('rcx',stack(48));entry.mov('rdx',0);entry.lea('r8',stack(48));entry.mov('r9',0);
+  };
+  const drain=()=>{
+    entry.lea('rcx',stack(48));entry.lea('rdx',{rip:'rt.preludeGlobals'});entry.add('rdx',16);
+    entry.mov('r8',0);entry.lea('r9',stack(48));entry.call('rt.invoke');
+  };
+  callArguments();
+  if(prelude){entry.call('js.regexpVm.main');callArguments();}
+  entry.call('js.main');
+  if(prelude)drain();
+  if(options.agent){
+    // An agent thread handles one broadcast, runs its jobs and returns.
+    entry.call('rt.agentAwaitBroadcast');if(prelude)drain();
+    entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  }else{
+    entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+  }
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

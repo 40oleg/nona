@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {selectNativeConstructPrototype} from './constructor-prototype.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -12,7 +13,7 @@ export const constructorRoots=names.map(name=>'rt.'+name);
 const numberConstants=[['MAX_VALUE',Number.MAX_VALUE],['MIN_VALUE',Number.MIN_VALUE],['NaN',NaN],['NEGATIVE_INFINITY',-Infinity],['POSITIVE_INFINITY',Infinity],['EPSILON',Number.EPSILON],['MAX_SAFE_INTEGER',Number.MAX_SAFE_INTEGER],['MIN_SAFE_INTEGER',Number.MIN_SAFE_INTEGER]] as const;
 export const constructorPropertyRoots=names.flatMap(name=>[
  ...['name','length','prototype'].map(key=>'rt.'+name+'.'+key),
- 'rt.globalObject.'+name,'rt.'+name.toLowerCase()+'Prototype.constructor',
+ 'rt.globalObject.'+name,'rt.'+(name==='Set'?'setCollection':name.toLowerCase())+'Prototype.constructor',
 ]).concat(numberConstants.map(([name])=>'rt.Number.'+name));
 const pointer=(offset:number,target:string):Fixup=>({offset,kind:'va64',target,addend:0});
 function copyResult(a:Assembler,offset:number):void {
@@ -35,18 +36,20 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
  const globalThis=b.bundle.fragments.find(f=>f.name==='rt.globalObject.globalThis')!;
  globalThis.fixups.push(pointer(P.next,'rt.globalObject.Object'));
  for(const [index,name] of names.entries()){
-  const symbol='rt.'+name,prototype='rt.'+name.toLowerCase()+'Prototype';
+  const symbol='rt.'+name,prototype='rt.'+(name==='Set'?'setCollection':name.toLowerCase())+'Prototype';
   b.bundle.fragments.push(stringLiteral(symbol+'.text',name),stringLiteral(symbol+'.source','function '+name+'() { [native code] }'));
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
    const fixups=[pointer(P.key,'rt.str.'+key)];
    if(i<2)fixups.push(pointer(P.next,symbol+'.'+['name','length'][i]));
-   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,name==='Symbol'?0:1,true);
+   if(key==='length')new DataView(data.buffer).setFloat64(P.value+8,
+    ['Symbol','Map','Set','WeakMap','WeakSet'].includes(name)?0:name==='Date'?7:name==='RegExp'?2:
+    ['Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)?3:1,true);
    else fixups.push(pointer(P.value+8,key==='name'?symbol+'.text':prototype));
    b.bundle.fragments.push({name:symbol+'.'+key,section:'.data',alignment:8,bytes:data,symbols:{},fixups});
   }
@@ -55,12 +58,13 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
    pointer(P.key,symbol+'.text'),pointer(P.value+8,symbol),...(index+1<names.length?[pointer(P.next,'rt.globalObject.'+names[index+1])]:[]),
   ]});
   const header=b.bundle.fragments.find(f=>f.name===prototype)!;
-  const head=header.fixups.find(f=>f.offset===O.properties)!;
+  const head=header.fixups.find(f=>f.offset===O.properties);
   const constructor=new Uint8Array(P.size);constructor[P.value]=5;constructor[P.attributes]=A.writable|A.configurable;
   b.bundle.fragments.push({name:prototype+'.constructor',section:'.data',alignment:8,bytes:constructor,symbols:{},fixups:[
-   pointer(P.key,'rt.str.constructor'),pointer(P.value+8,symbol),pointer(P.next,head.target),
+   pointer(P.key,'rt.str.constructor'),pointer(P.value+8,symbol),...(head?[pointer(P.next,head.target)]:[]),
   ]});
-  head.target=prototype+'.constructor';
+  if(head)head.target=prototype+'.constructor';
+  else header.fixups.push(pointer(O.properties,prototype+'.constructor'));
  }
  const numberHeader=b.bundle.fragments.find(f=>f.name==='rt.Number')!;
  const numberHead=numberHeader.fixups.find(f=>f.offset===O.properties)!;
@@ -73,7 +77,15 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
  }
  // Function exists for reflection/prototype identity. Dynamic compilation is
  // deliberately excluded from this compiler's scope, including via constructor.
- b.fn('rt.Function.code',40,a=>a.call('rt.fail'));
+ // Function() with no arguments needs no compilation: it is an empty
+ // sloppy function named "anonymous". Any source text remains an exception.
+ b.bundle.fragments.push(stringLiteral('rt.Function.anonymous','anonymous'),stringLiteral('rt.Function.emptySource','function anonymous(\n) {\n\n}'));
+ b.fn('rt.Function.code',56,a=>{
+  a.test('rdx','rdx');const empty=a.unique('empty');a.jcc('e',empty);a.call('rt.throwEvalError');a.label(empty);
+  a.store(slot(40),'rcx');a.lea('rdx',{rip:'rt.emptyFunction'});a.mov('r8',0);a.mov('r9',0);a.call('rt.newFunction');
+  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.Function.anonymous'});a.mov('r8',0);a.call('rt.initFunctionMetadata');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rax',{rip:'rt.Function.emptySource'});a.store({base:'rcx',disp:F.sourceText},'rax');
+ });
  b.fn('rt.Symbol.construct',40,a=>a.call('rt.throwTypeError'));
  rootedFn(b,'rt.Symbol.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.mov('rax',0);a.store(slot(72),'rax');
@@ -105,11 +117,13 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
     a.mov('rcx','r8');a.call('rt.toBoolean');a.store(slot(72),'rax');a.mov('rax',2);a.store(slot(64),'rax');
    }else{a.lea('rcx',slot(64));a.mov('rdx','r8');if(name==='String'&&!construct){
     const plain=a.unique('plain'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',6);a.jcc('ne',plain);a.call('rt.symbolDescriptiveString');a.jmp(converted);a.label(plain);a.call('rt.toString');a.label(converted);
-   }else a.call(name==='String'?'rt.toString':'rt.toNumber');}
+   }else if(name==='Number'){
+    const ordinary=a.unique('ordinary'),converted=a.unique('converted');a.load('rax',{base:'r8'});a.cmp('rax',7);a.jcc('ne',ordinary);a.load('rcx',{base:'r8',disp:8});a.call('rt.parseNumber');a.mov('rax',3);a.store(slot(64),'rax');a.storesd(slot(72),'xmm0');a.jmp(converted);a.label(ordinary);a.call('rt.toNumber');a.label(converted);
+   }else a.call('rt.toString');}
    a.label(ready);
    if(construct){
     a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.boxReceiver');
-    a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+    selectNativeConstructPrototype(a,frame,'rt.'+name.toLowerCase()+'Prototype');
     a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.prototype},'r10');
    }else copyResult(a,64);
   });
@@ -132,7 +146,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.label(done);
   if(construct){
    // The prepared receiver carries the prototype selected by new.target.
-   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:O.prototype});
+   selectNativeConstructPrototype(a,frame,'rt.arrayPrototype');
    a.load('rax',slot(88));a.store({base:'rax',disp:O.prototype},'r10');
   }
   copyResult(a,80);

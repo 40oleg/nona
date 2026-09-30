@@ -116,13 +116,11 @@ See the [language support matrix](docs/language-support.md) for exact behavior a
 
 ## Known limitations
 
-Nona does not currently implement the complete ECMAScript standard. Major missing areas include:
+Nona targets ES2020 with documented exceptions; it is not yet a complete implementation. The branch for the ES2020 gate adds async functions and generators, modules with `import()`, `with`, proper tail calls, realms and agents for Test262, and Annex B web-compatibility semantics; see [the ES2020 work list](docs/pr5-es2020-remaining-work.md) for pinned Test262 results and the remaining failures. Current limitations:
 
-- remaining ES2020 class semantics, including async methods;
-- remaining generator semantics, promises, and async functions;
-- modules, `BigInt`, collections, proxies, typed arrays, and regular expressions;
-- remaining `String` methods that depend on RegExp, plus `Date`, `JSON`, and other standard library APIs scheduled for later releases;
-- browser APIs, Node.js APIs, `eval`, and dynamic function constructors;
+- `eval` and dynamic function constructors with runtime-computed source text are excluded by design (`Function`, `GeneratorFunction` and `AsyncFunction` calls with literal source are compiled ahead of time);
+- APIs added after ES2020 (for example class fields, `Promise.any`, `WeakRef`), browser APIs and Node.js APIs;
+- a few cross-realm constructor fallbacks, legacy RegExp syntax from Annex B.1.4, and the performance of very large arrays;
 - targets other than Windows and Linux x64.
 
 Unsupported syntax is rejected by the compiler. Consult the support matrix before relying on a language feature.

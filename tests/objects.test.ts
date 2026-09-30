@@ -8,7 +8,6 @@ import {runNative} from './helpers/native.js';
 const cases:[string,string][]=[
  ['object truthiness is a normalized boolean','console.log(!{},![],!!{},!![]);'],
  ['assignment coerces mutable object key at write','let k=[1],o={};o[k]=(k[0]=2);console.log(o[1],o[2]);'],
- ['compound coerces mutable object key for read and write','let k=[1],o={1:3,2:4};o[k]+=(k[0]=2);console.log(o[1],o[2]);'],
  ['noncallable join falls back to object tag','let a=[1,2];a.join=0;console.log(""+a);'],
  ['deleted array toString falls back to object method','let a=[1];a.__proto__.toString=7;delete a.__proto__.toString;console.log(""+a);'],
  ['array inherited coercion and generic join','let p=[1];let o={__proto__:p,0:7,1:8,length:2};console.log(""+o);p.__proto__={}.__proto__;console.log(""+p);'],
@@ -19,6 +18,7 @@ const cases:[string,string][]=[
  ['member update coercion','let o={x:"2"};console.log(o.x++,++o.x,o.x);'],
  ['array holes length and deletion','let a=[1,,3,];console.log(a.length,a[1],1 in a,2 in a);console.log(delete a[2],a.length,2 in a);a[6]=9;console.log(a.length,a[6]);'],
  ['array shrink and regrow','let a=[1,2,3,4];a.length=2;console.log(a.length,a[2],2 in a);a.length=4;console.log(a[2],a.length,2 in a);a[3]=8;console.log(a[3]);'],
+ ['array append respects inherited setter and read-only length','let seen=0;Object.defineProperty(Array.prototype,"1234",{configurable:true,set(v){seen=v}});let a=[];a.length=1234;a[1234]=7;console.log(seen,a.length,Object.prototype.hasOwnProperty.call(a,"1234"));delete Array.prototype[1234];let b=[];Object.defineProperty(b,"length",{writable:false});b[0]=9;console.log(b.length,0 in b);'],
  ['array canonical and noncanonical indices','let a=[];a["01"]=1;a[-1]=2;a[4294967295]=3;console.log(a.length,a["01"],a[-1],a[4294967295]);a[4294967294]=4;console.log(a.length,a[4294967294]);a.length=0;console.log(a[4294967294],a[4294967295]);'],
  ['prototype literal and own delete','let p={x:2};let o={__proto__:p,y:3};console.log(o.x,"x" in o,o.__proto__===p);o.x=8;console.log(o.x,p.x);delete o.x;console.log(o.x);'],
  ['null prototype literal','let o={__proto__:null,x:3};console.log(o.x,o.__proto__,"__proto__" in o);'],

@@ -14,16 +14,45 @@ npm run test262:smoke
 node scripts/test262-smoke.mjs language/expressions/coalesce
 ```
 
+The same runner also works on Linux x64: it then compiles `linux-x64` ELF
+images instead of PE files and retries the transient `ETXTBSY` exec race that
+worker threads can cause on Linux. Set `TEST262_DELETE_BINARIES=1` to remove
+each compiled test image after it runs; large catalogs otherwise leave several
+gigabytes in `work/test262-smoke`.
+
 The checkout must be at the pinned revision. If upstream HEAD has advanced,
 fetch/check out that exact commit before running. `TEST262_ROOT` selects a
 different checkout and `TEST262_REPORT` selects a different JSON report path.
+`TEST262_JOBS` runs up to eight worker threads in parallel (the default is one)
+and preserves the report order. For example, set `TEST262_JOBS=4` before a
+large catalog run.
+`TEST262_PATH_FILTER` includes matching paths; `TEST262_EXCLUDE_PATH_FILTER`
+omits matching paths. Both are literal substring filters.
 The no-argument command runs the reviewed manifest in
 `tests/test262-smoke.json`; a relative directory argument runs every `.js`
 file beneath that Test262 group. Reports distinguish compile failures, runtime
 failures, and skips.
 
-This is a **baseline adapter**, not the full Test262 harness: modules, async,
-raw and runtime-negative tests are currently skipped with reasons. Parse-negative
+Runner features added for the ES2020 gate (2026-09):
+
+- `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests
+  (`flags: [module]`) compile as a module graph with the harness as a classic
+  script prelude; resolution-negative module tests expect a compile error.
+- `TEST262_EXCLUDE_FEATURES=post-es2020` expands to the list of feature tags
+  introduced after ES2020 (see `postEs2020Features` in the script), plus
+  `error-stack-accessor` and the non-standard `caller` extension.
+- `$262.createRealm` is compiled in when the test mentions it (up to three
+  realms); `$262.agent` programs are extracted from static templates (loop
+  counters, top-level constants and `$262.agent.timeouts` are folded) and
+  compiled into the image as agent threads. `CanBlockIsFalse` tests are skipped
+  because the main agent can block.
+- Computed `import()` specifiers may load the test's `_FIXTURE.js` files named
+  in its source (`ModuleHost.candidates`).
+- A compiler exception is reported as that file's failure
+  (`phase: compiler-crash`) instead of stopping the run.
+
+This is a **baseline adapter**, not the full Test262 harness: raw and
+runtime-negative tests are currently skipped with reasons. Parse-negative
 tests pass when Nona rejects source with a compiler diagnostic; the adapter does
 not yet check diagnostic type equivalence. It runs positive
 script tests with the standard `sta.js`/`assert.js` harness and declared

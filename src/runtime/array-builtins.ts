@@ -1,6 +1,9 @@
+import {realmTable} from './constructor-prototype.js';
+import {FunctionKind} from './functions.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind} from './object-layout.js';
+import {ProxyLayout} from './proxy.js';
 import {prependFunctionBuiltin,builtinPropertyRoots,emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
@@ -40,19 +43,32 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.arrayReverse.fn','reverse',0,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayShift.fn','shift',0,'rt.arrayPrototype');
  prependFunctionBuiltin(b,'rt.arrayUnshift.fn','unshift',1,'rt.arrayPrototype');
- b.fn('rt.Array.isArray.fn.code',40,a=>{
-  a.mov('rax',0);const save=a.unique('save');a.test('rdx','rdx');a.jcc('e',save);a.load('r10',{base:'r8'});a.cmp('r10',5);a.jcc('ne',save);a.load('r10',{base:'r8',disp:8});a.load('r10',{base:'r10',disp:O.kind});a.cmp('r10',1);a.jcc('ne',save);a.mov('rax',1);
-  a.label(save);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ b.fn('rt.isArray',40,a=>{
+  const check=a.unique('check'),proxy=a.unique('proxy'),yes=a.unique('yes'),no=a.unique('no'),done=a.unique('done');a.label(check);
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);
+  a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',yes);a.cmp('rax',ProxyKind);a.jcc('e',proxy);a.jmp(no);
+  a.label(proxy);a.load('rax',{base:'r10',disp:ProxyLayout.revoked});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.lea('rcx',{base:'r10',disp:ProxyLayout.target});a.jmp(check);
+  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
+ });
+ b.fn('rt.Array.isArray.fn.code',56,a=>{
+  a.store(slot(40),'rcx');a.mov('rax',0);const save=a.unique('save');a.test('rdx','rdx');a.jcc('e',save);
+  a.mov('rcx','r8');a.call('rt.isArray');a.label(save);
+  a.load('rcx',slot(40));a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });
  // RCX result, RDX original receiver, R8 integer length. Constructor,
  // candidate, prepared instance and returned value stay rooted across getters.
  rootedFn(b,'rt.arraySpeciesCreate',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:80,count:8}],a=>{
   a.store(slot(48),'rcx');a.store(slot(56),'rdx');a.store(slot(64),'r8');
   const fallback=a.unique('fallback'),construct=a.unique('construct'),done=a.unique('done');
-  a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',fallback);
-  a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',fallback);
+  a.mov('rcx','rdx');a.call('rt.isArray');a.test('rax','rax');a.jcc('e',fallback);
   a.lea('rcx',slot(80));a.load('rdx',slot(56));a.lea('r8',{rip:'rt.key.constructor'});a.call('rt.getProperty');
   a.load('rax',slot(80));a.test('rax','rax');a.jcc('e',fallback);a.cmp('rax',5);a.jcc('ne',construct);
+  // Another realm's %Array% constructor is replaced by this realm's default.
+  const sameRealm=a.unique('sameRealm');
+  a.load('rcx',slot(88));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',sameRealm);
+  a.call('rt.functionRealm');a.load('r10',{rip:'rt.realmIndex'});a.cmp('rax','r10');a.jcc('e',sameRealm);
+  a.shl('rax',3);a.lea('r10',{rip:realmTable('rt.Array')});a.add('r10','rax');a.load('r10',{base:'r10'});a.load('r11',slot(88));a.cmp('r10','r11');a.jcc('e',fallback);
+  a.label(sameRealm);
   a.mov('rax',6);a.store(slot(160),'rax');a.lea('rax',{rip:'rt.Symbol.species.value'});a.store(slot(168),'rax');
   a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.lea('r8',slot(160));a.call('rt.getProperty');
   a.load('rax',slot(96));a.cmp('rax',1);a.jcc('be',fallback);
@@ -455,9 +471,10 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(176));a.lea('r8',slot(160));a.mov('r9',2);a.call('rt.setProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');a.jmp(next);
-  a.label(lowerOnly);a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');
-  a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.deleteProperty');
-  a.load('rax',slot(248));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(next);
+  // lowerExists && !upperExists: DeletePropertyOrThrow(lower) precedes Set(upper) (ES2020 22.1.3.21 step 7.k).
+  a.label(lowerOnly);a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.deleteProperty');
+  a.load('rax',slot(248));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');a.jmp(next);
   a.label(lowerAbsent);a.load('rax',slot(264));a.test('rax','rax');a.jcc('e',next);
   a.label(upperOnly);a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(176));a.lea('r8',slot(160));a.mov('r9',2);a.call('rt.setProperty');

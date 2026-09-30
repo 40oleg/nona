@@ -55,6 +55,7 @@ export class Assembler {
     rm: Reg | Xmm | Mem,
     w = true,
     prefix: number[] = [],
+    forceRex = false,
   ): void {
     let b = 0;
     let tail: number[] = [];
@@ -77,7 +78,7 @@ export class Assembler {
     }
     this.emit(prefix);
     const rex = 0x40 | (w ? 8 : 0) | ((r >> 3) << 2) | (b >> 3);
-    if (rex !== 0x40) this.emit([rex]);
+    if (rex !== 0x40 || forceRex) this.emit([rex]);
     this.emit(op);
     const start = this.offset;
     this.emit(tail);
@@ -120,6 +121,26 @@ export class Assembler {
       width === 64,
       width === 16 ? [0x66] : [],
     );
+  }
+  /** XCHG with a memory operand is implicitly locked on x64. */
+  atomicExchange(dst: Mem, src: Reg, width: 8 | 16 | 32 | 64): void {
+    const code = regCode(src);
+    this.instruction([width === 8 ? 0x86 : 0x87], code, dst, width === 64,
+      width === 16 ? [0x66] : [], width === 8 && code >= 4 && code < 8);
+  }
+  atomicXadd(dst: Mem, src: Reg, width: 8 | 16 | 32 | 64): void {
+    const code = regCode(src);
+    this.instruction([0x0f, width === 8 ? 0xc0 : 0xc1], code, dst, width === 64,
+      width === 16 ? [0xf0, 0x66] : [0xf0], width === 8 && code >= 4 && code < 8);
+  }
+  /** RAX/AL/AX/EAX contains the expected value; the old value is returned there. */
+  atomicCompareExchange(dst: Mem, src: Reg, width: 8 | 16 | 32 | 64): void {
+    const code = regCode(src);
+    this.instruction([0x0f, width === 8 ? 0xb0 : 0xb1], code, dst, width === 64,
+      width === 16 ? [0xf0, 0x66] : [0xf0], width === 8 && code >= 4 && code < 8);
+  }
+  mfence(): void {
+    this.emit([0x0f, 0xae, 0xf0]);
   }
   lea(dst: Reg, src: Mem): void {
     this.instruction([0x8d], regCode(dst), src);
@@ -182,6 +203,9 @@ export class Assembler {
   }
   div(s: Reg): void {
     this.instruction([0xf7], 6, s);
+  }
+  idiv(s: Reg): void {
+    this.instruction([0xf7], 7, s);
   }
   neg(r: Reg): void {
     this.instruction([0xf7], 3, r);

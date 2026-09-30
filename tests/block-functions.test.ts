@@ -35,11 +35,18 @@ for(const source of [
   '"use strict";try{throw 1;}catch(e){function e(){}}',
 ])test('block function early error: '+source,()=>assert.equal(compile(source,options).ok,false));
 
-test('sloppy block function remains block scoped',()=>{
-  expectProgram('{console.log(f());function f(){return 4;}}console.log(typeof f);','4\nundefined\n');
+test('sloppy block function is also var-bound after its block runs (Annex B.3.3)',()=>{
+  expectProgram('console.log(typeof f);{console.log(f());function f(){return 4;}}console.log(typeof f);','undefined\n4\nfunction\n');
+});
+test('Annex B.3.3 does not apply when an enclosing lexical binding has the name',()=>{
+  expectProgram('{let f=1;{function f(){return 4;}}console.log(f);}try{f}catch(e){console.log(e.name)}','1\nReferenceError\n');
 });
 
 test('each block entry gives captured functions a fresh cell under GC stress',()=>{
   const source='"use strict";let a=[];for(let i=0;i<3;i++){{function f(){return i;}a[i]=function(){return f();};}}for(let i=0;i<30;i++){({x:""+i});}console.log(a[0](),a[1](),a[2]());';
   expectNativeOracle(source,true);
+});
+
+test('Annex B: if-statement functions, repeated block functions, for-in var initializers',()=>{
+  expectProgram('if(true)function f(){return "if";}console.log(f());{function g(){return 1;}function g(){return 2;}}console.log(g());for(var x="init" in {a:1});console.log(x);for(var y=5 in {});console.log(y);','if\n2\na\n5\n');
 });

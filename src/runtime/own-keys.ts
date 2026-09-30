@@ -5,6 +5,9 @@ import {ValueListLayout as L} from './heap-layout.js';
 import {nativeConstructorNames} from '../global-builtins.js';
 import {emitValueList} from './value-list.js';
 import {emitKeySort} from './key-sort.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
+import {ProxyKind} from './proxy.js';
 
 export function emitOwnKeys(b:RuntimeBuilder):void {
  emitValueList(b);emitKeySort(b);
@@ -19,7 +22,10 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
  // formatting synthetic indices never calls user code. Consumers root the
  // typed ValueList so keys survive deletion of their original properties.
  rootedFn(b,'rt.ownKeys',216,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:128,count:3}],a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rdx',disp:8});a.store(slot(56),'rax');a.load('rax',{base:'rax',disp:O.properties});a.store(slot(112),'rax');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rdx',disp:8});a.store(slot(56),'rax');
+  const ordinaryKeys=a.unique('ordinaryKeys'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryKeys);
+  a.call('rt.proxyOwnKeys');a.jmp(proxyDone);a.label(ordinaryKeys);
+  a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.properties});a.store(slot(112),'rax');
   a.mov('rax',0);for(const n of [64,72,80,88,96,104,120,208])a.store(slot(n),'rax');
   const count=a.unique('count'),next=a.unique('next'),counted=a.unique('counted');
   a.label(count);a.load('rax',slot(112));a.test('rax','rax');a.jcc('e',counted);a.load('rdx',{base:'rax',disp:P.key});a.load('rcx',slot(56));a.call('rt.findGlobalBinding');a.test('rax','rax');const keepnext=a.unique('keepnext');a.jcc('e',keepnext);a.load('rax',slot(112));
@@ -38,7 +44,10 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.load('rax',slot(192));a.add('rax',1);a.store(slot(192),'rax');a.load('rax',slot(200));a.add('rax',24);a.store(slot(200),'rax');a.jmp(countAliases);a.label(aliasesCounted);
   a.load('rcx',slot(48));a.call('rt.stringBase');a.test('rax','rax');const notString=a.unique('notString'),allocate=a.unique('allocate');a.jcc('e',notString);
   a.load('rax',{base:'rax'});a.store(slot(88),'rax');a.add('rax',1);a.store(slot(72),'rax');a.mov('rax',1);a.store(slot(96),'rax');a.jmp(allocate);
-  a.label(notString);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.kind});a.cmp('rax',1);a.jcc('ne',allocate);a.mov('rax',1);a.store(slot(72),'rax');a.store(slot(96),'rax');
+  a.label(notString);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.kind});
+  const notTyped=a.unique('notTyped');a.cmp('rax',TypedArrayKind);a.jcc('ne',notTyped);
+  a.load('rax',slot(56));a.load('r10',{base:'rax',disp:TypedArrayLayout.buffer});a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');const attached=a.unique('attached');a.jcc('e',attached);a.mov('rax',0);a.jmp(attached+'.count');a.label(attached);a.load('rax',{base:'rax',disp:TypedArrayLayout.length});a.label(attached+'.count');a.store(slot(72),'rax');a.store(slot(88),'rax');a.jmp(allocate);
+  a.label(notTyped);a.cmp('rax',1);a.jcc('ne',allocate);a.mov('rax',1);a.store(slot(72),'rax');a.store(slot(96),'rax');
   a.label(allocate);a.load('rdx',slot(64));a.load('rax',slot(72));a.add('rdx','rax');a.load('rax',slot(80));a.add('rdx','rax');a.store(slot(184),'rdx');a.lea('rcx',slot(128));a.call('rt.newValueList');
   a.load('rcx',slot(184));a.shl('rcx',3);a.call('rt.alloc');a.store(slot(176),'rax');
   // Store temp Value at cursor. The list was initialized by newValueList.
@@ -68,6 +77,6 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.label(orderLoop);a.load('rax',slot(104));a.load('r10',slot(184));a.cmp('rax','r10');a.jcc('ae',sort);a.shl('rax',4);a.load('rcx',slot(136));a.add('rcx',L.values);a.add('rcx','rax');a.load('r10',{base:'rcx'});const symbolKey=a.unique('symbolKey'),rank=a.unique('rank');a.cmp('r10',6);a.jcc('e',symbolKey);a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);const numeric=a.unique('numeric');a.jcc('ne',numeric);a.mov('rax',0x100000000n);a.jmp(rank);a.label(symbolKey);a.mov('rax',0x200000000n);a.label(rank);a.load('r10',slot(104));a.add('rax','r10');a.label(numeric);
   a.load('r10',slot(104));a.shl('r10',3);a.load('r11',slot(176));a.add('r11','r10');a.store({base:'r11'},'rax');a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');a.jmp(orderLoop);
   a.label(sort);a.load('rcx',slot(136));a.add('rcx',L.values);a.load('rdx',slot(176));a.load('r8',slot(184));a.call('rt.sortOwnKeys');
-  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}a.label(proxyDone);
  });
 }

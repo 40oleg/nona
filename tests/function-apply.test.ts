@@ -20,6 +20,8 @@ const cases:[string,string][]=[
  ['apply floors length and clamps negative and NaN','function f(){return arguments.length;}console.log(f.apply(null,{length:2.9}),f.apply(null,{length:-3}),f.apply(null,{length:NaN}),f.apply(null,{}));'],
  ['apply consumes arguments object','function f(a,b){return a+b;}function g(){return f.apply(null,arguments);}console.log(g(4,7));'],
  ['apply snapshots values before target body','let a=[1,2];function f(x,y){a[0]=9;return x+y;}console.log(f.apply(null,a),a[0]);'],
+ ['apply copies a large dense array in index order','let a=[];for(let i=0;i<1000;i++)a[i]=i;function f(){return arguments.length+arguments[0]+arguments[500]+arguments[999];}console.log(f.apply(null,a));'],
+ ['apply falls back for reordered and accessor arrays','let a=[];a[2]=3;a[0]=1;a[1]=2;Object.defineProperty(a,0,{get(){a[1]=7;return 4},configurable:true});function f(){return arguments[0]+","+arguments[1]+","+arguments[2];}console.log(f.apply(null,a));'],
  ['apply and call compose','function f(a,b){return this.x+a+b;}console.log(f.apply.call(f,{x:3},[4,5]),f.call.apply(f,[{x:7},8,9]));'],
  ['apply boxes receiver and accepts boxed string list','function receiver(){return this;}function f(a,b){return a+b+this;}let s=receiver.call("ab");console.log(f.apply(3,s));'],
  ['apply metadata','function f(){}console.log(f.apply.name,f.apply.length,typeof f.apply,"prototype" in f.apply);'],

@@ -22,14 +22,18 @@ export function emitBitwise(b:RuntimeBuilder):void {
     a.label(positive);a.shl('rax',32);a.sar('rax',32);a.jmp(done);
     a.label(zero);a.mov('rax',0);a.label(done);
   });
-  rootedFn(b,'rt.bitNot',56,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'}],a=>{
-    a.store(slot(40),'rcx');a.mov('rcx','rdx');a.call('rt.toInt32');a.not('rax');
+  rootedFn(b,'rt.bitNot',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:2}],a=>{
+    a.store(slot(40),'rcx');a.lea('rcx',slot(64));a.call('rt.toNumeric');a.load('rax',slot(64));const numeric=a.unique('numeric'),done=a.unique('done');a.cmp('rax',7);a.jcc('ne',numeric);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.bigintNeg');a.mov('rax',7);a.store(slot(64),'rax');a.lea('rax',{rip:'rt.bigint.minusone'});a.store(slot(72),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(80));a.lea('r8',slot(64));a.call('rt.bigintAdd');a.jmp(done);a.label(numeric);a.lea('rcx',slot(64));a.call('rt.toInt32');a.not('rax');
     a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');
-    a.mov('rax',3);a.store({base:'rcx'},'rax');
+    a.mov('rax',3);a.store({base:'rcx'},'rax');a.label(done);
   });
   for(const op of ['bitAnd','bitOr','bitXor','shiftLeft','shiftRight','shiftUnsigned']) {
-    rootedFn(b,'rt.'+op,72,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'}],a=>{
-      a.store(slot(40),'rcx');a.store(slot(48),'r8');
+    rootedFn(b,'rt.'+op,120,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}],a=>{
+      a.store(slot(40),'rcx');a.store(slot(48),'r8');a.lea('rcx',slot(64));a.call('rt.toNumeric');a.lea('rcx',slot(80));a.load('rdx',slot(48));a.call('rt.toNumeric');a.lea('rdx',slot(64));a.lea('r8',slot(80));a.store(slot(48),'r8');
+      const bigDone=a.unique('bigDone');
+      if(op!=='shiftUnsigned'){
+        const numeric=a.unique('numeric');a.load('rax',{base:'rdx'});a.cmp('rax',7);a.jcc('ne',numeric);a.load('rax',{base:'r8'});a.cmp('rax',7);a.jcc('ne',numeric);a.load('rcx',slot(40));a.mov('r9',op==='shiftRight'||op==='bitOr'?1:op==='bitXor'?2:0);a.call(op==='shiftLeft'||op==='shiftRight'?'rt.bigintShift':'rt.bigintBitwise');a.jmp(bigDone);a.label(numeric);
+      }
       a.mov('rcx','rdx');a.call('rt.toInt32');a.store(slot(56),'rax');
       a.load('rcx',slot(48));a.call('rt.toInt32');a.mov('rcx','rax');a.load('rax',slot(56));
       if(op==='bitAnd')a.and('rax','rcx');
@@ -43,6 +47,7 @@ export function emitBitwise(b:RuntimeBuilder):void {
       }
       a.cvtsi2sd('xmm0','rax');a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');
       a.mov('rax',3);a.store({base:'rcx'},'rax');
+      a.label(bigDone);
     });
   }
 }

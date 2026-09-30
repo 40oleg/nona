@@ -1,10 +1,21 @@
 import { CompileError } from '../diagnostics.js';
+import {runInNewContext} from 'node:vm';
+import {regexpVmSource} from '../runtime/regexp-vm-source.js';
 import type { Token,TokenStream } from './token.js';
 
-export function lex(source: string): TokenStream {
+let compileRegExpPattern:((pattern:string,flags:string)=>unknown)|undefined;
+function validateRegExpPattern(pattern:string,flags:string):void {
+  compileRegExpPattern??=(runInNewContext(regexpVmSource) as {compile:(pattern:string,flags:string)=>unknown}).compile;
+  compileRegExpPattern(pattern,flags);
+}
+
+export function lex(source: string, options: {module?: boolean} = {}): TokenStream {
   const tokens: TokenStream = [];
   Object.defineProperty(tokens,'source',{value:source});
-  let i = 0, lineBreak = false;
+  let i = 0, lineBreak = false, regexpAllowed = true;
+  const parentheses:boolean[]=[];
+  const braces:boolean[]=[];
+  const expressionBodyDepth:number[]=[];
   const fail = (message: string, start = i): never => { throw new CompileError([{ code: 'E_LEX', message, file: '', span: { start, end: Math.max(start + 1, i) } }]); };
   const newline = (c: string) => /[\n\r\u2028\u2029]/.test(c);
   const identifierStart = (c:string) => /^[$_\p{ID_Start}]$/u.test(c);
@@ -23,8 +34,24 @@ export function lex(source: string): TokenStream {
     if(digits.length!==4||!/^[0-9a-f]+$/i.test(digits))fail('Invalid Unicode escape',start);
     i+=4;return String.fromCharCode(parseInt(digits,16));
   };
-  const push = (kind: Token['kind'], start: number, value?: string|number) => {
-    tokens.push({ kind, text: source.slice(start, i), value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
+  const push = (kind: Token['kind'], start: number, value?: string|number|bigint) => {
+    const text=source.slice(start,i),previous=tokens.at(-1);
+    tokens.push({ kind, text, value, span: { start, end: i }, lineBreakBefore: lineBreak }); lineBreak = false;
+    if(kind==='punct'&&text==='(')parentheses.push(previous?.kind==='word'&&['if','while','for','with','switch','catch'].includes(String(previous.value)));
+    if(kind==='punct'&&text===')'){regexpAllowed=parentheses.pop()??false;return;}
+    // A function expression's body ends an expression: `function(){} / x` divides.
+    if(kind==='word'&&(value==='function'||value==='class')){
+      const before=previous?.kind==='word'&&previous.value==='async'?tokens.at(-3):previous;
+      const expressionPosition=!!before&&(before.kind==='punct'&&![';','{','}',')',']'].includes(before.text)||before.kind==='word'&&['return','throw','typeof','void','delete','new','in','instanceof','yield','await','case'].includes(String(before.value)));
+      if(expressionPosition)expressionBodyDepth.push(parentheses.length);
+    }
+    if(kind==='punct'&&text==='{'&&expressionBodyDepth.at(-1)===parentheses.length&&(previous?.text===')'||previous?.kind==='word')){expressionBodyDepth.pop();braces.push(false);}
+    else if(kind==='punct'&&text==='{')braces.push(!previous||!(previous.kind==='punct'&&['=','(','[',',',':','?'].includes(previous.text))&&!(previous.kind==='word'&&['return','yield'].includes(String(previous.value))));
+    if(kind==='punct'&&text==='}'){regexpAllowed=braces.pop()??true;return;}
+    if(kind==='word'){regexpAllowed=['return','throw','case','delete','void','typeof','instanceof','in','new','yield','await','else','do'].includes(String(value));return;}
+    if(kind==='number'||kind==='string'||kind==='regexp'||kind==='templateTail'||kind==='templateNoSub'){regexpAllowed=false;return;}
+    if(kind==='templateHead'||kind==='templateMiddle'){regexpAllowed=true;return;}
+    regexpAllowed=kind==='punct'&&!['}',']','++','--'].includes(text);
   };
   const templates:{depth:number}[]=[];
   const templateSegment=(start:number,continued:boolean):void=>{
@@ -71,6 +98,8 @@ export function lex(source: string): TokenStream {
   while (i < source.length) {
     const c = source[i]!;
     if (/\s/.test(c)) { if (newline(c)) lineBreak = true; i++; continue; }
+    // Annex B.1.3 HTML-like comments (script goal only).
+    if (!options.module && (source.startsWith('<!--', i) || lineBreak && source.startsWith('-->', i))) { while (i < source.length && !newline(source[i]!)) i++; continue; }
     if (source.startsWith('//', i)) { i += 2; while (i < source.length && !newline(source[i]!)) i++; continue; }
     if (source.startsWith('/*', i)) {
       const start = i; i += 2;
@@ -107,13 +136,25 @@ export function lex(source: string): TokenStream {
     if (/[0-9]/.test(c) || c === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
       const match = /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)/.exec(source.slice(i));
       if (!match) fail('Invalid numeric literal');
-      const spelling = match![0]; i += spelling.length;
-      if (/^0[0-9]/.test(spelling)) fail('Legacy octal and leading-zero literals are unsupported', start);
+      let spelling = match![0];
+      // Annex B.1.1: LegacyOctalIntegerLiteral and NonOctalDecimalIntegerLiteral (sloppy mode only).
+      const legacy = /^0[0-9]/.test(spelling);
+      if (legacy && /^0[0-7]+(?![0-9])/.test(source.slice(i))) {
+        spelling = /^0[0-7]+/.exec(source.slice(i))![0]; i += spelling.length;
+        if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
+        push('number', start, parseInt(spelling.slice(1), 8)); tokens.at(-1)!.legacyOctal = true; continue;
+      }
+      i += spelling.length;
+      if (legacy) {
+        if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
+        push('number', start, Number(spelling.replace(/^0+(?=[0-9])/, ''))); tokens.at(-1)!.legacyOctal = true; continue;
+      }
+      if(source[i]==='n'&&(/^[0-9]+$/.test(spelling)||/^0[xXbBoO]/.test(spelling))){i++;if(i<source.length&&(identifierPart(codePoint())||source[i]==='\\'))fail('Invalid BigInt literal',start);push('number',start,BigInt(spelling));continue;}
       if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
       push('number', start, Number(spelling)); continue;
     }
     if (c === '"' || c === "'") {
-      const quote = c; let value = ''; i++;
+      const quote = c; let value = '', legacyOctal = false; i++;
       while (i < source.length && source[i] !== quote) {
         const char = source[i++]!;
         if (char==='\r'||char==='\n') fail('Unescaped line terminator in string', start);
@@ -127,12 +168,44 @@ export function lex(source: string): TokenStream {
           if (digits.length !== count || !/^[0-9a-f]+$/i.test(digits)) fail('Invalid hexadecimal escape', i - 2);
           value += String.fromCharCode(parseInt(digits, 16)); i += count; continue;
         }
-        if (/[0-9]/.test(escape) && (escape !== '0' || /[0-9]/.test(source[i] ?? ''))) fail('Legacy octal escapes are unsupported', i - 2);
+        if (/[0-9]/.test(escape) && (escape !== '0' || /[0-9]/.test(source[i] ?? ''))) {
+          // Annex B.1.2: LegacyOctalEscapeSequence and NonOctalDecimalEscapeSequence (sloppy mode only).
+          legacyOctal = true;
+          if (escape === '8' || escape === '9') { value += escape; continue; }
+          let digits = escape;
+          const limit = escape <= '3' ? 3 : 2;
+          while (digits.length < limit && /[0-7]/.test(source[i] ?? '')) digits += source[i++];
+          value += String.fromCharCode(parseInt(digits, 8)); continue;
+        }
         const escapes: Record<string,string> = { n:'\n',r:'\r',t:'\t',b:'\b',f:'\f',v:'\v','0':'\0', '\\':'\\', '"':'"', "'":"'" };
         value += escapes[escape]??escape;
       }
       if (i >= source.length) fail('Unterminated string', start);
-      i++; push('string', start, value); continue;
+      i++; push('string', start, value); if (legacyOctal) tokens.at(-1)!.legacyOctal = true; continue;
+    }
+    if(c==='/'&&regexpAllowed){
+      i++;let inClass=false,closed=false;
+      while(i<source.length){
+        const char=source[i++]!;
+        if(newline(char))fail('Unterminated regular expression literal',start);
+        if(char==='\\'){
+          if(i>=source.length||newline(source[i]!))fail('Unterminated regular expression literal',start);
+          i++;continue;
+        }
+        if(char==='[')inClass=true;
+        else if(char===']')inClass=false;
+        else if(char==='/'&&!inClass){closed=true;break;}
+      }
+      if(!closed)fail('Unterminated regular expression literal',start);
+      const pattern=source.slice(start+1,i-1),flagStart=i;
+      while(i<source.length&&identifierPart(codePoint()))i+=codePoint().length;
+      const flags=source.slice(flagStart,i);
+      if(!/^[gimsuy]*$/.test(flags)||new Set(flags).size!==flags.length)fail('Invalid regular expression flags',flagStart);
+      try{validateRegExpPattern(pattern,flags);}catch{fail('Invalid regular expression pattern',start);}
+      push('regexp',start);
+      tokens[tokens.length-1]!.pattern=pattern;
+      tokens[tokens.length-1]!.flags=flags;
+      continue;
     }
     if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){i+=2;push('punct',start);continue;}
     const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','...','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
