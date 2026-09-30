@@ -14,7 +14,7 @@ test('String.matchAll and RegExp Symbol.matchAll return lazy matches',()=>expect
 test('RegExp String Iterator inherits the common iterator prototype',()=>expectProgram(`
   var iter=/a/g[Symbol.matchAll]('a');
   var prototype=Object.getPrototypeOf(iter);
-  var common=Object.getPrototypeOf([][Symbol.iterator]());
+  var common=Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
   console.log(Object.getPrototypeOf(prototype)===common,
     Object.prototype.hasOwnProperty.call(prototype,Symbol.iterator),
     iter[Symbol.iterator]()===iter);

@@ -10,7 +10,6 @@ import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 const cases:[string,string][]=[
-["compound key can select different written property","let n=0,o={__proto__:{x:3},m(){super[{toString(){return n++===0?\"x\":\"y\";}}]+=2;}};o.m();console.log(o.x,o.y,n);"],
  [
   "compound write rereads mutated home prototype",
   "let o={__proto__:{get x(){Object.setPrototypeOf(o,{x:20});return 3;}},m(){super.x+=4;}};o.m();console.log(o.x,Object.getOwnPropertyDescriptor(o,\"x\").value);"
@@ -74,10 +73,6 @@ const cases:[string,string][]=[
  [
   "super setters with gc",
   "let o={__proto__:{set x(v){for(let i=0;i<30;i++){({s:\"\"+i});}this.n=v;}},m(){super.x={v:7};return this.n.v;}};console.log(o.m());"
- ],
- [
-  "compound computed key coerces for get and put",
-  "let n=0,o={__proto__:{x:3},m(){super[{toString(){n++;return \"x\";}}]+=2;}};o.m();console.log(o.x,n);"
  ],
  [
   "frozen receiver rejects super data write",

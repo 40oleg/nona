@@ -287,7 +287,7 @@ class Lowerer {
   }
   private getReference(ref:Reference):number {
     if('id'in ref)return this.read(ref.id,false,ref.withRef);
-    const dest=this.slot();if(ref.receiver!==undefined){this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
+    const dest=this.slot();if(ref.receiver!==undefined){const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superBase',dest:ref.object});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
   private putReference(ref:Reference,source:number):void {
     if('id'in ref&&ref.withRef){
@@ -303,7 +303,7 @@ class Lowerer {
       // The reference was already resolved (with objects included) by reference().
       this.writeStatic(ref.id,source);
     }
-    else if(ref.receiver!==undefined){this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
+    else if(ref.receiver!==undefined){const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superBase',dest:ref.object});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
     else {
       const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
       this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key,source,define:false});

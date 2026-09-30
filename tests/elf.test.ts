@@ -332,7 +332,8 @@ test('Linux native simple RegExp matches without VM',t=>{
 test('Linux native simple RegExp survives GC stress',t=>{
  const source=`let m=/abc/.exec('xabc');console.log(m[0],m.index);`;
  const image=linkLinux(generate(compileToIR(source),{gcStress:true}));
- const output=executeLinux(image,t);if(output!==null)assert.equal(output,runOracle(source).stdout);
+ // The RegExp VM prelude collects at every safepoint under GC stress (about 12 s).
+ const output=executeLinux(image,t,120000);if(output!==null)assert.equal(output,runOracle(source).stdout);
 });
 
 test('Linux native Array.prototype.some and every call back under GC stress',t=>{

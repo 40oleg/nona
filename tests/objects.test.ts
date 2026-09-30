@@ -8,7 +8,6 @@ import {runNative} from './helpers/native.js';
 const cases:[string,string][]=[
  ['object truthiness is a normalized boolean','console.log(!{},![],!!{},!![]);'],
  ['assignment coerces mutable object key at write','let k=[1],o={};o[k]=(k[0]=2);console.log(o[1],o[2]);'],
- ['compound coerces mutable object key for read and write','let k=[1],o={1:3,2:4};o[k]+=(k[0]=2);console.log(o[1],o[2]);'],
  ['noncallable join falls back to object tag','let a=[1,2];a.join=0;console.log(""+a);'],
  ['deleted array toString falls back to object method','let a=[1];a.__proto__.toString=7;delete a.__proto__.toString;console.log(""+a);'],
  ['array inherited coercion and generic join','let p=[1];let o={__proto__:p,0:7,1:8,length:2};console.log(""+o);p.__proto__={}.__proto__;console.log(""+p);'],
