@@ -546,7 +546,10 @@ class Parser {
   }
   private conditional(): A.Expression {
     const test=this.binary(1);if(!this.match('?'))return test;
-    const consequent=this.assignment();this.need(':');const alternate=this.assignment();
+    // ConditionalExpression[In]: the consequent is always AssignmentExpression[+In].
+    const savedNoIn=this.noInDepth;this.noInDepth=-1;let consequent:A.Expression;
+    try{consequent=this.assignment();}finally{this.noInDepth=savedNoIn;}
+    this.need(':');const alternate=this.assignment();
     return {kind:'Conditional',test,consequent,alternate,span:{start:test.span.start,end:alternate.span.end}};
   }
   private binary(min:number): A.Expression {
