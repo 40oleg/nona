@@ -1030,7 +1030,8 @@ class Lowerer {
     }
     if(this.fn?.argumentsBinding){
       const last=new Map(this.fn.parameters.map(p=>[p.name,p]));
-      const dest=this.slot();this.emit({kind:'newArguments',dest,parameters:this.fn.parameters.map(p=>!this.fn!.strict&&!this.fn!.restParameter&&!this.fn!.declaration.defaults?.some(Boolean)&&this.fn!.declaration.parameters.every(id=>id.kind==='Identifier')&&last.get(p.name)===p?this.cellSlot(p):-1)});
+      const unmapped=!!this.fn.restParameter||!!this.fn.declaration.defaults?.some(Boolean)||this.fn.declaration.parameters.some(id=>id.kind!=='Identifier');
+      const dest=this.slot();this.emit({kind:'newArguments',dest,...(unmapped?{unmapped:true}:{}),parameters:this.fn.parameters.map(p=>!this.fn!.strict&&!this.fn!.restParameter&&!this.fn!.declaration.defaults?.some(Boolean)&&this.fn!.declaration.parameters.every(id=>id.kind==='Identifier')&&last.get(p.name)===p?this.cellSlot(p):-1)});
       this.store(this.fn.argumentsBinding,dest);
     }
     if(needsInitialization){

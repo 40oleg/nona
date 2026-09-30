@@ -759,8 +759,8 @@ Object.defineProperty(String.prototype,'match',{value:({match(regexp){
       return matcher.call(regexp,this)
     }
   }
-  var rx=new RegExp(regexp);
-  return rx[Symbol.match](this)
+  var string=String(this),rx=new RegExp(regexp);
+  return rx[Symbol.match](string)
 }}).match,writable:true,configurable:true});
 Object.defineProperty(String.prototype.match,'name',{value:'match',configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.search,{value:({[Symbol.search](string){
@@ -784,8 +784,8 @@ Object.defineProperty(String.prototype,'search',{value:({search(regexp){
       return searcher.call(regexp,this)
     }
   }
-  var rx=new RegExp(regexp);
-  return rx[Symbol.search](this)
+  var string=String(this),rx=new RegExp(regexp);
+  return rx[Symbol.search](string)
 }}).search,writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](string,replaceValue){
   'use strict';

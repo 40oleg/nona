@@ -254,7 +254,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           else{if(op.firstArgument!==undefined)pointer('rdx',op.firstArgument);else a.lea('rdx',{rip:'rt.undefinedValue'});a.call('rt.validatePromiseExecutor');}
           pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
         case 'newArguments':
-          a.mov('rax',op.parameters.length);a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
+          // Bit 62 of the formal count marks an unmapped (non-simple parameter list) object.
+          a.mov('rax',BigInt(op.parameters.length)|(op.unmapped?1n<<62n:0n));a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
           pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
         case 'newRestArray':pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.mov('r9',op.start);a.call('rt.newRestArray');break;

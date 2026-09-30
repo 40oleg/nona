@@ -19,6 +19,8 @@ export function emitArguments(b:RuntimeBuilder):void {
  // No GC inside this helper.
  b.fn('rt.newArguments',136,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('rax',{base:'r9'});a.mov('r11',1n<<62n);a.and('r11','rax');a.store(slot(128),'r11');
+  a.mov('r11',~(1n<<62n)&0xffffffffffffffffn);a.and('rax','r11');a.store({base:'r9'},'rax');
   a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:8});a.mov('r10',ArgumentsKind);a.store({base:'rax',disp:O.kind},'r10');
   a.mov('rax',3);a.store(slot(96),'rax');a.load('rax',slot(48));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');
@@ -29,7 +31,8 @@ export function emitArguments(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.argumentsIterator'});a.lea('r8',slot(112));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
   // Strict source functions retain the raw receiver and have an unmapped
   // arguments object with the shared nonconfigurable ThrowTypeError accessor.
-  const sloppy=a.unique('sloppy');a.load('rax',slot(64));a.load('rax',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:F.rawThis});a.test('rax','rax');a.jcc('e',sloppy);
+  const sloppy=a.unique('sloppy'),restricted=a.unique('restricted');a.load('rax',slot(64));a.load('rax',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:F.rawThis});a.test('rax','rax');a.jcc('ne',restricted);
+  a.load('rax',slot(128));a.test('rax','rax');a.jcc('e',sloppy);a.label(restricted);
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.callee'});a.call('rt.findOwnProperty');
   a.mov('r10',A.accessor);a.store({base:'rax',disp:P.attributes},'r10');a.mov('r10',0);a.store({base:'rax',disp:P.value},'r10');a.store({base:'rax',disp:P.value+8},'r10');
   a.mov('r10',5);a.store({base:'rax',disp:P.getter},'r10');a.store({base:'rax',disp:P.setter},'r10');a.lea('r10',{rip:'rt.strictThrower'});a.store({base:'rax',disp:P.getter+8},'r10');a.store({base:'rax',disp:P.setter+8},'r10');a.label(sloppy);

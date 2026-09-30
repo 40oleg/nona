@@ -32,7 +32,7 @@ export type Operation =
   | {kind:'newInstance';dest:number;callee:number;firstArgument?:number;argumentArray?:number}
   | {kind:'constructorResult';dest:number;result:number;instance:number}
   | {kind:'derivedReturn';dest:number;source:number}
-  | {kind:'newArguments';dest:number;parameters:number[]} // -1: earlier duplicate, no mapping
+  | {kind:'newArguments';dest:number;parameters:number[];/** Non-simple parameter list: unmapped, callee is %ThrowTypeError%. */unmapped?:boolean} // -1: earlier duplicate, no mapping
   | {kind:'newRestArray';dest:number;start:number}
   | {kind:'newObject';dest:number;array:boolean;length:number}
   | {kind:'forInKeys';dest:number;object:number}
