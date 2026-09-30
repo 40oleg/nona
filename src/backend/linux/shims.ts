@@ -114,6 +114,8 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.load('r10',slot(40));a.store({base:'r10'},'rax',32);a.mov('rax',1);a.jmp(done);
   a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
  });
+ // FFI is Windows-only; tests link ELF images with FFI stubs, which never set an error.
+ b.fn('linux.GetLastError.code',40,a=>a.mov('rax',0));
  b.fn('linux.ExitProcess.code',40,a=>{a.mov('rdi','rcx');a.mov('rax',231);a.emit([0x0f,0x05]);});
  b.fn('linux.WideCharToMultiByte.code',120,a=>{
   a.store(slot(40),'r8');a.store(slot(48),'r9');a.load('rax',slot(160));a.store(slot(56),'rax');a.load('rax',slot(168));a.store(slot(64),'rax');a.mov('rax',0);a.store(slot(72),'rax');

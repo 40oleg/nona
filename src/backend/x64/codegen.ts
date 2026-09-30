@@ -24,6 +24,7 @@ import {lower} from '../../ir/lower.js';
 import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
+import {emitFfi} from '../../runtime/ffi.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -376,6 +377,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
     hostGlobals.push(base);
   };
+  if(module.ffi?.length){
+    const ffi=emitFfi(module.ffi).bundle;
+    fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
+    hostGlobal('__nonaFfiLastError','rt.ffiLastError.code',0);
+  }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
     hostGlobal('__nonaAgentReceiveBroadcast','rt.agentReceiveBroadcast.code',1);
