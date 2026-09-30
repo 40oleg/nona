@@ -20,7 +20,11 @@ interface Section {
   rawSize: number;
   flags: number;
 }
-export function linkPe(program: NativeProgram): Uint8Array {
+export interface PeOptions {
+  /** Optional-header subsystem: console (3, default) or windows GUI (2, no console window). */
+  subsystem?: "console" | "windows";
+}
+export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Array {
   const sections: Section[] = [];
   let nextRva = 0x1000;
   const symbols = new Map<string, number>();
@@ -202,7 +206,7 @@ export function linkPe(program: NativeProgram): Uint8Array {
   w16(o + 48, 6);
   w32(o + 56, nextRva);
   w32(o + 60, headerSize);
-  w16(o + 68, 3);
+  w16(o + 68, options.subsystem === "windows" ? 2 : 3);
   w16(o + 70, 0x160);
   w64(o + 72, 0x1000000n);
   w64(o + 80, 0x1000n);
