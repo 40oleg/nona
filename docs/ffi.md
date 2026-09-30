@@ -15,7 +15,11 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 - FFI is available in module code (`.mjs` or `--module`). `define` must be
   called directly, with three string literals: the DLL name, the export name
   and the signature. Anything else is a compile error (`E_FFI_STATIC`).
-- FFI declarations are rejected for `--target linux-x64` (`E_FFI_TARGET`).
+- DLL declarations are rejected for `--target linux-x64` (`E_FFI_TARGET`).
+- On Linux, `define('syscall', '<number>', signature)` declares a raw system
+  call (at most six integer or `buf` arguments; the result is the raw kernel
+  return value, negative `errno` on failure). System call declarations are
+  rejected for `win32-x64`.
 - `lastError()` returns `GetLastError()` captured immediately after the most
   recent FFI call.
 - A missing DLL or export makes the Windows loader refuse to start the program.

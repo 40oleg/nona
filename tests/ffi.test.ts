@@ -137,3 +137,18 @@ console.log(RegCloseKey(key), RegDeleteKeyW(HKEY_CURRENT_USER, 'Software\\\\Nona
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),'true\ntrue true 0 true\ntrue true\n0\n0\n0 true C:\\Путь\\image.jpg\n0 0\n');
 });
+
+test('Linux system calls through define("syscall", number, signature)',()=>{
+  const source="import {define} from 'nona:ffi';\nconst write = define('syscall', '1', 'i64(i64,buf,i64)');\nconst bytes = new TextEncoder().encode('raw\\n');\nconsole.log(write(1, bytes, bytes.length), write(-1, bytes, 1));\n";
+  assert.equal(compile(source,{fileName:'main.mjs',target:'win32-x64',module:true}).ok,false);
+  const result=compile(source,{fileName:'main.mjs',target:'linux-x64',module:true});
+  assert.ok(result.ok);
+  if(process.platform!=='linux')return;
+  const directory=mkdtempSync(join(tmpdir(),'nona-syscall-'));
+  try{
+    const executable=join(directory,'image');writeFileSync(executable,result.image);chmodSync(executable,0o755);
+    const run=spawnSync(executable,[],{encoding:'utf8'});
+    assert.equal(run.stdout,'raw\n4 -9\n');
+  }finally{rmSync(directory,{recursive:true,force:true});}
+  assert.equal(compile("import {define} from 'nona:ffi';\ndefine('syscall', 'x', 'i64()');",{fileName:'main.mjs',target:'linux-x64',module:true}).ok,false);
+});

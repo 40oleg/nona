@@ -111,6 +111,7 @@ The implemented subset includes:
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;
 - a precise non-moving mark-and-sweep garbage collector;
 - basic `console.log` output through Windows system calls.
+- synchronous file system access through `node:fs`/`nona:fs`, and `TextEncoder`/`TextDecoder` (see [file system](docs/fs.md)).
 - calls to exported DLL functions on Windows through `nona:ffi` and `nona:win32` (see [FFI](docs/ffi.md)).
 
 See the [language support matrix](docs/language-support.md) for exact behavior and test coverage.

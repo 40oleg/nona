@@ -28,6 +28,7 @@ export function parseFfiSignature(text:string):FfiSignature {
 
 /** Validate a DLL name and export name for the PE import table. */
 export function checkFfiNames(dll:string,name:string):void {
+  if(dll==='syscall'){if(!/^\d{1,3}$/.test(name))throw new Error(`Invalid system call number '${name}'`);return;}
   if(!/^[\x21-\x7e]+$/.test(dll)||/[\\/]/.test(dll))throw new Error(`Invalid DLL name '${dll}'`);
   if(!/^[A-Za-z_?@$][\x21-\x7e]*$/.test(name))throw new Error(`Invalid export name '${name}'`);
 }
