@@ -6,7 +6,7 @@
 
 Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code, and writes PE32+ or ELF64 executables. The generated program does not embed Node.js or a JavaScript interpreter and does not require a C/C++ compiler or LLVM. Windows output uses `KERNEL32.dll`; Linux output uses direct syscalls.
 
-> **Project status:** `v0.5` adds independent String, Number, Math, and URI features on Windows and Linux x64. ES2020 remains incomplete; arbitrary JavaScript and Node.js projects are not supported. See the [v0.5 status](docs/v0.5-status.md).
+> **Project status:** `v0.6.0` adds Date/JSON, BigInt, RegExp, binary memory, collections, Proxy/Reflect, Promise and async language support, modules, and related ES2020 work on Windows and Linux x64. ES2020 remains incomplete; arbitrary JavaScript and Node.js projects are not supported. See the [v0.6 status](docs/v0.6-status.md) for verification and remaining limitations.
 
 ## How it works
 
