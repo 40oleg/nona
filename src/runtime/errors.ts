@@ -22,6 +22,14 @@ export function emitErrors(b:RuntimeBuilder):void {
  // exception of the ahead-of-time contract (docs/es2020-contract.md).
  b.bundle.fragments.push(stringLiteral('rt.error.dynamicCodeMessage','Nona compiles ahead of time: eval and Function need source text known at compile time'));
  {const message=new Uint8Array(16);message[0]=4;b.bundle.fragments.push({name:'rt.error.dynamicCodeMessageValue',section:'.rdata',alignment:8,bytes:message,symbols:{},fixups:[pointer(8,'rt.error.dynamicCodeMessage')]});}
+ b.bundle.fragments.push(stringLiteral('rt.error.stackMessage','Maximum call stack size exceeded'));
+ {const message=new Uint8Array(16);message[0]=4;b.bundle.fragments.push({name:'rt.error.stackMessageValue',section:'.rdata',alignment:8,bytes:message,symbols:{},fixups:[pointer(8,'rt.error.stackMessage')]});}
+ // Called from a JS prologue below rt.stackLimit; creating the error runs only
+ // native code, which the margin below the limit accommodates.
+ b.fn('rt.throwStackOverflow',72,a=>{
+  a.lea('rcx',slot(48));a.mov('rdx',1);a.lea('r8',{rip:'rt.error.stackMessageValue'});a.call('rt.RangeError.code');
+  a.lea('rcx',slot(48));a.call('rt.throw');
+ });
  b.fn('rt.throwDynamicCode',72,a=>{
   a.lea('rcx',slot(48));a.mov('rdx',1);a.lea('r8',{rip:'rt.error.dynamicCodeMessageValue'});a.call('rt.EvalError.code');
   a.lea('rcx',slot(48));a.call('rt.throw');
