@@ -447,7 +447,7 @@ class Parser {
       const opToken=this.take(), operator=opToken.text;
       if(left.kind!=='Identifier'&&left.kind!=='Member'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')&&!this.parenthesized.has(left)))this.error('Assignment requires a variable or property',opToken);
       const target=left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral'?this.assignmentPattern(left):left;
-      const right=this.assignment();return {kind:'Assignment',operator,left:target,right,span:{start:left.span.start,end:right.span.end}};
+      const right=this.assignment();return {kind:'Assignment',operator,left:target,right,...(this.parenthesized.has(left)?{parenthesizedTarget:true}:{}),span:{start:left.span.start,end:right.span.end}};
     }
     return left;
   }

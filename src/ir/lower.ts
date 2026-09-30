@@ -668,7 +668,7 @@ class Lowerer {
         }
         // Compound assignment reads its left value BEFORE evaluating the RHS.
         const raw=this.reference(e.left,e.operator==='='),ref=e.operator==='='?raw:this.settledReference(raw),previous=e.operator==='='?null:this.getReference(ref);
-        const right=this.expression(e.right,e.operator==='='&&e.left.kind==='Identifier'?e.left.name:undefined);
+        const right=this.expression(e.right,e.operator==='='&&e.left.kind==='Identifier'&&!e.parenthesizedTarget?e.left.name:undefined);
         let result=right;if(previous!==null){result=this.slot();this.emit({kind:'binary',dest:result,operator:e.operator.slice(0,-1),left:previous,right});}
         this.putReference(ref,result);return result;
       }

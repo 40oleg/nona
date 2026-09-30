@@ -24,7 +24,7 @@ export interface Yield extends Node {kind:'Yield';argument:Expression|null;deleg
 export interface Await extends Node {kind:'Await';argument:Expression}
 export interface Update extends Node { kind: 'Update'; operator: string; argument: Assignable; prefix: boolean }
 export interface Binary extends Node { kind: 'Binary'; operator: string; left: Expression; right: Expression }
-export interface Assignment extends Node { kind: 'Assignment'; operator: string; left: Assignable|ArrayPattern|ObjectPattern; right: Expression }
+export interface Assignment extends Node { kind: 'Assignment'; operator: string; left: Assignable|ArrayPattern|ObjectPattern; right: Expression; /** (x) = f: no NamedEvaluation */parenthesizedTarget?:boolean }
 export interface Conditional extends Node { kind: 'Conditional'; test: Expression; consequent: Expression; alternate: Expression }
 export type Argument=Expression|SpreadElement;
 export interface Call extends Node { kind: 'Call'; callee: Expression; arguments: Argument[]; /** super() inside an arrow: the derived constructor's function and receiver. */superRefs?:{func:Identifier;receiver:Identifier} }
