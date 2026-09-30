@@ -60,7 +60,11 @@ if (group && (!/^[A-Za-z0-9_./-]+$/.test(group) || group.includes('..') || group
 }
 const reportPath = resolve(process.env.TEST262_REPORT || 'work/test262-smoke-report.json');
 const progressPath = process.env.TEST262_PROGRESS_LOG ? resolve(process.env.TEST262_PROGRESS_LOG) : '';
-const revision = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 'utf8'});
+// A checkout without git metadata (for example one copied to another host)
+// may instead carry the pinned revision in .nona-test262-revision.
+const revisionMarker = join(root, '.nona-test262-revision');
+const markedRevision = (() => { try { return readFileSync(revisionMarker, 'utf8').trim(); } catch { return ''; } })();
+const revision = markedRevision === PIN ? {status: 0, stdout: PIN} : spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 'utf8'});
 if (revision.error || revision.status !== 0 || revision.stdout.trim() !== PIN) {
   throw new Error(`Test262 checkout must be pinned at ${PIN}; found ${revision.stdout?.trim() || revision.stderr}`);
 }
@@ -168,8 +172,8 @@ function runCase(path) {
   // use the pinned blob so their intended CR, LF, and CRLF bytes survive.
   const blob = path.includes('line-terminator-normalisation-')
     ? spawnSync('git', ['-C', root, 'show', `HEAD:test/${path}`], {encoding: 'utf8'}) : null;
-  if (blob && blob.status !== 0) throw new Error(blob.stderr || `Cannot read Test262 blob ${path}`);
-  const source = blob ? blob.stdout : readFileSync(join(root, 'test', path), 'utf8');
+  if (blob && blob.status !== 0 && markedRevision !== PIN) throw new Error(blob.stderr || `Cannot read Test262 blob ${path}`);
+  const source = blob && blob.status === 0 ? blob.stdout : readFileSync(join(root, 'test', path), 'utf8');
   const metadata = source.match(/\/\*---([\s\S]*?)---\*\//)?.[1] || '';
   const flags = metadata.match(/^flags:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
   const includes = metadata.match(/^includes:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
