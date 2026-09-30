@@ -80,6 +80,7 @@ export const reflectPreludeSource=String.raw`(function(){
     if(arguments.length<3)return target[key];
     return nativeGet(target,key,receiver)
   }}).get);
+  var reflectDefine=reflect.defineProperty;
   method('set',3,({set(target,key,value,receiver){
     object(target);
     if(arguments.length<4)receiver=target;
@@ -104,10 +105,9 @@ export const reflectPreludeSource=String.raw`(function(){
     var own=Object.getOwnPropertyDescriptor(receiver,key);
     if(own!==undefined){
       if(!('value'in own)||!own.writable)return false;
-      Object.defineProperty(receiver,key,{value:value});return true
+      return reflectDefine(receiver,key,{value:value})
     }
-    if(!Object.isExtensible(receiver))return false;
-    Object.defineProperty(receiver,key,{value:value,writable:true,enumerable:true,configurable:true});return true
+    return reflectDefine(receiver,key,{value:value,writable:true,enumerable:true,configurable:true})
   }}).set);
   var propertyOrder=['defineProperty','deleteProperty','apply','construct','get','getOwnPropertyDescriptor','getPrototypeOf','has','isExtensible','ownKeys','preventExtensions','set','setPrototypeOf'];
   var methods=[];

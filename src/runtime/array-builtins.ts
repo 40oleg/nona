@@ -471,9 +471,10 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(176));a.lea('r8',slot(160));a.mov('r9',2);a.call('rt.setProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');a.jmp(next);
-  a.label(lowerOnly);a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');
-  a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.deleteProperty');
-  a.load('rax',slot(248));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(next);
+  // lowerExists && !upperExists: DeletePropertyOrThrow(lower) precedes Set(upper) (ES2020 22.1.3.21 step 7.k).
+  a.label(lowerOnly);a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.deleteProperty');
+  a.load('rax',slot(248));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');a.jmp(next);
   a.label(lowerAbsent);a.load('rax',slot(264));a.test('rax','rax');a.jcc('e',next);
   a.label(upperOnly);a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.lea('rcx',slot(80));a.lea('rdx',slot(176));a.lea('r8',slot(160));a.mov('r9',2);a.call('rt.setProperty');

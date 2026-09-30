@@ -270,7 +270,18 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.load('rax',slot(352+D.present));a.cmp('rax',F.value);const defineReceiver=a.unique('defineReceiver');a.jcc('e',defineReceiver);
   for(const field of [D.enumerable,D.configurable,D.writable]){a.mov('rax',2);a.store(slot(352+field),'rax');a.mov('rax',1);a.store(slot(352+field+8),'rax');}
   a.label(defineReceiver);a.load('rcx',slot(64));a.load('rdx',slot(48));a.lea('r8',slot(352));a.call('rt.defineOwnProperty');a.store(slot(72),'rax');a.test('rax','rax');a.jcc('e',setterMissing);a.jmp(done);
-  a.label(specialForward);a.lea('rcx',slot(80));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r10',slot(64));a.load('r9',{base:'r10',disp:16});a.call('rt.setProperty');a.store(slot(72),'rax');
+  // Exotic own data properties (array length/indices) of the target still
+  // define through a different receiver (OrdinarySetWithOwnDescriptor step 3).
+  a.label(specialForward);{
+   const direct=a.unique('specialDirect');
+   a.load('r10',slot(64));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',direct);
+   a.load('rax',{base:'r10',disp:8});a.load('r11',slot(88));a.cmp('rax','r11');a.jcc('e',direct);
+   a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.load('r8',slot(48));a.call('rt.getOwnDescriptor');
+   a.load('rax',slot(240+D.present));a.cmp('rax',-1);a.jcc('e',direct);a.and('rax',F.get|F.set);a.test('rax','rax');a.jcc('ne',direct);
+   a.load('rax',slot(240+D.writable+8));a.test('rax','rax');a.jcc('ne',dataReceiver);
+   a.label(direct);
+  }
+  a.lea('rcx',slot(80));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r10',slot(64));a.load('r9',{base:'r10',disp:16});a.call('rt.setProperty');a.store(slot(72),'rax');
   a.label(done);a.load('rax',slot(72));
  });
  rootedFn(b,'rt.proxyOwnAttributes',200,[{kind:'value',register:'rcx'},{kind:'pointer',register:'rdx'},
