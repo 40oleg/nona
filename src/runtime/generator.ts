@@ -49,7 +49,7 @@ export function emitGenerators(b:RuntimeBuilder):void {
   {offset:O.prototype,kind:'va64',target:'rt.functionPrototype',addend:0},
   {offset:O.properties,kind:'va64',target:'rt.generatorFunctionPrototype.prototype',addend:0},
  ]});
- const generatorPrototypeProperty=new Uint8Array(P.size);generatorPrototypeProperty[P.value]=5;
+ const generatorPrototypeProperty=new Uint8Array(P.size);generatorPrototypeProperty[P.value]=5;generatorPrototypeProperty[P.attributes]=A.configurable;
  b.bundle.fragments.push({name:'rt.generatorFunctionPrototype.prototype',section:'.data',alignment:8,bytes:generatorPrototypeProperty,symbols:{},fixups:[
   {offset:P.key,kind:'va64',target:'rt.str.prototype',addend:0},
   {offset:P.value+8,kind:'va64',target:'rt.generatorPrototype',addend:0},

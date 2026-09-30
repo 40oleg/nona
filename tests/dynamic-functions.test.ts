@@ -29,3 +29,15 @@ console.log(Function("x"));
  assert.equal(run.status, 0, run.stderr);
  assert.equal(run.stdout, 'shadowed x\n');
 });
+
+test('GeneratorFunction/AsyncFunction with literal source compile ahead of time', () => {
+ const run = runOnHost(`var GeneratorFunction = Object.getPrototypeOf(function*(){}).constructor;
+var g = GeneratorFunction('x', 'y', 'yield x + y;'); console.log(g.name, g.length, g(1, 2).next().value);
+var AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+new AsyncFunction('a', 'return await a;')(5).then(v => console.log('async', v));
+try { GeneratorFunction('x = yield', ''); } catch (e) { console.log(e.name); }
+(function(){ var GeneratorFunction = function(){ return 'shadowed'; }; console.log(GeneratorFunction('yield 1')); })();
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'anonymous 2 3\nSyntaxError\nshadowed\nasync 5\n');
+});

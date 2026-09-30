@@ -15,6 +15,7 @@ import {bind} from './binder.js';
  * own `Function` binding are left unchanged.
  */
 export const dynamicFactoryPrefix='__nonaDynamicFunction$';
+const kinds:Record<string,string>={GeneratorFunction:'function*',AsyncFunction:'async function',AsyncGeneratorFunction:'async function*'};
 
 const stringValue=(argument:A.Argument):string|undefined=>{
   if(argument.kind==='Literal'&&typeof argument.value==='string')return argument.value;
@@ -50,17 +51,28 @@ function declaresFunction(program:A.Program):boolean {
 }
 
 /** Parse CreateDynamicFunction source; undefined when it is not valid. */
-function compileSource(parameters:string,body:string):{expression:A.FunctionExpression}|{error:string} {
-  const sourceText=`function anonymous(${parameters}\n) {\n${body}\n}`;
+function compileSource(parameters:string,body:string,prefix='function'):{expression:A.FunctionExpression}|{error:string} {
+  const sourceText=`${prefix} anonymous(${parameters}\n) {\n${body}\n}`;
   try{
     // Parameters and body must each parse on their own (no `){` injection).
-    parse(lex(`(function anonymous(${parameters}\n) {\n})`));
-    parse(lex(`(function anonymous(\n) {\n${body}\n})`));
+    parse(lex(`(${prefix} anonymous(${parameters}\n) {\n})`));
+    parse(lex(`(${prefix} anonymous(\n) {\n${body}\n})`));
     const program=parse(lex(`(${sourceText})`));
     const statement=program.body[0];
     if(program.body.length!==1||statement?.kind!=='ExpressionStatement'||statement.expression.kind!=='FunctionExpression')return {error:'Invalid function source'};
     bind(program); // early errors (duplicate strict parameters, bad directives, ...)
     const expression=statement.expression;
+    // Generator and async parameters may not contain yield/await (ES2020 14.4.1, 14.7.1).
+    const forbidden=(node:unknown):boolean=>{
+      if(!node||typeof node!=='object')return false;
+      if(Array.isArray(node))return node.some(forbidden);
+      const n=node as A.Node;
+      if(n.kind==='Yield'||n.kind==='Await')return true;
+      if(n.kind==='Identifier'&&((expression.generator&&(n as A.Identifier).name==='yield')||(expression.async&&(n as A.Identifier).name==='await')))return true;
+      if(n.kind==='FunctionExpression'||n.kind==='Function')return false;
+      return Object.entries(n).some(([key,value])=>key!=='span'&&forbidden(value));
+    };
+    if((expression.generator||expression.async)&&forbidden([expression.parameters,expression.defaults,expression.rest]))return {error:'Invalid parameters'};
     expression.id=null;expression.dynamic=true;expression.nameOverride='anonymous';expression.sourceText=sourceText;
     return {expression};
   }catch(error){
@@ -69,7 +81,7 @@ function compileSource(parameters:string,body:string):{expression:A.FunctionExpr
 }
 
 export function lowerDynamicFunctions(program:A.Program):A.Program {
-  if(!program.source||!/\bFunction\b/.test(program.source)||declaresFunction(program))return program;
+  if(!program.source||!/Function\b/.test(program.source)||declaresFunction(program))return program;
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{
     if(node.kind!=='Call'&&node.kind!=='New')return;
@@ -80,17 +92,28 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
     if(call.kind==='Call'&&call.callee.kind==='Member'&&isFunction(call.callee.object)&&call.callee.property.kind==='Literal'&&call.callee.property.value==='call'&&!args.some(a=>a.kind==='SpreadElement')){
       thisArg=(args[0] as A.Expression|undefined)??{kind:'Identifier',name:'undefined',span:call.span};args=args.slice(1);
     }
-    else if(!isFunction(call.callee))return;
+    else if(!isFunction(call.callee)&&!(call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)))return;
+    const kindPrefix=call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)?kinds[call.callee.name]!:'function';
     const values=args.map(stringValue);
     if(values.some(value=>value===undefined))return;
     const strings=values as string[];
     const parameters=strings.slice(0,-1).join(','),body=strings.at(-1)??'';
-    const result=compileSource(parameters,body),span=call.span;
+    const result=compileSource(parameters,body,kindPrefix),span=call.span;
     const name=dynamicFactoryPrefix+factories.length;
     const returned:A.Statement='expression'in result
       ?{kind:'Return',argument:result.expression,span}
       :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
     factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:[],body:{kind:'Block',body:[returned],span},span} as A.FunctionDeclaration);
+    if(kindPrefix!=='function'){
+      // A variable named like a dynamic constructor: use the compiled function only
+      // when it holds that intrinsic; otherwise call it as written.
+      const guard=parse(lex(`(function(ctor,args){if(ctor!==Object.getPrototypeOf(${kindPrefix}(){}).constructor)return ${call.kind==='New'?'new ':''}ctor(...args)})`)).body[0] as A.ExpressionStatement;
+      const guardFn=guard.expression as A.FunctionExpression;
+      factories.pop();
+      factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:guardFn.parameters,defaults:guardFn.defaults,rest:guardFn.rest,body:{kind:'Block',body:[...guardFn.body.body,returned],span},span} as A.FunctionDeclaration);
+      replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[call.callee,{kind:'ArrayLiteral',elements:args.map(a=>a as A.Expression),span}],span} as A.Call);
+      return;
+    }
     const created:A.Call={kind:'Call',callee:{kind:'Identifier',name,span},arguments:[],span};
     replace(thisArg?{kind:'Binary',operator:',',left:thisArg,right:created,span} as A.Binary:created);
   });
