@@ -20,7 +20,16 @@ class Parser {
   constructor(private tokens: TokenStream,private module=false) {}
   private get token(): Token { return this.tokens[this.index]!; }
   private at(s: string): boolean { return this.token.text === s; }
-  private take(): Token { return this.tokens[this.index++]!; }
+  private take(): Token {
+    const t=this.tokens[this.index++]!;
+    // Bracket depth lets the for-initializer [~In] restriction end inside nested brackets.
+    if(t.kind==='punct'&&(t.text==='('||t.text==='['||t.text==='{')||t.kind==='templateHead')this.depth++;
+    else if(t.kind==='punct'&&(t.text===')'||t.text===']'||t.text==='}')||t.kind==='templateTail')this.depth--;
+    return t;
+  }
+  private depth=0;
+  /** Bracket depth at which `in` is not a relational operator (for-statement initializers), or -1. */
+  private noInDepth=-1;
   private match(s:string): boolean { if (!this.at(s)) return false; this.take(); return true; }
   private error(message:string, token=this.token): never { throw new CompileError([{ code:'E_SYNTAX',message,file:'',span:token.span }]); }
   private need(s:string): Token { if (!this.at(s)) this.error(`Expected '${s}', found '${this.token.text}'`); return this.take(); }
@@ -347,7 +356,10 @@ class Parser {
       // `let` starts a declaration only before a binding (ES2020 13.7: for ( [lookahead ≠ let [] ...).
       const next=this.tokens[this.index+1];
       const letDeclaration=this.at('let')&&!!next&&(next.text==='['||next.text==='{'||next.kind==='word'&&next.text!=='in'&&next.text!=='of');
-      const init=this.at(';')?null:this.at('var')||this.at('const')||letDeclaration?this.variable(false,true):this.expression();
+      const savedNoIn=this.noInDepth;this.noInDepth=this.depth;
+      let init:A.Var|A.Expression|null;
+      try{init=this.at(';')?null:this.at('var')||this.at('const')||letDeclaration?this.variable(false,true):this.expression();}
+      finally{this.noInDepth=savedNoIn;}
       if(init?.kind==='Yield'&&init.argument?.kind==='Binary'&&init.argument.operator==='in'&&!this.parenthesized.has(init.argument))
         this.error('Unparenthesized in is not allowed in a for initializer');
       // Annex B.3.6: for (var x = init in obj) — the initializer swallowed the `in`.
@@ -358,11 +370,23 @@ class Parser {
         const left:A.Var={...init,declarations:[{id:init.declarations[0]!.id,init:annexInit.left}],annexBInitializer:true};
         return {kind:'ForIn',left,right:annexInit.right,body,span:this.span(start)};
       }
+      if(init?.kind==='Var'&&this.at('in')&&init.declarationKind==='var'&&init.declarations.length===1&&init.declarations[0]!.id.kind==='Identifier'&&init.declarations[0]!.init){
+        // Annex B.3.6: for (var x = init in obj) (sloppy only; the binder rejects it in strict code).
+        this.take();const right=this.expression();this.need(')');const body=this.statement(false,false);
+        return {kind:'ForIn',left:{...init,annexBInitializer:true},right,body,span:this.span(start)};
+      }
       if(init?.kind==='Var'&&(this.at('in')||this.at('of'))){
         if(init.declarations.length!==1||init.declarations[0]!.init)this.error('Only a single binding without initializer is supported in for...in/of');
         const kind=this.take().text==='in'?'ForIn':'ForOf';if(isAwait&&kind!=='ForOf')this.error('for await requires of');
         const right=kind==='ForOf'?this.assignment():this.expression();this.need(')');const body=this.statement(false,false);
         return {kind,left:init,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
+      }
+      if(init&&init.kind!=='Var'&&this.at('in')){
+        const lhs=init;
+        if(!(lhs.kind==='Identifier'||lhs.kind==='Member'||(lhs.kind==='ArrayLiteral'||lhs.kind==='ObjectLiteral')&&!this.parenthesized.has(lhs)))this.error('Invalid for-in target');
+        this.take();const right=this.expression();this.need(')');const body=this.statement(false,false);
+        const left=lhs.kind==='ArrayLiteral'||lhs.kind==='ObjectLiteral'?this.assignmentPattern(lhs) as A.ArrayPattern|A.ObjectPattern:lhs as A.Assignable;
+        return {kind:'ForIn',left,right,body,span:this.span(start)};
       }
       // for ( LHS in Expression ): the expression may be a comma sequence.
       let first:A.Expression|null=init&&init.kind!=='Var'?init:null;
@@ -473,10 +497,10 @@ class Parser {
     const next=this.tokens[this.index+1];
     const isAsync=this.at('async')&&this.token.kind==='word'&&!!next&&!next.lineBreakBefore&&(next.text==='('||next.kind==='word'&&this.tokens[this.index+2]?.text==='=>');
     if(isAsync){
-      const saved=this.index;this.index++;
+      const saved=this.index,savedDepth=this.depth;this.index++;
       const result=this.arrowTail(start,true);
       if(result)return result;
-      this.index=saved;
+      this.index=saved;this.depth=savedDepth;
     }
     return this.arrowTail(start,false);
   }
@@ -525,7 +549,7 @@ class Parser {
   }
   private binary(min:number): A.Expression {
     let left=this.exponentiation();
-    while((precedence[this.token.text]??0)>=min) {
+    while((precedence[this.token.text]??0)>=min&&!(this.token.text==='in'&&this.noInDepth===this.depth)) {
       const token=this.take(),operator=token.text, right=this.binary(precedence[operator]!+1);
       for(const operand of [left,right])if(operand.kind==='Binary'&&!this.parenthesized.has(operand)) {
         if(operator==='??'&&['&&','||'].includes(operand.operator)||['&&','||'].includes(operator)&&operand.operator==='??')
