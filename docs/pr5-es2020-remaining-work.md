@@ -6,6 +6,63 @@ claim of conformance. The normative target and exceptions are in
 [`language-support.md`](language-support.md). PR #5 must stay draft until
 every applicable item below has implementation and conformance evidence.
 
+## Test262 audit 2026-09-30 (Linux x64; Windows from CI)
+
+Full catalogs at the pinned revision with `TEST262_EXCLUDE_FEATURES=post-es2020`
+(see [test262.md](test262.md)). "eval" = the documented `eval`/dynamic-source
+exception (files that call `eval`, `$262.evalScript`, or build Function/
+generator sources from non-literal strings); "post" = post-ES2020 semantics
+that Test262 still tags with older features (for example the ES2021 typed
+array [[Set]]/[[GetOwnProperty]] changes, the `v` RegExp flag, `Error.prototype.stack`).
+
+| Catalog | Pass/applicable | Remaining failures |
+| --- | --- | --- |
+| `language/` (all 28 directories) | LANGUAGE_TOTAL | LANGUAGE_REST |
+| `built-ins/` (51 ES2020 directories) | 15245/15416 | 46 eval, 48 post, 77 other (below) |
+| `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
+| `annexB/` | ANNEXB_TOTAL | ANNEXB_REST |
+
+Built-in residuals classified per file: `Function` 32 build sources from
+non-literal strings (documented exception), 4 need Function constructors of
+another realm; `TypedArrayConstructors` 25 assert ES2021 typed-array
+[[Set]]/[[GetOwnProperty]] semantics, 2 need other realms, 2 are ordering
+defects (`iterated-array-changed-by-tonumber`, proto access before ToIndex of
+a Symbol); `TypedArray` 3 `copyWithin` detach files and `Array` 1
+`concat_large-typed-array` exceed the 60 s runner limit (arrays keep indexed
+elements in the property list, so large arrays are slow); the remaining
+cross-realm files need `%Promise.prototype%`/dynamic-constructor intrinsics
+of `new.target`'s realm for constructors implemented in the JS prelude.
+
+Language residuals: `class` elements with `#private` names and numeric
+separators are post-ES2020 but untagged; `with/…typed-array-in-proto-chain`
+asserts the ES2021 typed-array [[Set]] receiver check; `subclass-builtins`
+of `Function`/`GeneratorFunction` construct from runtime strings.
+
+Also fixed during the audit (all covered by `tests/language-audit.test.ts`,
+`tests/dynamic-functions.test.ts`, `tests/annexb-builtins.test.ts`,
+`tests/block-functions.test.ts` and module tests): legacy octal literals,
+sloppy future reserved words and `let` disambiguation, destructuring `catch`,
+class inner name bindings, `super()` in arrows, derived-constructor return
+checks after `try`, `generator.return()` closing for-of/for-await/
+destructuring iterators, reference evaluation order in `with`, compound
+assignment and `super[k]`, Annex B.3.2–B.3.6 block functions, Annex B
+built-ins (`escape`, `unescape`, `substr`, HTML methods, `setYear`,
+`toGMTString`), HTML-like comments, ahead-of-time `Function`/
+`GeneratorFunction`/`AsyncFunction` for literal sources, module link/parse
+errors of dynamic-only modules rejecting `import()`, empty-source dynamic
+constructors, split Array/String iterator prototypes, RegExpExec fallback,
+Proxy-aware `Object.freeze/seal/isFrozen/isSealed`, receiver-aware set
+through proxies, merge-sort `Array.prototype.sort`, unmapped `arguments` for
+non-simple parameters, TypedArray/DataView constructor order and realms, and
+codegen dead-slot clearing that previously made 2.5k-line files exhaust
+memory. Codegen now caches the runtime and prelude image, so a Test262 file
+compiles in ~0.2 s instead of ~6 s.
+
+Known gaps kept open: `RegExp.prototype.compile` and legacy RegExp syntax
+(Annex B.1.4), labelled function declarations (B.3.2), call expressions as
+assignment targets, IsHTMLDDA (host-optional, excluded), Windows evidence
+for the new features (next CI run), and the performance of large arrays.
+
 ## Progress 2026-09-29 (Linux x64 evidence only; Windows pending CI)
 
 Implemented in this batch. Test262 counts are from the Linux runner at the
