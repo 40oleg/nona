@@ -354,8 +354,11 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.lea('rcx',slot(96));a.load('rdx',slot(48));a.test('rdx','rdx');const one=a.unique('one');a.jcc('e',one);a.mov('rdx',1);a.label(one);a.load('r8',slot(56));a.call('rt.ArrayBuffer.construct');
   a.load('rax',slot(104));a.store(slot(80),'rax');a.load('rax',{base:'rax',disp:ArrayBufferLayout.byteLength});a.store(slot(296),'rax');if(width>1)a.shr('rax',width===8?3:width===4?2:1);a.store(slot(72),'rax');a.jmp(ready);
   a.label(view);a.store(slot(80),'r10');
-  a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
-  const offsetReady=a.unique('offsetReady'),lengthReady=a.unique('lengthReady');
+  // ES2020 22.2.4.5: ToIndex(byteOffset), alignment, ToIndex(length), then
+  // IsDetachedBuffer, then the bounds checks. slot 304: length given, 312: length.
+  const offsetReady=a.unique('offsetReady'),lengthReady=a.unique('lengthReady'),lengthNaN=a.unique('lengthNaN'),lengthNumber=a.unique('lengthNumber'),givenLength=a.unique('givenLength');
+  const shift=width===8?3:width===4?2:width===2?1:0;
+  a.mov('rax',0);a.store(slot(304),'rax');
   a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',offsetReady);
   a.load('rax',slot(56));a.add('rax',16);a.load('rax',{base:'rax'});a.test('rax','rax');a.jcc('e',offsetReady);
   a.lea('rcx',slot(112));a.load('rdx',slot(56));a.add('rdx',16);a.call('rt.toNumber');
@@ -364,16 +367,24 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
   a.cvttsd2si('rax','xmm0');a.store(slot(64),'rax');
   a.label(offsetReady);if(width>1){a.load('rax',slot(64));a.and('rax',width-1);a.test('rax','rax');failIf(a,'ne','rt.throwRangeError');}
-  a.load('rax',slot(80));a.load('rax',{base:'rax',disp:ArrayBufferLayout.byteLength});a.load('r10',slot(64));a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');a.sub('rax','r10');a.store(slot(72),'rax');
   a.load('rax',slot(48));a.cmp('rax',3);a.jcc('b',lengthReady);
   a.load('rax',slot(56));a.add('rax',32);a.load('rax',{base:'rax'});a.test('rax','rax');a.jcc('e',lengthReady);
   a.lea('rcx',slot(112));a.load('rdx',slot(56));a.add('rdx',32);a.call('rt.toNumber');
-  a.movsd('xmm0',slot(120));a.ucomisd('xmm0','xmm0');a.jcc('p',lengthReady);
+  a.movsd('xmm0',slot(120));a.ucomisd('xmm0','xmm0');a.jcc('p',lengthNaN);a.jmp(lengthNumber);
+  a.label(lengthNaN);a.mov('rax',0);a.cvtsi2sd('xmm0','rax');
+  a.label(lengthNumber);
   a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');
   a.mov('rax',0x7fffffff);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
-  a.cvttsd2si('rax','xmm0');a.load('r10',slot(72));if(width>1)a.shr('r10',width===8?3:width===4?2:1);a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.store(slot(72),'rax');
-  if(width>1){a.shl('rax',width===8?3:width===4?2:1);a.store(slot(296),'rax');a.jmp(ready);}
-  a.label(lengthReady);if(width>1){a.load('rax',slot(72));a.mov('r10','rax');a.and('r10',width-1);a.test('r10','r10');failIf(a,'ne','rt.throwRangeError');a.store(slot(296),'rax');a.shr('rax',width===8?3:width===4?2:1);a.store(slot(72),'rax');}
+  a.cvttsd2si('rax','xmm0');a.store(slot(312),'rax');a.mov('rax',1);a.store(slot(304),'rax');
+  a.label(lengthReady);
+  a.load('r10',slot(80));a.load('rax',{base:'r10',disp:ArrayBufferLayout.detached});a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'r10',disp:ArrayBufferLayout.byteLength});a.load('r10',slot(64));
+  a.load('r11',slot(304));a.test('r11','r11');a.jcc('ne',givenLength);
+  if(width>1){a.mov('r11','rax');a.and('r11',width-1);a.test('r11','r11');failIf(a,'ne','rt.throwRangeError');}
+  a.cmp('r10','rax');failIf(a,'a','rt.throwRangeError');a.sub('rax','r10');a.store(slot(296),'rax');
+  if(shift)a.shr('rax',shift);a.store(slot(72),'rax');a.jmp(ready);
+  a.label(givenLength);a.load('r11',slot(312));a.store(slot(72),'r11');if(shift)a.shl('r11',shift);a.store(slot(296),'r11');
+  a.add('r11','r10');a.cmp('r11','rax');failIf(a,'a','rt.throwRangeError');
   a.label(ready);
   a.load('r10',slot(80));a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
   a.mov('rcx',TypedArrayLayout.size);a.call('rt.alloc');

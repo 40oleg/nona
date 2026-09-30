@@ -33,8 +33,26 @@ The no-argument command runs the reviewed manifest in
 file beneath that Test262 group. Reports distinguish compile failures, runtime
 failures, and skips.
 
-This is a **baseline adapter**, not the full Test262 harness: modules, async,
-raw and runtime-negative tests are currently skipped with reasons. Parse-negative
+Runner features added for the ES2020 gate (2026-09):
+
+- `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests
+  (`flags: [module]`) compile as a module graph with the harness as a classic
+  script prelude; resolution-negative module tests expect a compile error.
+- `TEST262_EXCLUDE_FEATURES=post-es2020` expands to the list of feature tags
+  introduced after ES2020 (see `postEs2020Features` in the script), plus
+  `error-stack-accessor` and the non-standard `caller` extension.
+- `$262.createRealm` is compiled in when the test mentions it (up to three
+  realms); `$262.agent` programs are extracted from static templates (loop
+  counters, top-level constants and `$262.agent.timeouts` are folded) and
+  compiled into the image as agent threads. `CanBlockIsFalse` tests are skipped
+  because the main agent can block.
+- Computed `import()` specifiers may load the test's `_FIXTURE.js` files named
+  in its source (`ModuleHost.candidates`).
+- A compiler exception is reported as that file's failure
+  (`phase: compiler-crash`) instead of stopping the run.
+
+This is a **baseline adapter**, not the full Test262 harness: raw and
+runtime-negative tests are currently skipped with reasons. Parse-negative
 tests pass when Nona rejects source with a compiler diagnostic; the adapter does
 not yet check diagnostic type equivalence. It runs positive
 script tests with the standard `sta.js`/`assert.js` harness and declared
