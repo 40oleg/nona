@@ -41,3 +41,13 @@ try { GeneratorFunction('x = yield', ''); } catch (e) { console.log(e.name); }
  assert.equal(run.status, 0, run.stderr);
  assert.equal(run.stdout, 'anonymous 2 3\nSyntaxError\nshadowed\nasync 5\n');
 });
+
+test('dynamic constructors reached through a variable compile ahead of time', () => {
+ const run = runOnHost(`var G = function*(){}.constructor, F = Object.getPrototypeOf(function(){}).constructor;
+try { G('import.meta'); } catch (e) { console.log(e.name); }
+var g = G('a', 'yield a * 2'); console.log(g(4).next().value, Object.getPrototypeOf(g) === Object.getPrototypeOf(function*(){}));
+console.log(F('a', 'return a + 1')(1));
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'SyntaxError\n8 true\n2\n');
+});

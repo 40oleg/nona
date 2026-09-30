@@ -22,6 +22,8 @@ const stringValue=(argument:A.Argument):string|undefined=>{
   if(argument.kind==='Template'&&argument.expressions.length===0&&typeof argument.quasis[0]==='string')return argument.quasis[0];
   // Other primitive literals have a fixed ToString.
   if(argument.kind==='Literal'&&(argument.value===null||typeof argument.value==='number'||typeof argument.value==='boolean'||typeof argument.value==='bigint'))return String(argument.value);
+  // void <literal> is undefined.
+  if(argument.kind==='Unary'&&argument.operator==='void'&&argument.argument.kind==='Literal')return 'undefined';
   return undefined;
 };
 
@@ -80,8 +82,37 @@ function compileSource(parameters:string,body:string,prefix='function'):{express
   }
 }
 
+/**
+ * Names bound to `<function expression>.constructor` or
+ * `Object.getPrototypeOf(<function expression>).constructor`: the dynamic
+ * constructor of that function kind, used through a variable.
+ */
+function constructorAliases(program:A.Program):Map<string,string> {
+  const aliases=new Map<string,string>(),declared=new Map<string,A.FunctionDeclaration>();
+  walk(program.body,node=>{if(node.kind==='Function'&&(node as A.FunctionDeclaration).id&&!declared.has((node as A.FunctionDeclaration).id!.name))declared.set((node as A.FunctionDeclaration).id!.name,node as A.FunctionDeclaration);});
+  const kindOf=(fn:{async?:boolean;generator?:boolean})=>fn.async?(fn.generator?'async function*':'async function'):fn.generator?'function*':'function';
+  walk(program.body,node=>{
+    if(node.kind!=='Var')return;
+    for(const d of (node as A.Var).declarations){
+      if(d.id.kind!=='Identifier'||!d.init||d.init.kind!=='Member')continue;
+      const m=d.init as A.Member;
+      if(m.property.kind!=='Literal'||m.property.value!=='constructor')continue;
+      let source=m.object;
+      if(source.kind==='Call'&&source.callee.kind==='Member'&&source.callee.object.kind==='Identifier'&&source.callee.object.name==='Object'
+        &&source.callee.property.kind==='Literal'&&source.callee.property.value==='getPrototypeOf'&&source.arguments.length===1)source=source.arguments[0] as A.Expression;
+      // A function declaration named by an identifier (the run-time guard
+      // covers a reassigned binding).
+      if(source.kind==='Identifier'&&declared.has(source.name)){aliases.set(d.id.name,kindOf(declared.get(source.name)!));continue;}
+      if(source.kind!=='FunctionExpression'||source.arrow||source.method)continue;
+      aliases.set(d.id.name,kindOf(source as A.FunctionExpression));
+    }
+  });
+  return aliases;
+}
+
 export function lowerDynamicFunctions(program:A.Program):A.Program {
-  if(!program.source||!/Function\b/.test(program.source)||declaresFunction(program))return program;
+  if(!program.source||!/Function\b|\.constructor\b/.test(program.source)||declaresFunction(program))return program;
+  const aliases=constructorAliases(program);
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{
     if(node.kind!=='Call'&&node.kind!=='New')return;
@@ -92,8 +123,9 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
     if(call.kind==='Call'&&call.callee.kind==='Member'&&isFunction(call.callee.object)&&call.callee.property.kind==='Literal'&&call.callee.property.value==='call'&&!args.some(a=>a.kind==='SpreadElement')){
       thisArg=(args[0] as A.Expression|undefined)??{kind:'Identifier',name:'undefined',span:call.span};args=args.slice(1);
     }
-    else if(!isFunction(call.callee)&&!(call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)))return;
-    const kindPrefix=call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)?kinds[call.callee.name]!:'function';
+    else if(!isFunction(call.callee)&&!(call.callee.kind==='Identifier'&&(Object.hasOwn(kinds,call.callee.name)||aliases.has(call.callee.name))))return;
+    const alias=call.callee.kind==='Identifier'&&!Object.hasOwn(kinds,call.callee.name)?aliases.get(call.callee.name):undefined;
+    const kindPrefix=alias??(call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)?kinds[call.callee.name]!:'function');
     const values=args.map(stringValue);
     if(values.some(value=>value===undefined))return;
     const strings=values as string[];
@@ -104,7 +136,7 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
       ?{kind:'Return',argument:result.expression,span}
       :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
     factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:[],body:{kind:'Block',body:[returned],span},span} as A.FunctionDeclaration);
-    if(kindPrefix!=='function'){
+    if(kindPrefix!=='function'||alias!==undefined){
       // A variable named like a dynamic constructor: use the compiled function only
       // when it holds that intrinsic; otherwise call it as written.
       const guard=parse(lex(`(function(ctor,args){if(ctor!==Object.getPrototypeOf(${kindPrefix}(){}).constructor)return ${call.kind==='New'?'new ':''}ctor(...args)})`)).body[0] as A.ExpressionStatement;
