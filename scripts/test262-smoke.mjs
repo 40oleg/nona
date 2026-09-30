@@ -7,6 +7,8 @@ import {compile, fileModuleHost} from '../dist/src/compiler.js';
 // host declares those files as the modules such imports may load.
 const moduleHost = {...fileModuleHost, candidates: referrer => {
   try {
+    // Canonical module paths are '/'-rooted; on Windows they read '/C:/...'.
+    if (/^\/[A-Za-z]:\//.test(referrer)) referrer = referrer.slice(1);
     const text = readFileSync(referrer, 'utf8');
     return readdirSync(dirname(referrer)).filter(name => name.endsWith('_FIXTURE.js') && text.includes(name)).map(name => './' + name);
   }

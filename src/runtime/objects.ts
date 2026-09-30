@@ -246,6 +246,13 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(80),'rax');
     a.label(scanAncestor);a.load('r10',slot(80));a.test('r10','r10');a.jcc('e',inheritedOrdinary);
     a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',proxyAncestor);
+    // A TypedArray ancestor with a canonical numeric key and a different
+    // Receiver (Test262 follows ES2022 10.4.5.5): an invalid index succeeds
+    // without effect, a valid one continues as OrdinarySet on the Receiver.
+    {const plainAncestor=a.unique('plainAncestor');a.cmp('rax',TypedArrayKind);a.jcc('ne',plainAncestor);
+    a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',plainAncestor);a.cmp('rax',-2);a.jcc('e',done);
+    a.load('r10',slot(80));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('r11',{base:'r11',disp:ArrayBufferLayout.detached});a.test('r11','r11');a.jcc('ne',done);
+    a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',done);a.jmp(create);a.label(plainAncestor);}
     a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',inheritedOrdinary);
     a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',inheritedOrdinary);
     a.label(nextAncestor);a.load('r10',slot(80));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(80),'rax');a.jmp(scanAncestor);
@@ -281,6 +288,19 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',done);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',done);a.add('rax',1);a.store({base:'r10',disp:O.length},'rax');a.jmp(done);
     a.label(primitive);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',rejected);
+    // OrdinarySet on ToObject(base): a Proxy met before the property is found
+    // receives [[Set]] with the primitive as Receiver (ES2020 6.2.4.9, 9.1.9.2).
+    {const scanPrimitive=a.unique('scanPrimitive'),nextPrimitive=a.unique('nextPrimitive'),proxyPrimitive=a.unique('proxyPrimitive'),lookupPrimitive=a.unique('lookupPrimitive');
+    a.load('rcx',slot(40));a.call('rt.propertyBase');a.store(slot(80),'rax');
+    a.label(scanPrimitive);a.load('r10',slot(80));a.test('r10','r10');a.jcc('e',lookupPrimitive);
+    a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',proxyPrimitive);
+    a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',lookupPrimitive);
+    a.load('rcx',slot(80));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',lookupPrimitive);
+    a.label(nextPrimitive);a.load('r10',slot(80));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(80),'rax');a.jmp(scanPrimitive);
+    a.label(proxyPrimitive);a.mov('rax',5);a.store(slot(96),'rax');a.load('rax',slot(80));a.store(slot(104),'rax');
+    a.load('r10',slot(40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(112+part),'rax');}a.load('rax',slot(88));a.store(slot(128),'rax');
+    a.lea('rcx',slot(96));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(112));a.call('rt.proxySet');a.jmp(finish);
+    a.label(lookupPrimitive);}
     a.load('rcx',slot(40));a.call('rt.propertyBase');a.mov('rcx','rax');a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.lookupProperty');
     a.cmp('rax',5);a.jcc('be',rejected);a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',rejected);
     a.label(setter);a.load('r10',slot(64));a.test('r10','r10');const invokeSetter=a.unique('invokeSetter');a.jcc('e',invokeSetter);

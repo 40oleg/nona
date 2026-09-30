@@ -90,6 +90,17 @@ export const reflectPreludeSource=String.raw`(function(){
     if(proxyResult!==undefined)return proxyResult;
     var current=target,descriptor;
     while(current!==null){
+      // Integer-indexed exotic [[Set]] for a canonical numeric key (Test262
+      // follows ES2022 10.4.5.5): the TypedArray itself as Receiver sets the
+      // element; otherwise an invalid index succeeds without effect and a
+      // valid one continues as OrdinarySet on the Receiver.
+      if(typeof key==='string'&&__nonaRegexpVm.isTypedArray(current)){
+        var numeric=+key;
+        if(String(numeric)===key||key==='-0'){
+          if(current===receiver){current[key]=value;return true}
+          if(Object.getOwnPropertyDescriptor(current,key)===undefined)return true
+        }
+      }
       descriptor=Object.getOwnPropertyDescriptor(current,key);
       if(descriptor!==undefined)break;
       current=Object.getPrototypeOf(current)
