@@ -56,7 +56,7 @@ function compileSource(parameters:string,body:string,prefix='function'):{express
   try{
     // Parameters and body must each parse on their own (no `){` injection).
     parse(lex(`(${prefix} anonymous(${parameters}\n) {\n})`));
-    parse(lex(`(${prefix} anonymous(\n) {${body}\n})`)); // no line terminator before the body text
+    parse(lex(`(${prefix} anonymous(\n) {\n${body}\n})`));
     const program=parse(lex(`(${sourceText})`));
     const statement=program.body[0];
     if(program.body.length!==1||statement?.kind!=='ExpressionStatement'||statement.expression.kind!=='FunctionExpression')return {error:'Invalid function source'};
