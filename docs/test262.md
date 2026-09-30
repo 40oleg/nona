@@ -54,6 +54,32 @@ metadata (for example one copied to another machine) is accepted when
 `work/test262/.nona-test262-revision` contains the pinned commit hash; line
 terminator tests then read the files directly.
 
+## Semantics newer than ES2020 in the pinned Test262
+
+The pinned Test262 (2026) sometimes asserts behaviour introduced after ES2020
+without a post-ES2020 feature tag. Policy (issue #17): where a later edition
+only removed an observable ES2020 quirk that programs do not depend on, Nona
+follows the pinned Test262; everything else stays ES2020 and is classified
+`post` by `scripts/test262-summary.mjs` or listed as a known deviation.
+Following Test262:
+
+- TypedArray `[[Set]]`, `[[GetOwnProperty]]` and `[[DefineOwnProperty]]`
+  (ES2021/ES2022): the value is converted first; an invalid index or a detached
+  buffer then ignores the write and reports success; a detached buffer has no
+  own elements; with a Receiver other than the TypedArray, an invalid index has
+  no effect and a valid one is OrdinarySet on the Receiver.
+- `String.prototype.{replace,split,match,matchAll,search}` do not look up
+  Symbol-keyed methods on primitive arguments (ES2025).
+- Annex B call-expression assignment targets throw ReferenceError at run time
+  in sloppy code and are early errors in strict code (ES2022 web reality).
+
+Kept at ES2020 (failures classified `post`): class fields and private
+methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`,
+`Error.prototype.stack`/`cause`, RegExp `v` flag and match indices, top-level
+await, and the other features in `postEs2020Features`. Remaining known
+deviations are listed per catalog in `docs/pr5-es2020-remaining-work.md` and
+the release status.
+
 Runner features added for the ES2020 gate (2026-09):
 
 - `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests
