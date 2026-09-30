@@ -17,10 +17,10 @@ array [[Set]]/[[GetOwnProperty]] changes, the `v` RegExp flag, `Error.prototype.
 
 | Catalog | Pass/applicable | Remaining failures |
 | --- | --- | --- |
-| `language/` (all 28 directories) | LANGUAGE_TOTAL | LANGUAGE_REST |
+| `language/` (all 28 directories) | 16514/17337 (26 skipped) | 801 eval (335 in `eval-code`), 6 post, 16 other (below) |
 | `built-ins/` (51 ES2020 directories) | 15245/15416 | 46 eval, 48 post, 77 other (below) |
 | `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
-| `annexB/` | ANNEXB_TOTAL | ANNEXB_REST |
+| `annexB/` | 518/1016 | 488 eval (469 in `annexB/language/eval-code`), 10 other (below) |
 
 Built-in residuals classified per file: `Function` 32 build sources from
 non-literal strings (documented exception), 4 need Function constructors of
@@ -32,6 +32,10 @@ a Symbol); `TypedArray` 3 `copyWithin` detach files and `Array` 1
 elements in the property list, so large arrays are slow); the remaining
 cross-realm files need `%Promise.prototype%`/dynamic-constructor intrinsics
 of `new.target`'s realm for constructors implemented in the JS prelude.
+
+Annex B residuals: call expressions as assignment targets (7, a later
+web-compatibility change), legacy RegExp escapes `\c` in classes and
+lone-escape performance (3); `IsHTMLDDA` tests are excluded (host-optional).
 
 Language residuals: `class` elements with `#private` names and numeric
 separators are post-ES2020 but untagged; `with/…typed-array-in-proto-chain`
