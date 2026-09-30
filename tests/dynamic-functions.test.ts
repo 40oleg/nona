@@ -51,3 +51,14 @@ console.log(F('a', 'return a + 1')(1));
  assert.equal(run.status, 0, run.stderr);
  assert.equal(run.stdout, 'SyntaxError\n8 true\n2\n');
 });
+
+test('subclasses of the dynamic constructors construct from literal sources', () => {
+ const run = runOnHost(`class Fn extends Function {}
+var fn = new Fn('a', 'b', 'return a + b'); console.log(fn(2, 3), fn.length, fn.name, Object.getPrototypeOf(fn) === Fn.prototype);
+var GeneratorFunction = Object.getPrototypeOf(function* () {}).constructor; class GFn extends GeneratorFunction {}
+var g = new GFn('a', 'yield a * 2'); console.log(g(21).next().value, g instanceof GFn);
+try { new Fn('a b', ''); } catch (e) { console.log(e.name); }
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, '5 2 anonymous true\n42 true\nSyntaxError\n');
+});

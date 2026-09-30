@@ -113,6 +113,16 @@ function constructorAliases(program:A.Program):Map<string,string> {
 export function lowerDynamicFunctions(program:A.Program):A.Program {
   if(!program.source||!/Function\b|\.constructor\b/.test(program.source)||declaresFunction(program))return program;
   const aliases=constructorAliases(program);
+  // class C extends Function {} (or a dynamic constructor alias) without its
+  // own constructor: new C(literals) is CreateDynamicFunction with new.target C.
+  const subclasses=new Map<string,string>();
+  walk(program.body,node=>{
+    if(node.kind!=='Class')return;
+    const c=node as A.ClassDeclaration;
+    if(!c.constructorMethod.defaultClassConstructor||c.superClass?.kind!=='Identifier')return;
+    const base=c.superClass.name,kind=base==='Function'?'function':aliases.get(base)??(Object.hasOwn(kinds,base)?kinds[base]:undefined);
+    if(kind!==undefined&&!subclasses.has(c.id.name))subclasses.set(c.id.name,kind);
+  });
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{
     if(node.kind!=='Call'&&node.kind!=='New')return;
@@ -122,6 +132,22 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
     let args=call.arguments,thisArg:A.Expression|undefined;
     if(call.kind==='Call'&&call.callee.kind==='Member'&&isFunction(call.callee.object)&&call.callee.property.kind==='Literal'&&call.callee.property.value==='call'&&!args.some(a=>a.kind==='SpreadElement')){
       thisArg=(args[0] as A.Expression|undefined)??{kind:'Identifier',name:'undefined',span:call.span};args=args.slice(1);
+    }
+    else if(call.kind==='New'&&call.callee.kind==='Identifier'&&subclasses.has(call.callee.name)){
+      const values=args.map(stringValue);if(values.some(value=>value===undefined))return;
+      const kindPrefix=subclasses.get(call.callee.name)!,strings=values as string[],span=call.span;
+      const result=compileSource(strings.slice(0,-1).join(','),strings.at(-1)??'',kindPrefix),name=dynamicFactoryPrefix+factories.length;
+      const created=parse(lex(`(function(ctor,args){if(Object.getPrototypeOf(ctor)!==Object.getPrototypeOf(${kindPrefix}(){}).constructor)return new ctor(...args);var fn=(function(){})();var proto=ctor.prototype;return [proto]})`)).body[0] as A.ExpressionStatement;
+      const guardFn=created.expression as A.FunctionExpression,statements=guardFn.body.body;
+      // statements: [if-guard, var fn = <compiled or throw>, var proto, return]
+      const compiled:A.Statement='expression'in result
+        ?{kind:'Var',declarationKind:'var',declarations:[{id:{kind:'Identifier',name:'fn',span},init:result.expression}],span} as A.Var
+        :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
+      const finish=parse(lex('(function(fn,proto){if(proto!==null&&(typeof proto==="object"||typeof proto==="function"))Object.setPrototypeOf(fn,proto);return fn})')).body[0] as A.ExpressionStatement;
+      const body=[statements[0]!,compiled,statements[2]!,...(finish.expression as A.FunctionExpression).body.body];
+      factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:guardFn.parameters,body:{kind:'Block',body,span},span} as A.FunctionDeclaration);
+      replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[call.callee,{kind:'ArrayLiteral',elements:args.map(a=>a as A.Expression),span}],span} as A.Call);
+      return;
     }
     else if(!isFunction(call.callee)&&!(call.callee.kind==='Identifier'&&(Object.hasOwn(kinds,call.callee.name)||aliases.has(call.callee.name))))return;
     const alias=call.callee.kind==='Identifier'&&!Object.hasOwn(kinds,call.callee.name)?aliases.get(call.callee.name):undefined;
