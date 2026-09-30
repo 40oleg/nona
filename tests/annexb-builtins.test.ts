@@ -18,3 +18,13 @@ test('Annex B HTML-like comments in scripts', () => {
  assert.equal(run.status, 0, run.stderr);
  assert.equal(run.stdout, '2\n');
 });
+
+test('Annex B RegExp.prototype.compile', () => {
+ const run = runOnHost(`var re=/a/g; re.lastIndex=3; console.log(re.compile('b+','i')===re, re.source, re.flags, re.lastIndex, re.test('xBB'));
+re.compile(/c/m); console.log(re.source, re.flags);
+try { re.compile(/c/, 'g'); } catch (e) { console.log(e.name); } try { RegExp.prototype.compile.call({}); } catch (e) { console.log(e.name); } try { re.compile('('); } catch (e) { console.log(e.name); }
+console.log(RegExp.prototype.compile.length, typeof Function.prototype.__nonaRegExpCopyInternal);
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'true b+ i 0 true\nc m\nTypeError\nTypeError\nSyntaxError\n2 undefined\n');
+});

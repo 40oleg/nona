@@ -9,11 +9,24 @@ import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './
 export const RegExpKind=10;
 export const RegExpLayout={pattern:O.size,flags:O.size+8,size:O.size+16} as const;
 const flagGetters=[['global','g'],['ignoreCase','i'],['multiline','m'],['dotAll','s'],['unicode','u'],['sticky','y']] as const;
-export const regexpRoots=['rt.RegExp.species.fn','rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn','rt.regexpExec.fn',...flagGetters.map(([name])=>'rt.regexpFlag.'+name+'.fn')];
-export const regexpPropertyRoots=['rt.RegExp.@@species','rt.RegExp.species.fn.name','rt.RegExp.species.fn.length','rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(1,3).flatMap(name=>[name+'.name',name+'.length']),...['toString','test','exec'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':name==='test'?'Test':'Exec')+'.fn',name,'rt.regexpPrototype')),...flagGetters.flatMap(([name])=>['rt.regexpPrototype.'+name,'rt.regexpFlag.'+name+'.fn.name','rt.regexpFlag.'+name+'.fn.length'])];
+export const regexpRoots=['rt.regexpCopyInternal','rt.RegExp.species.fn','rt.regexpSource.fn','rt.regexpFlags.fn','rt.regexpToString.fn','rt.regexpTest.fn','rt.regexpExec.fn',...flagGetters.map(([name])=>'rt.regexpFlag.'+name+'.fn')];
+export const regexpPropertyRoots=['rt.RegExp.@@species','rt.RegExp.species.fn.name','rt.RegExp.species.fn.length','rt.regexpPrototype.source','rt.regexpPrototype.flags',...regexpRoots.slice(1,3).flatMap(name=>[name+'.name',name+'.length']),...['toString','test','exec'].flatMap(name=>builtinPropertyRoots('rt.regexp'+(name==='toString'?'ToString':name==='test'?'Test':'Exec')+'.fn',name,'rt.regexpPrototype')),...flagGetters.flatMap(([name])=>['rt.regexpPrototype.'+name,'rt.regexpFlag.'+name+'.fn.name','rt.regexpFlag.'+name+'.fn.length']),...builtinPropertyRoots('rt.regexpCopyInternal','__nonaRegExpCopyInternal','rt.functionPrototype')];
 
 export function emitRegExpPrototype(b:RuntimeBuilder):void {
  b.data('rt.regexpVmCell',new Uint8Array(8),'.data');
+ // Prelude-internal (deleted after startup): (target) validates a RegExp receiver;
+ // (target, source) also copies source's pattern and flags into target (Annex B RegExp.prototype.compile).
+ prependFunctionBuiltin(b,'rt.regexpCopyInternal','__nonaRegExpCopyInternal',2,'rt.functionPrototype');
+ b.fn('rt.regexpCopyInternal.code',40,a=>{
+  a.store(slot(32),'rcx');a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',RegExpKind);failIf(a,'ne','rt.throwTypeError');
+  const done=a.unique('done');a.cmp('rdx',2);a.jcc('b',done);
+  a.load('rax',{base:'r8',disp:16});a.cmp('rax',5);a.jcc('ne',done);
+  a.load('r11',{base:'r8',disp:24});a.load('rax',{base:'r11',disp:O.kind});a.cmp('rax',RegExpKind);a.jcc('ne',done);
+  for(const field of [RegExpLayout.pattern,RegExpLayout.flags]){a.load('rax',{base:'r11',disp:field});a.store({base:'r10',disp:field},'rax');}
+  a.label(done);a.load('rcx',slot(32));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+ });
  const bytes=new Uint8Array(O.size);
  b.bundle.fragments.push({name:'rt.regexpPrototype',section:'.data',alignment:8,bytes,symbols:{},fixups:[
   {offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},

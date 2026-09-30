@@ -93,6 +93,25 @@ export const annexBBuiltinsPreludeSource=String.raw`;(function(){
     call(dateSetFullYear,scratch,full);
     return call(dateSetTime,this,call(dateGetTime,scratch))
   }}).setYear);
+  // B.2.5.1 RegExp.prototype.compile ( pattern, flags )
+  var copyRegExp=Function.prototype.__nonaRegExpCopyInternal,RegExpConstructor=RegExp;
+  delete Function.prototype.__nonaRegExpCopyInternal;
+  function isRegExpObject(value){
+    if(value===null||typeof value!=='object')return false;
+    try{call(copyRegExp,undefined,value);return true}catch(error){return false}
+  }
+  install(RegExpConstructor.prototype,'compile',2,({compile(pattern,flags){
+    var O=this;
+    call(copyRegExp,undefined,O); // RequireInternalSlot(O, [[RegExpMatcher]])
+    var source;
+    if(isRegExpObject(pattern)){
+      if(flags!==undefined)throw new TypeError('Cannot supply flags when constructing one RegExp from another');
+      source=pattern
+    }else source=new RegExpConstructor(pattern===undefined?'':typeof pattern==='symbol'?toStr(pattern):StringConstructor(pattern),flags===undefined?'':typeof flags==='symbol'?toStr(flags):StringConstructor(flags));
+    call(copyRegExp,undefined,O,source);
+    O.lastIndex=0;
+    return O
+  }}).compile);
   // B.2.4.3 Date.prototype.toGMTString is the same function object as toUTCString.
   defineProperty(datePrototype,'toGMTString',{value:datePrototype.toUTCString,writable:true,enumerable:false,configurable:true});
 })();`;
