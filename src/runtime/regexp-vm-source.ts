@@ -710,21 +710,31 @@ export const regexpVmPreludeSource='var __nonaRegexpVm=function(re,input,start,s
     }else Object.defineProperty(result,'groups',{value:undefined,writable:true,enumerable:true,configurable:true});
     return result
 };
-Object.defineProperty(RegExp.prototype,Symbol.match,{value:function(string){
+// RegExpExec (ES2020 21.2.5.2.1): a callable exec wins, otherwise the builtin one.
+__nonaRegexpVm.regExpExec=(function(builtinExec,apply){return function(R,S){
+  var exec=R.exec;
+  if(typeof exec==='function'){
+    var result=apply(exec,R,S);
+    if(result!==null&&typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec method returned something other than an Object or null');
+    return result
+  }
+  return apply(builtinExec,R,S)
+}})(RegExp.prototype.exec,Function.prototype.call.bind(Function.prototype.call));
+Object.defineProperty(RegExp.prototype,Symbol.match,{value:({[Symbol.match](string){
   'use strict';
   if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
   var input=String(string);
   var flags=String(this.flags);
   var global=flags.indexOf('g')>=0,unicode=flags.indexOf('u')>=0;
   if(!global){
-    var single=this.exec(input);
+    var single=__nonaRegexpVm.regExpExec(this,input);
     if(single!==null&&typeof single!=='object'&&typeof single!=='function')throw new TypeError('RegExp exec returned invalid result');
     return single
   }
   this.lastIndex=0;
   var matches=[];
   while(true){
-    var result=this.exec(input);
+    var result=__nonaRegexpVm.regExpExec(this,input);
     if(result===null)return matches.length===0?null:matches;
     if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
     var value=String(result[0]);
@@ -737,7 +747,7 @@ Object.defineProperty(RegExp.prototype,Symbol.match,{value:function(string){
       }else this.lastIndex=index+1
     }
   }
-},writable:true,configurable:true});
+}})[Symbol.match],writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype[Symbol.match],'name',{value:'[Symbol.match]',configurable:true});
 Object.defineProperty(String.prototype,'match',{value:({match(regexp){
   'use strict';
@@ -759,7 +769,7 @@ Object.defineProperty(RegExp.prototype,Symbol.search,{value:({[Symbol.search](st
   if(typeof string==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
   var input=String(string),previous=this.lastIndex;
   if(!Object.is(previous,0))this.lastIndex=0;
-  var result=this.exec(input);
+  var result=__nonaRegexpVm.regExpExec(this,input);
   if(result!==null&&typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
   if(!Object.is(this.lastIndex,previous))this.lastIndex=previous;
   return result===null?-1:result.index
@@ -793,7 +803,7 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
   if(global)this.lastIndex=0;
   var results=[];
   while(true){
-    var result=this.exec(input);
+    var result=__nonaRegexpVm.regExpExec(this,input);
     if(result===null)break;
     if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
     Object.defineProperty(results,results.length,{value:result,writable:true,enumerable:true,configurable:true});
@@ -896,13 +906,13 @@ Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](stri
   var length=input.length,result=[],max=limit===undefined?4294967295:limit>>>0;
   if(max===0)return result;
   if(length===0){
-    if(splitter.exec(input)!==null)return result;
+    if(__nonaRegexpVm.regExpExec(splitter,input)!==null)return result;
     result[0]=input;return result
   }
   var p=0,q=0;
   while(q<length){
     splitter.lastIndex=q;
-    var match=splitter.exec(input);
+    var match=__nonaRegexpVm.regExpExec(splitter,input);
     if(match===null){
       var step=1;
       if(unicode&&q+1<length){
@@ -940,7 +950,7 @@ Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](stri
   result[result.length]=input.slice(p,length);
   return result
 }})[Symbol.split],writable:true,configurable:true});
-__nonaRegexpVm.matchAllPrototype=Object.create(Object.getPrototypeOf([][Symbol.iterator]()));
+__nonaRegexpVm.matchAllPrototype=Object.create(Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
 (function(){
 var matchAllSlots=new WeakMap();
 Object.defineProperty(__nonaRegexpVm.matchAllPrototype,'next',{value:({next(){
@@ -949,7 +959,7 @@ Object.defineProperty(__nonaRegexpVm.matchAllPrototype,'next',{value:({next(){
   if(slots===undefined)throw new TypeError('Invalid RegExp String Iterator');
   if(slots.done)return {value:undefined,done:true};
   var matcher=slots.matcher,input=slots.input;
-  var result=matcher.exec(input);
+  var result=__nonaRegexpVm.regExpExec(matcher,input);
   if(result===null){slots.done=true;return {value:undefined,done:true}}
   if(typeof result!=='object'&&typeof result!=='function')throw new TypeError('RegExp exec returned invalid result');
   if(!slots.global)slots.done=true;
