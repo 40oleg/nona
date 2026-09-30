@@ -385,7 +385,7 @@ class Parser {
       }
       if(init&&init.kind!=='Var'&&this.at('in')){
         const lhs=init;
-        if(!(lhs.kind==='Identifier'||lhs.kind==='Member'||(lhs.kind==='ArrayLiteral'||lhs.kind==='ObjectLiteral')&&!this.parenthesized.has(lhs)))this.error('Invalid for-in target');
+        if(!(lhs.kind==='Identifier'||lhs.kind==='Member'||lhs.kind==='Call'||(lhs.kind==='ArrayLiteral'||lhs.kind==='ObjectLiteral')&&!this.parenthesized.has(lhs)))this.error('Invalid for-in target');
         this.take();const right=this.expression();this.need(')');const body=this.statement(false,false);
         const left=lhs.kind==='ArrayLiteral'||lhs.kind==='ObjectLiteral'?this.assignmentPattern(lhs) as A.ArrayPattern|A.ObjectPattern:lhs as A.Assignable;
         return {kind:'ForIn',left,right,body,span:this.span(start)};
@@ -393,20 +393,20 @@ class Parser {
       // for ( LHS in Expression ): the expression may be a comma sequence.
       let first:A.Expression|null=init&&init.kind!=='Var'?init:null;
       while(first&&first.kind==='Binary'&&first.operator===','&&!this.parenthesized.has(first))first=first.left;
-      if(first?.kind==='Binary'&&first.operator==='in'&&!this.parenthesized.has(first)&&(first.left.kind==='Identifier'||first.left.kind==='Member'||(first.left.kind==='ArrayLiteral'||first.left.kind==='ObjectLiteral')&&!this.parenthesized.has(first.left))&&this.at(')')){
+      if(first?.kind==='Binary'&&first.operator==='in'&&!this.parenthesized.has(first)&&(first.left.kind==='Identifier'||first.left.kind==='Member'||first.left.kind==='Call'||(first.left.kind==='ArrayLiteral'||first.left.kind==='ObjectLiteral')&&!this.parenthesized.has(first.left))&&this.at(')')){
         this.take();const body=this.statement(false,false);
         const replace=(e:A.Expression):A.Expression=>e===first?(first as A.Binary).right:{...(e as A.Binary),left:replace((e as A.Binary).left)};
         const inLeft=first.left.kind==='ArrayLiteral'||first.left.kind==='ObjectLiteral'?this.assignmentPattern(first.left) as A.ArrayPattern|A.ObjectPattern:first.left as A.Assignable;
         return {kind:'ForIn',left:inLeft,right:replace(init as A.Expression),body,span:this.span(start)};
       }
       if(this.at(';')&&init&&(init.kind==='Var'?init.declarations.some(d=>d.init&&this.topLevelIn(d.init)):this.topLevelIn(init)))this.error('in is not allowed in a for statement initializer');
-      if((init?.kind==='Identifier'||init?.kind==='Member'||(init?.kind==='ArrayLiteral'||init?.kind==='ObjectLiteral')&&!this.parenthesized.has(init))&&this.match('of')){
+      if((init?.kind==='Identifier'||init?.kind==='Member'||init?.kind==='Call'||(init?.kind==='ArrayLiteral'||init?.kind==='ObjectLiteral')&&!this.parenthesized.has(init))&&this.match('of')){
         // for ( [lookahead ∉ {let, async of}] LeftHandSideExpression of ...
         if(this.tokens[headStart]?.text==='let')this.error('let cannot start a for...of target');
         if(!isAwait&&init.kind==='Identifier'&&init.name==='async'&&this.tokens[this.index-2]?.text==='async')this.error('async is not allowed as a for...of assignment target');
         const left=init.kind==='ArrayLiteral'||init.kind==='ObjectLiteral'?this.assignmentPattern(init) as A.ArrayPattern|A.ObjectPattern:init;
         const right=this.assignment();this.need(')');const body=this.statement(false,false);
-        return {kind:'ForOf',left,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
+        return {kind:'ForOf',left:left as A.Assignable|A.ArrayPattern|A.ObjectPattern,right,body,...(isAwait?{await:true}:{}),span:this.span(start)};
       }
       if(isAwait)this.error('for await requires of');
       if(init?.kind==='Var'&&init.declarationKind==='const'&&init.declarations.some(d=>!d.init))this.error('Const declaration requires an initializer');
@@ -487,9 +487,11 @@ class Parser {
     const left=this.conditional();
     if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>='].includes(this.token.text)) {
       const opToken=this.take(), operator=opToken.text;
-      if(left.kind!=='Identifier'&&left.kind!=='Member'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')&&!this.parenthesized.has(left)))this.error('Assignment requires a variable or property',opToken);
+      // Annex B.3.8 (web compatibility): a call expression target is a runtime
+      // ReferenceError in sloppy code; the binder rejects it in strict code.
+      if(left.kind!=='Identifier'&&left.kind!=='Member'&&left.kind!=='Call'&&!(operator==='='&&(left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral')&&!this.parenthesized.has(left)))this.error('Assignment requires a variable or property',opToken);
       const target=left.kind==='ArrayLiteral'||left.kind==='ObjectLiteral'?this.assignmentPattern(left):left;
-      const right=this.assignment();return {kind:'Assignment',operator,left:target,right,...(this.parenthesized.has(left)?{parenthesizedTarget:true}:{}),span:{start:left.span.start,end:right.span.end}};
+      const right=this.assignment();return {kind:'Assignment',operator,left:target as A.Assignable|A.ArrayPattern|A.ObjectPattern,right,...(this.parenthesized.has(left)?{parenthesizedTarget:true}:{}),span:{start:left.span.start,end:right.span.end}};
     }
     return left;
   }
@@ -582,13 +584,13 @@ class Parser {
       const operator=this.take().text,argument=this.unary();return {kind:'Unary',operator,argument,span:this.span(start)};
     }
     if(this.at('++')||this.at('--')) {
-      const opToken=this.take(),operator=opToken.text,argument=this.unary();if(argument.kind!=='Identifier'&&argument.kind!=='Member')this.error('Update requires a variable or property',opToken);
-      return {kind:'Update',operator,argument,prefix:true,span:this.span(start)};
+      const opToken=this.take(),operator=opToken.text,argument=this.unary();if(argument.kind!=='Identifier'&&argument.kind!=='Member'&&argument.kind!=='Call')this.error('Update requires a variable or property',opToken);
+      return {kind:'Update',operator,argument:argument as A.Assignable,prefix:true,span:this.span(start)};
     }
     let expression=this.leftHandSide();
     if(!this.token.lineBreakBefore&&(this.at('++')||this.at('--'))) {
-      if(expression.kind!=='Identifier'&&expression.kind!=='Member')this.error('Update requires a variable or property');
-      const operator=this.take().text;expression={kind:'Update',operator,argument:expression,prefix:false,span:this.span(start)};
+      if(expression.kind!=='Identifier'&&expression.kind!=='Member'&&expression.kind!=='Call')this.error('Update requires a variable or property');
+      const operator=this.take().text;expression={kind:'Update',operator,argument:expression as A.Assignable,prefix:false,span:this.span(start)};
     }
     return expression;
   }

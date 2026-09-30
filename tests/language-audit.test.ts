@@ -59,6 +59,9 @@ const cases:[string,string,string][]=[
  ['TypedArray [[Set]] with another Receiver (canonical numeric keys)',
   "var ta = new Int8Array(2), o = Object.create(ta); o[1] = 5; o.NaN = 1; o[7] = 2; o['1.5'] = 3; console.log(ta[1], Object.keys(o).join()); var r = {}; console.log(Reflect.set(ta, 0, 9, r), ta[0], r[0], Reflect.set(ta, 5, 9, r), Object.keys(r).join());",
   '0 1\ntrue 0 9 true 0\n'],
+ ['Annex B call expression assignment targets throw ReferenceError after the call',
+  "var log = []; function f() { log.push('f'); return 1; } function g() { log.push('g'); } try { f() = g(); } catch (e) { log.push(e.name); } try { f()++; } catch (e) { log.push(e.name); } try { for (f() of [1]); } catch (e) { log.push(e.name); } for (f() in {}); console.log(log.join());",
+  'f,ReferenceError,f,ReferenceError,f,ReferenceError\n'],
  ['GetIterator does not require a callable next',
   "var i = { [Symbol.iterator]() { return { return() { console.log('closed'); return {}; } }; } }; function* g() { [ {}[ yield ] ] = i; } var it = g(); it.next(); it.return();",
   'closed\n'],
@@ -96,6 +99,8 @@ for(const [name,source] of [
  ['let starting a for-of target','for (let of []) ;'],
  ['strict yield label','"use strict"; yield: 1;'],
  ['super() in an optional chain outside a derived constructor','class C { constructor() { super()?.a; } }'],
+ ['strict call expression assignment target','"use strict"; f() = 1;'],
+ ['call expression target of logical assignment','f() &&= 1;'],
 ] as [string,string][])test('language audit early error: '+name,()=>{
  assert.equal(compile(source,{fileName:'early.js',target:'linux-x64'}).ok,false);
 });
