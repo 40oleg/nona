@@ -1,5 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
+import {propertyIndexThreshold} from './property-index.js';
 import {stringLiteral} from './value.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
@@ -62,12 +63,22 @@ export function emitObjects(b:RuntimeBuilder):void {
   });
 
   // RCX object header, RDX key descriptor; RAX property node or null.
-  b.fn('rt.findOwnProperty',72,a=>{
-    a.store(slot(40),'rdx');a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');
-    const loop=a.unique('loop'),done=a.unique('done');a.label(loop);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
+  // Objects with an index table (property-index.ts) look keys up there; a
+  // long linear scan builds one.
+  b.fn('rt.findOwnProperty',88,a=>{
+    a.store(slot(40),'rdx');a.store(slot(56),'rcx');a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');a.mov('rax',0);a.store(slot(64),'rax');
+    const loop=a.unique('loop'),done=a.unique('done'),scan=a.unique('scan'),finish=a.unique('finish');
+    a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',scan);
+    a.call('rt.propIndexFind');a.jmp(finish);
+    a.label(scan);a.label(loop);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
+    a.load('r10',slot(64));a.add('r10',1);a.store(slot(64),'r10');
     a.load('rcx',{base:'rax',disp:P.key});a.load('rdx',slot(40));a.call('rt.compareStrings');
     a.test('rax','rax');const next=a.unique('next');a.jcc('ne',next);a.load('rax',slot(48));a.jmp(done);
-    a.label(next);a.load('rax',slot(48));a.load('rax',{base:'rax',disp:P.next});a.store(slot(48),'rax');a.jmp(loop);a.label(done);
+    a.label(next);a.load('rax',slot(48));a.load('rax',{base:'rax',disp:P.next});a.store(slot(48),'rax');a.jmp(loop);
+    a.label(done);a.store(slot(72),'rax');
+    const small=a.unique('small');a.load('r10',slot(64));a.cmp('r10',propertyIndexThreshold);a.jcc('b',small);
+    a.load('rcx',slot(56));a.call('rt.propIndexBuild');
+    a.label(small);a.load('rax',slot(72));a.label(finish);
   });
 
   // RCX object, RDX key. RAX: node pointer, 0 missing, 1 array length,
@@ -279,6 +290,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');
     a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
+    a.load('rcx',slot(72));a.mov('rdx','rax');a.call('rt.propIndexAdd');
     a.label(write);a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('ne',setter);
     a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.writable);a.test('r10','r10');a.jcc('e',rejected);
     a.lea('rcx',{base:'rax',disp:P.value});a.load('rdx',slot(56));a.load('r10',{base:'rcx'});a.cmp('r10',CellTag);
@@ -344,6 +356,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rcx',{base:'rax',disp:P.key});a.load('rdx',slot(64));a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',next);
     a.load('rax',slot(112));a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.configurable);a.test('r10','r10');a.jcc('e',no);
     a.load('rax',{base:'rax',disp:P.next});a.load('r10',slot(104));a.store({base:'r10'},'rax');
+    a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.propIndexDrop');
     // Detached static nodes are still visited by the GC root table. Clear all
     // edges so deleting a reassigned builtin property releases the former value.
     a.load('r11',slot(112));a.mov('rax',0);
