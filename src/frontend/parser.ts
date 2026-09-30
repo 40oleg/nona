@@ -291,7 +291,9 @@ class Parser {
       return {kind:'With',object,body,span:this.span(start)};
     }
     if(this.token.kind==='word'&&this.tokens[this.index+1]?.text===':') {
-      const label=this.id();this.need(':');const body=this.statement(false,false);
+      const label=this.id();this.need(':');
+      // Annex B.3.2: a labelled plain function declaration (sloppy only; the binder checks strictness).
+      const body=allowDeclaration&&this.at('function')&&this.tokens[this.index+1]?.text!=='*'?this.statement(true,true):this.statement(false,false);
       return {kind:'Labeled',label,body,span:this.span(start)};
     }
     // In a single-statement position `let` is an identifier unless it starts `let [`.

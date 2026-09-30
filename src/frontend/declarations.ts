@@ -29,7 +29,10 @@ export function collectDeclarations(
   // Module export declarations declare their inner statement.
   const unwrap=(list:readonly A.Statement[]):A.Statement[]=>list.map(s=>s.kind==='Export'&&s.declaration?s.declaration:s);
   statements=unwrap(statements);
-  for(const statement of statements){
+  // A labelled function declaration declares the function (Annex B.3.2).
+  const unlabel=(s:A.Statement):A.Statement=>s.kind==='Labeled'?unlabel(s.body):s;
+  for(const raw of statements){
+    const statement=raw.kind==='Labeled'&&unlabel(raw).kind==='Function'?unlabel(raw):raw;
     if(statement.kind==='Var'&&statement.declarationKind!=='var')for(const declaration of statement.declarations)
       for(const id of boundNames(declaration.id))lexicals.push({name:id.name,id,kind:statement.declarationKind,statement});
     if(statement.kind==='Function'){

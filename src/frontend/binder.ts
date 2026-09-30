@@ -334,6 +334,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'Labeled': {
           if(labels.has(s.label.name))fail(s.label,'Duplicate label');
           if(strict&&(s.label.name==='yield'||s.label.name==='let'||strictReserved.has(s.label.name)))fail(s.label,'Restricted strict label');
+          {let inner:A.Statement=s.body;while(inner.kind==='Labeled')inner=inner.body;if(inner.kind==='Function'&&(strict||inner.generator||inner.async))fail(inner,'Labelled function declarations are not allowed here');}
           let target=s.body;while(target.kind==='Labeled')target=target.body;
           labels.set(s.label.name,['While','DoWhile','For','ForIn','ForOf'].includes(target.kind));
           statements([s.body],loops,switches);labels.delete(s.label.name);break;
