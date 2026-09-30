@@ -13,6 +13,7 @@ import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
+import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
 import {objectIntegrityPreludeSource} from '../../runtime/object-integrity-source.js';
@@ -40,7 +41,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+proxyPreludeSource))));
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
     cachedRuntimePreludes.set(rejectionPolicy,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
@@ -376,6 +377,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
     hostGlobals.push(base);
   };
+  if(prelude){
+    // Event-loop primitives, captured and removed from the global object by the timer prelude.
+    hostGlobal('__nonaHostNow','rt.hostNow.code',0);
+    hostGlobal('__nonaHostWait','rt.agentSleep.code',1);
+  }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
     hostGlobal('__nonaAgentReceiveBroadcast','rt.agentReceiveBroadcast.code',1);

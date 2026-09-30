@@ -124,6 +124,8 @@ node dist/cli.js build examples/modern-expressions-demo.js -o build/modern-expre
 - Обычный глобальный объект `console` и заменяемый/detached `console.log(...)`:
   преобразование примитивов в строки, пробел между аргументами, LF в конце;
   возвращает `undefined`. `%s` — обычный текст. `-0` печатается как `0`.
+- Цикл событий: `setTimeout`/`setInterval`/`clearTimeout`/`clearInterval`,
+  `queueMicrotask` и `performance.now()` (см. [host APIs](docs/host-apis.md)).
 
 Вычисление операндов и аргументов идёт слева направо. Недостающие аргументы —
 `undefined`; лишние вычисляются и игнорируются. Строки сохраняют встроенный NUL;
