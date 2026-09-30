@@ -23,26 +23,31 @@ const xmm:Xmm[]=['xmm0','xmm1','xmm2','xmm3'];
  * The thunk never allocates on the managed heap, so argument Values stay
  * valid without GC roots; strings are copied to temporary process-heap buffers.
  */
-export function emitFfi(declarations:FfiDeclaration[]):RuntimeBuilder {
-  const b=new RuntimeBuilder();
-  b.bundle.imports.push({dll:'KERNEL32.dll',name:'GetLastError',symbol:'GetLastError'});
-  b.data('rt.ffiLastError',new Uint8Array(8),'.data');
-  // __nonaFfiLastError(): the error code captured after the most recent FFI call.
-  b.fn('rt.ffiLastError.code',40,a=>{
-    a.load('rax',{rip:'rt.ffiLastError'},32);a.cvtsi2sd('xmm0','rax');
-    a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
-  });
+export function emitFfi(declarations:FfiDeclaration[],options:{prefix?:string;support?:boolean}={}):RuntimeBuilder {
+  const b=new RuntimeBuilder(),prefix=options.prefix??'ffi';
+  if(options.support??true){
+    b.bundle.imports.push({dll:'KERNEL32.dll',name:'GetLastError',symbol:'GetLastError'});
+    b.data('rt.ffiLastError',new Uint8Array(8),'.data');
+    // __nonaFfiLastError(): the error code captured after the most recent FFI call.
+    b.fn('rt.ffiLastError.code',40,a=>{
+      a.load('rax',{rip:'rt.ffiLastError'},32);a.cvtsi2sd('xmm0','rax');
+      a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+    });
+  }
   const imported=new Set<string>();
+  // Host declarations exist for both targets in every image: the imports of the
+  // other target resolve to this stub (ENOSYS / NULL).
+  if(prefix!=='ffi')b.fn(prefix+'.unavailable',40,a=>a.mov('rax',0));
   declarations.forEach((declaration,index)=>{
-    const signature=parseFfiSignature(declaration.signature),symbol=ffiImportSymbol(declaration);
+    const signature=parseFfiSignature(declaration.signature),symbol=prefix+ffiImportSymbol(declaration).slice(3);
     if(!imported.has(symbol)){
       imported.add(symbol);b.bundle.imports.push({dll:declaration.dll,name:declaration.name,symbol});
       if(declaration.dll==='syscall'){
         if(signature.parameters.length>6)throw new Error('System calls take at most six arguments');
         syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
-      }
+      }else if(prefix!=='ffi')b.fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));
     }
-    const base='ffi.'+index;
+    const base=prefix+'.'+index;
     functionObject(b,base,declaration.name,signature.parameters.length);
     b.fn(base+'.get',40,a=>{
       a.mov('rax',5);a.store({base:'rcx'},'rax');a.lea('rax',{rip:base+'.fn'});a.store({base:'rcx',disp:8},'rax');

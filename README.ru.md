@@ -124,6 +124,7 @@ node dist/cli.js build examples/modern-expressions-demo.js -o build/modern-expre
 - Обычный глобальный объект `console` и заменяемый/detached `console.log(...)`:
   преобразование примитивов в строки, пробел между аргументами, LF в конце;
   возвращает `undefined`. `%s` — обычный текст. `-0` печатается как `0`.
+- Глобальный объект `process`: `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd` (см. [process](docs/process.md)).
 - Синхронная работа с файлами через `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` (см. [file system](docs/fs.md)).
 - Вызов функций DLL на Windows через `nona:ffi` и `nona:win32` (см. [FFI](docs/ffi.md)).
 
