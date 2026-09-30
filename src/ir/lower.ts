@@ -4,7 +4,7 @@ import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../front
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
 import {CompileError} from '../diagnostics.js';
 type WithReference={found:number;object:number};
-type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number};
+type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
@@ -278,6 +278,17 @@ class Lowerer {
   /** Read-modify-write references convert the key once (ToPropertyKey before GetValue). */
   private settledReference(ref:Reference):Reference {
     if('id'in ref)return ref;
+    // Super references read their base (GetSuperBase) before the key is converted.
+    if(ref.receiver!==undefined){
+      this.emit({kind:'superBase',dest:ref.object});
+      const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
+      return {...ref,key,baseReady:true};
+    }
+    // GetValue: ToObject(base) (TypeError for null/undefined) precedes ToPropertyKey.
+    const nullish=this.slot(),fail=this.block(),ok=this.block();
+    this.emit({kind:'unary',dest:nullish,operator:'isNullish',argument:ref.object});
+    this.end({kind:'branch',condition:nullish,yes:fail.id,no:ok.id});
+    this.select(fail);this.emit({kind:'immutableWrite'});this.end({kind:'jump',target:ok.id});this.select(ok);
     const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
     return {...ref,key};
   }
@@ -287,7 +298,7 @@ class Lowerer {
   }
   private getReference(ref:Reference):number {
     if('id'in ref)return this.read(ref.id,false,ref.withRef);
-    const dest=this.slot();if(ref.receiver!==undefined){const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superBase',dest:ref.object});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
+    const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
   private putReference(ref:Reference,source:number):void {
     if('id'in ref&&ref.withRef){
@@ -303,7 +314,7 @@ class Lowerer {
       // The reference was already resolved (with objects included) by reference().
       this.writeStatic(ref.id,source);
     }
-    else if(ref.receiver!==undefined){const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superBase',dest:ref.object});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
+    else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
     else {
       const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
       this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key,source,define:false});

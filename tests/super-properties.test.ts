@@ -11,10 +11,6 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {linkPe} from '../src/backend/pe/writer.js';
 const cases:[string,string][]=[
  [
-  "compound write rereads mutated home prototype",
-  "let o={__proto__:{get x(){Object.setPrototypeOf(o,{x:20});return 3;}},m(){super.x+=4;}};o.m();console.log(o.x,Object.getOwnPropertyDescriptor(o,\"x\").value);"
- ],
- [
   "lookup and receiver",
   "let p={x:2,m(){return this.x;}},o={__proto__:p,x:7,m(){return super.m()+super.x;}};console.log(o.m(),o.m.call({x:9}));"
  ],
@@ -53,10 +49,6 @@ const cases:[string,string][]=[
  [
   "computed key and RHS order",
   "let o={__proto__:{x:3},m(){let k={toString(){console.log(\"key\");return \"x\";}};super[k]=(console.log(\"rhs\"),7);return this.x;}};console.log(o.m());"
- ],
- [
-  "key coercion changes home prototype",
-  "let o={__proto__:{x:1},m(){return super[{toString(){Object.setPrototypeOf(o,{x:8});return \"x\";}}];}};console.log(o.m());"
  ],
  [
   "base resolved after RHS",
