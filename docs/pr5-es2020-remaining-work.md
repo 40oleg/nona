@@ -6,7 +6,7 @@ claim of conformance. The normative target and exceptions are in
 [`language-support.md`](language-support.md). PR #5 must stay draft until
 every applicable item below has implementation and conformance evidence.
 
-## Test262 audit 2026-09-30 (Linux x64; Windows from CI)
+## Test262 audit 2026-09-30 (Linux x64 and Windows x64)
 
 Full catalogs at the pinned revision with `TEST262_EXCLUDE_FEATURES=post-es2020`
 (see [test262.md](test262.md)). "eval" = the documented `eval`/dynamic-source
@@ -15,6 +15,8 @@ generator sources from non-literal strings); "post" = post-ES2020 semantics
 that Test262 still tags with older features (for example the ES2021 typed
 array [[Set]]/[[GetOwnProperty]] changes, the `v` RegExp flag, `Error.prototype.stack`).
 
+Linux x64 (full catalogs at `c6c3b5b`):
+
 | Catalog | Pass/applicable | Remaining failures |
 | --- | --- | --- |
 | `language/` (all 28 directories) | 16514/17337 (26 skipped) | 801 eval (335 in `eval-code`), 6 post, 16 other (below) |
@@ -22,12 +24,38 @@ array [[Set]]/[[GetOwnProperty]] changes, the `v` RegExp flag, `Error.prototype.
 | `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
 | `annexB/` | 518/1016 | 488 eval (469 in `annexB/language/eval-code`), 10 other (below) |
 
+Windows x64 (Node 22 host; native PE executables; full catalogs at
+`c6c3b5b`, then the directories touched by later fixes rerun at `1d60f2f`:
+`language/expressions/dynamic-import`, `language/statements/with`,
+`language/types`, `built-ins/TypedArrayConstructors`, `built-ins/TypedArray`,
+`built-ins/Reflect`, `built-ins/Proxy`, `built-ins/Array/from`). The unit
+suite passes on Windows except three files whose expected output comes from
+the Node 22 oracle (`object-collections` function metadata order,
+`string-replace`/`string-split` primitive `Symbol.replace`/`Symbol.split`
+getters), which CI runs on Node 26. PE, CLI, standalone and runtime-io tests
+pass there.
+
+| Catalog | Pass/applicable | Remaining failures |
+| --- | --- | --- |
+| `language/` | 16516/17337 (26 skipped) | 801 eval, 6 post, 14 other |
+| `built-ins/` (every directory with applicable files) | 15433/15554 | 46 eval, 14 post, 61 other |
+| `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
+| `annexB/` | 518/1016 | 488 eval, 10 other |
+
+Windows and Linux agree file by file except runner timeouts under load
+(Linux: `Array.prototype.concat_large-typed-array`, two RegExp escape
+sweeps). The Linux `Error` report predates excluding the post-ES2020
+`error-stack-accessor` feature, so its 34 `Error.prototype.stack` files are skipped on Windows. A
+Windows-only runner defect (computed `import()` fixture candidates did not
+read `/C:/...` module paths) was fixed in `scripts/test262-smoke.mjs`.
+
 Built-in residuals classified per file: `Function` 32 build sources from
 non-literal strings (documented exception), 4 need Function constructors of
 another realm; `TypedArrayConstructors` 25 assert ES2021 typed-array
 [[Set]]/[[GetOwnProperty]] semantics, 2 need other realms, 2 are ordering
-defects (`iterated-array-changed-by-tonumber`, proto access before ToIndex of
-a Symbol); `TypedArray` 3 `copyWithin` detach files and `Array` 1
+defects (`iterated-array-changed-by-tonumber`, fixed in `a79eba0`; proto
+access before ToIndex of a Symbol, still open: native constructors receive an
+object already created from `new.target`); `TypedArray` 3 `copyWithin` detach files and `Array` 1
 `concat_large-typed-array` exceed the 60 s runner limit (arrays keep indexed
 elements in the property list, so large arrays are slow); the remaining
 cross-realm files need `%Promise.prototype%`/dynamic-constructor intrinsics
@@ -38,9 +66,16 @@ web-compatibility change), legacy RegExp escapes `\c` in classes and
 lone-escape performance (3); `IsHTMLDDA` tests are excluded (host-optional).
 
 Language residuals: `class` elements with `#private` names and numeric
-separators are post-ES2020 but untagged; `with/…typed-array-in-proto-chain`
-asserts the ES2021 typed-array [[Set]] receiver check; `subclass-builtins`
-of `Function`/`GeneratorFunction` construct from runtime strings.
+separators are post-ES2020 but untagged; `subclass-builtins` of
+`Function`/`GeneratorFunction` construct from runtime strings;
+`import.meta/syntax/goal-*` build generator sources through a variable that
+holds `%GeneratorFunction%`. Fixed after the Linux run (`1d60f2f`):
+`with/…typed-array-in-proto-chain` and 11 `TypedArrayConstructors/internals/Set`
+files (a TypedArray prototype of another Receiver: an invalid canonical
+numeric key has no effect and a valid one is OrdinarySet on the Receiver, the
+receiver rule Test262 checks at the pin) and
+`types/reference/put-value-prop-base-primitive` (a Proxy [[Set]] reached from
+a primitive base).
 
 Also fixed during the audit (all covered by `tests/language-audit.test.ts`,
 `tests/dynamic-functions.test.ts`, `tests/annexb-builtins.test.ts`,
@@ -62,10 +97,11 @@ codegen dead-slot clearing that previously made 2.5k-line files exhaust
 memory. Codegen now caches the runtime and prelude image, so a Test262 file
 compiles in ~0.2 s instead of ~6 s.
 
-Known gaps kept open: `RegExp.prototype.compile` and legacy RegExp syntax
-(Annex B.1.4), labelled function declarations (B.3.2), call expressions as
-assignment targets, IsHTMLDDA (host-optional, excluded), Windows evidence
-for the new features (next CI run), and the performance of large arrays.
+Known gaps kept open: legacy RegExp syntax (Annex B.1.4: `\c` in classes),
+call expressions as assignment targets, IsHTMLDDA (host-optional, excluded),
+cross-realm defaults for constructors implemented in the JS prelude, and the
+performance of large arrays (indexed elements live in the property list, so
+building a 10k-element array is quadratic).
 
 ## Progress 2026-09-29 (Linux x64 evidence only; Windows pending CI)
 
