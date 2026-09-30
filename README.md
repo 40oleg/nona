@@ -111,6 +111,7 @@ The implemented subset includes:
 - strict mode, exceptions, the standard Error family, and `try/catch/finally`;
 - a precise non-moving mark-and-sweep garbage collector;
 - basic `console.log` output through Windows system calls.
+- an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` (see [host APIs](docs/host-apis.md)).
 
 See the [language support matrix](docs/language-support.md) for exact behavior and test coverage.
 

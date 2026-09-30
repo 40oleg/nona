@@ -114,6 +114,14 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.load('r10',slot(40));a.store({base:'r10'},'rax',32);a.mov('rax',1);a.jmp(done);
   a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
  });
+ // Monotonic clock in nanoseconds; the frequency is fixed at 1e9.
+ b.fn('linux.QueryPerformanceCounter.code',72,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
+  a.mov('rdi',1);a.lea('rsi',slot(24));a.mov('rax',228);a.emit([0x0f,0x05]);
+  a.load('rax',slot(24));a.mov('r10',1000000000);a.imul('rax','r10');a.load('r10',slot(32));a.add('rax','r10');
+  a.load('rcx',slot(56));a.store({base:'rcx'},'rax');a.mov('rax',1);a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
+ b.fn('linux.QueryPerformanceFrequency.code',40,a=>{a.mov('rax',1000000000);a.store({base:'rcx'},'rax');a.mov('rax',1);});
  b.fn('linux.ExitProcess.code',40,a=>{a.mov('rdi','rcx');a.mov('rax',231);a.emit([0x0f,0x05]);});
  b.fn('linux.WideCharToMultiByte.code',120,a=>{
   a.store(slot(40),'r8');a.store(slot(48),'r9');a.load('rax',slot(160));a.store(slot(56),'rax');a.load('rax',slot(168));a.store(slot(64),'rax');a.mov('rax',0);a.store(slot(72),'rax');
