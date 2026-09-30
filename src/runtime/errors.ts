@@ -18,6 +18,14 @@ export function emitErrors(b:RuntimeBuilder):void {
  b.bundle.fragments.push({name:'rt.error.runtimeMessageValue',section:'.rdata',alignment:8,bytes:runtimeMessage,symbols:{},fixups:[pointer(8,'rt.error.runtimeMessage')]});
  // Intrinsic construction with a static string has no callbacks or safepoints.
  // The thrown object is copied into the catch root before collection can run.
+ // Run-time source text (eval, Function with computed strings) is the documented
+ // exception of the ahead-of-time contract (docs/es2020-contract.md).
+ b.bundle.fragments.push(stringLiteral('rt.error.dynamicCodeMessage','Nona compiles ahead of time: eval and Function need source text known at compile time'));
+ {const message=new Uint8Array(16);message[0]=4;b.bundle.fragments.push({name:'rt.error.dynamicCodeMessageValue',section:'.rdata',alignment:8,bytes:message,symbols:{},fixups:[pointer(8,'rt.error.dynamicCodeMessage')]});}
+ b.fn('rt.throwDynamicCode',72,a=>{
+  a.lea('rcx',slot(48));a.mov('rdx',1);a.lea('r8',{rip:'rt.error.dynamicCodeMessageValue'});a.call('rt.EvalError.code');
+  a.lea('rcx',slot(48));a.call('rt.throw');
+ });
  for(const name of ['TypeError','ReferenceError','RangeError','SyntaxError','URIError','EvalError'])b.fn('rt.throw'+name,72,a=>{
   a.lea('rcx',slot(48));a.mov('rdx',1);a.lea('r8',{rip:'rt.error.runtimeMessageValue'});a.call('rt.'+name+'.code');
   a.lea('rcx',slot(48));a.call('rt.throw');

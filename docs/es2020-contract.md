@@ -15,8 +15,26 @@ The concrete outstanding work for draft PR #5 is tracked in
 
 * `eval` and the dynamic `Function` constructors are explicit project exceptions.
   A release with these exceptions must say “ES2020 with documented exceptions”,
-  not “fully conformant ES2020”. Their syntax and reflective properties still
-  need a specified behavior and tests.
+  not “fully conformant ES2020”. Their specified behavior (tested by
+  `tests/eval-exception.test.ts`, `tests/dynamic-functions.test.ts` and
+  `tests/language-audit.test.ts`):
+  * `eval` is the ordinary `%eval%` function object (`name` `"eval"`,
+    `length` 1, writable/configurable global property). A non-string argument
+    is returned unchanged; a string made only of white space and line
+    terminators evaluates to `undefined`. Any other string, direct or indirect,
+    throws `EvalError` (“Nona compiles ahead of time: eval and Function need
+    source text known at compile time”).
+  * `Function`, `GeneratorFunction`, `AsyncFunction` and
+    `AsyncGeneratorFunction` whose arguments are all literals (known at compile
+    time) are compiled ahead of time with CreateDynamicFunction semantics:
+    global scope, own strictness, name `anonymous`, synthesized source text,
+    and `SyntaxError` at the call for invalid source. This covers calls through
+    the constructor name, through a variable bound to
+    `<function expression>.constructor`, `new`, and `Function.call`; a run-time
+    identity check falls back to an ordinary call when the variable no longer
+    holds the intrinsic. Calls with no arguments create empty functions at run
+    time. Any other source throws `EvalError` with the message above.
+  * Tracked in issue #11 (an embedded evaluator for run-time sources).
 * `with` is part of the language target in sloppy script code. Its implementation
   is outstanding. Strict-mode rejection is also required.
 * Annex B web-compatibility features are tracked separately. Implement the
