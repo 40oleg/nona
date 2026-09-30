@@ -193,7 +193,7 @@ function runCase(path) {
   // Test262 leaves the host's unhandled-rejection policy unspecified. Several
   // Promise tests intentionally abandon a rejected result after checking the
   // synchronous semantics, so use the non-failing host policy for this harness.
-  const realms = Math.min(3, (source.match(/createRealm/g) || []).length + includes.reduce((count, file) => count + (readFileSync(join(root, 'harness', file), 'utf8').match(/createRealm\(/g) || []).length, 0));
+  const realms = Math.min(4, (source.match(/createRealm/g) || []).length + includes.reduce((count, file) => count + (readFileSync(join(root, 'harness', file), 'utf8').match(/createRealm\(/g) || []).length, 0));
   const compiled = moduleCase
     ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents, moduleHost})
     : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents, moduleHost});

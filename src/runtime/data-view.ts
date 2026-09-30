@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {selectNativeConstructPrototype} from './constructor-prototype.js';
+import {selectNativeConstructPrototype,realmTable} from './constructor-prototype.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -181,6 +181,11 @@ export function emitDataView(b:RuntimeBuilder):void {
   const ordinaryPrototype=a.unique('ordinaryPrototype'),prototypeResolved=a.unique('prototypeResolved');
   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.and('r11',OF.deferredConstructPrototype);a.test('r11','r11');a.jcc('e',ordinaryPrototype);
   a.lea('rcx',slot(88));a.load('rdx',slot(frame+48));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
+  // A non-object prototype falls back to %DataView.prototype% of new.target's realm (GetPrototypeFromConstructor).
+  a.load('r10',slot(88));a.cmp('r10',5);a.jcc('e',prototypeResolved);
+  a.load('rcx',slot(frame+48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.functionRealm');a.shl('rax',3);
+  a.lea('r10',{rip:realmTable('rt.dataviewPrototype')});a.add('r10','rax');a.load('r10',{base:'r10'});
+  a.mov('rax',5);a.store(slot(88),'rax');a.store(slot(96),'r10');
   a.jmp(prototypeResolved);a.label(ordinaryPrototype);a.mov('rax',0);a.store(slot(88),'rax');a.label(prototypeResolved);
   a.load('r10',slot(112));a.store(slot(64),'r10');a.load('r10',{base:'r10',disp:ArrayBufferLayout.detached});a.test('r10','r10');failIf(a,'ne','rt.throwTypeError');
   a.mov('rcx',DataViewLayout.size);a.call('rt.alloc');
