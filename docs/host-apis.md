@@ -25,3 +25,17 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - An uncaught exception in a timer callback terminates the process with exit
   code 1, like an uncaught exception in the top-level program.
 - Realms created by the Test262 host do not install their own timers.
+
+## Long-running programs
+
+- The collector counts committed coroutine stacks (1 MiB per running async
+  function or generator, `rt.generatorStackBytes`) towards its threshold, so
+  abandoned coroutines, whose stacks only the sweep releases, trigger
+  collections like ordinary garbage.
+- `tests/stability.test.ts` checks that ten times more timer firings (with
+  promise jobs and garbage in every tick) do not raise peak memory, that
+  thousands of abandoned coroutines are released, and that a program waiting
+  for a two-second timer uses almost no CPU.
+- Known limits: property, element and Map storage is linear (#36), so programs
+  with hundreds of live timers or large objects slow down; on Linux every heap
+  block is a separate memory mapping (#37).
