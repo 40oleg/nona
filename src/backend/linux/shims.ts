@@ -13,17 +13,59 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   ]});
  }
  b.fn('linux.GetProcessHeap.code',40,a=>a.mov('rax',1));
- b.fn('linux.HeapAlloc.code',72,a=>{
-  a.store(slot(48),'rsi');a.store(slot(56),'rdi');
-  a.mov('rsi','r8');a.add('rsi',16);const bad=a.unique('bad'),done=a.unique('done');a.jcc('b',bad);
+ // Heap: size classes of 32..4096 bytes (header included) carved from 1 MiB
+ // mmap chunks with per-class free lists; larger blocks map their own pages.
+ // The 16-byte header holds the block size. A spin lock serializes agents.
+ // HEAP_ZERO_MEMORY (flag 8) zeroes recycled blocks; fresh chunk memory is
+ // already zero.
+ b.data('linux.heapLock',new Uint8Array(8),'.data');
+ b.data('linux.heapFree',new Uint8Array(8*8),'.data');
+ b.data('linux.heapCursor',new Uint8Array(8),'.data');
+ b.data('linux.heapEnd',new Uint8Array(8),'.data');
+ const lock=(a:import('../x64/assembler.js').Assembler)=>{
+  const spin=a.unique('spin');a.label(spin);a.mov('rax',0);a.mov('r11',1);a.atomicCompareExchange({rip:'linux.heapLock'},'r11',64);a.jcc('ne',spin);
+ };
+ const unlock=(a:import('../x64/assembler.js').Assembler)=>{a.mov('r11',0);a.atomicExchange({rip:'linux.heapLock'},'r11',64);};
+ b.fn('linux.HeapAlloc.code',88,a=>{
+  a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.store(slot(64),'rdx');
+  const bad=a.unique('bad'),done=a.unique('done'),large=a.unique('large'),small=a.unique('small');
+  a.mov('rsi','r8');a.add('rsi',16);a.jcc('b',bad);a.cmp('rsi',4096);a.jcc('a',large);
+  // Small: class size s (power of two >= 32) and index i.
+  a.mov('rdi',32);a.mov('r9',0);const grow=a.unique('grow'),sized=a.unique('sized');
+  a.label(grow);a.cmp('rdi','rsi');a.jcc('ae',sized);a.shl('rdi',1);a.add('r9',1);a.jmp(grow);a.label(sized);
+  a.store(slot(40),'rdi');a.store(slot(72),'r9');lock(a);
+  a.load('r9',slot(72));a.shl('r9',3);a.lea('r10',{rip:'linux.heapFree'});a.add('r10','r9');a.load('rax',{base:'r10'});a.test('rax','rax');
+  const carve=a.unique('carve'),got=a.unique('got');a.jcc('e',carve);
+  a.load('r11',{base:'rax',disp:16});a.store({base:'r10'},'r11');unlock(a);
+  // Recycled block: zero it when asked.
+  a.load('rdx',slot(64));a.and('rdx',8);a.test('rdx','rdx');a.jcc('e',got);
+  {const zero=a.unique('zero');a.load('rdi',slot(40));a.lea('r10',{base:'rax',disp:16});a.add('rdi','rax');a.mov('r11',0);
+   a.label(zero);a.cmp('r10','rdi');a.jcc('ae',got);a.store({base:'r10'},'r11');a.add('r10',8);a.jmp(zero);}
+  a.label(carve);a.load('rax',{rip:'linux.heapCursor'});a.load('rdi',slot(40));a.lea('r10',{base:'rax'});a.add('r10','rdi');
+  a.load('r11',{rip:'linux.heapEnd'});a.cmp('r10','r11');const fits=a.unique('fits');a.test('rax','rax');a.jcc('e',small);a.cmp('r10','r11');a.jcc('be',fits);
+  a.label(small);
+  // New 1 MiB chunk (syscalls clobber RCX/R11).
+  a.mov('rdi',0);a.mov('rsi',1<<20);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  const mapped=a.unique('mapped');a.cmp('rax',-4095);a.jcc('b',mapped);unlock(a);a.jmp(bad);
+  a.label(mapped);a.mov('r10','rax');a.add('r10',1<<20);a.store({rip:'linux.heapEnd'},'r10');
+  a.load('rdi',slot(40));a.lea('r10',{base:'rax'});a.add('r10','rdi');
+  a.label(fits);a.store({rip:'linux.heapCursor'},'r10');unlock(a);
+  a.label(got);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
+  a.label(large);a.add('rsi',4095);a.and('rsi',-4096);
   a.store(slot(40),'rsi');a.mov('rdi',0);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
   a.cmp('rax',-4095);a.jcc('ae',bad);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
  });
- b.fn('linux.HeapFree.code',56,a=>{
+ b.fn('linux.HeapFree.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
-  const no=a.unique('no'),done=a.unique('done');a.test('r8','r8');a.jcc('e',no);
-  a.mov('rdi','r8');a.sub('rdi',16);a.load('rsi',{base:'rdi'});a.mov('rax',11);a.emit([0x0f,0x05]);
+  const no=a.unique('no'),done=a.unique('done'),large=a.unique('large');a.test('r8','r8');a.jcc('e',no);
+  a.mov('rdi','r8');a.sub('rdi',16);a.load('rsi',{base:'rdi'});a.cmp('rsi',4096);a.jcc('a',large);
+  // Small block: push on its class free list.
+  a.mov('r9',0);a.mov('r10',32);const find=a.unique('find'),found=a.unique('found');
+  a.label(find);a.cmp('r10','rsi');a.jcc('ae',found);a.shl('r10',1);a.add('r9',1);a.jmp(find);a.label(found);
+  a.store(slot(56),'r9');lock(a);a.load('r9',slot(56));a.shl('r9',3);a.lea('r10',{rip:'linux.heapFree'});a.add('r10','r9');
+  a.load('r11',{base:'r10'});a.store({base:'rdi',disp:16},'r11');a.store({base:'r10'},'rdi');unlock(a);a.mov('rax',1);a.jmp(done);
+  a.label(large);a.mov('rax',11);a.emit([0x0f,0x05]);
   a.test('rax','rax');a.jcc('ne',no);a.mov('rax',1);a.jmp(done);
   a.label(no);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
