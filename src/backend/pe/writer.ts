@@ -21,6 +21,21 @@ interface Section {
   flags: number;
 }
 export function linkPe(program: NativeProgram): Uint8Array {
+  // System call declarations only exist in ELF images; in a PE image their
+  // import cells point to the declaring prefix's "unavailable" stub instead.
+  const syscalls = program.imports.filter((i) => i.dll === "syscall");
+  if (syscalls.length)
+    program = {
+      ...program,
+      imports: program.imports.filter((i) => i.dll !== "syscall"),
+      fragments: [
+        ...program.fragments,
+        ...syscalls.map((i): NamedFragment => ({
+          name: i.symbol, section: ".rdata", alignment: 8, bytes: new Uint8Array(8), symbols: {},
+          fixups: [{ offset: 0, kind: "va64", target: i.symbol.slice(0, i.symbol.indexOf(".")) + ".unavailable", addend: 0 }],
+        })),
+      ],
+    };
   const sections: Section[] = [];
   let nextRva = 0x1000;
   const symbols = new Map<string, number>();
