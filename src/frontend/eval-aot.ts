@@ -166,7 +166,15 @@ function completion(statements:A.Statement[],cv:()=>A.Identifier,span:Span):A.St
       case 'If':return [reset(),{...s,consequent:one(s.consequent),alternate:s.alternate?one(s.alternate):null}];
       case 'While':case 'DoWhile':case 'For':case 'ForIn':case 'ForOf':return [reset(),{...s,body:one(s.body)} as A.Statement];
       case 'Switch':return [reset(),{...s,cases:s.cases.map(c=>({...c,body:c.body.flatMap(visit)}))}];
-      case 'Try':return [reset(),{...s,body:{...s.body,body:s.body.body.flatMap(visit)},handler:s.handler?{...s.handler,body:s.handler.body.flatMap(visit)}:null}];
+      case 'Try':{
+        const tried={...s,body:{...s.body,body:s.body.body.flatMap(visit)},handler:s.handler?{...s.handler,body:s.handler.body.flatMap(visit)}:null};
+        if(!s.finalizer)return [reset(),tried];
+        // A normal finally keeps the try/catch value; break or continue out of
+        // the finally block completes with the finally block's own value.
+        const fvName=hiddenPrefix+'fv'+(finallyCounter++),fv=()=>id(fvName,span);
+        const body=exits(completion(s.finalizer.body,fv,span),new Set(),false,false,b=>({kind:'Block',body:[statement(assign(cv(),fv(),span),span),b],span}));
+        return [reset(),{...tried,finalizer:{...s.finalizer,body:[{kind:'Var',declarationKind:'var',declarations:[{id:fv(),init:literal(undefined,span)}],span},...body]}}];
+      }
       case 'With':return [reset(),{...s,body:one(s.body)}];
       case 'Labeled':{
         // A labelled function declaration stays a declaration.
@@ -182,6 +190,25 @@ function completion(statements:A.Statement[],cv:()=>A.Identifier,span:Span):A.St
 }
 
 /** Sloppy eval: var declarations become assignments to the caller's variable environment. */
+let finallyCounter=0;
+/** Rewrite break/continue statements that leave the given statements. */
+function exits(statements:A.Statement[],labels:Set<string>,inLoop:boolean,inSwitch:boolean,wrap:(s:A.Statement)=>A.Statement):A.Statement[] {
+  const visit=(s:A.Statement,labels:Set<string>,inLoop:boolean,inSwitch:boolean):A.Statement=>{
+    switch(s.kind){
+      case 'Break':return (s.label?labels.has(s.label.name):inLoop||inSwitch)?s:wrap(s);
+      case 'Continue':return (s.label?labels.has(s.label.name):inLoop)?s:wrap(s);
+      case 'Block':return {...s,body:s.body.map(x=>visit(x,labels,inLoop,inSwitch))};
+      case 'If':return {...s,consequent:visit(s.consequent,labels,inLoop,inSwitch),alternate:s.alternate?visit(s.alternate,labels,inLoop,inSwitch):null};
+      case 'While':case 'DoWhile':case 'For':case 'ForIn':case 'ForOf':return {...s,body:visit(s.body,labels,true,inSwitch)} as A.Statement;
+      case 'With':return {...s,body:visit(s.body,labels,inLoop,inSwitch)};
+      case 'Labeled':return {...s,body:visit(s.body,new Set([...labels,s.label.name]),inLoop,inSwitch)};
+      case 'Switch':return {...s,cases:s.cases.map(c=>({...c,body:c.body.map(x=>visit(x,labels,inLoop,true))}))};
+      case 'Try':return {...s,body:{...s.body,body:s.body.body.map(x=>visit(x,labels,inLoop,inSwitch))},handler:s.handler?{...s.handler,body:s.handler.body.map(x=>visit(x,labels,inLoop,inSwitch))}:null,finalizer:s.finalizer?{...s.finalizer,body:s.finalizer.body.map(x=>visit(x,labels,inLoop,inSwitch))}:null};
+      default:return s;
+    }
+  };
+  return statements.map(x=>visit(x,labels,inLoop,inSwitch));
+}
 /** Statements from var declarations: their completion is empty. */
 const noCompletion=new WeakSet<A.Statement>();
 function stripVars(statements:A.Statement[]):A.Statement[] {
