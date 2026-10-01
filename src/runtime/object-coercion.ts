@@ -42,8 +42,9 @@ export function emitObjectCoercion(b:RuntimeBuilder):void {
   });}
   // R8 separator Value*. This helper is leaf-only until coercion/getter
   // callbacks acquire roots for its receiver, accumulator and item temporaries.
-  rootedFn(b,'rt.arrayJoinBody',232,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:6}],a=>{
-    a.store(slot(184),'r8');
+  // The pieces go to a string builder (string-builder.ts) at slot 216.
+  rootedFn(b,'rt.arrayJoinBody',264,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:80,count:6}],a=>{
+    a.store(slot(184),'r8');a.mov('rax',0);for(const offset of [216,224,232])a.store(slot(offset),'rax');
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('r10',{base:'rdx',disp:8});a.store(slot(56),'r10');
     a.mov('rax',4);a.store(slot(80),'rax');a.store(slot(160),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(88),'rax');
     a.lea('rax',{rip:'rt.str.comma'});a.store(slot(168),'rax');
@@ -65,16 +66,16 @@ export function emitObjectCoercion(b:RuntimeBuilder):void {
     a.mov('rax',1);a.store({base:'r10',disp:O.stringifying},'rax');
     a.load('rax',{rip:'rt.cleanupHead'});a.store(slot(200),'rax');a.store(slot(208),'r10');a.lea('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');
     a.mov('rax',0);a.store(slot(72),'rax');
-    a.label(loop);a.load('rax',slot(72));a.load('r10',slot(64));a.cmp('rax','r10');a.jcc('ae',clear);
-    a.test('rax','rax');a.jcc('e',item);a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(160));a.call('rt.concat');
+    a.label(loop);a.call('rt.safepoint');a.load('rax',slot(72));a.load('r10',slot(64));a.cmp('rax','r10');a.jcc('ae',clear);
+    a.test('rax','rax');a.jcc('e',item);a.lea('rcx',slot(216));a.load('rdx',slot(168));a.call('rt.builderAppend');
     a.label(item);a.load('rax',slot(72));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
     a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toString');
     a.lea('rcx',slot(128));a.load('rdx',slot(48));a.lea('r8',slot(112));a.call('rt.getProperty');
     a.load('rax',slot(128));a.cmp('rax',1);a.jcc('be',next);
     a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.call('rt.toString');
-    a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.concat');
+    a.lea('rcx',slot(216));a.load('rdx',slot(152));a.call('rt.builderAppend');
     a.label(next);a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
-    a.label(clear);a.load('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(56));a.mov('rax',0);a.store({base:'r10',disp:O.stringifying},'rax');
+    a.label(clear);a.lea('rcx',slot(216));a.lea('rdx',slot(80));a.call('rt.builderFinish');a.load('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(56));a.mov('rax',0);a.store({base:'r10',disp:O.stringifying},'rax');
     a.label(finish);a.load('rcx',slot(40));a.load('rax',slot(80));a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');
   });
 }
