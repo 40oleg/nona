@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — ES2020 gate 0.17–0.20
+
+- `eval` with source text known at compile time (string literals, literal concatenations, variables only assigned such constants) is compiled ahead of time with PerformEval semantics: caller scope for direct eval, EvalDeclarationInstantiation for sloppy declarations, completion values, Annex B.3.3.3, and global scope for indirect forms. Run-time computed sources keep the documented `EvalError` exception.
+- `Function`/generator/async function constructors are compiled ahead of time when called through variables, `Object.getPrototypeOf(...).constructor`, or literal-source subclasses; run-time sources are converted with ToString before the exception.
+- Deep recursion throws `RangeError` ("Maximum call stack size exceeded") instead of terminating the process.
+- Objects with long property lists get a hash index; Linux heap allocations use a size-class allocator instead of one `mmap` per object.
+- Annex B call-expression assignment targets and RegExp `\c` escapes; TypedArray element writes and descriptors on detached or invalid targets follow the pinned Test262.
+- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/v0.17-v0.20-status.md).
+
 ## v0.4.0 — 2026-09-26
 
 - Extended the ES2020 Array methods for the supported runtime types, including `concat`, `flat`, `flatMap`, stable `sort`, `toLocaleString`, species handling, and `Symbol.unscopables`.
