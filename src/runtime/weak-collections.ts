@@ -35,7 +35,7 @@ export function emitWeakCollections(b:RuntimeBuilder):void {
   b.fn(prefix+'.code',40,a=>a.call('rt.throwTypeError'));
   rootedFn(b,prefix+'.construct',952,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:14}],(a,frame)=>{
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',spec.kind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-   for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count])a.store({base:'rax',disp:offset},'r10');
+   for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index])a.store({base:'rax',disp:offset},'r10');
    selectNativeConstructPrototype(a,frame,prototypeName);a.store({base:'rax',disp:O.prototype},'r10');
    a.mov('r10',5);a.store(slot(80),'r10');a.store(slot(88),'rax');
    const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);a.load('r10',slot(56));a.load('rax',{base:'r10'});a.cmp('rax',1);a.jcc('e',done);a.test('rax','rax');a.jcc('e',done);
@@ -74,15 +74,17 @@ export function emitWeakCollections(b:RuntimeBuilder):void {
    if(method==='set'||method==='add'){
     a.load('rcx',slot(72));a.lea('rdx',slot(96));a.call('rt.mapFind');a.store(slot(64),'rax');const insert=a.unique('insert'),finish=a.unique('finish');a.test('rax','rax');a.jcc('e',insert);
     if(method==='set')for(const n of [0,8]){a.load('r10',slot(112+n));a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');}
-    a.jmp(finish);a.label(insert);a.mov('rcx',MapEntryLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.weakEntry);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.next},'r10');
+    a.jmp(finish);a.label(insert);a.lea('rcx',slot(96));a.call('rt.mapKeyHash');a.store(slot(64),'rax');
+    a.mov('rcx',MapEntryLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.weakEntry);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.next},'r10');a.load('r10',slot(64));a.store({base:'rax',disp:MapEntryLayout.hash},'r10');
     for(const n of [0,8]){a.load('r10',slot(96+n));a.store({base:'rax',disp:MapEntryLayout.key+n},'r10');if(method==='add')a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');else{a.load('r10',slot(112+n));a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');}}
-    a.mov('r10',1);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('r11',slot(72));a.load('r10',{base:'r11',disp:MapLayout.tail});const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.store({base:'r11',disp:MapLayout.head},'rax');a.label(linked);a.store({base:'r11',disp:MapLayout.tail},'rax');a.load('r10',{base:'r11',disp:MapLayout.count});a.add('r10',1);a.store({base:'r11',disp:MapLayout.count},'r10');a.label(finish);
+    a.mov('r10',1);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('r11',slot(72));a.load('r10',{base:'r11',disp:MapLayout.tail});const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.store({base:'r11',disp:MapLayout.head},'rax');a.label(linked);a.store({base:'r11',disp:MapLayout.tail},'rax');a.load('r10',{base:'r11',disp:MapLayout.count});a.add('r10',1);a.store({base:'r11',disp:MapLayout.count},'r10');
+    a.mov('rcx','r11');a.mov('rdx','rax');a.call('rt.mapIndexAdd');a.label(finish);
     a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
    }else if(method==='get'){
     const missing=a.unique('missing'),done=a.unique('done');a.load('rax',slot(64));a.test('rax','rax');a.jcc('e',missing);a.load('rcx',slot(40));for(const n of [0,8]){a.load('r10',{base:'rax',disp:MapEntryLayout.value+n});a.store({base:'rcx',disp:n},'r10');}a.jmp(done);a.label(missing);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
    }else{
     a.load('rax',slot(64));a.mov('r10',0);a.test('rax','rax');const missing=a.unique('missing');a.jcc('e',missing);a.mov('r10',1);
-    if(method==='delete'){a.mov('rdx',0);a.store({base:'rax',disp:MapEntryLayout.active},'rdx');a.load('r11',slot(72));a.load('rdx',{base:'r11',disp:MapLayout.count});a.sub('rdx',1);a.store({base:'r11',disp:MapLayout.count},'rdx');}
+    if(method==='delete'){a.mov('rdx','rax');a.load('rcx',slot(72));a.call('rt.mapIndexDrop');a.load('rax',slot(64));a.mov('r10',1);a.mov('rdx',0);a.store({base:'rax',disp:MapEntryLayout.active},'rdx');a.load('r11',slot(72));a.load('rdx',{base:'r11',disp:MapLayout.count});a.sub('rdx',1);a.store({base:'r11',disp:MapLayout.count},'rdx');}
     a.label(missing);a.load('rcx',slot(40));a.mov('rax',2);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');
    }
   });

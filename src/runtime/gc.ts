@@ -185,6 +185,9 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(entries);a.load('rax',slot(56));a.test('rax','rax');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:MapEntryLayout.next});a.store(slot(72),'r10');a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',remove);
   a.load('rcx',{base:'rax',disp:MapEntryLayout.key+8});a.call('rt.gcIsMarkedPointer');a.test('rax','rax');a.jcc('ne',keep);
   a.load('r10',slot(48));a.load('rax',{base:'r10',disp:MapLayout.count});a.sub('rax',1);a.store({base:'r10',disp:MapLayout.count},'rax');
+  // The hash index would keep pointing at the removed entry; drop it and let
+  // the next lookup rebuild it from the surviving entries.
+  a.mov('rcx','r10');a.call('rt.mapIndexFree');
   a.label(remove);a.load('rax',slot(56));a.mov('r10',0);for(const offset of [MapEntryLayout.key,MapEntryLayout.key+8,MapEntryLayout.value,MapEntryLayout.value+8,MapEntryLayout.active])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',slot(64));const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.load('rax',slot(72));a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.load('r10',slot(48));a.load('rax',slot(72));a.store({base:'r10',disp:MapLayout.head},'rax');a.label(linked);
   a.load('r10',slot(48));a.load('rax',{base:'r10',disp:MapLayout.tail});a.load('r11',slot(56));a.cmp('rax','r11');const tailDone=a.unique('tailDone');a.jcc('ne',tailDone);a.load('rax',slot(64));a.store({base:'r10',disp:MapLayout.tail},'rax');a.label(tailDone);a.jmp(nextEntry);
@@ -249,6 +252,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   const ordinaryFree=a.unique('ordinaryFree');a.load('r11',{base:'rax',disp:H.kind});a.cmp('r11',HeapKind.object);a.jcc('ne',ordinaryFree);
   {const noIndex=a.unique('noIndex');a.load('r8',{base:'rax',disp:H.size+O.index});a.test('r8','r8');a.jcc('e',noIndex);
   a.store(slot(64),'rax');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.load('rax',slot(64));a.label(noIndex);}
+  {const noMapIndex=a.unique('noMapIndex'),mapLike=a.unique('mapLike');a.load('r11',{base:'rax',disp:H.size+O.kind});a.cmp('r11',MapKind);a.jcc('e',mapLike);a.cmp('r11',SetKind);a.jcc('e',mapLike);a.cmp('r11',WeakMapKind);a.jcc('e',mapLike);a.cmp('r11',WeakSetKind);a.jcc('ne',noMapIndex);
+  a.label(mapLike);a.store(slot(64),'rax');a.lea('rcx',{base:'rax',disp:H.size});a.call('rt.mapIndexFree');a.load('rax',slot(64));a.label(noMapIndex);}
   a.load('r11',{base:'rax',disp:H.size+O.kind});a.cmp('r11',GeneratorKind);a.jcc('ne',ordinaryFree);
   a.load('rcx',{base:'rax',disp:H.size+G.stack});a.test('rcx','rcx');a.jcc('e',ordinaryFree);
   a.store(slot(64),'rax');a.call('rt.freeGeneratorStack');a.load('rax',slot(64));a.label(ordinaryFree);
