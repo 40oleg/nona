@@ -528,7 +528,9 @@ var __nonaPromiseDrainJobs=(function(){
   // An empty source needs no compiler: it yields a fresh anonymous function of that kind.
   function dynamicConstructor(name,prototype,makeEmpty){
     var constructor=function(){
-      for(var i=0;i<arguments.length;i++)if(String(arguments[i]).trim()!=='')throw new EvalError('Nona compiles ahead of time: '+name+' needs source text known at compile time');
+      // ToString of every argument first (observable), then the exception.
+      for(var i=0,source=false;i<arguments.length;i++)if((''+arguments[i]).trim()!=='')source=true;
+      if(source)throw new EvalError('Nona compiles ahead of time: '+name+' needs source text known at compile time');
       var fn=makeEmpty();
       define(fn,'name','anonymous',false);
       if(new.target!==undefined&&new.target!==constructor){
