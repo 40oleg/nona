@@ -17,7 +17,7 @@ import {TypedArrayKind,TypedArrayLayout,typedArrayRoots,typedArrayPropertyRoots}
 import {descriptorRoots,descriptorPropertyRoots} from './property-descriptors.js';
 import {inspectionRoots,inspectionPropertyRoots} from './object-introspection.js';
 import {constructorRoots,constructorPropertyRoots} from './builtin-constructors.js';
-import {RuntimeBuilder,slot} from './abi.js';
+import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {emitGcIndex} from './gc-index.js';
@@ -82,7 +82,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.sub('rcx','r11');a.load('r11',{base:'rax',disp:H.bytes});a.cmp('rcx','r11');a.jcc('ae',upper);
   a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('ne',done);
   a.mov('r10',1);a.store({base:'rax',disp:H.marked},'r10');a.load('r10',{rip:'rt.gcGrey'});
-  a.store({base:'rax',disp:H.greyNext},'r10');a.store({rip:'rt.gcGrey'},'rax');a.jmp(done);
+  a.store({base:'rax',disp:H.greyNext},'r10');a.store({rip:'rt.gcGrey'},'rax');
+  a.lea('rcx',{base:'rax',disp:H.size});a.call('rt.gcPendingWake');a.jmp(done);
   a.label(lower);a.mov('r9','r10');a.jmp(loop);a.label(upper);a.mov('r8','r10');a.add('r8',1);a.jmp(loop);a.label(done);
  });
  // A non-heap object (for example an intrinsic prototype) is permanently
@@ -165,19 +166,68 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.load('rax',slot(40));a.load('rax',{base:'rax',disp:MapEntryLayout.active});a.test('rax','rax');const done=a.unique('done');a.jcc('e',done);
   for(const offset of [MapEntryLayout.key,MapEntryLayout.value]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}a.label(done);
  });
- b.fn('rt.gcTraceWeakEntry',40,a=>{
-  a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');
+ // A weak entry is an ephemeron: its value is live only if its key is. An
+ // entry reached while its key is unmarked waits in the pending table; marking
+ // the key later (rt.gcMarkPointer) greys the entry again, and this second
+ // visit marks the value. WeakSet entries hold their key as the value and
+ // never mark it.
+ b.fn('rt.gcTraceWeakEntry',56,a=>{
+  a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');
+  const done=a.unique('done'),live=a.unique('live');
+  a.load('rax',slot(40));a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',done);
+  a.load('r10',{base:'rax',disp:MapEntryLayout.weak});a.test('r10','r10');a.jcc('ne',done);
+  a.load('rcx',{base:'rax',disp:MapEntryLayout.key+8});a.call('rt.gcIsMarkedPointer');a.test('rax','rax');a.jcc('ne',live);
+  a.load('rdx',slot(40));a.load('rcx',{base:'rdx',disp:MapEntryLayout.key+8});a.call('rt.gcPendingAdd');a.jmp(done);
+  a.label(live);a.load('rcx',slot(40));a.add('rcx',MapEntryLayout.value);a.call('rt.gcMarkValue');
+  a.label(done);
  });
- // Repeat this pass after ordinary grey objects have drained. Marking an
- // ephemeron value may reveal another ephemeron key in the next grey pass.
- b.fn('rt.gcTraceEphemerons',72,a=>{
-  a.load('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');const blocks=a.unique('blocks'),nextBlock=a.unique('nextBlock'),entries=a.unique('entries'),nextEntry=a.unique('nextEntry'),done=a.unique('done');
-  a.label(blocks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.object);a.jcc('ne',nextBlock);a.load('r10',{base:'rax',disp:H.size+O.kind});a.cmp('r10',WeakMapKind);a.jcc('ne',nextBlock);
-  a.load('rax',{base:'rax',disp:H.size+MapLayout.head});a.store(slot(48),'rax');a.label(entries);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',nextEntry);
-  a.load('rcx',{base:'rax',disp:MapEntryLayout.key+8});a.call('rt.gcIsMarkedPointer');a.test('rax','rax');a.jcc('e',nextEntry);a.load('rcx',slot(48));a.add('rcx',MapEntryLayout.value);a.call('rt.gcMarkValue');
-  a.label(nextEntry);a.load('rax',slot(48));a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.store(slot(48),'rax');a.jmp(entries);
-  a.label(nextBlock);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:H.next});a.store(slot(40),'rax');a.jmp(blocks);a.label(done);
+ // Pending ephemerons: an open-addressing table (raw heap, only during a
+ // collection) from key payload pointer to weak entry. Slots are {key, entry};
+ // key 0 is empty and -1 a consumed slot. A key may appear in several slots,
+ // one per weak map holding it.
+ for(const name of ['gcPending','gcPendingCapacity','gcPendingUsed'])b.data('rt.'+name,new Uint8Array(8),'.data');
+ // RCX key payload pointer, RDX entry payload pointer.
+ b.fn('rt.gcPendingAdd',72,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  const room=a.unique('room'),loop=a.unique('loop'),next=a.unique('next');
+  a.load('rax',{rip:'rt.gcPendingUsed'});a.add('rax',1);a.shl('rax',1);a.load('r10',{rip:'rt.gcPendingCapacity'});a.cmp('rax','r10');a.jcc('be',room);a.call('rt.gcPendingGrow');
+  a.label(room);a.load('r9',{rip:'rt.gcPendingCapacity'});a.sub('r9',1);a.load('rax',slot(40));a.shr('rax',4);a.mov('r11',0x9E3779B97F4A7C15n);a.imul('rax','r11');a.shr('rax',20);a.and('rax','r9');
+  a.load('r8',{rip:'rt.gcPending'});
+  a.label(loop);a.mov('r10','rax');a.shl('r10',4);a.add('r10','r8');a.load('r11',{base:'r10'});a.test('r11','r11');a.jcc('e',next);a.add('rax',1);a.and('rax','r9');a.jmp(loop);
+  a.label(next);a.load('r11',slot(40));a.store({base:'r10'},'r11');a.load('r11',slot(48));a.store({base:'r10',disp:8},'r11');
+  a.load('rax',{rip:'rt.gcPendingUsed'});a.add('rax',1);a.store({rip:'rt.gcPendingUsed'},'rax');
  });
+ // Doubles the table (or creates it with 64 slots) and reinserts the live slots.
+ b.fn('rt.gcPendingGrow',72,a=>{
+  a.load('rax',{rip:'rt.gcPending'});a.store(slot(40),'rax');a.load('rax',{rip:'rt.gcPendingCapacity'});a.store(slot(48),'rax');
+  a.shl('rax',1);const sized=a.unique('sized');a.test('rax','rax');a.jcc('ne',sized);a.mov('rax',64);a.label(sized);a.store({rip:'rt.gcPendingCapacity'},'rax');
+  a.mov('r8','rax');a.shl('r8',4);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',8);a.callImport('HeapAlloc');a.test('rax','rax');failIf(a,'e');
+  a.store({rip:'rt.gcPending'},'rax');a.mov('rax',0);a.store({rip:'rt.gcPendingUsed'},'rax');a.store(slot(56),'rax');
+  const loop=a.unique('loop'),skip=a.unique('skip'),done=a.unique('done');
+  a.label(loop);a.load('rax',slot(56));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',done);
+  a.shl('rax',4);a.load('r10',slot(40));a.add('r10','rax');a.load('rcx',{base:'r10'});a.test('rcx','rcx');a.jcc('e',skip);a.cmp('rcx',-1);a.jcc('e',skip);
+  a.load('rdx',{base:'r10',disp:8});a.call('rt.gcPendingAdd');
+  a.label(skip);a.load('rax',slot(56));a.add('rax',1);a.store(slot(56),'rax');a.jmp(loop);
+  a.label(done);a.load('r8',slot(40));a.test('r8','r8');a.jcc('e',done+'.fresh');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.label(done+'.fresh');
+ });
+ // RCX payload pointer of a block that just became marked: greys every pending
+ // weak entry keyed by it, so the mark loop revisits them and marks their values.
+ b.fn('rt.gcPendingWake',40,a=>{
+  const done=a.unique('done'),loop=a.unique('loop'),next=a.unique('next');
+  a.load('r8',{rip:'rt.gcPending'});a.test('r8','r8');a.jcc('e',done);a.load('rax',{rip:'rt.gcPendingUsed'});a.test('rax','rax');a.jcc('e',done);
+  a.load('r9',{rip:'rt.gcPendingCapacity'});a.sub('r9',1);a.mov('rax','rcx');a.shr('rax',4);a.mov('r11',0x9E3779B97F4A7C15n);a.imul('rax','r11');a.shr('rax',20);a.and('rax','r9');
+  a.label(loop);a.mov('r10','rax');a.shl('r10',4);a.add('r10','r8');a.load('r11',{base:'r10'});a.test('r11','r11');a.jcc('e',done);a.cmp('r11','rcx');a.jcc('ne',next);
+  a.mov('r11',-1);a.store({base:'r10'},'r11');a.load('r11',{base:'r10',disp:8});a.sub('r11',H.size);
+  a.load('rdx',{rip:'rt.gcGrey'});a.store({base:'r11',disp:H.greyNext},'rdx');a.store({rip:'rt.gcGrey'},'r11');
+  a.label(next);a.add('rax',1);a.and('rax','r9');a.jmp(loop);
+  a.label(done);
+ });
+ b.fn('rt.gcPendingFree',40,a=>{
+  const done=a.unique('done');a.load('r8',{rip:'rt.gcPending'});a.test('r8','r8');a.jcc('e',done);
+  a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.mov('rax',0);a.store({rip:'rt.gcPending'},'rax');a.store({rip:'rt.gcPendingCapacity'},'rax');a.store({rip:'rt.gcPendingUsed'},'rax');
+  a.label(done);
+ });
+ // RCX payload of a marked WeakMap or WeakSet: unlinks the entries whose key died.
  b.fn('rt.gcPruneWeakEntries',120,a=>{
   a.load('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');const blocks=a.unique('blocks'),nextBlock=a.unique('nextBlock'),entries=a.unique('entries'),nextEntry=a.unique('nextEntry'),remove=a.unique('remove'),keep=a.unique('keep'),done=a.unique('done');
   a.label(blocks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('e',nextBlock);a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.object);a.jcc('ne',nextBlock);a.load('r10',{base:'rax',disp:H.size+O.kind});a.cmp('r10',WeakMapKind);const weak=a.unique('weak');a.jcc('e',weak);a.cmp('r10',WeakSetKind);a.jcc('ne',nextBlock);a.label(weak);
@@ -244,7 +294,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(weakEntry);a.call('rt.gcTraceWeakEntry');a.jmp(mark);
   a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
-  a.label(ephemerons);a.call('rt.gcTraceEphemerons');a.load('rax',{rip:'rt.gcGrey'});a.test('rax','rax');a.jcc('ne',mark);a.call('rt.gcPruneWeakEntries');
+  a.label(ephemerons);a.call('rt.gcPendingFree');a.call('rt.gcPruneWeakEntries');
   a.label(sweep);a.lea('rax',{rip:'rt.blocks'});a.store(slot(40),'rax');
   a.label(sweepLoop);a.load('r10',slot(40));a.load('rax',{base:'r10'});a.test('rax','rax');a.jcc('e',finish);
   a.load('r11',{base:'rax',disp:H.marked});a.test('r11','r11');a.jcc('ne',keep);
