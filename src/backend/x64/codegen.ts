@@ -170,7 +170,10 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
        const dead=[...possible].filter(slot=>!live.has(slot));
        if(dead.length){a.mov('rax',0);for(const slot of dead){a.store(value(slot),'rax');a.store(stack(valueBase+16*slot+8),'rax');}}
        possible=new Set(live);if('dest'in op)possible.add(op.dest);
-       a.call(options.gcStress?'rt.collect':'rt.safepoint');
+       // Safepoint before every operation: the check of rt.safepoint inline,
+       // so that only a collection costs a call.
+       if(options.gcStress)a.call('rt.collect');
+       else{const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',op.allowMissing?1:0);a.call('rt.readGlobalProperty');break;
