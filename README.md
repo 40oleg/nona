@@ -75,12 +75,13 @@ The CLI accepts one UTF-8 source file:
 
 ```text
 nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
-           [--subsystem console|windows]
+           [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
+           [--version-info version.json]
 nona --help
 nona --version
 ```
 
-`-o` is required. `--subsystem windows` builds a GUI program without a console window (see [Windows executables](docs/windows-executables.md)). `win32-x64` is currently the only target.
+`-o` is required. `--subsystem windows` builds a GUI program without a console window; `--icon`, `--manifest` and `--version-info` embed Windows resources (see [Windows executables](docs/windows-executables.md)). `win32-x64` is currently the only target.
 
 ## Included examples
 

@@ -28,7 +28,7 @@ npm.cmd run compare
 
 Компилятор принимает один UTF-8 файл. `-o` обязателен; необязательный
 `--target win32-x64` (по умолчанию) или `--target linux-x64` выбирает платформу.
-`--subsystem windows` собирает GUI-программу без окна консоли (только для `win32-x64`, см. [Windows executables](docs/windows-executables.md)).
+`--subsystem windows` собирает GUI-программу без окна консоли, а `--icon`, `--manifest` и `--version-info` добавляют ресурсы Windows (только для `win32-x64`, см. [Windows executables](docs/windows-executables.md)).
 Также доступны `--help` и `--version`. Код завершения: 0 — успех, 1 — ошибка.
 При ошибке анализа прежний выходной файл сохраняется. Успешная сборка записывается
 через временный файл с атомарной заменой. Алиасы исходника, включая hard links,
