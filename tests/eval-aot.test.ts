@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
+import {runOnHost,runModulesOnHost} from './helpers/host.js';
 
 // eval with source text known at compile time (src/frontend/eval-aot.ts).
 const cases:[string,string,string][]=[
@@ -53,4 +53,10 @@ for(const [name,source,expected] of cases)test('eval-aot: '+name,()=>{
  const run=runOnHost(source);
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,expected);
+});
+
+test('eval-aot: module code (strict direct eval, indirect eval and Function see only the global scope)',()=>{
+ const {native}=runModulesOnHost({'main.mjs':"var x = 1; let y = 2; console.log(eval('x + y'), (0, eval)('typeof y'), Function('return typeof y')(), eval('var z = 3; z'), typeof z); try { eval('import.meta'); } catch (e) { console.log(e.name); }"},'main.mjs');
+ assert.equal(native.status,0,native.stderr);
+ assert.equal(native.stdout,'3 undefined undefined 3 undefined\nSyntaxError\n');
 });
