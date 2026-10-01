@@ -4,6 +4,7 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 import {ProxyKind} from './proxy.js';
 
 const methods=[
@@ -40,6 +41,8 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   const ordinary=a.unique('ordinary');a.load('r10',{base:'rax',disp:O.kind});
   const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
   a.load('rcx',slot(48));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',ordinary);a.cmp('rax',-2);a.jcc('e',missing);
+  // IsValidIntegerIndex: a detached buffer has no elements (ES2021+, checked by the pinned Test262).
+  a.load('r10',slot(56));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('r11',{base:'r11',disp:ArrayBufferLayout.detached});a.test('r11','r11');a.jcc('ne',missing);
   a.load('r10',slot(56));a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('ae',missing);
   a.mov('rax',A.ordinary);a.jmp(done);
   a.label(notTyped);a.cmp('r10',1);a.jcc('ne',ordinary);

@@ -1,4 +1,5 @@
 import {lowerDynamicFunctions} from './dynamic-functions.js';
+import {lowerLiteralEval} from './eval-aot.js';
 import {boundNames} from './declarations.js';
 import {CompileError} from '../diagnostics.js';
 import type * as A from './ast.js';
@@ -115,7 +116,7 @@ export function loadModuleGraph(entryPath:string,entrySource:string|null,host:Mo
   const records:ModuleRecord[]=[],byPath=new Map<string,ModuleRecord>();
   const load=(path:string,source:string,dynamic=false):ModuleRecord=>{
     let ast:A.Program,loadError:string|undefined;
-    try{ast=lowerDynamicFunctions(parse(lex(source,{module:true}),{module:true}));checkModuleNames(ast,path);}
+    try{ast=lowerLiteralEval(lowerDynamicFunctions(parse(lex(source,{module:true}),{module:true})));checkModuleNames(ast,path);}
     catch(error){
       if(!(error instanceof CompileError))throw error;
       // A module first reached through import() fails when that import runs.

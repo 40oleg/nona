@@ -80,8 +80,19 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
  // Function() with no arguments needs no compilation: it is an empty
  // sloppy function named "anonymous". Any source text remains an exception.
  b.bundle.fragments.push(stringLiteral('rt.Function.anonymous','anonymous'),stringLiteral('rt.Function.emptySource','function anonymous(\n) {\n\n}'));
- b.fn('rt.Function.code',56,a=>{
-  a.test('rdx','rdx');const empty=a.unique('empty');a.jcc('e',empty);a.call('rt.throwEvalError');a.label(empty);
+ b.fn('rt.Function.code',104,a=>{
+  // Run-time source text: CreateDynamicFunction converts every argument with
+  // ToString (observable, may throw) before Nona reports the exception.
+  a.test('rdx','rdx');const empty=a.unique('empty');a.jcc('e',empty);
+  {
+   const loop=a.unique('toStringLoop'),done=a.unique('toStringDone');
+   a.store(slot(40),'rdx');a.store(slot(48),'r8');a.mov('rax',0);a.store(slot(80),'rax');
+   a.label(loop);a.load('rax',slot(80));a.load('r10',slot(40));a.cmp('rax','r10');a.jcc('ae',done);
+   a.shl('rax',4);a.load('rdx',slot(48));a.add('rdx','rax');a.lea('rcx',slot(64));a.call('rt.toString');
+   a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.jmp(loop);
+   a.label(done);
+  }
+  a.call('rt.throwDynamicCode');a.label(empty);
   a.store(slot(40),'rcx');a.lea('rdx',{rip:'rt.emptyFunction'});a.mov('r8',0);a.mov('r9',0);a.call('rt.newFunction');
   a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.Function.anonymous'});a.mov('r8',0);a.call('rt.initFunctionMetadata');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rax',{rip:'rt.Function.emptySource'});a.store({base:'rcx',disp:F.sourceText},'rax');
