@@ -1,0 +1,204 @@
+# Performance: Nona vs Node.js, Deno and Bun
+
+Measured on 2026-10-01 against Nona `v0.7.0` (commit `b31c4d6`). The scripts
+live in [`bench/`](bench/); `node bench/run.mjs` reproduces every table below.
+
+## Summary
+
+Nona wins on everything that happens before and around the program: a
+compiled hello world starts in **1.8 ms** (Bun 4.5, Deno 15, Node 28), the
+executable is **7 MB** (81–124 MB for `bun --compile`, `deno compile` and
+Node SEA) and it peaks at **11 MB** of RSS where Node needs 45 MB.
+
+Inside the program the picture reverses. Plain computation — function calls,
+closures, classes, typed arrays, allocation — runs **20–100× slower** than
+V8/JavaScriptCore, which is the expected gap between an AOT compiler without
+inline caches or type feedback and a JIT. Several core operations are not just
+slower but **super-linear in the size of the data**, and that is what makes
+real programs fail rather than merely lag:
+
+| Operation | Nona at 10k | Nona at 100k | Growth | Node at 100k |
+| --- | --- | --- | --- | --- |
+| `Map.set` × N | 0.83 s | 92.7 s | ×111 (quadratic) | 14 ms |
+| `Set.add` + `Set.has` × N | 1.7 s | 182 s | ×107 (quadratic) | 12 ms |
+| `sort()` of N numbers | 1.3 s | 20.4 s | ×16 (quadratic) | 39 ms |
+| Promise chain of N `.then` | 363 s | > 10 min | ×145 for 1k → 10k | 7 ms |
+| `JSON.stringify`, N objects | 1.4 s, 1.7 GB RSS | > 10 min | — | 1.6 ms |
+| `s += "abc" + i` × N | 0.88 s (10k) | — | ×20 for 2k → 10k | 0.3 ms |
+| `readFileSync(..., "utf8")` | 0.37 s (1 MB) | 25 s (10 MB) | ×68 for ×10 | 25 ms |
+
+The author documents the root cause for the first group: property, element
+and `Map` storage is a linear scan (issue #36). Strings are immutable UTF-16
+buffers copied on every concatenation, and `Array.prototype.join`,
+`JSON.stringify` and the promise job queue are built on those two primitives.
+
+## Environment and method
+
+| Participant | Version | Command |
+| --- | --- | --- |
+| Nona | 0.7.0 | `node dist/cli.js build x.js -o x --target linux-x64`, then `./x` |
+| Node.js | 22.22.0 | `node x.js` |
+| Deno | 2.9.6 | `deno run -A x.js` |
+| Bun | 1.4.2 | `bun x.js` |
+
+Linux x86-64, Intel Xeon 2.10 GHz, 2 vCPUs, 7 GB RAM (cloud sandbox). The same
+source file is run by all four. Each script times its phases with
+`performance.now()` and prints them as JSON; wall time and peak RSS come from
+the harness. Numbers are medians of 5 runs (runtimes) or 3–5 runs (Nona);
+Nona's variance between runs is under 5 %. Every script reads `SCALE` from the
+environment, so "N = 100k" means `SCALE=0.1` of the nominal 1M. Startup is
+measured with `hyperfine` (30 runs, 5 warm-up). Nona only compiles ES2020 with
+a synchronous `fs` subset and no npm, so the scripts stay inside that subset
+(`import fs from "node:fs"` instead of `require`).
+
+Where Nona did not finish a size within 10 minutes the cell says so; the
+runtime columns at that size are still real measurements.
+
+## 1–4. Startup, executable size, build time, memory
+
+| How the program runs | Startup, hello world (ms, median of 30) | Executable (MB) | Build hello world into an exe (s) | Peak RSS, hello world (MB) |
+| --- | --- | --- | --- | --- |
+| Nona, compiled ELF | **1.8** | **7.3** | 2.7 | **11.5** |
+| Bun, `bun build --compile` | 3.2 | 81.3 | **0.25** | 14.5 |
+| Bun, `bun x.js` | 4.5 | 79.5 (the runtime itself) | — | 13.1 |
+| Deno, `deno compile` | 12.1 | 104.3 | 0.70 | 33.0 |
+| Deno, `deno run x.js` | 15.0 | 95.6 (the runtime itself) | — | 28.3 |
+| Node, SEA via postject | 24.9 | 123.5 | 7.7 | 58.3 |
+| Node, `node x.js` | 27.6 | 123.4 (the runtime itself) | — | 45.5 |
+
+Nona's build time barely depends on the program (2.7 s for hello world,
+3.0 s for the matrix/BigInt test): most of it is compiling the runtime and
+the JavaScript preludes that go into every executable.
+
+Peak RSS under load, full-size scripts (MB):
+
+| Script | Node | Deno | Bun | Nona |
+| --- | --- | --- | --- | --- |
+| 09 — 5M short-lived objects | 53 | 44 | 29 | **11** |
+| 13 — `Float64Array` 10M | 204 | 198 | 181 | 157 |
+| 15 — classes, 1M `new Square` | 129 | 124 | 77 | 777 |
+| 14 — calls, 1M closures | 188 | 214 | 120 | 1 993 |
+| 11 — JSON, 3k objects (N = 10k scale) | 74 | 63 | 48 | 1 732 |
+
+The mark-and-sweep collector keeps garbage-only workloads tiny, but any
+workload that keeps a million live closures or objects, or builds strings,
+inflates far beyond the JIT runtimes.
+
+## 5–7. Arrays, objects and Map/Set, strings and RegExp
+
+N = 100 000, median, ms:
+
+| Operation | Node | Deno | Bun | Nona | Nona / Node |
+| --- | --- | --- | --- | --- | --- |
+| `push` × N | 5.2 | 6.0 | 3.4 | 192 | ×37 |
+| `Array.from({length: N})` | 5.1 | 4.9 | 3.1 | 183 | ×36 |
+| `new Array(N)` + fill | 1.9 | 1.3 | 1.5 | 276 | ×143 |
+| Sum with a `for` loop | 1.5 | 1.9 | 0.6 | 27 | ×18 |
+| `map` → `filter` → `reduce` | 4.4 | 4.2 | 4.0 | 119 | ×27 |
+| `sort` N numbers with a comparator | 39 | 40 | 31 | 20 400 | ×523 |
+| Create N objects `{id, x, y, name}` | 14.1 | 11.9 | 9.7 | 468 | ×33 |
+| Read 3 properties × N | 6.8 | 7.4 | 1.2 | 62 | ×9 |
+| `Map.set` × N | 13.8 | 14.4 | 18.4 | 92 700 | ×6 700 |
+| `Map.get` × N | 5.1 | 5.3 | 5.1 | 90 700 | ×18 000 |
+| `Set.add` + `Set.has` × N | 12.2 | 9.7 | 15.2 | 182 500 | ×15 000 |
+
+At the nominal N = 1M, Node/Deno/Bun run the whole array script in
+0.4–0.9 s and the object script in 0.5–0.6 s. Nona sorted 1M numbers in
+278 s in a first run; the full object script did not finish in 10 minutes.
+
+Strings are measured at N = 10 000 because at 100 000 the Nona binary was
+killed by the kernel after 30 s at 6 GB RSS: `Array.prototype.join` over 20k
+parts builds intermediate strings and its memory grows quadratically (4k parts
+→ 450 MB). `s += …` is quadratic in time (2k iterations → 43 ms, 10k →
+881 ms); the RegExp engine is linear but spends about 0.5 ms per character.
+
+| Operation (N = 10 000) | Node | Deno | Bun | Nona | Nona / Node |
+| --- | --- | --- | --- | --- | --- |
+| `s += "abc" + i` × 2 000 | 0.29 | 0.49 | 0.89 | 45 | ×156 |
+| `split("1")` + `join("-")` | 0.12 | 0.14 | 0.29 | 56 | ×470 |
+| `indexOf` in a loop | 0.02 | 0.02 | 0.02 | 0.06 | ×3 |
+| `/abc(\d{3})-/g.exec` in a loop | 0.06 | 0.07 | 0.10 | 794 | ×13 000 |
+
+At such small N the Node/Deno/Bun figures are mostly JIT warm-up, so the
+ratios in this table are, if anything, understated.
+
+## 8–10. Numeric work, GC pressure, async
+
+| Operation | Size | Node | Deno | Bun | Nona | Nona / Node |
+| --- | --- | --- | --- | --- | --- | --- |
+| `fib(32)` recursive | — | 23 | 24.5 | 18.3 | 568 | ×25 |
+| 200×200 matrix multiply, nested arrays | — | 30 | 35.6 | 36.6 | 25 700 | ×857 |
+| BigInt factorial 30! | 30 | 0.17 | 0.11 | 0.22 | 0.25 | ×1.5 |
+| BigInt factorial 300! | 300 | 0.20 | 0.28 | 0.37 | 2 340 | ×11 700 |
+| BigInt factorial 3000! | 3000 | 3.8 | 3.1 | 3.8 | > 10 min | — |
+| 500k short-lived `{a, b: [..], c: {..}}` | 500k | 19.7 | 15.6 | 27.2 | 1 840 | ×93 |
+| 5M short-lived objects | 5M | 94.6 | 98.1 | 156 | 20 100 | ×213 |
+| Promise chain, `.then` × 10 000 | 10k | 6.8 | 4.1 | 2.9 | 363 000 | ×53 000 |
+| `setTimeout(fn, 0)` × 100, sequential | 100 | 117 | 221 | 114 | 123 | ×1.0 |
+
+Recursive `fib(32)` is Nona's best computational result (×25), roughly where
+a non-JIT interpreter lands. The matrix multiply reads `A[i][k]` 8 million
+times through the linear element store. BigInt multiplication degrades with
+the operand size: 30! matches Node, 300! is 2.3 s, 3000! did not finish.
+
+The promise chain is the second cliff after collections: 1 000 `.then` take
+2.6 s, 4 000 take 40 s, 10 000 take 363 s — worse than quadratic, consistent
+with the job queue being rescanned from the start on every job. Timers are
+fine: `setTimeout(fn, 0)` costs about 1.2 ms everywhere because every runtime
+clamps the delay to 1 ms.
+
+## 11–13. JSON, file I/O, typed arrays
+
+| Operation | Size | Node | Deno | Bun | Nona | Nona / Node |
+| --- | --- | --- | --- | --- | --- | --- |
+| `JSON.stringify` | 3 000 objects, 280 KB | 1.6 | 1.1 | 1.1 | 1 400 | ×900 |
+| `JSON.parse` | 280 KB | 3.8 | 2.1 | 3.7 | 173 | ×45 |
+| `appendFileSync` × 10 | 10 MB | 5.9 | 12.0 | 3.3 | 4 530 | ×770 |
+| `readFileSync(path, "utf8")` | 10 MB | 25.2 | 26.8 | 6.0 | 25 200 | ×1 000 |
+| `Float64Array`: fill, sum, map | 1M | 21.1 | 17.1 | 16.2 | 360 | ×17 |
+| `Float64Array`: fill, sum, map | 10M | 159 | 132 | 115 | 3 240 | ×20 |
+
+Typed arrays are the only data test where Nona stays within one order of
+magnitude and scales linearly. JSON and files hit the same quadratic string
+building: `JSON.stringify` of 3 000 objects takes 1.4 s and 1.7 GB; the full
+300k-object / 30 MB scenario and the 100 MB file did not finish in 10
+minutes, where Node, Deno and Bun take 0.1–0.7 s.
+
+## 14–15. Function calls, closures, classes
+
+| Operation | N = 100k | | | | | N = 1M | |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| | Node | Deno | Bun | Nona | Nona / Node | Node | Nona |
+| Call `add(a, b)` × 10N | 5.3 | 7.6 | 6.1 | 375 | ×71 | 10.9 | 3 590 |
+| Create and call N closures | 21.3 | 18.1 | 20.6 | 872 | ×41 | 256 | 12 000 |
+| `call` + `apply` × 4N | 9.1 | 10.8 | 5.2 | 656 | ×72 | 32.6 | 12 000 |
+| Method through an inheritance chain × 5N | 5.3 | 3.7 | 5.8 | 354 | ×67 | 7.6 | 3 710 |
+| Polymorphic call, 3 classes × 5N | 5.5 | 8.6 | 15.5 | 532 | ×96 | 21.5 | 5 830 |
+| `new Square(i)` × N | 14.9 | 9.0 | 13.7 | 774 | ×52 | 112 | 10 560 |
+
+These scale linearly, so the gap here is the pure cost of a call without a
+JIT: V8 and JavaScriptCore inline `add(s, i)` and cache the method lookup at
+the call site, while Nona takes the generic path with a prototype-chain
+lookup every time. `apply` with a fresh array per call is the exception that
+grows faster than linear (×72 at 100k, ×369 at 1M), as does `new` with a
+million live instances (777 MB RSS).
+
+## Where the time goes
+
+Grouping the ratios against Node by their cause:
+
+1. **Linear property/element/Map storage** (issue #36): `Map`/`Set` ×7 000–18 000,
+   `sort` ×523, matrix multiply ×857, `new Array(N)` ×143. Fixing the data
+   structures turns these into the ~×30 of the surrounding code.
+2. **Copying strings**: concatenation ×156, `join` ×470 with quadratic
+   memory, `JSON.stringify` ×900, `readFileSync` utf8 ×1 000, `appendFileSync`
+   ×770. A rope or builder representation, and bulk UTF-8/UTF-16 transcoding,
+   address all of these at once.
+3. **Promise job queue** ×53 000 and **BigInt multiplication** ×11 700 at 300
+   digits: both are algorithmic, independent of code generation.
+4. **RegExp VM** ×13 000: a bytecode interpreter written in JavaScript and
+   itself compiled by Nona, so it pays the ×30 call overhead per instruction.
+5. **No JIT**: calls ×70, closures ×41, classes ×50–100, allocation ×93–213,
+   `fib` ×25, typed arrays ×17–20, array traversal ×18–37. Inline caches,
+   shape-based property access and unboxed number arithmetic are the usual
+   answers in an AOT setting.

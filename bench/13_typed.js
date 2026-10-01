@@ -1,0 +1,11 @@
+const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const N = S(10000000);
+let t = performance.now();
+const a = new Float64Array(N);
+for (let i = 0; i < N; i++) a[i] = i * 0.5;
+let s = 0;
+for (let i = 0; i < N; i++) s += a[i] * a[i];
+const b = new Float64Array(N);
+for (let i = 0; i < N; i++) b[i] = a[i] + 1;
+const tTyped = performance.now() - t;
+console.log(JSON.stringify({ f64_10M: tTyped, check: s + b[N - 1] }));

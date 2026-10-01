@@ -1,0 +1,10 @@
+const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const items = [];
+for (let i = 0; i < S(300000); i++) items.push({ id: i, name: "item" + i, tags: ["a", "b", "c"], price: i * 1.5, nested: { ok: true, n: i } });
+let t = performance.now();
+const str = JSON.stringify(items);
+const tStr = performance.now() - t;
+t = performance.now();
+const back = JSON.parse(str);
+const tParse = performance.now() - t;
+console.log(JSON.stringify({ stringify: tStr, parse: tParse, bytes: str.length, check: back.length }));
