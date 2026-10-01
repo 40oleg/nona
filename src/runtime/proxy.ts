@@ -6,6 +6,8 @@ import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js
 import {stringLiteral} from './value.js';
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
 import {FunctionKind,FunctionLayout} from './functions.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
 
 export {ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 export const ProxyLayout={target:O.size,handler:O.size+16,revoked:O.size+32,size:O.size+40} as const;
@@ -248,9 +250,24 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.label(accessor);a.load('r10',{base:'rax',disp:P.setter});a.test('r10','r10');failIf(a,'e','rt.throwTypeError');a.jmp(done);
   a.label(forward);a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.kind});const ordinaryForward=a.unique('ordinaryForward');a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryForward);
   a.lea('rcx',slot(80));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.proxySet');a.store(slot(72),'rax');a.jmp(done);
-  a.label(ordinaryForward);a.load('rcx',slot(88));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.lookupProperty');
+  a.label(ordinaryForward);
+  // A TypedArray on the target's prototype chain (before any own property or
+  // Proxy) with an invalid canonical numeric key: no effect (Test262 / ES2022 receiver rule).
+  {const plainTarget=a.unique('plainTarget'),walk=a.unique('walk'),next=a.unique('next');
+   a.load('r10',slot(48));a.load('rcx',{base:'r10',disp:8});a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',plainTarget);a.store(slot(216),'rax');
+   a.load('rax',slot(88));a.store(slot(208),'rax');
+   a.label(walk);a.load('r10',slot(208));a.test('r10','r10');a.jcc('e',plainTarget);
+   a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('e',plainTarget);a.cmp('rax',TypedArrayKind);a.jcc('ne',next);
+   a.load('rax',slot(216));a.cmp('rax',-2);a.jcc('e',done);
+   a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('r11',{base:'r11',disp:ArrayBufferLayout.detached});a.test('r11','r11');a.jcc('ne',done);
+   a.load('r11',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r11');a.jcc('ae',done);a.jmp(plainTarget);
+   a.label(next);a.load('rcx',slot(208));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',plainTarget);
+   a.load('r10',slot(208));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(208),'rax');a.jmp(walk);
+   a.label(plainTarget);}
+  a.load('rcx',slot(88));a.load('r10',slot(48));a.load('rdx',{base:'r10',disp:8});a.call('rt.lookupProperty');
   const regularForward=a.unique('regularForward'),setterMissing=a.unique('setterMissing'),dataReceiver=a.unique('dataReceiver'),specialForward=a.unique('specialForward');
-  a.test('rax','rax');a.jcc('e',dataReceiver);a.cmp('rax',5);a.jcc('be',specialForward);
+  // 6: a valid element of a TypedArray other than the receiver -> OrdinarySet on the receiver.
+  a.test('rax','rax');a.jcc('e',dataReceiver);a.cmp('rax',6);a.jcc('e',dataReceiver);a.cmp('rax',5);a.jcc('be',specialForward);
   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',regularForward);
   for(const part of [0,8]){a.load('r10',{base:'rax',disp:P.setter+part});a.store(slot(144+part),'r10');}
   a.load('rax',slot(144));a.test('rax','rax');a.jcc('e',setterMissing);

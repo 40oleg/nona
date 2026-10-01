@@ -67,7 +67,7 @@ class Lowerer {
     const sourceText=fn.module!==undefined?this.bound.modules![fn.module]!.record.ast.source:this.bound.ast.source;
     const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
     this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`js.fn.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
-      sourceText:override?.sourceText??sourceText?.slice(sourceSpan.start,sourceSpan.end),
+      sourceText:override?.sourceText??(fn.declaration.kind==='Function'?fn.declaration.sourceText:undefined)??sourceText?.slice(sourceSpan.start,sourceSpan.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
   private globalObject():number {const dest=this.slot();this.emit({kind:'globalObject',dest});return dest;}
@@ -456,7 +456,12 @@ class Lowerer {
     if(left.kind==='Var')this.bindPattern(left.declarations[0]!.id,value,left.declarationKind!=='var');
     else if(left.kind==='ArrayPattern'||left.kind==='ObjectPattern')this.bindPattern(left,value,false,true);
     else if(left.kind==='Identifier')this.write(left,value);
+    else if((left as A.Node).kind==='Call')this.callTargetError(left as unknown as A.Call);
     else this.putReference(this.reference(left),value);
+  }
+  /** Annex B.3.8: a call expression target is evaluated, then ReferenceError. */
+  private callTargetError(call:A.Call):number {
+    this.expression(call);this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);
   }
   private lowerOptionalChain(e:A.OptionalChain,mode:'value'|'delete',preserveReceiver=false):{value:number;receiver?:number} {
     const result=this.slot(),receiverResult=preserveReceiver?this.slot():undefined,join=this.block();
@@ -677,6 +682,7 @@ class Lowerer {
         const dest=this.slot();this.emit({kind:'unary',dest,operator:e.operator,argument});return dest;
       }
       case 'Update': {
+        if((e.argument as A.Node).kind==='Call')return this.callTargetError(e.argument as unknown as A.Call);
         const ref=this.settledReference(this.reference(e.argument)),previous=this.getReference(ref),numeric=this.slot();this.emit({kind:'unary',dest:numeric,operator:'numeric',argument:previous});
         const next=this.slot();this.emit({kind:'unary',dest:next,operator:e.operator==='++'?'increment':'decrement',argument:numeric});
         this.putReference(ref,next);return e.prefix?next:numeric;
@@ -685,6 +691,7 @@ class Lowerer {
         if(e.left.kind==='ArrayPattern'||e.left.kind==='ObjectPattern'){
           const right=this.expression(e.right);this.bindPattern(e.left,right,false,true);return right;
         }
+        if((e.left as A.Node).kind==='Call')return this.callTargetError(e.left as unknown as A.Call);
         // Compound assignment reads its left value BEFORE evaluating the RHS.
         const raw=this.reference(e.left,e.operator==='='),ref=e.operator==='='?raw:this.settledReference(raw),previous=e.operator==='='?null:this.getReference(ref);
         const right=this.expression(e.right,e.operator==='='&&e.left.kind==='Identifier'&&!e.parenthesizedTarget?e.left.name:undefined);
@@ -700,6 +707,9 @@ class Lowerer {
         this.emit({kind:'constructorResult',dest,result,instance});return dest;
       }
       case 'Call': {
+        // Runtime helpers called by transformed code (eval-aot): \u0001name(args).
+        if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001'))
+          return this.preludeCall(e.callee.name.slice(1),e.arguments.map(arg=>this.expression(arg as A.Expression)));
         if(e.callee.kind==='Identifier'){
           const binding=this.bound.bindings.get(e.callee);
           if(binding&&binding.kind!=='globalProperty'&&binding.ffiDefine)return this.ffiDefine(e);

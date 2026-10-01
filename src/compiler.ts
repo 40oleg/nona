@@ -1,5 +1,6 @@
 import type { Diagnostic } from './diagnostics.js';
 import {lowerDynamicFunctions} from './frontend/dynamic-functions.js';
+import {lowerLiteralEval} from './frontend/eval-aot.js';
 import { CompileError } from './diagnostics.js';
 import { lex } from './frontend/lexer.js';
 import { parse } from './frontend/parser.js';
@@ -44,7 +45,7 @@ export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:fals
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost,target:Target=hostTarget):ModuleIR {
   host=withBuiltinModules(host,target);
-  const script=lowerDynamicFunctions(parse(lex(source)));
+  const script=lowerLiteralEval(lowerDynamicFunctions(parse(lex(source))));
   const requests=fileName===undefined?undefined:moduleRequests(script);
   const dynamic=requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])].filter((s,i,all)=>all.indexOf(s)===i);
   if(!dynamic.length)return {...lower(bind(script)),runtimePrelude:true};

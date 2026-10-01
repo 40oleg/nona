@@ -7,6 +7,7 @@ import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
+import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
@@ -105,6 +106,9 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
     if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
+    // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
+    {const fits=a.unique('stackFits');a.lea('r11',{base:'rsp',disp:-allocation});a.load('r10',{rip:'rt.stackLimit'});a.cmp('r11','r10');a.jcc('ae',fits);
+     a.sub('rsp',8);a.call('rt.throwStackOverflow');a.label(fits);}
     if(allocation>=4096){
       a.mov('r11','rsp');a.mov('rax',Math.floor(allocation/4096));
       const probe=a.unique('probe');a.label(probe);a.sub('r11',4096);a.load('r10',{base:'r11'});a.sub('rax',1);a.jcc('ne',probe);
@@ -437,6 +441,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
+  entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');

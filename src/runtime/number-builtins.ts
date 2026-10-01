@@ -55,7 +55,15 @@ export function emitNumberBuiltins(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.global.eval.fn','eval',1,'rt.globalObject');
  b.fn('rt.global.eval.fn.code',40,a=>{
   const undefinedResult=a.unique('undefinedResult'),done=a.unique('done');a.test('rdx','rdx');a.jcc('e',undefinedResult);
-  a.load('rax',{base:'r8'});a.cmp('rax',4);failIf(a,'e','rt.throwEvalError');
+  // A string argument: source made only of white space and line terminators
+  // is an empty Script (completion undefined); anything else needs a compiler.
+  {const notString=a.unique('notString'),loop=a.unique('loop'),dynamic=a.unique('dynamic');
+  a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('ne',notString);
+  a.load('r10',{base:'r8',disp:8});a.load('r11',{base:'r10'});a.add('r10',8);
+  a.label(loop);a.test('r11','r11');a.jcc('e',undefinedResult);a.load('rax',{base:'r10'},16);
+  for(const c of [9,10,11,12,13,32,0xa0,0x1680,0x2028,0x2029,0x202f,0x205f,0x3000,0xfeff]){const next=a.unique('ws');a.cmp('rax',c);a.jcc('ne',next);a.add('r10',2);a.sub('r11',1);a.jmp(loop);a.label(next);}
+  a.cmp('rax',0x2000);a.jcc('b',dynamic);a.cmp('rax',0x200a);a.jcc('a',dynamic);a.add('r10',2);a.sub('r11',1);a.jmp(loop);
+  a.label(dynamic);a.call('rt.throwDynamicCode');a.label(notString);}
   for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store({base:'rcx',disp:offset},'rax');}a.jmp(done);
   a.label(undefinedResult);a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
  });
