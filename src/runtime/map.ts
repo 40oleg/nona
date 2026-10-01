@@ -10,8 +10,9 @@ import {FunctionKind} from './functions.js';
 import {mapIndexThreshold} from './map-index.js';
 
 export const MapKind=15;
-/** index: raw-heap hash table from key to entry (map-index.ts), or 0. */
-export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,index:O.size+24,size:O.size+32} as const;
+/** index: raw-heap hash table from key to entry (map-index.ts), or 0.
+ * weakNext: the next WeakMap or WeakSet on rt.weakList (gc.ts). */
+export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,index:O.size+24,weakNext:O.size+32,size:O.size+40} as const;
 /** hash: the key's rt.mapKeyHash, stored once at insertion. */
 /** weak: 1 for a WeakSet entry, whose value is its key and must not keep it alive. */
 export const MapEntryLayout={next:0,key:8,value:24,active:40,hash:48,weak:56,size:64} as const;
@@ -49,7 +50,7 @@ export function emitMap(b:RuntimeBuilder):void {
  rootedFn(b,'rt.Map.construct',952,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:14}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.mov('rcx',MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',MapKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index,MapLayout.weakNext])a.store({base:'rax',disp:offset},'r10');
   selectNativeConstructPrototype(a,frame,'rt.mapPrototype');a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',5);a.store(slot(80),'r10');a.store(slot(88),'rax');
   const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);a.load('r10',slot(56));a.load('rax',{base:'r10'});a.cmp('rax',1);a.jcc('e',done);a.test('rax','rax');a.jcc('e',done);

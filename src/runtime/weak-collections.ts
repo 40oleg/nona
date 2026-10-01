@@ -36,6 +36,8 @@ export function emitWeakCollections(b:RuntimeBuilder):void {
   rootedFn(b,prefix+'.construct',952,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:14}],(a,frame)=>{
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',spec.kind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
    for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index])a.store({base:'rax',disp:offset},'r10');
+   // Listed for the collector, which prunes dead keys of every live weak collection.
+   a.load('r10',{rip:'rt.weakList'});a.store({base:'rax',disp:MapLayout.weakNext},'r10');a.store({rip:'rt.weakList'},'rax');
    selectNativeConstructPrototype(a,frame,prototypeName);a.store({base:'rax',disp:O.prototype},'r10');
    a.mov('r10',5);a.store(slot(80),'r10');a.store(slot(88),'rax');
    const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);a.load('r10',slot(56));a.load('rax',{base:'r10'});a.cmp('rax',1);a.jcc('e',done);a.test('rax','rax');a.jcc('e',done);
