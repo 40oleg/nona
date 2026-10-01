@@ -3,6 +3,7 @@ import { checkedRel32 } from "../x64/encoder.js";
 import { buildImports } from "./imports.js";
 import { buildRelocations } from "./relocations.js";
 import { encodeUnwind } from "./unwind.js";
+import { buildResources, type PeResource } from "./resources.js";
 const imageBase = 0x140000000n;
 function align(n: number, a: number): number {
   return Math.ceil(n / a) * a;
@@ -23,6 +24,8 @@ interface Section {
 export interface PeOptions {
   /** Optional-header subsystem: console (3, default) or windows GUI (2, no console window). */
   subsystem?: "console" | "windows";
+  /** Win32 resources (icons, manifest, version information) for the .rsrc section. */
+  resources?: PeResource[];
 }
 export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Array {
   const sections: Section[] = [];
@@ -155,6 +158,9 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
     });
     pdata = addSection(".pdata", pbytes, 0x40000040);
   }
+  let rsrc: Section | undefined;
+  if (options.resources?.length)
+    rsrc = addSection(".rsrc", buildResources(options.resources, nextRva), 0x40000040);
   let reloc: Section | undefined;
   if (relocations.length)
     reloc = addSection(".reloc", buildRelocations(relocations), 0x42000040);
@@ -221,6 +227,7 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
     directory(1, idata.rva, imports.descriptorSize);
     directory(12, imports.iatRva, imports.iatSize);
   }
+  if (rsrc) directory(2, rsrc.rva, rsrc.bytes.length);
   if (pdata) directory(3, pdata.rva, pdata.bytes.length);
   if (reloc) directory(5, reloc.rva, reloc.bytes.length);
   sections.forEach((s, i) => {
