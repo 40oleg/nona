@@ -247,6 +247,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.load('r11',{base:'rax',disp:H.marked});a.test('r11','r11');a.jcc('ne',keep);
   a.load('r11',{base:'rax',disp:H.next});a.store({base:'r10'},'r11');
   const ordinaryFree=a.unique('ordinaryFree');a.load('r11',{base:'rax',disp:H.kind});a.cmp('r11',HeapKind.object);a.jcc('ne',ordinaryFree);
+  {const noIndex=a.unique('noIndex');a.load('r8',{base:'rax',disp:H.size+O.index});a.test('r8','r8');a.jcc('e',noIndex);
+  a.store(slot(64),'rax');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.load('rax',slot(64));a.label(noIndex);}
   a.load('r11',{base:'rax',disp:H.size+O.kind});a.cmp('r11',GeneratorKind);a.jcc('ne',ordinaryFree);
   a.load('rcx',{base:'rax',disp:H.size+G.stack});a.test('rcx','rcx');a.jcc('e',ordinaryFree);
   a.store(slot(64),'rax');a.call('rt.freeGeneratorStack');a.load('rax',slot(64));a.label(ordinaryFree);

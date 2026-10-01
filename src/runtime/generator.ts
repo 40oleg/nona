@@ -3,7 +3,7 @@ import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H,ValueListLayout as L} from './heap-layout.js';
 import {ObjectLayout as O} from './object-layout.js';
 import {PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
-import {ContextLayout} from './context-switch.js';
+import {ContextLayout,StackBudget} from './context-switch.js';
 import {GeneratorStack} from './generator-stack.js';
 import {emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
@@ -163,8 +163,8 @@ export function emitGenerators(b:RuntimeBuilder):void {
  });
  // RCX output Value*, RDX generator Value*, R8 sent Value*, R9 done flag*,
  // fifth argument: resume mode (0 next, 1 throw, 2 return).
- rootedFn(b,'rt.resumeGenerator',408,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}],(a,frame)=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(384),'r9');a.load('rax',slot(frame+40));a.store(slot(392),'rax');
+ rootedFn(b,'rt.resumeGenerator',424,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(400),'r9');a.load('rax',slot(frame+40));a.store(slot(408),'rax');
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
   a.load('r11',{base:'rdx',disp:8});a.load('rax',{base:'r11',disp:O.kind});a.cmp('rax',GeneratorKind);failIf(a,'ne','rt.throwTypeError');
   const completed=a.unique('completed'),start=a.unique('start'),ready=a.unique('ready'),finish=a.unique('finish'),unstarted=a.unique('unstarted'),resume=a.unique('resume');
@@ -172,7 +172,7 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.cmp('rax',6);a.jcc('e',unstarted);
   a.cmp('rax',1);failIf(a,'e','rt.throwTypeError');a.test('rax','rax');a.jcc('e',start);
   a.jmp(resume);
-  a.label(unstarted);a.load('rax',slot(392));a.test('rax','rax');a.jcc('e',resume);
+  a.label(unstarted);a.load('rax',slot(408));a.test('rax','rax');a.jcc('e',resume);
   a.load('rcx',{base:'r11',disp:GeneratorLayout.stack});a.call('rt.freeGeneratorStack');
   a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});a.mov('rax',0);
   for(const offset of [GeneratorLayout.stack,GeneratorLayout.context+ContextLayout.stack,GeneratorLayout.context+ContextLayout.roots,GeneratorLayout.context+ContextLayout.parent])a.store({base:'r11',disp:offset},'rax');
@@ -180,12 +180,12 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.label(resume);
   // A value sent to suspended yield becomes that expression's result.
   a.load('r10',slot(56));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store({base:'r11',disp:GeneratorLayout.resumeValue+offset},'rax');}
-  a.load('rax',slot(392));a.cmp('rax',2);const noReturn=a.unique('noReturn');a.jcc('ne',noReturn);
+  a.load('rax',slot(408));a.cmp('rax',2);const noReturn=a.unique('noReturn');a.jcc('ne',noReturn);
   a.load('r10',slot(56));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store({base:'r11',disp:GeneratorLayout.returnValue+offset},'rax');}
   a.label(noReturn);
-  a.load('rax',slot(392));a.store({base:'r11',disp:GeneratorLayout.resumeMode},'rax');
+  a.load('rax',slot(408));a.store({base:'r11',disp:GeneratorLayout.resumeMode},'rax');
   a.jmp(ready);
-  a.label(start);a.load('rax',slot(392));a.cmp('rax',2);const startReturn=a.unique('startReturn');a.jcc('e',startReturn);
+  a.label(start);a.load('rax',slot(408));a.cmp('rax',2);const startReturn=a.unique('startReturn');a.jcc('e',startReturn);
   a.test('rax','rax');const startNext=a.unique('startNext');a.jcc('e',startNext);
   a.mov('rax',3);a.store({base:'r11',disp:GeneratorLayout.state},'rax');a.load('rcx',slot(56));a.call('rt.throw');
   a.label(startReturn);a.mov('rax',3);a.store({base:'r11',disp:GeneratorLayout.state},'rax');a.jmp(completed);
@@ -193,6 +193,7 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});a.store({base:'r11',disp:GeneratorLayout.stack},'rax');
   a.lea('r10',{base:'rax',disp:GeneratorStack.bytes-56});a.lea('rax',{rip:'rt.generatorStart'});a.store({base:'r10',disp:40},'rax');
   a.store({base:'r11',disp:GeneratorLayout.context+ContextLayout.stack},'r10');
+  a.load('r10',{base:'r11',disp:GeneratorLayout.stack});a.add('r10',GeneratorStack.guard+StackBudget.generatorMargin);a.store({base:'r11',disp:GeneratorLayout.context+ContextLayout.stackLimit},'r10');
   a.label(ready);a.load('r11',slot(48));a.load('r11',{base:'r11',disp:8});
   a.lea('rax',slot(112));a.store({base:'r11',disp:GeneratorLayout.context+ContextLayout.parent},'rax');
   a.store({base:'r11',disp:GeneratorLayout.context+ContextLayout.generator},'r11');
@@ -218,14 +219,14 @@ export function emitGenerators(b:RuntimeBuilder):void {
   a.mov('rax',3);a.store({base:'r11',disp:GeneratorLayout.state},'rax');
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',{base:'r11',disp:GeneratorLayout.returnValue+offset});a.store({base:'rcx',disp:offset},'rax');}
   a.mov('rax',1);a.jmp(finish);
-  a.label(finish);a.load('r10',slot(384));a.store({base:'r10'},'rax');a.jmp(finish+'.end');
-  a.label(completed);a.load('rax',slot(392));a.cmp('rax',2);const completedReturn=a.unique('completedReturn');a.jcc('e',completedReturn);
+  a.label(finish);a.load('r10',slot(400));a.store({base:'r10'},'rax');a.jmp(finish+'.end');
+  a.label(completed);a.load('rax',slot(408));a.cmp('rax',2);const completedReturn=a.unique('completedReturn');a.jcc('e',completedReturn);
   a.test('rax','rax');const completedNext=a.unique('completedNext');a.jcc('e',completedNext);
   a.load('rcx',slot(56));a.call('rt.throw');a.label(completedNext);
   a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
   a.jmp(completedReturn+'.done');a.label(completedReturn);
   a.load('r10',slot(56));a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',{base:'r10',disp:offset});a.store({base:'rcx',disp:offset},'rax');}
-  a.label(completedReturn+'.done');a.load('r10',slot(384));a.mov('rax',1);a.store({base:'r10'},'rax');a.label(finish+'.end');
+  a.label(completedReturn+'.done');a.load('r10',slot(400));a.mov('rax',1);a.store({base:'r10'},'rax');a.label(finish+'.end');
  });
  // RCX destination of yield expression, RDX yielded Value*.
  b.fn('rt.generatorYield',72,a=>{

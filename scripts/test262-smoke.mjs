@@ -22,12 +22,16 @@ const root = resolve(process.env.TEST262_ROOT || 'work/test262');
 const manifest = JSON.parse(readFileSync(new URL('../tests/test262-smoke.json', import.meta.url), 'utf8'));
 const group = process.argv[2];
 const pathFilter = process.env.TEST262_PATH_FILTER || '';
+// TEST262_FILE_LIST: a file with one test path per line (relative to test/); only those run.
+const fileList = process.env.TEST262_FILE_LIST
+  ? new Set(readFileSync(resolve(process.env.TEST262_FILE_LIST), 'utf8').split(/\r?\n/).map(line => line.trim()).filter(Boolean))
+  : undefined;
 const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
 // Test262 feature tags introduced after ES2020; `post-es2020` in
 // TEST262_EXCLUDE_FEATURES expands to this list for gate audits.
-const postEs2020Features = ['AggregateError','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
+const postEs2020Features = ['AggregateError','Iterator.prototype.join','iterator-chunking','iterator-includes','source-phase-imports-module-source','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
   'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','class-fields-private','class-fields-private-in','class-fields-public',
   'class-methods-private','class-static-block','class-static-fields-private','class-static-fields-public','class-static-methods-private','decorators',
   'Error.isError','error-cause','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
@@ -60,7 +64,11 @@ if (group && (!/^[A-Za-z0-9_./-]+$/.test(group) || group.includes('..') || group
 }
 const reportPath = resolve(process.env.TEST262_REPORT || 'work/test262-smoke-report.json');
 const progressPath = process.env.TEST262_PROGRESS_LOG ? resolve(process.env.TEST262_PROGRESS_LOG) : '';
-const revision = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 'utf8'});
+// A checkout without git metadata (for example one copied to another host)
+// may instead carry the pinned revision in .nona-test262-revision.
+const revisionMarker = join(root, '.nona-test262-revision');
+const markedRevision = (() => { try { return readFileSync(revisionMarker, 'utf8').trim(); } catch { return ''; } })();
+const revision = markedRevision === PIN ? {status: 0, stdout: PIN} : spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding: 'utf8'});
 if (revision.error || revision.status !== 0 || revision.stdout.trim() !== PIN) {
   throw new Error(`Test262 checkout must be pinned at ${PIN}; found ${revision.stdout?.trim() || revision.stderr}`);
 }
@@ -168,8 +176,8 @@ function runCase(path) {
   // use the pinned blob so their intended CR, LF, and CRLF bytes survive.
   const blob = path.includes('line-terminator-normalisation-')
     ? spawnSync('git', ['-C', root, 'show', `HEAD:test/${path}`], {encoding: 'utf8'}) : null;
-  if (blob && blob.status !== 0) throw new Error(blob.stderr || `Cannot read Test262 blob ${path}`);
-  const source = blob ? blob.stdout : readFileSync(join(root, 'test', path), 'utf8');
+  if (blob && blob.status !== 0 && markedRevision !== PIN) throw new Error(blob.stderr || `Cannot read Test262 blob ${path}`);
+  const source = blob && blob.status === 0 ? blob.stdout : readFileSync(join(root, 'test', path), 'utf8');
   const metadata = source.match(/\/\*---([\s\S]*?)---\*\//)?.[1] || '';
   const flags = metadata.match(/^flags:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
   const includes = metadata.match(/^includes:\s*\[([^\]]*)\]/m)?.[1].split(',').map(x => x.trim()) || [];
@@ -232,7 +240,7 @@ if (!isMainThread) {
   for (const path of workerData.paths) parentPort.postMessage(safeRunCase(path));
 } else {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
-    .filter(path => path.includes(pathFilter) && !excludePathFilters.some(value => path.includes(value))
+    .filter(path => path.includes(pathFilter) && (!fileList || fileList.has(path)) && !excludePathFilters.some(value => path.includes(value))
       && !hasExcludedFeature(path)
       && (!directOnly || !group || !path.slice(group.length + 1).includes('/')));
   if (progressPath) {
