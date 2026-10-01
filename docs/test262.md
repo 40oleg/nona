@@ -47,9 +47,13 @@ node scripts/test262-summary.mjs work/test262-audit --others work/others.txt
 node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audit
 ```
 
-The summary classifies each failure as `eval` (the documented eval/dynamic
-Function exception), `post` (post-ES2020 semantics under an older or missing
-feature tag) or `other`, and lists `other` files. A checkout without git
+The summary classifies each failure as `eval` (the test uses eval; with
+compile-time eval sources these are mostly run-time sources, `$262.evalScript`
+or other realms), `post` (post-ES2020 semantics under an older or missing
+feature tag) or `other`, and lists `other` files (`--evals <file>` lists the
+eval ones). `TEST262_FILE_LIST=<file>` restricts a run of
+`scripts/test262-smoke.mjs <group>` to the listed paths, for example to rerun
+such a list. A checkout without git
 metadata (for example one copied to another machine) is accepted when
 `work/test262/.nona-test262-revision` contains the pinned commit hash; line
 terminator tests then read the files directly.

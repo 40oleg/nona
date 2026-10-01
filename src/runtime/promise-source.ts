@@ -389,6 +389,7 @@ var __nonaPromiseDrainJobs=(function(){
     return Object(value)
   };
   __nonaRegexpVm.withHasBinding=function(object,name){
+    if(object===undefined)return false; // eval-aot environment not created yet
     if(!(name in object))return false;
     var unscopables=object[unscopablesSymbol];
     return !(isObject(unscopables)&&unscopables[name])
@@ -401,6 +402,31 @@ var __nonaPromiseDrainJobs=(function(){
     if(!(name in object)&&strict)throw new ReferenceError(name+' is not defined');
     if(!reflectSet(object,name,value)&&strict)throw new TypeError('Cannot assign to read only property '+name)
   };
+  // Literal eval compiled ahead of time (src/frontend/eval-aot.ts).
+  var intrinsicEval=globalThis.eval,isExtensible=Object.isExtensible,reflectApplyEval=Reflect.apply;
+  __nonaRegexpVm.isEval=function(value){return value===intrinsicEval};
+  // The object environment of a function's sloppy eval var declarations, created on first use.
+  __nonaRegexpVm.evalDeclareVars=function(env,names){
+    if(env===undefined)env=objectCreate(null);
+    for(var i=0;i<names.length;i++)if(!reflectGetOwn(env,names[i]))reflectDefine(env,names[i],{value:undefined,writable:true,enumerable:true,configurable:true});
+    return env
+  };
+  // EvalDeclarationInstantiation for global code: CanDeclareGlobalFunction and
+  // CanDeclareGlobalVar for every name, then the configurable bindings.
+  __nonaRegexpVm.evalGlobalDeclarations=function(functionNames,functions,varNames){
+    var global=globalThis,i,d;
+    for(i=0;i<functionNames.length;i++){
+      d=reflectGetOwn(global,functionNames[i]);
+      if(d===undefined?!isExtensible(global):!d.configurable&&!('value'in d&&d.writable&&d.enumerable))throw new TypeError('Cannot declare global function '+functionNames[i]);
+    }
+    for(i=0;i<varNames.length;i++)if(!reflectGetOwn(global,varNames[i])&&!isExtensible(global))throw new TypeError('Cannot declare global variable '+varNames[i]);
+    for(i=0;i<functionNames.length;i++){
+      d=reflectGetOwn(global,functionNames[i]);
+      if(!reflectDefine(global,functionNames[i],d===undefined||d.configurable?{value:functions[i],writable:true,enumerable:true,configurable:true}:{value:functions[i]}))throw new TypeError('Cannot declare global function '+functionNames[i]);
+    }
+    for(i=0;i<varNames.length;i++)if(!reflectGetOwn(global,varNames[i]))reflectDefine(global,varNames[i],{value:undefined,writable:true,enumerable:true,configurable:true});
+  };
+  __nonaRegexpVm.callWithGlobalThis=function(code){return reflectApplyEval(code,globalThis,[])};
   // Source text modules: namespace exotic objects, evaluation and import().
   var reflectGetOwn=Reflect.getOwnPropertyDescriptor,reflectDefine=Reflect.defineProperty,reflectDelete=Reflect.deleteProperty,reflectOwnKeys=Reflect.ownKeys,reflectGet=Reflect.get;
   var proxyCreate=Function.prototype.__nonaProxyCreateInternal,preventExtensions=Object.preventExtensions,toStringTagSymbol=Symbol.toStringTag;

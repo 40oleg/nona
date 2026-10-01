@@ -21,9 +21,24 @@ The concrete outstanding work for draft PR #5 is tracked in
   * `eval` is the ordinary `%eval%` function object (`name` `"eval"`,
     `length` 1, writable/configurable global property). A non-string argument
     is returned unchanged; a string made only of white space and line
-    terminators evaluates to `undefined`. Any other string, direct or indirect,
-    throws `EvalError` (“Nona compiles ahead of time: eval and Function need
-    source text known at compile time”).
+    terminators evaluates to `undefined`.
+  * Source text known at compile time is compiled ahead of time with PerformEval
+    semantics (`src/frontend/eval-aot.ts`, `tests/eval-aot.test.ts`): string
+    literals, concatenations of literals, and variables that are only ever
+    assigned such constants (the value is compared at run time). Direct calls
+    `eval(...)` see the caller's scope, `this`, `arguments`, `new.target` and
+    `super`; sloppy `var`/function declarations become configurable bindings of
+    the caller's variable environment (EvalDeclarationInstantiation, including
+    its SyntaxError and global TypeError checks and Annex B.3.3.3); strict eval
+    code and lexical declarations stay local; the completion value is returned.
+    Indirect forms — `(0, eval)(...)`, `globalThis.eval(...)`, `eval?.(...)`
+    and variables assigned `eval` — run in the global scope. A run-time check
+    falls back to an ordinary call when `eval` is replaced or shadowed. Parse and
+    early errors throw `SyntaxError` when the call is evaluated.
+  * Any other string (computed at run time), direct or indirect, throws
+    `EvalError` (“Nona compiles ahead of time: eval and Function need source
+    text known at compile time”); so do spread arguments to eval and
+    `$262.evalScript`.
   * `Function`, `GeneratorFunction`, `AsyncFunction` and
     `AsyncGeneratorFunction` whose arguments are all literals (known at compile
     time) are compiled ahead of time with CreateDynamicFunction semantics:
@@ -34,7 +49,7 @@ The concrete outstanding work for draft PR #5 is tracked in
     identity check falls back to an ordinary call when the variable no longer
     holds the intrinsic. Calls with no arguments create empty functions at run
     time. Any other source throws `EvalError` with the message above.
-  * Tracked in issue #11 (an embedded evaluator for run-time sources).
+  * Issue #11 tracks the remaining run-time sources (an embedded evaluator).
 * `with` is part of the language target in sloppy script code. Its implementation
   is outstanding. Strict-mode rejection is also required.
 * Annex B web-compatibility features are tracked separately. Implement the
