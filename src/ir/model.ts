@@ -60,4 +60,5 @@ export type Operation =
 export type Terminator = {kind:'throw';value:number}| {kind:'jump';target:number}|{kind:'branch';condition:number;yes:number;no:number}|{kind:'return';value:number};
 export interface BlockIR {id:number;exceptionTarget?:number;operations:Operation[];terminator:Terminator}
 export interface FunctionIR {id:string;name:string;parameterCount:number;localCount:number;slotCount:number;maxArguments:number;handlerCount?:number;derivedConstructor?:boolean;generator?:boolean;blocks:BlockIR[]}
-export interface ModuleIR {globalCount:number;functions:FunctionIR[];globalProperties?:{name:string;index:number}[];globalFunctionProperties?:string[];runtimePrelude?:boolean}
+export interface FfiDeclarationIR {dll:string;name:string;signature:string;span:{start:number;end:number}}
+export interface ModuleIR {/** Native foreign functions declared with nona:ffi define(); index = declaration id. */ffi?:FfiDeclarationIR[];globalCount:number;functions:FunctionIR[];globalProperties?:{name:string;index:number}[];globalFunctionProperties?:string[];runtimePrelude?:boolean}

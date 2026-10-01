@@ -27,22 +27,17 @@ export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:tr
 
 import {compileModuleToIR} from '../../src/compiler.js';
 /** Write a module graph to a temp directory, compile the entry as a module and run it; also run Node on it. */
-export function runModulesOnHost(files:Record<string,string>,entry:string):{native:HostRun;oracle:string} {
+export function runModulesOnHost(files:Record<string,string>,entry:string,options:{gcStress?:boolean}={gcStress:true}):{native:HostRun;oracle:string} {
  const directory=mkdtempSync(join(tmpdir(),'nona-modules-'));
  try{
   for(const [name,text] of Object.entries(files))writeFileSync(join(directory,name),text);
-  const program=generate(compileModuleToIR(files[entry]!,join(directory,entry)),{gcStress:true});
+  const program=generate(compileModuleToIR(files[entry]!,join(directory,entry)),{gcStress:options.gcStress});
   const executable=join(directory,process.platform==='linux'?'image':'image.exe');
-  let native:HostRun;
-  if(process.platform!=='linux'){
-   const result=runNative(linkPe(program));
-   native={status:result.status,stdout:result.stdout.toString(),stderr:result.stderr.toString(),error:result.error};
-  }else{
-   writeFileSync(executable,linkLinux(program));chmodSync(executable,0o755);
-   const result=spawnSync(executable,[],{encoding:'utf8',timeout:60_000});
-   native={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
-  }
-  const oracle=spawnSync(process.execPath,[join(directory,entry)],{encoding:'utf8',timeout:10_000});
+  // Both programs run in the temporary directory, so relative paths stay inside it.
+  writeFileSync(executable,process.platform==='linux'?linkLinux(program):linkPe(program));chmodSync(executable,0o755);
+  const result=spawnSync(executable,[],{cwd:directory,encoding:'utf8',timeout:60_000,windowsHide:true});
+  const native:HostRun={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
+  const oracle=spawnSync(process.execPath,[join(directory,entry)],{cwd:directory,encoding:'utf8',timeout:10_000});
   return {native,oracle:oracle.stdout};
  }finally{rmSync(directory,{recursive:true,force:true});}
 }
