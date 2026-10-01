@@ -1,5 +1,6 @@
 import type {NativeProgram,NamedFragment} from '../pe/model.js';
 import {checkedRel32} from '../x64/encoder.js';
+import {writeFileSync} from 'node:fs';
 
 const base=0x400000;
 const page=4096;
@@ -38,6 +39,8 @@ export function linkElf(program:NativeProgram):Uint8Array {
    if(label!==fragment.name||position!==0)put(label,address+position);
   }
  }
+ // NONA_ELF_MAP=<file>: write the symbol table as JSON, for profiling tools.
+ if(process.env.NONA_ELF_MAP)writeFileSync(process.env.NONA_ELF_MAP,JSON.stringify(Object.fromEntries(symbols)));
  const entry=symbols.get(program.entry);
  const code=sections.find(section=>section.name==='.text');
  if(entry===undefined||!code||entry<base+code.offset||entry>=base+code.offset+code.length)throw new Error('ELF entry is outside executable code');
