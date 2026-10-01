@@ -84,6 +84,30 @@ export function readPe(bytes: Uint8Array) {
       }
       return list;
     },
+    /** Resource tree (type → id → language) flattened to its data entries. */
+    resources: () => {
+      const list: { type: number; id: number; language: number; data: Uint8Array }[] = [];
+      const dir = directories[2]!;
+      if (!dir.size) return list;
+      const base = offset(dir.rva);
+      const entries = (at: number) => {
+        const count = u16(at + 12) + u16(at + 14);
+        return Array.from({ length: count }, (_, i) => ({ id: u32(at + 16 + 8 * i), target: u32(at + 20 + 8 * i) }));
+      };
+      let previous = -1;
+      for (const type of entries(base)) {
+        assert.ok(type.target & 0x80000000);assert.ok(type.id > previous);previous = type.id;
+        for (const name of entries(base + (type.target & 0x7fffffff))) {
+          assert.ok(name.target & 0x80000000);
+          for (const language of entries(base + (name.target & 0x7fffffff))) {
+            assert.equal(language.target & 0x80000000, 0);
+            const leaf = base + language.target, at = offset(u32(leaf)), size = u32(leaf + 4);
+            list.push({ type: type.id, id: name.id, language: language.id, data: bytes.slice(at, at + size) });
+          }
+        }
+      }
+      return list;
+    },
     checkDirectories: () => {
       for (const d of directories)
         if (d.size) {
