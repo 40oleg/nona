@@ -3,8 +3,11 @@
 Snapshot: 2026-09-28, branch `work/v0.6-v0.14`. This is a work list, not a
 claim of conformance. The normative target and exceptions are in
 [`es2020-contract.md`](es2020-contract.md); the implementation matrix is in
-[`language-support.md`](language-support.md). PR #5 must stay draft until
-every applicable item below has implementation and conformance evidence.
+[`language-support.md`](language-support.md). PR #5 has been merged for the
+experimental v0.6.0 subset release. The dated sections below preserve the
+implementation/audit history; the full ES2020 gate remains open until every
+applicable item has implementation and conformance evidence. See
+[the v0.6 release status](v0.6-status.md) for the release boundary.
 
 ## Test262 audit 2026-09-30 (Linux x64 and Windows x64)
 
@@ -320,5 +323,5 @@ pinned revision; "eval" means the documented exception.
   tests, and Windows **and** Linux native evidence. Update README, support
   matrix and development log from those verified results. Run the complete
   CI workflow on the final commit, resolve every failure, review the diff,
-  update the PR body and only then mark PR #5 ready for review. Do not infer
+  update the release documentation and only then close the full ES2020 gate. Do not infer
   the entire gate from the currently green built-in subsets.
