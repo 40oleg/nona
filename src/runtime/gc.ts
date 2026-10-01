@@ -124,7 +124,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(done);
  });
  b.fn('rt.gcTraceObject',56,a=>{
-  a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
+  a.store(slot(40),'rcx');a.call('rt.elementsTrace');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.prototype});a.call('rt.gcMarkPointer');
   const done=a.unique('done'),box=a.unique('box'),iterator=a.unique('iterator'),generator=a.unique('generator');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
   a.load('rcx',{base:'rcx',disp:FunctionLayout.environment});a.call('rt.gcMarkPointer');
@@ -301,7 +301,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.load('r11',{base:'rax',disp:H.next});a.store({base:'r10'},'r11');
   const ordinaryFree=a.unique('ordinaryFree');a.load('r11',{base:'rax',disp:H.kind});a.cmp('r11',HeapKind.object);a.jcc('ne',ordinaryFree);
   {const noIndex=a.unique('noIndex');a.load('r8',{base:'rax',disp:H.size+O.index});a.test('r8','r8');a.jcc('e',noIndex);
-  a.store(slot(64),'rax');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.load('rax',slot(64));a.label(noIndex);}
+  a.store(slot(64),'rax');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.load('rax',slot(64));a.label(noIndex);
+  a.store(slot(64),'rax');a.lea('rcx',{base:'rax',disp:H.size});a.call('rt.elementsFree');a.load('rax',slot(64));}
   {const noMapIndex=a.unique('noMapIndex'),mapLike=a.unique('mapLike');a.load('r11',{base:'rax',disp:H.size+O.kind});a.cmp('r11',MapKind);a.jcc('e',mapLike);a.cmp('r11',SetKind);a.jcc('e',mapLike);a.cmp('r11',WeakMapKind);a.jcc('e',mapLike);a.cmp('r11',WeakSetKind);a.jcc('ne',noMapIndex);
   a.label(mapLike);a.store(slot(64),'rax');a.lea('rcx',{base:'rax',disp:H.size});a.call('rt.mapIndexFree');a.load('rax',slot(64));a.label(noMapIndex);}
   a.load('r11',{base:'rax',disp:H.size+O.kind});a.cmp('r11',GeneratorKind);a.jcc('ne',ordinaryFree);

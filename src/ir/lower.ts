@@ -144,7 +144,7 @@ class Lowerer {
   }
   private arrayOf(values:number[]):number {
     const array=this.slot();this.emit({kind:'newObject',dest:array,array:true,length:values.length});
-    values.forEach((value,index)=>this.emit({kind:'setProperty',strict:true,object:array,key:this.constant(String(index)),source:value,define:true}));
+    values.forEach((value,index)=>this.emit({kind:'setProperty',strict:true,object:array,key:this.constant(index),source:value,define:true}));
     return array;
   }
   /** Module program entry: namespaces, import.meta, registration, then evaluation. */
@@ -627,7 +627,7 @@ class Lowerer {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
         const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
-          if(item&&item.kind!=='SpreadElement'){const key=this.constant(String(i)),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
+          if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
         });
         else if(e.kind==='ArrayLiteral'){
           const index=this.slot(),zero=this.constant(0),one=this.constant(1);this.emit({kind:'copy',dest:index,source:zero});
