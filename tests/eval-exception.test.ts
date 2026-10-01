@@ -13,7 +13,7 @@ try { new eval('1'); } catch (e) { console.log(e.name); }`);
 });
 
 test('eval and Function with run-time sources throw EvalError',()=>{
- const run=runOnHost(`for (const f of [() => eval('1 + 1'), () => (0, eval)('var x'), () => Function('a', 'return' + ' a'), () => new Function(String(1))]) {
+ const run=runOnHost(`for (const f of [() => eval(String(1) + ' + 1'), () => (0, eval)(['var x'][0]), () => Function('a', 'return' + ' a'), () => new Function(String(1))]) {
  try { f(); console.log('no error'); } catch (e) { console.log(e.name, e.message.startsWith('Nona compiles ahead of time')); } }`);
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,'EvalError true\nEvalError true\nEvalError true\nEvalError true\n');

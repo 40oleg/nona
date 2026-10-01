@@ -22,6 +22,10 @@ const root = resolve(process.env.TEST262_ROOT || 'work/test262');
 const manifest = JSON.parse(readFileSync(new URL('../tests/test262-smoke.json', import.meta.url), 'utf8'));
 const group = process.argv[2];
 const pathFilter = process.env.TEST262_PATH_FILTER || '';
+// TEST262_FILE_LIST: a file with one test path per line (relative to test/); only those run.
+const fileList = process.env.TEST262_FILE_LIST
+  ? new Set(readFileSync(resolve(process.env.TEST262_FILE_LIST), 'utf8').split(/\r?\n/).map(line => line.trim()).filter(Boolean))
+  : undefined;
 const excludePathFilter = process.env.TEST262_EXCLUDE_PATH_FILTER || '';
 const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
@@ -236,7 +240,7 @@ if (!isMainThread) {
   for (const path of workerData.paths) parentPort.postMessage(safeRunCase(path));
 } else {
   const paths = (group ? filesUnder(join(root, 'test', group), group).sort() : manifest.tests)
-    .filter(path => path.includes(pathFilter) && !excludePathFilters.some(value => path.includes(value))
+    .filter(path => path.includes(pathFilter) && (!fileList || fileList.has(path)) && !excludePathFilters.some(value => path.includes(value))
       && !hasExcludedFeature(path)
       && (!directOnly || !group || !path.slice(group.length + 1).includes('/')));
   if (progressPath) {

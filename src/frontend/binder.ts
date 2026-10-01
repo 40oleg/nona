@@ -8,6 +8,8 @@ import {boundNames,collectDeclarations} from './declarations.js';
 
 /** A with statement's object environment: its hidden binding holds the object. */
 class WithScope extends Map<string,Binding> {constructor(readonly binding:StorageBinding){super();}}
+/** Var declarations of sloppy direct eval (eval-aot): an object environment consulted only for these names. */
+class EvalScope extends WithScope {constructor(binding:StorageBinding,readonly names:Set<string>){super(binding);}}
 
 export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const globals:StorageBinding[]=[],mainLocals:StorageBinding[]=[],functions:BoundFunction[]=[],bindings=new Map<A.Node,Binding>();
@@ -80,7 +82,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     bodyDeclarations.vars.forEach(id=>variable(id));
     // Annex B.3.3.1/B.3.3.2: in sloppy code a plain function declared in a block also
     // gets a var binding (unless a parameter or top-level lexical has its name).
-    if(!strict){
+    if(!strict&&!(fn?.declaration.kind==='FunctionExpression'&&fn.declaration.noAnnexB)){
       const topLexicals=new Set(collectDeclarations(body,'var').lexicals.map(d=>d.name));
       const parameterNames=new Set(fn?.parameters.map(p=>p.name)??[]);
       for(const declaration of bodyDeclarations.blockFunctions){
@@ -96,6 +98,10 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       checkName(fn.declaration.id);
       const self:StorageBinding={kind:'local',name:fn.declaration.id.name,index:fn.locals.length,owner:fn.index,mutable:false,silentImmutable:!strict};
       fn.self=self;fn.locals.push(self);bindings.set(fn.declaration.id,self);scopes.push(new Map([[self.name,self]]));
+    }
+    if(fn?.declaration.evalVarNames){
+      const env=functionNames.get('\u0000evalEnv');
+      if(env&&env.kind==='local')scopes.push(new EvalScope(env,new Set(fn.declaration.evalVarNames)));
     }
     scopes.push(functionNames);const functionScopeIndex=scopes.length-1;
     // Arrow functions may call super(); they reach the constructor through these hidden bindings.
@@ -161,7 +167,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       if(strict&&(id.name==='yield'||id.name==='let'||strictReserved.has(id.name)))fail(id,'Restricted strict identifier');
       if(strict&&mode==='write'&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict assignment');
       let b:Binding|undefined;const withs:StorageBinding[]=[];
-      for(let i=scopes.length-1;i>=0&&!b;i--){const scope=scopes[i]!;if(scope instanceof WithScope)withs.push(scope.binding);else b=scope.get(id.name);}
+      for(let i=scopes.length-1;i>=0&&!b;i--){const scope=scopes[i]!;if(scope instanceof EvalScope){if(scope.names.has(id.name))withs.push(scope.binding);}else if(scope instanceof WithScope)withs.push(scope.binding);else b=scope.get(id.name);}
       b??=globalNames.get(id.name);
       if(!b)b={kind:'globalProperty',name:id.name};
       const result=b!;
@@ -215,7 +221,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'ObjectLiteral':if(e.duplicateProto)fail(e,'Duplicate __proto__ property');for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
         case 'Binary':expression(e.left);expression(e.right);break;
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
-        case 'New':case 'Call':if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
+        case 'New':case 'Call':if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001')){/* runtime helper (eval-aot) */}else if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
           if(owner?.declaration.kind!=='FunctionExpression'||!owner.declaration.derivedConstructor)fail(e.callee,'super() requires a derived class constructor');
           if(owner!==fn){
@@ -356,6 +362,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       for(const p of fn.locals)if(p.kind==='parameter'&&!p.name.startsWith('#'))parameters.set(p.name,p);
       const argumentsBinding=parameterArguments??functionNames.get('arguments');
       if(argumentsBinding&&argumentOwners.has(argumentsBinding as StorageBinding))parameters.set('arguments',argumentsBinding);
+      // eval-aot: parameter initializers share the function's eval environment.
+      const evalEnv=functionNames.get('\u0000evalEnv');if(evalEnv)parameters.set('\u0000evalEnv',evalEnv);
       const last=scopes.length-1,saved=scopes[last]!;scopes[last]=parameters;
       fn.declaration.parameters.forEach((pattern,index)=>{const init=fn.declaration.defaults?.[index];if(init)expression(init);patternInitializers(pattern);});
       if(fn.declaration.rest)patternInitializers(fn.declaration.rest);

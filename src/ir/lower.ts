@@ -64,7 +64,7 @@ class Lowerer {
     const sourceText=fn.module!==undefined?this.bound.modules![fn.module]!.record.ast.source:this.bound.ast.source;
     const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
     this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`js.fn.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
-      sourceText:override?.sourceText??sourceText?.slice(sourceSpan.start,sourceSpan.end),
+      sourceText:override?.sourceText??(fn.declaration.kind==='Function'?fn.declaration.sourceText:undefined)??sourceText?.slice(sourceSpan.start,sourceSpan.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
   private globalObject():number {const dest=this.slot();this.emit({kind:'globalObject',dest});return dest;}
@@ -688,6 +688,9 @@ class Lowerer {
         this.emit({kind:'constructorResult',dest,result,instance});return dest;
       }
       case 'Call': {
+        // Runtime helpers called by transformed code (eval-aot): \u0001name(args).
+        if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001'))
+          return this.preludeCall(e.callee.name.slice(1),e.arguments.map(arg=>this.expression(arg as A.Expression)));
         if(e.callee.kind==='Super'){
           const result=this.slot(),dest=this.slot();let base=this.slot(),receiver=this.slot();
           if(e.superRefs){this.emit({kind:'superConstructor',dest:base,func:this.read(e.superRefs.func)});receiver=this.read(e.superRefs.receiver);}

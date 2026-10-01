@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Summarize Test262 audit reports written by scripts/test262-audit.{ps1,sh}.
 //
-//   node scripts/test262-summary.mjs <resultsDir> [--compare <baseDir>] [--others <file>]
+//   node scripts/test262-summary.mjs <resultsDir> [--compare <baseDir>] [--others <file>] [--evals <file>]
 //
 // Every t262-*.json report in <resultsDir> is read; reports in rN/
 // subdirectories (reruns of single directories) override earlier results per
@@ -12,7 +12,8 @@
 //   post  - post-ES2020 semantics under an untagged or older feature
 //           (features listed by test262-smoke.mjs as post-es2020, the v flag,
 //           top-level await, numeric separators, Promise.any);
-//   other - everything else, listed with --others.
+//   other - everything else, listed with --others (eval failures with --evals;
+//           such a list can be rerun with TEST262_FILE_LIST).
 // With --compare, files that changed between the two result sets are listed.
 import {readFileSync, readdirSync, writeFileSync, existsSync} from 'node:fs';
 import {join, resolve, dirname} from 'node:path';
@@ -21,9 +22,9 @@ import {fileURLToPath} from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const option = name => { const i = args.indexOf(name); return i < 0 ? undefined : args.splice(i, 2)[1]; };
-const compareDir = option('--compare'), othersFile = option('--others');
+const compareDir = option('--compare'), othersFile = option('--others'), evalsFile = option('--evals');
 const resultsDir = args[0];
-if (!resultsDir) { console.error('usage: test262-summary.mjs <resultsDir> [--compare <baseDir>] [--others <file>]'); process.exit(2); }
+if (!resultsDir) { console.error('usage: test262-summary.mjs <resultsDir> [--compare <baseDir>] [--others <file>] [--evals <file>]'); process.exit(2); }
 
 const smoke = readFileSync(join(root, 'scripts/test262-smoke.mjs'), 'utf8');
 const post = new Function(`return ${smoke.match(/const postEs2020Features = (\[[\s\S]*?\]);/)[1]}`)();
@@ -55,17 +56,19 @@ function classify(path) {
   return 'other';
 }
 
-const results = load(resultsDir), totals = {}, others = [];
+const results = load(resultsDir), totals = {}, others = [], evals = [];
 for (const [path, entry] of results) {
   const t = totals[catalog(path)] ??= {pass: 0, fail: 0, skip: 0, eval: 0, post: 0, other: 0};
   t[entry.outcome]++;
   if (entry.outcome !== 'fail') continue;
   const kind = classify(path); t[kind]++;
   if (kind === 'other') others.push(path);
+  if (kind === 'eval') evals.push(path);
 }
 for (const [name, t] of Object.entries(totals).sort())
   console.log(`${name.padEnd(10)} ${t.pass}/${t.pass + t.fail} (skip ${t.skip}); fail: eval ${t.eval}, post ${t.post}, other ${t.other}`);
 if (othersFile) writeFileSync(othersFile, others.sort().join('\n') + '\n');
+if (evalsFile) writeFileSync(evalsFile, evals.sort().join('\n') + '\n');
 
 if (compareDir) {
   const base = load(compareDir), fixed = [], broke = [];
