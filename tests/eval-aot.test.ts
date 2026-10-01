@@ -44,6 +44,10 @@ const cases:[string,string,string][]=[
  ['variables holding constant sources, eval?.() and Function in eval code',
   "var src = '1 + 1'; console.log(eval(src)); src = 'var cz = 3; cz * 2'; console.log(eval(src), cz); var dyn = String(5); try { eval(dyn); } catch (e) { console.log(e.name); } const a = 'g'; function f() { const a = 'l'; return [eval?.('a'), eval('a')]; } console.log(f().join(), eval('Function(\"x\", \"return x * 2\")')(4));",
   '2\n6 3\nEvalError\ng,l 8\n'],
+
+ ['completion values through labels and finally',
+  "console.log(eval('5; outer: do { while (true) { 6; continue outer; } } while (false)'), eval('99; do { -99; try { 39 } finally { 42; break; } } while (false);'), eval('1; try { 2 } finally { 3 }'), eval('99; do { try { 39 } finally { break; } } while (false);'));",
+  '6 42 2 undefined\n'],
 ];
 for(const [name,source,expected] of cases)test('eval-aot: '+name,()=>{
  const run=runOnHost(source);
