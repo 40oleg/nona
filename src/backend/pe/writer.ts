@@ -3,6 +3,7 @@ import { checkedRel32 } from "../x64/encoder.js";
 import { buildImports } from "./imports.js";
 import { buildRelocations } from "./relocations.js";
 import { encodeUnwind } from "./unwind.js";
+import { buildResources, type PeResource } from "./resources.js";
 const imageBase = 0x140000000n;
 function align(n: number, a: number): number {
   return Math.ceil(n / a) * a;
@@ -20,7 +21,13 @@ interface Section {
   rawSize: number;
   flags: number;
 }
-export function linkPe(program: NativeProgram): Uint8Array {
+export interface PeOptions {
+  /** Optional-header subsystem: console (3, default) or windows GUI (2, no console window). */
+  subsystem?: "console" | "windows";
+  /** Win32 resources (icons, manifest, version information) for the .rsrc section. */
+  resources?: PeResource[];
+}
+export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Array {
   // System call declarations only exist in ELF images; in a PE image their
   // import cells point to the declaring prefix's "unavailable" stub instead.
   const syscalls = program.imports.filter((i) => i.dll === "syscall");
@@ -166,6 +173,9 @@ export function linkPe(program: NativeProgram): Uint8Array {
     });
     pdata = addSection(".pdata", pbytes, 0x40000040);
   }
+  let rsrc: Section | undefined;
+  if (options.resources?.length)
+    rsrc = addSection(".rsrc", buildResources(options.resources, nextRva), 0x40000040);
   let reloc: Section | undefined;
   if (relocations.length)
     reloc = addSection(".reloc", buildRelocations(relocations), 0x42000040);
@@ -217,7 +227,7 @@ export function linkPe(program: NativeProgram): Uint8Array {
   w16(o + 48, 6);
   w32(o + 56, nextRva);
   w32(o + 60, headerSize);
-  w16(o + 68, 3);
+  w16(o + 68, options.subsystem === "windows" ? 2 : 3);
   w16(o + 70, 0x160);
   w64(o + 72, 0x1000000n);
   w64(o + 80, 0x1000n);
@@ -232,6 +242,7 @@ export function linkPe(program: NativeProgram): Uint8Array {
     directory(1, idata.rva, imports.descriptorSize);
     directory(12, imports.iatRva, imports.iatSize);
   }
+  if (rsrc) directory(2, rsrc.rva, rsrc.bytes.length);
   if (pdata) directory(3, pdata.rva, pdata.bytes.length);
   if (reloc) directory(5, reloc.rva, reloc.bytes.length);
   sections.forEach((s, i) => {
