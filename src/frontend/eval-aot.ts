@@ -126,6 +126,7 @@ function parseEval(source:string,ctx:Context,indirect:boolean):{body:A.Statement
       }
       if(n.kind==='ClassExpression'||n.kind==='Class'){check((n as A.ClassExpression).superClass,inFunction,inOrdinary);return;}
       if(!inFunction&&n.kind==='Return')invalid='Illegal return statement';
+      if(n.kind==='ImportMeta')invalid='Cannot use import.meta outside a module';
       if(!inOrdinary&&n.kind==='NewTarget'&&(indirect||!ctx.newTarget))invalid='new.target expression is not allowed here';
       for(const [key,value] of Object.entries(n))if(key!=='span'&&key!=='sourceSpan')check(value,inFunction,inOrdinary);
     };
@@ -313,7 +314,7 @@ export function lowerLiteralEval(program:A.Program):A.Program {
   constantScan(program.body);
   for(const [name,values] of constants)if(poisoned.has(name)||values.size>4)constants.delete(name);
   const factories:A.Statement[]=[];
-  const globalInfo:FunctionInfo={node:null,strict:!!program.strict,arrow:false,varNames:staticVarNames(program),evalNames:new Set(),topLexicals:lexicalNames(program.body,false)};
+  const globalInfo:FunctionInfo={node:null,strict:!!program.strict||!!program.module,arrow:false,varNames:staticVarNames(program),evalNames:new Set(),topLexicals:lexicalNames(program.body,false)};
   const touched=new Set<FunctionInfo>();
 
   /** Compile one literal eval. Returns the replacement for the compiled branch. */
@@ -561,7 +562,7 @@ export function lowerLiteralEval(program:A.Program):A.Program {
       }
     }
   };
-  const ctx:Context={fn:globalInfo,strict:!!program.strict,blocks:[],newTarget:false,superProperty:false,superCall:false,globalLexicals:globalInfo.topLexicals};
+  const ctx:Context={fn:globalInfo,strict:!!program.strict||!!program.module,blocks:[],newTarget:false,superProperty:false,superCall:false,globalLexicals:globalInfo.topLexicals};
   statements(program.body,ctx);
   void touched;
   if(!factories.length&&counter===0)return program;

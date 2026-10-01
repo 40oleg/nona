@@ -204,7 +204,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'This':case 'RegExpLiteral':case 'ImportMeta':break;
         case 'ImportCall':expression(e.argument);break;
         case 'FunctionExpression':{
-          const nested=register(e,fn);analyze(e.body.body,nested,e.body,scopes);break;
+          // Dynamic functions (Function(), indirect eval) see only the global scope, also from modules.
+          const nested=register(e,fn);analyze(e.body.body,nested,e.body,e.dynamic?[]:scopes);break;
         }
         case 'ClassExpression':analyzeClass(e);break;
         case 'Identifier':resolve(e);break;
