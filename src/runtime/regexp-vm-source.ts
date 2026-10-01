@@ -1399,7 +1399,15 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:(
   sourceLength=__nonaRegexpVm.arrayBufferTrunc(sourceLength);
  }
  if(targetOffset+sourceLength>targetLength)throw new __nonaRegexpVm.bufferRangeError('Source exceeds TypedArray length');
- if(sourceIsTyped){values=[];for(var k=0;k<sourceLength;k++)values[k]=source[k]}
+ if(sourceIsTyped){
+  // Reading a typed array runs no user code: copy through a Float64Array
+  // (exact for all non-BigInt element types) instead of a growing Array.
+  var bigSource=sourceCtor===BigInt64Array||sourceCtor===BigUint64Array;
+  values=bigSource?[]:new Float64Array(sourceLength);
+  for(var k=0;k<sourceLength;k++)values[k]=source[k];
+  for(var j=0;j<sourceLength;j++)this[targetOffset+j]=values[j];
+  return;
+ }
  for(var i=0;i<sourceLength;i++){
   var value=sourceIsTyped?values[i]:source[i];
   if(targetOffset+i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[targetOffset+i]=value;
