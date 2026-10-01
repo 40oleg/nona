@@ -14,6 +14,8 @@ import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
+import {encodingPreludeSource} from '../../runtime/encoding-source.js';
+import {processPreludeSource,processHostDeclarations} from '../../runtime/process-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -26,6 +28,7 @@ import {lower} from '../../ir/lower.js';
 import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
+import {emitFfi} from '../../runtime/ffi.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -42,7 +45,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
     cachedRuntimePreludes.set(rejectionPolicy,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
@@ -381,6 +384,20 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
     hostGlobals.push(base);
   };
+  // Host functions for the process prelude are FFI thunks for the target:
+  // KERNEL32 exports on Windows, system calls on Linux.
+  // Both targets' declarations are compiled into every image, so one program
+  // can be linked as PE and ELF; each linker binds the other target's imports
+  // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
+  const hostFfi=prelude?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
+  if(module.ffi?.length||hostFfi.length){
+    const ffi=emitFfi(module.ffi??[]).bundle;
+    fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
+    if(module.ffi?.length)hostGlobal('__nonaFfiLastError','rt.ffiLastError.code',0);
+    const host=emitFfi(hostFfi.map(h=>h.declaration),{prefix:'hostffi',support:false}).bundle;
+    fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
+    hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
+  }
   if(prelude){
     // Event-loop primitives, captured and removed from the global object by the timer prelude.
     hostGlobal('__nonaHostNow','rt.hostNow.code',0);
