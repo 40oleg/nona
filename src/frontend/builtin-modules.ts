@@ -1,5 +1,6 @@
 import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
+import {fsModuleSource} from './fs-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -65,18 +66,31 @@ export function readHandle(buffer) {
 }
 `;
 
-const sources=new Map<string,string>([
-  ['nona:ffi',ffiModuleSource],
-  ['nona:win32',win32ModuleSource],
+/** node:process / nona:process re-export the global process object. */
+const processModuleSource=`const process = globalThis.process;
+export default process;
+export const argv = process.argv, env = process.env, platform = process.platform, arch = process.arch, pid = process.pid, execPath = process.execPath;
+export function exit(code) { return process.exit(code); }
+export function cwd() { return process.cwd(); }
+`;
+
+type Target='win32-x64'|'linux-x64';
+const sources=new Map<string,(target:Target)=>string>([
+  ['nona:ffi',()=>ffiModuleSource],
+  ['nona:win32',()=>win32ModuleSource],
+  ['nona:fs',fsModuleSource],
+  ['node:fs',fsModuleSource],
+  ['nona:process',()=>processModuleSource],
+  ['node:process',()=>processModuleSource],
 ]);
 
 export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
 
-/** Wrap a module host so that `nona:*` specifiers resolve to built-in modules. */
-export function withBuiltinModules(host:ModuleHost):ModuleHost {
+/** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
+export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
   return {
     resolve:(specifier,referrer)=>sources.has(specifier)?specifier:host.resolve(specifier,referrer),
-    read:path=>sources.get(path)??host.read(path),
+    read:path=>sources.get(path)?.(target)??host.read(path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };
 }
