@@ -169,6 +169,7 @@ export function emitObjects(b:RuntimeBuilder):void {
   b.fn('rt.getProperty',40,a=>{
     const slow=a.unique('slow'),done=a.unique('done');
     a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);
+    a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);
     typedElement(a,'rdx','r8',slow);
     const f32=a.unique('f32'),f64=a.unique('f64'),int=a.unique('int'),store=a.unique('store');
     a.cmp('r10',8);a.jcc('e',f32);a.cmp('r10',9);a.jcc('e',f64);
@@ -192,6 +193,7 @@ export function emitObjects(b:RuntimeBuilder):void {
   b.fn('rt.setProperty',72,a=>{
     const slow=a.unique('slow'),done=a.unique('done');
     a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);
+    a.call('rt.namedSetFast');a.test('rax','rax');a.jcc('ne',done);
     // Only [[Set]] (not definitions) of finite Numbers into non-clamped, non-BigInt arrays.
     a.store(slot(32),'r8');a.store(slot(40),'r9');
     a.mov('rax','r9');a.and('rax',1);a.test('rax','rax');a.jcc('ne',slow);
