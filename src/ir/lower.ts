@@ -289,7 +289,9 @@ class Lowerer {
     this.emit({kind:'unary',dest:nullish,operator:'isNullish',argument:ref.object});
     this.end({kind:'branch',condition:nullish,yes:fail.id,no:ok.id});
     this.select(fail);this.emit({kind:'immutableWrite'});this.end({kind:'jump',target:ok.id});this.select(ok);
-    const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
+    // Numbers stay Numbers: their ToPropertyKey has no side effects, so the
+    // property operations convert them later (typed arrays use them directly).
+    const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKeyIndex',argument:ref.key});
     return {...ref,key};
   }
   private globalExists(name:string):number {
@@ -315,10 +317,7 @@ class Lowerer {
       this.writeStatic(ref.id,source);
     }
     else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
-    else {
-      const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});
-      this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key,source,define:false});
-    }
+    else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false});
   }
   private bindPattern(pattern:A.BindingPattern,value:number,initializing:boolean,assignment=false):void {
     if(pattern.kind==='Identifier'){
