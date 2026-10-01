@@ -48,7 +48,9 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.load('r10',slot(168));a.load('rax',{base:'r10',disp:O.kind});const proxyTarget=a.unique('proxyTarget'),receiverReady=a.unique('receiverReady');a.cmp('rax',ProxyKind);a.jcc('e',proxyTarget);
   // DataView validates the offset before obtaining newTarget.prototype.
   // Its construct code allocates the result after that validation.
-  a.load('rax',{base:'r10',disp:F.constructCode});a.lea('r11',{rip:'rt.DataView.construct'});a.cmp('rax','r11');const dataViewReceiver=a.unique('dataViewReceiver');a.jcc('e',dataViewReceiver);
+  // TypedArray(length) likewise converts the length first (ES2020 22.2.4.2).
+  const dataViewReceiver=a.unique('dataViewReceiver');a.load('rax',{base:'r10',disp:F.constructCode});
+  for(const target of ['rt.DataView.construct',...['Uint8Array','Int8Array','Uint8ClampedArray','Uint16Array','Int16Array','Uint32Array','Int32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].map(name=>'rt.'+name+'.construct')]){a.lea('r11',{rip:target});a.cmp('rax','r11');a.jcc('e',dataViewReceiver);}
   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.newInstanceRaw');a.jmp(receiverReady);
   a.label(dataViewReceiver);a.lea('rcx',slot(128));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   a.load('r10',slot(136));a.mov('rax',OF.deferredConstructPrototype);a.store({base:'r10',disp:O.flags},'rax');a.jmp(receiverReady);

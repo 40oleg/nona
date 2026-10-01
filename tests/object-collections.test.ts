@@ -49,7 +49,10 @@ const cases:[string,string][]=[
  ['assign skips nullish and returns boxed target',`let o=Object.assign(3,null,{x:2},undefined);console.log(typeof o,o.x,Object.getPrototypeOf(o)===Number.prototype);`],
 ];
 function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
-for(const [name,source] of cases)test('Object collections: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});
+// Expected output pinned where V8 versions differ: Node < 26 gives sloppy
+// functions own `arguments`/`caller` (a V8 extension that ES2020 16.2 leaves optional and Nona omits).
+const pinned:Record<string,string>={'function metadata order':'length|name|prototype length|name\nlength|name\n'};
+for(const [name,source] of cases)test('Object collections: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),pinned[name]??runOracle(source).stdout);});
 for(const source of [
  'Object.create();','Object.create(3);','Object.create(null,null);','Object.defineProperties(null,{});',
  'Object.defineProperties({},null);','Object.keys(null);','Object.values(undefined);','Object.entries(null);','Object.getOwnPropertyNames(undefined);',
