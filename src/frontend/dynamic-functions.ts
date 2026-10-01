@@ -116,12 +116,15 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
   // class C extends Function {} (or a dynamic constructor alias) without its
   // own constructor: new C(literals) is CreateDynamicFunction with new.target C.
   const subclasses=new Map<string,string>();
-  walk(program.body,node=>{
-    if(node.kind!=='Class')return;
-    const c=node as A.ClassDeclaration;
+  const subclass=(name:string,c:A.ClassDeclaration|A.ClassExpression)=>{
     if(!c.constructorMethod.defaultClassConstructor||c.superClass?.kind!=='Identifier')return;
     const base=c.superClass.name,kind=base==='Function'?'function':aliases.get(base)??(Object.hasOwn(kinds,base)?kinds[base]:undefined);
-    if(kind!==undefined&&!subclasses.has(c.id.name))subclasses.set(c.id.name,kind);
+    if(kind!==undefined&&!subclasses.has(name))subclasses.set(name,kind);
+  };
+  walk(program.body,node=>{
+    if(node.kind==='Class')subclass((node as A.ClassDeclaration).id.name,node as A.ClassDeclaration);
+    // const C = class extends Function {}
+    if(node.kind==='Var')for(const d of (node as A.Var).declarations)if(d.id.kind==='Identifier'&&d.init?.kind==='ClassExpression')subclass(d.id.name,d.init);
   });
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{

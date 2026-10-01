@@ -31,7 +31,7 @@ const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
 // Test262 feature tags introduced after ES2020; `post-es2020` in
 // TEST262_EXCLUDE_FEATURES expands to this list for gate audits.
-const postEs2020Features = ['AggregateError','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
+const postEs2020Features = ['AggregateError','Iterator.prototype.join','iterator-chunking','iterator-includes','source-phase-imports-module-source','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
   'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','class-fields-private','class-fields-private-in','class-fields-public',
   'class-methods-private','class-static-block','class-static-fields-private','class-static-fields-public','class-static-methods-private','decorators',
   'Error.isError','error-cause','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
