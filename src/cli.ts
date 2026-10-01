@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
 import {position} from './source.js';
 
-const help='Nona 0.6.0 — JavaScript subset to native Windows/Linux x64\nUsage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona 0.6.0 — JavaScript subset to native Windows/Linux x64\nUsage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
@@ -26,20 +26,34 @@ export function main(args:string[]):number {
     if(args.length===1&&args[0]==='--version'){process.stdout.write('0.6.0\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
     const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
-    let outputArg:string|undefined,target='win32-x64',module=inputArg.endsWith('.mjs');const seen=new Set<string>();
+    let outputArg:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target='win32-x64',module=inputArg.endsWith('.mjs');const seen=new Set<string>();
     for(let i=2;i<args.length;i+=2){
       const flag=args[i]!,value=args[i+1];
       if(flag==='--module'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);module=true;i--;continue;}
-      if(flag!=='-o'&&flag!=='--target')throw new Error('Unknown option: '+flag);
+      if(!['-o','--target','--subsystem','--icon','--manifest','--version-info'].includes(flag))throw new Error('Unknown option: '+flag);
       if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);
       if(!value||value.startsWith('-'))throw new Error('Missing value for '+flag);
-      if(flag==='-o')outputArg=value;else target=value;
+      if(flag==='-o')outputArg=value;
+      else if(flag==='--icon')icon=value;
+      else if(flag==='--manifest')manifest=value;
+      else if(flag==='--version-info')versionInfo=value;
+      else if(flag==='--subsystem'){if(value!=='console'&&value!=='windows')throw new Error('Unsupported subsystem: '+value);subsystem=value;}
+      else target=value;
     }
     if(!outputArg)throw new Error('Output is required (-o <output>)');
     if(target!=='win32-x64'&&target!=='linux-x64')throw new Error('Unsupported target: '+target);
     const input=resolve(inputArg),output=resolve(outputArg),source=readFileSync(input,'utf8');
     assertDifferent(input,output);
-    const result=compile(source,{fileName:inputArg,target,module});
+    if(subsystem!==undefined&&target!=='win32-x64')throw new Error('--subsystem requires --target win32-x64');
+    let versionFields;
+    if(versionInfo!==undefined){
+      try{versionFields=JSON.parse(readFileSync(resolve(versionInfo),'utf8'));}catch(error){throw new Error('Cannot read version information '+versionInfo+': '+(error instanceof Error?error.message:String(error)));}
+      if(versionFields===null||typeof versionFields!=='object'||Array.isArray(versionFields))throw new Error('Version information must be a JSON object');
+    }
+    const result=compile(source,{fileName:inputArg,target,module,...(subsystem?{subsystem}:{}),
+      ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
+      ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
+      ...(versionFields!==undefined?{versionInfo:versionFields}:{})});
     if(!result.ok){for(const d of result.diagnostics){const p=position(source,d.span.start);process.stderr.write(`${d.file}:${p.line}:${p.column} ${d.code}: ${d.message}\n`);}return 1;}
     mkdirSync(dirname(output),{recursive:true});
     temporary=join(dirname(output),'.nona-'+randomUUID()+'.tmp');
