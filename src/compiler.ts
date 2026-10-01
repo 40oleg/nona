@@ -9,6 +9,7 @@ import type {ModuleIR} from './ir/model.js';
 import type {Program} from './frontend/ast.js';
 import { generate } from './backend/x64/codegen.js';
 import { linkPe } from './backend/pe/writer.js';
+import {iconResources,manifestResource,versionResource,defaultManifest,type VersionInfo,type PeResource} from './backend/pe/resources.js';
 import { linkLinux } from './backend/linux/index.js';
 import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
@@ -17,7 +18,7 @@ import {resolve as resolvePath} from 'node:path';
 export type Target='win32-x64'|'linux-x64';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget:Target=process.platform==='linux'?'linux-x64':'win32-x64';
-export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
+export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -55,9 +56,25 @@ export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileM
   });
   return {...lower(bind({...script,scriptPath:path,scriptRequests},records)),runtimePrelude:true};
 }
+/** PE resources from compile options; a GUI program gets a default manifest. */
+function peResources(options:CompileOptions):PeResource[] {
+  const fail=(message:string):never=>{throw new CompileError([{code:'E_RESOURCE',file:options.fileName,span:{start:0,end:0},message}]);};
+  const wanted=options.icon!==undefined||options.manifest!==undefined||options.versionInfo!==undefined;
+  if(wanted&&options.target!=='win32-x64')fail('Icons, manifests and version information require --target win32-x64');
+  if(options.target!=='win32-x64')return [];
+  const resources:PeResource[]=[];
+  try{
+    if(options.icon!==undefined)resources.push(...iconResources(options.icon));
+    const manifest=options.manifest??(options.subsystem==='windows'?defaultManifest:undefined);
+    if(manifest!==undefined)resources.push(manifestResource(manifest));
+    if(options.versionInfo!==undefined)resources.push(versionResource(options.versionInfo));
+  }catch(error){fail((error as Error).message);}
+  return resources;
+}
 export function compile(source:string, options:CompileOptions):CompileResult {
   try {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent,undefined,undefined,options.target),{agent:true,unhandledRejections:options.unhandledRejections}));
     const ir=options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target);
@@ -65,8 +82,9 @@ export function compile(source:string, options:CompileOptions):CompileResult {
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(options.target==='linux-x64'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
+    const resources=peResources(options);
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
-    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
+    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
     throw error;
