@@ -26,9 +26,11 @@ test('partial writes advance offsets until all bytes are emitted',()=>{
  const stub=new Assembler('partial');stub.sub('rsp',40);const sp=stub.offset;stub.mov('rax',0);stub.store({base:'rsp',disp:32},'rax');stub.cmp('r8',2);stub.jcc('be','partial.call');stub.mov('r8',2);stub.label('partial.call');stub.callImport('realWriteFile');stub.add('rsp',40);stub.ret();stub.label('partial.end');p.fragments.push({...stub.finish(),name:'partial',section:'.text'});p.functions.push({begin:'partial',end:'partial.end',prologSize:sp,stackAllocation:40,savedRegisters:[]});p.imports.push({dll:'KERNEL32.dll',name:'WriteFile',symbol:'realWriteFile'});replaceImport(p,'WriteFile','partial');
  const run=runNative(linkPe(p));assert.equal(run.status,0);assert.equal(run.stdout.toString(),'abcdef\n');
 });
-for(const mode of ['zero','failed','allocation'] as const)test('runtime terminates on '+mode+' failure, including unavailable stderr',()=>{
+// A failed write (no console, closed handle) drops the output; a write that
+// makes no progress and allocation failures still terminate the program.
+for(const mode of ['zero','failed','allocation'] as const)test(mode==='failed'?'runtime drops output when the write fails':'runtime terminates on '+mode+' failure, including unavailable stderr',()=>{
  const r=emitRuntime();const a=new Assembler('entry');a.sub('rsp',40);a.call('rt.init');a.lea('rcx',{rip:'literal'});a.call('rt.write');a.mov('rcx',0);a.callImport('ExitProcess');a.label('entry.end');const p={...r,entry:'entry',fragments:[...r.fragments,{...a.finish(),name:'entry',section:'.text' as const},stringLiteral('literal','x')],functions:[...r.functions,{begin:'entry',end:'entry.end',prologSize:4,stackAllocation:40,savedRegisters:[]}]};
- const stub=new Assembler('failure');stub.mov('rax',0);if(mode==='zero'){stub.store({base:'r9'},'rax',32);stub.mov('rax',1);}stub.ret();p.fragments.push({...stub.finish(),name:'failure',section:'.text'});replaceImport(p,mode==='allocation'?'HeapAlloc':'WriteFile','failure');if(mode==='allocation')replaceImport(p,'WriteFile','failure');const run=runNative(linkPe(p));assert.equal(run.status,1,run.error?.message ?? "unexpected status");
+ const stub=new Assembler('failure');stub.mov('rax',0);if(mode==='zero'){stub.store({base:'r9'},'rax',32);stub.mov('rax',1);}stub.ret();p.fragments.push({...stub.finish(),name:'failure',section:'.text'});replaceImport(p,mode==='allocation'?'HeapAlloc':'WriteFile','failure');if(mode==='allocation')replaceImport(p,'WriteFile','failure');const run=runNative(linkPe(p));assert.equal(run.status,mode==="failed"?0:1,run.error?.message ?? "unexpected status");
 });
 
 

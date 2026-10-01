@@ -10,11 +10,12 @@ import type {ModuleIR} from './ir/model.js';
 import type {Program} from './frontend/ast.js';
 import { generate } from './backend/x64/codegen.js';
 import { linkPe } from './backend/pe/writer.js';
+import {iconResources,manifestResource,versionResource,defaultManifest,type VersionInfo,type PeResource} from './backend/pe/resources.js';
 import { linkLinux } from './backend/linux/index.js';
 import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
 import {resolve as resolvePath} from 'node:path';
-export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
+export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -50,13 +51,30 @@ export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileM
   });
   return {...lower(bind({...script,scriptPath:path,scriptRequests},records)),runtimePrelude:true};
 }
+/** PE resources from compile options; a GUI program gets a default manifest. */
+function peResources(options:CompileOptions):PeResource[] {
+  const fail=(message:string):never=>{throw new CompileError([{code:'E_RESOURCE',file:options.fileName,span:{start:0,end:0},message}]);};
+  const wanted=options.icon!==undefined||options.manifest!==undefined||options.versionInfo!==undefined;
+  if(wanted&&options.target!=='win32-x64')fail('Icons, manifests and version information require --target win32-x64');
+  if(options.target!=='win32-x64')return [];
+  const resources:PeResource[]=[];
+  try{
+    if(options.icon!==undefined)resources.push(...iconResources(options.icon));
+    const manifest=options.manifest??(options.subsystem==='windows'?defaultManifest:undefined);
+    if(manifest!==undefined)resources.push(manifestResource(manifest));
+    if(options.versionInfo!==undefined)resources.push(versionResource(options.versionInfo));
+  }catch(error){fail((error as Error).message);}
+  return resources;
+}
 export function compile(source:string, options:CompileOptions):CompileResult {
   try {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent),{agent:true,unhandledRejections:options.unhandledRejections}));
+    const resources=peResources(options);
     const program=generate(options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude):compileToIR(source,options.fileName,options.moduleHost),{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
-    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
+    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
     throw error;

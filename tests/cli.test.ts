@@ -27,3 +27,16 @@ test('locked output fails without removing previous executable',async()=>{
  }
 });
 test('symlink aliases are rejected',t=>fixture(dir=>{const input=join(dir,'in.js'),link=join(dir,'link.exe');writeFileSync(input,'console.log(1);');try{symlinkSync(input,link);}catch(e:any){if(e.code==='EPERM'){t.skip('Windows account lacks symlink permission');return;}throw e;}assert.equal(cli(['build',input,'-o',link]).status,1);assert.equal(readFileSync(input,'utf8'),'console.log(1);');}));
+
+test('CLI --subsystem option',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'nona-cli-subsystem-'));
+ try{
+  const input=join(directory,'app.js');writeFileSync(input,"console.log('x');\n");
+  assert.equal(cli(['build',input,'-o',join(directory,'app.exe'),'--subsystem','windows']).status,0);
+  assert.equal(readFileSync(join(directory,'app.exe')).readUInt16LE(readFileSync(join(directory,'app.exe')).readUInt32LE(0x3c)+24+68),2);
+  const bad=cli(['build',input,'-o',join(directory,'bad.exe'),'--subsystem','native']);
+  assert.equal(bad.status,1);assert.match(bad.stderr,/Unsupported subsystem/);
+  const linux=cli(['build',input,'-o',join(directory,'app'),'--target','linux-x64','--subsystem','windows']);
+  assert.equal(linux.status,1);assert.match(linux.stderr,/requires --target win32-x64/);
+ }finally{rmSync(directory,{recursive:true,force:true});}
+});
