@@ -4,6 +4,6 @@ export const errorConstructorNames=['Error','EvalError','RangeError','ReferenceE
 export const nativeConstructorNames=['Object','Array','Boolean','Number','String','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt','Function',...errorConstructorNames] as const;
 /** Host globals installed by the timer prelude. */
 export const hostGlobalNames=['setTimeout','setInterval','clearTimeout','clearInterval','queueMicrotask','performance'] as const;
-export const mutableGlobalNames:ReadonlySet<string>=new Set(['globalThis',...hostGlobalNames,'Math','JSON','Atomics','eval','isFinite','isNaN','encodeURI','encodeURIComponent','decodeURI','decodeURIComponent',...nativeConstructorNames]);
+export const mutableGlobalNames:ReadonlySet<string>=new Set(['globalThis','TextEncoder','TextDecoder','process',...hostGlobalNames,'Math','JSON','Atomics','eval','isFinite','isNaN','encodeURI','encodeURIComponent','decodeURI','decodeURIComponent',...nativeConstructorNames]);
 export const immutableGlobalNames:ReadonlySet<string>=new Set(['undefined','NaN','Infinity']);
 export const runtimeGlobalNames:ReadonlySet<string>=new Set([...mutableGlobalNames,...immutableGlobalNames,'console']);

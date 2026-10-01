@@ -156,6 +156,8 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.load('r10',slot(40));a.store({base:'r10'},'rax',32);a.mov('rax',1);a.jmp(done);
   a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
  });
+ // FFI is Windows-only; tests link ELF images with FFI stubs, which never set an error.
+ b.fn('linux.GetLastError.code',40,a=>a.mov('rax',0));
  // Monotonic clock in nanoseconds; the frequency is fixed at 1e9.
  b.fn('linux.QueryPerformanceCounter.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
