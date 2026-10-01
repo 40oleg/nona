@@ -17,6 +17,15 @@ exactly.
 - Remove `blocked` when you give the issue up. When the pull request is merged,
   the issue is closed by `Closes #N`.
 
+## Commits
+
+- Commit as the repository owner: author and committer `helgus
+  <oleg.merkulov701@gmail.com>`.
+- Do **not** add `Co-Authored-By`, `Claude-Session`, "Generated with" or any
+  other agent/tool trailers or footers to commit messages or pull request
+  descriptions. Such trailers make the agent appear as a repository
+  contributor.
+
 ## Branches and pull requests
 
 - **One issue — one branch — one pull request.** Do not mix issues in a PR.
