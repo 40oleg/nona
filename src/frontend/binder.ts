@@ -474,6 +474,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     modules[owner]!.linkError??=message;
   };
   for(const record of moduleRecords)if(record.loadError!==undefined)linkFailure(record.index,record.ast,record.loadError);
+  const ffiRecord=moduleRecords.find(record=>record.path==='nona:ffi');
+  const ffiDefine=ffiRecord?moduleNames[ffiRecord.index]!.get('define'):undefined;
   for(const placeholder of placeholders){
     let target:StorageBinding;
     if(placeholder.imported===null)target=modules[placeholder.from]!.namespace;
@@ -486,6 +488,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     }
     placeholder.binding.index=target.index;
     if(target.lexical)placeholder.binding.lexical=true;
+    if(ffiDefine!==undefined&&target===ffiDefine)placeholder.binding.ffiDefine=true;
   }
   for(const record of moduleRecords){
     const index=record.index;
