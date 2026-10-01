@@ -128,6 +128,8 @@ node dist/cli.js build examples/modern-expressions-demo.js -o build/modern-expre
 - Глобальный объект `process`: `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd` (см. [process](docs/process.md)).
 - Синхронная работа с файлами через `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` (см. [file system](docs/fs.md)).
 - Вызов функций DLL на Windows через `nona:ffi` и `nona:win32` (см. [FFI](docs/ffi.md)).
+- Цикл событий: `setTimeout`/`setInterval`/`clearTimeout`/`clearInterval`,
+  `queueMicrotask` и `performance.now()` (см. [host APIs](docs/host-apis.md)).
 
 Вычисление операндов и аргументов идёт слева направо. Недостающие аргументы —
 `undefined`; лишние вычисляются и игнорируются. Строки сохраняют встроенный NUL;

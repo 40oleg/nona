@@ -558,6 +558,8 @@ var __nonaPromiseDrainJobs=(function(){
   var generatorFunctionPrototype=getPrototypeOf(function*(){});
   if(!hasOwn.call(generatorFunctionPrototype,'constructor'))dynamicConstructor('GeneratorFunction',generatorFunctionPrototype,function(){return function*(){}});
   if(!hasOwn.call(generatorFunctionPrototype,Symbol.toStringTag))define(generatorFunctionPrototype,Symbol.toStringTag,'GeneratorFunction',false);
+  // The timer prelude queues microtasks (queueMicrotask) on the same queue.
+  __nonaRegexpVm.enqueueJob=function(job){enqueue(job)};
   return drain
 })();
 `;

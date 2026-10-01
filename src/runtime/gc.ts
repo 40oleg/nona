@@ -256,12 +256,12 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.mov('r8','rax');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.jmp(sweepLoop);
   a.label(keep);a.mov('r10',0);a.store({base:'rax',disp:H.marked},'r10');a.store({base:'rax',disp:H.greyNext},'r10');
   a.add('rax',H.next);a.store(slot(40),'rax');a.jmp(sweepLoop);
-  a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.add('rax','rax');
+  a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
   const thresholdReady=a.unique('thresholdReady');a.cmp('rax',1048576);a.jcc('ae',thresholdReady);a.mov('rax',1048576);
   a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');a.call('rt.gcFreeIndex');
  });
  b.fn('rt.safepoint',40,a=>{
-  const done=a.unique('done');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',done);
+  const done=a.unique('done');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',done);
   a.call('rt.collect');a.label(done);
  });
 }

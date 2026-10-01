@@ -5,6 +5,8 @@
 - Added the global `process` object (`argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid`) and `node:process`/`nona:process` ([#23](https://github.com/40oleg/nona/issues/23)). See [process](docs/process.md).
 - Added a synchronous `nona:fs`/`node:fs` subset, global `TextEncoder`/`TextDecoder`, and Linux system call declarations in `nona:ffi` ([#22](https://github.com/40oleg/nona/issues/22)). See [file system](docs/fs.md).
 - Added native function calls through the built-in `nona:ffi` module and curated `nona:win32` declarations ([#20](https://github.com/40oleg/nona/issues/20)). See [FFI](docs/ffi.md).
+- Counted coroutine stacks towards the collection threshold and added stability tests for long-running programs ([#26](https://github.com/40oleg/nona/issues/26)).
+- Added an event loop with `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask` and `performance.now()` ([#21](https://github.com/40oleg/nona/issues/21)). See [host APIs](docs/host-apis.md).
 - Made typed array element access, named property lookups on typed arrays, `set` and `apply` with array-likes fast ([#31](https://github.com/40oleg/nona/issues/31)).
 - Added Windows resources: `--icon`, `--manifest` (default manifest for GUI programs) and `--version-info` ([#25](https://github.com/40oleg/nona/issues/25)).
 - Added `--subsystem console|windows` for GUI programs without a console window; `console.log` drops output when no standard output is available instead of terminating ([#24](https://github.com/40oleg/nona/issues/24)). See [Windows executables](docs/windows-executables.md).

@@ -16,6 +16,7 @@ import {proxyPreludeSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
 import {processPreludeSource,processHostDeclarations} from '../../runtime/process-source.js';
+import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
 import {objectIntegrityPreludeSource} from '../../runtime/object-integrity-source.js';
@@ -44,7 +45,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+proxyPreludeSource))));
+    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
     cachedRuntimePreludes.set(rejectionPolicy,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
@@ -396,6 +397,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     const host=emitFfi(hostFfi.map(h=>h.declaration),{prefix:'hostffi',support:false}).bundle;
     fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
+  }
+  if(prelude){
+    // Event-loop primitives, captured and removed from the global object by the timer prelude.
+    hostGlobal('__nonaHostNow','rt.hostNow.code',0);
+    hostGlobal('__nonaHostWait','rt.agentSleep.code',1);
   }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
