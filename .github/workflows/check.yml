@@ -1,6 +1,9 @@
 name: check
 on:
+  # Branch pushes are checked by their pull request; a second push run in the
+  # same concurrency group would only cancel or be cancelled by it.
   push:
+    branches: [main]
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.ref_name }}

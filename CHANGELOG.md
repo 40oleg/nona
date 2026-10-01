@@ -9,6 +9,21 @@
 - Annex B call-expression assignment targets and RegExp `\c` escapes; TypedArray element writes and descriptors on detached or invalid targets follow the pinned Test262.
 - `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/v0.17-v0.20-status.md).
 
+## v0.6.0 — 2026-09-30
+
+- Integrated the ES2020 expansion from [PR #5](https://github.com/40oleg/nona/pull/5): Date/JSON, BigInt, RegExp/String integration, buffers and typed arrays, shared memory and Atomics agents, collections, Proxy/Reflect, and Promise jobs.
+- Added async functions/generators, modules and dynamic imports, `with`, realm support, tail calls, and related language/runtime corrections within the documented limits.
+- Expanded native Windows/Linux and pinned Test262 coverage, and cached the runtime/prelude code-generation image.
+- Updated package and CLI versions together, and corrected sort tests to verify effects without requiring Node.js's implementation-specific comparator call count.
+
+This is an experimental subset release. It does not close the full ES2020 conformance gate. See [v0.6 status](docs/v0.6-status.md) for validation, dynamic-source exceptions, cross-realm gaps, and large-array performance limits.
+
+## v0.5.0 — 2026-09-30
+
+- Added independent String operations, Unicode 17 normalization, and canonical-aware locale comparison.
+- Added Number formatting, ES2020 Math methods, and URI encoding/decoding globals on Windows/Linux x64.
+- Verified compatible examples on both targets, Unicode normalization, and pinned String/Number/Math catalogs. See [v0.5 status](docs/v0.5-status.md).
+
 ## v0.4.0 — 2026-09-26
 
 - Extended the ES2020 Array methods for the supported runtime types, including `concat`, `flat`, `flatMap`, stable `sort`, `toLocaleString`, species handling, and `Symbol.unscopables`.
