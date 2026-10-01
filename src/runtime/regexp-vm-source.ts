@@ -177,8 +177,13 @@ export const regexpVmSource=String.raw`(function(){
         else if(c==='c'&&cursor<body.length){
           var control=charCodeAt(body,cursor);
           if(control>=65&&control<=90||control>=97&&control<=122){cursor++;point=control%32}
-          else if(unicode)error();else point=99
+          else if(unicode)error();
+          // Annex B.1.4 ClassControlLetter: decimal digits and _ also take % 32;
+          // otherwise the class holds \\ and the c is read as the next atom.
+          else if(control>=48&&control<=57||control===95){cursor++;point=control%32}
+          else{cursor--;point=92}
         }
+        else if(c==='c'&&!unicode){cursor--;point=92}
         else{
           if(unicode&&indexOf('^$\\.*+?()[]{}|/-',c)<0)error();
           point=charCodeAt(c,0)
@@ -246,7 +251,7 @@ export const regexpVmSource=String.raw`(function(){
         var control=charCodeAt(pattern,at);
         if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
         if(indexOf(flags,'u')>=0)error();
-        return {kind:'char',value:'c'}
+        at--;return {kind:'char',value:'\\'} // Annex B.1.4: \\ [lookahead = c]
       }
       if(c==='x'||c==='u'){
         if(c==='u'&&indexOf(flags,'u')>=0&&pattern[at]==='{'){
@@ -1399,7 +1404,15 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:(
   sourceLength=__nonaRegexpVm.arrayBufferTrunc(sourceLength);
  }
  if(targetOffset+sourceLength>targetLength)throw new __nonaRegexpVm.bufferRangeError('Source exceeds TypedArray length');
- if(sourceIsTyped){values=[];for(var k=0;k<sourceLength;k++)values[k]=source[k]}
+ if(sourceIsTyped){
+  // Reading a typed array runs no user code: copy through a Float64Array
+  // (exact for all non-BigInt element types) instead of a growing Array.
+  var bigSource=sourceCtor===BigInt64Array||sourceCtor===BigUint64Array;
+  values=bigSource?[]:new Float64Array(sourceLength);
+  for(var k=0;k<sourceLength;k++)values[k]=source[k];
+  for(var j=0;j<sourceLength;j++)this[targetOffset+j]=values[j];
+  return;
+ }
  for(var i=0;i<sourceLength;i++){
   var value=sourceIsTyped?values[i]:source[i];
   if(targetOffset+i<__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayLength,this))this[targetOffset+i]=value;

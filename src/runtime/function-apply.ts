@@ -57,7 +57,7 @@ export function emitFunctionApply(b:RuntimeBuilder):void {
   a.label(slow);
   a.label(loop);a.load('rax',slot(160));a.load('r10',slot(152));a.cmp('rax','r10');a.jcc('ae',invoke);
   a.cvtsi2sd('xmm0','rax');a.storesd(slot(176),'xmm0');a.mov('rax',3);a.store(slot(168),'rax');
-  a.lea('rcx',slot(168));a.lea('rdx',slot(168));a.call('rt.toString');
+  // The Number index is converted by rt.getProperty (typed arrays use it directly).
   a.load('rax',slot(160));a.shl('rax',4);a.load('rcx',slot(144));a.add('rcx','rax');a.load('rdx',slot(192));a.lea('r8',slot(168));a.call('rt.getProperty');
   a.load('rax',slot(160));a.add('rax',1);a.store(slot(160),'rax');a.store(slot(120+R.count),'rax');a.jmp(loop);
   a.label(invoke);a.load('rax',slot(184));a.store(slot(32),'rax');a.load('rcx',slot(40));a.load('rdx',slot(64));a.load('r8',slot(152));a.load('r9',slot(144));a.call('rt.invoke');

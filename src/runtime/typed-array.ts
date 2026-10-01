@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {selectNativeConstructPrototype} from './constructor-prototype.js';
+import {selectNativeConstructPrototype,resolveDeferredConstructPrototype} from './constructor-prototype.js';
 import {rootedFn} from './root-scope.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyConstructable} from './object-layout.js';
@@ -327,6 +327,8 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   const allocate=a.unique('allocate'),view=a.unique('view'),fromObject=a.unique('fromObject'),ready=a.unique('ready');
   a.test('rdx','rdx');a.jcc('e',allocate);
   a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',allocate);
+  // Object arguments: AllocateTypedArray (GetPrototypeFromConstructor) comes first.
+  resolveDeferredConstructPrototype(a,frame,'rt.'+name.toLowerCase()+'Prototype',112);a.load('r8',slot(56));
   a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);a.jcc('e',view);a.cmp('rax',SharedArrayBufferKind);a.jcc('e',view);a.jmp(fromObject);
   a.label(fromObject);
   a.mov('rax',5);a.store(slot(144),'rax');a.store(slot(160),'rax');
@@ -341,16 +343,18 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.mov('r10',3);a.store(slot(96),'r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');
   a.mov('r10',1);a.store(slot(48),'r10');a.store(slot(288),'r10');a.lea('r10',slot(96));a.store(slot(56),'r10');a.jmp(allocate);
   a.label(allocate);
-  if(width>1){
+  {
    const noLength=a.unique('noLength'),zeroLength=a.unique('zeroLength'),prepared=a.unique('prepared');
    a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',noLength);
    a.lea('rcx',slot(112));a.load('rdx',slot(56));a.call('rt.toNumber');a.movsd('xmm0',slot(120));
    a.ucomisd('xmm0','xmm0');a.jcc('p',zeroLength);a.mov('rax',-1);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'be','rt.throwRangeError');
    a.mov('rax',Math.floor(0x7fffffff/width));a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');failIf(a,'a','rt.throwRangeError');
-   a.cvttsd2si('rax','xmm0');a.shl('rax',width===8?3:width===4?2:1);a.jmp(prepared);a.label(zeroLength);a.mov('rax',0);
+   a.cvttsd2si('rax','xmm0');if(width>1)a.shl('rax',width===8?3:width===4?2:1);a.jmp(prepared);a.label(zeroLength);a.mov('rax',0);
    a.label(prepared);a.mov('r10',3);a.store(slot(96),'r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.lea('r10',slot(96));a.store(slot(56),'r10');a.mov('r10',1);a.store(slot(48),'r10');
    a.label(noLength);
   }
+  // Length overload: ToIndex(length) precedes AllocateTypedArray (ES2020 22.2.4.2).
+  resolveDeferredConstructPrototype(a,frame,'rt.'+name.toLowerCase()+'Prototype',112);
   a.lea('rcx',slot(128));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   a.load('rax',slot(136));a.lea('r10',{rip:'rt.arraybufferPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.lea('rax',slot(128));a.store(slot(32),'rax');
