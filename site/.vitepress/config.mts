@@ -31,6 +31,7 @@ export default defineConfig({
           {text: 'How it works', link: '/guide/how-it-works'},
           {text: 'Language support', link: '/guide/language-support'},
           {text: 'Compatibility and limitations', link: '/guide/compatibility'},
+          {text: 'Performance', link: '/guide/performance'},
           {text: 'Status and roadmap', link: '/guide/status'},
         ],
       },

@@ -17,12 +17,12 @@ hero:
       link: https://github.com/40oleg/nona
 
 features:
+  - title: Starts in 2 ms
+    details: A compiled hello world starts in 1.8 ms and peaks at 11 MB of memory, in a 7 MB executable. Node.js takes 28 ms and 45 MB; a Node SEA executable is 124 MB.
+    link: /guide/performance
   - title: The ES2020 language
-    details: Classes, generators, async functions and async generators, destructuring, optional chaining, BigInt, proper tail calls and Annex B semantics — with documented exceptions.
+    details: Classes, generators, async functions, destructuring, optional chaining, BigInt, proper tail calls and ES modules with cycles and live bindings — with documented exceptions.
     link: /guide/language-support
-  - title: ES modules
-    details: Static import/export with cycles and live bindings, import.meta and import() of modules known at compile time. Built-in nona:* and node:* modules.
-    link: /reference/modules
   - title: A native runtime
     details: A precise mark-and-sweep garbage collector, UTF-16 strings, real exceptions and a catchable RangeError on stack overflow, linked into every executable.
     link: /guide/how-it-works
@@ -68,4 +68,4 @@ The executable contains the program's machine code and Nona's runtime. It does n
 
 ## Status
 
-The current release is **v0.7.0**. The pinned Test262 suite (ES2020 features) passes 17298/17337 language, 15491/15559 built-in, 268/268 Atomics and 996/1016 Annex B tests on Windows x64; every remaining failure is classified on the [status page](/guide/status). Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
+The current release is **v0.7.0**. The pinned Test262 suite (ES2020 features) passes 17298/17337 language, 15491/15559 built-in, 268/268 Atomics and 996/1016 Annex B tests on Windows x64; every remaining failure is classified on the [status page](/guide/status). Startup, executable size and memory are Nona's strengths; computation inside a program is 20–100× slower than V8 and some operations (`Map`, `sort`, string building, long Promise chains) are still super-linear, see [Performance](/guide/performance). Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.

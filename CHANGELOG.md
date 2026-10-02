@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
+- Published the performance comparison with Node.js, Deno and Bun on the documentation site, with startup time, executable size and memory on the home page ([#55](https://github.com/40oleg/nona/issues/55)).
 
 ## v0.7.0 — 2026-10-01
 

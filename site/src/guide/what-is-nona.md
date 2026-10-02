@@ -12,6 +12,7 @@ The compiler is written in TypeScript and runs on Node.js. The programs it produ
 - **`eval` and `Function` with source known at compile time.** A string literal, a concatenation of literals, or a variable only ever given such constants is compiled ahead of time with full direct and indirect `eval` semantics.
 - **A native runtime.** A precise, non-moving mark-and-sweep garbage collector, UTF-16 strings, real exceptions and a catchable `RangeError` on stack overflow.
 - **Host APIs** for real programs: an [event loop with timers](/reference/host-apis), a global [`process`](/reference/process), synchronous [`node:fs`](/reference/fs) with `TextEncoder`/`TextDecoder`, and [native function calls](/reference/ffi) with ready-made `nona:win32` declarations.
+- **Fast startup and a small footprint.** A compiled hello world starts in about 2 ms, peaks at 11 MB of memory and is a 7 MB file: there is no runtime to boot and no JIT to warm up ([Performance](/guide/performance)).
 - **Windows executables** without a console window, with an icon, a manifest and version information ([Windows executables](/reference/windows-executables)).
 
 ## What Nona is not
@@ -19,6 +20,7 @@ The compiler is written in TypeScript and runs on Node.js. The programs it produ
 - **Not a replacement for Node.js.** There is no `require`, no npm packages and no Node.js API beyond the [`fs` and `process` subsets](/reference/modules). Browser APIs are not available either.
 - **Not a full ES2020 implementation.** Nona implements ES2020 with documented exceptions; see [Language support](/guide/language-support) and [Compatibility and limitations](/guide/compatibility).
 - **No run-time code generation.** `eval` and `Function` need source text known at compile time; strings computed at run time throw `EvalError`.
+- **Not fast at computation yet.** Without a JIT, calls, property access and allocation run 20–100× slower than in V8, and `Map`/`Set`, `sort`, string building and long Promise chains are still super-linear in the data size ([Performance](/guide/performance)).
 - **Not portable beyond x86-64.** The targets are Windows 10/11 x64 and Linux x86-64.
 
 ## Security
