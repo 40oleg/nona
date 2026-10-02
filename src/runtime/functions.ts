@@ -63,13 +63,23 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',slot(80));a.load('r11',{base:'r10',disp:P.next});a.store({base:'rax',disp:P.next},'r11');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});a.store({base:'r10',disp:P.next},'r11');a.store({base:'rcx',disp:O.properties},'r10');a.label(noPrototype);
  });
- // Concise methods/accessors have no own prototype and cannot construct.
+ // Concise methods, accessors, arrows and async functions have no own
+ // prototype and cannot construct: they get the bare function object rather
+ // than a prototype object and two property nodes that are dropped at once.
  b.fn('rt.newMethod',56,a=>{
-  a.store(slot(40),'rcx');a.call('rt.newFunction');a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.mov('r10',0);
-  a.store({base:'rax',disp:O.properties},'r10');a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
+  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.mov('r10',0);
+  a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
  });
- // RCX result, RDX code, R8 capture count, R9 array of internal Cell Values.
- b.fn('rt.newFunction',104,a=>{
+ // RCX result, RDX code, R8 capture count, R9 array of internal Cell Values:
+ // an ordinary function with its own `prototype` object.
+ b.fn('rt.newFunction',72,a=>{
+  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');
+  a.lea('rcx',slot(48));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
+  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.prototype'});a.lea('r8',slot(48));a.mov('r9',A.writable);a.call('rt.initFunctionProperty');
+  a.lea('rcx',slot(48));a.lea('rdx',{rip:'rt.key.constructor'});a.load('r8',slot(40));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
+ });
+ // The same without the prototype object.
+ b.fn('rt.newFunctionBare',104,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   a.mov('rcx','r8');a.mov('rdx','r9');a.call('rt.newEnvironment');a.store(slot(72),'rax');
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
@@ -83,9 +93,6 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',slot(72));a.store({base:'rax',disp:FunctionLayout.environment},'r10');
   a.lea('r10',{rip:'rt.str.nativeFunction'});a.store({base:'rax',disp:FunctionLayout.sourceText},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
-  a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
-  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.prototype'});a.lea('r8',slot(80));a.mov('r9',A.writable);a.call('rt.initFunctionProperty');
-  a.lea('rcx',slot(80));a.lea('rdx',{rip:'rt.key.constructor'});a.load('r8',slot(40));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
  });
  // RCX result, RDX callee Value*, R8 argc, R9 argv. Caller Value slots retain
  // callee and arguments across the nested JS frame's safepoints. Fifth argument

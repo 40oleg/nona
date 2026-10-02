@@ -17,7 +17,13 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   for(const i of [0,1,2]){const absent=a.unique('absent');a.load('rax',slot(48));a.cmp('rax',i);a.jcc('be',absent);a.load('r8',slot(56));for(const n of [0,8]){a.load('rax',{base:'r8',disp:16*i+n});a.store(slot(64+16*i+n),'rax');}a.label(absent);}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');
+  // A Number key stays a Number: its conversion has no side effects and
+  // rt.defineOwnProperty takes the element fast path for it (and converts
+  // it itself otherwise), so defineProperty(array, array.length, ...)
+  // does not format and re-parse the index.
+  {const keyReady=a.unique('keyReady');a.load('rax',slot(80));a.cmp('rax',3);a.jcc('ne','rt.objectDefineProperty.convertKey');
+   for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(112+n),'rax');}a.jmp(keyReady);
+   a.label('rt.objectDefineProperty.convertKey');a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');a.label(keyReady);}
   a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.call('rt.toPropertyDescriptor');
   a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(128));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}

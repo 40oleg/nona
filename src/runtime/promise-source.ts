@@ -5,9 +5,13 @@ var __nonaPromiseDrainJobs=(function(){
   var jobs=[],head=0,unhandled=[],states=new WeakMap(),defineProperty=Object.defineProperty;
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
+  // CreateDataProperty through one reused descriptor: a fresh descriptor
+  // object per append cost five allocations on every job and reaction.
+  var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
   function append(array,value){
-    defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})
+    appendDescriptor.value=value;defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined
   }
+  var noReactions=[];
   function enqueue(job){append(jobs,job)}
   // Realms created later reuse the first realm's queue and drain.
   var sharedQueue=Function.prototype.__nonaSharedQueueInternal,hostEnqueue=sharedQueue();
@@ -32,10 +36,10 @@ var __nonaPromiseDrainJobs=(function(){
     state.kind=kind;state.value=value;
     if(kind===2&&!state.handled)append(unhandled,state);
     var reactions=kind===1?state.fulfill:state.reject;
-    state.fulfill=[];state.reject=[];
-    for(var i=0;i<reactions.length;i++){
-      var reaction=reactions[i];
-      enqueue((function(r){return function(){runReaction(r,kind,value)}})(reaction))
+    state.fulfill=noReactions;state.reject=noReactions;
+    for(let i=0;i<reactions.length;i++){
+      let reaction=reactions[i];
+      enqueue(function(){runReaction(reaction,kind,value)})
     }
   }
   function runReaction(reaction,kind,value){
@@ -64,15 +68,15 @@ var __nonaPromiseDrainJobs=(function(){
     }
     settle(promise,1,value)
   }
+  // The resolving functions are anonymous (name ""): arrows in an array
+  // literal get no name, so nothing has to be redefined afterwards.
   function resolving(promise){
     var called=false;
-    var functions={
-      resolve(value){if(called)return;called=true;resolvePromise(promise,value)},
-      reject(reason){if(called)return;called=true;settle(promise,2,reason)}
-    };
-    Object.defineProperty(functions.resolve,'name',{value:''});
-    Object.defineProperty(functions.reject,'name',{value:''});
-    return functions
+    var functions=[
+      value=>{if(called)return;called=true;resolvePromise(promise,value)},
+      reason=>{if(called)return;called=true;settle(promise,2,reason)}
+    ];
+    return {resolve:functions[0],reject:functions[1]}
   }
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');

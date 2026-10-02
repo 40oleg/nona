@@ -38,7 +38,12 @@ export function emitBoundCalls(b:RuntimeBuilder):void {
   a.lea('rax',slot(104));a.store(slot(128+R.next),'rax');a.store(slot(128+R.values),'r9');a.store(slot(128+R.count),'r8');
   a.lea('rax',slot(128));a.store(slot(152+R.next),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(slot(96),'rax');a.store(slot(152+R.values),'rax');
   a.mov('rax',0);a.store(slot(152+R.count),'rax');a.lea('rax',slot(152));a.store({rip:'rt.gcRoots'},'rax');
-  const invoke=a.unique('invoke');a.load('rcx',slot(88));a.test('rcx','rcx');a.jcc('e',invoke);a.shl('rcx',4);a.call('rt.alloc');a.store(slot(96),'rax');a.store(slot(152+R.values),'rax');
+  const invoke=a.unique('invoke');a.load('rcx',slot(88));a.test('rcx','rcx');a.jcc('e',invoke);
+  // Without bound arguments the incoming argv (rooted by its record above)
+  // is the complete argument list: no concatenated copy is needed.
+  {const concatenate=a.unique('concatenate');a.load('rax',slot(80));a.load('rax',{base:'rax',disp:B.count});a.test('rax','rax');a.jcc('ne',concatenate);
+   a.load('rax',slot(64));a.store(slot(96),'rax');a.jmp(invoke);a.label(concatenate);}
+  a.shl('rcx',4);a.call('rt.alloc');a.store(slot(96),'rax');a.store(slot(152+R.values),'rax');
   // No safepoint occurs during these copies. Publish the initialized count
   // only after both segments are written.
   a.mov('r9','rax');a.load('rdx',slot(80));a.load('r8',{base:'rdx',disp:B.count});a.add('rdx',B.args);
