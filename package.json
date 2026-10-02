@@ -26,7 +26,9 @@
     "compare": "npm run build && node scripts/compare-examples.mjs",
     "compare:linux": "npm run build && node scripts/compare-linux.mjs",
     "test262:smoke": "npm run build && node scripts/test262-smoke.mjs",
-    "check:weak-memory": "npm run build && node scripts/check-weak-memory.mjs"
+    "check:weak-memory": "npm run build && node scripts/check-weak-memory.mjs",
+    "site:dev": "npm --prefix site run dev",
+    "site:build": "npm --prefix site run build"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

@@ -1,0 +1,66 @@
+name: pages
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/**', 'examples/**', 'src/**', 'README.md', 'CHANGELOG.md', 'AGENTS.md', '.github/workflows/pages.yml']
+  pull_request:
+    paths: ['site/**', 'docs/**', 'examples/**', 'src/**', 'README.md', 'CHANGELOG.md', 'AGENTS.md', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      # The compiler is needed to check that every sample compiles.
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci
+        working-directory: site
+      - name: Build the site (fails on broken internal links)
+        run: npm run build
+        working-directory: site
+      - run: npm run check:samples
+        working-directory: site
+      - run: npm run check:links
+        working-directory: site
+      - name: Check external links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress --accept 200..=299,429
+            --exclude '^https://github\.com/40oleg/nona/(blob|tree|edit)/'
+            --exclude '^https?://localhost'
+            --exclude '^https://40oleg\.github\.io/'
+            'site/.vitepress/dist/**/*.html'
+          fail: true
+      - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/.vitepress/dist
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

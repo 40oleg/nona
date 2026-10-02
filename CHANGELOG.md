@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
+
 ## v0.7.0 — 2026-10-01
 
 - Added the global `process` object (`argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid`) and `node:process`/`nona:process` ([#23](https://github.com/40oleg/nona/issues/23)). See [process](docs/process.md).
