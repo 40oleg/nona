@@ -6,7 +6,10 @@ on:
     branches: [main]
   pull_request:
 concurrency:
-  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.ref_name }}
+  # Pull requests: a newer push supersedes the older run. main: one group per
+  # commit, so every merge is checked to the end instead of being cancelled
+  # (or dropped while pending) by the next merge.
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.ref == 'refs/heads/main' && github.sha || github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   windows:
