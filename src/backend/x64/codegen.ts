@@ -553,7 +553,10 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
-  entry.call('rt.init');entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
+  entry.call('rt.init');
+  // GC stress: freed cells are poisoned so a missing root fails at once.
+  if(options.gcStress){entry.mov('rax',1);entry.store({rip:'rt.gcPoison'},'rax');}
+  entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
   entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
