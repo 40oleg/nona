@@ -39,4 +39,5 @@ Windows 上所有“其他”类失败都已分类：
 
 - [0.17–0.20 的 ES2020 状态](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md)（俄文）
 - [v0.6 状态](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md)（英文）
+- [路线图：参考 V8 的计划与目标架构（英文）](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [0.4–0.20 版本路线图](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md)（俄文）
