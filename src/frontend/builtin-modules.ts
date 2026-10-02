@@ -1,6 +1,8 @@
 import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
+import {eventsModuleSource} from './events-module.js';
+import {bufferModuleSource,stringDecoderModuleSource} from './buffer-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -75,6 +77,8 @@ export function cwd() { return process.cwd(); }
 `;
 
 type Target='win32-x64'|'linux-x64';
+/** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
+function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
 const sources=new Map<string,(target:Target)=>string>([
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
@@ -82,6 +86,12 @@ const sources=new Map<string,(target:Target)=>string>([
   ['node:fs',fsModuleSource],
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
+  ['node:events',()=>eventsModuleSource],
+  ['nona:events',()=>aliasOf('node:events')],
+  ['node:buffer',()=>bufferModuleSource],
+  ['nona:buffer',()=>aliasOf('node:buffer')],
+  ['node:string_decoder',()=>stringDecoderModuleSource],
+  ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
 ]);
 
 export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
