@@ -1,6 +1,6 @@
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
-import { Assembler, type Mem } from './assembler.js';
+import { Assembler, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
@@ -124,6 +124,67 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       a.load('rax',from);a.store(to,'rax');
       const add=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};
       a.load('rax',add(from));a.store(add(to),'rax');
+    };
+    const payload=(n:number):Mem=>stack(valueBase+16*n+8);
+    const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
+    const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
+    // Number operands are the common case of every arithmetic and relational
+    // operator, and the runtime's generic path (ToPrimitive, ToNumeric,
+    // BigInt dispatch, string comparison) costs a call plus several hundred
+    // instructions to reach the same addsd. Test both tags inline and run
+    // the SSE instruction in place; anything else falls through to the call.
+    // Returns the label the caller places after the generic call, or undefined
+    // when the operator has no inline form.
+    const emitNumberBinary=(dest:number,operator:string,left:number,right:number):string|undefined=>{
+      const arithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
+      const relation:Record<string,Condition>={'<':'b','<=':'be','>':'a','>=':'ae','==':'e','===':'e','!=':'e','!==':'e'};
+      const bitwise=['&','|','^','<<','>>','>>>'];
+      if(!(operator in arithmetic)&&!(operator in relation)&&!bitwise.includes(operator))return undefined;
+      const slow=a.unique('generic'),done=a.unique('fastDone');
+      a.load('rax',value(left));a.cmp('rax',3);a.jcc('ne',slow);a.load('rax',value(right));a.cmp('rax',3);a.jcc('ne',slow);
+      if(operator in arithmetic){
+        a.movsd('xmm0',payload(left));a[arithmetic[operator]!]('xmm0',payload(right));setNumber(dest);
+      }else if(operator in relation){
+        // ucomisd sets the parity flag for unordered (NaN) operands, where
+        // every relation but != is false.
+        const negated=operator==='!='||operator==='!==',holds=a.unique('holds'),store=a.unique('store');
+        a.movsd('xmm0',payload(left));a.ucomisd('xmm0',payload(right));a.mov('rax',0);a.jcc('p',store);
+        a.jcc(relation[operator]!,holds);a.jmp(store);a.label(holds);a.mov('rax',1);
+        a.label(store);if(negated)a.xor('rax',1);setBoolean(dest);
+      }else{
+        // ToInt32 inline only for operands that already are int32 values:
+        // truncation must round-trip and fit in 32 bits, otherwise the
+        // runtime does the modular reduction.
+        const toInt32=(n:number,reg:'rcx'|'r10')=>{
+          a.movsd('xmm0',payload(n));a.cvttsd2si(reg,'xmm0');a.cvtsi2sd('xmm1',reg);a.ucomisd('xmm1','xmm0');a.jcc('p',slow);a.jcc('ne',slow);
+          a.mov('r11',reg);a.shl('r11',32);a.sar('r11',32);a.cmp('r11',reg);a.jcc('ne',slow);
+        };
+        toInt32(left,'r10');toInt32(right,'rcx');
+        switch(operator){
+          case '&':a.and('r10','rcx');break;
+          case '|':a.or('r10','rcx');break;
+          case '^':a.xor('r10','rcx');break;
+          case '<<':a.and('rcx',31);a.shl('r10','cl');a.shl('r10',32);a.sar('r10',32);break;
+          case '>>':a.and('rcx',31);a.sar('r10','cl');break;
+          case '>>>':a.and('rcx',31);a.mov('r11',0xffffffff);a.and('r10','r11');a.shr('r10','cl');break;
+        }
+        a.cvtsi2sd('xmm0','r10');setNumber(dest);
+      }
+      a.jmp(done);a.label(slow);return done;
+    };
+    const emitNumberUnary=(dest:number,operator:string,argument:number):boolean=>{
+      if(!['numeric','increment','decrement','-','+','!'].includes(operator))return false;
+      const slow=a.unique('generic'),done=a.unique('fastDone');
+      a.load('rax',value(argument));
+      if(operator==='!'){
+        a.cmp('rax',2);a.jcc('ne',slow);a.load('rax',payload(argument));a.xor('rax',1);setBoolean(dest);
+      }else{
+        a.cmp('rax',3);a.jcc('ne',slow);a.movsd('xmm0',payload(argument));
+        if(operator==='increment'||operator==='decrement'){a.mov('rax',1);a.cvtsi2sd('xmm1','rax');if(operator==='increment')a.addsd('xmm0','xmm1');else a.subsd('xmm0','xmm1');}
+        else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
+        setNumber(dest);
+      }
+      a.jmp(done);a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.label(done);return true;
     };
     a.mov('rax',0);for(let i=0;i<fn.slotCount;i++){a.store(value(i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
     a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
@@ -339,10 +400,13 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
             a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
             a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
+          if(emitNumberUnary(op.dest,op.operator,op.argument))break;
           pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
         case 'binary':{
+          const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
-          if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}break;
+          if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}
+          if(done)a.label(done);break;
         }
         case 'call':
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -352,7 +416,15 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       const term=block.terminator;
       switch(term.kind){
         case 'jump':a.jmp(fn.id+'.block.'+term.target);break;
-        case 'branch':pointer('rcx',term.condition);a.call('rt.toBoolean');a.test('rax','rax');a.jcc('ne',fn.id+'.block.'+term.yes);a.jmp(fn.id+'.block.'+term.no);break;
+        case 'branch':{
+          // Booleans (the result of every comparison) and numbers decide inline;
+          // the other tags go through rt.toBoolean.
+          const slow=a.unique('branchSlow'),test=a.unique('branchTest'),yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no;
+          a.load('rax',value(term.condition));a.load('r10',payload(term.condition));a.cmp('rax',2);a.jcc('e',test);a.cmp('rax',3);a.jcc('ne',slow);
+          a.movqToXmm('xmm0','r10');a.xor('rax','rax');a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',no);a.jcc('e',no);a.jmp(yes);
+          a.label(slow);pointer('rcx',term.condition);a.call('rt.toBoolean');a.mov('r10','rax');
+          a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
+        }
         case 'throw':pointer('rcx',term.value);a.call('rt.throw');break;
         case 'return':
           a.load('r10',stack(72));

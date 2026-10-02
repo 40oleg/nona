@@ -5,7 +5,7 @@ import {runOracle} from './helpers/oracle.js';
 
 // Programs whose observable behaviour must not change when the runtime takes
 // a fast path (dense elements, named-property lookups, Map/Set hash index,
-// chunked heap, string builder) instead of the generic one. Each is run on
+// chunked heap, string builder, inline number operators) instead of the generic one. Each is run on
 // the host target under GC stress and compared with Node.js.
 const programs:Record<string,string>={
  'dense elements and array semantics':`
@@ -84,6 +84,22 @@ const o={length:3,0:"c",1:"a",2:"b"};Array.prototype.sort.call(o);console.log(o[
 console.log([{k:1,v:"a"},{k:0,v:"b"},{k:1,v:"c"},{k:0,v:"d"}].sort((x,y)=>x.k-y.k).map(x=>x.v).join(""));
 const big=[];for(let i=0;i<60;i++)big.push((i*7919)%1009);big.sort((x,y)=>x-y);let ok=true;for(let i=1;i<big.length;i++)if(big[i-1]>big[i])ok=false;console.log(ok,big[0],big[59]);
 `,
+ 'inline number operators':`
+const vals=[0,-0,1,-1,1.5,NaN,Infinity,2**31,2**32+5,2**53,"3","abc",true,null,undefined,10n,{},-2147483648,4294967295];
+const fmt=r=>typeof r==='object'?'obj':Object.is(r,-0)?'-0':String(r);
+const ops=[(a,b)=>a+b,(a,b)=>a-b,(a,b)=>a*b,(a,b)=>a/b,(a,b)=>a%b,(a,b)=>a<b,(a,b)=>a<=b,(a,b)=>a>b,(a,b)=>a>=b,(a,b)=>a==b,(a,b)=>a!=b,(a,b)=>a===b,(a,b)=>a!==b,(a,b)=>a&b,(a,b)=>a|b,(a,b)=>a^b,(a,b)=>a<<b,(a,b)=>a>>b,(a,b)=>a>>>b];
+const un=[a=>-a,a=>+a,a=>!a,a=>~a];
+const out=[];
+for(const a of vals)for(const b of vals)for(const f of ops){let r;try{r=fmt(f(a,b));}catch(e){r='E:'+e.constructor.name}out.push(r);}
+for(const a of vals)for(const f of un){let r;try{r=fmt(f(a));}catch(e){r='E:'+e.constructor.name}out.push(r);}
+for(const a of vals){let x=a,y=a,r;try{x++;y--;r=fmt(x)+'|'+fmt(y)}catch(e){r='E:'+e.constructor.name}out.push(r);}
+for(const a of vals){out.push(a?'T':'F');let n=0;while(a&&n<2)n++;out.push(n);}
+for(const a of vals)for(const b of vals){out.push(a<b?'y':'n');out.push(a==b?'y':'n');out.push(a!==b?'y':'n');if(a>=b)out.push(1);else out.push(0);}
+let h=0;for(const s of out)for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;
+console.log(out.length,h,out.slice(0,60).join());
+const o={valueOf(){return 7;}};console.log(o+1,o*2,o<8,o==7,-o,!o,1<<o,o>>>1);
+let i=0;for(;i<10;i++);console.log(i,i>>1,i<<30,i<<31,(2**40)|0,(2**32+7)&255,(-1)>>>0,(-1)>>>31,1.9|0,-1.9|0);
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
@@ -98,8 +114,12 @@ const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){cons
 `,
 };
 
+// The operator matrix does not allocate on its fast paths and is too large to
+// run with a collection before every operation, so it runs without GC stress.
+const plainPrograms=new Set(['inline number operators']);
+
 for(const [name,source] of Object.entries(programs))test(`fast paths agree with Node.js: ${name}`,()=>{
  const expected=runOracle(source).stdout;
- const run=runOnHost(source);
+ const run=runOnHost(source,{gcStress:!plainPrograms.has(name)});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,expected);
 });
