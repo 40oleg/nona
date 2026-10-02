@@ -91,6 +91,15 @@ nona --help | --version
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
 
+## Roadmap
+
+The full plan, based on a review of the V8 blog, is in [docs/roadmap.md](docs/roadmap.md). In short:
+
+- **Targets:** today `win32-x64` and `linux-x64`; next `linux-arm64`, `macos-arm64`, `windows-arm64`, `macos-x64`, `wasm32-wasi`, then `linux-riscv64`. A portable builtins language comes first, so the runtime is not rewritten in assembly per architecture.
+- **Quick wins:** inline number operators, per-block safepoints, RegExp cache and number formatting are done; seeded hashing, collector fixes, fast array iteration, cheaper `await` and small post-ES2020 features are in progress.
+- **Medium:** RegExp bytecode with a linear-time fallback, linking only the preludes a program uses, native JSON, static type inference, direct calls, real-world benchmarks, coverage builds.
+- **Foundation:** shapes with in-object slots, a startup snapshot in the executable, a page-based heap, an SSA IR with register allocation, a builtins DSL, native RegExp matchers.
+
 ## Development
 
 ```sh
