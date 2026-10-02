@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
  [
   "call versus construction",
@@ -55,7 +55,7 @@ const cases:[string,string][]=[
   "function F(){let o={m(){for(let i=0;i<20;i++){({x:\"\"+i});}return new.target;}};console.log(o.m(),new.target===F);}new F();"
  ]
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('New target: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});
 
 for(const source of ["new.target;","new.other;","function f(){new.t\\u0061rget;}"])test("invalid new.target "+source,()=>{assert.throws(()=>bind(parse(lex(source))));});

@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
 ["repeat operations and descriptor transitions","let o={x:1};Object.seal(o);Object.seal(o);Object.defineProperty(o,\"x\",{writable:false});console.log(Object.isFrozen(o),Object.freeze(o)===o,Object.freeze(o)===o);"],
 ["sealed accessors are frozen even with setter","let o={},n=0;Object.defineProperty(o,\"x\",{configurable:true,set:function(v){n=v;}});Object.seal(o);console.log(Object.isFrozen(o));o.x=7;console.log(n);"],
@@ -111,6 +111,6 @@ const cases:[string,string][]=[
   "let x=\"ab\";console.log(Object.preventExtensions(x)===x,Object.seal(x)===x,Object.freeze(x)===x,Object.isExtensible(x),Object.isSealed(x),Object.isFrozen(x));"
  ]
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('Object integrity: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(name==='global aliases readonly after freeze'||name==='global aliases writable after seal'?'const vm=require("node:vm");const c=vm.createContext(vm.constants.DONT_CONTEXTIFY);c.console=console;vm.runInContext('+JSON.stringify(source)+',c);':source).stdout);});
 for(const source of ["let o=Object.preventExtensions({});Object.defineProperty(o,\"x\",{value:1});","let o=Object.preventExtensions({});Object.setPrototypeOf(o,null);","let o=Object.preventExtensions({});o.__proto__={};","let o=Object.freeze({x:1});Object.defineProperty(o,\"x\",{value:2});","let a=Object.freeze([1]);Object.defineProperty(a,\"length\",{value:0});","let o=Object.seal({x:1});Object.defineProperty(o,\"x\",{get:function(){return 3;}});"])test('Object integrity error: '+source,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,1);assert.match(r.stderr.toString(),/Nona runtime error/);const n=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true,timeout:5000});assert.equal(n.status,1);assert.equal(r.stdout.toString(),n.stdout);});

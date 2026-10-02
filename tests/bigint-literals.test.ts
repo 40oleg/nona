@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {expectProgram} from './helpers/program.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 import {runOracle} from './helpers/oracle.js';
 
@@ -20,7 +20,7 @@ test('Number explicitly converts BigInt while unary plus rejects it',()=>expectP
 test('BigInt.asIntN and asUintN wrap signed values beyond 64 bits',()=>expectProgram(`console.log(BigInt.asUintN(8,-1n),BigInt.asIntN(8,255n),BigInt.asIntN(8,128n),BigInt.asIntN(8,-129n));console.log(BigInt.asUintN(80,-1n).toString(16),BigInt.asIntN(80,1208925819614629174706175n),BigInt.asUintN(0,123n));console.log(BigInt.asIntN(3.9,10n),BigInt.asUintN(NaN,42n))`,'255 -1 -128 127\nffffffffffffffffffff -1 0\n2 0\n'));
 test('BigInt radix and modulo conversions survive stress GC',()=>{
  const source=`var x=BigInt('0x123456789abcdef0123456789abcdef');console.log(x.toString(2).length,BigInt.asUintN(83,-x).toString(16),BigInt.asIntN(83,x).toString(16),(x*3n).toString(16),String(x/123456789n),String(x%123456789n));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'121 43210fedcba9876543211 3cdef0123456789abcdef 369d0369d0369cd0369d0369d0369cd 12250165320630288943037246452 40996587\n');
 });
@@ -32,7 +32,7 @@ test('BigInt bitwise complement uses infinite sign bits',()=>expectProgram(`cons
 test('BigInt bitwise and or xor retain sign extension',()=>expectProgram(`console.log(String(0xff00n&0x0ff0n),String(0xff00n|0x0ff0n),String(0xff00n^0x0ff0n));console.log(String(-1n&0xffn),String(-1n|0xffn),String(-1n^0xffn),String(-12345678901234567890n&0xffffn))`,'3840 65520 61680\n255 -1 -256 62766\n'));
 test('BigInt shifts and bitwise operations survive stress GC',()=>{
  const source=`var a=BigInt('0x123456789abcdef0123456789abcdef'),b=-BigInt('0xabcdef0123456789');console.log(String(a<<17n),String(b>>19n),String(a&b),String(a|b),String(a^b),String(~a));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('BigInt converts large integral Number values exactly',()=>expectProgram(`console.log(String(BigInt(2**100)),String(BigInt(1e30)),String(BigInt(-(2**100))));try{BigInt(1.5)}catch(e){console.log(e.name)}try{BigInt(Infinity)}catch(e){console.log(e.name)}`,'1267650600228229401496703205376 1000000000000000019884624838656 -1267650600228229401496703205376\nRangeError\nRangeError\n'));

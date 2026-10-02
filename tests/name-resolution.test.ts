@@ -8,10 +8,10 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 function native(source:string,gcStress=false){
-  const image=linkPe(generate(lower(bind(parse(lex(source)))),{gcStress}));
+  const image=linkHost(generate(lower(bind(parse(lex(source)))),{gcStress}));
   return runNative(image);
 }
 

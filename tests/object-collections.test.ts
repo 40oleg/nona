@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
  ["intrinsic property order Object","let keys=Object.getOwnPropertyNames(Object),s=\"\";for(let i=0;i<keys.length;i++){let k=keys[i];if(k===\"length\"||k===\"name\"||k===\"prototype\"||k===\"getOwnPropertyDescriptor\"||k===\"getOwnPropertyDescriptors\"||k===\"getOwnPropertyNames\"||k===\"create\"||k===\"defineProperties\"||k===\"defineProperty\"||k===\"getPrototypeOf\"||k===\"setPrototypeOf\"||k===\"keys\"||k===\"entries\"||k===\"values\")s+=k+\"|\";}console.log(s);"],
  ["intrinsic property order Function.prototype","let keys=Object.getOwnPropertyNames(Function.prototype),s=\"\";for(let i=0;i<keys.length;i++){let k=keys[i];if(k===\"length\"||k===\"name\"||k===\"constructor\"||k===\"apply\"||k===\"bind\"||k===\"call\"||k===\"toString\")s+=k+\"|\";}console.log(s);"],
@@ -48,7 +48,7 @@ const cases:[string,string][]=[
  ['assign uses getters setters and symbol keys',`let s=Symbol('s'),n=0,t={};Object.defineProperty(t,'x',{set:function(v){n=v},configurable:true});let source={x:7,[s]:8};let r=Object.assign(t,source);console.log(r===t,n,Object.prototype.hasOwnProperty.call(t,'x'),t[s],Object.assign.length);`],
  ['assign skips nullish and returns boxed target',`let o=Object.assign(3,null,{x:2},undefined);console.log(typeof o,o.x,Object.getPrototypeOf(o)===Number.prototype);`],
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 // Expected output pinned where V8 versions differ: Node < 26 gives sloppy
 // functions own `arguments`/`caller` (a V8 extension that ES2020 16.2 leaves optional and Nona omits).
 const pinned:Record<string,string>={'function metadata order':'length|name|prototype length|name\nlength|name\n'};

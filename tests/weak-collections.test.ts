@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('WeakMap and WeakSet accept object keys and reject primitive additions',()=>expectProgram(`
@@ -22,19 +22,19 @@ test('collection constructors expose ES2020 arity zero',()=>expectProgram(`
 
 test('WeakMap ephemeron values survive while their keys are live',()=>{
  const source=`var key={id:7},map=new WeakMap(),set=new WeakSet();map.set(key,{id:9});set.add(key);for(var i=0;i<40;i++)({i:i});console.log(map.get(key).id,map.has(key),set.has(key));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'9 true true\n');
 });
 
 test('WeakMap ephemeron marking reaches keys through earlier values',()=>{
  const source=`var first={id:1},second={id:2},map=new WeakMap();map.set(second,{id:9});map.set(first,second);second=null;for(var i=0;i<40;i++)({i:i});var recovered=map.get(first);console.log(recovered.id,map.get(recovered).id);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'2 9\n');
 });
 
 test('Weak collections remain usable after dead keys are pruned',()=>{
  const source=`var map=new WeakMap(),set=new WeakSet();(function(){var dead={};map.set(dead,{id:1});set.add(dead)})();for(var i=0;i<40;i++)({i:i});var live={id:7};map.set(live,{id:9});set.add(live);console.log(map.get(live).id,set.has(live),map.delete(live),set.delete(live));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'9 true true true\n');
 });
 

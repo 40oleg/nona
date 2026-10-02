@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {RuntimeBuilder,slot} from '../src/runtime/abi.js';
 import {rootedFn} from '../src/runtime/root-scope.js';
 import {emitRuntime} from '../src/runtime/index.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import type {Assembler} from '../src/backend/x64/assembler.js';
 import {runNative} from './helpers/native.js';
 
@@ -19,7 +19,7 @@ function native(helpers:(b:RuntimeBuilder)=>void,body:(a:Assembler)=>void):void 
   a.label('test.fail');a.mov('rcx',42);a.callImport('ExitProcess');
  });
  const runtime=emitRuntime();
- const result=runNative(linkPe({entry:'entry',fragments:[...runtime.fragments,...b.bundle.fragments],imports:runtime.imports,functions:[...runtime.functions,...b.bundle.functions]}));
+ const result=runNative(linkHost({entry:'entry',fragments:[...runtime.fragments,...b.bundle.fragments],imports:runtime.imports,functions:[...runtime.functions,...b.bundle.functions]}));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
 }
 

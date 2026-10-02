@@ -5,7 +5,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['isNaN',`console.log(Number.isNaN(NaN),Number.isNaN(0),Number.isNaN(Infinity),Number.isNaN('NaN'),Number.isNaN());`],
@@ -41,23 +41,23 @@ test('parseFloat uses exact decimal rounding on the longest valid prefix',()=>{
 
 test('Number builtins remain callable after stress GC',()=>{
  const source=`var f=Number.isInteger;for(var i=0;i<50;i++)({x:i});console.log(f(42),Number.isNaN(NaN));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Global numeric predicates survive coercion under stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return '3';}};console.log(isFinite(x),isNaN(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('parseInt survives string and radix coercion under stress GC',()=>{
  const source=`var s={toString(){for(var i=0;i<40;i++)({x:i});return '0x2a tail';}},r={valueOf(){for(var i=0;i<40;i++)({x:i});return 16;}};console.log(parseInt(s,r),Number.parseInt===parseInt);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('parseFloat survives string coercion under stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({x:i});return ' -1.25e+2rest';}};console.log(parseFloat(x),Number.parseFloat===parseFloat);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

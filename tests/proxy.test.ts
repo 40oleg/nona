@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
  test('Proxy get, has and delete traps, invariants and revocation survive GC stress',()=>{
  const source=`let target={x:4},handler={get:function(t,k,r){for(let i=0;i<30;i++)({v:i});return t[k]+5}};
@@ -22,7 +22,7 @@ import {linkPe} from '../src/backend/pe/writer.js';
  try{console.log(delete deleteProxy.a)}catch(e){console.log(e.name)}
  let delRev=Proxy.revocable({q:1},{});delRev.revoke();
  try{console.log(Reflect.deleteProperty(delRev.proxy,'q'))}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -36,7 +36,7 @@ test('Proxy isExtensible trap and target invariant survive GC stress',()=>{
  let inner=new Proxy(target,{}),outer=new Proxy(inner,{isExtensible:function(){return false}});
  console.log(Object.isExtensible(outer));
  let rev=Proxy.revocable({},{});rev.revoke();try{console.log(Object.isExtensible(rev.proxy))}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -50,7 +50,7 @@ test('Proxy preventExtensions trap and Reflect boolean result survive GC stress'
  console.log(Reflect.preventExtensions(q),Object.isExtensible(t));
  let nested=new Proxy(q,{});console.log(Reflect.preventExtensions(nested));
  let rev=Proxy.revocable({},{});rev.revoke();try{Reflect.preventExtensions(rev.proxy)}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -62,7 +62,7 @@ test('Proxy getPrototypeOf trap and instanceof survive GC stress',()=>{
  Object.preventExtensions(target);try{console.log(Object.getPrototypeOf(p))}catch(e){console.log(e.name)}
  let q=new Proxy(target,{});console.log(Object.getPrototypeOf(q)===Object.prototype);
  let rev=Proxy.revocable({},{});rev.revoke();try{Object.getPrototypeOf(rev.proxy)}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -70,7 +70,7 @@ test('Proxy getPrototypeOf trap and instanceof survive GC stress',()=>{
 
 test('Object.prototype.isPrototypeOf follows Proxy getPrototypeOf under GC stress',()=>{
  const source='let p=[],proxy=new Proxy({},{getPrototypeOf:function(){for(let i=0;i<20;i++)({x:i});return p;}});console.log(p.isPrototypeOf(proxy));';
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -78,7 +78,7 @@ test('Object.prototype.isPrototypeOf follows Proxy getPrototypeOf under GC stres
 
 test('Object.prototype.toString identifies callable Proxy',()=>{
  const source='let fn=new Proxy(new Proxy(function(){},{}),{}),obj=new Proxy({},{});console.log(Object.prototype.toString.call(fn),Object.prototype.toString.call(obj),Function.prototype.toString.call(fn));';
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -90,7 +90,7 @@ test('Proxy setPrototypeOf trap, invariants and Reflect result survive GC stress
  let q=new Proxy(target,{setPrototypeOf:function(){return true}});console.log(Reflect.setPrototypeOf(q,proto));
  Object.preventExtensions(target);try{Reflect.setPrototypeOf(q,proto)}catch(e){console.log(e.name)}
  let rev=Proxy.revocable({},{});rev.revoke();try{Reflect.setPrototypeOf(rev.proxy,null)}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -102,7 +102,7 @@ test('Proxy get forwarding preserves receiver through nested proxies',()=>{
  console.log(p.attr===p,q.attr===q);
  let seen;let trapped=new Proxy(q,{get:function(t,k,r){seen=r;return Reflect.get(t,k,r)}});
  console.log(trapped.attr===trapped,seen===trapped)`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -118,7 +118,7 @@ test('Inherited Proxy get and has respect ordinary own properties',()=>{
  let b=Object.create(new Proxy({},{get:function(){throw new Error('get')},has:function(){throw new Error('has')}}));
  Object.defineProperty(b,'foo',{value:9});console.log(b.foo,'foo' in b);
  let arr=[];Object.setPrototypeOf(arr,new Proxy({x:1},{}));console.log(arr.length,'x' in arr)`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -133,7 +133,7 @@ test('Proxy ownKeys ordering and invariants survive GC stress',()=>{
  Object.preventExtensions(t);try{Reflect.ownKeys(p)}catch(e){console.log(e.name)}
  let nested=new Proxy(new Proxy({x:1},{}),{});console.log(Reflect.ownKeys(nested).join(','));
  let rev=Proxy.revocable({},{});rev.revoke();try{Reflect.ownKeys(rev.proxy)}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -149,7 +149,7 @@ test('Proxy getOwnPropertyDescriptor trap and invariants survive GC stress',()=>
  let q=new Proxy(target,{getOwnPropertyDescriptor:function(){return {value:2,writable:true,enumerable:true,configurable:false}}});
  console.log(Object.getOwnPropertyDescriptor(q,'x').value);
  let rev=Proxy.revocable({},{});rev.revoke();try{Object.getOwnPropertyDescriptor(rev.proxy,'x')}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -167,7 +167,7 @@ test('Proxy set trap and frozen target invariant survive GC stress',()=>{
  let nested=new Proxy(new Proxy({},{set:function(t,k,v,r){return r===nested}}),{});
  console.log(Reflect.set(nested,'z',4));
  let f=new Proxy({},{set:null});f.x=4;console.log(f.x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -181,7 +181,7 @@ test('Proxy defineProperty trap and set forwarding survive GC stress',()=>{
  Object.preventExtensions(target);try{Object.defineProperty(p,'new',{value:1,configurable:true})}catch(e){console.log(e.name)}
  let keys=[],q=new Proxy({x:1},{getOwnPropertyDescriptor:function(t,k){keys.push('get');return Reflect.getOwnPropertyDescriptor(t,k)},defineProperty:function(t,k,d){keys.push('define');return Reflect.defineProperty(t,k,d)}});
  q.x=2;console.log(q.x,keys.join(','));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -193,7 +193,7 @@ test('Callable Proxy apply and nested forwarding survive GC stress',()=>{
  let nested=new Proxy(new Proxy(target,{}),{});console.log(Reflect.apply(nested,{base:4},[5,6]));
  let rev=Proxy.revocable(target,{});rev.revoke();try{rev.proxy()}catch(e){console.log(e.name)}
  console.log(typeof new Proxy({},{}));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -209,7 +209,7 @@ test('Proxy construct trap, newTarget and nested forwarding survive GC stress',(
  let Other=function(){};console.log(Reflect.construct(p,[5],Other).value);
  let bad=new Proxy(Target,{construct:function(){return 1}});try{new bad()}catch(e){console.log(e.name)}
  let rev=Proxy.revocable(Target,{});rev.revoke();try{new rev.proxy()}catch(e){console.log(e.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -221,7 +221,7 @@ test('Reflect.set reaches an inherited Proxy set trap and preserves receiver',()
  let conversions=0,key={toString(){conversions++;return 'foo'}};console.log(Reflect.set(child,key,6,other),conversions,seen.length);
  Object.defineProperty(child,'own',{value:1,writable:true,configurable:true});console.log(Reflect.set(child,'own',5),child.own,seen.length);
  let array=[];Object.setPrototypeOf(array,target);console.log(Reflect.set(array,'length',2),array.length,seen.length);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -239,7 +239,7 @@ test('Proxy construct trap does not read newTarget prototype before trap',()=>{
  seen=[];console.log(Reflect.construct(proxy,[],newTarget).ok,seen.join(','));
  let forwarded=new Proxy(Target,{get(target,key,receiver){if(key==='prototype')seen.push('forward prototype');return Reflect.get(target,key,receiver)}});
  seen=[];console.log(new forwarded() instanceof Target,seen.join(','));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);

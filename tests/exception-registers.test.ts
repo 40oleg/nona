@@ -5,7 +5,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder,slot,failIf} from '../src/runtime/abi.js';
 import {preservedGp,preservedXmm} from '../src/runtime/exception-layout.js';
 import {prependFunctionBuiltin} from '../src/runtime/function-builtin.js';
@@ -40,5 +40,5 @@ test('exception transfer restores all GP and full 128-bit XMM nonvolatile state'
   });
   a.load('rcx',slot(40));a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',1);a.store({base:'rcx',disp:8},'rax');
  });
- const r=runNative(linkPe(program));assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),'7 true\n');
+ const r=runNative(linkHost(program));assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),'7 true\n');
 });

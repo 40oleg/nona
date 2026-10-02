@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['default and number hint prefer valueOf','let log="",o={valueOf:function(){log+="v";return 7;},toString:function(){log+="s";return "str";}};console.log(o+1,+o,o*2,o<8,o==7,log);'],
@@ -28,7 +28,7 @@ const cases:[string,string][]=[
  ['nullish results are valid primitives','let o={valueOf:function(){return null;}};console.log(o+1,o==null);o.valueOf=function(){};console.log(o+1,o==undefined);'],
 ];
 for(const [name,source] of cases)test('coercion with GC stress: '+name,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
@@ -39,7 +39,7 @@ for(const source of [
  'let n=0,a=[];a.length={valueOf:function(){console.log(++n);return n;}};',
  'let a=[];a.length={valueOf:function(){console.log("convert");return -1;}};',
 ])test('coercion failure retains observable callback order: '+source,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
  const oracle=spawnSync(process.execPath,['-e',source],{encoding:'utf8',timeout:5000,windowsHide:true});
  assert.equal(oracle.error,undefined);assert.equal(oracle.status,1);

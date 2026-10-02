@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Assembler} from '../src/backend/x64/assembler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {linkLinux} from '../src/backend/linux/index.js';
 import {lex} from '../src/frontend/lexer.js';
 import {parse} from '../src/frontend/parser.js';
@@ -21,7 +21,7 @@ test('native host clock uses Unix milliseconds on Windows and links on Linux',()
  a.label('test.clock.bad');a.mov('rcx',1);a.callImport('ExitProcess');
  program.fragments.push({...a.finish(),name:'test.clock',section:'.text'});
  program.entry='test.clock';
- const run=runNative(linkPe(program));
+ const run=runNative(linkHost(program));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.ok(linkLinux(program).length>0);
 });

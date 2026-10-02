@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {compile} from '../src/compiler.js';
 
 const cases:[string,string][]=[
@@ -27,7 +27,7 @@ const cases:[string,string][]=[
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 test('dynamic computed function name survives stress GC',()=>{
  const source='function make(n){let key="f"+n;return {[key]:function(a,b){return a+b;}}[key];}let f=make(42);for(let i=0;i<30;i++){({x:i});}console.log(f.name,f.length,f(2,3));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Function prototype is not constructable even with a prototype property',()=>{
@@ -37,6 +37,6 @@ test('Function prototype is not constructable even with a prototype property',()
 });
 test('static Function prototype retains dynamic properties through stress GC',()=>{
  const source='let p=(function(){}).__proto__;p.cache={text:""+42};p=null;for(let i=0;i<30;i++){({x:i});}console.log((function(){}).__proto__.cache.text);';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

@@ -9,14 +9,14 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 
 const prefix='function show(d){if(d===undefined){console.log("missing");return;}console.log("value" in d,d.value,"writable" in d,d.writable,"get" in d,typeof d.get,"set" in d,typeof d.set,d.enumerable,d.configurable);}';
 function native(source:string){
  const program=generate(lower(bind(parse(lex(prefix+source)))),{gcStress:true});
  const builder=new RuntimeBuilder();builder.bundle={fragments:program.fragments,functions:program.functions,imports:program.imports};
- installAccessorFixture(builder);return runNative(linkPe(program));
+ installAccessorFixture(builder);return runNative(linkHost(program));
 }
 const cases:[string,string][]=[
  ['own data and missing inherited','let o={__proto__:{x:3},y:4};show(Object.getOwnPropertyDescriptor(o,"x"));show(Object.getOwnPropertyDescriptor(o,"y"));show(Object.getOwnPropertyDescriptor(o,"z"));'],

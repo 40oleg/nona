@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('ArrayBuffer, SharedArrayBuffer and DataView use intrinsic prototypes for primitive newTarget prototypes',()=>expectProgram(`var C=function(){};C.prototype=null;var a=Reflect.construct(ArrayBuffer,[2],C),s=Reflect.construct(SharedArrayBuffer,[3],C),v=Reflect.construct(DataView,[a,0],C);console.log(Object.getPrototypeOf(a)===ArrayBuffer.prototype,a.byteLength,Object.getPrototypeOf(s)===SharedArrayBuffer.prototype,s.byteLength,Object.getPrototypeOf(v)===DataView.prototype,v.byteLength)`,'true 2 true 3 true 2\n'));
@@ -23,7 +23,7 @@ test('ArrayBuffer construction allocates zero-length or sized native backing',()
 
 test('ArrayBuffer object and backing survive stress GC',()=>{
  const source=`var kept=new ArrayBuffer(128);for(var i=0;i<40;i++){new ArrayBuffer(i);String(i)+String(i)}console.log(kept.byteLength,Object.prototype.toString.call(kept));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'128 [object ArrayBuffer]\n');
 });
@@ -173,7 +173,7 @@ test('SharedArrayBuffer slice copies bytes and applies species',()=>expectProgra
 
 test('SharedArrayBuffer backing survives stress GC through views',()=>{
  const source=`var buffer=new SharedArrayBuffer(32),view=new Uint8Array(buffer);view[0]=123;for(var i=0;i<40;i++){new SharedArrayBuffer(i);String(i)+String(i)}console.log(Object.getPrototypeOf(buffer)===SharedArrayBuffer.prototype,Object.prototype.toString.call(buffer),buffer.byteLength,view[0],new DataView(buffer).getUint8(0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true [object SharedArrayBuffer] 32 123 123\n');
 });
@@ -216,7 +216,7 @@ test('DataView construction, getters, brand and bounds',()=>expectProgram(`
 
 test('DataView retains its ArrayBuffer through stress GC',()=>{
  const source=`var kept=new DataView(new ArrayBuffer(32),7,11);for(var i=0;i<40;i++){new ArrayBuffer(i);String(i)+String(i)}console.log(kept.byteOffset,kept.byteLength,kept.buffer.byteLength,ArrayBuffer.isView(kept));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'7 11 32 true\n');
 });
@@ -239,7 +239,7 @@ test('DataView getUint8 and setUint8 access shared bytes',()=>expectProgram(`
 
 test('DataView byte access survives coercion and stress GC',()=>{
  const source=`var v=new DataView(new ArrayBuffer(4));var index={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1.9}};var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1e20}};v.setUint8(index,value);console.log(v.getUint8(index),v.buffer.byteLength);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'0 4\n');
 });
@@ -266,7 +266,7 @@ test('DataView Float32 and Float64 preserve byte order and special values',()=>e
 
 test('DataView float value coercion survives stress GC',()=>{
  const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -0}};v.setFloat64(0,value,true);console.log(Object.is(v.getFloat64(0,true),-0),v.buffer.byteLength);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true 8\n');
 });
@@ -310,7 +310,7 @@ test('DataView numeric access checks detachment before bounds',()=>expectProgram
 
 test('DataView BigInt value conversion survives stress GC',()=>{
  const source=`var v=new DataView(new ArrayBuffer(8));var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};v.setBigInt64(0,value,true);console.log(v.getBigUint64(0,true).toString(16),v.buffer.byteLength);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'ffffffffffffffff 8\n');
 });
@@ -349,7 +349,7 @@ test('Uint8Array indexed bytes alias DataView and obey bounds',()=>expectProgram
 
 test('Uint8Array keeps backing bytes through stress GC',()=>{
  const source=`var bytes=new Uint8Array(16);bytes[0]=201;bytes[15]=47;for(var i=0;i<40;i++){new Uint8Array(i);String(i)+String(i)}console.log(bytes[0],bytes[15],bytes.buffer.byteLength);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'201 47 16\n');
 });
@@ -387,7 +387,7 @@ test('Uint8Array rejects canonical numeric keys outside valid indices',()=>expec
 
 test('Uint8Array canonical numeric keys bypass inherited properties under stress GC',()=>{
  const source=`var bytes=new Uint8Array(1),key='-'+'1';Uint8Array.prototype[key]=42;for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(bytes[key],key in bytes,Object.getOwnPropertyDescriptor(bytes,key));bytes[key]=8;console.log(bytes[key],Uint8Array.prototype[key]);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'undefined false undefined\nundefined 42\n');
 });
@@ -412,7 +412,7 @@ test('Uint8Array collects iterable values before converting them (ES2020 22.2.4.
 
 test('Uint8Array source copying survives intrinsic changes and stress GC',()=>{
  const source=`var source=new Uint8Array(2);source[0]=8;source[1]=259;Array.from=function(){throw Error('changed')};var copy=new Uint8Array(source);var values=new Uint8Array([{valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 258}}]);console.log(copy.length,copy[0],copy[1],values[0]);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 8 3 2\n');
 });
@@ -428,7 +428,7 @@ test('Uint8Array values, keys, entries and default iteration use shared bytes',(
 
 test('Uint8Array iterator retains backing bytes under stress GC',()=>{
  const source=`var bytes=new Uint8Array([7,8]),iterator=bytes.values();bytes=null;for(var i=0;i<30;i++)new ArrayBuffer(i);console.log(iterator.next().value,iterator.next().value,iterator.next().done);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'7 8 true\n');
 });
@@ -454,7 +454,7 @@ test('TypedArray.of constructs receiver and converts each element',()=>expectPro
 
 test('TypedArray.of keeps values rooted during coercion',()=>{
  const source=`var value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 258}};var bytes=Uint8Array.of(value,7);console.log(bytes[0],bytes[1],bytes.length);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 7 2\n');
 });
@@ -470,7 +470,7 @@ test('Int8Array shares backing bytes and reads signed values',()=>expectProgram(
 
 test('Int8Array indexed descriptors and iterator survive stress GC',()=>{
  const source=`var bytes=Int8Array.of(127,128,255);var iterator=bytes.values();for(var i=0;i<30;i++)new ArrayBuffer(i);console.log(Object.keys(bytes).join(','),Object.getOwnPropertyDescriptor(bytes,'1').value,iterator.next().value,iterator.next().value,iterator.next().value);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'0,1,2 -128 127 -128 -1\n');
 });
@@ -486,7 +486,7 @@ test('Uint8ClampedArray clamps and rounds ties to even in every write path',()=>
 
 test('Uint8ClampedArray conversion survives stress GC',()=>{
  const source=`var bytes=new Uint8ClampedArray(2),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 12.5}};bytes[0]=value;Object.defineProperty(bytes,'1',{value});console.log(bytes[0],bytes[1],bytes.buffer.byteLength);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'12 12 2\n');
 });
@@ -506,7 +506,7 @@ test('Uint16Array and Int16Array use two-byte elements and signed reads',()=>exp
 
 test('sixteen-bit indexed descriptors and iterators survive stress GC',()=>{
  const source=`var view=new Int16Array([32768,65535]),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 65534}};Object.defineProperty(view,'0',{value});var iterator=view.values();for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(view.byteLength,Object.getOwnPropertyDescriptor(view,'0').value,iterator.next().value,iterator.next().value);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'4 -2 -2 -1\n');
 });
@@ -526,7 +526,7 @@ test('Uint32Array and Int32Array use four-byte elements and signed reads',()=>ex
 
 test('thirty-two-bit indexed descriptors and iterators survive stress GC',()=>{
  const source=`var view=Int32Array.of(2147483648,4294967295),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 4294967294}};Object.defineProperty(view,'0',{value});var iterator=view.values();for(var i=0;i<20;i++)new ArrayBuffer(i);console.log(view.byteLength,Object.getOwnPropertyDescriptor(view,'0').value,iterator.next().value,iterator.next().value);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'8 -2 -2 -1\n');
 });
@@ -547,7 +547,7 @@ test('Float32Array and Float64Array round, alias DataView, and preserve special 
 
 test('floating-point indexed conversion and iteration survive stress GC',()=>{
  const source=`var a=new Float32Array(2),v={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1/3}};a[0]=v;Object.defineProperty(a,'1',{value:v});var it=a.values();for(var j=0;j<20;j++)new ArrayBuffer(j);console.log(a[0]===Math.fround(1/3),Object.getOwnPropertyDescriptor(a,'1').value===Math.fround(1/3),it.next().value===a[0],it.next().value===a[1]);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true true true true\n');
 });
@@ -567,7 +567,7 @@ test('BigInt64Array and BigUint64Array preserve exact 64-bit values',()=>expectP
 
 test('BigInt typed array coercion and iteration survive stress GC',()=>{
  const source=`var a=new BigUint64Array(2),value={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return -1n}};a[0]=value;Object.defineProperty(a,'1',{value});var it=a.values();for(var j=0;j<20;j++)new ArrayBuffer(j);console.log(a[0]===18446744073709551615n,Object.getOwnPropertyDescriptor(a,'1').value===a[0],it.next().value===a[0],it.next().value===a[1]);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true true true true\n');
 });
@@ -584,7 +584,7 @@ test('TypedArray reverse swaps element bytes in place across numeric and BigInt 
 
 test('TypedArray reverse keeps shared backing under stress GC',()=>{
  const source=`var b=new ArrayBuffer(16),a=new BigInt64Array(b);a[0]=-1n;a[1]=2n;for(var i=0;i<30;i++)new ArrayBuffer(i);a.reverse();console.log(String(a[0]),String(a[1]),new DataView(b).getBigUint64(8,true)===18446744073709551615n);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'2 -1 true\n');
 });
@@ -602,7 +602,7 @@ test('TypedArray copyWithin handles overlap, ranges, and exact element bytes',()
 
 test('TypedArray copyWithin keeps receiver and bounds rooted through coercion',()=>{
  const source=`var a=BigInt64Array.of(1n,2n,3n),target={valueOf(){for(var i=0;i<30;i++)new ArrayBuffer(i);return 1}};a.copyWithin(target,0,2);console.log(String(a[0]),String(a[1]),String(a[2]));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'1 1 2\n');
 });
@@ -620,7 +620,7 @@ test('TypedArray fill converts once and writes numeric and BigInt element bytes'
 
 test('TypedArray fill roots receiver and converts the value once under stress GC',()=>{
  const source=`var a=new BigInt64Array(3),calls=0,value={valueOf(){calls++;for(var i=0;i<20;i++)new ArrayBuffer(i);return -2n}},start={valueOf(){for(var i=0;i<20;i++)new ArrayBuffer(i);return 1}};a.fill(value,start);console.log(calls,String(a[0]),String(a[1]),String(a[2]));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'1 0 -2 -2\n');
 });
@@ -638,7 +638,7 @@ test('TypedArray includes, indexOf, and lastIndexOf use internal length and corr
 
 test('TypedArray search roots receiver and BigInt needle through fromIndex coercion',()=>{
  const source=`var a=BigInt64Array.of(1n,2n,3n),needle=2n,from={valueOf(){for(var i=0;i<30;i++)new ArrayBuffer(i);return 0}};console.log(a.includes(needle,from),a.indexOf(needle,from),a.lastIndexOf(needle,from));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true 1 -1\n');
 });

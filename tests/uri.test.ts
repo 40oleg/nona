@@ -4,7 +4,7 @@ import {expectProgram} from './helpers/program.js';
 import {runOracle} from './helpers/oracle.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 for(const [name,source] of [
@@ -16,7 +16,7 @@ for(const [name,source] of [
 
 test('URI encoding retains coerced string under stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<60;i++)({x:i});return 'a 😀 b';}};console.log(encodeURI(x),encodeURIComponent(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
@@ -29,6 +29,6 @@ for(const [name,source] of [
 
 test('URI decoding retains coerced string under stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<60;i++)({x:i});return 'a%20%F0%9F%98%80%20b';}};console.log(decodeURI(x),decodeURIComponent(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
@@ -25,7 +25,7 @@ for(const [name,source] of cases)test(`for...in: ${name}`,()=>expectProgram(sour
 
 test('for...in: key snapshot survives stress GC',()=>{
   const source=`var p={base:1};var o=Object.create(p);for(var i=0;i<30;i++)o['k'+i]=i;var n=0;for(var k in o){n++;for(var j=0;j<5;j++)({v:''+j});}console.log(n);`;
-  const image=linkPe(generate(compileToIR(source),{gcStress:true}));
+  const image=linkHost(generate(compileToIR(source),{gcStress:true}));
   const run=runNative(image);
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),runOracle(source).stdout);

@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
@@ -31,21 +31,21 @@ for(const [name,source] of cases)test(`symbol: ${name}`,()=>expectProgram(source
 
 test('symbol: property identity survives stress GC',()=>{
  const source=`var s=Symbol('held'),o={};o[s]=14;for(var i=0;i<80;i++){var t=Symbol('temp'+i);o[t]=i;}console.log(o[s],Object.getOwnPropertySymbols(o).length,s.toString());`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('symbol: registry survives stress GC',()=>{
  const source=`var a=Symbol.for('persistent');for(var i=0;i<90;i++){Symbol.for('ephemeral'+i);({v:i});}console.log(Symbol.for('persistent')===a,Symbol.keyFor(a));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('symbol: toStringTag getter survives stress GC',()=>{
  const source=`var o={};Object.defineProperty(o,Symbol.toStringTag,{get:function(){for(var i=0;i<30;i++)({x:i});return 'Live';}});console.log(Object.prototype.toString.call(o));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

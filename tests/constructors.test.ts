@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['constructor initializes instance','function C(x){this.x=x;}let o=new C(7);console.log(o.x,o instanceof C,o.constructor===C,C.prototype.constructor===C);'],
@@ -30,6 +30,6 @@ for(const source of ['new 3;','let C={};new C();','function C(){}C.prototype=3;(
 });
 test('constructor prototype and instance survive stress GC',()=>{
  const source='function C(n){this.x=""+n;for(let i=0;i<30;i++){({x:i});}return 4;}let a=new C(42);C.prototype.read=function(){return this.x;};console.log(a.read(),a instanceof C);';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

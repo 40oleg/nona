@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 
 const cases:[string,string][]=[
@@ -34,7 +34,7 @@ for(const source of ['function f(){}f.apply(null,"abc");','function f(){}f.apply
 
 test('nested apply buffers and temporary targets survive stress GC',()=>{
  const source='function factory(n){return function(a){if(n)return factory(n-1).apply({x:n},[{text:a.text+this.x}]);return a.text+this.x;};}console.log(factory(12).apply({x:13},[{text:"v"}]));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
@@ -48,10 +48,10 @@ test('apply root scopes and copied argument buffers are released after return',(
  program.fragments.find(f=>f.name==='entry')!.fixups.find(f=>f.target==='rt.dispose')!.target='test.applyCleanup';
  program.fragments.push({...a.finish(),name:'test.applyCleanup',section:'.text'});
  program.functions.push({begin:'test.applyCleanup',end:'test.applyCleanup.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
 });
 test('apply copied heap argument buffer survives target stress GC and source mutation',()=>{
  const source='let list=[{text:""+42},""+57];function f(a,b){list=null;for(let i=0;i<50;i++){({x:i});}return a.text+b+arguments[0].text;}console.log(f.apply(null,list));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

@@ -9,11 +9,11 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const options={fileName:'block-functions.js',target:'win32-x64' as const};
 function expectNativeOracle(source:string,gcStress=false){
-  const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress})));
+  const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress})));
   assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
   assert.equal(result.stdout.toString(),runOracle(source).stdout);
 }

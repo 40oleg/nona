@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['Object identity boxing and nullish','let o={x:7};console.log(Object(o)===o,new Object(o)===o,Object().toString(),new Object(null).toString(),Object(3).valueOf(),Object("ab").length);'],
@@ -30,10 +30,10 @@ const cases:[string,string][]=[
  ['static constructors retain dynamic properties through GC','Number.cache={text:""+42};for(let i=0;i<20;i++){({text:""+i});}console.log(Number.cache.text);Number.prototype.extra={text:""+57};console.log(new Number().extra.text);delete Number.cache;delete Number.prototype.extra;'],
 ];
 for(const [name,source] of cases)test('builtin constructor: '+name,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 for(const source of ['Array(-1);','new Array(1.5);','Array(4294967296);','new Array(NaN);','Array(Infinity);'])test('invalid Array length: '+source,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
 });

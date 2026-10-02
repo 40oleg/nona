@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['primitive valueOf and toString brands','console.log(true.valueOf(),false.toString(),(3).valueOf(),(3).toString(),"abc".valueOf(),"abc".toString());'],
@@ -33,17 +33,17 @@ for(const source of ['true.valueOf.call(3);','"x".toString.call({});','(3).value
 });
 test('radix output and boxed primitive payload survive GC',()=>{
  const source='let v={}.valueOf,s=v.call("x"+42),a=(0.1).toString(3);for(let i=0;i<40;i++){({x:i});}console.log(s.valueOf(),a);';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Number.toFixed digits coercion survives stress GC',()=>{
  const source='let digits={valueOf(){for(let i=0;i<40;i++)({v:i});return 3;}},n=new Number(1.25);console.log(Number.prototype.toFixed.call(n,digits));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Number significant formatting digits coercion survives stress GC',()=>{
  const source='let digits={valueOf(){for(let i=0;i<40;i++)({v:i});return 3;}},n=new Number(1.25);console.log(Number.prototype.toExponential.call(n,digits),Number.prototype.toPrecision.call(n,digits));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 

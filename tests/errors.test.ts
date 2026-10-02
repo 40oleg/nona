@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['Error call and construct', 'let a=Error("hello"),b=new Error(7);console.log(a.name,a.message,String(a),b.message,String(b),a!==b,a instanceof Error);'],
@@ -28,6 +28,6 @@ const cases:[string,string][]=[
 ];
 for(const [name,source] of cases)test('Error objects: '+name,()=>{
  const expected=runOracle(source);
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected.stdout);
 });

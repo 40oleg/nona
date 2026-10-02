@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
  ['bare and explicit receivers', 'function f(){"use strict";return this;}console.log(f()===undefined,f.call(null)===null,f.call(3)===3,f.apply("x",[])==="x",f.bind(false)()===false);'],
  ['script strict context inherited', '"use strict";function f(){return this;}let g=function(){return this;};let o={m(){return this;}};console.log(f()===undefined,g.call(1)===1,o.m.call(null)===null);'],
@@ -32,7 +32,7 @@ const cases:[string,string][]=[
  ['strict dynamic global read', '"use strict";globalThis.dynamic=7;console.log(dynamic);try{console.log(missing);}catch(e){console.log(e.name);}'],
 ];
 for(const [name,source] of cases)test('strict mode: '+name,()=>{
- const expected=runOracle(source);const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const expected=runOracle(source);const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected.stdout);
 });
 for(const source of [
@@ -47,14 +47,14 @@ for(const source of [
 
 test('strict assignment preserves an unresolvable reference across RHS effects',()=>{
  const source='"use strict";try{missing=(globalThis.missing=1,2);}catch(e){console.log(e.name);}console.log(globalThis.missing);';
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
  assert.equal(result.stdout.toString(),'ReferenceError\n1\n');
 });
 
 test('ES2020 restricted function properties share the ThrowTypeError intrinsic',()=>{
  const source='let a=Object.getOwnPropertyDescriptor(Function.prototype,"caller"),b=Object.getOwnPropertyDescriptor(Function.prototype,"arguments");function f(){"use strict";return Object.getOwnPropertyDescriptor(arguments,"callee");}let c=f();console.log(a.get===a.set,a.get===b.get,a.get===b.set,a.get===c.get,a.get===c.set,Object.isFrozen(a.get));';
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
  assert.equal(result.stdout.toString(),'true true true true true true\n');
 });

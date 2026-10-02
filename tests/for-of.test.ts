@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
@@ -53,7 +53,7 @@ for(const [name,source] of cases)test(`for...of: ${name}`,()=>expectProgram(sour
 
 test('for...of: string code points survive stress GC',()=>{
   const source=`var s='';for(var ch of 'A😀B😀C'){for(var i=0;i<30;i++)({v:''+i});s+=ch;}console.log(s);`;
-  const image=linkPe(generate(compileToIR(source),{gcStress:true}));
+  const image=linkHost(generate(compileToIR(source),{gcStress:true}));
   const run=runNative(image);
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -61,14 +61,14 @@ test('for...of: string code points survive stress GC',()=>{
 
 test('for...of: custom iterator survives stress GC',()=>{
   const source=`var s='',o={[Symbol.iterator]:function(){var i=0;return {next:function(){for(var j=0;j<20;j++)({x:j});return {value:++i,done:i>3};},return:function(){s+='closed';return {};}}}};for(var x of o){s+=x;if(x===2)break;}console.log(s);`;
-  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+  const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('for...of: lexical captures survive stress GC',()=>{
   const source=`var f=[],i=0;for(let x of [1,2,3]){f[i]=function(){return x;};for(var j=0;j<20;j++)({x:j});i++;}console.log(f[0](),f[1](),f[2]());`;
-  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+  const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

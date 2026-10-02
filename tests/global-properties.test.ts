@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['global identity','console.log(globalThis===this,globalThis.globalThis===globalThis);function f(){return globalThis===this;}console.log(f());'],
@@ -24,11 +24,11 @@ const cases:[string,string][]=[
  ['inherited global property remains a binding','let g=this;delete g.globalThis;g.__proto__={globalThis:8};console.log(globalThis,typeof globalThis,delete globalThis,globalThis);globalThis=9;console.log(globalThis,g.__proto__.globalThis);'],
 ];
 for(const [name,source] of cases)test('global property binding: '+name,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('reading deleted builtin identifier is an error',()=>{
  const source='delete this.globalThis;globalThis;';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
 });

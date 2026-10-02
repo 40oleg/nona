@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['own versus inherited','let p={x:1},o={__proto__:p,y:2};console.log(o.hasOwnProperty("x"),o.hasOwnProperty("y"),o.propertyIsEnumerable("x"),o.propertyIsEnumerable("y"),o.hasOwnProperty("missing"));'],
@@ -27,7 +27,7 @@ const cases:[string,string][]=[
  ['metadata and chaining','console.log(Object.is.name,Object.is.length,Object.setPrototypeOf.length,Object.prototype.hasOwnProperty.length,Object.prototype.toLocaleString.length,Object.is.toString(),"prototype" in Object.is);'],
 ];
 for(const [name,source] of cases)test('Object inspection: '+name,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 for(const source of [
@@ -37,7 +37,7 @@ for(const source of [
  'Object.prototype.propertyIsEnumerable.call(null,{toString:function(){console.log("key");return "x";}});',
  'Object.prototype.isPrototypeOf.call(null,{});','Object.prototype.toLocaleString.call({toString:3});',
 ])test('Object inspection error: '+source,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
  const oracle=spawnSync(process.execPath,['-e',source],{encoding:'utf8',timeout:5000,windowsHide:true});
  assert.equal(oracle.error,undefined);assert.equal(oracle.status,1);assert.equal(run.stdout.toString(),oracle.stdout);

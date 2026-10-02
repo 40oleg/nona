@@ -4,7 +4,7 @@ import {expectProgram} from './helpers/program.js';
 import {runOracle} from './helpers/oracle.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
@@ -18,7 +18,7 @@ for(const [name,source] of cases)test(`array spread: ${name}`,()=>expectProgram(
 
 test('array spread survives stress GC',()=>{
  const source=`var a=[];for(var i=0;i<20;i++)a.push({x:i});var b=[{x:-1},...a,{x:20}];console.log(b.length,b[0].x,b[20].x,b[21].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

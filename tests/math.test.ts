@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import {runOracle} from './helpers/oracle.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 import assert from 'node:assert/strict';
 
@@ -36,45 +36,45 @@ for(const [name,source] of cases)test(`Math: ${name}`,()=>expectProgram(source,r
 
 test('Math: min and max survive coercion callbacks under stress GC',()=>{
  const source=`var a={valueOf:function(){for(var i=0;i<30;i++)({x:i});return -0;}};var b={valueOf:function(){for(var i=0;i<30;i++)({x:i});return 0;}};console.log(Object.is(Math.min(b,a),-0),Object.is(Math.max(a,b),0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: hypot survives coercion callbacks under stress GC',()=>{
  const source=`var s='';function v(n){return {valueOf(){for(var i=0;i<25;i++)({x:i});s+=n;return n;}};}console.log(Math.hypot(v(3),v(4)),s);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: sin cos tan finite values and signed zero',()=>{
  const source=`console.log(Math.sin(0.5),Math.cos(0.5),Math.tan(0.5),Object.is(Math.sin(-0),-0),Math.cos(0),Object.is(Math.tan(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');
  for(const [i,expected] of [Math.sin(.5),Math.cos(.5),Math.tan(.5)].entries())assert.ok(Math.abs(Number(parts[i])-expected)<1e-15,`${i}: ${parts[i]}`);
  assert.deepEqual(parts.slice(3),['true','1','true']);
 });
 test('Math: trigonometric argument coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.sin(x),Math.cos(x),Math.tan(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: logarithms track finite reference values',()=>{
  const values=[0.5,2,10,1000,Math.E,1e-30,1e30];
  const source=`console.log(${values.flatMap(v=>[`Math.log(${v})`,`Math.log2(${v})`,`Math.log10(${v})`]).join(',')});`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const actual=run.stdout.toString().trim().split(' ').map(Number);
  const expected=values.flatMap(v=>[Math.log(v),Math.log2(v),Math.log10(v)]);
  for(const [i,value] of expected.entries())assert.ok(Math.abs(actual[i]!-value)<=2e-14*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
 });
 test('Math: logarithm argument coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 1;}};console.log(Math.log(x),Math.log2(x),Math.log10(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: exp finite values and boundaries',()=>{
  const values=[-745,-10,-1,-0,0,1,10,100,709,710];
  const source=`console.log(${values.map(v=>`Math.exp(${Object.is(v,-0)?'-0':v})`).join(',')});`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const actual=run.stdout.toString().trim().split(' ').map(Number);
  for(const [i,value] of values.entries()){
   const expected=Math.exp(value),got=actual[i]!;
@@ -83,13 +83,13 @@ test('Math: exp finite values and boundaries',()=>{
 });
 test('Math: exp argument coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.exp(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: expm1 near zero and signed zero',()=>{
  const values=[-10,-1,-.5,-1e-5,-1e-10,-0,0,1e-10,1e-5,.5,1,10];
  const source=`console.log(${values.map(v=>`Math.expm1(${Object.is(v,-0)?'-0':v})`).join(',')},Object.is(Math.expm1(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.equal(parts.at(-1),'true');
  for(const [i,value] of values.entries()){
   const expected=Math.expm1(value),got=Number(parts[i]);
@@ -100,21 +100,21 @@ test('Math: atan and atan2 quadrants and signed zero',()=>{
  const pairs:[[number,number],...[number,number][]]=[[1,1],[1,-1],[-1,1],[-1,-1],[0,1],[-0,1],[0,-1],[-0,-1],[Infinity,Infinity],[-Infinity,-Infinity]];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(Math.atan(1),Math.atan(-1),${pairs.map(([y,x])=>`Math.atan2(${literal(y)},${literal(x)})`).join(',')},Object.is(Math.atan(-0),-0),Object.is(Math.atan2(-0,1),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');const expected=[Math.atan(1),Math.atan(-1),...pairs.map(([y,x])=>Math.atan2(y,x))];
  for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=2e-15*Math.max(1,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
  assert.deepEqual(parts.slice(expected.length),['true','true']);
 });
 test('Math: atan2 coerces both arguments under stress GC',()=>{
  const source=`var s='';function v(n){return {valueOf(){for(var i=0;i<40;i++)({v:i});s+=n;return n;}}}console.log(Math.atan2(v(1),v(1)),s);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: log1p small values, domain, and signed zero',()=>{
  const values=[-1,-.9,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,1e20];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${values.map(v=>`Math.log1p(${literal(v)})`).join(',')},Object.is(Math.log1p(-0),-0),Math.log1p(-2),Math.log1p(Infinity));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','NaN','Infinity']);
  for(const [i,value] of values.entries()){
   const expected=Math.log1p(value),got=Number(parts[i]);
@@ -123,14 +123,14 @@ test('Math: log1p small values, domain, and signed zero',()=>{
 });
 test('Math: log1p coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.log1p(x),Object.is(Math.log1p(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: cbrt finite values and signed zero',()=>{
  const values=[-1e300,-27,-8,-1,-1e-300,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-300,1,8,27,1e300];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${values.map(v=>`Math.cbrt(${literal(v)})`).join(',')},Object.is(Math.cbrt(-0),-0),Math.cbrt(-Infinity),Math.cbrt(Infinity));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','-Infinity','Infinity']);
  for(const [i,value] of values.entries()){
   const expected=Math.cbrt(value),got=Number(parts[i]);
@@ -139,28 +139,28 @@ test('Math: cbrt finite values and signed zero',()=>{
 });
 test('Math: cbrt coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return -8;}};console.log(Math.cbrt(x)<-1.999999999999,Object.is(Math.cbrt(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: asin and acos finite values and domain',()=>{
  const values=[-1,-.9,-.5,-0,0,.5,.9,1];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${values.flatMap(v=>[`Math.asin(${literal(v)})`,`Math.acos(${literal(v)})`]).join(',')},Object.is(Math.asin(-0),-0),Math.asin(2),Math.acos(-2));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length*2),['true','NaN','NaN']);
  const expected=values.flatMap(v=>[Math.asin(v),Math.acos(v)]);
  for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=2e-15*Math.max(1,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
 });
 test('Math: inverse trigonometric coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.asin(x),Math.acos(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: atanh finite values, domain, and signed zero',()=>{
  const values=[-1,-.9999999999999999,-.75,-.1,-1e-12,-0,0,1e-12,.1,.75,.9999999999999999,1];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${values.map(v=>`Math.atanh(${literal(v)})`).join(',')},Object.is(Math.atanh(-0),-0),Math.atanh(2),Math.atanh(-2));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length),['true','NaN','NaN']);
  for(const [i,value] of values.entries()){
   const expected=Math.atanh(value),got=Number(parts[i]);
@@ -169,7 +169,7 @@ test('Math: atanh finite values, domain, and signed zero',()=>{
 });
 test('Math: atanh coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.atanh(x),Object.is(Math.atanh(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: asinh and acosh finite values and boundaries',()=>{
@@ -177,21 +177,21 @@ test('Math: asinh and acosh finite values and boundaries',()=>{
  const acoshValues=[1,1.0000000000000002,1.1,2,10,1e150,1e300];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${asinhValues.map(v=>`Math.asinh(${literal(v)})`).concat(acoshValues.map(v=>`Math.acosh(${literal(v)})`)).join(',')},Object.is(Math.asinh(-0),-0),Math.acosh(0),Math.acosh(-1));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(asinhValues.length+acoshValues.length),['true','NaN','NaN']);
  const expected=asinhValues.map(Math.asinh).concat(acoshValues.map(Math.acosh));
  for(const [i,value] of expected.entries())assert.ok(Math.abs(Number(parts[i])-value)<=4e-14*Math.max(Number.MIN_VALUE,Math.abs(value)),`${i}: ${parts[i]} vs ${value}`);
 });
 test('Math: asinh and acosh coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 1;}};console.log(Math.asinh(x)>0,Math.acosh(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: hyperbolic finite values, overflow, and signed zero',()=>{
  const values=[-711,-710,-100,-20,-1,-1e-12,-0,0,1e-12,1,20,100,710,711];
  const literal=(v:number)=>Object.is(v,-0)?'-0':String(v);
  const source=`console.log(${values.flatMap(v=>[`Math.sinh(${literal(v)})`,`Math.cosh(${literal(v)})`,`Math.tanh(${literal(v)})`]).join(',')},Object.is(Math.sinh(-0),-0),Object.is(Math.tanh(-0),-0));`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const parts=run.stdout.toString().trim().split(' ');assert.deepEqual(parts.slice(values.length*3),['true','true']);
  const expected=values.flatMap(v=>[Math.sinh(v),Math.cosh(v),Math.tanh(v)]);
  for(const [i,value] of expected.entries()){
@@ -200,13 +200,13 @@ test('Math: hyperbolic finite values, overflow, and signed zero',()=>{
 });
 test('Math: hyperbolic coercion survives stress GC',()=>{
  const source=`var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.sinh(x),Math.cosh(x),Math.tanh(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('Math: trigonometric large-angle reduction',()=>{
  const values=[2**63,1e20,1e30,1e50,1e100,1e200,1e300,Number.MAX_VALUE,-1e20,-1e100,-Number.MAX_VALUE];
  const source=`console.log(${values.flatMap(v=>[`Math.sin(${v})`,`Math.cos(${v})`,`Math.tan(${v})`]).join(',')});`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const actual=run.stdout.toString().trim().split(' ').map(Number),expected=values.flatMap(v=>[Math.sin(v),Math.cos(v),Math.tan(v)]);
  for(const [i,value] of expected.entries())assert.ok(Number.isFinite(actual[i])&&Math.abs(actual[i]!-value)<=3e-13*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
 });
@@ -214,7 +214,7 @@ test('Math: large-angle reduction across binary exponents',()=>{
  let seed=0x13579bdf;const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/2**32);
  const values:number[]=[];for(let i=0;i<80;i++)values.push((i&1?-1:1)*(1+random())*2**(63+Math.floor(random()*960)));
  const source=`console.log(${values.flatMap(v=>[`Math.sin(${v})`,`Math.cos(${v})`,`Math.tan(${v})`]).join(',')});`;
- const run=runNative(linkPe(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(generate(compileToIR(source))));assert.equal(run.status,0,run.stderr.toString());
  const actual=run.stdout.toString().trim().split(' ').map(Number),expected=values.flatMap(v=>[Math.sin(v),Math.cos(v),Math.tan(v)]);
  for(const [i,value] of expected.entries())assert.ok(Number.isFinite(actual[i])&&Math.abs(actual[i]!-value)<=8e-13*Math.max(1,Math.abs(value)),`${i}: ${actual[i]} vs ${value}`);
 });

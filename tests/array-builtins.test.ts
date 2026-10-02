@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('IsArray unwraps nested proxies for concat and species under GC stress',()=>{
@@ -17,7 +17,7 @@ test('IsArray unwraps nested proxies for concat and species under GC stress',()=
  try{Array.isArray(handle.proxy)}catch(error){console.log(error.name)}
  try{[].concat(handle.proxy)}catch(error){console.log(error.name)}
  try{[handle.proxy].flat()}catch(error){console.log(error.name)}`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
@@ -165,131 +165,131 @@ test('array builtins: ES2020 Array unscopables names and descriptors',()=>{
 
 test('array builtins: toLocaleString methods and strings survive stress GC',()=>{
  const source=`var a=[{toLocaleString(){for(var i=0;i<30;i++)({x:i});return {toString(){for(var j=0;j<30;j++)({y:j});return 'left'}}}},{toLocaleString(){for(var i=0;i<30;i++)({z:i});return 'right'}}];console.log(a.toLocaleString());`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: sort comparator and elements survive stress GC',()=>{
  const source=`var a=[{x:3},{x:1},{x:2}];a.sort(function(v,w){for(var i=0;i<30;i++)({i:i});return v.x-w.x});console.log(a[0].x,a[1].x,a[2].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: push survives stress GC',()=>{
  const source=`var a=[];for(var i=0;i<50;i++){a.push({x:i});}console.log(a.length,a[0].x,a[49].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: map species and callback survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.map(function(v){for(var i=0;i<30;i++)({v:i});return {x:v.x+1}});console.log(b.length,b[0].x,1 in b,b[2].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: filter species and callback survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};var b=a.filter(function(v){for(var i=0;i<30;i++)({v:i});return v.x>1});console.log(b.length,b[0].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: slice species and getter survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{get:function(){for(var i=0;i<30;i++)({v:i});return {x:4}}});var b=a.slice();console.log(b.length,b[0].x,1 in b,b[2].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: splice species, getter and inserted values survive stress GC',()=>{
  const source=`var a=[{x:1},,{x:3},{x:4}];a.constructor={[Symbol.species]:function(n){for(var i=0;i<30;i++)({v:i});return new Array(n)}};Object.defineProperty(a,2,{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});Object.defineProperty(a,2,{configurable:true,writable:true,value:{x:5}});return {x:5}}});var b=a.splice(1,2,{x:8},{x:9},{x:10});console.log(b.length,0 in b,b[1].x,a.length,a[0].x,a[1].x,a[2].x,a[3].x,a[4].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: Array.of constructor and items survive stress GC',()=>{
  const source=`function C(n){for(var i=0;i<30;i++)({v:i});this.initial=n}var x={x:1},y={x:2};var a=Array.of.call(C,x,y);console.log(a instanceof C,a.initial,a.length,a[0].x,a[1].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: Array.from iterator, mapper and result survive stress GC',()=>{
  const source=`var it={[Symbol.iterator]:function(){var i=0;return {next:function(){for(var j=0;j<20;j++)({v:j});return i<3?{value:{x:++i},done:false}:{done:true}}}}};var a=Array.from(it,function(v,i){for(var j=0;j<20;j++)({v:j});return {x:v.x+i}});console.log(a.length,a[0].x,a[1].x,a[2].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: includes survives getter and GC',()=>{
  const source=`var o={length:2};Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return 'needle';}});console.log(Array.prototype.includes.call(o,'needle'));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: pop survives getter and GC',()=>{
  const source=`var o={length:2};Object.defineProperty(o,'1',{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});return {x:7};}});var v=Array.prototype.pop.call(o);console.log(v.x,o.length,1 in o);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: indexOf survives getter and GC',()=>{
  const source=`var needle={x:1},o={length:2};Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return needle;}});console.log(Array.prototype.indexOf.call(o,needle),Array.prototype.lastIndexOf.call(o,needle));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: forEach callback and getter survive stress GC',()=>{
  const source=`var o={length:2},seen='';Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return {x:7};}});Array.prototype.forEach.call(o,function(v,i,obj){for(var j=0;j<30;j++)({v:j});seen+=v.x+':'+i+':'+(obj===o)+';';});console.log(seen);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: some/every callback survives stress GC',()=>{
  const source=`var a=[{x:1},{x:2},{x:3}];console.log(a.some(function(v){for(var i=0;i<30;i++)({v:i});return v.x===2}),a.every(function(v){for(var i=0;i<30;i++)({v:i});return v.x>0}));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: find/findIndex callback survives stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];console.log(a.find(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}).x,a.findIndex(function(v){for(var i=0;i<30;i++)({v:i});return v&&v.x===3}));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: reduce/reduceRight callback survives stress GC',()=>{
  const source=`var a=[{x:1},,{x:3}];console.log(a.reduce(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0),a.reduceRight(function(acc,v){for(var i=0;i<30;i++)({v:i});return acc+v.x},0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: fill value survives setter and stress GC',()=>{
  const source=`var value={x:7},o={length:2},seen='';Object.defineProperty(o,'0',{set:function(v){for(var i=0;i<30;i++)({v:i});seen+=v.x;}});Array.prototype.fill.call(o,value);console.log(seen,o[1].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: copyWithin value survives getter and stress GC',()=>{
  const source=`var value={x:7},o={length:2};Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return value;}});Array.prototype.copyWithin.call(o,0,1);console.log(o[0].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: reverse values survive getters and stress GC',()=>{
  const source=`var a={x:1},b={x:2},o={length:2};Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({v:i});return a;},set:function(v){a=v;}});Object.defineProperty(o,'1',{get:function(){for(var i=0;i<30;i++)({v:i});return b;},set:function(v){b=v;}});Array.prototype.reverse.call(o);console.log(a.x,b.x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: shift first value survives getter and stress GC',()=>{
  const source=`var value={x:7},backing=value,a=[0,{x:2}];Object.defineProperty(a,'0',{configurable:true,get:function(){for(var i=0;i<30;i++)({v:i});return backing;},set:function(v){backing=v;}});var first=a.shift();console.log(first.x,backing.x,a.length);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('array builtins: unshift values survive setter and stress GC',()=>{
  const source=`var value={x:7},o={length:1,0:{x:2}},seen='';Object.defineProperty(o,'1',{set:function(v){for(var i=0;i<30;i++)({v:i});seen+=v.x}});console.log(Array.prototype.unshift.call(o,value),seen,o[0].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: concat spreadability, species and entries survive stress GC',()=>{
  const source=`var value={x:7},a=[value],o={length:2,1:{x:9}},s='';Object.defineProperty(o,Symbol.isConcatSpreadable,{get:function(){for(var i=0;i<30;i++)({x:i});s+='S';return true}});Object.defineProperty(o,'0',{get:function(){for(var i=0;i<30;i++)({x:i});s+='G';return value}});a.constructor={[Symbol.species]:function(){for(var i=0;i<30;i++)({x:i});return []}};var r=a.concat(o);console.log(r.length,r[0].x,r[1].x,r[2].x,s);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: flat nested arrays and species survive stress GC',()=>{
  const source=`var value={x:7},a=[,[value,[{x:8}]]];a.constructor={[Symbol.species]:function(){for(var i=0;i<30;i++)({x:i});return []}};var b=a.flat(2);console.log(b.length,b[0].x,b[1].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 
 test('array builtins: flatMap callback and mapped values survive stress GC',()=>{
  const source=`var value={x:7},a=[value,{x:8}],t={n:1};var b=a.flatMap(function(v,i){for(var j=0;j<30;j++)({x:j});return [v,{x:v.x+this.n+i}]},t);console.log(b.length,b[0].x,b[1].x,b[2].x,b[3].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

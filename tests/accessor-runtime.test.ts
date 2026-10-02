@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {installAccessorFixture,oracleInstaller} from './helpers/accessors.js';
 
@@ -29,6 +29,6 @@ for(const [name,source] of cases)test('native accessor dispatch: '+name,()=>{
  const program=generate(lower(bind(parse(lex(source)))),{gcStress:true});
  const builder=new RuntimeBuilder();builder.bundle={fragments:program.fragments,functions:program.functions,imports:program.imports};
  installAccessorFixture(builder);
- const result=runNative(linkPe(program));assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
+ const result=runNative(linkHost(program));assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
  assert.equal(result.stdout.toString(),runOracle(oracleInstaller+source).stdout);
 });

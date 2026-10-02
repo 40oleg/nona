@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['alias and typeof','function add(a,b){return a+b;}let f=add;console.log(f(2,3),f===add,typeof f,!!f);'],
@@ -24,7 +24,7 @@ const cases:[string,string][]=[
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 test('function values stay rooted through indirect calls under GC stress',()=>{
  const source='function keep(f){let a={f:f};for(let i=0;i<10;i++){a[i]=""+i;}return a.f;}function add(x){return x+2;}let f=keep(add);add=null;console.log(f(4),typeof f);';
- const image=linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
+ const image=linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
  const run=runNative(image);assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

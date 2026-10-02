@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {Assembler} from '../src/backend/x64/assembler.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {linkLinux} from '../src/backend/linux/index.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
@@ -60,7 +60,7 @@ function generatorProgram(){
 }
 
 test('generator state owns copied arguments and survives then releases GC on Windows',()=>{
- const run=runNative(linkPe(generatorProgram()));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
+ const run=runNative(linkHost(generatorProgram()));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
 });
 
 test('generator state owns copied arguments and survives then releases GC on Linux',(t:TestContext)=>{

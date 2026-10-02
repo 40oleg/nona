@@ -4,7 +4,7 @@ import {expectProgram} from './helpers/program.js';
 import {runOracle} from './helpers/oracle.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const cases:[string,string][]=[
@@ -53,7 +53,7 @@ for(const source of [`let [a];`,`const [a];`,`let [a,a]=[1,2];`,`let [...a,b]=[1
 
 test('array destructuring survives stress GC',()=>{
  const source=`var values=[{x:2},{x:3},{x:4}];var [a,...xs]=values;for(var i=0;i<30;i++)({v:i});console.log(a.x,xs[0].x,xs[1].x);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {Assembler} from '../src/backend/x64/assembler.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {linkLinux} from '../src/backend/linux/index.js';
 import type {NativeProgram} from '../src/backend/pe/model.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
@@ -27,7 +27,7 @@ function program():NativeProgram {
 }
 
 test('Windows allocates and frees a page-aligned guarded generator stack',()=>{
- const run=runNative(linkPe(program()));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
+ const run=runNative(linkHost(program()));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
 });
 
 test('Linux allocates and frees a page-aligned guarded generator stack',t=>{

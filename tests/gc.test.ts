@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Assembler} from '../src/backend/x64/assembler.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {emitRuntime} from '../src/runtime/index.js';
 import {runNative} from './helpers/native.js';
 import {lex} from '../src/frontend/lexer.js';
@@ -22,7 +22,7 @@ function native(body:(a:Assembler)=>void):void {
  r.fragments.push({name:'test.roots',section:'.data',alignment:16,bytes:new Uint8Array(32),fixups:[],symbols:{}},
   {...a.finish(),name:'entry',section:'.text'});
  r.functions.push({begin:'entry',end:'entry.end',prologSize,stackAllocation:104,savedRegisters:[]});
- const run=runNative(linkPe({...r,entry:'entry'}));
+ const run=runNative(linkHost({...r,entry:'entry'}));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
 }
 function equal(a:Assembler,symbol:string,value:number):void {
@@ -76,7 +76,7 @@ for(const source of [
 ])test(`compiler roots survive collection at every operation: ${source}`,()=>{
  const module=lower(bind(parse(lex(source))));
  const program=generate(module,{gcStress:true});
- const run=runNative(linkPe(program));
+ const run=runNative(linkHost(program));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
@@ -102,7 +102,7 @@ for(const [name,source,requireCollection] of [
  const dispose=entry.fixups.find(fixup=>fixup.target==='rt.dispose')!;dispose.target='test.afterMain';
  program.fragments.push({...a.finish(),name:'test.afterMain',section:'.text'});
  program.functions.push({begin:'test.afterMain',end:'test.afterMain.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));
+ const run=runNative(linkHost(program));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

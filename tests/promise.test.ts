@@ -4,10 +4,10 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 function expectStress(source:string):void {
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
@@ -78,14 +78,14 @@ test('Promise rejection handled by a later job does not fail the host',()=>expec
 
 test('Unhandled Promise rejection fails the host after draining jobs',()=>{
  for(const source of [`Promise.reject('unhandled');`,`Promise.reject(undefined);`]){
-  const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+  const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
   assert.equal(run.error,undefined);
   assert.notEqual(run.status,0);
  }
 });
 
 test('Non-failing host rejection policy leaves Test262-style abandoned results alone',()=>{
- const run=runNative(linkPe(generate(compileToIR(`Promise.reject('abandoned');console.log('checked');`),{unhandledRejections:'ignore'})));
+ const run=runNative(linkHost(generate(compileToIR(`Promise.reject('abandoned');console.log('checked');`),{unhandledRejections:'ignore'})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'checked\n');
