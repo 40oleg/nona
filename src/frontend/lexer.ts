@@ -1,12 +1,51 @@
 import { CompileError } from '../diagnostics.js';
 import {runInNewContext} from 'node:vm';
 import {regexpVmSource} from '../runtime/regexp-vm-source.js';
+import type {RuntimeLink} from '../runtime/link.js';
 import type { Token,TokenStream } from './token.js';
 
 let compileRegExpPattern:((pattern:string,flags:string)=>unknown)|undefined;
 function validateRegExpPattern(pattern:string,flags:string):void {
   compileRegExpPattern??=(runInNewContext(regexpVmSource) as {compile:(pattern:string,flags:string)=>unknown}).compile;
   compileRegExpPattern(pattern,flags);
+}
+
+/**
+ * What the lexed sources can reach of the optional runtime parts. A RegExp
+ * object can only be created by a literal, by the RegExp constructor or by
+ * String.prototype.match/matchAll/search with a string argument, so a program
+ * whose sources never spell these names (as identifiers, property names or
+ * inside string and template literals) cannot run the RegExp engine. The
+ * normalization tables are reached only through normalize and localeCompare.
+ */
+export type SourceUsage=RuntimeLink;
+const regexpNames=['RegExp','match','matchAll','search'],normalizationNames=['normalize','localeCompare'];
+const unicodePropertyEscape=/\\[pP]\{/;
+let usage:SourceUsage|undefined;
+/** Runs `run` and reports what every source lexed during it can use. */
+export function collectSourceUsage<T>(run:()=>T):{result:T;usage:SourceUsage} {
+  const outer=usage,current:SourceUsage={regexp:false,unicodeProperties:false,unicodeNormalization:false};
+  usage=current;
+  try{return {result:run(),usage:current};}
+  finally{usage=outer;if(outer){outer.regexp||=current.regexp;outer.unicodeProperties||=current.unicodeProperties;outer.unicodeNormalization||=current.unicodeNormalization;}}
+}
+function recordUsage(tokens:TokenStream):void {
+  if(!usage)return;
+  for(const token of tokens){
+    if(token.kind==='regexp'){
+      usage.regexp=true;
+      if(unicodePropertyEscape.test(token.pattern??''))usage.unicodeProperties=true;
+    }else if(token.kind==='word'){
+      // A pattern built at run time may use any Unicode property.
+      if(regexpNames.includes(String(token.value)))usage.regexp=usage.unicodeProperties=true;
+      if(normalizationNames.includes(String(token.value)))usage.unicodeNormalization=true;
+    }else if(token.kind==='string'||token.kind.startsWith('template')){
+      const text=typeof token.value==='string'?token.value:token.text;
+      // Names in strings cover computed access (globalThis['RegExp'], s['match']).
+      if(regexpNames.some(name=>text.includes(name))||unicodePropertyEscape.test(text))usage.regexp=usage.unicodeProperties=true;
+      if(normalizationNames.some(name=>text.includes(name)))usage.unicodeNormalization=true;
+    }
+  }
 }
 
 export function lex(source: string, options: {module?: boolean} = {}): TokenStream {
@@ -214,5 +253,6 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
     fail(`Unsupported character ${JSON.stringify(c)}`);
   }
   tokens.push({ kind:'eof', text:'<eof>', span:{start:i,end:i}, lineBreakBefore:lineBreak });
+  recordUsage(tokens);
   return tokens;
 }

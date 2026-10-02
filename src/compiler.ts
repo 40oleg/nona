@@ -16,10 +16,12 @@ import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './
 import {readFileSync} from 'node:fs';
 import {withBuiltinModules} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
+import {collectSourceUsage} from './frontend/lexer.js';
+import {fullRuntimeLink} from './runtime/link.js';
 export type Target='win32-x64'|'linux-x64';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget:Target=process.platform==='linux'?'linux-x64':'win32-x64';
-export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[]}
+export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -77,14 +79,21 @@ export function compile(source:string, options:CompileOptions):CompileResult {
     if(options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
-    const agentPrograms=(options.agents??[]).map(agent=>generate(compileToIR(agentHarness+agent,undefined,undefined,options.target),{agent:true,unhandledRejections:options.unhandledRejections}));
-    const ir=options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target);
+    // Every source lexed by the frontend (the program, its modules, agents and
+    // compile-time eval/Function sources) decides which optional runtime
+    // parts are linked; agents share one runtime with the main program.
+    const {result:{ir,agentIRs},usage}=collectSourceUsage(()=>({
+      agentIRs:(options.agents??[]).map(agent=>compileToIR(agentHarness+agent,undefined,undefined,options.target)),
+      ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
+    }));
+    const link=options.fullRuntime?fullRuntimeLink:usage;
+    const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link}));
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(options.target==='linux-x64'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
     const resources=peResources(options);
-    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms});
+    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link});
     return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};

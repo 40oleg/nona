@@ -11,7 +11,8 @@ import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
-import {regexpVmPreludeSource} from '../../runtime/regexp-vm-source.js';
+import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
+import {fullRuntimeLink,type RuntimeLink} from '../../runtime/link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
@@ -36,19 +37,23 @@ const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
-const cachedRuntimePreludes=new Map<'throw'|'ignore',ModuleIR>();
+const cachedRuntimePreludes=new Map<string,ModuleIR>();
 /** Runtime and prelude code are identical for equal options: generate them once. */
 interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>}
 const baseImages=new Map<string,BaseImage>();
 
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[]}={}):NativeProgram {
+/** `link` selects the optional runtime parts (all by default). */
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
-  let prelude=module.runtimePrelude?cachedRuntimePreludes.get(rejectionPolicy):undefined;
+  const link=options.link??fullRuntimeLink;
+  const regexpLink={regexp:link.regexp,unicodeProperties:link.regexp&&link.unicodeProperties};
+  const preludeKey=JSON.stringify({rejectionPolicy,regexpLink});
+  let prelude=module.runtimePrelude?cachedRuntimePreludes.get(preludeKey):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPreludeSource+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
-    cachedRuntimePreludes.set(rejectionPolicy,prelude);
+    prelude=lower(bind(parse(lex(regexpVmPrelude(regexpLink)+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
+    cachedRuntimePreludes.set(preludeKey,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
@@ -60,13 +65,13 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       }),
     }))}));
   const realms=prelude?options.realms??0:0;
-  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms});
+  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization});
   const base=baseImages.get(baseKey);
   let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
   const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
   if(base){fragments=copyFragments(base.fragments);functions=base.functions.map(fn=>({...fn}));imports=[...base.imports];literals=new Map(base.literals);}
   else{
-    const runtime=emitRuntime({operations:new Set(),realms});
+    const runtime=emitRuntime({operations:new Set(),realms,unicodeNormalization:link.unicodeNormalization});
     fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
     if(prelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }

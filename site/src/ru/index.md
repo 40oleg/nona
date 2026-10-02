@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: Запуск за 2 мс
-    details: Скомпилированный hello world стартует за 1,8 мс и занимает не больше 11 МБ памяти при размере файла 7 МБ. Node.js нужно 28 мс и 45 МБ; исполняемый файл Node SEA весит 124 МБ.
+    details: Скомпилированный hello world стартует за 1,8 мс и занимает не больше 11 МБ памяти при размере файла 3 МБ. Node.js нужно 28 мс и 45 МБ; исполняемый файл Node SEA весит 124 МБ.
     link: /ru/guide/performance
   - title: Язык ES2020
     details: Классы, генераторы, async-функции, деструктуризация, optional chaining, BigInt, proper tail calls и ES-модули с циклами и live bindings — с документированными исключениями.
