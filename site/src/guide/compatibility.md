@@ -36,7 +36,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 ## Performance
 
 - Arrays and `Map`/`Set` keep their elements in linked structures; very large collections are slower than in V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
-- The RegExp engine is a backtracking VM written in JavaScript ([#14](https://github.com/40oleg/nona/issues/14)).
+- The RegExp engine is a backtracking VM written in JavaScript.
 - On Windows timers wake up on the system tick (typically 15.6 ms).
 - There is no JIT: code is compiled once, ahead of time, without profile-guided optimisation.
 

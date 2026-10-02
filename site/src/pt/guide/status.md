@@ -31,7 +31,6 @@ Todas as falhas "outras" no Windows estão classificadas:
 - [#11](https://github.com/40oleg/nona/issues/11) — `eval` e `Function` com código calculado em tempo de execução.
 - [#7](https://github.com/40oleg/nona/issues/7) — protótipos padrão de outros realms para construtores dos prelúdios.
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — elementos densos de arrays e tabelas hash para `Map`/`Set`.
-- [#14](https://github.com/40oleg/nona/issues/14) — desempenho do motor de RegExp.
 
 A lista completa está no [GitHub](https://github.com/40oleg/nona/issues).
 

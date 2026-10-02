@@ -31,7 +31,6 @@
 - [#11](https://github.com/40oleg/nona/issues/11) — `eval` и `Function` с исходником, вычисленным во время исполнения.
 - [#7](https://github.com/40oleg/nona/issues/7) — прототипы по умолчанию из других realms для конструкторов из прелюдий.
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — плотные элементы массивов и хеш-таблицы для `Map`/`Set`.
-- [#14](https://github.com/40oleg/nona/issues/14) — производительность движка RegExp.
 
 Полный список — на [GitHub](https://github.com/40oleg/nona/issues).
 

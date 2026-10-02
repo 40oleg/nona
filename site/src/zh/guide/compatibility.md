@@ -36,7 +36,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 ## 性能
 
 - 数组和 `Map`/`Set` 把元素存放在链式结构中；超大集合比 V8 慢（[#13](https://github.com/40oleg/nona/issues/13)、[#36](https://github.com/40oleg/nona/issues/36)）。
-- RegExp 引擎是用 JavaScript 编写的回溯虚拟机（[#14](https://github.com/40oleg/nona/issues/14)）。
+- RegExp 引擎是用 JavaScript 编写的回溯虚拟机。
 - 在 Windows 上，定时器按系统时钟节拍唤醒（通常为 15.6 ms）。
 - 没有 JIT：代码只在事先编译一次，没有基于性能剖析的优化。
 

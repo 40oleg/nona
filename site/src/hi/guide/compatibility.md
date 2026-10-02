@@ -36,7 +36,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 ## प्रदर्शन
 
 - ऐरे और `Map`/`Set` अपने एलिमेंट लिंक्ड संरचनाओं में रखते हैं; बहुत बड़े कलेक्शन V8 से धीमे हैं ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36))।
-- RegExp इंजन JavaScript में लिखी बैकट्रैकिंग VM है ([#14](https://github.com/40oleg/nona/issues/14))।
+- RegExp इंजन JavaScript में लिखी बैकट्रैकिंग VM है।
 - Windows पर टाइमर सिस्टम टिक पर जागते हैं (आम तौर पर 15.6 ms)।
 - JIT नहीं है: कोड एक ही बार, पहले से, प्रोफ़ाइल-आधारित ऑप्टिमाइज़ेशन के बिना कंपाइल होता है।
 

@@ -31,7 +31,6 @@ Windows पर सभी "अन्य" फ़ेल्योर वर्गी
 - [#11](https://github.com/40oleg/nona/issues/11) — रनटाइम पर बने सोर्स के साथ `eval` और `Function`।
 - [#7](https://github.com/40oleg/nona/issues/7) — प्रील्यूड कंस्ट्रक्टर के लिए दूसरे realm के डिफ़ॉल्ट प्रोटोटाइप।
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — डेंस ऐरे एलिमेंट और `Map`/`Set` के लिए हैश टेबल।
-- [#14](https://github.com/40oleg/nona/issues/14) — RegExp इंजन का प्रदर्शन।
 
 पूरी सूची [GitHub](https://github.com/40oleg/nona/issues) पर है।
 

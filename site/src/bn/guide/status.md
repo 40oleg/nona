@@ -31,7 +31,6 @@ Windows-এ সব «অন্যান্য» ব্যর্থতা শ্�
 - [#11](https://github.com/40oleg/nona/issues/11) — রানটাইমে গণনা করা সোর্সসহ `eval` ও `Function`।
 - [#7](https://github.com/40oleg/nona/issues/7) — প্রিলিউড কনস্ট্রাক্টরের জন্য অন্য realm থেকে ডিফল্ট প্রোটোটাইপ।
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — ঘন (dense) অ্যারে উপাদান এবং `Map`/`Set`-এর জন্য হ্যাশ টেবিল।
-- [#14](https://github.com/40oleg/nona/issues/14) — RegExp ইঞ্জিনের পারফরম্যান্স।
 
 পূর্ণ তালিকা আছে [GitHub-এ](https://github.com/40oleg/nona/issues)।
 

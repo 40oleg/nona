@@ -31,7 +31,6 @@ Tous les échecs « autres » sous Windows sont classés :
 - [#11](https://github.com/40oleg/nona/issues/11) — `eval` et `Function` avec un source calculé à l’exécution.
 - [#7](https://github.com/40oleg/nona/issues/7) — prototypes par défaut issus d’autres realms pour les constructeurs des préludes.
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — éléments de tableaux denses et tables de hachage pour `Map`/`Set`.
-- [#14](https://github.com/40oleg/nona/issues/14) — performances du moteur RegExp.
 
 La liste complète se trouve sur [GitHub](https://github.com/40oleg/nona/issues).
 

@@ -449,299 +449,418 @@ const regexpVmTemplate=String.raw`(function(){
     }
     return compiled
   }
-  function copy(caps){return arraySlice.call(caps)}
-  function clear(node,caps){
-    if(node.kind==='group'){
-      if(node.capture!==0){caps[node.capture*2]=undefined;caps[node.capture*2+1]=undefined}
-      clear(node.value,caps)
-    }else if(node.kind==='sequence'||node.kind==='alternative'){
-      for(var i=0;i<node.value.length;i++)clear(node.value[i],caps)
-    }else if(node.kind==='repeat'||node.kind==='look')clear(node.value,caps)
-  }
-  function execute(compiled,input,start,sticky){
-    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0,dotAll=indexOf(flags,'s')>=0,multiline=indexOf(flags,'m')>=0,steps=0;
-    function same(a,b){
-      if(!ignore)return a===b;
-      if(!unicode){
-        if(a.length!==b.length)return false;
-        for(var unit=0;unit<a.length;unit++)if(legacyCanonical(charCodeAt(a,unit))!==legacyCanonical(charCodeAt(b,unit)))return false;
-        return true
-      }
-      var left=0,right=0;
-      while(left<a.length&&right<b.length){
-        var first=a.codePointAt(left),second=b.codePointAt(right);
-        if(foldPoint(first)!==foldPoint(second))return false;
-        left+=first>0xffff?2:1;right+=second>0xffff?2:1
-      }
-      return left===a.length&&right===b.length
-    }
-    function word(c){
-      if(c===undefined)return false;
-      var n=unicode?c.codePointAt(0):charCodeAt(c,0);
-      if(ignore&&unicode)n=foldPoint(n);
-      return n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95
-    }
-    // The same test on a code unit, for the single-unit modes.
-    function escapedClassUnit(kind,n){
-      var yes=false;
-      if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
-      else if(kind==='w'||kind==='W')yes=n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95;
-      else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
-        n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
-        n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
-      return kind==='D'||kind==='W'||kind==='S'?!yes:yes
-    }
-    function escapedClass(kind,c){
-      var n=charCodeAt(c,0),yes=false;
-      if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
-      else if(kind==='w'||kind==='W')yes=word(c);
-      else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
-        n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
-        n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
-      return kind==='D'||kind==='W'||kind==='S'?!yes:yes
-    }
-    function propertyContains(ranges,point,negated){
-      var present=propertyMatch(ranges,point);
-      if(negated?!present:present)return true;
-      if(!ignore||!unicode)return false;
-      var canonical=foldPoint(point);
-      present=propertyMatch(ranges,canonical);
-      if(negated?!present:present)return true;
-      var alternates=foldAlternates(canonical);
-      if(alternates!==undefined)for(var i=0;i<alternates.length;i++){
-        present=propertyMatch(ranges,alternates[i]);
-        if(negated?!present:present)return true
-      }
-      return false
-    }
-    function classMatch(spec,c){
-      var yes=false,point=c.codePointAt(0);
-      for(var i=0;i<spec.items.length;i++){
-        var item=spec.items[i];
-        if(item.range){
-          if(ignore&&unicode){
-            var canonical=foldPoint(point),alternates=foldAlternates(canonical);
-            if(canonical>=item.from&&canonical<=item.to)yes=true;
-            if(alternates!==undefined)for(var j=0;j<alternates.length;j++)if(alternates[j]>=item.from&&alternates[j]<=item.to)yes=true
-          }else{
-            var current=ignore?legacyCanonical(point):point;
-            var low=ignore?legacyCanonical(item.from):item.from;
-            var high=ignore?legacyCanonical(item.to):item.to;
-            if(current>=low&&current<=high)yes=true
-          }
-        }else if(item.set){
-          if(item.escape!==undefined){if(escapedClass(item.escape,c))yes=true}
-          else if(propertyContains(item.property,point,item.negated))yes=true
-        }else if(same(c,String.fromCodePoint(item.point)))yes=true
-      }
-      return spec.inverted?!yes:yes
-    }
-    function run(node,pos,caps,next,direction){
-      if(++steps>500000)throw new RangeError('RegExp backtracking limit');
+  // Matching runs as a small backtracking program on explicit stacks: no
+  // native recursion per character (long inputs cannot exhaust the stack) and
+  // no step limit (the specification has none). assemble translates the
+  // parsed tree once per compiled pattern.
+  //
+  // Instructions (operands follow the opcode):
+  //   0 MATCH
+  //   1..7 atom kind: datum, dir. 1 literal, 2 dot, 3 class, 4 class escape,
+  //     5 property, 6 one code unit, 7 any code unit but one.
+  //   8 SPLIT first, second   9 JMP target
+  //   10 SAVE register        11 GROUP_END group, register, dir
+  //   12 ^  13 $  14 \b  15 \B  16 BACKREF group, dir
+  //   17 LOOK positive, body, continuation (body ends with MATCH)
+  //   18 REPEAT_INIT r
+  //   19 REPEAT r, min, max, greedy, clearFrom, clearTo, body, exit
+  //   21 REPEAT_ENTER (same operands; resumed after a lazy repeat skipped)
+  //   20 REPEAT_END r, min, head
+  //   22 SIMPLE_REPEAT kind, datum, dir, min, max, greedy, width (0 = varies)
+  // Registers: 2*group and 2*group+1 hold capture bounds; group start
+  // positions and repeat counters follow.
+  var NONE=4294967295;
+  function assemble(compiled){
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0;
+    var code=[],data=[],registers=compiled.groups*2+2;
+    function emit(value){append(code,value)}
+    function datum(value){append(data,value);return data.length-1}
+    function captureRange(node,range){
       var k=node.kind;
+      if(k==='group'){
+        if(node.capture!==0){if(node.capture<range[0])range[0]=node.capture;if(node.capture>range[1])range[1]=node.capture}
+        captureRange(node.value,range)
+      }else if(k==='sequence'||k==='alternative'){
+        for(var i=0;i<node.value.length;i++)captureRange(node.value[i],range)
+      }else if(k==='repeat'||k==='look')captureRange(node.value,range)
+    }
+    // [kind, datum, width] for a node that matches one character, or null.
+    function atomOf(node){
+      var k=node.kind;
+      if(k==='char'){
+        if(!ignore&&node.value.length===1)return [6,charCodeAt(node.value,0),1];
+        return [1,datum(node.value),node.value.length]
+      }
+      if(k==='dot')return [2,0,unicode?0:1];
+      if(k==='class'){
+        var spec=node.value;
+        if(!unicode&&!ignore&&spec.items.length===1&&!spec.items[0].set&&!spec.items[0].range)return [spec.inverted?7:6,spec.items[0].point,1];
+        return [3,datum(spec),unicode?0:1]
+      }
+      if(k==='classEscape')return [4,datum(node.value),unicode?0:1];
+      if(k==='property')return [5,datum({ranges:node.value,negated:node.negated}),0];
+      return null
+    }
+    function gen(node,dir){
+      var k=node.kind,i;
       if(k==='sequence'){
-        function part(i,p,a){
-          if(i===node.value.length)return next(p,a);
-          var partIndex=direction<0?node.value.length-1-i:i;
-          return run(node.value[partIndex],p,a,function(end,updated){return part(i+1,end,updated)},direction)
-        }
-        return part(0,pos,caps)
+        for(i=0;i<node.value.length;i++)gen(node.value[dir<0?node.value.length-1-i:i],dir);
+        return
       }
       if(k==='alternative'){
-        for(var i=0;i<node.value.length;i++){
-          var result=run(node.value[i],pos,copy(caps),next,direction);
-          if(result!==null)return result
+        var jumps=[];
+        for(i=0;i<node.value.length;i++){
+          if(i===node.value.length-1){gen(node.value[i],dir);break}
+          var split=code.length;
+          emit(8);emit(split+3);emit(0);
+          gen(node.value[i],dir);
+          append(jumps,code.length);emit(9);emit(0);
+          code[split+2]=code.length
         }
-        return null
+        for(i=0;i<jumps.length;i++)code[jumps[i]+1]=code.length;
+        return
       }
       if(k==='group'){
-        return run(node.value,pos,caps,function(end,updated){
-          if(node.capture===0)return next(end,updated);
-          var changed=copy(updated);
-          changed[node.capture*2]=direction<0?end:pos;
-          changed[node.capture*2+1]=direction<0?pos:end;
-          return next(end,changed)
-        },direction)
+        if(node.capture===0){gen(node.value,dir);return}
+        var register=registers++;
+        emit(10);emit(register);gen(node.value,dir);emit(11);emit(node.capture);emit(register);emit(dir);
+        return
       }
       if(k==='look'){
-        var seen=null;
-        if(node.behind)seen=run(node.value,pos,copy(caps),function(end,updated){return {captures:updated}},-1);
-        else seen=run(node.value,pos,copy(caps),function(end,updated){return {captures:updated}},1);
-        if(node.positive)return seen===null?null:next(pos,seen.captures);
-        return seen===null?next(pos,caps):null
+        var look=code.length;
+        emit(17);emit(node.positive?1:0);emit(look+4);emit(0);
+        gen(node.value,node.behind?-1:1);emit(0);
+        code[look+3]=code.length;
+        return
       }
-      if(k==='repeat'){
-        var simple=node.value.kind;
-        if(simple==='char'||simple==='dot'||simple==='class'||simple==='classEscape'||simple==='property'){
-          var capacity=direction<0?pos:input.length-pos;
-          if(node.max<capacity)capacity=node.max;
-          var packed=capacity>1024;
-          var positions=packed?new PositionArray(capacity+1):[pos],positionCount=1,end=pos;
-          var bitmap=simple==='property'&&packed&&!ignore?propertyBitmap(node.value.value):null;
-          var classPoint=-1,classInverted=false;
-          if(simple==='class'&&direction>0&&!unicode&&!ignore){
-            var classSpec=node.value.value;
-            if(classSpec.items.length===1&&!classSpec.items[0].set&&!classSpec.items[0].range){
-              classPoint=classSpec.items[0].point;classInverted=classSpec.inverted
-            }
-          }
-          if(packed)positions[0]=pos;
-          while(positionCount-1<node.max){
-            var after=end;
-            if(simple==='property'){
-              if(direction<0?end<=0:end>=input.length)break;
-              var pointIndex=direction<0?end-1:end,point=charCodeAt(input,pointIndex),width=1;
-              if(direction<0&&point>=0xdc00&&point<=0xdfff&&pointIndex>0){
-                var high=charCodeAt(input,pointIndex-1);
-                if(high>=0xd800&&high<=0xdbff){point=0x10000+(high-0xd800)*1024+(point-0xdc00);width=2}
-              }else if(direction>0&&point>=0xd800&&point<=0xdbff&&pointIndex+1<input.length){
-                var low=charCodeAt(input,pointIndex+1);
-                if(low>=0xdc00&&low<=0xdfff){point=0x10000+(point-0xd800)*1024+(low-0xdc00);width=2}
-              }
-              if(bitmap!==null){
-                if((bitmap[point]!==0)===node.value.negated)break
-              }else if(!propertyContains(node.value.value,point,node.value.negated))break;
-              after=end+direction*width
-            }else if(simple==='class'&&direction>0&&!unicode){
-              if(end>=input.length)break;
-              if(classPoint>=0){if((charCodeAt(input,end)===classPoint)===classInverted)break}
-              else if(!classMatch(node.value.value,input[end]))break;
-              after=end+1
-            }else if(simple==='classEscape'&&!unicode){
-              if(direction<0?end<=0:end>=input.length)break;
-              if(!escapedClassUnit(node.value.value,charCodeAt(input,direction<0?end-1:end)))break;
-              after=end+direction
-            }else if(simple==='dot'&&!unicode){
-              if(direction<0?end<=0:end>=input.length)break;
-              var dotUnit=charCodeAt(input,direction<0?end-1:end);
-              if(!dotAll&&(dotUnit===10||dotUnit===13||dotUnit===0x2028||dotUnit===0x2029))break;
-              after=end+direction
-            }else if(simple==='char'&&!unicode&&!ignore&&node.value.value.length===1){
-              if(direction<0?end<=0:end>=input.length)break;
-              if(charCodeAt(input,direction<0?end-1:end)!==charCodeAt(node.value.value,0))break;
-              after=end+direction
-            }else{
-              var one=run(node.value,end,caps,function(after){return {end:after}},direction);
-              steps--;
-              if(one===null)break;
-              after=one.end
-            }
-            if(after===end)break;
-            end=after;
-            if(packed)positions[positionCount]=end;else append(positions,end);
-            positionCount++
-          }
-          if(positionCount-1<node.min)return null;
-          if(node.lazy){
-            for(var count=node.min;count<positionCount;count++){
-              var result=next(positions[count],caps);
-              if(result!==null)return result
-            }
-          }else{
-            for(var count=positionCount-1;count>=node.min;count--){
-              var result=next(positions[count],caps);
-              if(result!==null)return result
-            }
-          }
-          return null
-        }
-        function repeat(count,p,a){
-          function more(){
-            if(count>=node.max)return null;
-            var fresh=copy(a);clear(node.value,fresh);
-            return run(node.value,p,fresh,function(end,updated){
-              if(end===p){
-                if(count>=node.min)return null;
-                return count+1>=node.min?next(end,updated):repeat(count+1,end,updated)
-              }
-              return repeat(count+1,end,updated)
-            },direction)
-          }
-          if(node.lazy){
-            if(count>=node.min){var early=next(p,copy(a));if(early!==null)return early}
-            return more()
-          }
-          var later=more();
-          if(later!==null)return later;
-          return count>=node.min?next(p,a):null
-        }
-        return repeat(0,pos,caps)
-      }
-      if(k==='anchor'){
-        if(node.value==='^'){
-          if(pos===0||multiline&&(indexOf('\n\r\u2028\u2029',input[pos-1])>=0))return next(pos,caps)
-        }else if(pos===input.length||multiline&&(indexOf('\n\r\u2028\u2029',input[pos])>=0))return next(pos,caps);
-        return null
-      }
-      if(k==='boundary'){
-        var boundary=word(input[pos-1])!==word(input[pos]);
-        return boundary===(node.value==='b')?next(pos,caps):null
-      }
+      if(k==='anchor'){emit(node.value==='^'?12:13);return}
+      if(k==='boundary'){emit(node.value==='b'?14:15);return}
       if(k==='backref'||k==='namedBackref'){
         var index=node.value;
         if(k==='namedBackref'){
           index=0;
-          for(var i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)index=compiled.names[i].index
+          for(i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)index=compiled.names[i].index
         }
-        if(index<1||index>compiled.groups)throw new SyntaxError('Invalid backreference');
-        var begin=caps[index*2],end=caps[index*2+1];
-        if(begin===undefined)return next(pos,caps);
-        var length=end-begin;
-        var refStart=direction<0?pos-length:pos;
-        if(refStart<0||refStart+length>input.length)return null;
-        return same(slice(input,refStart,refStart+length),slice(input,begin,end))?next(pos+direction*length,caps):null
+        emit(16);emit(index);emit(dir);
+        return
       }
-      if(direction<0?pos<=0:pos>=input.length)return null;
-      var unitIndex=direction<0?pos-1:pos,unit=charCodeAt(input,unitIndex),matched=false,width=1;
-      if(unicode){
-        if(direction<0&&pos>=2){
-          var low=unit,high=charCodeAt(input,pos-2);
-          if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)width=2
-        }else if(direction>0&&unit>=0xd800&&unit<=0xdbff&&pos+1<input.length){
-          var trail=charCodeAt(input,pos+1);
-          if(trail>=0xdc00&&trail<=0xdfff)width=2
+      if(k==='repeat'){
+        var min=node.min>=NONE?NONE-1:node.min,max=node.max>=NONE?NONE:node.max;
+        var simple=atomOf(node.value);
+        if(simple!==null){
+          emit(22);emit(simple[0]);emit(simple[1]);emit(dir);emit(min);emit(max);emit(node.lazy?0:1);emit(simple[2]);
+          return
         }
+        var range=[NONE,0];captureRange(node.value,range);
+        var counter=registers;registers+=2;
+        emit(18);emit(counter);
+        var head=code.length,operands=[counter,min,max,node.lazy?0:1,range[0],range[1],head+18,0];
+        emit(19);for(i=0;i<8;i++)emit(operands[i]);
+        emit(21);for(i=0;i<8;i++)emit(operands[i]);
+        gen(node.value,dir);
+        emit(20);emit(counter);emit(min);emit(head);
+        code[head+8]=code.length;code[head+17]=code.length;
+        return
       }
-      if(k==='char'){
-        width=node.value.length;
-        var from=direction<0?pos-width:pos;
-        matched=from>=0&&from+width<=input.length;
-        if(matched){
-          if(ignore)matched=same(slice(input,from,from+width),node.value);
-          else for(var u=0;u<width;u++)if(charCodeAt(input,from+u)!==charCodeAt(node.value,u)){matched=false;break}
-        }
-      }
-      else if(k==='dot')matched=dotAll||!(unit===10||unit===13||unit===0x2028||unit===0x2029);
-      else if(k==='classEscape')matched=unicode?escapedClass(node.value,input[unitIndex]):escapedClassUnit(node.value,unit);
-      else if(k==='class')matched=classMatch(node.value,slice(input,direction<0?pos-width:pos,direction<0?pos:pos+width));
-      else if(k==='property'){
-        var point=charCodeAt(input,direction<0?pos-width:pos);
-        if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,direction<0?pos-1:pos+1)-0xdc00);
-        matched=propertyContains(node.value,point,node.negated)
-      }
-      return matched?next(pos+direction*width,caps):null
+      var single=atomOf(node);
+      emit(single[0]);emit(single[1]);emit(dir)
     }
-    if(unicode&&start>0&&start<input.length){
+    gen(compiled.tree,1);emit(0);
+    return {code:code,data:data,stateSize:registers,ignore:ignore,unicode:unicode,dotAll:indexOf(flags,'s')>=0,multiline:indexOf(flags,'m')>=0}
+  }
+  var registerPool=new PositionArray(64),undoPool=new PositionArray(256),framePool=new PositionArray(384);
+  // State of the match in progress. Matching never runs user code, so
+  // execute is not reentered and the helpers below can share it instead of
+  // being recreated as closures on every call.
+  var input,length=0,ignore=false,unicode=false,dotAll=false,multiline=false,current=null;
+  var code=null,data=null,state=null,undo=null,undoTop=0,frames=null,frameTop=0;
+  function same(a,b){
+    if(!ignore)return a===b;
+    if(!unicode){
+      if(a.length!==b.length)return false;
+      for(var unit=0;unit<a.length;unit++)if(legacyCanonical(charCodeAt(a,unit))!==legacyCanonical(charCodeAt(b,unit)))return false;
+      return true
+    }
+    var left=0,right=0;
+    while(left<a.length&&right<b.length){
+      var first=a.codePointAt(left),second=b.codePointAt(right);
+      if(foldPoint(first)!==foldPoint(second))return false;
+      left+=first>0xffff?2:1;right+=second>0xffff?2:1
+    }
+    return left===a.length&&right===b.length
+  }
+  function word(c){
+    if(c===undefined)return false;
+    var n=unicode?c.codePointAt(0):charCodeAt(c,0);
+    if(ignore&&unicode)n=foldPoint(n);
+    return n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95
+  }
+  // The same test on a code unit, for the single-unit modes.
+  function escapedClassUnit(kind,n){
+    var yes=false;
+    if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
+    else if(kind==='w'||kind==='W')yes=n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95;
+    else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
+      n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
+      n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
+    return kind==='D'||kind==='W'||kind==='S'?!yes:yes
+  }
+  function escapedClass(kind,c){
+    var n=charCodeAt(c,0),yes=false;
+    if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
+    else if(kind==='w'||kind==='W')yes=word(c);
+    else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
+      n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
+      n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
+    return kind==='D'||kind==='W'||kind==='S'?!yes:yes
+  }
+  function propertyContains(ranges,point,negated){
+    var present=propertyMatch(ranges,point);
+    if(negated?!present:present)return true;
+    if(!ignore||!unicode)return false;
+    var canonical=foldPoint(point);
+    present=propertyMatch(ranges,canonical);
+    if(negated?!present:present)return true;
+    var alternates=foldAlternates(canonical);
+    if(alternates!==undefined)for(var i=0;i<alternates.length;i++){
+      present=propertyMatch(ranges,alternates[i]);
+      if(negated?!present:present)return true
+    }
+    return false
+  }
+  function classMatch(spec,c){
+    var yes=false,point=c.codePointAt(0);
+    for(var i=0;i<spec.items.length;i++){
+      var item=spec.items[i];
+      if(item.range){
+        if(ignore&&unicode){
+          var canonical=foldPoint(point),alternates=foldAlternates(canonical);
+          if(canonical>=item.from&&canonical<=item.to)yes=true;
+          if(alternates!==undefined)for(var j=0;j<alternates.length;j++)if(alternates[j]>=item.from&&alternates[j]<=item.to)yes=true
+        }else{
+          var current=ignore?legacyCanonical(point):point;
+          var low=ignore?legacyCanonical(item.from):item.from;
+          var high=ignore?legacyCanonical(item.to):item.to;
+          if(current>=low&&current<=high)yes=true
+        }
+      }else if(item.set){
+        if(item.escape!==undefined){if(escapedClass(item.escape,c))yes=true}
+        else if(propertyContains(item.property,point,item.negated))yes=true
+      }else if(same(c,String.fromCodePoint(item.point)))yes=true
+    }
+    return spec.inverted?!yes:yes
+  }
+  function grow(array,needed){
+    var size=array.length*2;
+    while(size<needed)size*=2;
+    var bigger=new PositionArray(size);
+    for(var i=0;i<array.length;i++)bigger[i]=array[i];
+    return bigger
+  }
+  // Every register change is logged so a failed path can be undone.
+  function set(index,value){
+    if(undoTop+2>undo.length)undo=undoPool=grow(undo,undoTop+2);
+    undo[undoTop]=index;undo[undoTop+1]=state[index];undoTop+=2;
+    state[index]=value
+  }
+  function unwind(height){
+    while(undoTop>height){undoTop-=2;state[undo[undoTop]]=undo[undoTop+1]}
+  }
+  // Choice point: kind (0 plain, 1 greedy simple repeat, 2 lazy simple
+  // repeat), pc, pos, undo height, count, position after count atoms.
+  function push(kind,pc,pos,count,after){
+    if(frameTop+6>frames.length)frames=framePool=grow(frames,frameTop+6);
+    frames[frameTop]=kind;frames[frameTop+1]=pc;frames[frameTop+2]=pos;frames[frameTop+3]=undoTop;
+    frames[frameTop+4]=count;frames[frameTop+5]=after;frameTop+=6
+  }
+  function clearCaptures(from,to){
+    for(var group=from;group<=to;group++){
+      if(state[group*2]!==NONE)set(group*2,NONE);
+      if(state[group*2+1]!==NONE)set(group*2+1,NONE)
+    }
+  }
+  // One atom at pos in direction dir: the position after it, or -1.
+  function atom(kind,datum,pos,dir){
+    if(dir<0?pos<=0:pos>=length)return -1;
+    var unitIndex=dir<0?pos-1:pos,unit=charCodeAt(input,unitIndex);
+    if(kind===6)return unit===datum?pos+dir:-1;
+    if(kind===7)return unit!==datum?pos+dir:-1;
+    if(kind===1){
+      var text=data[datum],textLength=text.length,from=dir<0?pos-textLength:pos;
+      if(from<0||from+textLength>length)return -1;
+      if(ignore){if(!same(slice(input,from,from+textLength),text))return -1}
+      else for(var u=0;u<textLength;u++)if(charCodeAt(input,from+u)!==charCodeAt(text,u))return -1;
+      return pos+dir*textLength
+    }
+    var width=1,matched=false;
+    if(unicode){
+      if(dir<0&&pos>=2){
+        var high=charCodeAt(input,pos-2);
+        if(unit>=0xdc00&&unit<=0xdfff&&high>=0xd800&&high<=0xdbff)width=2
+      }else if(dir>0&&unit>=0xd800&&unit<=0xdbff&&pos+1<length){
+        var trail=charCodeAt(input,pos+1);
+        if(trail>=0xdc00&&trail<=0xdfff)width=2
+      }
+    }
+    if(kind===2)matched=dotAll||!(unit===10||unit===13||unit===0x2028||unit===0x2029);
+    else if(kind===4)matched=unicode?escapedClass(data[datum],input[unitIndex]):escapedClassUnit(data[datum],unit);
+    else if(kind===3)matched=classMatch(data[datum],width===1?input[unitIndex]:slice(input,dir<0?pos-2:pos,dir<0?pos:pos+2));
+    else{
+      var entry=data[datum],point=charCodeAt(input,dir<0?pos-width:pos);
+      if(width===2)point=0x10000+(point-0xd800)*1024+(charCodeAt(input,dir<0?pos-1:pos+1)-0xdc00);
+      var bitmap=entry.ranges.bitmap;
+      if(!ignore&&bitmap!==undefined)matched=(bitmap[point]!==0)!==entry.negated;
+      else matched=propertyContains(entry.ranges,point,entry.negated)
+    }
+    return matched?pos+dir*width:-1
+  }
+  // One code point back from p towards origin (unicode simple repeats).
+  function stepBack(p,origin,dir){
+    if(dir>0){
+      if(p-2>=origin){
+        var low=charCodeAt(input,p-1),high=charCodeAt(input,p-2);
+        if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)return p-2
+      }
+      return p-1
+    }
+    if(p+2<=origin){
+      var lead=charCodeAt(input,p),tail=charCodeAt(input,p+1);
+      if(lead>=0xd800&&lead<=0xdbff&&tail>=0xdc00&&tail<=0xdfff)return p+2
+    }
+    return p+1
+  }
+  function terminator(c){return c==='\n'||c==='\r'||c===' '||c===' '}
+  // Runs the program from pc at pos: the end position, or -1 with every
+  // register change since the call undone. Choice points left by a
+  // successful run are dropped, which makes lookarounds atomic.
+  function run(pc,pos){
+    var base=frameTop,entryUndo=undoTop;
+    for(;;){
+      var op=code[pc];
+      if(op===0){frameTop=base;return pos}
+      if(op<=7){
+        var next=atom(op,code[pc+1],pos,code[pc+2]);
+        if(next>=0){pos=next;pc+=3;continue}
+      }
+      else if(op===8){push(0,code[pc+2],pos,0,0);pc=code[pc+1];continue}
+      else if(op===9){pc=code[pc+1];continue}
+      else if(op===10){set(code[pc+1],pos);pc+=2;continue}
+      else if(op===11){
+        var group=code[pc+1],begin=state[code[pc+2]];
+        if(code[pc+3]<0){set(group*2,pos);set(group*2+1,begin)}else{set(group*2,begin);set(group*2+1,pos)}
+        pc+=4;continue
+      }
+      else if(op===12){if(pos===0||multiline&&terminator(input[pos-1])){pc+=1;continue}}
+      else if(op===13){if(pos===length||multiline&&terminator(input[pos])){pc+=1;continue}}
+      else if(op===14||op===15){if((word(input[pos-1])!==word(input[pos]))===(op===14)){pc+=1;continue}}
+      else if(op===16){
+        var index=code[pc+1],refDir=code[pc+2];
+        if(index<1||index>current.groups)throw new SyntaxError('Invalid backreference');
+        var refBegin=state[index*2],refEnd=state[index*2+1];
+        if(refBegin===NONE||refEnd===NONE){pc+=3;continue}
+        var refLength=refEnd-refBegin,refStart=refDir<0?pos-refLength:pos;
+        if(refStart>=0&&refStart+refLength<=length&&same(slice(input,refStart,refStart+refLength),slice(input,refBegin,refEnd))){
+          pos+=refDir*refLength;pc+=3;continue
+        }
+      }
+      else if(op===17){
+        var lookUndo=undoTop,seen=run(code[pc+2],pos);
+        if(code[pc+1]===1){if(seen>=0){pc=code[pc+3];continue}}
+        else{if(seen<0){pc=code[pc+3];continue}unwind(lookUndo)}
+      }
+      else if(op===18){set(code[pc+1],0);pc+=2;continue}
+      else if(op===19||op===21){
+        var counter=code[pc+1],count=state[counter];
+        if(op===19&&count>=code[pc+2]){
+          var max=code[pc+3];
+          if(max!==NONE&&count>=max){pc=code[pc+8];continue}
+          if(code[pc+4]===1)push(0,code[pc+8],pos,0,0);
+          else{push(0,pc+9,pos,0,0);pc=code[pc+8];continue}
+        }
+        clearCaptures(code[pc+5],code[pc+6]);
+        set(counter+1,pos);pc=code[pc+7];continue
+      }
+      else if(op===20){
+        // An iteration past the minimum that matched the empty string fails.
+        var endCounter=code[pc+1],done=state[endCounter];
+        if(!(done>=code[pc+2]&&pos===state[endCounter+1])){set(endCounter,done+1);pc=code[pc+3];continue}
+      }
+      else{
+        // Repeat of a single-character atom: take as many (greedy) or as few
+        // (lazy) as possible, then give back or take more one at a time.
+        var kind=code[pc+1],item=code[pc+2],dir=code[pc+3],min=code[pc+4],limit=code[pc+5],greedy=code[pc+6];
+        var taken=0,at=pos;
+        if(kind===5&&!ignore&&(dir<0?at:length-at)>1024)propertyBitmap(data[item].ranges);
+        var most=greedy===1?limit:min;
+        while(most===NONE||taken<most){var after=atom(kind,item,at,dir);if(after<0)break;at=after;taken++}
+        if(taken>=min){
+          if(greedy===1){if(taken>min)push(1,pc+8,pos,taken,at)}
+          else if(limit===NONE||taken<limit)push(2,pc+8,pos,taken,at);
+          pos=at;pc+=8;continue
+        }
+      }
+      // Failure: resume at the newest choice point of this run.
+      for(;;){
+        if(frameTop===base){unwind(entryUndo);return -1}
+        frameTop-=6;
+        var frameKind=frames[frameTop];
+        unwind(frames[frameTop+3]);
+        pc=frames[frameTop+1];pos=frames[frameTop+2];
+        if(frameKind===0)break;
+        var have=frames[frameTop+4],reached=frames[frameTop+5];
+        var repeatKind=code[pc-7],repeatItem=code[pc-6],repeatDir=code[pc-5],repeatWidth=code[pc-1];
+        if(frameKind===1){
+          reached=repeatWidth!==0?reached-repeatDir*repeatWidth:stepBack(reached,pos,repeatDir);
+          have--;
+          if(have>code[pc-4])push(1,pc,pos,have,reached);
+          pos=reached;break
+        }
+        var further=atom(repeatKind,repeatItem,reached,repeatDir);
+        if(further<0)continue;
+        have++;
+        if(code[pc-3]===NONE||have<code[pc-3])push(2,pc,pos,have,further);
+        pos=further;break
+      }
+    }
+  }
+  function execute(compiled,subject,start,sticky){
+    var program=compiled.program;
+    if(program===undefined){program=assemble(compiled);compiled.program=program}
+    ignore=program.ignore;unicode=program.unicode;dotAll=program.dotAll;multiline=program.multiline;
+    code=program.code;data=program.data;current=compiled;input=subject;length=subject.length;
+    var stateSize=program.stateSize;
+    if(stateSize>registerPool.length)registerPool=new PositionArray(stateSize*2);
+    state=registerPool;undo=undoPool;frames=framePool;
+    var result=search(compiled,stateSize,start,sticky);
+    input=undefined;current=null;
+    return result
+  }
+  function search(compiled,stateSize,start,sticky){
+    if(unicode&&start>0&&start<length){
       var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
-    var capsTemplate=[];
-    for(var i=0;i<=compiled.groups;i++){append(capsTemplate,undefined);append(capsTemplate,undefined)}
     var prefix=sticky?null:compiled.prefix;
-    function finish(end,updated){return {end:end,captures:updated}}
-    for(var candidate=start;candidate<=input.length;candidate++){
+    for(var candidate=start;candidate<=length;candidate++){
       if(prefix!==null){
-        var at=safeIndexOf.call(input,prefix,candidate);
-        if(at<0)return null;
-        candidate=at
+        var found=safeIndexOf.call(input,prefix,candidate);
+        if(found<0)return null;
+        candidate=found
       }
-      var caps=copy(capsTemplate);
-      var result=run(compiled.tree,candidate,caps,finish,1);
-      if(result!==null){result.start=candidate;return result}
-      if(sticky)break
-      if(unicode&&candidate+1<input.length){
-        var high=charCodeAt(input,candidate),low=charCodeAt(input,candidate+1);
-        if(high>=0xd800&&high<=0xdbff&&low>=0xdc00&&low<=0xdfff)candidate++
+      for(var s=0;s<stateSize;s++)state[s]=NONE;
+      undoTop=0;frameTop=0;
+      var end=run(0,candidate);
+      if(end>=0){
+        // Capture bounds as registers: 4294967295 marks a group that did not
+        // participate (slots 0 and 1 are unused).
+        var captures=new PositionArray(compiled.groups*2+2);
+        for(var c=2;c<captures.length;c++)captures[c]=state[c];
+        return {end:end,captures:captures,start:candidate}
+      }
+      if(sticky)break;
+      if(unicode&&candidate+1<length){
+        var leading=charCodeAt(input,candidate),trailing=charCodeAt(input,candidate+1);
+        if(leading>=0xd800&&leading<=0xdbff&&trailing>=0xdc00&&trailing<=0xdfff)candidate++
       }
     }
     return null
@@ -785,21 +904,24 @@ const regexpVmPreludeTemplate='var __nonaRegexpVm=function(re,input,start,sticky
       return null
     }
     if(globalOrSticky)re.lastIndex=matched.end;
-    var result=[__nonaRegexpVm.replaceSlice.call(input,matched.start,matched.end)];
+    var result=[__nonaRegexpVm.replaceSlice.call(input,matched.start,matched.end)],captures=matched.captures;
+    var field={value:undefined,writable:true,enumerable:true,configurable:true};
     for(var i=1;i<=compiled.groups;i++){
-      var begin=matched.captures[i*2],end=matched.captures[i*2+1];
-      Object.defineProperty(result,result.length,{value:begin===undefined?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,end),writable:true,enumerable:true,configurable:true})
+      var begin=captures[i*2];
+      field.value=begin===4294967295?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,captures[i*2+1]);
+      Object.defineProperty(result,i,field)
     }
-    Object.defineProperty(result,'index',{value:matched.start,writable:true,enumerable:true,configurable:true});
-    Object.defineProperty(result,'input',{value:input,writable:true,enumerable:true,configurable:true});
+    field.value=matched.start;Object.defineProperty(result,'index',field);
+    field.value=input;Object.defineProperty(result,'input',field);
+    var groups=undefined;
     if(compiled.names.length){
-      var groups=Object.create(null);
+      groups=Object.create(null);
       for(var i=0;i<compiled.names.length;i++){
-        var named=compiled.names[i],begin=matched.captures[named.index*2],end=matched.captures[named.index*2+1];
-        groups[named.name]=begin===undefined?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,end)
+        var named=compiled.names[i],begin=captures[named.index*2];
+        groups[named.name]=begin===4294967295?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,captures[named.index*2+1])
       }
-      Object.defineProperty(result,'groups',{value:groups,writable:true,enumerable:true,configurable:true})
-    }else Object.defineProperty(result,'groups',{value:undefined,writable:true,enumerable:true,configurable:true});
+    }
+    field.value=groups;Object.defineProperty(result,'groups',field);
     return result
 };
 // RegExpExec (ES2020 21.2.5.2.1): a callable exec wins, otherwise the builtin one.
