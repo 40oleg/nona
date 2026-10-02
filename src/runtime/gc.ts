@@ -76,7 +76,11 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   const done=a.unique('done');
   a.test('rcx','rcx');a.jcc('e',done);a.call('rt.blockOf');a.test('rax','rax');a.jcc('e',done);
   a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('ne',done);
-  a.mov('r10',1);a.store({base:'rax',disp:H.marked},'r10');a.load('r10',{rip:'rt.gcGrey'});
+  a.mov('r10',1);a.store({base:'rax',disp:H.marked},'r10');
+  // A raw block (string, number scratch, byte storage) holds no references and
+  // is never a weak key: marking it is all there is to do.
+  a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.raw);a.jcc('e',done);
+  a.load('r10',{rip:'rt.gcGrey'});
   a.store({base:'rax',disp:H.greyNext},'r10');a.store({rip:'rt.gcGrey'},'rax');
   a.lea('rcx',{base:'rax',disp:H.size});a.call('rt.gcPendingWake');a.label(done);
  });
