@@ -115,6 +115,34 @@ let h=0;for(let i=0;i<out.length;i++)h=(h*31+out.charCodeAt(i))|0;
 console.log(out.length,h,out.slice(0,300));
 console.log(JSON.parse("[1.5,-2.25,1e3,0.1,123456789012345680000,5e-324,1E+2,-0]").join(),(255).toString(16),(0.5).toString(2),(1e21).toFixed(2),(1.005).toFixed(2),(123.456).toPrecision(4),(0.00001).toExponential(2));
 `,
+ 'parameters captured by value':`
+function f(a){ function a(){ return 7; } return a(); }
+function g(a){ var a; return a; }
+function h(a){ var a = 5; const r=()=>a; return r(); }
+function k(a){ const r=()=>a; a=9; return r(); }
+function m(a,b){ const r=()=>a+b; return r(); }
+function n(a){ const r=()=>a; arguments[0]=42; return r(); }
+function o(a){ "use strict"; const r=()=>a; arguments[0]=42; return r(); }
+function p(a=1,b){ const r=()=>a+b; return r(); }
+function q(...a){ const r=()=>a.length; return r(); }
+function s({a},[b]){ const r=()=>a+b; return r(); }
+function t(a){ const r=()=>{ const u=()=>a; return u(); }; return r(); }
+function v(a){ let out=[]; for(let i=0;i<3;i++)out.push(()=>a+i); return out.map(f=>f()).join(); }
+function w(a){ a++; return (()=>a)(); }
+function x(a){ for(a of [8]); return (()=>a)(); }
+function y(a){ [a]=[11]; return (()=>a)(); }
+function z(a){ ({a}={a:12}); return (()=>a)(); }
+function* gen(a){ yield ()=>a; yield a; }
+async function as(a){ await null; return (()=>a)(); }
+function rec(n){ const self=()=>n>0?rec(n-1)+n:0; return self(); }
+function later(a){ const r=()=>a; return [r, ()=>{ with({}) { return a; } }]; }
+const it=gen(3);
+console.log(f(1), g(2), h(3), k(4), m(5,6), n(6), o(6), p(undefined,2), q(1,2,3), s({a:1},[2]), t(7), v(10), w(1), x(1), y(1), z(1), it.next().value(), it.next().value, rec(4), later(5)[0](), later(6)[1]());
+as(13).then(v=>console.log(v));
+function counter(start){ return { inc:()=>++start, get:()=>start }; } const c=counter(5); c.inc(); c.inc(); console.log(c.get());
+function shadow(a){ { let a=2; const r=()=>a; if(r()!==2)throw 1; } return (()=>a)(); } console.log(shadow(1));
+function evalish(a){ try { throw a; } catch(a){ return (()=>a)(); } } console.log(evalish(3));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));

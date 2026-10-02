@@ -141,8 +141,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  b.fn('rt.gcTraceEnvironment',56,a=>{
   a.load('rax',{base:'rcx',disp:E.count});a.store(slot(48),'rax');a.add('rcx',E.cells);a.store(slot(40),'rcx');
   const loop=a.unique('loop'),done=a.unique('done');a.label(loop);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx'});a.call('rt.gcMarkPointer');
-  a.load('rax',slot(40));a.add('rax',8);a.store(slot(40),'rax');a.load('rax',slot(48));a.sub('rax',1);a.store(slot(48),'rax');a.jmp(loop);a.label(done);
+  a.load('rcx',slot(40));a.call('rt.gcMarkValue');
+  a.load('rax',slot(40));a.add('rax',E.entry);a.store(slot(40),'rax');a.load('rax',slot(48));a.sub('rax',1);a.store(slot(48),'rax');a.jmp(loop);a.label(done);
  });
  b.fn('rt.gcTraceProperty',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:P.next});a.call('rt.gcMarkPointer');

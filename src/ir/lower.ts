@@ -59,6 +59,17 @@ class Lowerer {
     if(binding.owner===(this.fn?.index??-1))return binding.index;
     const slot=this.captureSlots.get(binding);if(slot===undefined)throw new Error(`Missing capture ${binding.name}`);return slot;
   }
+  /** A captured parameter that is never written after the call binds it is
+   * captured by value: closures copy the Value itself instead of sharing a
+   * heap cell. Parameters of a function with defaults, patterns or a rest
+   * element are initialized one by one (a closure in a default may see a
+   * later parameter in its TDZ), so they keep their cells. */
+  private capturedByValue(b:StorageBinding):boolean {
+    if(b.kind!=='parameter'||!b.captured||b.assigned)return false;
+    const owner=this.bound.functions[b.owner];if(!owner)return false;
+    const d=owner.declaration;
+    return !(d.defaults?.some(Boolean)||d.parameters.some(p=>p.kind!=='Identifier')||!!d.rest);
+  }
   private closure(fn:BoundFunction,inferredName?:string|number,homeObject?:number):number {
     const dest=this.slot(),captures=fn.captures.map(binding=>this.cellSlot(binding));
     const declared=fn.declaration.id?.name;
@@ -175,7 +186,7 @@ class Lowerer {
   private readStorage(b:StorageBinding):number {
     const dest=this.slot();
     if(b.kind==='global'){this.emit({kind:'loadGlobal',dest,index:b.index});return dest;}
-    if(b.captured)this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});else this.emit({kind:'copy',dest,source:b.index});
+    if(b.captured&&!this.capturedByValue(b))this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});else this.emit({kind:'copy',dest,source:this.cellSlot(b)});
     return dest;
   }
   /** define(dll, name, signature) from nona:ffi: a static import and a native thunk. */
@@ -233,8 +244,8 @@ class Lowerer {
     const b=this.binding(id),dest=this.slot();
     switch(b.kind){
       case 'parameter':case 'local':
-        if(b.captured)this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});
-        else this.emit({kind:'copy',dest,source:b.index});break;
+        if(b.captured&&!this.capturedByValue(b))this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});
+        else this.emit({kind:'copy',dest,source:this.cellSlot(b)});break;
       case 'global':this.emit({kind:'loadGlobal',dest,index:b.index});break;
       case 'globalProperty':this.emit({kind:'readGlobalProperty',dest,name:b.name,allowMissing});break;
       default:throw new Error('Unsupported binding');
@@ -259,6 +270,7 @@ class Lowerer {
     if(b.kind==='global')this.emit({kind:'storeGlobal',strict:this.strict,source,index:b.index});
     else if(b.kind==='globalProperty')this.emit({kind:'setProperty',strict:this.strict,object:this.globalObject(),key:this.constant(b.name),source,define:false});
     else if(b.kind==='local'||b.kind==='parameter'){
+      if(b.captured&&this.capturedByValue(b))throw new Error(`Write to the by-value capture ${b.name}`);
       if(b.captured)this.emit({kind:'writeCell',cell:this.cellSlot(b),source});
       else this.emit({kind:'copy',dest:b.index,source});
     }
@@ -1070,7 +1082,7 @@ class Lowerer {
       const uninitialized=this.slot();this.emit({kind:'uninitialized',dest:uninitialized});
       for(const parameter of this.fn!.locals)if(parameter.kind==='parameter')this.emit({kind:'copy',dest:parameter.index,source:uninitialized});
     }
-    for(const binding of this.fn?.locals??this.bound.mainLocals)if(binding.captured&&!binding.lexical&&binding!==this.fn?.self){
+    for(const binding of this.fn?.locals??this.bound.mainLocals)if(binding.captured&&!binding.lexical&&binding!==this.fn?.self&&!this.capturedByValue(binding)){
       const source=binding.kind==='parameter'?binding.index:this.constant(undefined);
       this.emit({kind:'newCell',dest:binding.index,source});
     }

@@ -274,8 +274,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'writeCell':pointer('rcx',op.cell);pointer('rdx',op.source);a.call('rt.writeCell');break;
         case 'loadCapture':
           a.load('r10',stack(64));a.load('r10',{base:'r10',disp:FunctionLayout.environment});
-          a.load('rax',{base:'r10',disp:E.cells+8*op.index});a.store(payload(op.dest),'rax');
-          a.mov('rax',CellTag);a.store(value(op.dest),'rax');break;
+          copy(value(op.dest),{base:'r10',disp:E.cells+E.entry*op.index});break;
         case 'pushHandler':{
           const offset=handlerBase+H.size*op.index;
           a.load('rax',{rip:'rt.exceptionHandler'});a.store(stack(offset+H.next),'rax');a.mov('rax','rsp');a.store(stack(offset+H.stack),'rax');
