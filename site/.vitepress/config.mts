@@ -1,11 +1,114 @@
-import {defineConfig} from 'vitepress';
+import {defineConfig, type DefaultTheme, type LocaleSpecificConfig} from 'vitepress';
+import {dictionaries, type Dictionary} from './locales';
 
 const github = 'https://github.com/40oleg/nona';
 
+/** URL prefix of a locale: '' for English (root), '/zh' for Chinese, … */
+function prefix(d: Dictionary): string {
+  return d.key === 'root' ? '' : `/${d.key}`;
+}
+
+/**
+ * Top navigation of a locale. The changelog is English only, so every locale
+ * links to `/changelog`. New items (for example the playground, labelled
+ * `d.nav.playground`) are added here once for all languages.
+ */
+function nav(d: Dictionary): DefaultTheme.NavItem[] {
+  const p = prefix(d);
+  return [
+    {text: d.nav.guide, link: `${p}/guide/what-is-nona`, activeMatch: `^${p}/guide/`},
+    {text: d.nav.reference, link: `${p}/reference/cli`, activeMatch: `^${p}/reference/`},
+    {text: d.nav.examples, link: `${p}/examples/`, activeMatch: `^${p}/examples/`},
+    // The playground UI is English only; every locale links to it.
+    {text: d.nav.playground, link: '/playground'},
+    {text: d.nav.changelog, link: '/changelog'},
+  ];
+}
+
+function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
+  const p = prefix(d);
+  const s = d.sidebar;
+  return [
+    {
+      text: s.introduction,
+      items: [
+        {text: s.whatIsNona, link: `${p}/guide/what-is-nona`},
+        {text: s.gettingStarted, link: `${p}/guide/getting-started`},
+        {text: s.howItWorks, link: `${p}/guide/how-it-works`},
+        {text: s.languageSupport, link: `${p}/guide/language-support`},
+        {text: s.compatibility, link: `${p}/guide/compatibility`},
+        {text: s.performance, link: `${p}/guide/performance`},
+        {text: s.status, link: `${p}/guide/status`},
+      ],
+    },
+    {
+      text: s.reference,
+      items: [
+        {text: s.cli, link: `${p}/reference/cli`},
+        {text: s.api, link: `${p}/reference/api`},
+        {text: s.modules, link: `${p}/reference/modules`},
+        {text: s.hostApis, link: `${p}/reference/host-apis`},
+        {text: s.process, link: `${p}/reference/process`},
+        {text: s.fs, link: `${p}/reference/fs`},
+        {text: s.ffi, link: `${p}/reference/ffi`},
+        {text: s.windowsExecutables, link: `${p}/reference/windows-executables`},
+        {text: s.test262, link: `${p}/reference/test262`},
+      ],
+    },
+    {
+      text: s.examples,
+      items: [
+        {text: s.overview, link: `${p}/examples/`},
+        {text: s.hello, link: `${p}/examples/hello`},
+        {text: s.museum, link: `${p}/examples/museum`},
+        {text: s.matrixCalculator, link: `${p}/examples/matrix-calculator`},
+        {text: s.wordCount, link: `${p}/examples/word-count`},
+      ],
+    },
+    {
+      text: s.project,
+      items: [
+        {text: s.contributing, link: `${p}/contributing`},
+        {text: s.changelog, link: '/changelog'},
+      ],
+    },
+  ];
+}
+
+function themeConfig(d: Dictionary): DefaultTheme.Config {
+  const t = d.theme;
+  return {
+    nav: nav(d),
+    sidebar: sidebar(d),
+    editLink: {pattern: `${github}/edit/main/site/src/:path`, text: t.editLink},
+    outline: {level: [2, 3], label: t.outline},
+    docFooter: {prev: t.prev, next: t.next},
+    lastUpdated: {text: t.lastUpdated},
+    returnToTopLabel: t.returnToTop,
+    sidebarMenuLabel: t.sidebarMenu,
+    darkModeSwitchLabel: t.darkModeSwitch,
+    lightModeSwitchTitle: t.lightModeSwitchTitle,
+    darkModeSwitchTitle: t.darkModeSwitchTitle,
+    langMenuLabel: t.langMenu,
+    skipToContentLabel: t.skipToContent,
+    notFound: t.notFound,
+    footer: {message: t.footer, copyright: 'Copyright © 2026 Oleg Merkulov'},
+  };
+}
+
+function locale(d: Dictionary): LocaleSpecificConfig<DefaultTheme.Config> & {label: string; link?: string} {
+  return {
+    label: d.label,
+    lang: d.lang,
+    dir: d.dir ?? 'ltr',
+    description: d.description,
+    ...(d.key === 'root' ? {} : {link: `/${d.key}/`}),
+    themeConfig: themeConfig(d),
+  };
+}
+
 export default defineConfig({
   title: 'Nona',
-  description: 'Ahead-of-time compiler from JavaScript (ES2020) to standalone Windows and Linux x64 executables',
-  lang: 'en-US',
   base: '/nona/',
   srcDir: 'src',
   cleanUrls: true,
@@ -13,65 +116,15 @@ export default defineConfig({
   ignoreDeadLinks: false,
   head: [['link', {rel: 'icon', type: 'image/svg+xml', href: '/nona/favicon.svg'}]],
   sitemap: {hostname: 'https://40oleg.github.io/nona/'},
+  locales: Object.fromEntries(dictionaries.map(d => [d.key, locale(d)])),
   themeConfig: {
     logo: '/favicon.svg',
-    nav: [
-      {text: 'Guide', link: '/guide/what-is-nona', activeMatch: '/guide/'},
-      {text: 'Reference', link: '/reference/cli', activeMatch: '/reference/'},
-      {text: 'Examples', link: '/examples/', activeMatch: '/examples/'},
-      {text: 'Playground', link: '/playground'},
-      {text: 'Changelog', link: '/changelog'},
-      {text: 'Русский', link: `${github}/blob/main/README.ru.md`},
-    ],
-    sidebar: [
-      {
-        text: 'Introduction',
-        items: [
-          {text: 'What is Nona', link: '/guide/what-is-nona'},
-          {text: 'Getting started', link: '/guide/getting-started'},
-          {text: 'How it works', link: '/guide/how-it-works'},
-          {text: 'Language support', link: '/guide/language-support'},
-          {text: 'Compatibility and limitations', link: '/guide/compatibility'},
-          {text: 'Performance', link: '/guide/performance'},
-          {text: 'Status and roadmap', link: '/guide/status'},
-        ],
-      },
-      {
-        text: 'Reference',
-        items: [
-          {text: 'Command line', link: '/reference/cli'},
-          {text: 'compile() API', link: '/reference/api'},
-          {text: 'Built-in modules', link: '/reference/modules'},
-          {text: 'Timers and the event loop', link: '/reference/host-apis'},
-          {text: 'process', link: '/reference/process'},
-          {text: 'File system and text encoding', link: '/reference/fs'},
-          {text: 'Native functions (FFI)', link: '/reference/ffi'},
-          {text: 'Windows executables', link: '/reference/windows-executables'},
-          {text: 'Test262', link: '/reference/test262'},
-        ],
-      },
-      {
-        text: 'Examples',
-        items: [
-          {text: 'Overview', link: '/examples/'},
-          {text: 'Hello, timers', link: '/examples/hello'},
-          {text: 'Museum: wallpaper changer', link: '/examples/museum'},
-          {text: 'Matrix calculator', link: '/examples/matrix-calculator'},
-          {text: 'Word count: fs and process', link: '/examples/word-count'},
-        ],
-      },
-      {
-        text: 'Project',
-        items: [
-          {text: 'Contributing', link: '/contributing'},
-          {text: 'Changelog', link: '/changelog'},
-        ],
-      },
-    ],
-    search: {provider: 'local'},
     socialLinks: [{icon: 'github', link: github}],
-    editLink: {pattern: `${github}/edit/main/site/src/:path`, text: 'Edit this page on GitHub'},
-    outline: [2, 3],
-    footer: {message: 'Released under the MIT License.', copyright: 'Copyright © 2026 Oleg Merkulov'},
+    search: {
+      provider: 'local',
+      options: {
+        locales: Object.fromEntries(dictionaries.map(d => [d.key, {translations: d.search}])),
+      },
+    },
   },
 });

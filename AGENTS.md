@@ -54,6 +54,9 @@ exactly.
   feature (reference pages generated from `docs/` are included automatically);
   runnable samples go to `site/samples/` and must pass `npm run check:samples`
   in `site/`.
+- When you change an English site page, update its translations under
+  `site/src/<locale>/` too, or at least keep them consistent with it (see
+  `site/README.md`).
 
 ## Code conventions
 

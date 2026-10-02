@@ -57,6 +57,8 @@ npm run check:samples      # compiles every program in site/samples
 
 Runnable examples are files in `site/samples/` included with `<<<`; a name containing `.win32.` or `.linux.` limits the sample to that target. `site/README.md` explains how to add a page. The site is deployed to GitHub Pages from `main` by `.github/workflows/pages.yml`.
 
+The site is translated into several languages. The English pages are the source; translations live in `site/src/<locale>/`. When an English page changes, update the translations or at least make sure they do not contradict it.
+
 ## Automated contributors
 
 Rules for agents — claiming issues with the `blocked` label, commit authorship and the pull request checklist — are in [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md).
