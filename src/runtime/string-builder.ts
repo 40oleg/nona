@@ -54,7 +54,7 @@ export function emitStringBuilder(b:RuntimeBuilder):void {
  // released and zeroed.
  b.fn('rt.builderFinish',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
-  a.load('rcx',{base:'rcx',disp:B.length});a.store(slot(56),'rcx');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.store(slot(64),'rax');
+  a.load('rcx',{base:'rcx',disp:B.length});a.store(slot(56),'rcx');a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');a.store(slot(64),'rax');
   a.load('r9',slot(56));a.store({base:'rax'},'r9');a.lea('r11',{base:'rax',disp:8});a.load('rcx',slot(40));a.load('r10',{base:'rcx',disp:B.buffer});copyUnits(a);
   const noBuffer=a.unique('noBuffer');a.load('rcx',slot(40));a.load('r8',{base:'rcx',disp:B.buffer});a.test('r8','r8');a.jcc('e',noBuffer);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
   a.label(noBuffer);a.load('rcx',slot(40));a.mov('rax',0);for(const offset of [B.buffer,B.length,B.capacity])a.store({base:'rcx',disp:offset},'rax');

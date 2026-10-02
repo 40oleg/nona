@@ -12,7 +12,7 @@ export function emitStrings(b:RuntimeBuilder):void {
   a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('rt.concat',104,a=>{
- a.store(slot(40),'rcx');a.load('rdx',{base:'rdx',disp:8});a.load('r8',{base:'r8',disp:8});a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rdx'});a.load('r10',{base:'r8'});a.add('rax','r10');failIf(a,'b','rt.throwRangeError');a.store(slot(64),'rax');a.mov('r10',0x3ffffffffffffffbn);a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(72),'rax');a.load('r10',slot(64));a.store({base:'rax'},'r10');a.add('rax',8);a.store(slot(80),'rax');
+ a.store(slot(40),'rcx');a.load('rdx',{base:'rdx',disp:8});a.load('r8',{base:'r8',disp:8});a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rdx'});a.load('r10',{base:'r8'});a.add('rax','r10');failIf(a,'b','rt.throwRangeError');a.store(slot(64),'rax');a.mov('r10',0x3ffffffffffffffbn);a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.allocRaw');a.store(slot(72),'rax');a.load('r10',slot(64));a.store({base:'rax'},'r10');a.add('rax',8);a.store(slot(80),'rax');
  for(const offset of [48,56]){a.load('rdx',slot(offset));a.load('r8',{base:'rdx'});a.add('r8','r8');a.add('rdx',8);a.load('rcx',slot(80));a.add('rcx','r8');a.store(slot(80),'rcx');a.sub('rcx','r8');a.call('rt.copyBytes');}
  a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(72));a.store({base:'rcx',disp:8},'rax');
  });

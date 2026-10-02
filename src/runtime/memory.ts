@@ -164,6 +164,14 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('rcx',slot(56));a.mov('rdx','rcx');a.mov('r8',0);a.call('rt.pageMapInsert');
  });
 
+ // RCX payload bytes -> RAX payload (header before it) whose contents the
+ // caller writes completely before any safepoint: a recycled cell or cached
+ // mapping is not zeroed. For string records and other pointer-free
+ // payloads this halves the memory traffic of an allocation.
+ b.data('rt.allocNoZero',new Uint8Array(8),'.data');
+ b.fn('rt.allocRaw',40,a=>{
+  a.mov('rax',1);a.store({rip:'rt.allocNoZero'},'rax');a.call('rt.alloc');a.mov('r10',0);a.store({rip:'rt.allocNoZero'},'r10');
+ });
  // RCX payload bytes -> RAX zeroed payload (header before it).
  b.fn('rt.alloc',72,a=>{
   a.store(slot(40),'rcx');a.add('rcx',H.size+15);failIf(a,'b');a.and('rcx',-16);a.store(slot(48),'rcx');
@@ -174,6 +182,7 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:H.next});a.store({base:'r9'},'r10');
   // A recycled cell: clear its payload (the header is rewritten below).
   a.lea('r10',{base:'rax',disp:H.size});a.load('r11',slot(64));a.add('r11','rax');a.mov('r8',0);
+  {a.load('r8',{rip:'rt.allocNoZero'});a.test('r8','r8');a.jcc('ne',zeroed);a.mov('r8',0);}
   a.label(zero);a.cmp('r10','r11');a.jcc('ae',zeroed);a.store({base:'r10'},'r8');a.add('r10',8);a.jmp(zero);a.label(zeroed);a.jmp(ready);
   a.label(carve);a.lea('r9',{rip:'rt.classState',addend:8*classCount});a.add('r9','rcx');a.load('rax',{base:'r9'});a.load('r10',slot(64));a.add('r10','rax');
   a.lea('r11',{rip:'rt.classState',addend:16*classCount});a.add('r11','rcx');a.load('r11',{base:'r11'});a.cmp('r10','r11');const fits=a.unique('fits');a.jcc('be',fits);
@@ -193,13 +202,15 @@ export function emitMemory(b:RuntimeBuilder):void {
    // Unlink it, record the mapping size actually held, and clear the block.
    a.load('r10',{base:'rax',disp:L.next});a.store({base:'r9'},'r10');a.load('r10',{rip:'rt.largeCacheCount'});a.sub('r10',1);a.store({rip:'rt.largeCacheCount'},'r10');
    a.load('r10',{base:'rax',disp:L.bytes});a.store(slot(64),'r10');a.store(slot(56),'rax');
-   a.lea('rcx',{base:'rax',disp:L.size});a.mov('rdx','r10');a.sub('rdx',L.size);a.call('rt.zeroBytes');a.load('rax',slot(56));a.jmp(mapped);
+   {const raw=a.unique('raw');a.load('rcx',{rip:'rt.allocNoZero'});a.test('rcx','rcx');a.jcc('ne',raw);
+    a.lea('rcx',{base:'rax',disp:L.size});a.mov('rdx','r10');a.sub('rdx',L.size);a.call('rt.zeroBytes');a.label(raw);}a.load('rax',slot(56));a.jmp(mapped);
    a.label('rt.alloc.cacheNext');a.lea('r9',{base:'rax',disp:L.next});a.jmp(scan);
    a.label(skip);a.call('rt.mapPages');
    a.label(mapped);}
   a.load('r10',slot(64));a.store({base:'rax',disp:L.bytes},'r10');a.load('r10',{rip:'rt.largeList'});a.store({base:'rax',disp:L.next},'r10');a.store({rip:'rt.largeList'},'rax');
   a.store(slot(56),'rax');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.largeMapPages');
-  a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');
+  // The block header is written in full: a reused mapping still carries the old one.
+  a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.marked,H.greyNext])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);a.label(done);

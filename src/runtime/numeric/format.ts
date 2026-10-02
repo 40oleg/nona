@@ -26,7 +26,7 @@ export function emitFormat(b:RuntimeBundle):void {
   a.cvttsd2si('r12','xmm0');a.cvtsi2sd('xmm1','r12');a.ucomisd('xmm0','xmm1');a.jcc('ne','fmt.fast');
   a.lea('rsi',{base:'rsp',disp:200});a.mov('rdi','rsi');a.mov('rax','r12');a.mov('r10',10);
   a.label('fmt.uintDigits');a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.store({base:'rdi'},'rdx',8);a.add('rdi',1);a.test('rax','rax');a.jcc('ne','fmt.uintDigits');
-  a.mov('r13','rdi');a.sub('r13','rsi');a.mov('rcx','r13');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.mov('r14','rax');a.store({base:'r14'},'r13');a.lea('rdi',{base:'r14',disp:8});
+  a.mov('r13','rdi');a.sub('r13','rsi');a.mov('rcx','r13');a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');a.mov('r14','rax');a.store({base:'r14'},'r13');a.lea('rdi',{base:'r14',disp:8});
   a.label('fmt.uintCopy');a.sub('r13',1);a.lea('r11',{base:'rsi'});a.add('r11','r13');a.load('rax',{base:'r11'},8);a.store({base:'rdi'},'rax',16);a.add('rdi',2);a.test('r13','r13');a.jcc('ne','fmt.uintCopy');a.mov('rax','r14');a.jmp('fmt.return');
   // Short decimals: a value below 2^53 for which some n = round(value * 10^k)
   // with k <= 6 and n below 2^52 gives the value back as n / 10^k. The
@@ -52,7 +52,7 @@ export function emitFormat(b:RuntimeBundle):void {
   a.label('fmt.fastPad');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax','r13');a.jcc('a','fmt.fastPadded');a.mov('rax',48);a.store({base:'rdi'},'rax',8);a.add('rdi',1);a.jmp('fmt.fastPad');
   a.label('fmt.fastPadded');a.mov('r14','rdi');a.sub('r14','rsi');a.movqFromXmm('rbx','xmm0');a.shr('rbx',63);
   a.mov('r15','r14');a.add('r15','rbx');a.test('r13','r13');a.jcc('e','fmt.fastNoPoint');a.add('r15',1);a.label('fmt.fastNoPoint');
-  a.mov('rcx','r15');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');f.set(0,'rax');a.store({base:'rax'},'r15');a.lea('r9',{base:'rax',disp:8});
+  a.mov('rcx','r15');a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');f.set(0,'rax');a.store({base:'rax'},'r15');a.lea('r9',{base:'rax',disp:8});
   a.test('rbx','rbx');a.jcc('e','fmt.fastUnsigned');a.mov('rax',45);a.store({base:'r9'},'rax',16);a.add('r9',2);a.label('fmt.fastUnsigned');
   // Integer digits, the point once they are out, then the fraction digits.
   a.mov('rcx','r14');a.sub('rcx','r13');
@@ -83,7 +83,7 @@ export function emitFormat(b:RuntimeBundle):void {
   a.label('fmt.exponent');a.mov('rax',101);a.store({base:'r15'},'rax',16);a.add('r15',2);a.sub('r13',1);a.mov('rax',43);a.cmp('r13',0);a.jcc('ge','fmt.expsign');a.mov('rax',45);a.neg('r13');a.label('fmt.expsign');a.store({base:'r15'},'rax',16);a.add('r15',2);f.get('rdi',2);a.mov('rax','r13');a.mov('r10',10);a.xor('r14','r14');a.label('fmt.expdivide');a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.store({base:'rdi'},'rdx',8);a.add('rdi',1);a.add('r14',1);a.test('rax','rax');a.jcc('ne','fmt.expdivide');a.jmp('fmt.tail');
   a.label('fmt.infinity');f.get('rax',0);a.shr('rax',63);a.test('rax','rax');a.jcc('e','fmt.inftext');a.mov('rax',45);a.store({base:'r15'},'rax',16);a.add('r15',2);a.label('fmt.inftext');writeText('Infinity');a.jmp('fmt.finish');a.label('fmt.nan');writeText('NaN');a.jmp('fmt.finish');a.label('fmt.zero');writeText('0');
   // The text was built in the frame: allocate the string of exactly that length and copy it.
-  a.label('fmt.finish');f.get('rax',4);a.sub('r15','rax');a.sub('r15',8);a.shr('r15',1);a.mov('r13','r15');a.mov('rcx','r13');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.mov('r14','rax');a.store({base:'rax'},'r13');
+  a.label('fmt.finish');f.get('rax',4);a.sub('r15','rax');a.sub('r15',8);a.shr('r15',1);a.mov('r13','r15');a.mov('rcx','r13');a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');a.mov('r14','rax');a.store({base:'rax'},'r13');
   f.get('rsi',4);a.add('rsi',8);a.lea('rdi',{base:'rax',disp:8});a.label('fmt.copy');a.test('r13','r13');a.jcc('e','fmt.copied');a.load('rax',{base:'rsi'},16);a.store({base:'rdi'},'rax',16);a.add('rsi',2);a.add('rdi',2);a.sub('r13',1);a.jmp('fmt.copy');
   a.label('fmt.copied');a.mov('rax','r14');a.label('fmt.return');f.end(b);
   function writeText(s:string){for(const c of s){a.mov('rax',c.charCodeAt(0));a.store({base:'r15'},'rax',16);a.add('r15',2);}}

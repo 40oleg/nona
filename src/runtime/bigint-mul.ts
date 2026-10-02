@@ -75,7 +75,7 @@ export function emitBigIntMul(b:RuntimeBuilder):void {
    a.label(topDigits);a.add('r8',1);a.mov('rdx',0);a.div('r10');a.test('rax','rax');a.jcc('ne',topDigits);
    a.mov('rax','rcx');a.sub('rax',1);a.mov('r10','rax');a.shl('rax',3);a.add('rax','r10');a.add('r8','rax');a.load('rax',slot(96));a.add('r8','rax');
    a.label(counted);a.store(slot(168),'r8');
-   a.mov('rcx','r8');a.add('rcx','rcx');a.add('rcx',8);a.call('rt.alloc');a.store(slot(160),'rax');a.load('r8',slot(168));a.store({base:'rax'},'r8');}
+   a.mov('rcx','r8');a.add('rcx','rcx');a.add('rcx',8);a.call('rt.allocRaw');a.store(slot(160),'rax');a.load('r8',slot(168));a.store({base:'rax'},'r8');}
   // Write: sign, then limbs from the top; every limb but the top is nine digits.
   {const sign=a.unique('unsigned'),limbs=a.unique('limbs'),limbsDone=a.unique('limbsDone'),digits=a.unique('digits'),digitsDone=a.unique('digitsDone');
    a.load('r9',slot(160));a.add('r9',8);a.load('rax',slot(96));a.test('rax','rax');a.jcc('e',sign);a.mov('rax',45);a.store({base:'r9'},'rax',16);a.add('r9',2);

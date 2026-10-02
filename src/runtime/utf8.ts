@@ -133,7 +133,7 @@ export function emitUtf8(b:RuntimeBuilder):void {
   a.label(end);
   // After the counting pass allocate the string; after the writing pass return it.
   {const written=a.unique('written');a.load('rax',slot(96));a.test('rax','rax');a.jcc('ne',written);
-   a.store(slot(104),'r8');a.mov('rcx','r8');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.store(slot(88),'rax');a.load('r8',slot(104));a.store({base:'rax'},'r8');
+   a.store(slot(104),'r8');a.mov('rcx','r8');a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');a.store(slot(88),'rax');a.load('r8',slot(104));a.store({base:'rax'},'r8');
    a.mov('rax',1);a.store(slot(96),'rax');a.mov('rax',0);a.store(slot(104),'rax');a.jmp(pass);
    a.label(written);}
   a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');a.jmp(done);

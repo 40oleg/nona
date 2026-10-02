@@ -104,6 +104,7 @@ let i=0;for(;i<10;i++);console.log(i,i>>1,i<<30,i<<31,(2**40)|0,(2**32+7)&255,(-
 let s="x".repeat(9000);for(let i=0;i<400;i++)s=s+"y";console.log(s.length,s.slice(-3));
 const keep=[];for(let i=0;i<200;i++){keep.push(new Float64Array(3000));if(keep.length>5)keep.shift();}console.log(keep.length,keep[0].length);
 let b="";for(let i=0;i<3000;i++)b+="abc"+i;console.log(b.length,b.indexOf("abc2999"));
+const rows=[];for(let i=0;i<400;i++)rows.push({id:i,name:"n"+i,v:i*1.5});let text;for(let k=0;k<6;k++)text=JSON.stringify(rows);const again=JSON.stringify(rows);console.log(text.length,text===again,JSON.parse(text).length,JSON.parse(again)[399].name);
 `,
  'number formatting and parsing':`
 const vals=[0,-0,1,-1,1.5,-2.5,0.1,0.2,0.3,0.1+0.2,1/3,2/3,1e21,1e-7,1e-6,123456.789,-0.000001,0.000001,9007199254740991,9007199254740992,4503599627370496.5,4503599627370497,1e15+0.5,0.5,1.005,1.1,2.675,100,1e3,1e16,1e17,12345678901234567890,0.000123,1.7976931348623157e308,5e-324,NaN,Infinity,-Infinity,3.14159,2.718281828459045,1.0000000000000002,0.30000000000000004,99.99,-99.99,1234.5678,0.1234567,1e-5,123e-7,4.35,0.07,1e22,1e-22,25.4,33.33,66.6,1.23456789012e5];
