@@ -169,6 +169,7 @@ export function emitMemory(b:RuntimeBuilder):void {
  // mapping is not zeroed. For string records and other pointer-free
  // payloads this halves the memory traffic of an allocation.
  b.data('rt.allocNoZero',new Uint8Array(8),'.data');
+ b.data('rt.gcPoison',new Uint8Array(8),'.data');
  b.fn('rt.allocRaw',40,a=>{
   a.mov('rax',1);a.store({rip:'rt.allocNoZero'},'rax');a.call('rt.alloc');a.mov('r10',0);a.store({rip:'rt.allocNoZero'},'r10');
  });
@@ -260,6 +261,12 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('r10',{base:'r9'});a.store({base:'rcx',disp:H.next},'r10');a.store({base:'r9'},'rcx');a.mov('r10',FreeKind);a.store({base:'rcx',disp:H.kind},'r10');
   a.load('r10',slot(48));a.load('r11',{rip:'rt.liveBytes'});a.sub('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.sub('r11',1);a.store({rip:'rt.blocks'},'r11');
+  // Under GC stress the payload is filled with 0xDD: a Value read through a
+  // missing root then has an invalid tag and a pointer that faults, instead
+  // of looking valid until the cell is reused. rt.alloc clears it again.
+  {const done=a.unique('done'),loop=a.unique('loop');a.load('rax',{rip:'rt.gcPoison'});a.test('rax','rax');a.jcc('e',done);
+   a.load('r10',slot(40));a.load('r11',slot(48));a.add('r11','r10');a.add('r10',H.size);a.mov('rax',0xddddddddddddddddn);
+   a.label(loop);a.cmp('r10','r11');a.jcc('ae',done);a.store({base:'r10'},'rax');a.add('r10',8);a.jmp(loop);a.label(done);}
  });
  // Releases every mapping (process exit, tests).
  b.fn('rt.dispose',56,a=>{
