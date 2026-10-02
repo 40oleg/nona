@@ -1,0 +1,75 @@
+# Командная строка
+
+## Синтаксис
+
+```text
+Nona 0.7.0 — JavaScript subset to native Windows/Linux x64
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
+       [--version-info version.json]
+       (.mjs inputs are compiled as modules)
+       nona --help | --version
+```
+
+В клоне репозитория запускайте `node dist/cli.js …`; после `npm link` та же команда доступна как `nona`.
+
+## Параметры
+
+| Параметр | Значение | Описание |
+| --- | --- | --- |
+| `-o` | путь | Выходной файл. Обязателен. Недостающие каталоги создаются. |
+| `--target` | `win32-x64` (по умолчанию), `linux-x64` | Формат результата: PE32+ для Windows или ELF64 для Linux. |
+| `--module` | — | Компилировать вход как ES-модуль. Файлы с окончанием `.mjs` — модули автоматически. |
+| `--subsystem` | `console` (по умолчанию), `windows` | GUI-программа Windows без консольного окна. Только `win32-x64`. GUI-программа без `--manifest` получает манифест по умолчанию. |
+| `--icon` | файл `.ico` | Встроить все изображения из файла иконки. Только `win32-x64`. |
+| `--manifest` | файл XML | Встроить манифест приложения. Он должен быть корректным: Windows отказывается запускать программу с повреждённым манифестом. Только `win32-x64`. |
+| `--version-info` | файл JSON | Встроить сведения о версии (`FileVersion`, `ProductVersion`, `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName`, `Comments`). Только `win32-x64`. |
+| `--help` | — | Вывести синтаксис. |
+| `--version` | — | Вывести версию компилятора. |
+
+Каждый параметр можно указать один раз. Форматы ресурсов описаны в разделе [Исполняемые файлы Windows](/ru/reference/windows-executables).
+
+## Вход и выход
+
+- Вход — один исходный файл в UTF-8. Модуль подтягивает модули, которые он импортирует; встроенные модули `nona:*` и `node:*` — часть компилятора.
+- Результат записывается во временный файл рядом и затем переименовывается, поэтому неудачная сборка никогда не оставляет недописанный исполняемый файл и сохраняет предыдущий.
+- Компилятор отказывается перезаписывать свой входной файл, в том числе через жёсткую или символическую ссылку.
+- Файлы для Linux получают права `0755`.
+
+## Диагностика и коды выхода
+
+Код выхода — `0` при успехе и `1` при любой ошибке. Ошибки в исходнике выводятся так:
+
+```text
+<file>:<line>:<column> <CODE>: <message>
+```
+
+| Код | Значение |
+| --- | --- |
+| `E_LEX`, `E_SYNTAX` | Исходник не удаётся разбить на токены или разобрать, либо он использует неподдерживаемый синтаксис. |
+| `E_BIND` | Ранняя ошибка при разрешении имён (повторные объявления, недопустимые цели присваивания, …). |
+| `E_MODULE` | Модуль не удаётся разрешить, прочитать или связать, либо экспорты конфликтуют. |
+| `E_FFI_STATIC` | Вызов `define()` из `nona:ffi` — не три строковых литерала или содержит недопустимую сигнатуру. |
+| `E_FFI_TARGET` | Объявление DLL скомпилировано для `linux-x64` или объявление системного вызова — для `win32-x64`. |
+| `E_RESOURCE` | Некорректная иконка или сведения о версии, либо ресурсы запрошены для `linux-x64`. |
+| `E_TARGET` | Неподдерживаемая цель или подсистема. |
+
+Ошибки аргументов выводятся как `nona: <message>`, например `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` или `--subsystem requires --target win32-x64`.
+
+## Примеры
+
+::: code-group
+
+```sh [Консольная программа]
+node dist/cli.js build app.js -o build/app.exe
+```
+
+```sh [GUI-программа с ресурсами]
+node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+```
+
+```sh [Linux]
+node dist/cli.js build app.js -o build/app --target linux-x64
+```
+
+:::
