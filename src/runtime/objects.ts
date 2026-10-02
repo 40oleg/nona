@@ -167,10 +167,13 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.mov('r11','r9');a.add('r11','rax');
   };
   b.fn('rt.getProperty',40,a=>{
-    const slow=a.unique('slow'),done=a.unique('done');
-    a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);
-    a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);
-    typedElement(a,'rdx','r8',slow);
+    const slow=a.unique('slow'),done=a.unique('done'),named=a.unique('named'),indexed=a.unique('indexed'),typed=a.unique('typed');
+    // A string key can only be a named property or a string-keyed index of
+    // the indexed path; a Number key only an element: try the matching one.
+    a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e',named);
+    a.label(indexed);a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);a.jmp(typed);
+    a.label(named);a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);
+    a.label(typed);typedElement(a,'rdx','r8',slow);
     const f32=a.unique('f32'),f64=a.unique('f64'),int=a.unique('int'),store=a.unique('store');
     a.cmp('r10',8);a.jcc('e',f32);a.cmp('r10',9);a.jcc('e',f64);
     const b16=a.unique('b16'),b32=a.unique('b32');
@@ -191,9 +194,11 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(convert);a.call('rt.toPropertyKey');a.label(done);
   });
   b.fn('rt.setProperty',72,a=>{
-    const slow=a.unique('slow'),done=a.unique('done');
-    a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);
-    a.call('rt.namedSetFast');a.test('rax','rax');a.jcc('ne',done);
+    const slow=a.unique('slow'),done=a.unique('done'),named=a.unique('named'),indexed=a.unique('indexed'),typed=a.unique('typed');
+    a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('e',named);
+    a.label(indexed);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);a.jmp(typed);
+    a.label(named);a.call('rt.namedSetFast');a.test('rax','rax');a.jcc('ne',done);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);
+    a.label(typed);
     // Only [[Set]] (not definitions) of finite Numbers into non-clamped, non-BigInt arrays.
     a.store(slot(32),'r8');a.store(slot(40),'r9');
     a.mov('rax','r9');a.and('rax',1);a.test('rax','rax');a.jcc('ne',slow);
