@@ -10,3 +10,4 @@ Thumbs.db
 site/.vitepress/cache/
 site/generated/
 site/node_modules/
+site/src/public/playground-worker.js

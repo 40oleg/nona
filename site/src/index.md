@@ -10,6 +10,12 @@ hero:
       text: Get started
       link: /guide/getting-started
     - theme: alt
+      text: Try it in the browser
+      link: /playground
+    - theme: alt
+      text: Try it in the browser
+      link: /playground
+    - theme: alt
       text: What is Nona
       link: /guide/what-is-nona
     - theme: alt
