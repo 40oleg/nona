@@ -21,6 +21,9 @@ function validateRegExpPattern(pattern:string,flags:string):void {
 export type SourceUsage=RuntimeLink;
 const regexpNames=['RegExp','match','matchAll','search'],normalizationNames=['normalize','localeCompare'];
 const unicodePropertyEscape=/\\[pP]\{/;
+// A group name with a non-ASCII character or an escape is validated against
+// the ID_Start/ID_Continue property tables.
+const unicodeGroupName=/(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage:SourceUsage|undefined;
 /** Runs `run` and reports what every source lexed during it can use. */
 export function collectSourceUsage<T>(run:()=>T):{result:T;usage:SourceUsage} {
@@ -34,7 +37,7 @@ function recordUsage(tokens:TokenStream):void {
   for(const token of tokens){
     if(token.kind==='regexp'){
       usage.regexp=true;
-      if(unicodePropertyEscape.test(token.pattern??''))usage.unicodeProperties=true;
+      if(unicodePropertyEscape.test(token.pattern??'')||unicodeGroupName.test(token.pattern??''))usage.unicodeProperties=true;
     }else if(token.kind==='word'){
       // A pattern built at run time may use any Unicode property.
       if(regexpNames.includes(String(token.value)))usage.regexp=usage.unicodeProperties=true;

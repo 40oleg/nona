@@ -35,6 +35,11 @@ test('source usage: what reaches the RegExp engine and the Unicode tables',()=>{
  assert.deepEqual(usage('console.log("hi".split(",").join("-"), "a".replace("a", "b"))'),none);
  assert.deepEqual(usage('/a+/g.test(s)'),{...none,regexp:true});
  assert.deepEqual(usage('/\\p{L}/u.test(s)'),{...none,regexp:true,unicodeProperties:true});
+ // Non-ASCII or escaped group names are checked against ID_Start/ID_Continue.
+ for(const source of ['/(?<𝒜>b)/u','/(?<\\u{72f8}>x)/u','/(?<\\u0061>x)/','/\\k<ñ>(?<ñ>x)/'])
+  assert.deepEqual(usage(source),{...none,regexp:true,unicodeProperties:true},source);
+ for(const source of ['/(?<year>\\d+)\\k<year>/','/(?<=é)x/','/(?<!é)x/'])
+  assert.deepEqual(usage(source),{...none,regexp:true},source);
  for(const source of ['new RegExp(p)','s.match(p)','s.matchAll(p)','s.search(p)','globalThis["RegExp"]','s[`match`](p)','let \\u0052egExp = 1'])
   assert.deepEqual(usage(source),{...none,regexp:true,unicodeProperties:true},source);
  for(const source of ['s.normalize()','a.localeCompare(b)','s["normalize"]()'])
@@ -85,4 +90,8 @@ test('reaching an omitted part throws an Error that names --full-runtime',()=>{
  const normalization='const m = ["norm", "alize"].join("");\ntry { console.log("e\\u0301"[m]().length); } catch (e) { console.log(e.message.includes("normalization tables")); }';
  assert.equal(run(normalization),'true\n');
  assert.equal(run(normalization,{fullRuntime:true}),'1\n');
+});
+
+test('a literal with a non-ASCII group name links the identifier tables',()=>{
+ assert.equal(run('console.log(/(?<𝒜>b)/u.exec("abc").groups.𝒜, /(?<\\u{72f8}>x)\\k<狸>/u.test("xx"));'),'b true\n');
 });
