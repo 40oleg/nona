@@ -89,6 +89,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  // an own key before). Keeps an existing table in sync; returns the node.
  b.fn('rt.propIndexAdd',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done'),room=a.unique('room');
+  a.call('rt.elementsNoteNode');a.load('rcx',slot(40));a.load('rdx',slot(48));
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',done);
   a.load('rdx',{base:'r10',disp:T.used});a.add('rdx',1);a.shl('rdx',1);a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rdx','r11');a.jcc('be',room);
   a.load('rdx',{base:'r10',disp:T.live});a.call('rt.propIndexResize');
@@ -99,6 +100,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  // RCX object, RDX key of a node being unlinked.
  b.fn('rt.propIndexDrop',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done');
+  a.call('rt.elementsDropNode');a.load('rcx',slot(40));a.load('rdx',slot(48));
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',done);
   a.mov('rcx','rdx');a.call('rt.propKeyHash');a.mov('rdx','rax');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexProbe');

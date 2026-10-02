@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder,slot} from '../src/runtime/abi.js';
 import {rootedFn} from '../src/runtime/root-scope.js';
 import {prependFunctionBuiltin} from '../src/runtime/function-builtin.js';
@@ -28,7 +28,7 @@ function native(source:string,presenceOverride?:number){
   a.lea('rcx',slot(64));a.call('rt.completePropertyDescriptor');
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.fromPropertyDescriptor');
  });
- return runNative(linkPe(program));
+ return runNative(linkHost(program));
 }
 for(const [mask,descriptor,expected] of [
  [0,'{value:7,writable:true,enumerable:true,configurable:true}','{value:undefined,writable:false,enumerable:false,configurable:false}'],

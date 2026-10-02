@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 const programs:[string,string][]=[
@@ -23,7 +23,7 @@ for(const [name,source] of programs)test(`arrow: ${name}`,()=>expectProgram(sour
 
 test('arrow: lexical receiver survives stress GC',()=>{
   const source=`function F(){this.x={v:8};this.f=()=>this.x.v;}var o=new F();var f=o.f;o=null;for(var i=0;i<100;i++)({x:""+i});console.log(f());`;
-  const image=linkPe(generate(compileToIR(source),{gcStress:true}));
+  const image=linkHost(generate(compileToIR(source),{gcStress:true}));
   const run=runNative(image);
   assert.equal(run.status,0,run.stderr.toString());
   assert.equal(run.stdout.toString(),runOracle(source).stdout);

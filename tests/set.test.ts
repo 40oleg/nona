@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('Set stores values with SameValueZero and supports core methods',()=>expectProgram(`
@@ -22,7 +22,7 @@ test('Set prototype has the intrinsic constructor',()=>expectProgram(`
 
 test('Set retains live object values across GC',()=>{
  const source=`var set=new Set(),value={id:9};set.add(value);for(var i=0;i<40;i++)({i:i});console.log(set.has(value),set.size);set.delete(value);for(var i=0;i<40;i++)({i:i});console.log(set.size,set.has(value));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'true 1\n0 false\n');
 });
 
@@ -63,6 +63,6 @@ test('Set iterators preserve order and observe later additions',()=>expectProgra
 
 test('Set iterator retains its source and values across GC',()=>{
  const source=`var iterator=(function(){var set=new Set([{id:7}]);return set.values()})();for(var i=0;i<40;i++)({i:i});console.log(iterator.next().value.id,iterator.next().done);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'7 true\n');
 });

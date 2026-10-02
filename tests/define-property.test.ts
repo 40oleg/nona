@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const prefix='function show(o,k){let d=Object.getOwnPropertyDescriptor(o,k);if(d===undefined){console.log("missing");return;}console.log("value" in d,d.value,d.writable,"get" in d,typeof d.get,typeof d.set,d.enumerable,d.configurable);}';
 const cases:[string,string][]=[
  ['defaults and return','let o={};console.log(Object.defineProperty(o,"x",{})===o);show(o,"x");o.x=3;console.log(o.x,delete o.x);'],
@@ -36,7 +36,7 @@ const cases:[string,string][]=[
  ['inherited exotic readonly properties block assignment','let a=[];Object.defineProperty(a,"length",{writable:false});let o={__proto__:a};o.length=3;console.log(o.hasOwnProperty("length"),o.length);var inheritedAlias=1;Object.defineProperty(globalThis,"inheritedAlias",{writable:false});let child={__proto__:globalThis};child.inheritedAlias=7;console.log(child.hasOwnProperty("inheritedAlias"),child.inheritedAlias);'],
  ['inherited setter may handle an index beyond readonly length','let a=[],p={__proto__:Array.prototype};Object.defineProperty(p,3,{set:function(v){console.log("set",v,this===a);}});Object.setPrototypeOf(a,p);Object.defineProperty(a,"length",{writable:false});a[3]=7;console.log(a.length,a.hasOwnProperty(3));'],
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(prefix+source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(prefix+source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('defineProperty: '+name,()=>{
  const run=native(source);assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(prefix+source).stdout);
 });

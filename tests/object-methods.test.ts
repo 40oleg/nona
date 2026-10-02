@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['object methods exist as native callable properties','let o={};console.log(typeof o.toString,typeof o.valueOf,"toString" in o,"valueOf" in o,o.toString.name,o.toString.length,o.valueOf.length,o.toString.toString());'],
@@ -35,6 +35,6 @@ for(const source of ['let v={}.valueOf;v();','({}).valueOf.call(null);','[].join
 });
 test('Array toString roots receiver and callback through nested JS GC',()=>{
  const source='let o={text:""+42,join:function(){let old=this;this.join=null;o=null;for(let i=0;i<50;i++){({text:""+i});}return old.text;}};console.log([].toString.call(o));';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

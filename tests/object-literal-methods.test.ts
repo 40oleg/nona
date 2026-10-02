@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
 ["escaped method name stays valid","let o={g\\u0065t(){return 1;},s\\u0065t(){return 2;}};console.log(o.get(),o.set(),o.get.name,o.set.name);"],
  [
@@ -72,7 +72,7 @@ const cases:[string,string][]=[
   "let o={get x(){return 1;},y:2,set x(v){}};Object.freeze(o);console.log(Object.keys(o).join(\"|\"),Object.isFrozen(o));"
  ]
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('Object literal methods: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});
 for(const source of ["let o={m(){}};new o.m();","let o={get x(){return 1;}};let g=Object.getOwnPropertyDescriptor(o,\"x\").get;new g();","let o={m(){}};new (o.m.bind(null))();"])test('Object literal methods error: '+source,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,1);assert.match(r.stderr.toString(),/Nona runtime error/);const n=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true,timeout:5000});assert.equal(n.status,1);assert.equal(r.stdout.toString(),n.stdout);});
 

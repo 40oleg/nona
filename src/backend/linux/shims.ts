@@ -69,16 +69,22 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.test('rax','rax');a.jcc('ne',no);a.mov('rax',1);a.jmp(done);
   a.label(no);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
- // These three imports currently serve only the fixed-size guarded generator
- // stack. Keep that contract explicit until a general virtual memory shim is
- // needed by another runtime feature.
- b.fn('linux.VirtualAlloc.code',72,a=>{
+ // VirtualAlloc(0, bytes, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE) maps zeroed
+ // pages; the managed heap (runtime/memory.ts) and the guarded generator
+ // stack use it.
+ // Like Windows, the mapping is aligned to the 64 KiB allocation granularity
+ // (the managed heap's page map relies on it): 64 KiB more is mapped and the
+ // unaligned head and tail are unmapped again.
+ b.fn('linux.VirtualAlloc.code',88,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
-  const bad=a.unique('bad'),done=a.unique('done');
-  a.test('rcx','rcx');a.jcc('ne',bad);a.cmp('rdx',GeneratorStack.bytes);a.jcc('ne',bad);
-  a.cmp('r8',0x3000);a.jcc('ne',bad);a.cmp('r9',4);a.jcc('ne',bad);
-  a.mov('rdi',0);a.mov('rsi',GeneratorStack.bytes);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
-  a.cmp('rax',-4095);a.jcc('b',done);
+  const bad=a.unique('bad'),done=a.unique('done'),noHead=a.unique('noHead'),noTail=a.unique('noTail');
+  a.test('rcx','rcx');a.jcc('ne',bad);a.cmp('r8',0x3000);a.jcc('ne',bad);a.cmp('r9',4);a.jcc('ne',bad);a.store(slot(56),'rdx');
+  a.mov('rdi',0);a.mov('rsi','rdx');a.add('rsi',1<<16);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.cmp('rax',-4095);a.jcc('ae',bad);a.store(slot(64),'rax');
+  a.mov('r10','rax');a.add('r10',0xffff);a.and('r10',-65536);a.store(slot(72),'r10');
+  a.mov('rsi','r10');a.sub('rsi','rax');a.test('rsi','rsi');a.jcc('e',noHead);a.mov('rdi','rax');a.mov('rax',11);a.emit([0x0f,0x05]);
+  a.label(noHead);a.load('rdi',slot(72));a.load('rax',slot(56));a.add('rdi','rax');a.load('rsi',slot(64));a.add('rsi','rax');a.add('rsi',1<<16);a.sub('rsi','rdi');a.test('rsi','rsi');a.jcc('e',noTail);a.mov('rax',11);a.emit([0x0f,0x05]);
+  a.label(noTail);a.load('rax',slot(72));a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.VirtualProtect.code',72,a=>{
@@ -90,11 +96,14 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.test('rax','rax');a.jcc('ne',bad);a.mov('rax',1);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
+ // VirtualFree(address, 0, MEM_RELEASE) releases a generator stack;
+ // VirtualFree(address, bytes, MEM_DECOMMIT) returns a heap mapping.
  b.fn('linux.VirtualFree.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
-  const bad=a.unique('bad'),done=a.unique('done');
-  a.test('rdx','rdx');a.jcc('ne',bad);a.cmp('r8',0x8000);a.jcc('ne',bad);
-  a.mov('rdi','rcx');a.mov('rsi',GeneratorStack.bytes);a.mov('rax',11);a.emit([0x0f,0x05]);
+  const bad=a.unique('bad'),done=a.unique('done'),sized=a.unique('sized');
+  a.cmp('r8',0x4000);a.jcc('e',sized);
+  a.test('rdx','rdx');a.jcc('ne',bad);a.cmp('r8',0x8000);a.jcc('ne',bad);a.mov('rdx',GeneratorStack.bytes);
+  a.label(sized);a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rax',11);a.emit([0x0f,0x05]);
   a.test('rax','rax');a.jcc('ne',bad);a.mov('rax',1);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });

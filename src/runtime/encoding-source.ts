@@ -9,8 +9,16 @@ export const encodingPreludeSource=String.raw`
   var getDecoder=WeakMap.prototype.get.bind(decoderBrand),addDecoder=WeakMap.prototype.set.bind(decoderBrand);
   function method(target,name,value){defineProperty(target,name,{value:value,writable:true,enumerable:true,configurable:true})}
   function getter(target,name,get){defineProperty(target,name,{get:get,enumerable:true,configurable:true})}
+  // Native transcoders when the host provides them (see src/runtime/utf8.ts);
+  // the loops below are the reference implementation and the fallback.
+  var nativeEncode=typeof __nonaUtf8Encode==='function'?__nonaUtf8Encode:null,nativeDecode=typeof __nonaUtf8Decode==='function'?__nonaUtf8Decode:null;
+  delete globalThis.__nonaUtf8Encode;delete globalThis.__nonaUtf8Decode;
   function encode(input){
     var s=input===undefined?'':String(input),n=s.length,size=0,i,c,d;
+    if(nativeEncode!==null){
+      var bytes=nativeEncode(s,undefined);
+      if(bytes!==undefined){var buffer=new U8(bytes);if(nativeEncode(s,buffer)===bytes)return buffer}
+    }
     for(i=0;i<n;i++){
       c=s.charCodeAt(i);
       if(c<0x80)size+=1;
@@ -38,8 +46,18 @@ export const encodingPreludeSource=String.raw`
     if(isView(input))return new U8(input.buffer,input.byteOffset,input.byteLength);
     throw new TypeError('The "input" argument must be an ArrayBuffer or ArrayBufferView')
   }
+  // Decoded code units are flushed 4096 at a time into a list of strings
+  // that is joined once at the end (appending to one string copies it
+  // every time: quadratic for a large file).
+  var joinParts=Array.prototype.join,partDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
+  function addPart(parts,part){partDescriptor.value=part;defineProperty(parts,parts.length,partDescriptor);partDescriptor.value=undefined}
   function decode(bytes,fatal,ignoreBOM){
-    var n=bytes.length,i=0,out='',chunk=new Uint16Array(4100),k=0,c,need,cp,min;
+    if(nativeDecode!==null){
+      var decoded=nativeDecode(bytes,fatal,ignoreBOM);
+      if(decoded!==undefined)return decoded;
+      if(fatal)throw new TypeError('The encoded data was not valid for encoding utf-8')
+    }
+    var n=bytes.length,i=0,parts=[],chunk=new Uint16Array(4100),k=0,c,need,cp,min;
     if(!ignoreBOM&&n>=3&&bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf)i=3;
     function bad(){if(fatal)throw new TypeError('The encoded data was not valid for encoding utf-8');chunk[k++]=0xfffd}
     while(i<n){
@@ -67,9 +85,10 @@ export const encodingPreludeSource=String.raw`
           }
         }
       }
-      if(k>=4096){out+=apply(fromCharCode,undefined,chunk.subarray(0,k));k=0}
+      if(k>=4096){addPart(parts,apply(fromCharCode,undefined,chunk.subarray(0,k)));k=0}
     }
-    return out+apply(fromCharCode,undefined,chunk.subarray(0,k))
+    addPart(parts,apply(fromCharCode,undefined,chunk.subarray(0,k)));
+    return parts.length===1?parts[0]:apply(joinParts,parts,[''])
   }
   function TextEncoder(){
     if(new.target===undefined)throw new TypeError("Class constructor TextEncoder cannot be invoked without 'new'");

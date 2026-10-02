@@ -73,6 +73,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         b={kind:fn?'local':'global',name:id.name,index:storage.length,owner:fn?.index??-1,...(!fn&&moduleNames?{module:true}:{})};
         storage.push(b);functionNames.set(id.name,b);
       }
+      // A function declaration writes the binding it reuses (a parameter of that name).
+      if(functionDeclaration&&b.kind!=='globalProperty')b.assigned=true;
       bindings.set(id,b);
     };
     const bodyDeclarations=collectDeclarations(body,'var');
@@ -171,12 +173,13 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       b??=globalNames.get(id.name);
       if(!b)b={kind:'globalProperty',name:id.name};
       const result=b!;
+      if(mode==='write'&&result.kind!=='globalProperty')result.assigned=true;
       if(result.kind==='local'){
         const argumentsOwner=argumentOwners.get(result);
         if(argumentsOwner){
           if(result.index<0){result.index=argumentsOwner.locals.length;argumentsOwner.locals.push(result);}
           argumentsOwner.argumentsBinding=result;
-          if(!argumentsOwner.strict&&!argumentsOwner.declaration.rest&&!argumentsOwner.declaration.defaults?.some(Boolean)&&argumentsOwner.declaration.parameters.every(p=>p.kind==='Identifier'))for(const parameter of new Map(argumentsOwner.parameters.map(p=>[p.name,p])).values())parameter.captured=true;
+          if(!argumentsOwner.strict&&!argumentsOwner.declaration.rest&&!argumentsOwner.declaration.defaults?.some(Boolean)&&argumentsOwner.declaration.parameters.every(p=>p.kind==='Identifier'))for(const parameter of new Map(argumentsOwner.parameters.map(p=>[p.name,p])).values()){parameter.captured=true;parameter.assigned=true;}
         }
       }
       const use=(storage:Binding):void=>{
@@ -306,7 +309,10 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           storage.push(binding);bindings.set(s,binding);lexicalScopes.set(s,[binding]);
           scopes.push(new WithScope(binding));statements([s.body],loops,switches);scopes.pop();break;
         }
-        case 'Var':for(const d of s.declarations){if(d.init){const id=d.id;if(s.declarationKind==='var'&&id.kind==='Identifier'){const visible=[...scopes].reverse().map(scope=>scope.get(id.name)).find(Boolean);if(visible&&catchBindings.has(visible)||scopes.some(scope=>scope instanceof WithScope))resolve(id,'write');}expression(d.init);}
+        case 'Var':for(const d of s.declarations){
+          // A declaration with an initializer, or in a for-in/of head, writes its binding (a redeclared parameter included).
+          for(const id of boundNames(d.id)){const visible=[...scopes].reverse().map(scope=>scope.get(id.name)).find(Boolean);if(visible&&visible.kind!=='globalProperty')visible.assigned=true;}
+          if(d.init){const id=d.id;if(s.declarationKind==='var'&&id.kind==='Identifier'){const visible=[...scopes].reverse().map(scope=>scope.get(id.name)).find(Boolean);if(visible&&catchBindings.has(visible)||scopes.some(scope=>scope instanceof WithScope))resolve(id,'write');}expression(d.init);}
           // var initializers inside with assign through the object environment.
           if(s.declarationKind==='var'&&scopes.some(scope=>scope instanceof WithScope))for(const id of boundNames(d.id))if(id!==d.id||!d.init)resolve(id,'write');
           patternInitializers(d.id);}break;

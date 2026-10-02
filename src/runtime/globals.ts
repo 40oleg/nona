@@ -34,13 +34,23 @@ export function emitGlobals(b:RuntimeBuilder):void {
   fixups:[{offset:8,kind:'va64',target:'rt.globalObject',addend:0}]});
  b.data('rt.undefinedValue',new Uint8Array(16),'.rdata');
  for(const name of ['globalBindings','globalBindingCount'])b.data('rt.'+name,new Uint8Array(8),'.data');
- // RCX out, RDX static name descriptor, R8 allow absent binding (typeof).
+ // RCX out, RDX static name descriptor, R8 flags: bit 0 allow absent binding
+ // (typeof), bit 1 the name is not a script var/function binding (so the
+ // global object is an ordinary object for it and the named fast path may
+ // answer: a found data property is the value; a miss, an accessor or an
+ // absent name take the generic path, which also throws for absent names).
  rootedFn(b,'rt.readGlobalProperty',104,[{kind:'output',register:'rcx'},{kind:'locals',offset:56,count:2}],a=>{
-  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(56),'rax');a.store(slot(64),'rdx');
-  const read=a.unique('read');a.test('r8','r8');a.jcc('ne',read);
+  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(56),'rax');a.store(slot(64),'rdx');a.store(slot(48),'r8');
+  const read=a.unique('read'),generic=a.unique('generic');
+  a.and('r8',2);a.test('r8','r8');a.jcc('e',generic);
+  a.lea('rcx',slot(72));a.lea('rdx',{rip:'rt.globalValue'});a.lea('r8',slot(56));a.call('rt.namedGetFastGlobal');a.test('rax','rax');a.jcc('e',generic);
+  a.load('rax',slot(72));a.test('rax','rax');a.jcc('e',generic);
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(72+n));a.store({base:'rcx',disp:n},'rax');}a.jmp('rt.readGlobalProperty.done');
+  a.label(generic);a.load('r8',slot(48));a.and('r8',1);a.test('r8','r8');a.jcc('ne',read);
   a.lea('rcx',slot(72));a.lea('rdx',{rip:'rt.globalValue'});a.lea('r8',slot(56));a.call('rt.hasProperty');
   a.load('rax',slot(80));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');
   a.label(read);a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.globalValue'});a.lea('r8',slot(56));a.call('rt.getProperty');
+  a.label('rt.readGlobalProperty.done');
  });
  // RCX object header, RDX string descriptor -> RAX aliased Value* or zero.
  // On success RDX points to the mutable attributes word of the 24-byte entry.

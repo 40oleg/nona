@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
 ["catch var initializer writes catch binding","var e=1;try{throw 2;}catch(e){var e=3;console.log(e);}console.log(e);"],
 ["catch values live across throwing call before later overwrite","function bad(){throw 7;}function f(){let keep={x:\"\"+42};try{bad();keep=null;}catch(e){for(let i=0;i<30;i++){({x:\"\"+i});}console.log(keep.x,e);}}f();"],
@@ -96,7 +96,7 @@ const cases:[string,string][]=[
   "let sum=0;for(let i=0;i<100;i++){try{throw {x:i};}catch(e){sum+=e.x;}}console.log(sum);"
  ]
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('Explicit exceptions: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});
 
 for(const source of ["throw\n1;","try {}","try{}catch(e){let e=1;}"])test("exception syntax rejects "+source,()=>{assert.throws(()=>bind(parse(lex(source))));});

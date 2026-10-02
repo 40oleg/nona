@@ -9,9 +9,11 @@ export const arraySplicePropertyRoots=builtinPropertyRoots('rt.arraySplice.fn','
 export function emitArraySplice(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.arraySplice.fn','splice',2,'rt.arrayPrototype');
  // RCX result Value*, RDX nonnegative integer index.
- rootedFn(b,'rt.arrayIndexKey',88,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:1}],a=>{
-  a.store(slot(40),'rcx');a.mov('rax',3);a.store(slot(64),'rax');a.cvtsi2sd('xmm0','rdx');a.storesd(slot(72),'xmm0');
-  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.toString');
+ // RCX result Value*, RDX index. The key is a Number: every property operation
+ // converts it when it must, and the indexed fast paths (array-elements.ts)
+ // use it as it is instead of formatting and re-parsing a string.
+ b.fn('rt.arrayIndexKey',40,a=>{
+  a.mov('rax',3);a.store({base:'rcx'},'rax');a.cvtsi2sd('xmm0','rdx');a.storesd({base:'rcx',disp:8},'xmm0');
  });
  // Move one property, preserving holes and inherited values. RCX object
  // Value*, RDX source index, R8 destination index.

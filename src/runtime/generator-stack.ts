@@ -6,7 +6,7 @@ export const GeneratorStack={bytes:1024*1024,guard:4096} as const;
 // usable stack grows down from base+bytes; the caller owns the mapping.
 export function emitGeneratorStack(b:RuntimeBuilder):void {
  for(const name of ['VirtualAlloc','VirtualProtect','VirtualFree'])
-  b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
+  if(!b.bundle.imports.some(i=>i.symbol===name))b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
  b.data('rt.generatorStackBytes',new Uint8Array(8),'.data');
  b.fn('rt.allocGeneratorStack',72,a=>{
   a.mov('rcx',0);a.mov('rdx',GeneratorStack.bytes);a.mov('r8',0x3000);a.mov('r9',4);a.callImport('VirtualAlloc');

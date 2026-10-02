@@ -5,7 +5,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['plain rest',`function f(...xs){return xs.join('|');}console.log(f(),f(1,2,3),f.length);`],
@@ -27,6 +27,6 @@ for(const source of [
 
 test('rest parameter survives stress GC',()=>{
  const source=`function f(...xs){for(var i=0;i<30;i++)({x:i});return xs[0].v+xs[1].v;}console.log(f({v:2},{v:3}));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

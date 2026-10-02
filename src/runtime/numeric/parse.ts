@@ -17,8 +17,10 @@ export function emitParse(b:RuntimeBundle):void {
     a.cmp('rcx',0x2000);a.jcc('b','num.space.no');a.cmp('rcx',0x200a);a.jcc('be','num.space.yes');a.label('num.space.no');a.xor('rax','rax');a.jmp('num.space.done');a.label('num.space.yes');a.mov('rax',1);a.label('num.space.done');f.end(b);
   }
   {
-    const f=new Native('num.ratio'),a=f.a;
-    a.mov('rsi','rcx');a.mov('rdi','rdx');a.mov('rcx',BIG_BYTES);a.call('rt.alloc');a.mov('r12','rax');
+    // Scratch big integers live in the frames (above the register area), not
+    // in managed allocations: parsing must not leave garbage behind.
+    const f=new Native('num.ratio',360+BIG_BYTES),a=f.a;
+    a.mov('rsi','rcx');a.mov('rdi','rdx');a.lea('r12',{base:'rsp',disp:360});
     a.mov('rcx','rsi');a.call('num.bits');a.test('rax','rax');a.jcc('e','ratio.zero');a.mov('r13','rax');a.mov('rcx','rdi');a.call('num.bits');a.sub('r13','rax');
     a.cmp('r13',0);a.jcc('l','ratio.negexp');a.mov('rcx','r12');a.mov('rdx','rdi');a.call('num.copy');a.mov('rcx','r12');a.mov('rdx','r13');a.call('num.shl');a.mov('rcx','rsi');a.mov('rdx','r12');a.call('num.cmp');a.jmp('ratio.adjust');
     a.label('ratio.negexp');a.mov('rcx','r12');a.mov('rdx','rsi');a.call('num.copy');a.mov('rcx','r12');a.mov('rdx','r13');a.neg('rdx');a.call('num.shl');a.mov('rcx','r12');a.mov('rdx','rdi');a.call('num.cmp');
@@ -29,12 +31,12 @@ export function emitParse(b:RuntimeBundle):void {
     a.label('ratio.round');a.mov('rcx','rsi');a.mov('rdx',2);a.call('num.mul');a.mov('rcx','rsi');a.mov('rdx','rdi');a.call('num.cmp');a.cmp('rax',0);a.jcc('g','ratio.up');a.jcc('l','ratio.pack');a.mov('rax','r15');a.and('rax',1);a.jcc('e','ratio.pack');a.label('ratio.up');a.add('r15',1);
     a.label('ratio.pack');a.add('r13',1022);a.shl('r13',52);a.add('r15','r13');a.mov('rax',0x7ff0000000000000n);a.cmp('r15','rax');a.jcc('ae','ratio.inf');a.movqToXmm('xmm0','r15');a.jmp('ratio.done');a.label('ratio.zero');a.xor('rax','rax');a.movqToXmm('xmm0','rax');a.jmp('ratio.done');a.label('ratio.inf');a.mov('rax',0x7ff0000000000000n);a.movqToXmm('xmm0','rax');a.label('ratio.done');f.end(b);
   }
-  const f=new Native('rt.parseNumber'),a=f.a;
+  const f=new Native('rt.parseNumber',360+2*BIG_BYTES),a=f.a;
   a.load('rdi',{base:'rcx'});a.lea('rsi',{base:'rcx',disp:8});a.shl('rdi',1);a.add('rdi','rsi');
   a.label('parse.trimLeft');a.cmp('rsi','rdi');a.jcc('ae','parse.zero');a.load('rcx',{base:'rsi'},16);a.call('num.space');a.test('rax','rax');a.jcc('e','parse.trimRight');a.add('rsi',2);a.jmp('parse.trimLeft');
   a.label('parse.trimRight');a.load('rcx',{base:'rdi',disp:-2},16);a.call('num.space');a.test('rax','rax');a.jcc('e','parse.start');a.sub('rdi',2);a.jmp('parse.trimRight');
   a.label('parse.start');f.imm(4,0);f.imm(14,0);a.load('rax',{base:'rsi'},16);a.cmp('rax',43);a.jcc('e','parse.plus');a.cmp('rax',45);a.jcc('ne','parse.allocate');f.imm(4,0x8000000000000000n);a.label('parse.plus');f.imm(14,1);a.add('rsi',2);a.cmp('rsi','rdi');a.jcc('ae','parse.nan');
-  a.label('parse.allocate');a.load('rax',{base:'rsi'},16);a.cmp('rax',73);a.jcc('e','parse.infinity');a.mov('rcx',BIG_BYTES*2);a.call('rt.alloc');a.mov('r12','rax');a.lea('r13',{base:'rax',disp:BIG_BYTES});a.mov('rcx','r12');a.mov('rdx',0);a.call('num.init');a.mov('rcx','r13');a.mov('rdx',1);a.call('num.init');
+  a.label('parse.allocate');a.load('rax',{base:'rsi'},16);a.cmp('rax',73);a.jcc('e','parse.infinity');a.lea('r12',{base:'rsp',disp:360});a.lea('r13',{base:'r12',disp:BIG_BYTES});a.mov('rcx','r12');a.mov('rdx',0);a.call('num.init');a.mov('rcx','r13');a.mov('rdx',1);a.call('num.init');
   for(const s of [5,6,7,8,9,11,12])f.imm(s,0);
   f.get('rax',14);a.test('rax','rax');a.jcc('ne','parse.decimal');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax',4);a.jcc('be','parse.decimal');a.load('rax',{base:'rsi'},16);a.cmp('rax',48);a.jcc('ne','parse.decimal');a.load('rax',{base:'rsi',disp:2},16);a.or('rax',32);a.cmp('rax',120);a.jcc('e','parse.hexstart');a.cmp('rax',98);a.jcc('e','parse.binarystart');a.cmp('rax',111);a.jcc('e','parse.octalstart');
   a.label('parse.decimal');a.cmp('rsi','rdi');a.jcc('ae','parse.decimalEnd');a.load('r14',{base:'rsi'},16);a.cmp('r14',48);a.jcc('b','parse.nondigit');a.cmp('r14',57);a.jcc('a','parse.nondigit');a.sub('r14',48);f.imm(6,1);f.get('rax',7);f.get('rdx',5);a.add('rdx','rax');f.set(5,'rdx');f.get('rax',9);a.test('rax','rax');a.jcc('ne','parse.significant');a.test('r14','r14');a.jcc('e','parse.advance');a.label('parse.significant');a.cmp('rax',1200);a.jcc('ae','parse.drop');a.add('rax',1);f.set(9,'rax');a.mov('rcx','r12');a.mov('rdx',10);a.call('num.mul');a.mov('rcx','r12');a.mov('rdx','r14');a.call('num.add');a.jmp('parse.advance');
@@ -56,14 +58,14 @@ export function emitParse(b:RuntimeBundle):void {
   // Keep all significant radix digits until overflow is certain, then the
   // shared biguint ratio converter supplies correctly rounded finite results.
   {
-    const f=new Native('rt.parseIntString'),a=f.a;
+    const f=new Native('rt.parseIntString',360+2*BIG_BYTES),a=f.a;
     a.mov('rbx','rdx');a.load('rdi',{base:'rcx'});a.lea('rsi',{base:'rcx',disp:8});a.shl('rdi',1);a.add('rdi','rsi');f.imm(4,0);a.xor('r14','r14');
     a.label('parseInt.trim');a.cmp('rsi','rdi');a.jcc('ae','parseInt.nan');a.load('rcx',{base:'rsi'},16);a.call('num.space');a.test('rax','rax');a.jcc('e','parseInt.sign');a.add('rsi',2);a.jmp('parseInt.trim');
     a.label('parseInt.sign');a.load('rax',{base:'rsi'},16);a.cmp('rax',45);a.jcc('ne','parseInt.plus');a.mov('r14',0x8000000000000000n);a.jmp('parseInt.skipSign');a.label('parseInt.plus');a.cmp('rax',43);a.jcc('ne','parseInt.radix');a.label('parseInt.skipSign');a.add('rsi',2);a.cmp('rsi','rdi');a.jcc('ae','parseInt.nan');
     a.label('parseInt.radix');a.test('rbx','rbx');a.jcc('ne','parseInt.explicitRadix');a.mov('rbx',10);f.imm(4,1);a.jmp('parseInt.prefix');
     a.label('parseInt.explicitRadix');a.cmp('rbx',2);a.jcc('l','parseInt.nan');a.cmp('rbx',36);a.jcc('g','parseInt.nan');a.cmp('rbx',16);a.jcc('ne','parseInt.prefix');f.imm(4,1);
     a.label('parseInt.prefix');f.get('rax',4);a.test('rax','rax');a.jcc('e','parseInt.allocate');a.mov('rax','rdi');a.sub('rax','rsi');a.cmp('rax',4);a.jcc('b','parseInt.allocate');a.load('rax',{base:'rsi'},16);a.cmp('rax',48);a.jcc('ne','parseInt.allocate');a.load('rax',{base:'rsi',disp:2},16);a.or('rax',32);a.cmp('rax',120);a.jcc('ne','parseInt.allocate');a.mov('rbx',16);a.add('rsi',4);
-    a.label('parseInt.allocate');a.mov('rcx',BIG_BYTES*2);a.call('rt.alloc');a.mov('r12','rax');a.lea('r13',{base:'rax',disp:BIG_BYTES});a.mov('rcx','r12');a.mov('rdx',0);a.call('num.init');a.mov('rcx','r13');a.mov('rdx',1);a.call('num.init');f.imm(5,0);a.xor('r15','r15');
+    a.label('parseInt.allocate');a.lea('r12',{base:'rsp',disp:360});a.lea('r13',{base:'r12',disp:BIG_BYTES});a.mov('rcx','r12');a.mov('rdx',0);a.call('num.init');a.mov('rcx','r13');a.mov('rdx',1);a.call('num.init');f.imm(5,0);a.xor('r15','r15');
     a.label('parseInt.digit');a.cmp('rsi','rdi');a.jcc('ae','parseInt.finish');a.load('r10',{base:'rsi'},16);a.sub('r10',48);a.cmp('r10',9);a.jcc('be','parseInt.value');a.add('r10',48);a.or('r10',32);a.sub('r10',97);a.cmp('r10',25);a.jcc('a','parseInt.finish');a.add('r10',10);
     a.label('parseInt.value');a.cmp('r10','rbx');a.jcc('ae','parseInt.finish');f.imm(5,1);a.cmp('r15',1100);a.jcc('ae','parseInt.inf');f.set(6,'r10');a.mov('rcx','r12');a.mov('rdx','rbx');a.call('num.mul');a.mov('rcx','r12');f.get('rdx',6);a.call('num.add');a.mov('rcx','r12');a.call('num.bits');a.test('rax','rax');a.jcc('e','parseInt.next');a.add('r15',1);a.label('parseInt.next');a.add('rsi',2);a.jmp('parseInt.digit');
     a.label('parseInt.finish');f.get('rax',5);a.test('rax','rax');a.jcc('e','parseInt.nan');a.mov('rcx','r12');a.mov('rdx','r13');a.call('num.ratio');a.movqFromXmm('rax','xmm0');a.jmp('parseInt.signResult');

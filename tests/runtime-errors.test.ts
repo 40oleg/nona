@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases=[
  'let f=1;f();','let C=1;new C();','new ({m(){}}).m();',
  'console.log(null.x);','let x=null;x.a=1;','delete undefined.x;','console.log("x" in 3);',
@@ -28,7 +28,7 @@ const cases=[
 for(const body of cases)test('catch runtime error: '+body,()=>{
  const source='try{'+body+'}catch(e){console.log(e.name,e instanceof Error,typeof e.message);}console.log("alive");';
  const expected=runOracle(source);
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected.stdout);
 });
 
@@ -39,6 +39,6 @@ for(const [name,source] of [
  ['repeated errors preserve local and pending gc values', 'function f(){let keep={x:""+42};for(let i=0;i<100;i++){try{let n=1;n();}catch(e){let a={x:""+i};if(i===99)console.log(e.name,a.x,keep.x);}}}f();'],
 ] as const)test('runtime error state: '+name,()=>{
  const expected=runOracle(source);
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected.stdout);
 });

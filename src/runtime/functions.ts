@@ -1,4 +1,5 @@
 import {rootedFn} from './root-scope.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
@@ -37,7 +38,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
  // Public defineProperty requires the later descriptors stage.
  b.fn('rt.initFunctionProperty',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
-  a.load('rcx',{base:'rcx',disp:8});a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
+  a.load('rcx',{base:'rcx',disp:8});bumpEpochIfPrototype(a,'rcx');a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
   const create=a.unique('create');a.test('rax','rax');a.jcc('e',create);
   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.configurable);a.test('r10','r10');a.jcc('e',create);
   a.load('r10',slot(56));for(const offset of [0,8]){a.load('r11',{base:'r10',disp:offset});a.store({base:'rax',disp:P.value+offset},'r11');}
@@ -52,24 +53,43 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(done);
  });
  // RCX fresh function Value*, RDX name descriptor, R8 simple parameter count.
+ // The function was just created, so `length` and `name` cannot exist yet:
+ // their property nodes are built and linked directly rather than through
+ // the generic [[Set]] (a prototype-chain walk, a key conversion and a
+ // second lookup each). Key order stays length, name, prototype: the
+ // prototype node, when there is one, is kept at the head of the list.
  b.fn('rt.initFunctionMetadata',88,a=>{
-  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(48),'rax');a.store(slot(56),'rdx');
-  a.mov('rax',3);a.store(slot(64),'rax');a.cvtsi2sd('xmm0','r8');a.storesd(slot(72),'xmm0');
-  a.lea('rdx',{rip:'rt.key.length'});a.lea('r8',slot(64));a.mov('r9',A.configurable);a.call('rt.initFunctionProperty');
-  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.name'});a.lea('r8',slot(48));a.mov('r9',A.configurable);a.call('rt.initFunctionProperty');
-  // Move the fresh prototype node to the newest position: length, name, prototype.
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.prototype'});a.call('rt.findOwnProperty');a.store(slot(80),'rax');const noPrototype=a.unique('noPrototype');a.test('rax','rax');a.jcc('e',noPrototype);
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.findOwnProperty');
-  a.load('r10',slot(80));a.load('r11',{base:'r10',disp:P.next});a.store({base:'rax',disp:P.next},'r11');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});a.store({base:'r10',disp:P.next},'r11');a.store({base:'rcx',disp:O.properties},'r10');a.label(noPrototype);
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  const node=(key:string)=>{
+   a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+   a.lea('r10',{rip:key});a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.configurable);a.store({base:'rax',disp:P.attributes},'r10');
+  };
+  node('rt.str.length');a.mov('r10',3);a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(56));a.cvtsi2sd('xmm0','r10');a.storesd({base:'rax',disp:P.value+8},'xmm0');a.store(slot(64),'rax');
+  node('rt.str.name');a.mov('r10',4);a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(48));a.store({base:'rax',disp:P.value+8},'r10');
+  a.load('r10',slot(64));a.store({base:'rax',disp:P.next},'r10');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});
+  const behind=a.unique('behindPrototype'),done=a.unique('done');a.test('r11','r11');a.jcc('ne',behind);
+  a.store({base:'rcx',disp:O.properties},'rax');a.jmp(done);
+  a.label(behind);a.load('r9',{base:'r11',disp:P.next});a.store({base:'r10',disp:P.next},'r9');a.store({base:'r11',disp:P.next},'rax');
+  a.label(done);
  });
- // Concise methods/accessors have no own prototype and cannot construct.
+ // Concise methods, accessors, arrows and async functions have no own
+ // prototype and cannot construct: they get the bare function object rather
+ // than a prototype object and two property nodes that are dropped at once.
  b.fn('rt.newMethod',56,a=>{
-  a.store(slot(40),'rcx');a.call('rt.newFunction');a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.mov('r10',0);
-  a.store({base:'rax',disp:O.properties},'r10');a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
+  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.mov('r10',0);
+  a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
  });
- // RCX result, RDX code, R8 capture count, R9 array of internal Cell Values.
- b.fn('rt.newFunction',104,a=>{
+ // RCX result, RDX code, R8 capture count, R9 array of internal Cell Values:
+ // an ordinary function with its own `prototype` object.
+ b.fn('rt.newFunction',72,a=>{
+  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');
+  a.lea('rcx',slot(48));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
+  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.prototype'});a.lea('r8',slot(48));a.mov('r9',A.writable);a.call('rt.initFunctionProperty');
+  a.lea('rcx',slot(48));a.lea('rdx',{rip:'rt.key.constructor'});a.load('r8',slot(40));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
+ });
+ // The same without the prototype object.
+ b.fn('rt.newFunctionBare',104,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   a.mov('rcx','r8');a.mov('rdx','r9');a.call('rt.newEnvironment');a.store(slot(72),'rax');
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
@@ -83,9 +103,6 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',slot(72));a.store({base:'rax',disp:FunctionLayout.environment},'r10');
   a.lea('r10',{rip:'rt.str.nativeFunction'});a.store({base:'rax',disp:FunctionLayout.sourceText},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
-  a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
-  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.prototype'});a.lea('r8',slot(80));a.mov('r9',A.writable);a.call('rt.initFunctionProperty');
-  a.lea('rcx',slot(80));a.lea('rdx',{rip:'rt.key.constructor'});a.load('r8',slot(40));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
  });
  // RCX result, RDX callee Value*, R8 argc, R9 argv. Caller Value slots retain
  // callee and arguments across the nested JS frame's safepoints. Fifth argument

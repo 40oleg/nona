@@ -42,7 +42,7 @@ export type Operation =
   | {kind:'iteratorClose';iterator:number}
   | {kind:'requireIterable';object:number}
   | {kind:'forOfValue';dest:number;iterable:number;index:number}
-  | {kind:'property';strict?:boolean;operation:'get'|'delete'|'has';dest:number;object:number;key:number}
+  | {kind:'property';strict?:boolean;operation:'get'|'delete'|'has';dest:number;object:number;key:number;/** The key is this literal name (`object.name`): the read may use an inline cache. */keyName?:string}
   | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean}
   | {kind:'defineAccessor';object:number;key:number;source:number;setter:boolean;nonEnumerable?:boolean}
   | {kind:'setPrototype';object:number;prototype:number}

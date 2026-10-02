@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases:[string,string][]=[
  [
   "lookup and receiver",
@@ -71,7 +71,7 @@ const cases:[string,string][]=[
   "let o={__proto__:{x:1},m(){super.x=3;return this.x;}};let r=Object.freeze({x:7});console.log(o.m.call(r),o.m.call(Object.preventExtensions({})));"
  ]
 ];
-function native(source:string){return runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
+function native(source:string){return runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));}
 for(const [name,source] of cases)test('Super property: '+name,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr.toString());assert.equal(r.stdout.toString(),runOracle(source).stdout);});
 for(const source of ["let o={m(){delete super[(console.log(\"expr\"),{toString(){console.log(\"key\");return \"x\";}})];}};o.m();","let o={__proto__:null,m(){return super[{toString(){console.log(\"key\");return \"x\";}}];}};o.m();","let o={__proto__:null,m(){return super.x;}};o.m();","let o={__proto__:null,m(){super.x=3;}};o.m();"])test('Super property error: '+source,()=>{const r=native(source);assert.equal(r.error,undefined);assert.equal(r.status,1);assert.match(r.stderr.toString(),/Nona runtime error/);const n=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true,timeout:5000});assert.equal(n.status,1);assert.equal(r.stdout.toString(),n.stdout);});
 

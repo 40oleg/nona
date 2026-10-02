@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('generator body starts on first next and completion is stable',()=>{
@@ -90,12 +90,12 @@ test('generator return can yield from finally before completing',()=>{
 });
 test('suspended generator retains local objects through stress GC',()=>{
  const source='function* g(){let keep={x:"alive"};yield 1;for(let i=0;i<30;i++)({x:i});return keep.x;}let it=g();console.log(it.next().value,it.next().value);';
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));assert.equal(String(run.stdout),'1 alive\n');
 });
 
 test('delegated iterator and suspended values survive stress GC',()=>{
  const source='function* inner(){let keep={text:"held"};yield keep;return keep.text;}function* outer(){return yield* inner();}let it=outer();let first=it.next().value;for(let i=0;i<30;i++)({v:i});console.log(first.text,it.next().value);';
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));assert.equal(String(run.stdout),'held held\n');
 });

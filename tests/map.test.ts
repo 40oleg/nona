@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('Map stores keys with SameValueZero and updates in insertion order',()=>expectProgram(`
@@ -23,7 +23,7 @@ test('Map prototype has the intrinsic constructor',()=>expectProgram(`
 
 test('Map retains live object keys and values across GC',()=>{
  const source=`var map=new Map(),key={id:7},value={id:9};map.set(key,value);for(var i=0;i<40;i++)({i:i});console.log(map.get(key).id,map.has(key),map.size);map.delete(key);for(var i=0;i<40;i++)({i:i});console.log(map.size,map.has(key));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'9 true 1\n0 false\n');
 });
 
@@ -63,6 +63,6 @@ test('Map iterators preserve order and observe later additions',()=>expectProgra
 
 test('Map iterator retains its source and entries across GC',()=>{
  const source=`var iterator=(function(){var map=new Map([[{id:7},{id:9}]]);return map.entries()})();for(var i=0;i<40;i++)({i:i});var pair=iterator.next().value;console.log(pair[0].id,pair[1].id,iterator.next().done);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),'7 9 true\n');
 });

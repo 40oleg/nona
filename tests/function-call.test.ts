@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 
 const cases:[string,string][]=[
@@ -42,13 +42,13 @@ test('deleted static call property does not retain its former heap value',()=>{
  program.fragments.find(f=>f.name==='entry')!.fixups.find(f=>f.target==='rt.dispose')!.target='test.deletedStatic';
  program.fragments.push({...a.finish(),name:'test.deletedStatic',section:'.text'});
  program.functions.push({begin:'test.deletedStatic',end:'test.deletedStatic.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
 });
 for(const source of [
  'function f(n){if(n)return f.call(this,n-1);return this.text;}console.log(f.call({text:""+42},20));',
  'function f(){for(let i=0;i<40;i++){({x:i});}return this;}let s=f.call("x"+42);console.log(s[0],s.length,""+s);',
  'function f(){}let c=f.call;c.cache={text:""+42};c=null;for(let i=0;i<40;i++){({x:i});}console.log(f.call.cache.text);',
 ])test('call and boxing survive stress GC: '+source,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

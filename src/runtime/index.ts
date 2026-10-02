@@ -10,6 +10,7 @@ import {emitTailCalls} from './tail-calls.js';
 import {emitFunctionRealm} from './function-realm.js';
 import {emitAgents} from './agents.js';
 import {emitHost} from './host.js';
+import {emitUtf8} from './utf8.js';
 import {emitSuperProperties} from './super-properties.js';
 import {emitLiteralAccessor} from './literal-accessor.js';
 import {emitObjectIntegrity} from './object-integrity.js';
@@ -27,6 +28,10 @@ import {emitNumericRuntime} from './numeric.js';
 import {emitBitwise} from './bitwise.js';
 import {emitObjects} from './objects.js';
 import {emitPropertyIndex} from './property-index.js';
+import {emitArrayElements} from './array-elements.js';
+import {emitNamedProperties} from './named-properties.js';
+import {emitPropertyCache} from './property-cache.js';
+import {emitStringBuilder} from './string-builder.js';
 import {emitObjectCoercion} from './object-coercion.js';
 import {emitGc} from './gc.js';
 import {emitFunctions} from './functions.js';
@@ -82,9 +87,11 @@ import {emitDateStrings} from './date-strings.js';
 import {emitDateParse} from './date-parse.js';
 import {emitJson} from './json.js';
 import {emitJsonComposite} from './json-composite.js';
+import {emitJsonParser} from './json-parser.js';
 import {emitJsonReviver} from './json-reviver.js';
 import {emitJsonStringify} from './json-stringify.js';
 import {emitBigInt} from './bigint.js';
+import {emitBigIntMul} from './bigint-mul.js';
 import {emitRegExpPrototype,emitRegExp} from './regexp.js';
 import {emitArrayBufferPrototype,emitArrayBuffer} from './array-buffer.js';
 import {emitSharedArrayBufferPrototype,emitSharedArrayBuffer} from './shared-array-buffer.js';
@@ -92,6 +99,7 @@ import {emitAtomics} from './atomics.js';
 import {emitMapPrototype,emitMap} from './map.js';
 import {emitMapIterators} from './map-iterator.js';
 import {emitSetPrototype,emitSet} from './set.js';
+import {emitMapIndex} from './map-index.js';
 import {emitSetIterators} from './set-iterator.js';
 import {emitWeakCollectionPrototypes,emitWeakCollections} from './weak-collections.js';
 import {emitDataViewPrototype,emitDataView} from './data-view.js';
@@ -104,5 +112,5 @@ function emitRealmTables(b:RuntimeBuilder,realms:number):void {
   b.bundle.fragments.push({name:'agent.entryCount',section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]});
   b.bundle.fragments.push({name:'agent.entries',section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]});
 }
-export function emitRuntime(request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitDateClock(b);emitDateCalendar(b);emitDateComponents(b);emitDateSecondSetters(b);emitDateMinuteSetters(b);emitDateHourSetters(b);emitDateDaySetters(b);emitDateMonthSetters(b);emitDateYearSetters(b);emitDateIso(b);emitDateJson(b);emitDateStrings(b);emitDateParse(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitPropertyIndex(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitProxy(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitDatePrototype(b);emitDatePrimitive(b);emitRegExpPrototype(b);emitMapPrototype(b);emitSetPrototype(b);emitWeakCollectionPrototypes(b);emitArrayBufferPrototype(b);emitSharedArrayBufferPrototype(b);emitDataViewPrototype(b);emitTypedArrayPrototype(b);emitBuiltinConstructors(b);emitDate(b);emitRegExp(b);emitMap(b);emitSet(b);emitWeakCollections(b);emitArrayBuffer(b);emitSharedArrayBuffer(b);emitDataView(b);emitTypedArray(b);emitNumberBuiltins(b);emitUri(b);emitSymbols(b);emitIterators(b);emitMapIterators(b);emitSetIterators(b);emitGenerators(b);emitAsync(b);emitTailCalls(b);emitFunctionRealm(b);emitAgents(b);emitHost(b);emitArrayBuiltins(b);emitArraySplice(b);emitArrayOf(b);emitArrayFrom(b);emitArrayConcat(b);emitArrayFlat(b);emitArrayLocale(b);emitArraySort(b);emitArrayUnscopables(b);emitStringBuiltins(b);emitStringSplit(b);emitStringReplace(b);emitStringNormalize(b);emitStringLocaleCompare(b);emitMath(b);emitAtomics(b);emitJson(b);emitJsonComposite(b);emitJsonReviver(b);emitJsonStringify(b);emitBigInt(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b,request.realms??0);emitIo(b);emitRealmTables(b,request.realms??0);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
+export function emitRuntime(request:RuntimeRequest={operations:new Set()}):RuntimeBundle {const b=new RuntimeBuilder();emitMemory(b);emitDateClock(b);emitDateCalendar(b);emitDateComponents(b);emitDateSecondSetters(b);emitDateMinuteSetters(b);emitDateHourSetters(b);emitDateDaySetters(b);emitDateMonthSetters(b);emitDateYearSetters(b);emitDateIso(b);emitDateJson(b);emitDateStrings(b);emitDateParse(b);emitExceptions(b);emitContextSwitch(b);emitGeneratorStack(b);emitStrings(b);emitStringBuilder(b);emitPrimitives(b);emitBitwise(b);emitObjects(b);emitPropertyIndex(b);emitArrayElements(b);emitNamedProperties(b);emitPropertyCache(b);emitGlobals(b);emitEnvironments(b);emitFunctions(b);emitConsole(b);emitFunctionCall(b);emitFunctionApply(b);emitInvokeArray(b);emitFunctionBind(b);emitBoundCalls(b);emitFunctionSource(b);emitProxy(b);emitObjectMethods(b);emitWrapperMethods(b);emitRadix(b);emitArguments(b);emitRestArguments(b);emitBoxing(b);emitErrors(b);emitDatePrototype(b);emitDatePrimitive(b);emitRegExpPrototype(b);emitMapPrototype(b);emitSetPrototype(b);emitWeakCollectionPrototypes(b);emitArrayBufferPrototype(b);emitSharedArrayBufferPrototype(b);emitDataViewPrototype(b);emitTypedArrayPrototype(b);emitBuiltinConstructors(b);emitDate(b);emitRegExp(b);emitMap(b);emitSet(b);emitMapIndex(b);emitWeakCollections(b);emitArrayBuffer(b);emitSharedArrayBuffer(b);emitDataView(b);emitTypedArray(b);emitNumberBuiltins(b);emitUri(b);emitSymbols(b);emitIterators(b);emitMapIterators(b);emitSetIterators(b);emitGenerators(b);emitAsync(b);emitTailCalls(b);emitFunctionRealm(b);emitAgents(b);emitHost(b);emitUtf8(b);emitArrayBuiltins(b);emitArraySplice(b);emitArrayOf(b);emitArrayFrom(b);emitArrayConcat(b);emitArrayFlat(b);emitArrayLocale(b);emitArraySort(b);emitArrayUnscopables(b);emitStringBuiltins(b);emitStringSplit(b);emitStringReplace(b);emitStringNormalize(b);emitStringLocaleCompare(b);emitMath(b);emitAtomics(b);emitJson(b);emitJsonComposite(b);emitJsonParser(b);emitJsonReviver(b);emitJsonStringify(b);emitBigInt(b);emitBigIntMul(b);emitObjectIntrospection(b);emitPropertyDescriptors(b);emitObjectCollections(b);emitForIn(b);emitLiteralAccessor(b);emitSuperProperties(b);emitObjectIntegrity(b);emitStrict(b);orderIntrinsicProperties(b);emitObjectCoercion(b);emitGc(b,request.realms??0);emitIo(b);emitRealmTables(b,request.realms??0);const n=emitNumericRuntime();b.bundle.fragments.push(...n.fragments);b.bundle.functions.push(...n.functions);return b.bundle;}
 export type {RuntimeRequest,RuntimeBundle} from './abi.js';

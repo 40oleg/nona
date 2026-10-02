@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Assembler} from '../src/backend/x64/assembler.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import type {NativeProgram} from '../src/backend/pe/model.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {ContextLayout,emitContextSwitch} from '../src/runtime/context-switch.js';
@@ -69,5 +69,5 @@ test('native context switch resumes both stacks with roots, handlers and nonvola
  fiber.lea('rcx',{rip:'fiber.context'});fiber.lea('rdx',{rip:'main.context'});fiber.call('rt.switchContext');
  fiber.label('fiber.bad');fiber.mov('rcx',2);fiber.callImport('ExitProcess');fiber.label('fiber.end');
  const program:NativeProgram={...b.bundle,fragments:[...b.bundle.fragments,{...entry.finish(),name:'entry',section:'.text'},{...fiber.finish(),name:'fiber.start',section:'.text'}],imports:[{dll:'KERNEL32.dll',name:'ExitProcess',symbol:'ExitProcess'}],entry:'entry',functions:[...b.bundle.functions,{begin:'entry',end:'entry.end',prologSize:4,stackAllocation:40,savedRegisters:[]},{begin:'fiber.start',end:'fiber.end',prologSize:4,stackAllocation:40,savedRegisters:[]}]};
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,String(run.stderr));
 });

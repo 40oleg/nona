@@ -5,7 +5,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder,slot} from '../src/runtime/abi.js';
 import {FunctionLayout as F} from '../src/runtime/functions.js';
 import {runNative} from './helpers/native.js';
@@ -44,5 +44,5 @@ for(const [name,source,expected] of [
   const done=a.unique('done');a.jmp(done);a.label('test.bad');a.call('rt.fail');a.label(done);
  });
  program.fragments.push(...builder.bundle.fragments);program.functions.push(...builder.bundle.functions);
- const result=runNative(linkPe(program));assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected);
+ const result=runNative(linkHost(program));assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected);
 });

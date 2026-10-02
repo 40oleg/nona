@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags as OF} from './object-layout.js';
@@ -17,7 +18,13 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   for(const i of [0,1,2]){const absent=a.unique('absent');a.load('rax',slot(48));a.cmp('rax',i);a.jcc('be',absent);a.load('r8',slot(56));for(const n of [0,8]){a.load('rax',{base:'r8',disp:16*i+n});a.store(slot(64+16*i+n),'rax');}a.label(absent);}
   a.load('rax',slot(64));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-  a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');
+  // A Number key stays a Number: its conversion has no side effects and
+  // rt.defineOwnProperty takes the element fast path for it (and converts
+  // it itself otherwise), so defineProperty(array, array.length, ...)
+  // does not format and re-parse the index.
+  {const keyReady=a.unique('keyReady');a.load('rax',slot(80));a.cmp('rax',3);a.jcc('ne','rt.objectDefineProperty.convertKey');
+   for(const n of [0,8]){a.load('rax',slot(80+n));a.store(slot(112+n),'rax');}a.jmp(keyReady);
+   a.label('rt.objectDefineProperty.convertKey');a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toPropertyKey');a.label(keyReady);}
   a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.call('rt.toPropertyDescriptor');
   a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(128));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
@@ -32,6 +39,17 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
  // length normalization may call JS, so all records and temporaries are roots.
  rootedFn(b,'rt.defineOwnProperty',280,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r8',count:6},{kind:'locals',offset:80,count:6},{kind:'locals',offset:184,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rcx',disp:8});a.store(slot(64),'rax');
+  // A Number key (rt.arrayIndexKey) with a complete ordinary data descriptor
+  // is CreateDataProperty of an element: the indexed fast path creates it
+  // when the object is a plain extensible array or object; otherwise the key
+  // is converted and defined like any other.
+  {const convert=a.unique('convert'),converted=a.unique('converted'),numberDone=a.unique('numberDone');
+  a.load('rax',{base:'rdx'});a.cmp('rax',3);a.jcc('ne',converted);
+  a.load('rax',{base:'r8',disp:D.present});a.cmp('rax',F.data);a.jcc('ne',convert);
+  for(const offset of [D.enumerable,D.configurable,D.writable]){a.load('rax',{base:'r8',disp:offset});a.cmp('rax',2);a.jcc('ne',convert);a.load('rax',{base:'r8',disp:offset+8});a.cmp('rax',1);a.jcc('ne',convert);}
+  a.lea('r8',{base:'r8',disp:D.value});a.mov('r9',1);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('e',convert);a.mov('rax',1);a.jmp('rt.defineOwnProperty.done');
+  a.label(convert);a.lea('rcx',slot(184));a.load('rdx',slot(48));a.call('rt.toPropertyKey');a.lea('rax',slot(184));a.store(slot(48),'rax');a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('rax',{base:'rcx',disp:8});
+  a.label(converted);a.load('rax',{base:'rcx',disp:8});}
   a.load('r10',{base:'rax',disp:O.kind});const ordinaryDefine=a.unique('ordinaryDefine');a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryDefine);
   a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.proxyDefineOwnProperty');const proxyDone=a.unique('proxyDone');a.jmp(proxyDone);a.label(ordinaryDefine);
   a.mov('r10',-1);a.store(slot(72),'r10');a.mov('r10',0);a.store(slot(224),'r10');
@@ -74,7 +92,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.mov('r10',0);for(const n of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:n},'r10');
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
   a.load('rcx',slot(64));a.mov('rdx','rax');a.call('rt.propIndexAdd');
-  a.label(node);a.store(slot(208),'rax');a.load('r10',slot(200));a.store({base:'rax',disp:P.attributes},'r10');a.and('r10',A.accessor);a.test('r10','r10');
+  a.label(node);a.store(slot(208),'rax');a.load('r10',slot(64));bumpEpochIfPrototype(a,'r10');a.load('rax',slot(208));a.load('r10',slot(200));a.store({base:'rax',disp:P.attributes},'r10');a.and('r10',A.accessor);a.test('r10','r10');
   const accessor=a.unique('accessor'),stored=a.unique('stored'),copyData=a.unique('copyData'),clearMethods=a.unique('clearMethods');a.jcc('ne',accessor);
   a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('ne',copyData);
   // Mapped arguments update the parameter first. Readonly then disconnects it.
@@ -84,6 +102,6 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.label(accessor);a.load('r11',slot(208));a.mov('rax',0);a.store({base:'r11',disp:P.value},'rax');a.store({base:'r11',disp:P.value+8},'rax');
   for(const [field,offset] of [[D.get,P.getter],[D.set,P.setter]])for(const n of [0,8]){a.load('rax',slot(80+field!+n));a.store({base:'r11',disp:offset!+n},'rax');}
   a.label(stored);a.load('rax',slot(72));a.cmp('rax',-1);a.jcc('e',yes);a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',yes);a.add('rax',1);a.store({base:'r10',disp:O.length},'rax');
-  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);a.label(proxyDone);
+  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);a.label(proxyDone);a.label('rt.defineOwnProperty.done');
  });
 }

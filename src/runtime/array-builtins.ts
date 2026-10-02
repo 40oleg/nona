@@ -105,7 +105,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');a.label(loop);
   a.load('rax',slot(64));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',done);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(288));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.hasProperty');
   a.load('rax',slot(296));a.test('rax','rax');a.jcc('e',next);
   a.lea('rcx',slot(208));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
@@ -118,7 +118,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   if(method==='filter'){
    a.lea('rcx',slot(272));a.call('rt.toBoolean');a.test('rax','rax');a.jcc('e',next);
    a.load('rax',slot(408));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(96),'rax');a.storesd(slot(104),'xmm0');
-   a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toString');
+   for(const n of [0,8]){a.load('rax',slot(96+n));a.store(slot(112+n),'rax');}
   }
   a.mov('rax',2);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(304+offset),'rax');
   a.mov('rax',1);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(304+offset+8),'rax');
@@ -161,12 +161,12 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');a.label(loop);
   a.load('rax',slot(72));a.load('r10',slot(376));a.cmp('rax','r10');a.jcc('ae',done);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(224));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.hasProperty');
   a.load('rax',slot(232));a.test('rax','rax');a.jcc('e',next);
   a.lea('rcx',slot(208));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.load('rax',slot(384));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(240),'rax');a.storesd(slot(248),'xmm0');
-  a.lea('rcx',slot(256));a.lea('rdx',slot(240));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(240+n));a.store(slot(256+n),'rax');}
   a.mov('rax',2);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(272+offset),'rax');
   a.mov('rax',1);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(272+offset+8),'rax');
   for(const offset of [0,8]){a.load('rax',slot(208+offset));a.store(slot(272+D.value+offset),'rax');}
@@ -189,9 +189,8 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.load('r10',slot(48));a.add('rax','r10');a.mov('r11',9007199254740991n);a.cmp('rax','r11');failIf(a,'a','rt.throwTypeError');
   a.mov('rax',0);a.store(slot(72),'rax');const loop=a.unique('loop'),finish=a.unique('finish');a.label(loop);a.load('rax',slot(72));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',finish);
   a.load('r10',slot(64));a.add('rax','r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(152),'xmm0');a.mov('rax',3);a.store(slot(144),'rax');
-  a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.call('rt.toString');
   a.load('rax',slot(72));a.shl('rax',4);a.load('r8',slot(56));a.add('r8','rax');
-  a.lea('rcx',slot(80));a.lea('rdx',slot(160));a.mov('r9',2);a.call('rt.setProperty');
+  a.lea('rcx',slot(80));a.lea('rdx',slot(144));a.mov('r9',2);a.call('rt.setProperty');
   a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
   a.label(finish);a.load('rax',slot(64));a.load('r10',slot(48));a.add('rax','r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(120),'xmm0');a.mov('rax',3);a.store(slot(112),'rax');
   a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.mov('r9',2);a.call('rt.setProperty');
@@ -218,7 +217,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.cvttsd2si('rax','xmm0');a.test('rax','rax');const positive=a.unique('positive');a.jcc('ns',positive);a.load('r10',slot(72));a.add('rax','r10');a.label(positive);a.store(slot(64),'rax');a.label(startReady);
   const loop=a.unique('loop'),next=a.unique('next');a.label(loop);a.load('rax',slot(64));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',no);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(112),'rax');a.storesd(slot(120),'xmm0');
-  a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(112+n));a.store(slot(128+n),'rax');}
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(128));a.call('rt.getProperty');
   a.lea('rcx',slot(176));a.lea('rdx',slot(144));a.lea('r8',slot(160));a.call('rt.strictEq');a.load('rax',slot(184));a.test('rax','rax');a.jcc('ne',yes);
   a.load('rax',slot(144));a.cmp('rax',3);a.jcc('ne',next);a.load('rax',slot(160));a.cmp('rax',3);a.jcc('ne',next);
@@ -257,7 +256,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
    const loop=a.unique('loop'),next=a.unique('next');a.label(loop);
    if(name==='indexOf'){a.load('rax',slot(64));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',notFound);}
    a.load('rax',slot(64));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(128),'rax');a.storesd(slot(136),'xmm0');
-   a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.call('rt.toString');
+   for(const n of [0,8]){a.load('rax',slot(128+n));a.store(slot(144+n),'rax');}
    a.lea('rcx',slot(192));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.hasProperty');
    a.load('rax',slot(200));a.test('rax','rax');a.jcc('e',next);
    a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.getProperty');
@@ -290,7 +289,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.mov('rax',0);a.store(slot(64),'rax');const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),shortCircuit=a.unique('shortCircuit'),result=a.unique('result');a.label(loop);
   a.load('rax',slot(64));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',done);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   if(name!=='find'&&name!=='findIndex'){
    a.lea('rcx',slot(272));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.hasProperty');
    a.load('rax',slot(280));a.test('rax','rax');a.jcc('e',next);
@@ -337,7 +336,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   if(name==='reduceRight')a.cmp('rax',0);else{a.load('r10',slot(72));a.cmp('rax','r10');}
   a.jcc(name==='reduceRight'?'l':'ae',done);
   a.load('rax',slot(64));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(304));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.hasProperty');
   a.load('rax',slot(312));a.test('rax','rax');a.jcc('e',next);
   a.lea('rcx',slot(208));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
@@ -390,7 +389,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),done=a.unique('done');a.label(loop);
   a.load('rax',slot(72));a.load('r10',slot(232));a.cmp('rax','r10');a.jcc('ae',done);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(80));a.lea('rdx',slot(192));a.lea('r8',slot(144));a.mov('r9',2);a.call('rt.setProperty');
   a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
   a.label(done);a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(80+offset));a.store({base:'rcx',disp:offset},'rax');}
@@ -432,9 +431,9 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.load('rax',slot(72));a.add('rax','r11');a.store(slot(72),'rax');a.mov('rax',-1);a.store(slot(296),'rax');
   a.label(forward);a.label(loop);
   a.load('rax',slot(312));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(192),'rax');a.storesd(slot(200),'xmm0');
-  a.lea('rcx',slot(160));a.lea('rdx',slot(192));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(192+n));a.store(slot(160+n),'rax');}
   a.load('rax',slot(72));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(208),'rax');a.storesd(slot(216),'xmm0');
-  a.lea('rcx',slot(176));a.lea('rdx',slot(208));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(208+n));a.store(slot(176+n),'rax');}
   a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(160));a.call('rt.hasProperty');
   a.load('rax',slot(248));a.test('rax','rax');a.jcc('e',sourceAbsent);
   a.lea('rcx',slot(224));a.lea('rdx',slot(80));a.lea('r8',slot(160));a.call('rt.getProperty');
@@ -459,9 +458,9 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.load('rax',slot(56));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',done);
   a.load('r10',slot(48));a.sub('r10',1);a.sub('r10','rax');a.store(slot(64),'r10');
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(208),'rax');a.storesd(slot(216),'xmm0');
-  a.lea('rcx',slot(176));a.lea('rdx',slot(208));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(208+n));a.store(slot(176+n),'rax');}
   a.load('rax',slot(64));a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(224),'rax');a.storesd(slot(232),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(224));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(224+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(240));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.hasProperty');
   const lowerRead=a.unique('lowerRead');a.load('rax',slot(248));a.test('rax','rax');a.jcc('e',lowerRead);
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.getProperty');a.label(lowerRead);
@@ -494,14 +493,14 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zero);a.mov('rax',0);a.label(lengthReady);a.store(slot(72),'rax');
   a.test('rax','rax');a.jcc('e',setLength);
   a.mov('rax',3);a.store(slot(176),'rax');a.mov('rax',0);a.store(slot(184),'rax');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
   a.mov('rax',1);a.store(slot(64),'rax');const loop=a.unique('loop'),next=a.unique('next'),absent=a.unique('absent'),last=a.unique('last');a.label(loop);
   a.load('rax',slot(64));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',last);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.load('rax',slot(64));a.sub('rax',1);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(208));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(208+n),'rax');}
   a.lea('rcx',slot(224));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.hasProperty');
   a.load('rax',slot(232));a.test('rax','rax');a.jcc('e',absent);
   a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.getProperty');
@@ -510,7 +509,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.load('rax',slot(232));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.label(next);a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(loop);
   a.label(last);a.load('rax',slot(72));a.sub('rax',1);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(176),'rax');a.storesd(slot(184),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(176));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(176+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(224));a.lea('rdx',slot(80));a.lea('r8',slot(192));a.call('rt.deleteProperty');
   a.load('rax',slot(232));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.label(setLength);a.load('rax',slot(72));const empty=a.unique('empty');a.test('rax','rax');a.jcc('e',empty);a.sub('rax',1);a.label(empty);
@@ -534,9 +533,9 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',finish);
   a.load('rax',slot(64));a.test('rax','rax');a.jcc('e',insert);
   a.sub('rax',1);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(160),'rax');a.storesd(slot(168),'xmm0');
-  a.lea('rcx',slot(176));a.lea('rdx',slot(160));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(176+n),'rax');}
   a.load('rax',slot(64));a.load('r10',slot(48));a.add('rax','r10');a.sub('rax',1);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(160),'rax');a.storesd(slot(168),'xmm0');
-  a.lea('rcx',slot(192));a.lea('rdx',slot(160));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(192+n),'rax');}
   a.lea('rcx',slot(208));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.hasProperty');
   a.load('rax',slot(216));a.test('rax','rax');a.jcc('e',absent);
   a.lea('rcx',slot(144));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.getProperty');
@@ -547,7 +546,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.label(insert);a.mov('rax',0);a.store(slot(248),'rax');a.label(insertLoop);
   a.load('rax',slot(248));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',finish);
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(160),'rax');a.storesd(slot(168),'xmm0');
-  a.lea('rcx',slot(176));a.lea('rdx',slot(160));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(176+n),'rax');}
   a.load('rax',slot(248));a.shl('rax',4);a.load('r8',slot(56));a.add('r8','rax');
   a.lea('rcx',slot(80));a.lea('rdx',slot(176));a.mov('r9',2);a.call('rt.setProperty');
   a.load('rax',slot(248));a.add('rax',1);a.store(slot(248),'rax');a.jmp(insertLoop);
@@ -565,7 +564,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.mov('rax',9007199254740991n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',lengthReady);
   a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zero);a.mov('rax',0);a.label(lengthReady);a.test('rax','rax');a.jcc('e',empty);a.sub('rax',1);a.store(slot(64),'rax');
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(128),'rax');a.storesd(slot(136),'xmm0');
-  a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(128+n));a.store(slot(144+n),'rax');}
   a.lea('rcx',slot(160));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.getProperty');
   a.lea('rcx',slot(176));a.lea('rdx',slot(80));a.lea('r8',slot(144));a.call('rt.deleteProperty');
   a.load('rax',slot(184));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.jmp(setLength);

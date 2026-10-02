@@ -21,16 +21,17 @@ export function emitEnvironments(b:RuntimeBuilder):void {
   a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'rdx'});a.store({base:'r10'},'rax');
   a.load('rax',{base:'rdx',disp:8});a.store({base:'r10',disp:8},'rax');
  });
- // RCX count, RDX array of internal Cell Values. Return raw environment pointer.
- // Caller cannot enter a safepoint until it has linked this into its function.
+ // RCX count, RDX array of captured Values (internal Cell references or plain
+ // Values). Return raw environment pointer. Caller cannot enter a safepoint
+ // until it has linked this into its function.
  b.fn('rt.newEnvironment',72,a=>{
   const done=a.unique('done'),loop=a.unique('loop');a.mov('rax',0);a.test('rcx','rcx');a.jcc('e',done);
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
-  a.mov('rax',0x1ffffffffffffffen);a.cmp('rcx','rax');failIf(a,'a');a.shl('rcx',3);a.add('rcx',E.cells);a.call('rt.alloc');
+  a.mov('rax',0x0ffffffffffffffen);a.cmp('rcx','rax');failIf(a,'a');a.shl('rcx',4);a.add('rcx',E.cells);a.call('rt.alloc');
   a.mov('r10',HeapKind.environment);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.load('r8',slot(40));a.store({base:'rax',disp:E.count},'r8');a.load('rdx',slot(48));a.lea('r9',{base:'rax',disp:E.cells});
-  a.label(loop);a.load('r10',{base:'rdx'});a.cmp('r10',CellTag);failIf(a,'ne');
-  a.load('r10',{base:'rdx',disp:8});a.store({base:'r9'},'r10');a.add('r9',8);a.add('rdx',16);a.sub('r8',1);a.jcc('ne',loop);
+  a.label(loop);a.load('r10',{base:'rdx'});a.store({base:'r9'},'r10');
+  a.load('r10',{base:'rdx',disp:8});a.store({base:'r9',disp:8},'r10');a.add('r9',E.entry);a.add('rdx',16);a.sub('r8',1);a.jcc('ne',loop);
   a.label(done);
  });
 }

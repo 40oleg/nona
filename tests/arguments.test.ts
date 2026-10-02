@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['argument count includes extra values','function f(a){console.log(arguments.length,arguments[0],arguments[1],arguments[2],arguments.callee===f);}f(2,3);f();'],
@@ -31,6 +31,6 @@ const cases:[string,string][]=[
 for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
 test('escaped arguments and closures share cells through stress GC',()=>{
  const source='function f(a){let args=arguments;return {args:args,set:function(n){a=n;}};}let p=f(""+42);for(let i=0;i<30;i++){({x:i});}p.set(""+57);console.log(p.args[0]);p.args[0]=""+8;console.log(p.args[0]);';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

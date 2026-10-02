@@ -10,7 +10,14 @@ export class Native {
   prolog: number;
   allocationCodeOffset: number;
   constructor(readonly name:string, readonly frame=360) {
-    this.a=new Assembler(name); this.a.sub('rsp',frame);this.allocationCodeOffset=this.a.offset;
+    this.a=new Assembler(name);
+    // A frame of a page or more touches each page first, as Windows guard pages require.
+    if(frame>=4096){
+      this.a.mov('r11','rsp');this.a.mov('rax',Math.floor(frame/4096));
+      const probe=this.a.unique('probe');this.a.label(probe);this.a.sub('r11',4096);this.a.load('r10',{base:'r11'});this.a.sub('rax',1);this.a.jcc('ne',probe);
+      if(frame%4096){this.a.sub('r11',frame%4096);this.a.load('r10',{base:'r11'});}
+    }
+    this.a.sub('rsp',frame);this.allocationCodeOffset=this.a.offset;
     for(let i=0;i<this.saved.length;i++) {
       const r=this.saved[i]!; this.a.store({base:'rsp',disp:32+i*8},r);
       this.saves.push({register:{rbx:3,rsi:6,rdi:7,r12:12,r13:13,r14:14,r15:15}[r],codeOffset:this.a.offset,stackOffset:32+i*8});

@@ -5,7 +5,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 import {runOracle} from './helpers/oracle.js';
 
@@ -16,7 +16,7 @@ const cases=[
  'let o={x:"alive",m:function(v){return this.x+v;}};function drop(){o=null;for(let i=0;i<30;i++)({v:""+i});return "!";}console.log((o?.m)?.(drop()));',
 ];
 for(const source of cases)test('optional chain values survive stress GC: '+source.slice(0,28),()=>{
- const image=linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
+ const image=linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
  const run=runNative(image);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);

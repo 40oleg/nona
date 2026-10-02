@@ -8,7 +8,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['method receiver and writes','let o={x:3,f:function(n){this.x+=n;return this;}};console.log(o.f(4)===o,o.x);'],
@@ -29,7 +29,7 @@ for(const source of [
  'function f(){let old=this;this.self=null;for(let i=0;i<100;i++){({x:""+i});}return old.x;}console.log(({x:42,self:f}).self());',
  'this.keep={value:""+42};function f(){for(let i=0;i<100;i++){({x:i});}return this.keep.value;}console.log(f());',
 ])test('receiver and global properties survive stress GC: '+source,()=>{
- const result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());
  assert.equal(result.stdout.toString(),runOracle(source).stdout);
 });

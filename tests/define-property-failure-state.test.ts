@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {RuntimeBuilder,slot} from '../src/runtime/abi.js';
 import {rootedFn} from '../src/runtime/root-scope.js';
 import {prependFunctionBuiltin} from '../src/runtime/function-builtin.js';
@@ -31,5 +31,5 @@ for(const [name,source] of cases)test('DefineOwnProperty failure state: '+name,(
   a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.call('rt.toString');a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.call('rt.toPropertyDescriptor');
   a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(128));a.call('rt.defineOwnProperty');a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');
  });
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle('globalThis.tryDefine=Reflect.defineProperty;'+source).stdout);
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle('globalThis.tryDefine=Reflect.defineProperty;'+source).stdout);
 });

@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 
 const cases:[string,string][]=[
@@ -43,7 +43,7 @@ for(const source of [
 });
 test('source closures survive stress GC after their factory returned',()=>{
  const source='function factory(n){let text=""+n;return {inc:function(){return ++n;},get:function(){return text+n;}};}let p=factory(10);console.log(p.inc(),p.get(),p.inc());';
- const image=linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
+ const image=linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true}));
  const run=runNative(image);assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
@@ -60,6 +60,6 @@ for(const [name,source] of [
  program.fragments.find(f=>f.name==='entry')!.fixups.find(f=>f.target==='rt.dispose')!.target='test.retention';
  program.fragments.push({...a.finish(),name:'test.retention',section:'.text'});
  program.functions.push({begin:'test.retention',end:'test.retention.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

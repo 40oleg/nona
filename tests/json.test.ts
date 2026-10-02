@@ -5,7 +5,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 test('JSON Proxy traversal preserves values during GC stress',()=>{
  const source=`var replacer=new Proxy(['b'],{get:function(t,k){for(var i=0;i<12;i++)({i:i});return t[k]}});
@@ -15,7 +15,7 @@ test('JSON Proxy traversal preserves values during GC stress',()=>{
  var lengthProxy=new Proxy(['b'],{get:function(t,k){if(k==='length')return {valueOf:function(){for(var i=0;i<12;i++)({i:i});return 1}};return t[k]}});
  console.log(JSON.stringify({a:1,b:2},lengthProxy));
  var seen=[];JSON.parse('[0,0]',function(k,v){if(k==='0')this[1]=new Proxy([3],{});seen.push(k);return v});console.log(seen.join(','))`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),runOracle(source).stdout);

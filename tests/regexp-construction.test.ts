@@ -3,7 +3,7 @@ import {expectProgram} from './helpers/program.js';
 import assert from 'node:assert/strict';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 test('RegExp literal and constructor allocate native objects',()=>expectProgram(`
@@ -315,28 +315,28 @@ test('RegExp exec rejects an ordinary object receiver',()=>expectProgram(`
 
 test('RegExp internal strings survive stress GC',()=>{
  const source=String.raw`let re=/needle/gi;for(let i=0;i<12;i++){String(i)+String(i)}let m=new RegExp('needle').exec('xneedle');console.log(re instanceof RegExp,re.lastIndex,Object.getPrototypeOf(re)===RegExp.prototype,re.source,re.flags,re.toString(),new RegExp('needle').test('xneedle'),m[0],m.index,new RegExp('/').source==='\\/')`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'true 0 true needle gi /needle/gi true needle 1 true\n');
 });
 
 test('RegExp wildcard match text survives stress GC',()=>{
  const source=`let re=/a.c/g;let m=re.exec('猫abc');console.log(m[0],m.index,re.lastIndex);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'abc 1 4\n');
 });
 
 test('RegExp VM captures survive stress GC',()=>{
  const source=`let re=/(a+)(b)/g;let m=re.exec('xaab');console.log(m[0],m[1],m[2],m.index,re.lastIndex);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'aab aa b 1 4\n');
 });
 
 test('ASCII named RegExp captures avoid Unicode table setup under stress GC',()=>{
  const source=`let re=/(?<word>ab)\\k<word>/g;let m=re.exec('xabab');console.log(m[0],m.groups.word,m.index,re.lastIndex);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})),30000);
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})),30000);
  assert.equal(run.error,undefined);
  assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),'abab ab 1 5\n');

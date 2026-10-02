@@ -150,7 +150,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.mov('rax',0);a.store(slot(64),'rax');
   a.label(loop);a.load('rax',slot(64));a.load('r10',slot(48));a.cmp('rax','r10');a.jcc('ae',done);
   a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
-  a.lea('rcx',slot(112));a.lea('rdx',slot(96));a.call('rt.toString');
+  for(const n of [0,8]){a.load('rax',slot(96+n));a.store(slot(112+n),'rax');}
   a.load('r8',slot(64));a.shl('r8',4);a.load('rax',slot(56));a.add('r8','rax');
   a.lea('rcx',slot(80));a.lea('rdx',slot(112));a.mov('r9',1);a.call('rt.setProperty');
   a.load('rax',slot(64));a.add('rax',1);a.store(slot(64),'rax');a.jmp(loop);

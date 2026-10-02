@@ -7,7 +7,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 const cases=[
  'let o={};Object.defineProperty(o,"x",{value:1});o.x=2;',
  'let p={};Object.defineProperty(p,"x",{value:1});let o=Object.create(p);o.x=2;',
@@ -24,6 +24,6 @@ const cases=[
 ];
 for(const body of cases)test('strict failed write/delete: '+body,()=>{
  const source='"use strict";try{'+body+'console.log("bad");}catch(e){console.log(e.name);}';
- const expected=runOracle(source),result=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const expected=runOracle(source),result=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(result.error,undefined);assert.equal(result.status,0,result.stderr.toString());assert.equal(result.stdout.toString(),expected.stdout);
 });

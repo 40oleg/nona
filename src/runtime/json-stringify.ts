@@ -41,9 +41,18 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.label(original);for(const n of [0,8]){a.load('rax',slot(64+n));a.store(slot(80+n),'rax');}
   a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
  });
- rootedFn(b,'rt.jsonStringifyValue',328,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1}],(a,frame)=>{
+ // Appends the serialization of the value to the builder of the state record
+ // (fifth argument: replacer, gap, indent, builder) and returns true, or
+ // returns undefined and appends nothing when the value is omitted.
+ rootedFn(b,'rt.jsonStringifyValue',344,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1},{kind:'locals',offset:328,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'r8');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');a.load('rax',{base:'r9',disp:n});a.store(slot(248+n),'rax');}
+  // An array index arrives as a Number key (rt.arrayIndexKey); toJSON and the
+  // replacer observe the key, so they get its string form.
+  {const stringKey=a.unique('stringKey');a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',stringKey);
+   a.lea('rcx',slot(328));a.mov('rdx','r8');a.call('rt.toString');a.lea('rax',slot(328));a.store(slot(48),'rax');a.label(stringKey);}
   a.load('r10',slot(frame+40));a.store(slot(56),'r10');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(264+n),'rax');}
+  const builder=()=>{a.load('rcx',slot(56));a.add('rcx',48);};
+  const appendLiteral=(name:string)=>{builder();a.lea('rdx',{rip:name});a.call('rt.builderAppend');};
   const dispatch=a.unique('dispatch'),checkToJson=a.unique('checkToJson');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('e',checkToJson);a.cmp('rax',7);a.jcc('ne',dispatch);a.label(checkToJson);
   a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.json.toJSON'});a.store(slot(104),'rax');
   a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
@@ -59,12 +68,13 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.label(numberBox);a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toNumber');a.jmp(primitiveReady);
   a.label(stringBox);a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toString');
   a.label(primitiveReady);
-  const omitted=a.unique('omitted'),nullValue=a.unique('nullValue'),convert=a.unique('convert'),quote=a.unique('quote'),composite=a.unique('composite'),array=a.unique('array'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');
+  const omitted=a.unique('omitted'),nullValue=a.unique('nullValue'),convert=a.unique('convert'),quote=a.unique('quote'),composite=a.unique('composite'),array=a.unique('array'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),produced=a.unique('produced');
   a.load('rax',slot(64));a.cmp('rax',7);const notBigInt=a.unique('notBigInt');a.jcc('ne',notBigInt);a.call('rt.throwTypeError');a.label(notBigInt);a.cmp('rax',1);a.jcc('e',convert);a.cmp('rax',2);a.jcc('e',convert);a.cmp('rax',4);a.jcc('e',quote);a.cmp('rax',5);a.jcc('e',composite);a.cmp('rax',3);a.jcc('ne',omitted);
   a.movsd('xmm0',slot(72));a.ucomisd('xmm0','xmm0');a.jcc('p',nullValue);for(const bits of [0x7ff0000000000000n,0xfff0000000000000n]){a.mov('rax',bits);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',nullValue);}
-  a.label(convert);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toString');a.jmp(done);
-  a.label(quote);a.lea('rcx',slot(80));a.load('rdx',slot(72));a.call('rt.jsonQuote');a.jmp(done);
-  a.label(nullValue);a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.json.null'});a.store(slot(88),'rax');a.jmp(done);
+  // A primitive: its text goes to the builder.
+  a.label(convert);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toString');builder();a.load('rdx',slot(88));a.call('rt.builderAppend');a.jmp(produced);
+  a.label(quote);a.lea('rcx',slot(80));a.load('rdx',slot(72));a.call('rt.jsonQuote');builder();a.load('rdx',slot(88));a.call('rt.builderAppend');a.jmp(produced);
+  a.label(nullValue);appendLiteral('rt.json.null');a.jmp(produced);
   a.label(composite);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('e',omitted);
   a.load('rax',{base:'r10',disp:O.stringifying});a.test('rax','rax');const enter=a.unique('enter');a.jcc('e',enter);a.call('rt.throwTypeError');a.label(enter);
   a.mov('rax',1);a.store({base:'r10',disp:O.stringifying},'rax');a.load('rax',{rip:'rt.cleanupHead'});a.store(slot(224),'rax');a.store(slot(232),'r10');a.lea('rax',slot(224));a.store({rip:'rt.cleanupHead'},'rax');
@@ -73,42 +83,48 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   for(const n of [0,8]){a.load('rax',slot(264+n));a.store(slot(144+n),'rax');}a.jmp(keysReady);
   a.label(ordinaryKeys);a.lea('rcx',slot(144));a.mov('rdx',1);a.lea('r8',slot(64));a.call('rt.Object.keys.fn.code');
   a.label(keysReady);a.load('r10',slot(152));a.load('rax',{base:'r10',disp:O.length});a.store(slot(216),'rax');
-  a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.json.openObject'});a.store(slot(88),'rax');a.jmp(loop);
+  appendLiteral('rt.json.openObject');a.jmp(loop);
   a.label(array);a.mov('rax',0);a.store(slot(208),'rax');
   a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.str.length'});a.store(slot(184),'rax');
   a.lea('rcx',slot(176));a.lea('rdx',slot(64));a.lea('r8',slot(176));a.call('rt.getProperty');a.lea('rcx',slot(176));a.lea('rdx',slot(176));a.call('rt.toNumber');
   a.movsd('xmm0',slot(184));a.ucomisd('xmm0','xmm0');const zeroLength=a.unique('zeroLength'),lengthReady=a.unique('lengthReady');a.jcc('p',zeroLength);a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',zeroLength);a.mov('rax',9007199254740991n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ae',lengthReady);a.cvttsd2si('rax','xmm0');a.jmp(lengthReady);a.label(zeroLength);a.mov('rax',0);a.label(lengthReady);a.store(slot(216),'rax');
-  a.mov('rax',4);a.store(slot(80),'rax');a.lea('rax',{rip:'rt.json.openArray'});a.store(slot(88),'rax');
+  appendLiteral('rt.json.openArray');
   a.label(loop);a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',{base:'r10',disp:32+n});a.store(slot(296+n),'rax');}
   a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noIndent=a.unique('noIndent');a.jcc('e',noIndent);
   a.lea('rcx',slot(312));a.lea('rdx',slot(296));a.load('r8',slot(56));a.add('r8',16);a.call('rt.concat');a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',slot(312+n));a.store({base:'r10',disp:32+n},'rax');}a.label(noIndent);
-  a.mov('rax',0);a.store(slot(200),'rax');a.store(slot(240),'rax');const iterate=a.unique('iterate'),finish=a.unique('finish'),objectKey=a.unique('objectKey'),append=a.unique('append'),notFirst=a.unique('notFirst');a.label(iterate);
+  a.mov('rax',0);a.store(slot(200),'rax');a.store(slot(240),'rax');const iterate=a.unique('iterate'),finish=a.unique('finish'),objectKey=a.unique('objectKey'),prefixed=a.unique('prefixed'),notFirst=a.unique('notFirst');a.label(iterate);
+  // Every Value this frame holds is rooted, so a collection may run here;
+  // without it a large document kept all its temporaries until the end.
+  a.call('rt.safepoint');
   a.load('rax',slot(200));a.load('r10',slot(216));a.cmp('rax','r10');a.jcc('ae',finish);
   a.load('r10',slot(208));a.test('r10','r10');a.jcc('ne',objectKey);
   a.lea('rcx',slot(96));a.load('rdx',slot(200));a.call('rt.arrayIndexKey');a.jmp('rt.jsonStringifyValue.keyReady');
   a.label(objectKey);a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
   a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.call('rt.getProperty');for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(96+n),'rax');}
   a.label('rt.jsonStringifyValue.keyReady');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
-  a.load('rax',slot(56));a.store(slot(32),'rax');a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.lea('r8',slot(96));a.lea('r9',slot(64));a.call('rt.jsonStringifyValue');
-  a.load('rax',slot(128));a.test('rax','rax');a.jcc('ne',append);a.load('r10',slot(208));a.test('r10','r10');a.jcc('ne',next);a.mov('rax',4);a.store(slot(128),'rax');a.lea('rax',{rip:'rt.json.null'});a.store(slot(136),'rax');
-  a.label(append);a.load('rax',slot(240));a.test('rax','rax');a.jcc('e',notFirst);a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.str.comma'});a.store(slot(184),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');
-  a.label(notFirst);a.mov('rax',1);a.store(slot(240),'rax');
+  // The separator, line break, indent and (for objects) the quoted key go in
+  // first; the mark lets an omitted member take them back out again.
+  builder();a.load('rax',{base:'rcx',disp:8});a.store(slot(320),'rax');
+  a.load('rax',slot(240));a.test('rax','rax');a.jcc('e',notFirst);appendLiteral('rt.str.comma');a.label(notFirst);
   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noLine=a.unique('noLine');a.jcc('e',noLine);
-  a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.json.newline'});a.store(slot(184),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');
-  a.load('r8',slot(56));a.add('r8',32);a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.call('rt.concat');a.label(noLine);
-  a.load('rax',slot(208));a.test('rax','rax');a.jcc('e','rt.jsonStringifyValue.appendValue');
-  a.lea('rcx',slot(176));a.load('rdx',slot(104));a.call('rt.jsonQuote');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');
-  a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.json.colon'});a.store(slot(184),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');
-  a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noColonSpace=a.unique('noColonSpace');a.jcc('e',noColonSpace);a.lea('rax',{rip:'rt.json.space'});a.store(slot(184),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');a.label(noColonSpace);
-  a.label('rt.jsonStringifyValue.appendValue');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(128));a.call('rt.concat');
+  appendLiteral('rt.json.newline');builder();a.load('r10',slot(56));a.load('rdx',{base:'r10',disp:40});a.call('rt.builderAppend');a.label(noLine);
+  a.load('rax',slot(208));a.test('rax','rax');a.jcc('e',prefixed);
+  a.lea('rcx',slot(176));a.load('rdx',slot(104));a.call('rt.jsonQuote');builder();a.load('rdx',slot(184));a.call('rt.builderAppend');
+  appendLiteral('rt.json.colon');
+  a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noColonSpace=a.unique('noColonSpace');a.jcc('e',noColonSpace);appendLiteral('rt.json.space');a.label(noColonSpace);
+  a.label(prefixed);a.load('rax',slot(56));a.store(slot(32),'rax');a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.lea('r8',slot(96));a.lea('r9',slot(64));a.call('rt.jsonStringifyValue');
+  a.load('rax',slot(128));a.test('rax','rax');const kept=a.unique('kept');a.jcc('ne',kept);
+  a.load('r10',slot(208));a.test('r10','r10');const dropMember=a.unique('dropMember');a.jcc('ne',dropMember);appendLiteral('rt.json.null');a.jmp(kept);
+  a.label(dropMember);builder();a.load('rax',slot(320));a.store({base:'rcx',disp:8},'rax');a.jmp(next);
+  a.label(kept);a.mov('rax',1);a.store(slot(240),'rax');
   a.label(next);a.load('rax',slot(200));a.add('rax',1);a.store(slot(200),'rax');a.jmp(iterate);
   a.label(finish);a.load('rax',slot(240));a.test('rax','rax');const noClosingLine=a.unique('noClosingLine');a.jcc('e',noClosingLine);a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');a.jcc('e',noClosingLine);
-  a.mov('rax',4);a.store(slot(176),'rax');a.lea('rax',{rip:'rt.json.newline'});a.store(slot(184),'rax');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(296));a.call('rt.concat');a.label(noClosingLine);
-  a.mov('rax',4);a.store(slot(176),'rax');a.load('r10',slot(208));a.test('r10','r10');const objectClose=a.unique('objectClose');a.jcc('ne',objectClose);a.lea('rax',{rip:'rt.json.closeArray'});a.jmp('rt.jsonStringifyValue.closeReady');a.label(objectClose);a.lea('rax',{rip:'rt.json.closeObject'});a.label('rt.jsonStringifyValue.closeReady');a.store(slot(184),'rax');
-  a.lea('rcx',slot(80));a.lea('rdx',slot(80));a.lea('r8',slot(176));a.call('rt.concat');
+  appendLiteral('rt.json.newline');builder();a.load('rdx',slot(304));a.call('rt.builderAppend');a.label(noClosingLine);
+  a.load('r10',slot(208));a.test('r10','r10');const objectClose=a.unique('objectClose'),closed=a.unique('closed');a.jcc('ne',objectClose);appendLiteral('rt.json.closeArray');a.jmp(closed);a.label(objectClose);appendLiteral('rt.json.closeObject');a.label(closed);
   a.load('r10',slot(56));for(const n of [0,8]){a.load('rax',slot(296+n));a.store({base:'r10',disp:32+n},'rax');}
-  a.load('rax',slot(224));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(72));a.mov('rax',0);a.store({base:'r10',disp:O.stringifying},'rax');a.jmp(done);
-  a.label(omitted);a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');
-  a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
+  a.load('rax',slot(224));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(72));a.mov('rax',0);a.store({base:'r10',disp:O.stringifying},'rax');
+  a.label(produced);a.load('rcx',slot(40));a.mov('rax',2);a.store({base:'rcx'},'rax');a.mov('rax',1);a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+  a.label(omitted);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+  a.label(done);
  });
 }

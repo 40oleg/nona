@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type {FunctionIR,ModuleIR,Operation} from '../src/ir/model.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {runNative} from './helpers/native.js';
 
 function fn(id:string,operations:Operation[],value:number,slotCount=12):FunctionIR {
@@ -30,7 +30,7 @@ function check(module:ModuleIR,expected:string):void {
  program.fragments.find(f=>f.name==='entry')!.fixups.find(f=>f.target==='rt.dispose')!.target='test.cleanup';
  program.fragments.push({...a.finish(),name:'test.cleanup',section:'.text'});
  program.functions.push({begin:'test.cleanup',end:'test.cleanup.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
  assert.equal(run.stdout.toString(),expected);
 }
 

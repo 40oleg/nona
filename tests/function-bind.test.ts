@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 
 const cases:[string,string][]=[
@@ -48,13 +48,13 @@ test('bound cycles buffers and root scopes are released after calls and construc
  program.fragments.find(f=>f.name==='entry')!.fixups.find(f=>f.target==='rt.dispose')!.target='test.boundCleanup';
  program.fragments.push({...a.finish(),name:'test.boundCleanup',section:'.text'});
  program.functions.push({begin:'test.boundCleanup',end:'test.boundCleanup.end',prologSize,stackAllocation:40,savedRegisters:[]});
- const run=runNative(linkPe(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
+ const run=runNative(linkHost(program));assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());
 });
 for(const source of [
  'function make(){let x=""+42;return function(a){for(let i=0;i<30;i++){({i:i});}return x+a.text+this.text;}.bind({text:""+57},{text:""+68});}let f=make();console.log(f(),f());',
  'function C(a,b){for(let i=0;i<40;i++){({i:i});}this.text=a.text+b.text;}let B=C.bind(null,{text:""+42}).bind(null,{text:""+57});let o=new B;B=null;C=null;console.log(o.text);',
  'function f(n,a){if(n)return f.bind(this,n-1,a)();return a.text+this.text;}console.log(f.bind({text:""+42},12,{text:""+57})());',
 ])test('bound data and combined argv survive GC: '+source,()=>{
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

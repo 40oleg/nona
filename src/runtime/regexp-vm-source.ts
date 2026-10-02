@@ -10,7 +10,12 @@ export const regexpVmSource=String.raw`(function(){
   var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
   var ByteArray=intrinsic?intrinsic.byteArrayConstructor:Uint8Array;
   var byteFill=intrinsic?intrinsic.byteArrayFill:Uint8Array.prototype.fill;
-  function append(array,value){Object.defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
+  var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
+  function append(array,value){appendDescriptor.value=value;Object.defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined}
+  // Array.prototype.slice captured before user code runs: CreateDataProperty
+  // semantics (no setters on Array.prototype can interfere), one native
+  // call instead of a defineProperty per element.
+  var arraySlice=Array.prototype.slice;
   function slice(string,start,end){return safeSlice.call(string,start,end)}
   function indexOf(string,value){return safeIndexOf.call(string,value)}
   function charCodeAt(string,index){return safeCharCodeAt.call(string,index)}
@@ -71,7 +76,18 @@ export const regexpVmSource=String.raw`(function(){
     var result=charCodeAt(upper,0);
     return point>=128&&result<128?point:result
   }
+  // Compiled patterns are immutable: a regular expression that is executed
+  // repeatedly (every global match loop does this) is parsed once.
+  var compileCache=new Map();
   function compile(pattern,flags){
+    var cacheKey=flags+'/'+pattern,cached=compileCache.get(cacheKey);
+    if(cached!==undefined)return cached;
+    var compiled=compileUncached(pattern,flags);
+    if(compileCache.size>=256)compileCache.clear();
+    compileCache.set(cacheKey,compiled);
+    return compiled
+  }
+  function compileUncached(pattern,flags){
     var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false;
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
@@ -416,13 +432,22 @@ export const regexpVmSource=String.raw`(function(){
       }
     }
     validateReferences(tree);
-    return {tree:tree,groups:groups,flags:flags,names:names}
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null};
+    // A pattern that starts with a literal (outside ignore-case and unicode
+    // mode) can only match where that literal occurs: execute skips ahead
+    // with indexOf instead of trying every position.
+    if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0){
+      var first=tree;
+      for(;;){
+        if(first.kind==='sequence'&&first.value.length>0)first=first.value[0];
+        else if(first.kind==='group')first=first.value;
+        else break
+      }
+      if(first.kind==='char')compiled.prefix=first.value
+    }
+    return compiled
   }
-  function copy(caps){
-    var out=[];
-    for(var i=0;i<caps.length;i++)append(out,caps[i]);
-    return out
-  }
+  function copy(caps){return arraySlice.call(caps)}
   function clear(node,caps){
     if(node.kind==='group'){
       if(node.capture!==0){caps[node.capture*2]=undefined;caps[node.capture*2+1]=undefined}
@@ -453,6 +478,16 @@ export const regexpVmSource=String.raw`(function(){
       var n=unicode?c.codePointAt(0):charCodeAt(c,0);
       if(ignore&&unicode)n=foldPoint(n);
       return n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95
+    }
+    // The same test on a code unit, for the single-unit modes.
+    function escapedClassUnit(kind,n){
+      var yes=false;
+      if(kind==='d'||kind==='D')yes=n>=48&&n<=57;
+      else if(kind==='w'||kind==='W')yes=n>=48&&n<=57||n>=65&&n<=90||n>=97&&n<=122||n===95;
+      else yes=n>=9&&n<=13||n>=0x2000&&n<=0x200a||
+        n===32||n===0xa0||n===0x1680||n===0x2028||n===0x2029||
+        n===0x202f||n===0x205f||n===0x3000||n===0xfeff;
+      return kind==='D'||kind==='W'||kind==='S'?!yes:yes
     }
     function escapedClass(kind,c){
       var n=charCodeAt(c,0),yes=false;
@@ -570,6 +605,19 @@ export const regexpVmSource=String.raw`(function(){
               if(classPoint>=0){if((charCodeAt(input,end)===classPoint)===classInverted)break}
               else if(!classMatch(node.value.value,input[end]))break;
               after=end+1
+            }else if(simple==='classEscape'&&!unicode){
+              if(direction<0?end<=0:end>=input.length)break;
+              if(!escapedClassUnit(node.value.value,charCodeAt(input,direction<0?end-1:end)))break;
+              after=end+direction
+            }else if(simple==='dot'&&!unicode){
+              if(direction<0?end<=0:end>=input.length)break;
+              var dotUnit=charCodeAt(input,direction<0?end-1:end);
+              if(!dotAll&&(dotUnit===10||dotUnit===13||dotUnit===0x2028||dotUnit===0x2029))break;
+              after=end+direction
+            }else if(simple==='char'&&!unicode&&!ignore&&node.value.value.length===1){
+              if(direction<0?end<=0:end>=input.length)break;
+              if(charCodeAt(input,direction<0?end-1:end)!==charCodeAt(node.value.value,0))break;
+              after=end+direction
             }else{
               var one=run(node.value,end,caps,function(after){return {end:after}},direction);
               steps--;
@@ -642,12 +690,12 @@ export const regexpVmSource=String.raw`(function(){
         return same(slice(input,refStart,refStart+length),slice(input,begin,end))?next(pos+direction*length,caps):null
       }
       if(direction<0?pos<=0:pos>=input.length)return null;
-      var current=input[direction<0?pos-1:pos],matched=false,width=1;
-      if(indexOf(flags,'u')>=0){
+      var unitIndex=direction<0?pos-1:pos,unit=charCodeAt(input,unitIndex),matched=false,width=1;
+      if(unicode){
         if(direction<0&&pos>=2){
-          var low=charCodeAt(input,pos-1),high=charCodeAt(input,pos-2);
+          var low=unit,high=charCodeAt(input,pos-2);
           if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)width=2
-        }else if(direction>0&&charCodeAt(current,0)>=0xd800&&charCodeAt(current,0)<=0xdbff&&pos+1<input.length){
+        }else if(direction>0&&unit>=0xd800&&unit<=0xdbff&&pos+1<input.length){
           var trail=charCodeAt(input,pos+1);
           if(trail>=0xdc00&&trail<=0xdfff)width=2
         }
@@ -655,10 +703,14 @@ export const regexpVmSource=String.raw`(function(){
       if(k==='char'){
         width=node.value.length;
         var from=direction<0?pos-width:pos;
-        matched=from>=0&&from+width<=input.length&&same(slice(input,from,from+width),node.value)
+        matched=from>=0&&from+width<=input.length;
+        if(matched){
+          if(ignore)matched=same(slice(input,from,from+width),node.value);
+          else for(var u=0;u<width;u++)if(charCodeAt(input,from+u)!==charCodeAt(node.value,u)){matched=false;break}
+        }
       }
-      else if(k==='dot')matched=dotAll||indexOf('\n\r\u2028\u2029',current)<0;
-      else if(k==='classEscape')matched=escapedClass(node.value,current);
+      else if(k==='dot')matched=dotAll||!(unit===10||unit===13||unit===0x2028||unit===0x2029);
+      else if(k==='classEscape')matched=unicode?escapedClass(node.value,input[unitIndex]):escapedClassUnit(node.value,unit);
       else if(k==='class')matched=classMatch(node.value,slice(input,direction<0?pos-width:pos,direction<0?pos:pos+width));
       else if(k==='property'){
         var point=charCodeAt(input,direction<0?pos-width:pos);
@@ -671,10 +723,18 @@ export const regexpVmSource=String.raw`(function(){
       var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
+    var capsTemplate=[];
+    for(var i=0;i<=compiled.groups;i++){append(capsTemplate,undefined);append(capsTemplate,undefined)}
+    var prefix=sticky?null:compiled.prefix;
+    function finish(end,updated){return {end:end,captures:updated}}
     for(var candidate=start;candidate<=input.length;candidate++){
-      var caps=[];
-      for(var i=0;i<=compiled.groups;i++){append(caps,undefined);append(caps,undefined)}
-      var result=run(compiled.tree,candidate,caps,function(end,updated){return {end:end,captures:updated}},1);
+      if(prefix!==null){
+        var at=safeIndexOf.call(input,prefix,candidate);
+        if(at<0)return null;
+        candidate=at
+      }
+      var caps=copy(capsTemplate);
+      var result=run(compiled.tree,candidate,caps,finish,1);
       if(result!==null){result.start=candidate;return result}
       if(sticky)break
       if(unicode&&candidate+1<input.length){

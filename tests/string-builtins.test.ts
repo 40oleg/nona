@@ -5,7 +5,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['basic matches',`console.log('abracadabra'.includes('bra'),'abracadabra'.includes('xyz'),'abc'.includes(''),''.includes(''));`],
@@ -66,72 +66,72 @@ for(const [name,source] of cases)test(`String.includes: ${name}`,()=>expectProgr
 
 test('String.includes: truthy Symbol.match throws',()=>{
  const source=`var o={};o[Symbol.match]=true;'abc'.includes(o);`;
- const run=runNative(linkPe(generate(compileToIR(source))));
+ const run=runNative(linkHost(generate(compileToIR(source))));
  assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
 });
 
 test('String.includes: coercion survives stress GC',()=>{
  const source=`var x={toString:function(){for(var i=0;i<30;i++)({v:i});return 'abc';}},y={toString:function(){for(var i=0;i<30;i++)({v:i});return 'bc';}};console.log(String.prototype.includes.call(x,y));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.fromCodePoint: coercion retains buffer under stress GC',()=>{
  const source=`var a={valueOf(){for(var i=0;i<40;i++)({v:i});return 65;}},b={valueOf(){for(var i=0;i<40;i++)({v:i});return 0x1f600;}};console.log(String.fromCodePoint(a,b).length);`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.raw: getters retain raw and result under stress GC',()=>{
  const source=`var raw={length:2,get 0(){for(var i=0;i<40;i++)({v:i});return 'a'},get 1(){for(var i=0;i<40;i++)({v:i});return 'b'}};var sub={toString(){for(var i=0;i<40;i++)({v:i});return '!'}};console.log(String.raw({raw:raw},sub));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.concat: receiver and arguments survive stress GC',()=>{
  const source=`var o={toString(){for(var i=0;i<40;i++)({v:i});return 'a'}},a={toString(){for(var i=0;i<40;i++)({v:i});return 'b'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'c'}};console.log(String.prototype.concat.call(o,a,b));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.toUpperCase: coerced source survives stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Straße 𐐨 ﬃ';}};console.log(String.prototype.toUpperCase.call(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.toLowerCase: coerced source survives stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ 𐐀 İ';}};console.log(String.prototype.toLowerCase.call(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String locale casing: coerced source survives stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'AΣ Straße';}};console.log(String.prototype.toLocaleLowerCase.call(x),String.prototype.toLocaleUpperCase.call(x));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.normalize: coerced source and form survive stress GC',()=>{
  const source=`var x={toString(){for(var i=0;i<40;i++)({v:i});return 'Å각e\u0301'}},f={toString(){for(var i=0;i<40;i++)({v:i});return 'NFKD'}};console.log(String.prototype.normalize.call(x,f));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.localeCompare: inputs survive coercion and normalization under stress GC',()=>{
  const source=`var a={toString(){for(var i=0;i<40;i++)({v:i});return 'e\u0301'}},b={toString(){for(var i=0;i<40;i++)({v:i});return 'é'}};console.log(String.prototype.localeCompare.call(a,b));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.substring and charAt: dynamic strings survive stress GC',()=>{
  const source=`var s=['ab','😀','cd'].join('');var p={valueOf(){for(var i=0;i<40;i++)({v:i});return 1;}};console.log(s.substring(p,4),s.charAt(2).charCodeAt(0));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.repeat: source survives count coercion under stress GC',()=>{
  const source=`var s=['a','😀'].join(''),n={valueOf(){for(var i=0;i<40;i++)({v:i});return 3;}};console.log(s.repeat(n));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.padStart and padEnd: source and fill survive stress GC',()=>{
  const source=`var s=['x','😀'].join(''),n={valueOf(){for(var i=0;i<40;i++)({v:i});return 8;}},p={toString(){for(var i=0;i<40;i++)({v:i});return ['a','b'].join('');}};console.log(s.padStart(n,p),s.padEnd(n,p));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
 test('String.fromCharCode: output survives argument callbacks under stress GC',()=>{
  const source=`var a={valueOf(){for(var i=0;i<40;i++)({v:i});return 65;}},b={valueOf(){for(var i=0;i<40;i++)({v:i});return 66;}};console.log(String.fromCharCode(a,b,67));`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

@@ -9,7 +9,7 @@ import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 
 const cases:[string,string][]=[
  ['source preserves whitespace comments and line endings','function /*hello*/ f ( a,\r\n b ) { // внутри\r\n return a+b;\r\n}\nconsole.log(f.toString());'],
@@ -33,6 +33,6 @@ for(const source of ['function f(){}let t=f.toString;t();','function f(){}f.toSt
 });
 test('source descriptors and callable methods survive GC',()=>{
  const source='function make(x){return function(a){return x+a;};}let f=make(3),t=f.toString.bind(f);f=null;for(let i=0;i<30;i++){({text:""+i});}console.log(t());';
- const run=runNative(linkPe(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+ const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

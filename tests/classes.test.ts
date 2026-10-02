@@ -4,7 +4,7 @@ import {runOracle} from './helpers/oracle.js';
 import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import {linkPe} from '../src/backend/pe/writer.js';
+import {linkHost} from './helpers/program.js';
 import assert from 'node:assert/strict';
 
 const cases:[string,string][]=[
@@ -40,6 +40,6 @@ for(const [name,source] of cases)test(`class: ${name}`,()=>expectProgram(source,
 
 test('class: derived lexical this survives GC before and after super',()=>{
  const source=`class A{}class B extends A{constructor(){let f=()=>this;for(let i=0;i<20;i++)({value:String(i)});super();for(let i=0;i<20;i++)({value:String(i)});console.log(f()===this);}}new B();`;
- const run=runNative(linkPe(generate(compileToIR(source),{gcStress:true})));
+ const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });

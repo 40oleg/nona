@@ -25,6 +25,7 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rdx',disp:8});a.store(slot(56),'rax');
   const ordinaryKeys=a.unique('ordinaryKeys'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryKeys);
   a.call('rt.proxyOwnKeys');a.jmp(proxyDone);a.label(ordinaryKeys);
+  a.load('rcx',slot(56));a.call('rt.elementsMaterializeAll');
   a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.properties});a.store(slot(112),'rax');
   a.mov('rax',0);for(const n of [64,72,80,88,96,104,120,208])a.store(slot(n),'rax');
   const count=a.unique('count'),next=a.unique('next'),counted=a.unique('counted');

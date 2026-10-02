@@ -6,7 +6,7 @@ import {CompileError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
-type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean};
+type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
@@ -58,6 +58,17 @@ class Lowerer {
   private cellSlot(binding:StorageBinding):number {
     if(binding.owner===(this.fn?.index??-1))return binding.index;
     const slot=this.captureSlots.get(binding);if(slot===undefined)throw new Error(`Missing capture ${binding.name}`);return slot;
+  }
+  /** A captured parameter that is never written after the call binds it is
+   * captured by value: closures copy the Value itself instead of sharing a
+   * heap cell. Parameters of a function with defaults, patterns or a rest
+   * element are initialized one by one (a closure in a default may see a
+   * later parameter in its TDZ), so they keep their cells. */
+  private capturedByValue(b:StorageBinding):boolean {
+    if(b.kind!=='parameter'||!b.captured||b.assigned)return false;
+    const owner=this.bound.functions[b.owner];if(!owner)return false;
+    const d=owner.declaration;
+    return !(d.defaults?.some(Boolean)||d.parameters.some(p=>p.kind!=='Identifier')||!!d.rest);
   }
   private closure(fn:BoundFunction,inferredName?:string|number,homeObject?:number):number {
     const dest=this.slot(),captures=fn.captures.map(binding=>this.cellSlot(binding));
@@ -144,7 +155,7 @@ class Lowerer {
   }
   private arrayOf(values:number[]):number {
     const array=this.slot();this.emit({kind:'newObject',dest:array,array:true,length:values.length});
-    values.forEach((value,index)=>this.emit({kind:'setProperty',strict:true,object:array,key:this.constant(String(index)),source:value,define:true}));
+    values.forEach((value,index)=>this.emit({kind:'setProperty',strict:true,object:array,key:this.constant(index),source:value,define:true}));
     return array;
   }
   /** Module program entry: namespaces, import.meta, registration, then evaluation. */
@@ -175,7 +186,7 @@ class Lowerer {
   private readStorage(b:StorageBinding):number {
     const dest=this.slot();
     if(b.kind==='global'){this.emit({kind:'loadGlobal',dest,index:b.index});return dest;}
-    if(b.captured)this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});else this.emit({kind:'copy',dest,source:b.index});
+    if(b.captured&&!this.capturedByValue(b))this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});else this.emit({kind:'copy',dest,source:this.cellSlot(b)});
     return dest;
   }
   /** define(dll, name, signature) from nona:ffi: a static import and a native thunk. */
@@ -233,10 +244,18 @@ class Lowerer {
     const b=this.binding(id),dest=this.slot();
     switch(b.kind){
       case 'parameter':case 'local':
-        if(b.captured)this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});
-        else this.emit({kind:'copy',dest,source:b.index});break;
+        if(b.captured&&!this.capturedByValue(b))this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});
+        else this.emit({kind:'copy',dest,source:this.cellSlot(b)});break;
       case 'global':this.emit({kind:'loadGlobal',dest,index:b.index});break;
-      case 'globalProperty':this.emit({kind:'readGlobalProperty',dest,name:b.name,allowMissing});break;
+      case 'globalProperty':
+        // undefined, NaN and Infinity are non-writable, non-configurable
+        // properties of the global object that no declaration may shadow
+        // (the binder rejects such declarations), so a reference that
+        // resolves to the global property is the constant.
+        if(b.name==='undefined')this.emit({kind:'constant',dest,value:undefined});
+        else if(b.name==='NaN')this.emit({kind:'constant',dest,value:NaN});
+        else if(b.name==='Infinity')this.emit({kind:'constant',dest,value:Infinity});
+        else this.emit({kind:'readGlobalProperty',dest,name:b.name,allowMissing});break;
       default:throw new Error('Unsupported binding');
     }
     if('lexical'in b&&b.lexical||b.kind==='parameter'&&(this.fn?.declaration.defaults?.some(Boolean)||this.fn?.declaration.parameters.some(p=>p.kind!=='Identifier')))this.emit({kind:'checkInitialized',slot:dest});
@@ -259,6 +278,7 @@ class Lowerer {
     if(b.kind==='global')this.emit({kind:'storeGlobal',strict:this.strict,source,index:b.index});
     else if(b.kind==='globalProperty')this.emit({kind:'setProperty',strict:this.strict,object:this.globalObject(),key:this.constant(b.name),source,define:false});
     else if(b.kind==='local'||b.kind==='parameter'){
+      if(b.captured&&this.capturedByValue(b))throw new Error(`Write to the by-value capture ${b.name}`);
       if(b.captured)this.emit({kind:'writeCell',cell:this.cellSlot(b),source});
       else this.emit({kind:'copy',dest:b.index,source});
     }
@@ -293,6 +313,7 @@ class Lowerer {
     }
     // Keep the raw key: RHS effects may mutate an object used as a key.
     const object=this.expression(e.object),key=this.expression(e.property);
+    if(e.property.kind==='Literal'&&typeof e.property.value==='string')return {object,key,keyName:e.property.value};
     return {object,key};
   }
   /** Read-modify-write references convert the key once (ToPropertyKey before GetValue). */
@@ -627,7 +648,7 @@ class Lowerer {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
         const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
-          if(item&&item.kind!=='SpreadElement'){const key=this.constant(String(i)),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
+          if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
         });
         else if(e.kind==='ArrayLiteral'){
           const index=this.slot(),zero=this.constant(0),one=this.constant(1);this.emit({kind:'copy',dest:index,source:zero});
@@ -1070,7 +1091,7 @@ class Lowerer {
       const uninitialized=this.slot();this.emit({kind:'uninitialized',dest:uninitialized});
       for(const parameter of this.fn!.locals)if(parameter.kind==='parameter')this.emit({kind:'copy',dest:parameter.index,source:uninitialized});
     }
-    for(const binding of this.fn?.locals??this.bound.mainLocals)if(binding.captured&&!binding.lexical&&binding!==this.fn?.self){
+    for(const binding of this.fn?.locals??this.bound.mainLocals)if(binding.captured&&!binding.lexical&&binding!==this.fn?.self&&!this.capturedByValue(binding)){
       const source=binding.kind==='parameter'?binding.index:this.constant(undefined);
       this.emit({kind:'newCell',dest:binding.index,source});
     }

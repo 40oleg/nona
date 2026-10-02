@@ -7,10 +7,15 @@ import {prependFunctionBuiltin,emitNativeFunction,builtinPropertyRoots} from './
 import {stringLiteral} from './value.js';
 import {HandlerLayout as EH,preservedGp,preservedXmm} from './exception-layout.js';
 import {FunctionKind} from './functions.js';
+import {mapIndexThreshold} from './map-index.js';
 
 export const MapKind=15;
-export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,size:O.size+24} as const;
-export const MapEntryLayout={next:0,key:8,value:24,active:40,size:48} as const;
+/** index: raw-heap hash table from key to entry (map-index.ts), or 0.
+ * weakNext: the next WeakMap or WeakSet on rt.weakList (gc.ts). */
+export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,index:O.size+24,weakNext:O.size+32,size:O.size+40} as const;
+/** hash: the key's rt.mapKeyHash, stored once at insertion. */
+/** weak: 1 for a WeakSet entry, whose value is its key and must not keep it alive. */
+export const MapEntryLayout={next:0,key:8,value:24,active:40,hash:48,weak:56,size:64} as const;
 const methods=['clear','delete','get','has','set'] as const;
 export const mapRoots=['rt.Map.species.fn','rt.mapSize.fn','rt.map.forEach.fn',...methods.map(name=>'rt.map.'+name+'.fn')];
 export const mapPropertyRoots=['rt.Map.@@species','rt.Map.species.fn.name','rt.Map.species.fn.length','rt.mapPrototype.size','rt.mapPrototype.@@toStringTag',...mapRoots.slice(1).flatMap(name=>name==='rt.mapSize.fn'?[name+'.name',name+'.length']:builtinPropertyRoots(name,name.slice(7,-3),'rt.mapPrototype'))];
@@ -45,7 +50,7 @@ export function emitMap(b:RuntimeBuilder):void {
  rootedFn(b,'rt.Map.construct',952,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:14}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   a.mov('rcx',MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',MapKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index,MapLayout.weakNext])a.store({base:'rax',disp:offset},'r10');
   selectNativeConstructPrototype(a,frame,'rt.mapPrototype');a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',5);a.store(slot(80),'r10');a.store(slot(88),'rax');
   const done=a.unique('done');a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);a.load('r10',slot(56));a.load('rax',{base:'r10'});a.cmp('rax',1);a.jcc('e',done);a.test('rax','rax');a.jcc('e',done);
@@ -75,9 +80,13 @@ export function emitMap(b:RuntimeBuilder):void {
   a.label(ordinary);a.mov('r8','rdx');a.mov('rdx','rcx');a.lea('rcx',slot(56));a.call('rt.strictEq');a.load('rax',slot(64));a.jmp(done);a.label(yes);a.mov('rax',1);a.label(done);
  });
  // RCX Map*, RDX key Value* -> RAX live entry or zero.
+ // Short lists are scanned; longer ones go through the hash index.
  b.fn('rt.mapFind',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rcx',disp:MapLayout.head});a.store(slot(56),'rax');
-  const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');a.label(loop);a.load('rax',slot(56));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',next);
+  const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),scan=a.unique('scan');
+  a.load('rax',{base:'rcx',disp:MapLayout.index});a.test('rax','rax');a.jcc('ne','rt.mapFind.indexed');a.load('rax',{base:'rcx',disp:MapLayout.count});a.cmp('rax',mapIndexThreshold);a.jcc('b',scan);
+  a.label('rt.mapFind.indexed');a.call('rt.mapIndexFind');a.jmp(done);
+  a.label(scan);a.label(loop);a.load('rax',slot(56));a.test('rax','rax');a.jcc('e',done);a.load('r10',{base:'rax',disp:MapEntryLayout.active});a.test('r10','r10');a.jcc('e',next);
   a.lea('rcx',{base:'rax',disp:MapEntryLayout.key});a.load('rdx',slot(48));a.call('rt.mapSameValueZero');a.test('rax','rax');const found=a.unique('found');a.jcc('ne',found);
   a.label(next);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.store(slot(56),'rax');a.jmp(loop);a.label(found);a.load('rax',slot(56));a.label(done);
  });
@@ -112,17 +121,19 @@ export function emitMap(b:RuntimeBuilder):void {
    const insert=a.unique('insert'),finish=a.unique('finish');a.test('rax','rax');a.jcc('e',insert);
    for(const n of [0,8]){a.load('r10',slot(112+n));a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');}a.jmp(finish);
    a.label(insert);a.load('rax',slot(96));a.cmp('rax',3);const keyReady=a.unique('keyReady');a.jcc('ne',keyReady);a.movsd('xmm0',slot(104));a.mov('rax',0);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',keyReady);a.jcc('ne',keyReady);a.store(slot(104),'rax');a.label(keyReady);
-   a.mov('rcx',MapEntryLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.mapEntry);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.next},'r10');
+   a.lea('rcx',slot(96));a.call('rt.mapKeyHash');a.store(slot(64),'rax');
+   a.mov('rcx',MapEntryLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.mapEntry);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.next},'r10');a.load('r10',slot(64));a.store({base:'rax',disp:MapEntryLayout.hash},'r10');a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.weak},'r10');
    for(const [from,to] of [[96,MapEntryLayout.key],[112,MapEntryLayout.value]] as const)for(const n of [0,8]){a.load('r10',slot(from+n));a.store({base:'rax',disp:to+n},'r10');}
-   a.mov('r10',1);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('r11',slot(72));a.load('r10',{base:'r11',disp:MapLayout.tail});const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.store({base:'r11',disp:MapLayout.head},'rax');a.label(linked);a.store({base:'r11',disp:MapLayout.tail},'rax');a.load('r10',{base:'r11',disp:MapLayout.count});a.add('r10',1);a.store({base:'r11',disp:MapLayout.count},'r10');a.label(finish);
+   a.mov('r10',1);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('r11',slot(72));a.load('r10',{base:'r11',disp:MapLayout.tail});const first=a.unique('first'),linked=a.unique('linked');a.test('r10','r10');a.jcc('e',first);a.store({base:'r10',disp:MapEntryLayout.next},'rax');a.jmp(linked);a.label(first);a.store({base:'r11',disp:MapLayout.head},'rax');a.label(linked);a.store({base:'r11',disp:MapLayout.tail},'rax');a.load('r10',{base:'r11',disp:MapLayout.count});a.add('r10',1);a.store({base:'r11',disp:MapLayout.count},'r10');
+   a.mov('rcx','r11');a.mov('rdx','rax');a.call('rt.mapIndexAdd');a.label(finish);
    a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
   }else if(name==='get'){
    const missing=a.unique('missing'),done=a.unique('done');a.test('rax','rax');a.jcc('e',missing);a.load('rcx',slot(40));for(const n of [0,8]){a.load('r10',{base:'rax',disp:MapEntryLayout.value+n});a.store({base:'rcx',disp:n},'r10');}a.jmp(done);a.label(missing);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.label(done);
   }else if(name==='clear'){
-   a.load('r11',slot(72));a.load('rax',{base:'r11',disp:MapLayout.head});const loop=a.unique('loop'),done=a.unique('done');a.label(loop);a.test('rax','rax');a.jcc('e',done);a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.jmp(loop);a.label(done);a.mov('rax',0);a.store({base:'r11',disp:MapLayout.count},'rax');a.load('rcx',slot(40));a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+   a.load('rcx',slot(72));a.call('rt.mapIndexFree');a.load('r11',slot(72));a.load('rax',{base:'r11',disp:MapLayout.head});const loop=a.unique('loop'),done=a.unique('done');a.label(loop);a.test('rax','rax');a.jcc('e',done);a.mov('r10',0);a.store({base:'rax',disp:MapEntryLayout.active},'r10');a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.jmp(loop);a.label(done);a.mov('rax',0);a.store({base:'r11',disp:MapLayout.count},'rax');a.load('rcx',slot(40));a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
   }else{
    a.load('rax',slot(64));a.mov('r10',0);a.test('rax','rax');const missing=a.unique('missing');a.jcc('e',missing);a.mov('r10',1);
-   if(name==='delete'){a.mov('rdx',0);a.store({base:'rax',disp:MapEntryLayout.active},'rdx');a.load('r11',slot(72));a.load('rdx',{base:'r11',disp:MapLayout.count});a.sub('rdx',1);a.store({base:'r11',disp:MapLayout.count},'rdx');}
+   if(name==='delete'){a.mov('rdx','rax');a.load('rcx',slot(72));a.call('rt.mapIndexDrop');a.load('rax',slot(64));a.mov('r10',1);a.mov('rdx',0);a.store({base:'rax',disp:MapEntryLayout.active},'rdx');a.load('r11',slot(72));a.load('rdx',{base:'r11',disp:MapLayout.count});a.sub('rdx',1);a.store({base:'r11',disp:MapLayout.count},'rdx');}
    a.label(missing);a.load('rcx',slot(40));a.mov('rax',2);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');
   }
  });

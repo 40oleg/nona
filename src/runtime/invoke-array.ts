@@ -19,7 +19,6 @@ export function emitInvokeArray(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),invoke=a.unique('invoke'),construct=a.unique('construct'),done=a.unique('done');
   a.label(loop);a.load('rax',slot(80));a.load('r10',slot(72));a.cmp('rax','r10');a.jcc('ae',invoke);
   a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
-  a.lea('rcx',slot(96));a.lea('rdx',slot(96));a.call('rt.toString');
   a.load('rax',slot(80));a.shl('rax',4);a.load('rcx',slot(120));a.add('rcx',L.values);a.add('rcx','rax');
   a.load('rdx',slot(56));a.lea('r8',slot(96));a.call('rt.getProperty');
   a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.jmp(loop);
