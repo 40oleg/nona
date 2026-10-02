@@ -39,4 +39,5 @@
 
 - [حالة ES2020 للإصدارات 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md) (بالروسية)
 - [حالة v0.6](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md) (بالإنجليزية)
+- [خارطة الطريق: خطة مستوحاة من V8 والمعماريات المستهدفة (بالإنجليزية)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [خارطة طريق الإصدارات 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md) (بالروسية)

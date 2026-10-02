@@ -39,4 +39,5 @@
 
 - [Статус ES2020 для 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md)
 - [Статус v0.6](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md) (на английском)
+- [План развития: идеи из блога V8 и целевые архитектуры](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [План релизов 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md)
