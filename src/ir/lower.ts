@@ -247,7 +247,15 @@ class Lowerer {
         if(b.captured&&!this.capturedByValue(b))this.emit({kind:'readCell',dest,cell:this.cellSlot(b)});
         else this.emit({kind:'copy',dest,source:this.cellSlot(b)});break;
       case 'global':this.emit({kind:'loadGlobal',dest,index:b.index});break;
-      case 'globalProperty':this.emit({kind:'readGlobalProperty',dest,name:b.name,allowMissing});break;
+      case 'globalProperty':
+        // undefined, NaN and Infinity are non-writable, non-configurable
+        // properties of the global object that no declaration may shadow
+        // (the binder rejects such declarations), so a reference that
+        // resolves to the global property is the constant.
+        if(b.name==='undefined')this.emit({kind:'constant',dest,value:undefined});
+        else if(b.name==='NaN')this.emit({kind:'constant',dest,value:NaN});
+        else if(b.name==='Infinity')this.emit({kind:'constant',dest,value:Infinity});
+        else this.emit({kind:'readGlobalProperty',dest,name:b.name,allowMissing});break;
       default:throw new Error('Unsupported binding');
     }
     if('lexical'in b&&b.lexical||b.kind==='parameter'&&(this.fn?.declaration.defaults?.some(Boolean)||this.fn?.declaration.parameters.some(p=>p.kind!=='Identifier')))this.emit({kind:'checkInitialized',slot:dest});
