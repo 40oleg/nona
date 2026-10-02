@@ -26,7 +26,7 @@ function native(helpers:(b:RuntimeBuilder)=>void,body:(a:Assembler)=>void):void 
 test('runtime roots retain a snapshot and its heap container after input mutation',()=>native(b=>{
  rootedFn(b,'test.scope',56,[{kind:'value',register:'rdx'}],a=>{
   a.mov('rax',0);a.store({base:'rdx'},'rax');a.store({base:'rdx',disp:8},'rax');
-  a.call('rt.collect');equal(a,'rt.liveBytes',112); // Two 16-byte blocks plus headers.
+  a.call('rt.collect');equal(a,'rt.liveBytes',128); // Two 16-byte blocks: 64-byte cells with their headers.
  });
 },a=>{
  a.mov('rcx',16);a.call('rt.alloc');a.store(slot(40),'rax');
@@ -37,7 +37,7 @@ test('runtime roots retain a snapshot and its heap container after input mutatio
 
 test('runtime output roots retain container without retaining its old contents',()=>native(b=>{
  rootedFn(b,'test.scope',56,[{kind:'output',register:'rcx'}],a=>{
-  a.store(slot(40),'rcx');a.call('rt.collect');equal(a,'rt.liveBytes',56);
+  a.store(slot(40),'rcx');a.call('rt.collect');equal(a,'rt.liveBytes',64);
   a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
  });
 },a=>{
@@ -49,15 +49,15 @@ test('runtime output roots retain container without retaining its old contents',
 
 test('nested runtime roots preserve locals, managed ranges, pointers and return registers',()=>native(b=>{
  rootedFn(b,'test.inner',56,[{kind:'pointer',register:'r9'}],a=>{
-  a.call('rt.collect');equal(a,'rt.liveBytes',168);a.mov('rax',123);a.movqToXmm('xmm0','rax');
+  a.call('rt.collect');equal(a,'rt.liveBytes',192);a.mov('rax',123);a.movqToXmm('xmm0','rax');
  });
  rootedFn(b,'test.outer',88,[{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:48,count:2}],a=>{
   // The second local must be initialized before the first collection.
-  a.call('rt.collect');equal(a,'rt.liveBytes',56);
+  a.call('rt.collect');equal(a,'rt.liveBytes',64);
   a.mov('rcx',16);a.call('rt.alloc');a.store(slot(56),'rax');a.mov('rax',4);a.store(slot(48),'rax');
   a.mov('rcx',16);a.call('rt.alloc');a.mov('r9','rax');a.call('test.inner');
   a.cmp('rax',123);a.jcc('ne','test.fail');a.movqFromXmm('rax','xmm0');a.cmp('rax',123);a.jcc('ne','test.fail');
-  a.call('rt.collect');equal(a,'rt.liveBytes',112);
+  a.call('rt.collect');equal(a,'rt.liveBytes',128);
  });
 },a=>{
  a.mov('rcx',16);a.call('rt.alloc');a.mov('r8','rax');a.mov('rdx',1);
@@ -67,7 +67,7 @@ test('nested runtime roots preserve locals, managed ranges, pointers and return 
 test('enlarged runtime frames locate incoming stack arguments and fixed ranges',()=>native(b=>{
  rootedFn(b,'test.scope',56,[{kind:'range',register:'r8',count:1}],(a,frame)=>{
   a.load('rax',slot(frame+40));a.cmp('rax',987);a.jcc('ne','test.fail');
-  a.call('rt.collect');equal(a,'rt.liveBytes',56);
+  a.call('rt.collect');equal(a,'rt.liveBytes',64);
  });
 },a=>{
  a.mov('rcx',16);a.call('rt.alloc');a.mov('r8','rax');
