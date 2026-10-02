@@ -21,13 +21,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
 export const BuilderLayout={buffer:0,length:8,capacity:16,size:24} as const;
 const B=BuilderLayout;
 
-/** Copies R9 UTF-16 units from R10 to R11; clobbers R8. */
-const copyUnits=(a:Assembler)=>{
- const wide=a.unique('wide'),narrow=a.unique('narrow'),done=a.unique('done');
- a.label(wide);a.cmp('r9',4);a.jcc('b',narrow);a.load('r8',{base:'r10'});a.store({base:'r11'},'r8');a.add('r10',8);a.add('r11',8);a.sub('r9',4);a.jmp(wide);
- a.label(narrow);a.test('r9','r9');a.jcc('e',done);a.load('r8',{base:'r10'},16);a.store({base:'r11'},'r8',16);a.add('r10',2);a.add('r11',2);a.sub('r9',1);a.jmp(narrow);
- a.label(done);
-};
+/** Copies R9 UTF-16 units from R10 to R11; clobbers the volatile registers. */
+const copyUnits=(a:Assembler)=>{a.mov('rcx','r11');a.mov('rdx','r10');a.mov('r8','r9');a.add('r8','r8');a.call('rt.copyBytes');};
 
 export function emitStringBuilder(b:RuntimeBuilder):void {
  // RCX builder (zeroed by its owner), RDX units to make room for.
@@ -61,7 +56,7 @@ export function emitStringBuilder(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   a.load('rcx',{base:'rcx',disp:B.length});a.store(slot(56),'rcx');a.shl('rcx',1);a.add('rcx',8);a.call('rt.alloc');a.store(slot(64),'rax');
   a.load('r9',slot(56));a.store({base:'rax'},'r9');a.lea('r11',{base:'rax',disp:8});a.load('rcx',slot(40));a.load('r10',{base:'rcx',disp:B.buffer});copyUnits(a);
-  const noBuffer=a.unique('noBuffer');a.load('r8',{base:'rcx',disp:B.buffer});a.test('r8','r8');a.jcc('e',noBuffer);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
+  const noBuffer=a.unique('noBuffer');a.load('rcx',slot(40));a.load('r8',{base:'rcx',disp:B.buffer});a.test('r8','r8');a.jcc('e',noBuffer);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
   a.label(noBuffer);a.load('rcx',slot(40));a.mov('rax',0);for(const offset of [B.buffer,B.length,B.capacity])a.store({base:'rcx',disp:offset},'rax');
   a.load('rdx',slot(48));a.mov('rax',4);a.store({base:'rdx'},'rax');a.load('rax',slot(64));a.store({base:'rdx',disp:8},'rax');
  });

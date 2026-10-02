@@ -285,7 +285,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.lea('rcx',{base:'r10',disp:L.size});a.call('rt.gcFreeBlock');
   a.load('r10',slot(48));a.load('rax',{base:'r10',disp:L.next});a.load('r11',slot(56));a.store({base:'r11'},'rax');
   a.load('rdx',{base:'r10',disp:L.bytes});a.load('r11',{rip:'rt.liveBytes'});a.sub('r11','rdx');a.store({rip:'rt.liveBytes'},'r11');a.load('r11',{rip:'rt.blocks'});a.sub('r11',1);a.store({rip:'rt.blocks'},'r11');
-  a.mov('rcx','r10');a.load('rdx',{base:'r10',disp:L.bytes});a.call('rt.largeUnmapPages');a.load('rcx',slot(48));a.load('rdx',{base:'rcx',disp:L.bytes});a.call('rt.unmapPages');a.jmp(largeNext);
+  a.mov('rcx','r10');a.load('rdx',{base:'r10',disp:L.bytes});a.call('rt.largeUnmapPages');a.load('rcx',slot(48));a.call('rt.releaseLarge');a.jmp(largeNext);
   a.label(largeLive);a.mov('r11',0);a.store({base:'r10',disp:L.size+H.marked},'r11');a.store({base:'r10',disp:L.size+H.greyNext},'r11');a.lea('rax',{base:'r10',disp:L.next});a.store(slot(56),'rax');a.jmp(largeNext);
   a.label(done);
  });

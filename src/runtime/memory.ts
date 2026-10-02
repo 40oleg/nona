@@ -18,11 +18,18 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * go on their class's free list and are reused before new ones are carved;
  * their payload is zeroed on reuse, so every allocation still starts cleared.
  * Blocks larger than the biggest class get a page mapping of their own. The
- * chunk table — a sorted array of {base, end, large} entries that changes
- * only when a mapping is created or released — turns any pointer, interior
- * ones included, into its block header with one binary search over mappings
- * and one division (rt.blockOf), so the collector no longer builds an index,
- * and the sweep visits cells in address order instead of chasing a list.
+ * page map — a hash table from the 64 KiB granule of an address to its
+ * mapping that changes only when a mapping is created or released — turns
+ * any pointer, interior ones included, into its block header with one probe
+ * and one multiplication (rt.blockOf), so the collector no longer builds an
+ * index, and the sweep visits cells in address order instead of chasing a
+ * list. Released large mappings are kept for reuse (rt.largeCache, at most
+ * largeCacheLimit of them) because a program that grows a string or a
+ * buffer step by step frees one large block for every one it allocates,
+ * and mapping fresh pages costs a system call plus a page fault per 4 KiB
+ * while a cached mapping only needs its bytes zeroed. Large mappings are
+ * whole granules (64 KiB) so that the blocks of such a program keep
+ * fitting the mappings it just released.
  *
  * The 40-byte block header (HeapLayout) is unchanged: `next` links a free
  * cell to the next one, `bytes` is the payload size that was requested, and
@@ -40,6 +47,8 @@ export const LargeLayout={next:0,bytes:8,size:64} as const;
 export const chunkBytes=1<<16;
 /** Total block sizes (header included): 16-byte steps up to 1024, then doublings to 16384. */
 export const smallClasses=62,classCount=66,largestClass=16384;
+/** Released large mappings kept for reuse, and the largest one worth keeping. */
+export const largeCacheLimit=16,largeCacheMaxBytes=8<<20;
 const C=ChunkLayout,L=LargeLayout;
 /** Page map entry: granule, mapping base, large flag. */
 const T={key:0,base:8,large:16,size:24} as const;
@@ -47,7 +56,7 @@ const times24=(a:Assembler,dst:'r11'|'r10'|'rax',src:'rax'|'r11'|'r10'|'r9')=>{a
 
 export function emitMemory(b:RuntimeBuilder):void {
  b.data('rt.heap',new Uint8Array(8),'.data');
- for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
+ for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
  b.data('rt.classState',new Uint8Array(4*8*classCount),'.data');
  for(const name of ['GetProcessHeap','HeapAlloc','HeapFree','GetStdHandle','GetConsoleMode','WriteConsoleW','WriteFile','WideCharToMultiByte','ExitProcess','VirtualAlloc','VirtualFree'])if(!b.bundle.imports.some(i=>i.symbol===name))b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
@@ -174,14 +183,50 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);const done=a.unique('done');a.jmp(done);
-  // Large: a mapping of its own, listed for the sweep.
-  a.label(large);a.add('rcx',L.size+4095);a.and('rcx',-4096);a.store(slot(64),'rcx');a.call('rt.mapPages');
+  // Large: a mapping of its own, listed for the sweep; a cached mapping of
+  // a fitting size (at most twice the need) is zeroed and reused.
+  a.label(large);a.add('rcx',L.size+chunkBytes-1);a.and('rcx',-chunkBytes);a.store(slot(64),'rcx');
+  {const scan=a.unique('scan'),skip=a.unique('skip'),mapped=a.unique('mapped');
+   a.lea('r9',{rip:'rt.largeCache'});
+   a.label(scan);a.load('rax',{base:'r9'});a.test('rax','rax');a.jcc('e',skip);a.load('r10',{base:'rax',disp:L.bytes});a.cmp('r10','rcx');a.jcc('b','rt.alloc.cacheNext');
+   a.mov('r11','rcx');a.add('r11','r11');a.cmp('r10','r11');a.jcc('a','rt.alloc.cacheNext');
+   // Unlink it, record the mapping size actually held, and clear the block.
+   a.load('r10',{base:'rax',disp:L.next});a.store({base:'r9'},'r10');a.load('r10',{rip:'rt.largeCacheCount'});a.sub('r10',1);a.store({rip:'rt.largeCacheCount'},'r10');
+   a.load('r10',{base:'rax',disp:L.bytes});a.store(slot(64),'r10');a.store(slot(56),'rax');
+   a.lea('rcx',{base:'rax',disp:L.size});a.mov('rdx','r10');a.sub('rdx',L.size);a.call('rt.zeroBytes');a.load('rax',slot(56));a.jmp(mapped);
+   a.label('rt.alloc.cacheNext');a.lea('r9',{base:'rax',disp:L.next});a.jmp(scan);
+   a.label(skip);a.call('rt.mapPages');
+   a.label(mapped);}
   a.load('r10',slot(64));a.store({base:'rax',disp:L.bytes},'r10');a.load('r10',{rip:'rt.largeList'});a.store({base:'rax',disp:L.next},'r10');a.store({rip:'rt.largeList'},'rax');
   a.store(slot(56),'rax');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.largeMapPages');
   a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');
   a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);a.label(done);
+ });
+ // RCX destination, RDX bytes (a multiple of 8): clears the memory with
+ // `rep stosq`. RDI is a preserved register and is saved around the store.
+ b.fn('rt.zeroBytes',56,a=>{
+  a.store(slot(40),'rdi');a.mov('rdi','rcx');a.mov('rcx','rdx');a.shr('rcx',3);a.mov('rax',0);a.repStosq();a.load('rdi',slot(40));
+ });
+ // RCX large mapping (already unlinked from rt.largeList and unregistered):
+ // keeps it at the head of the cache for reuse, dropping the oldest cached
+ // mapping when the cache is full, or returns it to the system when it is
+ // too big to be worth keeping. Newest-first order matters for a growing
+ // program: the mappings it released last are the ones its next blocks fit.
+ b.fn('rt.releaseLarge',56,a=>{
+  const unmap=a.unique('unmap'),done=a.unique('done'),room=a.unique('room'),tail=a.unique('tail');
+  a.load('rax',{base:'rcx',disp:L.bytes});a.cmp('rax',largeCacheMaxBytes);a.jcc('a',unmap);
+  a.mov('r10',FreeKind);a.store({base:'rcx',disp:L.size+H.kind},'r10');
+  a.load('r10',{rip:'rt.largeCache'});a.store({base:'rcx',disp:L.next},'r10');a.store({rip:'rt.largeCache'},'rcx');
+  a.load('rax',{rip:'rt.largeCacheCount'});a.add('rax',1);a.store({rip:'rt.largeCacheCount'},'rax');a.cmp('rax',largeCacheLimit);a.jcc('be',room);
+  // Full: unlink the last entry and unmap it instead.
+  a.sub('rax',1);a.store({rip:'rt.largeCacheCount'},'rax');a.lea('r9',{rip:'rt.largeCache'});
+  a.label(tail);a.load('rax',{base:'r9'});a.load('r10',{base:'rax',disp:L.next});a.test('r10','r10');a.jcc('e','rt.releaseLarge.last');a.lea('r9',{base:'rax',disp:L.next});a.jmp(tail);
+  a.label('rt.releaseLarge.last');a.mov('r10',0);a.store({base:'r9'},'r10');a.mov('rcx','rax');a.jmp(unmap);
+  a.label(room);a.jmp(done);
+  a.label(unmap);a.load('rdx',{base:'rcx',disp:L.bytes});a.call('rt.unmapPages');
+  a.label(done);
  });
  // RCX large mapping base, RDX its size: registers every granule of the mapping.
  b.fn('rt.largeMapPages',72,a=>{
@@ -210,7 +255,11 @@ export function emitMemory(b:RuntimeBuilder):void {
   const chunks=a.unique('chunks'),chunksDone=a.unique('chunksDone'),larges=a.unique('larges'),largesDone=a.unique('largesDone');
   a.label(chunks);a.load('rcx',{rip:'rt.chunks'});a.test('rcx','rcx');a.jcc('e',chunksDone);a.load('rax',{base:'rcx',disp:C.next});a.store({rip:'rt.chunks'},'rax');a.mov('rdx',chunkBytes);a.call('rt.unmapPages');a.jmp(chunks);
   a.label(chunksDone);a.label(larges);a.load('rcx',{rip:'rt.largeList'});a.test('rcx','rcx');a.jcc('e',largesDone);a.load('rax',{base:'rcx',disp:L.next});a.store({rip:'rt.largeList'},'rax');a.load('rdx',{base:'rcx',disp:L.bytes});a.call('rt.unmapPages');a.jmp(larges);
-  a.label(largesDone);a.mov('rax',0);a.store({rip:'rt.liveBytes'},'rax');a.store({rip:'rt.blocks'},'rax');a.store({rip:'rt.chunkCount'},'rax');a.store({rip:'rt.chunkUsed'},'rax');
+  a.label(largesDone);
+  {const cached=a.unique('cached'),cacheDone=a.unique('cacheDone');
+   a.label(cached);a.load('rcx',{rip:'rt.largeCache'});a.test('rcx','rcx');a.jcc('e',cacheDone);a.load('rax',{base:'rcx',disp:L.next});a.store({rip:'rt.largeCache'},'rax');a.load('rdx',{base:'rcx',disp:L.bytes});a.call('rt.unmapPages');a.jmp(cached);
+   a.label(cacheDone);}
+  a.mov('rax',0);a.store({rip:'rt.liveBytes'},'rax');a.store({rip:'rt.blocks'},'rax');a.store({rip:'rt.chunkCount'},'rax');a.store({rip:'rt.chunkUsed'},'rax');a.store({rip:'rt.largeCacheCount'},'rax');
   // The page map keeps its allocation; its entries are now stale.
   {const clearMap=a.unique('clearMap'),mapCleared=a.unique('mapCleared');a.load('r9',{rip:'rt.chunkTable'});a.load('r11',{rip:'rt.chunkCapacity'});times24(a,'r10','r11');
    a.label(clearMap);a.test('r10','r10');a.jcc('e',mapCleared);a.store({base:'r9'},'rax');a.add('r9',8);a.sub('r10',8);a.jmp(clearMap);a.label(mapCleared);}

@@ -2,9 +2,18 @@ import { RuntimeBuilder,slot,failIf } from './abi.js';
 import {stringLiteral} from './value.js';
 export function emitStrings(b:RuntimeBuilder):void {
  for(const [name,value] of Object.entries({undefined:'undefined',null:'null',true:'true',false:'false',boolean:'boolean',number:'number',string:'string',symbol:'symbol',bigint:'bigint',object:'object',space:' ',lf:'\n'}))b.bundle.fragments.push(stringLiteral('rt.str.'+name,value));
+ // RCX destination, RDX source, R8 byte count: a block copy with `rep movsb`,
+ // which the processor runs at cache bandwidth for any length worth a call.
+ // RSI and RDI are preserved registers of the calling convention and are
+ // saved around the copy; nothing here can throw or reach a safepoint.
+ b.fn('rt.copyBytes',56,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+  a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rcx','r8');a.repMovsb();
+  a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
  b.fn('rt.concat',104,a=>{
- a.store(slot(40),'rcx');a.load('rdx',{base:'rdx',disp:8});a.load('r8',{base:'r8',disp:8});a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rdx'});a.load('r10',{base:'r8'});a.add('rax','r10');failIf(a,'b','rt.throwRangeError');a.store(slot(64),'rax');a.mov('r10',0x3ffffffffffffffbn);a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(72),'rax');a.load('r10',slot(64));a.store({base:'rax'},'r10');a.add('rax',8);a.mov('r9','rax');
- for(const [i,offset] of [48,56].entries()){a.load('rdx',slot(offset));a.load('r8',{base:'rdx'});a.add('rdx',8);a.label('rt.concat.loop'+i);a.test('r8','r8');a.jcc('e','rt.concat.next'+i);a.load('r10',{base:'rdx'},16);a.store({base:'r9'},'r10',16);a.add('rdx',2);a.add('r9',2);a.sub('r8',1);a.jmp('rt.concat.loop'+i);a.label('rt.concat.next'+i);}
+ a.store(slot(40),'rcx');a.load('rdx',{base:'rdx',disp:8});a.load('r8',{base:'r8',disp:8});a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rdx'});a.load('r10',{base:'r8'});a.add('rax','r10');failIf(a,'b','rt.throwRangeError');a.store(slot(64),'rax');a.mov('r10',0x3ffffffffffffffbn);a.cmp('rax','r10');failIf(a,'a','rt.throwRangeError');a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(72),'rax');a.load('r10',slot(64));a.store({base:'rax'},'r10');a.add('rax',8);a.store(slot(80),'rax');
+ for(const offset of [48,56]){a.load('rdx',slot(offset));a.load('r8',{base:'rdx'});a.add('r8','r8');a.add('rdx',8);a.load('rcx',slot(80));a.add('rcx','r8');a.store(slot(80),'rcx');a.sub('rcx','r8');a.call('rt.copyBytes');}
  a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(72));a.store({base:'rcx',disp:8},'rax');
  });
  // Compare UTF16 code units; return signed -1,0,1. Inputs descriptor pointers.
