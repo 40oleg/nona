@@ -6,6 +6,7 @@ import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
+import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
@@ -98,8 +99,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   }
   function emitFunction(fn:FunctionIR):void {
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
-    const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*fn.slotCount,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
-    const liveness=analyzeLiveness(fn);
+    const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
+    const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
     let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
       if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
@@ -118,14 +119,15 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     }
     a.sub('rsp',allocation);const prologSize=a.offset;
     a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
-    const value=(n:number):Mem=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return stack(valueBase+16*n);};
+    const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
+    const value=(n:number):Mem=>stack(valueBase+16*location(n));
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
     const copy=(to:Mem,from:Mem)=>{
       a.load('rax',from);a.store(to,'rax');
       const add=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};
       a.load('rax',add(from));a.store(add(to),'rax');
     };
-    const payload=(n:number):Mem=>stack(valueBase+16*n+8);
+    const payload=(n:number):Mem=>stack(valueBase+16*location(n)+8);
     const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
     const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
     // Number operands are the common case of every arithmetic and relational
@@ -186,7 +188,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       }
       a.jmp(done);a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.label(done);return true;
     };
-    a.mov('rax',0);for(let i=0;i<fn.slotCount;i++){a.store(value(i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
+    a.mov('rax',0);for(let i=0;i<locations.count;i++){a.store(stack(valueBase+16*i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
     a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
     copy(stack(superReceiverBase),stack(thisBase));
     if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
@@ -197,7 +199,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     }
     a.load('rax',{rip:'rt.gcRoots'});a.store(stack(rootBase+R.next),'rax');
     a.lea('rax',stack(valueBase));a.store(stack(rootBase+R.values),'rax');
-    a.mov('rax',fn.slotCount+3);a.store(stack(rootBase+R.count),'rax');
+    a.mov('rax',locations.count+3);a.store(stack(rootBase+R.count),'rax');
     a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
     if(fn.derivedConstructor){a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');}
     // Slots that may hold stale values when a block starts: whatever its
@@ -216,7 +218,8 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       changed=false;
       for(const [index,block] of fn.blocks.entries()){
         let entry:Set<number>;
-        if(index===0||handlerTargets.has(block.id))entry=new Set(allSlots);
+        if(handlerTargets.has(block.id))entry=new Set(allSlots);
+        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i));
         else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
         const previous=entrySets.get(block.id);
         if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
@@ -227,10 +230,11 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       // After the first safepoint only previously live slots/new destinations need clearing.
       let possible=new Set(entrySets.get(block.id)??allSlots);
       for(const [index,op] of block.operations.entries()){
-       const live=liveness.get(block.id)!.before[index]!;
-       const dead=[...possible].filter(slot=>!live.has(slot));
-       if(dead.length){a.mov('rax',0);for(const slot of dead){a.store(value(slot),'rax');a.store(stack(valueBase+16*slot+8),'rax');}}
-       possible=new Set(live);if('dest'in op)possible.add(op.dest);
+       // A location is cleared when none of the slots sharing it is live.
+       const live=liveness.get(block.id)!.before[index]!,liveLocations=new Set([...live].map(location));
+       const dead=[...new Set([...possible].map(location))].filter(l=>!liveLocations.has(l));
+       if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
+       possible=new Set(live);for(const d of destinations(op))possible.add(d);
        // Safepoint before every operation: the check of rt.safepoint inline,
        // so that only a collection costs a call.
        if(options.gcStress)a.call('rt.collect');
@@ -241,16 +245,16 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
           pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');
-          if(op.classConstructor){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
+          if(op.classConstructor){a.load('r10',payload(op.dest));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
           if(op.async){
-            a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
+            a.load('r10',payload(op.dest));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
             if(op.generator){pointer('rcx',op.dest);a.call('rt.initializeAsyncGeneratorFunction');}
             else{a.lea('rax',{rip:'rt.asyncFunctionPrototype'});a.store({base:'r10',disp:O.prototype},'rax');}
           }
-          else if(op.generator){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
-          if(op.strict||op.arrow){a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
+          else if(op.generator){a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
+          if(op.strict||op.arrow){a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
           if(op.arrow){
-            a.load('r10',stack(valueBase+16*op.dest+8));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
+            a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
             for(const [target,source] of [[FunctionLayout.lexicalThis,thisBase],[FunctionLayout.lexicalNewTarget,newTargetBase]] as const){
               a.load('rax',stack(source));a.store({base:'r10',disp:target},'rax');
               a.load('rax',stack(source+8));a.store({base:'r10',disp:target+8},'rax');
@@ -259,10 +263,10 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
               a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');
             }
           }
-          if(op.homeObject!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
-          if(op.sourceText!==undefined){a.load('r10',stack(valueBase+16*op.dest+8));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
+          if(op.homeObject!==undefined){a.load('r10',payload(op.dest));a.load('rax',payload(op.homeObject));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
+          if(op.sourceText!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
           pointer('rcx',op.dest);
-          if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',stack(valueBase+16*op.nameSlot+8));
+          if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',payload(op.nameSlot));
           a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
         case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.setter?1:0)|(op.nonEnumerable?2:0));a.call('rt.defineLiteralAccessor');break;
         case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
@@ -270,7 +274,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'writeCell':pointer('rcx',op.cell);pointer('rdx',op.source);a.call('rt.writeCell');break;
         case 'loadCapture':
           a.load('r10',stack(64));a.load('r10',{base:'r10',disp:FunctionLayout.environment});
-          a.load('rax',{base:'r10',disp:E.cells+8*op.index});a.store(stack(valueBase+16*op.dest+8),'rax');
+          a.load('rax',{base:'r10',disp:E.cells+8*op.index});a.store(payload(op.dest),'rax');
           a.mov('rax',CellTag);a.store(value(op.dest),'rax');break;
         case 'pushHandler':{
           const offset=handlerBase+H.size*op.index;
@@ -284,14 +288,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'popHandler':a.load('rax',{rip:'rt.exceptionHandler'});a.load('rax',{base:'rax',disp:H.next});a.store({rip:'rt.exceptionHandler'},'rax');break;
         case 'newTarget':copy(value(op.dest),stack(newTargetBase));break;
         case 'superBase':
-          a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
+          a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.load('rax',{base:'rax',disp:O.prototype});a.store(payload(op.dest),'rax');
           {const nonnull=a.unique('superBaseObject'),done=a.unique('superBaseDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superConstructor':
-          if(op.func!==undefined)a.load('rax',stack(valueBase+16*op.func+8));else a.load('rax',stack(64));
-          a.load('rax',{base:'rax',disp:O.prototype});a.store(stack(valueBase+16*op.dest+8),'rax');
+          if(op.func!==undefined)a.load('rax',payload(op.func));else a.load('rax',stack(64));
+          a.load('rax',{base:'rax',disp:O.prototype});a.store(payload(op.dest),'rax');
           {const nonnull=a.unique('superConstructorObject'),done=a.unique('superConstructorDone');a.test('rax','rax');a.jcc('ne',nonnull);a.mov('rax',1);a.jmp(done);a.label(nonnull);a.mov('rax',5);a.label(done);a.store(value(op.dest),'rax');}break;
         case 'superReceiver':copy(value(op.dest),stack(superReceiverBase));break;
-        case 'setFunctionHomeObject':a.load('r10',stack(valueBase+16*op.func+8));a.load('rax',stack(valueBase+16*op.homeObject+8));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');break;
+        case 'setFunctionHomeObject':a.load('r10',payload(op.func));a.load('rax',payload(op.homeObject));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');break;
         case 'setCurrentThis':if(!fn.derivedConstructor){
           // An arrow's lexical this may be its derived constructor's this cell.
           const direct=a.unique('directSetThis'),done=a.unique('setThisDone');
@@ -305,7 +309,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         }else copy(stack(thisBase),value(op.source));break;
         case 'validateClassHeritage':{
           const done=a.unique('classHeritageDone');a.load('rax',value(op.base));a.cmp('rax',1);a.jcc('e',done);a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
-          a.load('r10',stack(valueBase+16*op.base+8));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
+          a.load('r10',payload(op.base));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
           a.load('rax',{base:'r10',disp:FunctionLayout.constructable});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.label(done);break;
         }
         case 'validateClassPrototype':{
@@ -314,7 +318,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'superGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
         case 'superSet':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.receiver);pointer('r9',op.source);a.call('rt.superSet');if(op.strict){a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'currentFunction':
-          a.load('rax',stack(64));a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
+          a.load('rax',stack(64));a.store(payload(op.dest),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
         case 'currentThis':{
           const direct=a.unique('directThis'),done=a.unique('thisReady');a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('ne',direct);
           pointer('rcx',op.dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');a.jmp(done);
@@ -369,14 +373,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'iteratorClose':pointer('rcx',op.iterator);a.call('rt.iteratorClose');break;
         case 'requireIterable':pointer('rcx',op.object);a.call('rt.requireIterable');break;
         case 'forOfValue':pointer('rcx',op.dest);pointer('rdx',op.iterable);pointer('r8',op.index);a.call('rt.forOfValue');break;
-        case 'property':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',stack(valueBase+16*op.dest+8));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
+        case 'property':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
         case 'defineDataProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',op.attributes);a.call('rt.initFunctionProperty');break;
         case 'setPrototype':pointer('rcx',op.object);pointer('rdx',op.prototype);a.call('rt.setPrototype');break;
         case 'uninitialized':
-          a.mov('rax',255);a.store(value(op.dest),'rax');a.mov('rax',0);a.store(stack(valueBase+16*op.dest+8),'rax');break;
+          a.mov('rax',255);a.store(value(op.dest),'rax');a.mov('rax',0);a.store(payload(op.dest),'rax');break;
         case 'checkInitialized':a.load('rax',value(op.slot));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
-        case 'checkResolvable':a.load('rax',stack(valueBase+16*op.slot+8));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
+        case 'checkResolvable':a.load('rax',payload(op.slot));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
         case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
         case 'constant':{
           const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
@@ -384,7 +388,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           if(typeof v==='string'||typeof v==='bigint')a.lea('rax',{rip:literal(String(v))});
           else if(typeof v==='number'){const bytes=new DataView(new ArrayBuffer(8));bytes.setFloat64(0,v,true);a.mov('rax',bytes.getBigUint64(0,true));}
           else a.mov('rax',v===true?1:0);
-          a.store(stack(valueBase+16*op.dest+8),'rax');break;
+          a.store(payload(op.dest),'rax');break;
         }
         case 'copy':copy(value(op.dest),value(op.source));break;
         case 'loadGlobal':copy(value(op.dest),{rip:op.prelude?'rt.preludeGlobals':'js.globals',addend:16*op.index});break;
@@ -398,14 +402,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
           if(op.operator==='isReturnMarker'){
             // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
             a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
-            a.store(stack(valueBase+16*op.dest+8),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
+            a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
           if(emitNumberUnary(op.dest,op.operator,op.argument))break;
           pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
         case 'binary':{
           const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
-          if(op.operator==='!='||op.operator==='!=='){a.load('rax',stack(valueBase+16*op.dest+8));a.xor('rax',1);a.store(stack(valueBase+16*op.dest+8),'rax');}
+          if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
           if(done)a.label(done);break;
         }
         case 'call':
