@@ -28,6 +28,7 @@ import {asyncRoots,asyncPropertyRoots} from './async.js';
 import {CellTag,EnvironmentLayout as E} from './environment-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {callStaticProperties} from './function-call.js';
+import {tailStagingCapacity} from './tail-calls.js';
 import {applyStaticProperties} from './function-apply.js';
 import {bindStaticProperties} from './function-bind.js';
 import {BoundDataLayout as B} from './bound-layout.js';
@@ -293,6 +294,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   const mark=a.unique('mark'),sweep=a.unique('sweep'),sweepLoop=a.unique('sweepLoop'),keep=a.unique('keep'),finish=a.unique('finish');
   a.load('rax',{rip:'rt.gcCount'});a.add('rax',1);a.store({rip:'rt.gcCount'},'rax');
   a.lea('rcx',{rip:'rt.tailPending'});a.mov('rdx',3);a.call('rt.gcMarkRange');
+  a.lea('rcx',{rip:'rt.tailStaging'});a.mov('rdx',tailStagingCapacity);a.call('rt.gcMarkRange');
   a.lea('rcx',{rip:'rt.sharedJobQueue'});a.mov('rdx',1);a.call('rt.gcMarkRange');
   a.call('rt.gcMarkRealm');
   for(let realm=1;realm<=extraRealms;realm++){
