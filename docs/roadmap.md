@@ -29,11 +29,11 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | 1 | Number arithmetic, comparisons and branches inline instead of runtime calls | Sparkplug, Liftoff, Maglev | **done** (#41) |
 | 2 | Collection check once per basic block instead of before every operation | Maglev, jank busters | **done** (#41) |
 | 3 | Cache compiled regular expressions; skip to a literal prefix | Speeding up regular expressions | **done** (#41) |
-| 4 | Seeded string hashing and cached key hashes (hash flooding) | Hash flooding, hash codes | in progress (#66) |
-| 5 | Collector: leaf blocks are not greyed, larger start threshold, poisoned cells under GC stress | Orinoco, Oilpan, temporal memory safety | in progress (#67) |
-| 6 | Spread, destructuring and rest step array iterators directly and append to dense elements | Spread elements, high-performance ES2015 | in progress (#65) |
-| 7 | Cheaper await steps, pooled coroutine stacks | Faster async functions and promises | in progress (#68) |
-| 8 | Small post-ES2020 features: numeric separators, logical assignment, `Promise.any`, `.at()`, `Object.hasOwn`, Error `cause`, `findLast` | V8 release posts 7.5–9.7 | in progress (#69) |
+| 4 | Seeded string hashing and cached key hashes (hash flooding) | Hash flooding, hash codes | **done** (#66) |
+| 5 | Collector: leaf blocks are not greyed, larger start threshold, poisoned cells under GC stress | Orinoco, Oilpan, temporal memory safety | **done** (#67) |
+| 6 | Spread, destructuring and rest step array iterators directly and append to dense elements | Spread elements, high-performance ES2015 | **done** (#65) |
+| 7 | Cheaper await steps, pooled coroutine stacks | Faster async functions and promises | **done** (#68) |
+| 8 | Small post-ES2020 features: numeric separators, logical assignment, `Promise.any`, `.at()`, `Object.hasOwn`, Error `cause`, `findLast` | V8 release posts 7.5–9.7 | **done** (#69) |
 | – | Integer and short decimal number-to-string fast paths | V8 release 8.6 | **done** (#41) |
 
 ## Medium (M)
@@ -42,7 +42,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | --- | --- | --- | --- |
 | 9 | Map/Set ordered hash tables | Hash codes, release 6.x | **done** (#41, hash index over the entry list) |
 | 10 | Dense array elements with holes and a dictionary fallback | Fast properties, elements kinds | **done** (#41) |
-| 11 | RegExp: bytecode with an explicit backtrack stack (no native recursion, no step limit), fused class runs | Non-backtracking RegExp, RegExp tier-up | |
+| 11 | RegExp: bytecode with an explicit backtrack stack (no native recursion, no step limit), fused class runs | Non-backtracking RegExp, RegExp tier-up | **done** (#14; class runs not fused yet) |
 | 12 | RegExp: linear-time (Pike VM) fallback instead of the backtracking limit for eligible patterns | Non-backtracking RegExp | |
 | 13 | Link only the preludes a program can reach (RegExp, Promise, Proxy, Reflect, timers, fs, process) | Lazy deserialization, V8 Lite | in progress for RegExp (#62) |
 | 14 | Iterative native `JSON.parse` with exact pre-sized objects; segmented `JSON.stringify` output | JSON.parse (7.6), faster JSON.stringify | partly done (#41) |

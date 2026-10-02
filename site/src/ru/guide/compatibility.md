@@ -36,7 +36,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 ## Производительность
 
 - Массивы и `Map`/`Set` хранят элементы в связных структурах; очень большие коллекции работают медленнее, чем в V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
-- Движок RegExp — VM с возвратами, написанная на JavaScript ([#14](https://github.com/40oleg/nona/issues/14)).
+- Движок RegExp — VM с возвратами, написанная на JavaScript.
 - На Windows таймеры просыпаются по системному тику (обычно 15,6 мс).
 - JIT нет: код компилируется один раз, заранее, без оптимизации по профилю.
 

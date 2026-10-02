@@ -89,3 +89,23 @@ test('RegExp whitespace escapes include ES2020 Unicode spaces',()=>expectProgram
     console.log(/\\s/.test(value),/\\S/.test(value),value.replace(/\\S+/g,'x')===value);
   }
 `,'true false true\n'.repeat(6)));
+
+test('RegExp VM backtracks on explicit stacks without a step limit',()=>expectProgram(String.raw`
+  let long='ab'.repeat(20000)+'c';
+  console.log(/(?:a|b)*c/.exec(long)[0].length,/(a|b)*?c/.exec(long)[1]);
+  let haystack='x'.repeat(100000)+'abc123-'+'y'.repeat(1000)+'abc456-',found=[],re=/abc(\d{3})-/g,m;
+  while((m=re.exec(haystack))!==null)found.push(m[1]+'@'+m.index);
+  console.log(found.join(' '));
+  console.log(JSON.stringify(/(z)((a+)?(b+)?(c))*/.exec('zaacbbbcac')));
+  console.log(JSON.stringify(/(a*)*b/.exec('aaab')),JSON.stringify(/(a?)*?b/.exec('ab')),JSON.stringify(/(?:a{0,2}){3}b/.exec('aaaab')));
+  console.log(JSON.stringify(/(.*?)a(?!(a+)b\2c)\2(.*)/.exec('baaabaac')));
+  console.log(/(a+)+b/.test('a'.repeat(24)+'b'),JSON.stringify(/^(?:(a)|b)*$/.exec('ab')));
+  console.log(JSON.stringify(/(?<=(\d+)(\d+))$/.exec('1053')),JSON.stringify(/[^"]*"/.exec('abc"d')));
+  console.log(JSON.stringify(/\u{1F600}+?./u.exec('\u{1F600}\u{1F600}x')),JSON.stringify(/(?<=\u{1F600}{2})x/u.exec('\u{1F600}\u{1F600}x')));
+`,'40001 b\n123@100000 456@101007\n'+
+  '["zaacbbbcac","z","ac","a",null,"c"]\n'+
+  '["aaab","aaa"] ["ab","a"] ["aaaab"]\n'+
+  '["baaabaac","ba",null,"abaac"]\n'+
+  'true ["ab",null]\n'+
+  '["","1","053"] ["abc\\""]\n'+
+  '["😀😀"] ["x"]\n'));

@@ -31,7 +31,6 @@ Windows 上所有“其他”类失败都已分类：
 - [#11](https://github.com/40oleg/nona/issues/11)——源码在运行时计算的 `eval` 和 `Function`。
 - [#7](https://github.com/40oleg/nona/issues/7)——前导代码构造器从其他 realm 获取默认原型。
 - [#13](https://github.com/40oleg/nona/issues/13)、[#36](https://github.com/40oleg/nona/issues/36)——稠密数组元素以及 `Map`/`Set` 的哈希表。
-- [#14](https://github.com/40oleg/nona/issues/14)——RegExp 引擎的性能。
 
 完整列表见 [GitHub](https://github.com/40oleg/nona/issues)。
 

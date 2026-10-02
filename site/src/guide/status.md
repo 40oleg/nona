@@ -31,7 +31,6 @@ All "other" failures on Windows are classified:
 - [#11](https://github.com/40oleg/nona/issues/11) — `eval` and `Function` with source computed at run time.
 - [#7](https://github.com/40oleg/nona/issues/7) — default prototypes from other realms for prelude constructors.
 - [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — dense array elements and hash tables for `Map`/`Set`.
-- [#14](https://github.com/40oleg/nona/issues/14) — RegExp engine performance.
 
 The full list is on [GitHub](https://github.com/40oleg/nona/issues).
 
