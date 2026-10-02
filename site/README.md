@@ -10,6 +10,7 @@ npm run dev              # local server with live reload
 npm run build            # production build into .vitepress/dist; fails on broken internal links
 npm run preview          # serve the production build
 npm run check:samples    # compile every program in samples/ for its targets
+npm run check:playground # the browser bundle of the compiler matches the CLI (after a build)
 npm run check:links      # links to repository files on GitHub exist (after a build)
 ```
 
@@ -19,10 +20,13 @@ npm run check:links      # links to repository files on GitHub exist (after a bu
 | --- | --- |
 | `.vitepress/config.mts` | Title, navigation, sidebar, search, `base: '/nona/'`. |
 | `src/` | Pages. The URL is the path without `.md` (`src/guide/getting-started.md` → `/guide/getting-started`). |
-| `src/public/` | Static files (favicon). |
+| `src/public/` | Static files (favicon). `src/public/playground-worker.js` is generated. |
+| `playground/` | The playground's Web Worker and the browser shims for the Node.js modules the compiler uses. |
+| `.vitepress/components/Playground.vue` | The playground UI (`/playground`). |
 | `samples/` | Runnable programs shown on the pages. |
 | `scripts/sync-docs.mjs` | Copies reference documents into `generated/` (not committed). |
-| `scripts/check-samples.mjs`, `scripts/check-repo-links.mjs` | CI checks. |
+| `scripts/build-playground.mjs` | Bundles `../dist/src/compiler.js` with esbuild into the playground worker. |
+| `scripts/check-samples.mjs`, `scripts/check-playground.mjs`, `scripts/check-repo-links.mjs` | CI checks. |
 
 ## Generated pages
 
@@ -63,3 +67,7 @@ Neutral technical English in the present tense. Claims about support name their 
 ## Languages
 
 The site is English only. Russian pages, when added, go under `src/ru/` with the same slugs and a `locales` entry in the configuration.
+
+## Playground
+
+`/playground` compiles in the browser: `scripts/build-playground.mjs` bundles the compiler from `../dist` (so `npm run build` in the repository root comes first, also for `npm run dev`) together with small shims in `playground/shims/` for `node:fs`, `node:path`, `node:vm`, `process` and `Buffer`. If the compiler starts using another Node.js API, the bundle fails with "has no browser shim" (for `node:*` imports) or `check:playground` fails; add a shim. Examples are files in `samples/` (`playground-*`), so `check:samples` compiles them too.

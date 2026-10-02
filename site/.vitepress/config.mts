@@ -19,6 +19,7 @@ export default defineConfig({
       {text: 'Guide', link: '/guide/what-is-nona', activeMatch: '/guide/'},
       {text: 'Reference', link: '/reference/cli', activeMatch: '/reference/'},
       {text: 'Examples', link: '/examples/', activeMatch: '/examples/'},
+      {text: 'Playground', link: '/playground'},
       {text: 'Changelog', link: '/changelog'},
       {text: 'Русский', link: `${github}/blob/main/README.ru.md`},
     ],
