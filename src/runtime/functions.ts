@@ -52,16 +52,25 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(done);
  });
  // RCX fresh function Value*, RDX name descriptor, R8 simple parameter count.
+ // The function was just created, so `length` and `name` cannot exist yet:
+ // their property nodes are built and linked directly rather than through
+ // the generic [[Set]] (a prototype-chain walk, a key conversion and a
+ // second lookup each). Key order stays length, name, prototype: the
+ // prototype node, when there is one, is kept at the head of the list.
  b.fn('rt.initFunctionMetadata',88,a=>{
-  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(48),'rax');a.store(slot(56),'rdx');
-  a.mov('rax',3);a.store(slot(64),'rax');a.cvtsi2sd('xmm0','r8');a.storesd(slot(72),'xmm0');
-  a.lea('rdx',{rip:'rt.key.length'});a.lea('r8',slot(64));a.mov('r9',A.configurable);a.call('rt.initFunctionProperty');
-  a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.name'});a.lea('r8',slot(48));a.mov('r9',A.configurable);a.call('rt.initFunctionProperty');
-  // Move the fresh prototype node to the newest position: length, name, prototype.
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.prototype'});a.call('rt.findOwnProperty');a.store(slot(80),'rax');const noPrototype=a.unique('noPrototype');a.test('rax','rax');a.jcc('e',noPrototype);
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rdx',{rip:'rt.str.length'});a.call('rt.findOwnProperty');
-  a.load('r10',slot(80));a.load('r11',{base:'r10',disp:P.next});a.store({base:'rax',disp:P.next},'r11');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});a.store({base:'r10',disp:P.next},'r11');a.store({base:'rcx',disp:O.properties},'r10');a.label(noPrototype);
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  const node=(key:string)=>{
+   a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+   a.lea('r10',{rip:key});a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.configurable);a.store({base:'rax',disp:P.attributes},'r10');
+  };
+  node('rt.str.length');a.mov('r10',3);a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(56));a.cvtsi2sd('xmm0','r10');a.storesd({base:'rax',disp:P.value+8},'xmm0');a.store(slot(64),'rax');
+  node('rt.str.name');a.mov('r10',4);a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(48));a.store({base:'rax',disp:P.value+8},'r10');
+  a.load('r10',slot(64));a.store({base:'rax',disp:P.next},'r10');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});
+  const behind=a.unique('behindPrototype'),done=a.unique('done');a.test('r11','r11');a.jcc('ne',behind);
+  a.store({base:'rcx',disp:O.properties},'rax');a.jmp(done);
+  a.label(behind);a.load('r9',{base:'r11',disp:P.next});a.store({base:'r10',disp:P.next},'r9');a.store({base:'r11',disp:P.next},'rax');
+  a.label(done);
  });
  // Concise methods, accessors, arrows and async functions have no own
  // prototype and cannot construct: they get the bare function object rather
