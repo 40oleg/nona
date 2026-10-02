@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, openSync, closeSync, readFileSync, chmodSync } from 'node:fs';
+import { removeTemporaryDirectory } from './cleanup.js';
+import { mkdtempSync, writeFileSync, openSync, closeSync, readFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 
@@ -67,7 +68,7 @@ export function runNative(
       throw new Error(`Refusing to remove unverified temp directory: ${directory}`);
     }
 
-    rmSync(directory, { recursive: true, force: true });
+    removeTemporaryDirectory(directory);
   }
 }
 
