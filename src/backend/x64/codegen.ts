@@ -241,7 +241,12 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
        else{const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
-        case 'readGlobalProperty':pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',op.allowMissing?1:0);a.call('rt.readGlobalProperty');break;
+        case 'readGlobalProperty':{
+          // Prelude code is shared by every program and cannot know which
+          // names a script declares, so only user code gets the fast path.
+          const prelude=fn.id.startsWith('js.regexpVm.'),notBinding=!prelude&&!globalProperties.some(p=>p.name===op.name);
+          pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));a.call('rt.readGlobalProperty');break;
+        }
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
           pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');

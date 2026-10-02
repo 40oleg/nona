@@ -1,5 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
+import {BoxKind} from './boxing.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
@@ -46,10 +47,19 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.label(next);a.load('r9',slot(40));a.load('rax',{base:'rax',disp:P.next});a.jmp(loop);
   a.label(done);
  });
- // Jumps to miss unless R10 (object payload) is an ordinary object or array
- // other than the global object. Leaves RAX scratch.
- const ordinaryObject=(a:Assembler,miss:string)=>{
-  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('a',miss);a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',miss);
+ // Jumps to miss unless R10 (object payload) is an ordinary object, an array,
+ // a function or a primitive wrapper other than the global object. Leaves RAX
+ // scratch. Functions have no exotic [[Get]]/[[Set]]; a wrapper's exotic
+ // properties are indices and "length", which the key checks exclude.
+ const ordinaryObject=(a:Assembler,miss:string,allowGlobal=false)=>{
+  const ok=a.unique('ordinaryKind');
+  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('be',ok);a.cmp('rax',BoxKind);a.jcc('ne',miss);
+  a.label(ok);if(!allowGlobal){a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',miss);}
+ };
+ // Jumps to miss when R10 is an array or wrapper and R8 says the key is "length".
+ const notLengthOfExotic=(a:Assembler,miss:string)=>{
+  const fine=a.unique('notLength');a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e','rt.namedFast.lengthCheck'+fine);a.cmp('rax',BoxKind);a.jcc('ne',fine);
+  a.label('rt.namedFast.lengthCheck'+fine);a.load('rax',slot(64));a.test('rax','rax');a.jcc('ne',miss);a.label(fine);
  };
  // Jumps to miss unless R9 (key record) is a plain name: not empty, not
  // starting with a digit, not "__proto__". Sets R8 = 1 when it is "length".
@@ -62,15 +72,21 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
  };
  // RCX result Value*, RDX base Value*, R8 key Value*. RAX 1 when the read was
  // answered, else 0 with every argument register preserved.
- b.fn('rt.namedGetFast',88,a=>{
-  const miss=a.unique('miss'),done=a.unique('done'),chain=a.unique('chain'),missing=a.unique('missing'),found=a.unique('found'),notArray=a.unique('notArray');
+ // rt.namedGetFastGlobal also accepts the global object: rt.readGlobalProperty
+ // uses it for a name the compiler knows is not a script binding.
+ for(const [name,allowGlobal] of [['rt.namedGetFast',false],['rt.namedGetFastGlobal',true]] as const)b.fn(name,88,a=>{
+  const miss=a.unique('miss'),done=a.unique('done'),chain=a.unique('chain'),missing=a.unique('missing'),found=a.unique('found'),object=a.unique('object'),primitive=a.unique('primitive');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
-  a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',miss);a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('ne',miss);
+  a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('ne',miss);
   a.load('r9',{base:'r8',disp:8});plainName(a,miss);a.store(slot(64),'r8');
-  a.load('r10',{base:'rdx',disp:8});
-  a.label(chain);ordinaryObject(a,miss);
-  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',notArray);a.load('rax',slot(64));a.test('rax','rax');a.jcc('ne',miss);
-  a.label(notArray);a.store(slot(72),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',found);
+  // A string, number or boolean receiver reads from its prototype (a
+  // string's own "length" and indices are excluded by the key checks);
+  // a data property found there is the answer, an accessor goes generic.
+  a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('e',primitive);a.cmp('rax',3);a.jcc('e',primitive);a.cmp('rax',2);a.jcc('ne',miss);
+  a.label(primitive);a.mov('rcx','rdx');a.call('rt.propertyBase');a.mov('r10','rax');a.load('r8',slot(56));a.load('r9',{base:'r8',disp:8});a.jmp(chain);
+  a.label(object);a.load('r10',{base:'rdx',disp:8});
+  a.label(chain);ordinaryObject(a,miss,allowGlobal);notLengthOfExotic(a,miss);
+  a.store(slot(72),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',found);
   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});a.test('r10','r10');a.jcc('e',missing);a.load('r8',slot(56));a.load('r9',{base:'r8',disp:8});a.jmp(chain);
   a.label(found);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',miss);
   a.load('r11',{base:'rax',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',miss);
@@ -87,8 +103,9 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',miss);a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('ne',miss);
   a.load('r9',{base:'rdx',disp:8});plainName(a,miss);a.store(slot(72),'r8');a.store(slot(80),'r9');
   a.load('r10',{base:'rcx',disp:8});ordinaryObject(a,miss);
-  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',notArray);a.load('rax',slot(72));a.test('rax','rax');a.jcc('ne',miss);
-  a.label(notArray);a.store(slot(88),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('e',create);
+  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',notArray);a.cmp('rax',BoxKind);a.jcc('ne','rt.namedSetFast.plainReceiver');
+  a.label(notArray);a.load('rax',slot(72));a.test('rax','rax');a.jcc('ne',miss);
+  a.label('rt.namedSetFast.plainReceiver');a.store(slot(88),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('e',create);
   // Own property: a plain write of a writable data property.
   a.load('r11',slot(64));a.and('r11',1);a.test('r11','r11');a.jcc('ne',miss);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);
@@ -100,7 +117,8 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.load('rax',slot(64));a.and('rax',1);a.test('rax','rax');a.jcc('ne',own);
   a.load('r10',{base:'r10',disp:O.prototype});
   a.label(chain);a.test('r10','r10');a.jcc('e',own);ordinaryObject(a,miss);
-  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',inherited);a.load('rax',slot(72));a.test('rax','rax');a.jcc('ne',miss);
+  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e','rt.namedSetFast.exoticAncestor');a.cmp('rax',BoxKind);a.jcc('ne',inherited);
+  a.label('rt.namedSetFast.exoticAncestor');a.load('rax',slot(72));a.test('rax','rax');a.jcc('ne',miss);
   a.label(inherited);a.store(slot(96),'r10');a.mov('rcx','r10');a.load('rdx',slot(80));a.call('rt.ownNamedNode');a.test('rax','rax');const nextProto=a.unique('nextProto');a.jcc('e',nextProto);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);a.jmp(own);
   a.label(nextProto);a.load('r10',slot(96));a.load('r10',{base:'r10',disp:O.prototype});a.jmp(chain);
