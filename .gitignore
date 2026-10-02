@@ -7,3 +7,6 @@ work/
 *.log
 .DS_Store
 Thumbs.db
+site/.vitepress/cache/
+site/generated/
+site/node_modules/

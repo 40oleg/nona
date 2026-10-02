@@ -50,6 +50,10 @@ exactly.
 - Update the documentation: `README.md` and `README.ru.md` for user-visible
   features, `docs/` for details (`docs/host-apis.md` for host APIs), and an
   entry under `## Unreleased` in `CHANGELOG.md` that links the issue.
+- Update the documentation site pages under `site/src/` that describe the
+  feature (reference pages generated from `docs/` are included automatically);
+  runnable samples go to `site/samples/` and must pass `npm run check:samples`
+  in `site/`.
 
 ## Code conventions
 

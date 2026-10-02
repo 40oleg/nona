@@ -1,0 +1,51 @@
+# Compatibility and limitations
+
+## Scope
+
+Nona targets the normative ECMA-262 11th edition (June 2020) language and built-ins, for scripts and ES modules. ECMA-402 internationalization, browser APIs and Node.js APIs are separate specifications; Nona provides only the host APIs listed in the [Reference](/reference/modules). The completion contract is kept in [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md).
+
+A release is described as "ES2020 with documented exceptions", never as fully conformant ES2020.
+
+## `eval` and `Function`
+
+Nona compiles ahead of time, so `eval` and the dynamic function constructors need their source text at compile time:
+
+- **Compiled ahead of time:** a string literal, a concatenation of literals, or a variable that is only ever assigned such constants (the value is compared at run time). Direct `eval` sees the caller's scope, `this`, `arguments`, `new.target` and `super`; indirect forms (`(0, eval)(…)`, `globalThis.eval(…)`, `eval?.(…)`) run in the global scope. `Function`, `GeneratorFunction`, `AsyncFunction` and `AsyncGeneratorFunction` calls whose arguments are all literals are compiled with CreateDynamicFunction semantics.
+- **Not supported:** source computed at run time, spread arguments to `eval` and `$262.evalScript`. These throw:
+
+```text
+EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
+```
+
+Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
+
+## Differences from Node.js
+
+| Area | Nona | Node.js |
+| --- | --- | --- |
+| `process.argv` | `[execPath, ...arguments]`: `argv[1]` is the first argument | `[node, script, ...arguments]` |
+| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | An EventEmitter with streams, `nextTick`, `hrtime`, … |
+| Timer ids | Numbers | `Timeout` objects |
+| `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
+| Encodings | `utf8` only | Many |
+| Error messages on Windows | Contain the path as given | Contain the absolute path |
+| Modules | `nona:*`, `node:fs`, `node:process` and relative files | Everything in `node:*` and npm packages |
+| `require`, `Buffer`, `node:path` | Not available | Available |
+| `console.log` without standard output | Output is dropped | Output is dropped or an error is raised |
+
+## Performance
+
+- Arrays and `Map`/`Set` keep their elements in linked structures; very large collections are slower than in V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
+- The RegExp engine is a backtracking VM written in JavaScript ([#14](https://github.com/40oleg/nona/issues/14)).
+- On Windows timers wake up on the system tick (typically 15.6 ms).
+- There is no JIT: code is compiled once, ahead of time, without profile-guided optimisation.
+
+## Realms
+
+`$262.createRealm` is supported for Test262. Some constructors implemented in JavaScript preludes still take default prototypes from the wrong realm when called with `new.target` from another realm ([#7](https://github.com/40oleg/nona/issues/7)).
+
+## Platforms
+
+- Targets: Windows 10/11 x64 and Linux x86-64 only.
+- Windows executables import only `KERNEL32.dll`, `KERNELBASE.dll` and DLLs declared through FFI; Linux executables are static and use system calls directly.
+- FFI to DLLs is Windows-only; raw system calls are Linux-only.

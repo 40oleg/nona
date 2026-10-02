@@ -2,7 +2,7 @@
 
 **Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в самостоятельные исполняемые файлы Windows и Linux x64.**
 
-[English](README.md) · [Поддержка языка](docs/language-support.md) · [Статус ES2020](docs/v0.17-v0.20-status.md) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
+[Документация](https://40oleg.github.io/nona/) (англ.) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Статус ES2020](docs/v0.17-v0.20-status.md) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
 
 Nona разбирает JavaScript, переводит его в собственное промежуточное представление, генерирует машинный код x86-64 и собирает исполняемый файл PE32+ (Windows) или ELF64 (Linux). Внутри нет Node.js, V8 или интерпретатора, не нужны C/C++-компилятор и LLVM: программы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI), программы для Linux работают через системные вызовы, без libc.
 

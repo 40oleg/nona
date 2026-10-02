@@ -1,0 +1,19 @@
+{
+  "name": "nona-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "sync": "node scripts/sync-docs.mjs",
+    "dev": "npm run sync && vitepress dev",
+    "build": "npm run sync && vitepress build",
+    "preview": "vitepress preview",
+    "check:samples": "node scripts/check-samples.mjs",
+    "check:links": "node scripts/check-repo-links.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}
