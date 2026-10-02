@@ -3,6 +3,8 @@ import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleSource} from './events-module.js';
 import {bufferModuleSource,stringDecoderModuleSource} from './buffer-module.js';
+import {streamModuleSource} from './stream-module.js';
+import {netModuleSource} from './net-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -92,6 +94,9 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:buffer',()=>aliasOf('node:buffer')],
   ['node:string_decoder',()=>stringDecoderModuleSource],
   ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
+  ['nona:internal/stream',()=>streamModuleSource],
+  ['node:net',netModuleSource],
+  ['nona:net',()=>aliasOf('node:net')],
 ]);
 
 export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
