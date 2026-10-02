@@ -100,6 +100,23 @@ console.log(out.length,h,out.slice(0,60).join());
 const o={valueOf(){return 7;}};console.log(o+1,o*2,o<8,o==7,-o,!o,1<<o,o>>>1);
 let i=0;for(;i<10;i++);console.log(i,i>>1,i<<30,i<<31,(2**40)|0,(2**32+7)&255,(-1)>>>0,(-1)>>>31,1.9|0,-1.9|0);
 `,
+ 'async functions with pooled coroutine stacks':`
+const log=[];
+async function leaf(x){return x+1;}
+async function thrower(x){if(x%3===0)throw new Error("e"+x);await null;return x;}
+async function deep(n){if(n===0)return 0;return 1+await deep(n-1);}
+async function main(){
+ let s=0;for(let i=0;i<15;i++)s+=await leaf(i);log.push(s);
+ let caught=0;for(let i=0;i<9;i++){try{await thrower(i);}catch(e){caught++;}}log.push(caught);
+ log.push(await deep(6));
+ const all=await Promise.all(Array.from({length:6},(_, i)=>leaf(i)));log.push(all.reduce((a,b)=>a+b,0));
+ const order=[];const p=Promise.resolve();(async()=>{order.push("a1");await p;order.push("a2");await p;order.push("a3");})();
+ p.then(()=>order.push("t1")).then(()=>order.push("t2")).then(()=>order.push("t3"));await null;await null;await null;await null;log.push(order.join());
+ async function* gen(){for(let i=0;i<3;i++){await null;yield i;}}let g=0;for await(const v of gen())g+=v;log.push(g);
+ const thenable={then(r){r(42);}};log.push(await thenable);
+}
+main().then(()=>console.log(log.join("|")));
+`,
  'large block churn':`
 let s="x".repeat(9000);for(let i=0;i<400;i++)s=s+"y";console.log(s.length,s.slice(-3));
 const keep=[];for(let i=0;i<200;i++){keep.push(new Float64Array(3000));if(keep.length>5)keep.shift();}console.log(keep.length,keep[0].length);
@@ -211,23 +228,6 @@ const parts=[];for(let i=0;i<500;i++)parts.push("abc"+i);const j=parts.join("-")
 try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constructor.name);}
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
-`,
- 'async functions with pooled coroutine stacks':`
-const log=[];
-async function leaf(x){return x+1;}
-async function thrower(x){if(x%3===0)throw new Error("e"+x);await null;return x;}
-async function deep(n){if(n===0)return 0;return 1+await deep(n-1);}
-async function main(){
- let s=0;for(let i=0;i<15;i++)s+=await leaf(i);log.push(s);
- let caught=0;for(let i=0;i<9;i++){try{await thrower(i);}catch(e){caught++;}}log.push(caught);
- log.push(await deep(6));
- const all=await Promise.all(Array.from({length:6},(_, i)=>leaf(i)));log.push(all.reduce((a,b)=>a+b,0));
- const order=[];const p=Promise.resolve();(async()=>{order.push("a1");await p;order.push("a2");await p;order.push("a3");})();
- p.then(()=>order.push("t1")).then(()=>order.push("t2")).then(()=>order.push("t3"));await null;await null;await null;await null;log.push(order.join());
- async function* gen(){for(let i=0;i<3;i++){await null;yield i;}}let g=0;for await(const v of gen())g+=v;log.push(g);
- const thenable={then(r){r(42);}};log.push(await thenable);
-}
-main().then(()=>console.log(log.join("|")));
 `,
 };
 
