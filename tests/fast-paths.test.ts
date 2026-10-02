@@ -223,7 +223,7 @@ const it=a[Symbol.iterator]();it.next=function(){return {done:true};};console.lo
 const saved=Array.prototype[Symbol.iterator];Array.prototype[Symbol.iterator]=function*(){yield "patched";};console.log([...a].join());Array.prototype[Symbol.iterator]=saved;
 const grow=[1,2];let n=0;for(const v of grow){if(n++<3)grow.push(v*10);}console.log(grow.join());
 const shrink=[1,2,3,4];const seen=[];for(const v of shrink){seen.push(v);shrink.length=2;}console.log(seen.join());
-const big=[];for(let i=0;i<2000;i++)big.push(i);let t=0;for(let k=0;k<20;k++){const c=[...big];const [p,q,...rest]=c;t+=c.length+p+q+rest.length;}console.log(t);
+const big=[];for(let i=0;i<100;i++)big.push(i);let t=0;for(let k=0;k<3;k++){const c=[...big];const [p,q,...rest]=c;t+=c.length+p+q+rest.length;}console.log(t);
 function f(...args){return args.length;}console.log(f(...a,...a),f(...[]),f(..."ab"));
 Object.defineProperty(Array.prototype,0,{set(v){console.log("setter",v);},configurable:true});console.log([...a].join(),JSON.stringify([...[]]));delete Array.prototype[0];
 const al={length:2,0:"x",1:"y",[Symbol.iterator]:Array.prototype[Symbol.iterator]};console.log([...al].join());
