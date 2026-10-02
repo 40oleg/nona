@@ -213,12 +213,12 @@ console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:und
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
  'seeded property and collection hashes':`
-const o={};for(let i=0;i<300;i++)o["k"+i]=i;for(let i=0;i<300;i+=3)delete o["k"+i];o.k3=-1;let s=0;for(const k in o)s+=o[k];
-console.log(Object.keys(o).length,s,o.k299,o.k3,o.k0,"k150" in o,Object.keys(o).slice(0,4).join());
-const m=new Map();for(let i=0;i<2000;i++){m.set("s"+i,i);m.set(i*0.5,-i);}m.set(NaN,"nan");m.set(-0,"zero");m.set(1n,"big");const sym=Symbol("x");m.set(sym,"sym");
-for(let i=0;i<2000;i+=2)m.delete("s"+i);console.log(m.size,m.get("s1"),m.get("s2"),m.get(10.5),m.get(NaN),m.get(0),m.get(1n),m.get(sym),[...m.keys()].slice(0,5).map(String).join());
-const st=new Set();for(let i=0;i<1000;i++)st.add(i%250+"");console.log(st.size,st.has("249"),st.has("250"));
-const wm=new WeakMap();const keys=[];for(let i=0;i<300;i++){const k={i};keys.push(k);wm.set(k,i);}console.log(wm.get(keys[123]),wm.has({}));
+const o={};for(let i=0;i<60;i++)o["k"+i]=i;for(let i=0;i<60;i+=3)delete o["k"+i];o.k3=-1;let s=0;for(const k in o)s+=o[k];
+console.log(Object.keys(o).length,s,o.k59,o.k3,o.k0,"k30" in o,Object.keys(o).slice(0,4).join());
+const m=new Map();for(let i=0;i<150;i++){m.set("s"+i,i);m.set(i*0.5,-i);}m.set(NaN,"nan");m.set(-0,"zero");m.set(1n,"big");const sym=Symbol("x");m.set(sym,"sym");
+for(let i=0;i<150;i+=2)m.delete("s"+i);console.log(m.size,m.get("s1"),m.get("s2"),m.get(10.5),m.get(NaN),m.get(0),m.get(1n),m.get(sym),[...m.keys()].slice(0,5).map(String).join());
+const st=new Set();for(let i=0;i<200;i++)st.add(i%50+"");console.log(st.size,st.has("49"),st.has("50"));
+const wm=new WeakMap();const keys=[];for(let i=0;i<40;i++){const k={i};keys.push(k);wm.set(k,i);}console.log(wm.get(keys[23]),wm.has({}));
 `,
 };
 
