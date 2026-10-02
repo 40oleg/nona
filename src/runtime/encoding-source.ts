@@ -38,8 +38,13 @@ export const encodingPreludeSource=String.raw`
     if(isView(input))return new U8(input.buffer,input.byteOffset,input.byteLength);
     throw new TypeError('The "input" argument must be an ArrayBuffer or ArrayBufferView')
   }
+  // Decoded code units are flushed 4096 at a time into a list of strings
+  // that is joined once at the end (appending to one string copies it
+  // every time: quadratic for a large file).
+  var joinParts=Array.prototype.join,partDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
+  function addPart(parts,part){partDescriptor.value=part;defineProperty(parts,parts.length,partDescriptor);partDescriptor.value=undefined}
   function decode(bytes,fatal,ignoreBOM){
-    var n=bytes.length,i=0,out='',chunk=new Uint16Array(4100),k=0,c,need,cp,min;
+    var n=bytes.length,i=0,parts=[],chunk=new Uint16Array(4100),k=0,c,need,cp,min;
     if(!ignoreBOM&&n>=3&&bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf)i=3;
     function bad(){if(fatal)throw new TypeError('The encoded data was not valid for encoding utf-8');chunk[k++]=0xfffd}
     while(i<n){
@@ -67,9 +72,10 @@ export const encodingPreludeSource=String.raw`
           }
         }
       }
-      if(k>=4096){out+=apply(fromCharCode,undefined,chunk.subarray(0,k));k=0}
+      if(k>=4096){addPart(parts,apply(fromCharCode,undefined,chunk.subarray(0,k)));k=0}
     }
-    return out+apply(fromCharCode,undefined,chunk.subarray(0,k))
+    addPart(parts,apply(fromCharCode,undefined,chunk.subarray(0,k)));
+    return parts.length===1?parts[0]:apply(joinParts,parts,[''])
   }
   function TextEncoder(){
     if(new.target===undefined)throw new TypeError("Class constructor TextEncoder cannot be invoked without 'new'");
