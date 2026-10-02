@@ -69,7 +69,10 @@ export const es2021PreludeSource=String.raw`;(function(){
     return findLastFrom(O,len,predicate,arguments[1],true)
   }}).findLastIndex);
   var unscopables=ArrayPrototype[Symbol.unscopables];
-  for(var name of ['at','findLast','findLastIndex'])defineProperty(unscopables,name,{value:true,writable:true,enumerable:true,configurable:true});
+  // Rebuilt in the specification's order (ES2023 23.1.3.38).
+  var unscopableNames=['at','copyWithin','entries','fill','find','findIndex','findLast','findLastIndex','flat','flatMap','includes','keys','values'];
+  for(var name of unscopableNames)delete unscopables[name];
+  for(var name of unscopableNames)defineProperty(unscopables,name,{value:true,writable:true,enumerable:true,configurable:true});
 
   // String.prototype.at (ES2022 22.1.3.1).
   install(StringConstructor.prototype,'at',1,({at(index){
