@@ -6,7 +6,7 @@ import type {NamedFragment,UnwindFunction} from './pe/model.js';
  */
 const sharedData=new Set(['rt.heap','rt.blocks','rt.liveBytes','rt.exceptionHandler','rt.cleanupHead','rt.contextChain','rt.currentGenerator',
  'rt.symbolRegistry','rt.tailPending','rt.sharedJobQueue','rt.Math.random.state','rt.gcIndex','rt.gcIndexCount','rt.gcRoots','rt.gcGrey','rt.gcCount','rt.gcThreshold',
- 'rt.collect','entry']);
+ 'rt.collect','entry','rt.hashSeed']);
 const isShared=(name:string):boolean=>sharedData.has(name)||/^rt\.Symbol\.[A-Za-z]+\.value$/.test(name)||name.startsWith('realm.')||name.startsWith('host.')||name.startsWith('agent.')
  ||name==='js.main'||name.startsWith('js.fn.')||name.startsWith('js.module.');
 

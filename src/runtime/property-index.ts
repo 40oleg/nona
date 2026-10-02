@@ -29,7 +29,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  b.fn('rt.propKeyHash',40,a=>{
   const symbol=a.unique('symbol'),loop=a.unique('loop'),done=a.unique('done');
   a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',symbol);
-  a.mov('rax',0xcbf29ce484222325n);a.xor('rax','r8');a.mov('r9',0x100000001b3n);a.lea('r10',{base:'rcx',disp:8});
+  a.mov('rax',0xcbf29ce484222325n);a.load('r9',{rip:'rt.hashSeed'});a.xor('rax','r9');a.xor('rax','r8');a.mov('r9',0x100000001b3n);a.lea('r10',{base:'rcx',disp:8});
   a.label(loop);a.test('r8','r8');a.jcc('e',done);a.load('r11',{base:'r10'},16);a.xor('rax','r11');a.imul('rax','r9');
   a.add('r10',2);a.sub('r8',1);a.jmp(loop);
   a.label(symbol);a.mov('rax','rcx');a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');
