@@ -713,6 +713,20 @@ class Lowerer {
           const right=this.expression(e.right);this.bindPattern(e.left,right,false,true);return right;
         }
         if((e.left as A.Node).kind==='Call')return this.callTargetError(e.left as unknown as A.Call);
+        // ES2021 logical assignment: the right side is evaluated, and the
+        // reference written, only when the short-circuit does not apply.
+        if(e.operator==='&&='||e.operator==='||='||e.operator==='??='){
+          const ref=this.settledReference(this.reference(e.left,false)),previous=this.getReference(ref),dest=this.slot();
+          this.emit({kind:'copy',dest,source:previous});
+          let condition=previous;
+          if(e.operator==='??='){condition=this.slot();this.emit({kind:'unary',dest:condition,operator:'isNullish',argument:previous});}
+          const assign=this.block(),join=this.block();
+          this.end({kind:'branch',condition,yes:e.operator==='||='?join.id:assign.id,no:e.operator==='||='?assign.id:join.id});
+          this.select(assign);
+          const right=this.expression(e.right,e.left.kind==='Identifier'&&!e.parenthesizedTarget?e.left.name:undefined);
+          this.putReference(ref,right);this.emit({kind:'copy',dest,source:right});this.end({kind:'jump',target:join.id});
+          this.select(join);return dest;
+        }
         // Compound assignment reads its left value BEFORE evaluating the RHS.
         const raw=this.reference(e.left,e.operator==='='),ref=e.operator==='='?raw:this.settledReference(raw),previous=e.operator==='='?null:this.getReference(ref);
         const right=this.expression(e.right,e.operator==='='&&e.left.kind==='Identifier'&&!e.parenthesizedTarget?e.left.name:undefined);

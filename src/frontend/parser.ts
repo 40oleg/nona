@@ -485,7 +485,7 @@ class Parser {
     }
     const arrow=this.arrow();if(arrow)return arrow;
     const left=this.conditional();
-    if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>='].includes(this.token.text)) {
+    if(['=','+=','-=','*=','/=','%=','**=','&=','|=','^=','<<=','>>=','>>>=','&&=','||=','??='].includes(this.token.text)) {
       const opToken=this.take(), operator=opToken.text;
       // Annex B.3.8 (web compatibility): a call expression target is a runtime
       // ReferenceError in sloppy code; the binder rejects it in strict code.

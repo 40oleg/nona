@@ -70,6 +70,10 @@
 | Полное соответствие ES5, ES2015 или ES2020 | Нет | Тесты подтверждают только текущий поднабор; есть согласованные исключения |
 
 Имена тестов в таблице относятся к каталогу `tests/`.
+## Возможности после ES2020
+
+Поддержаны отдельные возможности ES2021–ES2023 (#69): разделители в числовых литералах (`1_000`), логическое присваивание `&&=`, `||=`, `??=` (с NamedEvaluation для анонимных функций), `Promise.any` и `AggregateError`, `Array.prototype.at`, `String.prototype.at`, `%TypedArray%.prototype.at`, `findLast`/`findLastIndex` у массивов и typed arrays (и в `Array.prototype[@@unscopables]`), `Object.hasOwn`, `cause` в конструкторах ошибок. Их Test262-функции больше не исключаются из аудита (`scripts/test262-smoke.mjs`). Тесты: `post-es2020.test.ts`.
+
 Сводка запуска: [журнал](development-log.md).
 
 Целевой профиль и исключения записаны в [контракте ES2020](es2020-contract.md).

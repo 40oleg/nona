@@ -39,7 +39,8 @@ export function emitErrors(b:RuntimeBuilder):void {
   a.lea('rcx',slot(48));a.call('rt.throw');
  });
  b.bundle.fragments.push(stringLiteral('rt.error.messageText','message'),stringLiteral('rt.error.separator',': '),stringLiteral('rt.error.tag','[object Error]'));
- for(const [key,text] of [['message','rt.error.messageText'],['name','rt.str.name'],['defaultName','rt.Error.text'],['empty','rt.str.empty'],['separator','rt.error.separator']] as const){
+ b.bundle.fragments.push(stringLiteral('rt.error.causeText','cause'));
+ for(const [key,text] of [['cause','rt.error.causeText'],['message','rt.error.messageText'],['name','rt.str.name'],['defaultName','rt.Error.text'],['empty','rt.str.empty'],['separator','rt.error.separator']] as const){
   const bytes=new Uint8Array(16);bytes[0]=4;
   b.bundle.fragments.push({name:'rt.error.key.'+key,section:'.rdata',alignment:8,bytes,symbols:{},fixups:[pointer(8,text)]});
  }
@@ -62,7 +63,17 @@ export function emitErrors(b:RuntimeBuilder):void {
    a.lea('rcx',slot(96));a.call('rt.toString');
    a.lea('rcx',slot(80));a.lea('rdx',{rip:'rt.error.key.message'});a.lea('r8',slot(96));a.mov('r9',1);a.call('rt.setProperty');
    a.load('rcx',slot(88));a.lea('rdx',{rip:'rt.error.messageText'});a.call('rt.findOwnProperty');a.mov('r10',A.writable|A.configurable);a.store({base:'rax',disp:P.attributes},'r10');
-   a.label(done);a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(80+offset));a.store({base:'rcx',disp:offset},'rax');}
+   a.label(done);
+   // ES2022 InstallErrorCause: options.cause becomes an own non-enumerable property.
+   {const noCause=a.unique('noCause');a.load('rax',slot(48));a.cmp('rax',2);a.jcc('b',noCause);
+    a.load('rdx',slot(56));a.load('rax',{base:'rdx',disp:16});a.cmp('rax',5);a.jcc('ne',noCause);
+    a.lea('rcx',slot(112));a.load('rdx',slot(56));a.add('rdx',16);a.lea('r8',{rip:'rt.error.key.cause'});a.call('rt.hasProperty');
+    a.load('rax',slot(120));a.test('rax','rax');a.jcc('e',noCause);
+    a.lea('rcx',slot(96));a.load('rdx',slot(56));a.add('rdx',16);a.lea('r8',{rip:'rt.error.key.cause'});a.call('rt.getProperty');
+    a.lea('rcx',slot(80));a.lea('rdx',{rip:'rt.error.key.cause'});a.lea('r8',slot(96));a.mov('r9',1);a.call('rt.setProperty');
+    a.load('rcx',slot(88));a.lea('rdx',{rip:'rt.error.causeText'});a.call('rt.findOwnProperty');a.mov('r10',A.writable|A.configurable);a.store({base:'rax',disp:P.attributes},'r10');
+    a.label(noCause);}
+   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(80+offset));a.store({base:'rcx',disp:offset},'rax');}
   });
  }
  prependFunctionBuiltin(b,'rt.errorToString','toString',0,'rt.errorPrototype');

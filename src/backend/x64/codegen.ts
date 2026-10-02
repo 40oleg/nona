@@ -22,6 +22,7 @@ import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
 import {objectIntegrityPreludeSource} from '../../runtime/object-integrity-source.js';
+import {es2021PreludeSource} from '../../runtime/es2021-source.js';
 import {annexBBuiltinsPreludeSource} from '../../runtime/annexb-builtins-source.js';
 import {lex} from '../../frontend/lexer.js';
 import {parse} from '../../frontend/parser.js';
@@ -52,7 +53,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(preludeKey):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPrelude(regexpLink)+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
+    prelude=lower(bind(parse(lex(regexpVmPrelude(regexpLink)+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+es2021PreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
     cachedRuntimePreludes.set(preludeKey,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');

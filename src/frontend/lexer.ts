@@ -173,7 +173,11 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
       push('word',start,value);continue;
     }
     if (/[0-9]/.test(c) || c === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
-      const match = /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)/.exec(source.slice(i));
+      // ES2021 numeric separators: one `_` between two digits (not after a
+      // leading 0, a prefix, a dot or an exponent marker, nor in legacy forms).
+      const match = /^0[0-9]/.test(source.slice(i))
+        ? /^(?:[0-9]+\.?[0-9]*)(?:[eE][+-]?[0-9]+)?/.exec(source.slice(i))
+        : /^(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|0[bB][01](?:_?[01])*|0[oO][0-7](?:_?[0-7])*|(?:(?:0|[1-9](?:_?[0-9])*)(?:\.(?:[0-9](?:_?[0-9])*)?)?|\.[0-9](?:_?[0-9])*)(?:[eE][+-]?[0-9](?:_?[0-9])*)?)/.exec(source.slice(i));
       if (!match) fail('Invalid numeric literal');
       let spelling = match![0];
       // Annex B.1.1: LegacyOctalIntegerLiteral and NonOctalDecimalIntegerLiteral (sloppy mode only).
@@ -188,9 +192,10 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
         if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
         push('number', start, Number(spelling.replace(/^0+(?=[0-9])/, ''))); tokens.at(-1)!.legacyOctal = true; continue;
       }
-      if(source[i]==='n'&&(/^[0-9]+$/.test(spelling)||/^0[xXbBoO]/.test(spelling))){i++;if(i<source.length&&(identifierPart(codePoint())||source[i]==='\\'))fail('Invalid BigInt literal',start);push('number',start,BigInt(spelling));continue;}
+      const digits=spelling.replace(/_/g,'');
+      if(source[i]==='n'&&(/^[0-9]+$/.test(digits)||/^0[xXbBoO]/.test(digits))){i++;if(i<source.length&&(identifierPart(codePoint())||source[i]==='\\'))fail('Invalid BigInt literal',start);push('number',start,BigInt(digits));continue;}
       if (i < source.length && (identifierPart(codePoint())||source[i]==='\\')) fail('Invalid numeric literal', start);
-      push('number', start, Number(spelling)); continue;
+      push('number', start, Number(digits)); continue;
     }
     if (c === '"' || c === "'") {
       const quote = c; let value = '', legacyOctal = false; i++;
@@ -247,7 +252,7 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
       continue;
     }
     if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){i+=2;push('punct',start);continue;}
-    const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','...','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
+    const op = ['>>>=','===','!==','**=','&&=','||=','??=','<<=','>>=','>>>','...','==','!=','<=','>=','&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**'].find(op => source.startsWith(op, i));
     if (op) { i += op.length; push('punct', start); continue; }
     if ('{}()[].;,?:+-*/%<>=!&|^~'.includes(c)) { i++; push('punct', start); continue; }
     fail(`Unsupported character ${JSON.stringify(c)}`);
