@@ -1,4 +1,5 @@
-import {chmodSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {chmodSync,mkdtempSync,writeFileSync} from 'node:fs';
+import {removeTemporaryDirectory} from './cleanup.js';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -22,7 +23,7 @@ export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:tr
   writeFileSync(executable,linkLinux(program));chmodSync(executable,0o755);
   const result=spawnSync(executable,[],{encoding:'utf8',timeout:60_000});
   return {status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
- }finally{rmSync(directory,{recursive:true,force:true});}
+ }finally{removeTemporaryDirectory(directory);}
 }
 
 import {compileModuleToIR} from '../../src/compiler.js';
@@ -39,5 +40,5 @@ export function runModulesOnHost(files:Record<string,string>,entry:string,option
   const native:HostRun={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
   const oracle=spawnSync(process.execPath,[join(directory,entry)],{cwd:directory,encoding:'utf8',timeout:10_000});
   return {native,oracle:oracle.stdout};
- }finally{rmSync(directory,{recursive:true,force:true});}
+ }finally{removeTemporaryDirectory(directory);}
 }
