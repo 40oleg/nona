@@ -44,8 +44,12 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
  // Appends the serialization of the value to the builder of the state record
  // (fifth argument: replacer, gap, indent, builder) and returns true, or
  // returns undefined and appends nothing when the value is omitted.
- rootedFn(b,'rt.jsonStringifyValue',328,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1}],(a,frame)=>{
+ rootedFn(b,'rt.jsonStringifyValue',344,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1},{kind:'locals',offset:328,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'r8');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');a.load('rax',{base:'r9',disp:n});a.store(slot(248+n),'rax');}
+  // An array index arrives as a Number key (rt.arrayIndexKey); toJSON and the
+  // replacer observe the key, so they get its string form.
+  {const stringKey=a.unique('stringKey');a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',stringKey);
+   a.lea('rcx',slot(328));a.mov('rdx','r8');a.call('rt.toString');a.lea('rax',slot(328));a.store(slot(48),'rax');a.label(stringKey);}
   a.load('r10',slot(frame+40));a.store(slot(56),'r10');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(264+n),'rax');}
   const builder=()=>{a.load('rcx',slot(56));a.add('rcx',48);};
   const appendLiteral=(name:string)=>{builder();a.lea('rdx',{rip:name});a.call('rt.builderAppend');};
