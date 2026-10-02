@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Seeded the string and number hashes of the property index and of Map, Set, WeakMap and WeakSet per process, so colliding keys cannot be prepared in advance (hash flooding) ([#66](https://github.com/40oleg/nona/issues/66)).
+- Added the [roadmap](docs/roadmap.md) from a review of the V8 blog, with the planned target architectures ([#64](https://github.com/40oleg/nona/issues/64)).
 - Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
 - Published the performance comparison with Node.js, Deno and Bun on the documentation site, with startup time, executable size and memory on the home page ([#55](https://github.com/40oleg/nona/issues/55)).
 - Added a playground to the documentation site: the compiler runs in the browser and produces a Windows or Linux executable to download ([#56](https://github.com/40oleg/nona/issues/56)).
