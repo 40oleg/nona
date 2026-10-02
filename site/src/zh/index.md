@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: 2 毫秒启动
-    details: 编译后的 hello world 启动只需 1.8 ms，内存峰值 11 MB，可执行文件 7 MB。Node.js 需要 28 ms 和 45 MB；Node SEA 可执行文件有 124 MB。
+    details: 编译后的 hello world 启动只需 1.8 ms，内存峰值 11 MB，可执行文件 3 MB。Node.js 需要 28 ms 和 45 MB；Node SEA 可执行文件有 124 MB。
     link: /zh/guide/performance
   - title: ES2020 语言
     details: 类、生成器、异步函数、解构、可选链、BigInt、尾调用优化，以及支持循环依赖和实时绑定的 ES 模块——例外情况均有文档说明。

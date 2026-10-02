@@ -73,12 +73,13 @@ node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
 
 ```text
 nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+           [--full-runtime]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. The `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. The RegExp engine and the Unicode tables are linked only when the program can reach them, so a program without regular expressions is about 3 MB instead of 7 MB; `--full-runtime` links everything ([details](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts)). The `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
 
 ## Limitations
 
@@ -89,6 +90,15 @@ nona --help | --version
 - The only targets are Windows and Linux on x86-64.
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
+
+## Roadmap
+
+The full plan, based on a review of the V8 blog, is in [docs/roadmap.md](docs/roadmap.md). In short:
+
+- **Targets:** today `win32-x64` and `linux-x64`; next `linux-arm64`, `macos-arm64`, `windows-arm64`, `macos-x64`, `wasm32-wasi`, then `linux-riscv64`. A portable builtins language comes first, so the runtime is not rewritten in assembly per architecture.
+- **Quick wins:** inline number operators, per-block safepoints, RegExp cache and number formatting are done; seeded hashing, collector fixes, fast array iteration, cheaper `await` and small post-ES2020 features are in progress.
+- **Medium:** RegExp bytecode with a linear-time fallback, linking only the preludes a program uses, native JSON, static type inference, direct calls, real-world benchmarks, coverage builds.
+- **Foundation:** shapes with in-object slots, a startup snapshot in the executable, a page-based heap, an SSA IR with register allocation, a builtins DSL, native RegExp matchers.
 
 ## Development
 

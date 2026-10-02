@@ -12,7 +12,7 @@ O compilador é escrito em TypeScript e roda no Node.js. Os programas que ele pr
 - **`eval` e `Function` com código-fonte conhecido em tempo de compilação.** Um literal de string, uma concatenação de literais ou uma variável que só recebe essas constantes é compilado antecipadamente com a semântica completa de `eval` direto e indireto.
 - **Um runtime nativo.** Um coletor de lixo mark-and-sweep preciso e que não move objetos, strings UTF-16, exceções de verdade e um `RangeError` capturável em caso de estouro de pilha.
 - **APIs do host** para programas reais: um [loop de eventos com timers](/pt/reference/host-apis), um [`process`](/pt/reference/process) global, [`node:fs`](/pt/reference/fs) síncrono com `TextEncoder`/`TextDecoder` e [chamadas a funções nativas](/pt/reference/ffi) com declarações `nona:win32` prontas.
-- **Inicialização rápida e pouco consumo.** Um hello world compilado inicia em cerca de 2 ms, atinge no máximo 11 MB de memória e é um arquivo de 7 MB: não há runtime para inicializar nem JIT para aquecer ([Desempenho](/pt/guide/performance)).
+- **Inicialização rápida e pouco consumo.** Um hello world compilado inicia em cerca de 2 ms, atinge no máximo 11 MB de memória e é um arquivo de 3 MB: não há runtime para inicializar nem JIT para aquecer ([Desempenho](/pt/guide/performance)).
 - **Executáveis do Windows** sem janela de console, com ícone, manifesto e informações de versão ([Executáveis do Windows](/pt/reference/windows-executables)).
 
 ## O que o Nona não é

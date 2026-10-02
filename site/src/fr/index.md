@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: Démarrage en 2 ms
-    details: Un hello world compilé démarre en 1,8 ms et culmine à 11 Mo de mémoire, dans un exécutable de 7 Mo. Node.js met 28 ms et utilise 45 Mo ; un exécutable Node SEA pèse 124 Mo.
+    details: Un hello world compilé démarre en 1,8 ms et culmine à 11 Mo de mémoire, dans un exécutable de 3 Mo. Node.js met 28 ms et utilise 45 Mo ; un exécutable Node SEA pèse 124 Mo.
     link: /fr/guide/performance
   - title: Le langage ES2020
     details: Classes, générateurs, fonctions async, déstructuration, chaînage optionnel, BigInt, appels terminaux et modules ES avec cycles et liaisons vivantes — avec des exceptions documentées.

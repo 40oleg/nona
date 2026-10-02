@@ -1,6 +1,6 @@
 import type { NamedFragment, ImportSymbol, UnwindFunction } from '../backend/pe/model.js';
 import { Assembler } from '../backend/x64/assembler.js';
-export interface RuntimeRequest {operations:ReadonlySet<string>;realms?:number}
+export interface RuntimeRequest {operations:ReadonlySet<string>;realms?:number;/** Link the normalization tables (default true). */unicodeNormalization?:boolean}
 export interface RuntimeBundle {fragments:NamedFragment[];imports:ImportSymbol[];functions:UnwindFunction[]}
 export class RuntimeBuilder {
  bundle:RuntimeBundle={fragments:[],imports:[],functions:[]};
