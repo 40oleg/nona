@@ -12,6 +12,8 @@
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |
 | `nona:process`, `node:process` | модули | обе | [process](/ru/reference/process) |
 | `nona:fs`, `node:fs` | модули | обе | [Файловая система и кодировка текста](/ru/reference/fs) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | модули | обе | [Сеть (англ.)](/reference/network) |
+| `node:events`, `node:buffer`, `node:string_decoder` | модули | обе | [Вспомогательные модули Node.js (англ.)](/reference/network#supporting-modules) |
 | `nona:ffi` | модуль | Windows (DLL), Linux (системные вызовы) | [Нативные функции (FFI)](/ru/reference/ffi) |
 | `nona:win32` | модуль | Windows | ниже и в [FFI](/ru/reference/ffi#nona-win32) |
 
@@ -19,7 +21,7 @@
 
 - Глобальные объекты доступны в скриптах и модулях.
 - Встроенные модули можно импортировать из кода модулей (`.mjs` или `--module`) и литеральным `import()` из скриптов. Объявления FFI (`define`) должны находиться в коде модуля.
-- Среди модулей `node:` есть только `node:fs` и `node:process`; это псевдонимы подмножеств Nona, а не реализации Node.js. `node:path`, `Buffer` и `require` недоступны.
+- Среди модулей `node:` есть `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` и `node:string_decoder`; это реализации подмножеств Node.js в Nona, а не код Node.js. `node:path` и `require` недоступны; глобальный `Buffer` появляется после импорта `node:buffer`, `node:net` или `node:http`.
 - `nona:win32` и объявления DLL компилируются только для `win32-x64`; объявления системных вызовов — только для `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
