@@ -143,6 +143,17 @@ function counter(start){ return { inc:()=>++start, get:()=>start }; } const c=co
 function shadow(a){ { let a=2; const r=()=>a; if(r()!==2)throw 1; } return (()=>a)(); } console.log(shadow(1));
 function evalish(a){ try { throw a; } catch(a){ return (()=>a)(); } } console.log(evalish(3));
 `,
+ 'native UTF-8 transcoding':`
+const enc=new TextEncoder(),dec=new TextDecoder(),fatal=new TextDecoder("utf-8",{fatal:true}),bom=new TextDecoder("utf-8",{ignoreBOM:true});
+const samples=["","abc","héllo wörld","日本語テキスト","😀 emoji \u{1F600}\u{10FFFF}","lone \uD800 high","lone \uDC00 low","\uD83D\uDE00pair","mixed \u0000\u007f\u0080\u07ff\u0800\uffff","x".repeat(5000)+"é"];
+const out=[];
+for(const s of samples){const b=enc.encode(s);out.push(b.length,Array.from(b.slice(0,24)).join("."),dec.decode(b)===s,dec.decode(b).length);}
+const bad=[[0xc0,0x80],[0xe0,0x80,0x80],[0xed,0xa0,0x80],[0xf4,0x90,0x80,0x80],[0xf5],[0x80],[0xc2],[0xe2,0x82],[0xf0,0x9f,0x98],[0x41,0xff,0x42],[0xef,0xbb,0xbf,0x41],[0xef,0xbb],[0xc2,0xa9,0xe2,0x82,0xac,0xf0,0x9f,0x98,0x80]];
+for(const b of bad){const u=new Uint8Array(b);let f;try{f=fatal.decode(u);}catch(e){f="ERR:"+e.constructor.name;}out.push(JSON.stringify(dec.decode(u)),JSON.stringify(bom.decode(u)),JSON.stringify(f));}
+const sub=new Uint8Array([0x41,0x42,0xc3,0xa9,0x43]);out.push(dec.decode(sub.subarray(1,4)),dec.decode(sub.buffer),dec.decode(new DataView(sub.buffer,2,2)));
+out.push(enc.encode().length,enc.encode(123).length,dec.decode().length,dec.decode(new Uint8Array(0)));
+console.log(out.join("|"));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));

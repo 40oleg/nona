@@ -485,6 +485,9 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     // Event-loop primitives, captured and removed from the global object by the timer prelude.
     hostGlobal('__nonaHostNow','rt.hostNow.code',0);
     hostGlobal('__nonaHostWait','rt.agentSleep.code',1);
+    // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.
+    hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
+    hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);
   }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
