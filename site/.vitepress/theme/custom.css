@@ -1,21 +1,21 @@
-/* A soft orange accent. Link colours keep at least 4.5:1 contrast with the
-   page background, and white button text at least 4:1. */
+/* A bright orange accent. In light mode links use a slightly deeper shade
+   (about 3.9:1 on white) so that text stays readable. */
 :root {
-  --vp-c-brand-1: #b35a1f;
-  --vp-c-brand-2: #c2662a;
-  --vp-c-brand-3: #c96d2e;
-  --vp-c-brand-soft: rgba(217, 123, 60, 0.14);
-  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-c-brand-1: #dd5410;
+  --vp-c-brand-2: #f76707;
+  --vp-c-brand-3: #e8590c;
+  --vp-c-brand-soft: rgba(247, 103, 7, 0.14);
+  --vp-button-brand-bg: var(--vp-c-brand-3);
   --vp-button-brand-hover-bg: var(--vp-c-brand-2);
   --vp-button-brand-active-bg: var(--vp-c-brand-1);
 }
 
 .dark {
-  --vp-c-brand-1: #f2a66e;
-  --vp-c-brand-2: #e08c50;
-  --vp-c-brand-3: #b8622a;
-  --vp-c-brand-soft: rgba(242, 166, 110, 0.16);
+  --vp-c-brand-1: #ff922b;
+  --vp-c-brand-2: #fd7e14;
+  --vp-c-brand-3: #e8590c;
+  --vp-c-brand-soft: rgba(255, 146, 43, 0.16);
   --vp-button-brand-bg: var(--vp-c-brand-3);
-  --vp-button-brand-hover-bg: #a8501a;
+  --vp-button-brand-hover-bg: #f76707;
   --vp-button-brand-active-bg: var(--vp-c-brand-3);
 }
