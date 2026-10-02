@@ -1,6 +1,7 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {BoxKind} from './boxing.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
@@ -90,8 +91,10 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});a.test('r10','r10');a.jcc('e',missing);a.load('r8',slot(56));a.load('r9',{base:'r8',disp:8});a.jmp(chain);
   a.label(found);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',miss);
   a.load('r11',{base:'rax',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',miss);
+  // Report the node and its holder for the inline caches (property-cache.ts).
+  a.store({rip:'rt.namedGetNode'},'rax');a.load('r10',slot(72));a.store({rip:'rt.namedGetHolder'},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx'},'r11');a.load('r11',{base:'rax',disp:P.value+8});a.store({base:'rcx',disp:8},'r11');a.jmp(done);
-  a.label(missing);a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+  a.label(missing);a.mov('rax',0);a.store({rip:'rt.namedGetNode'},'rax');a.load('rcx',slot(40));a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
   a.label(done);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.mov('rax',1);const end=a.unique('end');a.jmp(end);
   a.label(miss);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.mov('rax',0);a.label(end);
  });
@@ -122,7 +125,7 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.label(inherited);a.store(slot(96),'r10');a.mov('rcx','r10');a.load('rdx',slot(80));a.call('rt.ownNamedNode');a.test('rax','rax');const nextProto=a.unique('nextProto');a.jcc('e',nextProto);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);a.jmp(own);
   a.label(nextProto);a.load('r10',slot(96));a.load('r10',{base:'r10',disp:O.prototype});a.jmp(chain);
-  a.label(own);a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.label(own);a.load('r10',slot(88));bumpEpochIfPrototype(a,'r10');a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.load('r10',slot(80));a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
   a.mov('r10',0);for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
   a.load('r8',slot(56));a.load('r11',{base:'r8'});a.store({base:'rax',disp:P.value},'r11');a.load('r11',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r11');

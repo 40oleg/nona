@@ -6,7 +6,7 @@ import {CompileError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
-type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean};
+type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
@@ -313,6 +313,7 @@ class Lowerer {
     }
     // Keep the raw key: RHS effects may mutate an object used as a key.
     const object=this.expression(e.object),key=this.expression(e.property);
+    if(e.property.kind==='Literal'&&typeof e.property.value==='string')return {object,key,keyName:e.property.value};
     return {object,key};
   }
   /** Read-modify-write references convert the key once (ToPropertyKey before GetValue). */

@@ -329,7 +329,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
   a.label(ephemerons);a.call('rt.gcPendingFree');a.call('rt.gcPruneWeakEntries');
-  a.label(sweep);a.call('rt.gcSweep');
+  a.label(sweep);a.call('rt.gcSweep');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
   const thresholdReady=a.unique('thresholdReady');a.cmp('rax',1048576);a.jcc('ae',thresholdReady);a.mov('rax',1048576);
   a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');

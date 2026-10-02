@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags as OF} from './object-layout.js';
@@ -91,7 +92,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.mov('r10',0);for(const n of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:n},'r10');
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
   a.load('rcx',slot(64));a.mov('rdx','rax');a.call('rt.propIndexAdd');
-  a.label(node);a.store(slot(208),'rax');a.load('r10',slot(200));a.store({base:'rax',disp:P.attributes},'r10');a.and('r10',A.accessor);a.test('r10','r10');
+  a.label(node);a.store(slot(208),'rax');a.load('r10',slot(64));bumpEpochIfPrototype(a,'r10');a.load('rax',slot(208));a.load('r10',slot(200));a.store({base:'rax',disp:P.attributes},'r10');a.and('r10',A.accessor);a.test('r10','r10');
   const accessor=a.unique('accessor'),stored=a.unique('stored'),copyData=a.unique('copyData'),clearMethods=a.unique('clearMethods');a.jcc('ne',accessor);
   a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('ne',copyData);
   // Mapped arguments update the parameter first. Readonly then disconnects it.

@@ -161,6 +161,35 @@ let f=1n;for(let i=1n;i<=200n;i++)f*=i;out.push(f.toString(),(f/(f/7n)).toString
 out.push((2n**200n).toString(),((-3n)**7n).toString(),(123456789123456789n*987654321987654321n).toString(),(10n**9n*10n**9n).toString(),(999999999n*999999999n).toString(),(-(10n**9n-1n)*(10n**9n-1n)).toString(),(2n**100n).toString(16),BigInt.asIntN(64,2n**64n-1n).toString());
 let h=0;const s=out.join(",");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;console.log(s.length,h,s.slice(0,200));
 `,
+ 'inline caches for named reads':`
+class Shape{constructor(w){this.w=w;}area(){return 0;}scaled(){return this.area()*2;}}
+class Square extends Shape{area(){return this.w*this.w;}}
+const out=[];const sq=new Square(3);
+function read(o){return o.area();}
+for(let i=0;i<5;i++)out.push(read(sq),sq.scaled());
+Square.prototype.area=function(){return -1;};out.push(read(sq),sq.scaled());
+sq.area=function(){return 7;};out.push(read(sq),sq.scaled());
+delete sq.area;out.push(read(sq));
+delete Square.prototype.area;out.push(read(sq));
+Shape.prototype.area=function(){return 42;};out.push(read(sq));
+Object.defineProperty(Shape.prototype,'area',{get(){return ()=>'getter';},configurable:true});out.push(read(sq));
+Object.defineProperty(Shape.prototype,'area',{value(){return 'data';},configurable:true,writable:true});out.push(read(sq));
+Object.setPrototypeOf(sq,{area(){return 'proto';}});out.push(read(sq));
+const other=new Square(5);out.push(read(other),other.scaled());
+function f(o){return o.x;}
+const objs=[{x:1},{x:2,y:3},Object.create({x:4}),Object.create(null),{get x(){return 'g';}},[],function(){},"str",5,true];
+objs[3].x=9;objs[5].x=10;objs[6].x=11;String.prototype.x='sx';Number.prototype.x='nx';
+for(let i=0;i<objs.length;i++)out.push(f(objs[i]));
+for(let i=0;i<objs.length;i++)out.push(f(objs[i]));
+delete String.prototype.x;out.push(f("s"));
+const base={m(){return 'base';}};const mid=Object.create(base);const leaf=Object.create(mid);
+function g(o){return o.m();}
+out.push(g(leaf));mid.m=function(){return 'mid';};out.push(g(leaf));delete mid.m;out.push(g(leaf));leaf.m=function(){return 'leaf';};out.push(g(leaf));delete leaf.m;out.push(g(leaf));base.m=function(){return 'base2';};out.push(g(leaf));
+let churn=[];for(let i=0;i<2000;i++){const o={v:i};churn.push(f({x:o.v}));if(i%100===0)churn=[];}
+out.push(churn.length);
+const arr=[1,2,3];function len(a){return a.push(4);}out.push(len(arr),len(arr),arr.length);
+console.log(out.join());
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));

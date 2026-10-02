@@ -1,4 +1,5 @@
 import {rootedFn} from './root-scope.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
@@ -37,7 +38,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
  // Public defineProperty requires the later descriptors stage.
  b.fn('rt.initFunctionProperty',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
-  a.load('rcx',{base:'rcx',disp:8});a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
+  a.load('rcx',{base:'rcx',disp:8});bumpEpochIfPrototype(a,'rcx');a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');
   const create=a.unique('create');a.test('rax','rax');a.jcc('e',create);
   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.configurable);a.test('r10','r10');a.jcc('e',create);
   a.load('r10',slot(56));for(const offset of [0,8]){a.load('r11',{base:'r10',disp:offset});a.store({base:'rax',disp:P.value+offset},'r11');}

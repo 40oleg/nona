@@ -30,6 +30,7 @@ import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
 import {emitFfi} from '../../runtime/ffi.js';
+import {PropertyCacheLayout,cacheableName} from '../../runtime/property-cache.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -381,7 +382,15 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
         case 'iteratorClose':pointer('rcx',op.iterator);a.call('rt.iteratorClose');break;
         case 'requireIterable':pointer('rcx',op.object);a.call('rt.requireIterable');break;
         case 'forOfValue':pointer('rcx',op.dest);pointer('rdx',op.iterable);pointer('r8',op.index);a.call('rt.forOfValue');break;
-        case 'property':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
+        case 'property':
+          pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);
+          // `object.name` reads go through a per-site inline cache (see
+          // property-cache.ts) when the name can only be a named property.
+          if(op.operation==='get'&&op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
+          }
+          a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
         case 'defineDataProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',op.attributes);a.call('rt.initFunctionProperty');break;
         case 'setPrototype':pointer('rcx',op.object);pointer('rdx',op.prototype);a.call('rt.setPrototype');break;

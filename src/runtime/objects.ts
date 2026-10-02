@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {bumpEpoch,bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {propertyIndexThreshold} from './property-index.js';
 import {stringLiteral} from './value.js';
@@ -144,7 +145,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.label(mutable);
     a.mov('r10','rax');a.label(loop);a.test('r10','r10');const write=a.unique('write');a.jcc('e',write);
     a.cmp('r10','rcx');failIf(a,'e','rt.throwTypeError');a.load('r10',{base:'r10',disp:O.prototype});a.jmp(loop);
-    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');a.label(done);a.label(proxyDone);
+    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');bumpEpoch(a);a.label(done);a.label(proxyDone);
   });
 
   // Preserve the initial receiver through proxy forwarding and accessor calls.
@@ -373,7 +374,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(create);const extensible=a.unique('extensible');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',extensible);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',extensible);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',extensible);a.load('r10',{base:'r10',disp:O.flags});a.and('r10',2);a.test('r10','r10');a.jcc('ne',rejected);
-    a.label(extensible);a.mov('rcx',P.size);a.call('rt.alloc');
+    a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.mov('rcx',P.size);a.call('rt.alloc');
     a.mov('r10',0);for(const offset of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
     a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
     a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
@@ -423,7 +424,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     const ordinaryDelete=a.unique('ordinaryDelete'),proxyDone=a.unique('proxyDone');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryDelete);
     a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryDelete);
     a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyDelete');a.jmp(proxyDone);
-    a.label(ordinaryDelete);a.load('rax',slot(64));
+    a.label(ordinaryDelete);bumpEpoch(a);a.load('rax',slot(64));
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');
