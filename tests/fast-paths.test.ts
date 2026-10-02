@@ -154,6 +154,13 @@ const sub=new Uint8Array([0x41,0x42,0xc3,0xa9,0x43]);out.push(dec.decode(sub.sub
 out.push(enc.encode().length,enc.encode(123).length,dec.decode().length,dec.decode(new Uint8Array(0)));
 console.log(out.join("|"));
 `,
+ 'BigInt multiplication by limbs':`
+const vals=[0n,1n,-1n,9n,10n,-10n,99n,100n,123456789n,999999999n,1000000000n,1000000001n,-1000000000n,2n**32n,2n**64n-1n,2n**64n,-(2n**63n),12345678901234567890123456789n,-98765432109876543210n,10n**18n,10n**27n+1n,(10n**40n)-1n];
+const out=[];for(const x of vals)for(const y of vals)out.push((x*y).toString());
+let f=1n;for(let i=1n;i<=200n;i++)f*=i;out.push(f.toString(),(f/(f/7n)).toString(),(f%1000003n).toString());
+out.push((2n**200n).toString(),((-3n)**7n).toString(),(123456789123456789n*987654321987654321n).toString(),(10n**9n*10n**9n).toString(),(999999999n*999999999n).toString(),(-(10n**9n-1n)*(10n**9n-1n)).toString(),(2n**100n).toString(16),BigInt.asIntN(64,2n**64n-1n).toString());
+let h=0;const s=out.join(",");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;console.log(s.length,h,s.slice(0,200));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
@@ -170,7 +177,7 @@ const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){cons
 
 // The operator matrix does not allocate on its fast paths and is too large to
 // run with a collection before every operation, so it runs without GC stress.
-const plainPrograms=new Set(['inline number operators','number formatting and parsing']);
+const plainPrograms=new Set(['inline number operators','number formatting and parsing','BigInt multiplication by limbs']);
 
 for(const [name,source] of Object.entries(programs))test(`fast paths agree with Node.js: ${name}`,()=>{
  const expected=runOracle(source).stdout;
