@@ -235,10 +235,14 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
        const dead=[...new Set([...possible].map(location))].filter(l=>!liveLocations.has(l));
        if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
        possible=new Set(live);for(const d of destinations(op))possible.add(d);
-       // Safepoint before every operation: the check of rt.safepoint inline,
-       // so that only a collection costs a call.
+       // Safepoint at the start of every block (every loop iteration passes
+       // one): the check of rt.safepoint inline, so that only a collection
+       // costs a call. Every slot is rooted and every dead one cleared at
+       // every operation boundary, so any boundary is a valid safepoint; one
+       // per block bounds the garbage a block can accumulate by its length.
+       // GC stress collects before every operation to catch rooting errors.
        if(options.gcStress)a.call('rt.collect');
-       else{const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
+       else if(index===0){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':{
