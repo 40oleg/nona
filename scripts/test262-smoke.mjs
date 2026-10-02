@@ -31,16 +31,20 @@ const excludePathFilters = [excludePathFilter,
   ...(process.env.TEST262_EXCLUDE_PATH_FILTERS || '').split(',')].map(value => value.trim()).filter(Boolean);
 // Test262 feature tags introduced after ES2020; `post-es2020` in
 // TEST262_EXCLUDE_FEATURES expands to this list for gate audits.
-const postEs2020Features = ['AggregateError','Iterator.prototype.join','iterator-chunking','iterator-includes','source-phase-imports-module-source','Array.fromAsync','Array.prototype.at','array-find-from-last','array-grouping','arbitrary-module-namespace-names',
+// Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
+// this list: AggregateError, Array/String/TypedArray .at, findLast,
+// error cause, logical assignment, numeric separators, Object.hasOwn,
+// Promise.any.
+const postEs2020Features = ['Iterator.prototype.join','iterator-chunking','iterator-includes','source-phase-imports-module-source','Array.fromAsync','array-grouping','arbitrary-module-namespace-names',
   'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','class-fields-private','class-fields-private-in','class-fields-public',
   'class-methods-private','class-static-block','class-static-fields-private','class-static-fields-public','class-static-methods-private','decorators',
-  'Error.isError','error-cause','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
+  'Error.isError','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
   'import-attributes','import-defer','import-bytes','import-text','iterator-helpers','iterator-sequencing','joint-iteration','json-modules','json-parse-with-source',
-  'legacy-regexp','logical-assignment-operators','Math.sumPrecise','nonextensible-applies-to-private','numeric-separator-literal','Object.hasOwn',
-  'promise-try','promise-with-resolvers','Promise.any','Promise.allKeyed','RegExp.escape','regexp-duplicate-named-groups','regexp-match-indices',
-  'regexp-modifiers','regexp-v-flag','resizable-arraybuffer','set-methods','ShadowRealm','source-phase-imports','String.prototype.at',
+  'legacy-regexp','Math.sumPrecise','nonextensible-applies-to-private',
+  'promise-try','promise-with-resolvers','Promise.allKeyed','RegExp.escape','regexp-duplicate-named-groups','regexp-match-indices',
+  'regexp-modifiers','regexp-v-flag','resizable-arraybuffer','set-methods','ShadowRealm','source-phase-imports',
   'String.prototype.isWellFormed','String.prototype.replaceAll','String.prototype.toWellFormed','symbols-as-weakmap-keys','Temporal',
-  'top-level-await','TypedArray.prototype.at','uint8array-base64','upsert','WeakRef','well-formed-unicode-strings','await-dictionary','Intl.Locale-info',
+  'top-level-await','uint8array-base64','upsert','WeakRef','well-formed-unicode-strings','await-dictionary','Intl.Locale-info',
   'canonical-tz','Intl.DurationFormat','Intl.Era-monthcode','error-stack-accessor',
   // Non-standard extension: own caller/arguments on sloppy functions (ES2020 16.2 leaves it optional).
   'caller',

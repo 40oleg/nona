@@ -142,7 +142,12 @@ var __nonaPromiseDrainJobs=(function(){
         var index=values.length;append(values,undefined);remaining++;
         (function(position){
           var called=false;
-          if(mode===0)promise.then(value=>{
+          // Promise.any (ES2021): the first fulfilment wins; all rejections
+          // reject with an AggregateError of the reasons in order.
+          if(mode===3)promise.then(resolve,reason=>{
+            if(called)return;called=true;values[position]=reason;remaining--;if(remaining===0)reject(aggregate(values))
+          });
+          else if(mode===0)promise.then(value=>{
             if(called)return;called=true;values[position]=value;remaining--;if(remaining===0)resolve(values)
           },reject);
           else promise.then(value=>{
@@ -152,13 +157,16 @@ var __nonaPromiseDrainJobs=(function(){
           })
         })(index)
       }
-      remaining--;if(remaining===0&&mode!==2)resolve(values)
+      remaining--;if(remaining===0&&mode===3)reject(aggregate(values));else if(remaining===0&&mode!==2)resolve(values)
     }catch(error){reject(error)}
     return next.promise
   }
   var all=({all(iterable){return combinator(this,iterable,0)}}).all;
   var allSettled=({allSettled(iterable){return combinator(this,iterable,1)}}).allSettled;
   var race=({race(iterable){return combinator(this,iterable,2)}}).race;
+  var AggregateErrorConstructor=__nonaRegexpVm.AggregateError;
+  function aggregate(errors){var error=new AggregateErrorConstructor([]);Object.defineProperty(error,'errors',{value:errors,writable:true,enumerable:false,configurable:true});return error}
+  var any=({any(iterable){return combinator(this,iterable,3)}}).any;
   function method(target,name,value){
     Object.defineProperty(target,name,{value:value,writable:true,configurable:true});
     Object.defineProperty(value,'name',{value:name,configurable:true});
@@ -172,6 +180,7 @@ var __nonaPromiseDrainJobs=(function(){
   method(Promise,'all',all);
   method(Promise,'allSettled',allSettled);
   method(Promise,'race',race);
+  method(Promise,'any',any);
   var speciesGetter=Object.getOwnPropertyDescriptor({get [Symbol.species](){return this}},Symbol.species).get;
   Object.defineProperty(Promise,Symbol.species,{get:speciesGetter,configurable:true});
   Object.defineProperty(Promise,'prototype',{writable:false});
