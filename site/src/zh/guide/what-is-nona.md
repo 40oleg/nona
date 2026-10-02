@@ -12,7 +12,7 @@ Nona 是一个 JavaScript 提前（ahead-of-time，AOT）编译器。它读取�
 - **源码在编译时已知的 `eval` 和 `Function`。** 字符串字面量、字面量的拼接，或只被赋值为此类常量的变量，会被提前编译，并完整支持直接和间接 `eval` 的语义。
 - **原生运行时。** 精确、不移动对象的标记-清除垃圾回收器、UTF-16 字符串、真正的异常，以及栈溢出时可捕获的 `RangeError`。
 - **面向真实程序的宿主 API：** [带定时器的事件循环](/zh/reference/host-apis)、全局 [`process`](/zh/reference/process)、带 `TextEncoder`/`TextDecoder` 的同步 [`node:fs`](/zh/reference/fs)，以及带有现成 `nona:win32` 声明的[原生函数调用](/zh/reference/ffi)。
-- **启动快、占用小。** 编译后的 hello world 启动约 2 ms，内存峰值 11 MB，文件大小 7 MB：没有需要启动的运行时，也没有需要预热的 JIT（[性能](/zh/guide/performance)）。
+- **启动快、占用小。** 编译后的 hello world 启动约 2 ms，内存峰值 11 MB，文件大小 3 MB：没有需要启动的运行时，也没有需要预热的 JIT（[性能](/zh/guide/performance)）。
 - **Windows 可执行文件**：没有控制台窗口，带图标、清单和版本信息（[Windows 可执行文件](/zh/reference/windows-executables)）。
 
 ## Nona 不是什么

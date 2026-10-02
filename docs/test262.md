@@ -20,6 +20,10 @@ worker threads can cause on Linux. Set `TEST262_DELETE_BINARIES=1` to remove
 each compiled test image after it runs; large catalogs otherwise leave several
 gigabytes in `work/test262-smoke`.
 
+Tests are compiled like any program: the RegExp engine and the Unicode tables
+are linked only when a test can reach them ([#62](https://github.com/40oleg/nona/issues/62)).
+Set `TEST262_FULL_RUNTIME=1` to link the whole runtime into every test.
+
 The checkout must be at the pinned revision. If upstream HEAD has advanced,
 fetch/check out that exact commit before running. `TEST262_ROOT` selects a
 different checkout and `TEST262_REPORT` selects a different JSON report path.

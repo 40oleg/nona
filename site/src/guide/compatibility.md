@@ -40,6 +40,20 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 - On Windows timers wake up on the system tick (typically 15.6 ms).
 - There is no JIT: code is compiled once, ahead of time, without profile-guided optimisation.
 
+## Linked runtime parts
+
+Every executable contains the runtime, but three large parts are linked only when the program can reach them. The compiler decides from the text of every source it compiles — the program, its modules and compile-time `eval`/`Function` sources:
+
+| Part | Size | Linked when a source contains |
+| --- | --- | --- |
+| RegExp engine | about 1 MB | a RegExp literal, or the name `RegExp`, `match`, `matchAll` or `search` (as an identifier, a property name or inside a string or template literal) |
+| Unicode property tables for `\p{…}`/`\P{…}` | about 2 MB | `\p{` or `\P{` in a RegExp literal or a string, or one of the names above (a pattern may be built at run time) |
+| Unicode normalization tables | about 0.7 MB | the name `normalize` or `localeCompare` |
+
+`split`, `replace` and `replaceAll` with string arguments do not need the RegExp engine. A program without regular expressions is about 3 MB instead of 7 MB.
+
+A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. Such a call throws an `Error` whose message names the missing part. Compile with `--full-runtime` (or the `fullRuntime` option of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)).
+
 ## Realms
 
 `$262.createRealm` is supported for Test262. Some constructors implemented in JavaScript preludes still take default prototypes from the wrong realm when called with `new.target` from another realm ([#7](https://github.com/40oleg/nona/issues/7)).

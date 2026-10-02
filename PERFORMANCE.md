@@ -7,7 +7,7 @@ live in [`bench/`](bench/); `node bench/run.mjs` reproduces every table below.
 
 Nona wins on everything that happens before and around the program: a
 compiled hello world starts in **1.8 ms** (Bun 4.5, Deno 15, Node 28), the
-executable is **7 MB** (81–124 MB for `bun --compile`, `deno compile` and
+executable is **7 MB** (3 MB since #62, see [below](#executable-size-since-62); 81–124 MB for `bun --compile`, `deno compile` and
 Node SEA) and it peaks at **11 MB** of RSS where Node needs 45 MB.
 
 Inside the program the picture reverses. Plain computation — function calls,
@@ -83,6 +83,23 @@ Peak RSS under load, full-size scripts (MB):
 The mark-and-sweep collector keeps garbage-only workloads tiny, but any
 workload that keeps a million live closures or objects, or builds strings,
 inflates far beyond the JIT runtimes.
+
+### Executable size since #62
+
+Since [#62](https://github.com/40oleg/nona/issues/62) the RegExp engine, its
+Unicode property tables and the Unicode normalization tables are linked only
+when the program can reach them. Measured on 2026-10-02 at the merge commit of
+#62, in bytes:
+
+| Program | linux-x64 | win32-x64 |
+| --- | --- | --- |
+| `console.log("hi")` | 3 067 904 | 3 092 992 |
+| `console.log(/a+/.test("caab"))` (engine, no property tables) | 4 096 000 | 4 123 136 |
+| A program that names `match`, `RegExp` or uses `\p{…}` | 6 299 648 | 6 327 296 |
+| `console.log("hi")` with `--full-runtime` (the v0.7.0 layout) | 6 955 008 | 6 980 608 |
+
+Startup time and peak RSS do not change: the omitted parts were never
+touched by a program that does not use them.
 
 ## 5–7. Arrays, objects and Map/Set, strings and RegExp
 

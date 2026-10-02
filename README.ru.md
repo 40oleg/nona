@@ -73,12 +73,13 @@ node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
 
 ```text
 nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+           [--full-runtime]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-Файлы `.mjs` (или с `--module`) компилируются как ES-модули вместе с импортируемыми модулями. Другие программы — в каталоге `examples`, в том числе [матричный калькулятор](docs/matrix-calculator.md).
+Файлы `.mjs` (или с `--module`) компилируются как ES-модули вместе с импортируемыми модулями. Движок RegExp и Unicode-таблицы линкуются, только если программа может до них дойти, поэтому программа без регулярных выражений весит около 3 МБ вместо 7 МБ; `--full-runtime` линкует всё ([подробнее, англ.](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts)). Другие программы — в каталоге `examples`, в том числе [матричный калькулятор](docs/matrix-calculator.md).
 
 ## Ограничения
 

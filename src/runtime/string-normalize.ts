@@ -2,14 +2,25 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
+import {fullRuntimeHint} from './link.js';
 import {unicodeNormalizeCanonicalCount,unicodeNormalizeCanonicalData,unicodeNormalizeCompatibilityCount,unicodeNormalizeCompatibilityData,unicodeNormalizeCccCount,unicodeNormalizeCccData,unicodeNormalizeComposeCount,unicodeNormalizeComposeData} from './unicode-normalize-data.js';
 
 export const stringNormalizeRoots=['rt.stringNormalize.fn'];
 export const stringNormalizePropertyRoots=builtinPropertyRoots('rt.stringNormalize.fn','normalize','rt.stringPrototype');
 
-export function emitStringNormalize(b:RuntimeBuilder):void {
+/**
+ * `tables` false links String.prototype.normalize (and so localeCompare)
+ * without the 0.7 MB of decomposition and composition tables: calling it
+ * throws an Error that says how to link them.
+ */
+export function emitStringNormalize(b:RuntimeBuilder,tables=true):void {
  for(const form of ['NFC','NFD','NFKC','NFKD'])b.bundle.fragments.push(stringLiteral('rt.str.'+form,form));
- for(const [name,data] of [['Canonical',unicodeNormalizeCanonicalData],['Compatibility',unicodeNormalizeCompatibilityData],['CccTable',unicodeNormalizeCccData],['ComposeTable',unicodeNormalizeComposeData]] as const)b.data('rt.normalize'+name,data);
+ for(const [name,data] of [['Canonical',unicodeNormalizeCanonicalData],['Compatibility',unicodeNormalizeCompatibilityData],['CccTable',unicodeNormalizeCccData],['ComposeTable',unicodeNormalizeComposeData]] as const)b.data('rt.normalize'+name,tables?data:new Uint8Array(16));
+ if(!tables){
+  b.bundle.fragments.push(stringLiteral('rt.normalize.missing','Nona: this program was compiled without the Unicode normalization tables because its source does not mention normalize or localeCompare. '+fullRuntimeHint));
+  const message=new Uint8Array(16);message[0]=4;
+  b.bundle.fragments.push({name:'rt.normalize.missingValue',section:'.rdata',alignment:8,bytes:message,symbols:{},fixups:[{offset:8,kind:'va64',target:'rt.normalize.missing',addend:0}]});
+ }
  // RCX code point; RAX canonical combining class.
  b.fn('rt.normalizeCcc',40,a=>{
   a.mov('r8',0);a.mov('r9',unicodeNormalizeCccCount);
@@ -60,6 +71,7 @@ export function emitStringNormalize(b:RuntimeBuilder):void {
  prependFunctionBuiltin(b,'rt.stringNormalize.fn','normalize',0,'rt.stringPrototype');
  rootedFn(b,'rt.stringNormalize.fn.code',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:8}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  if(!tables){a.lea('rcx',slot(64));a.mov('rdx',1);a.lea('r8',{rip:'rt.normalize.missingValue'});a.call('rt.Error.code');a.lea('rcx',slot(64));a.call('rt.throw');}
   a.load('rdx',slot(frame+40));for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
   a.load('rax',slot(64));a.cmp('rax',1);failIf(a,'be','rt.throwTypeError');
   a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toString');

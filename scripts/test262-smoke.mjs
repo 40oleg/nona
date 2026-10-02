@@ -50,6 +50,8 @@ const excludeFeatures = (process.env.TEST262_EXCLUDE_FEATURES || '').split(',').
   .flatMap(value => value === 'post-es2020' ? postEs2020Features : [value]);
 const directOnly = process.env.TEST262_DIRECT_ONLY === '1';
 const runAsync = process.env.TEST262_RUN_ASYNC === '1';
+// TEST262_FULL_RUNTIME=1 links the whole runtime instead of the parts each test can reach.
+const fullRuntime = process.env.TEST262_FULL_RUNTIME === '1';
 const deleteBinaries = process.env.TEST262_DELETE_BINARIES === '1';
 const runtimeTimeout = Number(process.env.TEST262_RUNTIME_TIMEOUT_MS || 30000);
 const jobs = Number(process.env.TEST262_JOBS || 1);
@@ -207,8 +209,8 @@ function runCase(path) {
   // synchronous semantics, so use the non-failing host policy for this harness.
   const realms = Math.min(4, (source.match(/createRealm/g) || []).length + includes.reduce((count, file) => count + (readFileSync(join(root, 'harness', file), 'utf8').match(/createRealm\(/g) || []).length, 0));
   const compiled = moduleCase
-    ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents, moduleHost})
-    : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents, moduleHost});
+    ? compile(source, {fileName: join(root, 'test', path), target, module: true, scriptPrelude: prelude, unhandledRejections: 'ignore', realms, agents, moduleHost, fullRuntime})
+    : compile(program, {fileName: join(root, 'test', path), target, unhandledRejections: 'ignore', realms, agents, moduleHost, fullRuntime});
   if (!compiled.ok) {
     return {path, outcome: 'fail', phase: 'compile', diagnostics: compiled.diagnostics};
   }
@@ -246,7 +248,7 @@ if (!isMainThread) {
   if (progressPath) {
     mkdirSync(dirname(progressPath), {recursive: true});
     writeFileSync(progressPath, JSON.stringify({revision: PIN, group: group || 'smoke-manifest',
-      pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, runtimeTimeout, jobs, expected: paths.length}) + '\n');
+      pathFilter, excludePathFilters, excludeFeatures, directOnly, runAsync, fullRuntime, runtimeTimeout, jobs, expected: paths.length}) + '\n');
   }
   const record = result => {
     if (progressPath) appendFileSync(progressPath, JSON.stringify(result) + '\n');

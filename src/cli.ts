@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
 import {position} from './source.js';
 
-const help='Nona 0.7.0 — JavaScript subset to native Windows/Linux x64\nUsage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona 0.7.0 — JavaScript subset to native Windows/Linux x64\nUsage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]\n       [--full-runtime]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
@@ -26,10 +26,10 @@ export function main(args:string[]):number {
     if(args.length===1&&args[0]==='--version'){process.stdout.write('0.7.0\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
     const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
-    let outputArg:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target='win32-x64',module=inputArg.endsWith('.mjs');const seen=new Set<string>();
+    let outputArg:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target='win32-x64',module=inputArg.endsWith('.mjs'),fullRuntime=false;const seen=new Set<string>();
     for(let i=2;i<args.length;i+=2){
       const flag=args[i]!,value=args[i+1];
-      if(flag==='--module'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);module=true;i--;continue;}
+      if(flag==='--module'||flag==='--full-runtime'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);if(flag==='--module')module=true;else fullRuntime=true;i--;continue;}
       if(!['-o','--target','--subsystem','--icon','--manifest','--version-info'].includes(flag))throw new Error('Unknown option: '+flag);
       if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);
       if(!value||value.startsWith('-'))throw new Error('Missing value for '+flag);
@@ -50,7 +50,7 @@ export function main(args:string[]):number {
       try{versionFields=JSON.parse(readFileSync(resolve(versionInfo),'utf8'));}catch(error){throw new Error('Cannot read version information '+versionInfo+': '+(error instanceof Error?error.message:String(error)));}
       if(versionFields===null||typeof versionFields!=='object'||Array.isArray(versionFields))throw new Error('Version information must be a JSON object');
     }
-    const result=compile(source,{fileName:inputArg,target,module,...(subsystem?{subsystem}:{}),
+    const result=compile(source,{fileName:inputArg,target,module,...(fullRuntime?{fullRuntime}:{}),...(subsystem?{subsystem}:{}),
       ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
       ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
       ...(versionFields!==undefined?{versionInfo:versionFields}:{})});

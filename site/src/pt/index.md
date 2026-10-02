@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: Inicia em 2 ms
-    details: Um hello world compilado inicia em 1,8 ms e atinge no máximo 11 MB de memória, em um executável de 7 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
+    details: Um hello world compilado inicia em 1,8 ms e atinge no máximo 11 MB de memória, em um executável de 3 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
     link: /pt/guide/performance
   - title: A linguagem ES2020
     details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings — com exceções documentadas.
