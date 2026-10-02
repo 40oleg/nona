@@ -16,7 +16,8 @@ export function emitValueList(b:RuntimeBuilder):void {
  // inherited setters. Numeric formatting and allocation cannot call JS here.
  b.fn('rt.appendArrayValue',88,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rcx',disp:8});a.load('rax',{base:'rax',disp:16});a.mov('r10',0xffffffff);a.cmp('rax','r10');failIf(a,'ae','rt.throwRangeError');
-  a.cvtsi2sd('xmm0','rax');a.storesd(slot(72),'xmm0');a.mov('rax',3);a.store(slot(64),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(64));a.call('rt.toString');
+  // A Number key takes the dense-elements fast path of rt.setProperty.
+  a.cvtsi2sd('xmm0','rax');a.storesd(slot(72),'xmm0');a.mov('rax',3);a.store(slot(64),'rax');
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.load('r8',slot(48));a.mov('r9',1);a.call('rt.setProperty');
  });
 }

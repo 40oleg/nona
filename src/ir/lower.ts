@@ -438,7 +438,7 @@ class Lowerer {
       const condition=this.block(),step=this.block(),body=this.block(),join=this.block();this.end({kind:'jump',target:condition.id});this.select(condition);
       this.end({kind:'branch',condition:doneFlag,yes:join.id,no:step.id});this.select(step);
       const item=this.slot(),done=this.slot();this.emit({kind:'copy',dest:doneFlag,source:trueValue});this.emit({kind:'iteratorStep',dest:item,done,iterator,next});this.emit({kind:'copy',dest:doneFlag,source:done});this.end({kind:'branch',condition:done,yes:join.id,no:body.id});
-      this.select(body);const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:index});this.emit({kind:'setProperty',strict:true,object:array,key,source:item,define:true});
+      this.select(body);this.emit({kind:'setProperty',strict:true,object:array,key:index,source:item,define:true});
       const increment=this.slot();this.emit({kind:'binary',dest:increment,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:increment});this.end({kind:'jump',target:condition.id});
       this.select(join);if(earlyReference)this.putReference(earlyReference,array);else this.bindPattern(pattern.rest,array,initializing,assignment);
     }
@@ -652,7 +652,7 @@ class Lowerer {
         });
         else if(e.kind==='ArrayLiteral'){
           const index=this.slot(),zero=this.constant(0),one=this.constant(1);this.emit({kind:'copy',dest:index,source:zero});
-          const append=(source:number)=>{const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:index});this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});const next=this.slot();this.emit({kind:'binary',dest:next,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:next});};
+          const append=(source:number)=>{this.emit({kind:'setProperty',strict:this.strict,object:dest,key:index,source,define:true});const next=this.slot();this.emit({kind:'binary',dest:next,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:next});};
           for(const item of e.elements){
             if(!item){const next=this.slot();this.emit({kind:'binary',dest:next,operator:'+',left:index,right:one});this.emit({kind:'copy',dest:index,source:next});continue;}
             if(item.kind!=='SpreadElement'){append(this.expression(item));continue;}

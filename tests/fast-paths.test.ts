@@ -212,6 +212,22 @@ try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constr
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
+ 'array iteration for spread, destructuring and rest':`
+const a=[1,2,3];console.log([...a].join(),Math.max(...a),[0,...a,4].join());var [x,,z,w=9]=a;console.log(x,z,w);
+const [h,...r]=[5,6,7];console.log(h,r.join(),Array.isArray(r),r.length);const [s0,...sr]="h\u00e9llo";console.log(s0,sr.join("|"));
+console.log([..."a\ud83d\ude00b"].length,[...new Set([1,2,2])].join(),[...a.keys()].join(),JSON.stringify([...a.entries()]),[...new Map([[1,2]])].join());
+console.log([...new Int8Array([5,6])].join(),[...[1,,3]].length,1 in [...[1,,3]],JSON.stringify([...[1,,3]]));
+const log=[];const proto=Object.getPrototypeOf([][Symbol.iterator]());const orig=proto.next;
+proto.next=function(){log.push("n");return orig.call(this);};console.log([...a].join(),log.length);proto.next=orig;
+const it=a[Symbol.iterator]();it.next=function(){return {done:true};};console.log([...{[Symbol.iterator]:()=>it}].length);
+const saved=Array.prototype[Symbol.iterator];Array.prototype[Symbol.iterator]=function*(){yield "patched";};console.log([...a].join());Array.prototype[Symbol.iterator]=saved;
+const grow=[1,2];let n=0;for(const v of grow){if(n++<3)grow.push(v*10);}console.log(grow.join());
+const shrink=[1,2,3,4];const seen=[];for(const v of shrink){seen.push(v);shrink.length=2;}console.log(seen.join());
+const big=[];for(let i=0;i<2000;i++)big.push(i);let t=0;for(let k=0;k<20;k++){const c=[...big];const [p,q,...rest]=c;t+=c.length+p+q+rest.length;}console.log(t);
+function f(...args){return args.length;}console.log(f(...a,...a),f(...[]),f(..."ab"));
+Object.defineProperty(Array.prototype,0,{set(v){console.log("setter",v);},configurable:true});console.log([...a].join(),JSON.stringify([...[]]));delete Array.prototype[0];
+const al={length:2,0:"x",1:"y",[Symbol.iterator]:Array.prototype[Symbol.iterator]};console.log([...al].join());
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
