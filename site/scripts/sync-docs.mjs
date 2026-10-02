@@ -1,4 +1,5 @@
-// Copies the English reference documents from docs/ (and CHANGELOG.md) into
+// Copies the English reference documents from docs/ (and CHANGELOG.md and
+// PERFORMANCE.md) into
 // site/generated/, rewriting repository-relative links: documents published on
 // the site point to their pages, everything else to the file on GitHub.
 // docs/*.md stay the single source of truth; site/generated/ is not committed.
@@ -20,6 +21,7 @@ const sources = {
   'docs/windows-executables.md': 'windows-executables.md',
   'docs/test262.md': 'test262.md',
   'CHANGELOG.md': 'changelog.md',
+  'PERFORMANCE.md': 'performance.md',
 };
 
 /** Repository file → site page (without base and .html). */
@@ -35,6 +37,7 @@ const pages = {
   'docs/v0.17-v0.20-status.md': '/guide/status',
   'docs/matrix-calculator.md': '/examples/matrix-calculator',
   'CHANGELOG.md': '/changelog',
+  'PERFORMANCE.md': '/guide/performance',
   'AGENTS.md': '/contributing',
   'README.md': '/',
 };
