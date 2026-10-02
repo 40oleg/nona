@@ -40,7 +40,7 @@ export function emitMapIndex(b:RuntimeBuilder):void {
   a.mov('r8',0);a.cvtsi2sd('xmm1','r8');a.ucomisd('xmm0','xmm1');a.jcc('ne',bits);a.mov('rdx',0);a.jmp(bits);
   a.label(nan);a.mov('rdx',0x7ff8000000000000n);
   a.label(bits);a.label(pointer);a.mov('rax','rdx');
-  a.label(mix);a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');a.mov('r9','rax');a.shr('r9',31);a.xor('rax','r9');a.mov('r9',0xff51afd7ed558ccdn);a.imul('rax','r9');a.mov('r9','rax');a.shr('r9',29);a.xor('rax','r9');
+  a.label(mix);a.load('r9',{rip:'rt.hashSeed'});a.xor('rax','r9');a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');a.mov('r9','rax');a.shr('r9',31);a.xor('rax','r9');a.mov('r9',0xff51afd7ed558ccdn);a.imul('rax','r9');a.mov('r9','rax');a.shr('r9',29);a.xor('rax','r9');
   a.shl('rax',1);a.shr('rax',1);a.or('rax',1);a.jmp(done);
   // String, BigInt (a decimal string record) and Symbol records share the
   // property-key hash, which already hashes symbols by address.

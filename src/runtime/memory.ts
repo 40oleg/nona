@@ -60,7 +60,13 @@ export function emitMemory(b:RuntimeBuilder):void {
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
  b.data('rt.classState',new Uint8Array(4*8*classCount),'.data');
  for(const name of ['GetProcessHeap','HeapAlloc','HeapFree','GetStdHandle','GetConsoleMode','WriteConsoleW','WriteFile','WideCharToMultiByte','ExitProcess','VirtualAlloc','VirtualFree'])if(!b.bundle.imports.some(i=>i.symbol===name))b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
- b.fn('rt.init',40,a=>{a.callImport('GetProcessHeap');a.store({rip:'rt.heap'},'rax');a.test('rax','rax');failIf(a,'e');});
+ // Per-process seed of the string and number hashes (property index, Map/Set
+ // index), so colliding keys cannot be precomputed (hash flooding).
+ b.data('rt.hashSeed',new Uint8Array(8),'.data');
+ b.fn('rt.init',40,a=>{
+  a.emit([0x0f,0x31]);a.shl('rdx',32);a.or('rax','rdx');a.mov('r10',0x9E3779B97F4A7C15n);a.imul('rax','r10');a.store({rip:'rt.hashSeed'},'rax');
+  a.callImport('GetProcessHeap');a.store({rip:'rt.heap'},'rax');a.test('rax','rax');failIf(a,'e');
+ });
 
  // RCX bytes -> RAX zeroed page mapping (fails the process when exhausted).
  b.fn('rt.mapPages',40,a=>{

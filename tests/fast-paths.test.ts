@@ -92,6 +92,14 @@ const wm=new WeakMap();const keys=[];for(let i=0;i<100;i++){const k={i};keys.pus
 let ws=0;for(const k of keys)ws+=wm.get(k);console.log(ws,wm.has({}),wm.delete(keys[5]),wm.has(keys[5]),wm.get(keys[6]));
 keys.length=50;for(let i=0;i<300;i++)({a:i});let ws2=0;for(const k of keys)ws2+=wm.get(k);console.log(ws2,wm.get(keys[49]));
 `,
+ 'seeded property and collection hashes':`
+const o={};for(let i=0;i<60;i++)o["k"+i]=i;for(let i=0;i<60;i+=3)delete o["k"+i];o.k3=-1;let s=0;for(const k in o)s+=o[k];
+console.log(Object.keys(o).length,s,o.k59,o.k3,o.k0,"k30" in o,Object.keys(o).slice(0,4).join());
+const m=new Map();for(let i=0;i<150;i++){m.set("s"+i,i);m.set(i*0.5,-i);}m.set(NaN,"nan");m.set(-0,"zero");m.set(1n,"big");const sym=Symbol("x");m.set(sym,"sym");
+for(let i=0;i<150;i+=2)m.delete("s"+i);console.log(m.size,m.get("s1"),m.get("s2"),m.get(10.5),m.get(NaN),m.get(0),m.get(1n),m.get(sym),[...m.keys()].slice(0,5).map(String).join());
+const st=new Set();for(let i=0;i<200;i++)st.add(i%50+"");console.log(st.size,st.has("49"),st.has("50"));
+const wm=new WeakMap();const keys=[];for(let i=0;i<40;i++){const k={i};keys.push(k);wm.set(k,i);}console.log(wm.get(keys[23]),wm.has({}));
+`,
  'promise chains and sort':`
 let p=Promise.resolve(0);for(let i=0;i<40;i++)p=p.then(v=>v+1);p.then(v=>console.log("chain",v));
 const a=[5,3,undefined,1,,4,"b","a",10,2];a.sort();console.log(a.length,4 in a,String(a[0]),String(a[9]));
