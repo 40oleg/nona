@@ -299,6 +299,10 @@ export class Assembler {
   cvttsd2si(d: Reg, s: Xmm): void {
     this.instruction([0x0f, 0x2c], regCode(d), s, true, [0xf2]);
   }
+  /** Converts with the current rounding mode (round to nearest even by default). */
+  cvtsd2si(d: Reg, s: Xmm): void {
+    this.instruction([0x0f, 0x2d], regCode(d), s, true, [0xf2]);
+  }
   movqToXmm(d: Xmm, s: Reg): void {
     this.instruction([0x0f, 0x6e], regCode(d), s, true, [0x66]);
   }

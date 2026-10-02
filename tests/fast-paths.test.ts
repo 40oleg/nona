@@ -105,6 +105,16 @@ let s="x".repeat(9000);for(let i=0;i<400;i++)s=s+"y";console.log(s.length,s.slic
 const keep=[];for(let i=0;i<200;i++){keep.push(new Float64Array(3000));if(keep.length>5)keep.shift();}console.log(keep.length,keep[0].length);
 let b="";for(let i=0;i<3000;i++)b+="abc"+i;console.log(b.length,b.indexOf("abc2999"));
 `,
+ 'number formatting and parsing':`
+const vals=[0,-0,1,-1,1.5,-2.5,0.1,0.2,0.3,0.1+0.2,1/3,2/3,1e21,1e-7,1e-6,123456.789,-0.000001,0.000001,9007199254740991,9007199254740992,4503599627370496.5,4503599627370497,1e15+0.5,0.5,1.005,1.1,2.675,100,1e3,1e16,1e17,12345678901234567890,0.000123,1.7976931348623157e308,5e-324,NaN,Infinity,-Infinity,3.14159,2.718281828459045,1.0000000000000002,0.30000000000000004,99.99,-99.99,1234.5678,0.1234567,1e-5,123e-7,4.35,0.07,1e22,1e-22,25.4,33.33,66.6,1.23456789012e5];
+let seed=0x831d55a1729bc044n;const view=new DataView(new ArrayBuffer(8));
+for(let i=0;i<400;i++){seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);view.setBigUint64(0,seed);vals.push(view.getFloat64(0));
+ const n=Number(seed%1000000000n),k=Number((seed>>40n)%7n);vals.push(n/10**k,-(n/10**k),n/10**k+1e-9,(n/10**k)*(1+2**-52),Number(seed%(1n<<53n))/4,n*1.5,n*0.1);}
+const out=vals.map(v=>String(v)+"|"+Number(String(v))+"|"+parseFloat(String(v)+"junk")+"|"+JSON.stringify(v)).join(",");
+let h=0;for(let i=0;i<out.length;i++)h=(h*31+out.charCodeAt(i))|0;
+console.log(out.length,h,out.slice(0,300));
+console.log(JSON.parse("[1.5,-2.25,1e3,0.1,123456789012345680000,5e-324,1E+2,-0]").join(),(255).toString(16),(0.5).toString(2),(1e21).toFixed(2),(1.005).toFixed(2),(123.456).toPrecision(4),(0.00001).toExponential(2));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
@@ -121,7 +131,7 @@ const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){cons
 
 // The operator matrix does not allocate on its fast paths and is too large to
 // run with a collection before every operation, so it runs without GC stress.
-const plainPrograms=new Set(['inline number operators']);
+const plainPrograms=new Set(['inline number operators','number formatting and parsing']);
 
 for(const [name,source] of Object.entries(programs))test(`fast paths agree with Node.js: ${name}`,()=>{
  const expected=runOracle(source).stdout;
