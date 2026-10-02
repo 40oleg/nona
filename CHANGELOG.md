@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reused released coroutine stacks instead of mapping a fresh megabyte for every async call and generator, and created an async function's continuations only when it awaits: a loop of awaited async calls is 1.6 times faster ([#68](https://github.com/40oleg/nona/issues/68)).
 - Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
 - Published the performance comparison with Node.js, Deno and Bun on the documentation site, with startup time, executable size and memory on the home page ([#55](https://github.com/40oleg/nona/issues/55)).
 - Added a playground to the documentation site: the compiler runs in the browser and produces a Windows or Linux executable to download ([#56](https://github.com/40oleg/nona/issues/56)).

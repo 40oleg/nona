@@ -199,21 +199,23 @@ var __nonaPromiseDrainJobs=(function(){
   function resume(coroutine,mode,value){
     return mode===0?coroutineNext.call(coroutine,value):mode===1?coroutineThrow.call(coroutine,value):coroutineReturn.call(coroutine,value)
   }
-  function isAwait(result){return hasOwn.call(result,'await')}
+  // The internal coroutine marks an await step with an own "await" property
+  // on its fresh result object (see rt.generatorNext); nothing else can.
+  function isAwait(result){return result.await===true}
   __nonaRegexpVm.asyncFunctionStart=function(coroutine){
-    var promise=new Promise(noop),functions=resolving(promise);
+    var promise=new Promise(noop),functions=resolving(promise),resumeNext,resumeThrow;
     function step(mode,value){
       var result;
       try{result=resume(coroutine,mode,value)}
       catch(error){var reject=functions.reject;reject(error);return}
       if(isAwait(result)){
+        // The continuations exist only for functions that do await.
+        if(resumeNext===undefined){resumeNext=function(value){step(0,value)};resumeThrow=function(error){step(1,error)}}
         try{awaitValue(result.value,resumeNext,resumeThrow)}catch(error){step(1,error)}
         return
       }
       var resolve=functions.resolve;resolve(result.value)
     }
-    function resumeNext(value){step(0,value)}
-    function resumeThrow(error){step(1,error)}
     step(0,undefined);
     return promise
   };

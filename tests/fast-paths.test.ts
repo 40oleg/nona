@@ -212,6 +212,23 @@ try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constr
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
+ 'async functions with pooled coroutine stacks':`
+const log=[];
+async function leaf(x){return x+1;}
+async function thrower(x){if(x%3===0)throw new Error("e"+x);await null;return x;}
+async function deep(n){if(n===0)return 0;return 1+await deep(n-1);}
+async function main(){
+ let s=0;for(let i=0;i<40;i++)s+=await leaf(i);log.push(s);
+ let caught=0;for(let i=0;i<9;i++){try{await thrower(i);}catch(e){caught++;}}log.push(caught);
+ log.push(await deep(12));
+ const all=await Promise.all(Array.from({length:12},(_, i)=>leaf(i)));log.push(all.reduce((a,b)=>a+b,0));
+ const order=[];const p=Promise.resolve();(async()=>{order.push("a1");await p;order.push("a2");await p;order.push("a3");})();
+ p.then(()=>order.push("t1")).then(()=>order.push("t2")).then(()=>order.push("t3"));await null;await null;await null;await null;log.push(order.join());
+ async function* gen(){for(let i=0;i<5;i++){await null;yield i;}}let g=0;for await(const v of gen())g+=v;log.push(g);
+ const thenable={then(r){r(42);}};log.push(await thenable);
+}
+main().then(()=>console.log(log.join("|")));
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
