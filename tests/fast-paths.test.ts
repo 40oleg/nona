@@ -100,6 +100,11 @@ console.log(out.length,h,out.slice(0,60).join());
 const o={valueOf(){return 7;}};console.log(o+1,o*2,o<8,o==7,-o,!o,1<<o,o>>>1);
 let i=0;for(;i<10;i++);console.log(i,i>>1,i<<30,i<<31,(2**40)|0,(2**32+7)&255,(-1)>>>0,(-1)>>>31,1.9|0,-1.9|0);
 `,
+ 'large block churn':`
+let s="x".repeat(9000);for(let i=0;i<400;i++)s=s+"y";console.log(s.length,s.slice(-3));
+const keep=[];for(let i=0;i<200;i++){keep.push(new Float64Array(3000));if(keep.length>5)keep.shift();}console.log(keep.length,keep[0].length);
+let b="";for(let i=0;i<3000;i++)b+="abc"+i;console.log(b.length,b.indexOf("abc2999"));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
