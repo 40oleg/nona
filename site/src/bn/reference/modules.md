@@ -12,6 +12,8 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 | `console.log` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে |
 | `nona:process`, `node:process` | মডিউল | উভয় | [process](/bn/reference/process) |
 | `nona:fs`, `node:fs` | মডিউল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | মডিউল | উভয় | [নেটওয়ার্কিং (ইংরেজি)](/reference/network) |
+| `node:events`, `node:buffer`, `node:string_decoder` | মডিউল | উভয় | [Node.js সহায়ক মডিউল (ইংরেজি)](/reference/network#supporting-modules) |
 | `nona:ffi` | মডিউল | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi) |
 | `nona:win32` | মডিউল | Windows | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ |
 
@@ -19,7 +21,7 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 
 - গ্লোবালগুলো স্ক্রিপ্ট ও মডিউল উভয়েই উপলব্ধ।
 - বিল্ট-ইন মডিউল মডিউল কোড (`.mjs` বা `--module`) থেকে ইমপোর্ট করা যায়, আর স্ক্রিপ্ট থেকে লিটারাল `import()` দিয়ে। FFI ডিক্লারেশন (`define`) মডিউল কোডে থাকতে হবে।
-- `node:` মডিউলগুলোর মধ্যে কেবল `node:fs` ও `node:process` আছে; এগুলো Nona সাবসেটের উপনাম, Node.js-এর ইমপ্লিমেন্টেশন নয়। `node:path`, `Buffer` ও `require` উপলব্ধ নয়।
+- `node:` মডিউলগুলোর মধ্যে আছে `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` ও `node:string_decoder`; এগুলো Node.js সাবসেটের Nona ইমপ্লিমেন্টেশন, Node.js-এর কোড নয়। `node:path` ও `require` উপলব্ধ নয়; `node:buffer`, `node:net` বা `node:http` ইমপোর্ট করার পর গ্লোবাল `Buffer` পাওয়া যায়।
 - `nona:win32` ও DLL ডিক্লারেশন কেবল `win32-x64`-এর জন্য কম্পাইল হয়; সিস্টেম কল ডিক্লারেশন কেবল `linux-x64`-এর জন্য।
 
 ## `nona:win32` {#nona-win32}

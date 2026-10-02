@@ -12,6 +12,8 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `console.log` | global | ambos | escreve UTF-8 na saída padrão |
 | `nona:process`, `node:process` | módulos | ambos | [process](/pt/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | módulos | ambos | [Rede (em inglês)](/reference/network) |
+| `node:events`, `node:buffer`, `node:string_decoder` | módulos | ambos | [Módulos de apoio do Node.js (em inglês)](/reference/network#supporting-modules) |
 | `nona:ffi` | módulo | Windows (DLLs), Linux (chamadas de sistema) | [Funções nativas (FFI)](/pt/reference/ffi) |
 | `nona:win32` | módulo | Windows | abaixo e em [FFI](/pt/reference/ffi#nona-win32) |
 
@@ -19,7 +21,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 
 - Os globais estão disponíveis em scripts e módulos.
 - Módulos embutidos podem ser importados em código de módulo (`.mjs` ou `--module`) e com `import()` literal em scripts. Declarações FFI (`define`) precisam estar em código de módulo.
-- Entre os módulos `node:` existem apenas `node:fs` e `node:process`; são aliases dos subconjuntos do Nona, não as implementações do Node.js. `node:path`, `Buffer` e `require` não estão disponíveis.
+- Entre os módulos `node:` estão `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` e `node:string_decoder`; são implementações do Nona de subconjuntos do Node.js, não o código do Node.js. `node:path` e `require` não estão disponíveis; o `Buffer` global existe depois que `node:buffer`, `node:net` ou `node:http` é importado.
 - `nona:win32` e declarações de DLL só compilam para `win32-x64`; declarações de chamadas de sistema, só para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}

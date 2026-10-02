@@ -19,6 +19,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
   - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
+  - HTTP/1.1 servers and clients with `node:http`, TCP sockets with `node:net`, and `node:events`, `node:buffer` and `node:string_decoder` ([networking](docs/network.md));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
 

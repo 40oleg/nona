@@ -19,6 +19,7 @@ Nona разбирает JavaScript, переводит его в собстве�
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
   - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
+  - HTTP/1.1-серверы и клиенты в `node:http`, TCP-сокеты в `node:net`, а также `node:events`, `node:buffer` и `node:string_decoder` ([сеть](docs/network.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
 - **Исполняемые файлы Windows.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
 
