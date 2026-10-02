@@ -27,68 +27,20 @@ export function emitJson(b:RuntimeBuilder):void {
   {offset:P.value+8,kind:'va64',target:'rt.JSON',addend:0},
  ]});globalHead.target='rt.globalObject.JSON';
 
- // JSON whitespace is exactly TAB, LF, CR and SPACE. Trimming into a new
- // string keeps the parser's grammar independent of ToNumber's wider syntax.
- rootedFn(b,'rt.jsonTrim',120,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:2}],a=>{
-  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(64),'rax');a.store(slot(72),'rdx');a.mov('rax',0);a.store(slot(96),'rax');a.load('rax',{base:'rdx'});a.store(slot(104),'rax');
-  const whitespace=(next:string)=>{for(const code of [9,10,13,32]){a.cmp('r11',code);a.jcc('e',next);}};
-  const left=a.unique('left'),leftAdvance=a.unique('leftAdvance'),right=a.unique('right'),rightRetreat=a.unique('rightRetreat'),allocate=a.unique('allocate');
-  a.label(left);a.load('rax',slot(96));a.load('r10',slot(104));a.cmp('rax','r10');a.jcc('ae',allocate);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);whitespace(leftAdvance);a.jmp(right);
-  a.label(leftAdvance);a.load('rax',slot(96));a.add('rax',1);a.store(slot(96),'rax');a.jmp(left);
-  a.label(right);a.load('rax',slot(104));a.load('r10',slot(96));a.cmp('rax','r10');a.jcc('be',allocate);a.sub('rax',1);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);whitespace(rightRetreat);a.jmp(allocate);
-  a.label(rightRetreat);a.load('rax',slot(104));a.sub('rax',1);a.store(slot(104),'rax');a.jmp(right);
-  a.label(allocate);a.load('rax',slot(104));a.load('r10',slot(96));a.sub('rax','r10');a.store(slot(112),'rax');a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(88),'rax');a.mov('r10',4);a.store(slot(80),'r10');a.load('r10',slot(112));a.store({base:'rax'},'r10');
-  a.mov('r8',0);const copy=a.unique('copy'),finish=a.unique('finish');a.label(copy);a.load('r10',slot(112));a.cmp('r8','r10');a.jcc('ae',finish);
-  a.mov('r10','r8');a.load('r11',slot(96));a.add('r10','r11');a.shl('r10',1);a.load('r11',slot(72));a.add('r11','r10');a.load('r11',{base:'r11',disp:8},16);
-  a.mov('r10','r8');a.shl('r10',1);a.load('rax',slot(88));a.add('rax','r10');a.store({base:'rax',disp:8},'r11',16);a.add('r8',1);a.jmp(copy);
-  a.label(finish);a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');
- });
-
- rootedFn(b,'rt.jsonParseString',136,[{kind:'output',register:'rcx'},{kind:'locals',offset:64,count:2}],a=>{
-  a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(64),'rax');a.store(slot(72),'rdx');a.load('rax',{base:'rdx'});a.store(slot(96),'rax');
-  const invalid=a.unique('invalid'),loop=a.unique('loop'),finish=a.unique('finish'),escape=a.unique('escape'),unicode=a.unique('unicode'),write=a.unique('write');
-  a.cmp('rax',2);a.jcc('b',invalid);a.load('r11',{base:'rdx',disp:8},16);a.cmp('r11',34);a.jcc('ne',invalid);
-  a.load('rax',slot(96));a.sub('rax',1);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',34);a.jcc('ne',invalid);
-  a.load('rax',slot(96));a.shl('rax',1);a.add('rax',8);a.mov('rcx','rax');a.call('rt.alloc');a.store(slot(88),'rax');a.mov('r10',4);a.store(slot(80),'r10');a.mov('rax',1);a.store(slot(104),'rax');a.mov('rax',0);a.store(slot(112),'rax');
-  const read=()=>{a.load('rax',slot(104));a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);};
-  const advance=()=>{a.load('rax',slot(104));a.add('rax',1);a.store(slot(104),'rax');};
-  a.label(loop);a.load('rax',slot(104));a.load('r10',slot(96));a.sub('r10',1);a.cmp('rax','r10');a.jcc('ae',finish);read();
-  a.cmp('r11',32);a.jcc('b',invalid);a.cmp('r11',34);a.jcc('e',invalid);a.cmp('r11',92);a.jcc('e',escape);a.jmp(write);
-  a.label(escape);advance();a.load('rax',slot(104));a.load('r10',slot(96));a.sub('r10',1);a.cmp('rax','r10');a.jcc('ae',invalid);read();
-  for(const [escaped,decoded] of [[34,34],[92,92],[47,47],[98,8],[102,12],[110,10],[114,13],[116,9]] as const){const next=a.unique('next');a.cmp('r11',escaped);a.jcc('ne',next);a.mov('r11',decoded);a.jmp(write);a.label(next);}
-  a.cmp('r11',117);a.jcc('ne',invalid);a.mov('rax',0);a.store(slot(120),'rax');a.mov('rax',0);a.store(slot(128),'rax');
-  a.label(unicode);advance();a.load('rax',slot(104));a.load('r10',slot(96));a.sub('r10',1);a.cmp('rax','r10');a.jcc('ae',invalid);read();
-  a.cmp('r11',48);const lower=a.unique('lower'),upper=a.unique('upper'),nibble=a.unique('nibble');a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',upper);a.sub('r11',48);a.jmp(nibble);
-  a.label(upper);a.cmp('r11',65);a.jcc('b',invalid);a.cmp('r11',70);a.jcc('a',lower);a.sub('r11',55);a.jmp(nibble);
-  a.label(lower);a.cmp('r11',97);a.jcc('b',invalid);a.cmp('r11',102);a.jcc('a',invalid);a.sub('r11',87);
-  a.label(nibble);a.load('rax',slot(120));a.shl('rax',4);a.add('rax','r11');a.store(slot(120),'rax');a.load('rax',slot(128));a.add('rax',1);a.store(slot(128),'rax');a.cmp('rax',4);a.jcc('b',unicode);a.load('r11',slot(120));
-  a.label(write);a.load('rax',slot(112));a.shl('rax',1);a.load('r10',slot(88));a.add('r10','rax');a.store({base:'r10',disp:8},'r11',16);a.load('rax',slot(112));a.add('rax',1);a.store(slot(112),'rax');advance();a.jmp(loop);
-  a.label(finish);a.load('rax',slot(88));a.load('r10',slot(112));a.store({base:'rax'},'r10');a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');const done=a.unique('done');a.jmp(done);
-  a.label(invalid);a.call('rt.throwSyntaxError');a.label(done);
- });
-
- // The parser starts with exact JSON literals and the JSON number grammar.
- // Strings, composites and reviver traversal use the same entry point.
+ // JSON.parse: ToString, the value through rt.jsonParseAt (json-parser.ts),
+ // only JSON whitespace after it, then the reviver traversal.
  rootedFn(b,'rt.JSON.parse.fn.code',168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1},{kind:'locals',offset:112,count:3}],a=>{
   a.store(slot(40),'rcx');a.cmp('rdx',2);const noReviver=a.unique('noReviver');a.jcc('b',noReviver);for(const n of [0,8]){a.load('rax',{base:'r8',disp:16+n});a.store(slot(112+n),'rax');}a.label(noReviver);
   a.test('rdx','rdx');const supplied=a.unique('supplied');a.jcc('ne',supplied);a.lea('rdx',{rip:'rt.undefinedValue'});const convert=a.unique('convert');a.jmp(convert);
-  a.label(supplied);a.mov('rdx','r8');a.label(convert);a.lea('rcx',slot(64));a.call('rt.toString');a.lea('rcx',slot(64));a.load('rdx',slot(72));a.call('rt.jsonTrim');
-  const done=a.unique('done');a.load('r10',slot(72));a.load('rax',{base:'r10'});a.test('rax','rax');const notString=a.unique('notString');a.jcc('e',notString);a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',34);a.jcc('ne',notString);a.load('rcx',slot(40));a.load('rdx',slot(72));a.call('rt.jsonParseString');a.jmp(done);a.label(notString);
-  a.load('r10',slot(72));a.load('rax',{base:'r10'});a.test('rax','rax');const notComposite=a.unique('notComposite');a.jcc('e',notComposite);a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',91);a.jcc('e','rt.JSON.parse.composite');a.cmp('r11',123);a.jcc('ne',notComposite);a.label('rt.JSON.parse.composite');a.load('rcx',slot(40));a.load('rdx',slot(72));a.call('rt.jsonParseComposite');a.jmp(done);a.label(notComposite);
-  for(const [word,tag,payload] of [['null',1,0],['true',2,1],['false',2,0]] as const){const next=a.unique('next');a.load('rcx',slot(72));a.lea('rdx',{rip:'rt.json.'+word});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',next);a.load('rcx',slot(40));a.mov('rax',tag);a.store({base:'rcx'},'rax');a.mov('rax',payload);a.store({base:'rcx',disp:8},'rax');a.jmp(done);a.label(next);}
-  const invalid=a.unique('invalid');a.load('r10',slot(72));a.load('rax',{base:'r10'});a.store(slot(88),'rax');a.test('rax','rax');a.jcc('e',invalid);
-  a.mov('rax',0);a.store(slot(80),'rax');
-  const peek=()=>{a.load('rax',slot(80));a.load('r10',slot(88));a.cmp('rax','r10');a.jcc('ae',invalid);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);};
-  const advance=()=>{a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');};
-  const atEnd=(label:string)=>{a.load('rax',slot(80));a.load('r10',slot(88));a.cmp('rax','r10');a.jcc('ae',label);};
-  peek();const integer=a.unique('integer');a.cmp('r11',45);a.jcc('ne',integer);advance();peek();a.label(integer);
-  const digitsDone=a.unique('digitsDone'),integerLoop=a.unique('integerLoop');a.cmp('r11',48);const nonzero=a.unique('nonzero');a.jcc('ne',nonzero);advance();atEnd(digitsDone);peek();a.cmp('r11',48);a.jcc('b',digitsDone);a.cmp('r11',57);a.jcc('be',invalid);a.jmp(digitsDone);
-  a.label(nonzero);a.cmp('r11',49);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);
-  a.label(integerLoop);advance();atEnd(digitsDone);peek();a.cmp('r11',48);a.jcc('b',digitsDone);a.cmp('r11',57);a.jcc('be',integerLoop);
-  a.label(digitsDone);atEnd('rt.JSON.parse.numberReady');peek();const exponent=a.unique('exponent');a.cmp('r11',46);a.jcc('ne',exponent);advance();peek();const fractionLoop=a.unique('fractionLoop');a.label(fractionLoop);a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);advance();atEnd('rt.JSON.parse.numberReady');peek();a.cmp('r11',48);a.jcc('b',exponent);a.cmp('r11',57);a.jcc('be',fractionLoop);
-  a.label(exponent);atEnd('rt.JSON.parse.numberReady');peek();a.cmp('r11',101);const upper=a.unique('upper');a.jcc('ne',upper);a.jmp('rt.JSON.parse.exponentDigits');a.label(upper);a.cmp('r11',69);a.jcc('ne',invalid);a.label('rt.JSON.parse.exponentDigits');advance();peek();a.cmp('r11',43);const minus=a.unique('minus');a.jcc('ne',minus);advance();peek();a.jmp('rt.JSON.parse.exponentLoop');a.label(minus);a.cmp('r11',45);a.jcc('ne','rt.JSON.parse.exponentLoop');advance();peek();
-  const exponentLoop=a.unique('exponentLoop');a.label('rt.JSON.parse.exponentLoop');a.label(exponentLoop);a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);advance();atEnd('rt.JSON.parse.numberReady');peek();a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('be',exponentLoop);a.jmp(invalid);
-  a.label('rt.JSON.parse.numberReady');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.toNumber');a.jmp(done);
+  a.label(supplied);a.mov('rdx','r8');a.label(convert);a.lea('rcx',slot(64));a.call('rt.toString');
+  // The value, then only JSON whitespace up to the end of the text.
+  const done=a.unique('done'),invalid=a.unique('invalid'),trailing=a.unique('trailing'),complete=a.unique('complete');
+  a.load('rcx',slot(40));a.lea('rdx',slot(64));a.mov('r8',0);a.call('rt.jsonParseAt');a.store(slot(80),'rax');
+  a.load('r10',slot(72));a.load('rax',{base:'r10'});a.store(slot(88),'rax');
+  a.label(trailing);a.load('rax',slot(80));a.load('r10',slot(88));a.cmp('rax','r10');a.jcc('ae',complete);a.shl('rax',1);a.load('r10',slot(72));a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);
+  for(const code of [9,10,13,32]){a.cmp('r11',code);a.jcc('e','rt.JSON.parse.trailingNext');}a.jmp(invalid);
+  a.label('rt.JSON.parse.trailingNext');a.load('rax',slot(80));a.add('rax',1);a.store(slot(80),'rax');a.jmp(trailing);
+  a.label(complete);a.jmp(done);
   a.label(invalid);a.call('rt.throwSyntaxError');a.label(done);
   a.load('rax',slot(112));const noWalk=a.unique('noWalk');a.cmp('rax',5);a.jcc('ne',noWalk);a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',noWalk);
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',{base:'rcx',disp:n});a.store(slot(128+n),'rax');}

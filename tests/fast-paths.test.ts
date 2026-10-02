@@ -191,6 +191,15 @@ out.push(churn.length);
 const arr=[1,2,3];function len(a){return a.push(4);}out.push(len(arr),len(arr),arr.length);
 console.log(out.join());
 `,
+ 'JSON.parse over the source text':`
+const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
+const out=[];
+for(const c of cases){try{const v=JSON.parse(c);out.push(JSON.stringify(v)+":"+typeof v+":"+(Object.is(v,-0)?"-0":""));}catch(e){out.push("ERR:"+e.constructor.name);}}
+out.push(JSON.stringify(JSON.parse('{"a":[1,{"b":2}],"c":3}',(k,v)=>typeof v==='number'?v*2:v)));
+out.push(JSON.stringify(JSON.parse(' [1, 2] ',function(k,v){return k==='0'?undefined:v;})));
+const big='['+Array.from({length:300},(_,i)=>'{"i":'+i+',"s":"x'+i+'\\\\n","n":'+(i/4)+'}').join(',')+']';const p=JSON.parse(big);out.push(p.length,p[299].s,p[299].n,p[100].i,Object.keys(p[0]).join());
+console.log(out.join("|"));
+`,
  'JSON and join through the string builder':`
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
