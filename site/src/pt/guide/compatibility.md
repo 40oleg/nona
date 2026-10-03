@@ -36,7 +36,7 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 ## Desempenho
 
 - Arrays e `Map`/`Set` guardam seus elementos em estruturas encadeadas; coleções muito grandes são mais lentas que no V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
-- O motor de RegExp é uma VM com backtracking escrita em JavaScript.
+- O motor de RegExp é uma VM com backtracking escrita em JavaScript. Um padrão sem referências inversas nem lookarounds que retrocede em excesso (sem a flag `u`) é concluído por um motor de tempo linear.
 - No Windows, os timers acordam no tick do sistema (normalmente 15,6 ms).
 - Não há JIT: o código é compilado uma única vez, antecipadamente, sem otimização guiada por perfil.
 
