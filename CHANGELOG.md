@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a real-world benchmark corpus: `node bench/real/fetch.mjs` downloads pinned libraries from npm and `node bench/run.mjs --real` runs them on Nona and the installed runtimes; it starts with acorn parsing its own source, 14 times slower than Node.js on the first parse ([#104](https://github.com/40oleg/nona/issues/104)). See [PERFORMANCE.md](PERFORMANCE.md#real-world-code).
 - The collector marks strings and other reference-free blocks without queueing them for tracing, and in GC stress mode fills freed cells with a poison pattern so a missing root fails at once instead of when the cell is reused ([#67](https://github.com/40oleg/nona/issues/67)).
 - Added call-statistics builds: `--call-stats` (`compile({callStats: true})`) counts every call the program and its runtime make and prints the counts to stderr when the program ends, most frequent first ([#90](https://github.com/40oleg/nona/issues/90)).
 - Added coverage builds: `--coverage <dir>` (`compile({coverage: {directory, url}})`) makes the program write per-function call counts in the `NODE_V8_COVERAGE` format when it ends, for `c8 report` ([#100](https://github.com/40oleg/nona/issues/100)).
