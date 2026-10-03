@@ -15,7 +15,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const globals:StorageBinding[]=[],mainLocals:StorageBinding[]=[],functions:BoundFunction[]=[],bindings=new Map<A.Node,Binding>();
   const declarations:BoundFunction[]=[],functionNodes=new Map<A.FunctionNode,BoundFunction>();
   /** Class scopes: index of each private name in the class's list. */
-  const privateIndexes=new WeakMap<Map<string,Binding>,Map<string,number>>();
+  const privateIndexes=new WeakMap<Map<string,Binding>,Map<string,{index:number;kind:A.ClassPrivateName['kind']}>>();
   const lexicalScopes=new Map<A.Node,StorageBinding[]>(),scopeFunctions=new Map<A.Node,BoundFunction[]>(),globalNames=new Map<string,Binding>();
   const argumentOwners=new Map<StorageBinding,BoundFunction>();
   const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>(),annexBFunctions=new Map<A.Node,Binding>();
@@ -203,7 +203,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
     const privateName=(e:A.PrivateName):void=>{
       const scope=[...scopes].reverse().find(scope=>!(scope instanceof WithScope)&&scope.has(e.id.name));
       if(!scope)fail(e,`Private name ${e.name} is not declared in an enclosing class`);
-      e.index=privateIndexes.get(scope!)!.get(e.id.name)!;resolve(e.id);
+      const declared=privateIndexes.get(scope!)!.get(e.id.name)!;e.index=declared.index;e.privateKind=declared.kind;resolve(e.id);
     };
     const expression=(e:A.Expression):void=>{
       switch(e.kind){
@@ -275,8 +275,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       classCode++;if(node.superClass)expression(node.superClass);classCode--;
       // All private names of the class share one binding: the list of their records.
       if(node.privateNames?.length){
-        const list=hidden(node.privateNames[0]!.id,'\u0002private'),indexes=new Map<string,number>();
-        node.privateNames.forEach((name,index)=>{bindings.set(name.id,list);classScope.set(name.id.name,list);indexes.set(name.id.name,index);});
+        const list=hidden(node.privateNames[0]!.id,'\u0002private'),indexes=new Map<string,{index:number;kind:A.ClassPrivateName['kind']}>();
+        node.privateNames.forEach((name,index)=>{bindings.set(name.id,list);classScope.set(name.id.name,list);indexes.set(name.id.name,{index,kind:name.kind});});
         privateIndexes.set(classScope,indexes);
       }
       if(node.instanceFields)hidden(node.instanceFields,node.instanceFields.name);

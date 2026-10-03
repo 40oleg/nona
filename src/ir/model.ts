@@ -4,6 +4,10 @@ export type Operation =
   | {kind:'defineDataProperty';object:number;key:number;source:number;attributes:number}
   /** CreateDataPropertyOrThrow (class fields): key is a property key. */
   | {kind:'defineField';object:number;key:number;source:number}
+  /** A private field or method of object (name: the private name, a WeakMap); TypeError without it. */
+  | {kind:'privateGet';dest:number;object:number;name:number}
+  /** Writes a private field of object; TypeError without it. */
+  | {kind:'privateSet';object:number;name:number;source:number}
   | {kind:'newCell';dest:number;source:number}
   | {kind:'readCell';dest:number;cell:number}
   | {kind:'writeCell';cell:number;source:number}

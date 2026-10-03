@@ -10,6 +10,7 @@ import {prependFunctionBuiltin} from './function-builtin.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 import {ProxyKind} from './proxy.js';
+import {MapEntryLayout} from './map.js';
 
 export function emitDefineProperty(b:RuntimeBuilder):void {
  emitDescriptorValidation(b);
@@ -38,6 +39,23 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store(slot(112+D.value+offset),'rax');}
   a.mov('rax',F.data);a.store(slot(112+D.present),'rax');
   a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(112));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+ });
+ // Private fields and methods (class elements): the private name is a
+ // WeakMap from each object that has the element to its value (a method's
+ // brand maps to the method). RCX result, RDX object, R8 name -> the value;
+ // TypeError when the object does not have it.
+ b.fn('rt.privateGet',56,a=>{
+  a.store(slot(40),'rcx');
+  a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('rcx',{base:'r8',disp:8});a.call('rt.mapFind');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.load('rcx',slot(40));for(const n of [0,8]){a.load('r10',{base:'rax',disp:MapEntryLayout.value+n});a.store({base:'rcx',disp:n},'r10');}
+ });
+ // RCX object, RDX name, R8 value: writes a private field.
+ b.fn('rt.privateSet',56,a=>{
+  a.store(slot(40),'r8');
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.mov('r10','rcx');a.load('rcx',{base:'rdx',disp:8});a.mov('rdx','r10');a.call('rt.mapFind');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+  a.load('r8',slot(40));for(const n of [0,8]){a.load('r10',{base:'r8',disp:n});a.store({base:'rax',disp:MapEntryLayout.value+n},'r10');}
  });
  // RCX complete record -> RAX compact property attributes.
  b.fn('rt.descriptorAttributes',40,a=>{

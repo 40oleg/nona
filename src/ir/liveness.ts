@@ -25,6 +25,8 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'superGet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);return;
   case 'superSet':live.add(operation.object);live.add(operation.key);live.add(operation.receiver);live.add(operation.source);return;
   case 'property':live.add(operation.object);live.add(operation.key);return;
+  case 'privateGet':live.add(operation.object);live.add(operation.name);return;
+  case 'privateSet':live.add(operation.object);live.add(operation.name);live.add(operation.source);return;
   case 'newInstance':live.add(operation.callee);return;
   case 'forInKeys':live.add(operation.object);return;
   case 'forInHas':live.add(operation.object);live.add(operation.key);return;

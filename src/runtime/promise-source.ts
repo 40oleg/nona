@@ -455,7 +455,8 @@ var __nonaPromiseDrainJobs=(function(){
   function callBound(method){return callPrototype.bind(method)}
   var weakHas=callBound(WeakMap.prototype.has),weakGet=callBound(WeakMap.prototype.get),weakSet=callBound(WeakMap.prototype.set),reflectApplyField=Reflect.apply;
   __nonaRegexpVm.privateName=function(description,kind){
-    var name=objectCreate(null);name.description=description;name.kind=kind;name.map=new weakMapConstructor();
+    // The name is its own WeakMap: native code reads fields and methods through it.
+    var name=new weakMapConstructor();name.description=description;name.kind=kind;name.map=name;
     name.method=undefined;name.getter=undefined;name.setter=undefined;return name
   };
   __nonaRegexpVm.privateMethod=function(name,fn,kind){if(kind===1)name.getter=fn;else if(kind===2)name.setter=fn;else name.method=fn};
@@ -471,7 +472,8 @@ var __nonaPromiseDrainJobs=(function(){
     if(object===null||typeof object!=='object'&&typeof object!=='function'||!weakHas(name.map,object))
       throw new TypeError('Cannot '+action+' private member '+name.description+' from an object whose class did not declare it')
   }
-  __nonaRegexpVm.privateBrand=function(object,name){privateAdd(object,name,true)};
+  // A method's brand maps the object to the method itself.
+  __nonaRegexpVm.privateBrand=function(object,name){privateAdd(object,name,name.kind===1?name.method:true)};
   __nonaRegexpVm.privateDefine=function(object,name,value){privateAdd(object,name,value)};
   __nonaRegexpVm.privateGet=function(object,name){
     privateCheck(object,name,'read');
@@ -499,7 +501,7 @@ var __nonaPromiseDrainJobs=(function(){
   __nonaRegexpVm.initializeFields=function(object,list){
     for(var i=0;i<list.length;i+=3){
       var kind=list[i],key=list[i+1],init=list[i+2];
-      if(kind===0){privateAdd(object,key,true);continue}
+      if(kind===0){privateAdd(object,key,key.kind===1?key.method:true);continue}
       if(kind===3){reflectApplyField(key,object,[]);continue}
       var value=init===undefined?undefined:reflectApplyField(init,object,[kind===2?key.description:key]);
       if(kind===2){privateAdd(object,key,value);continue}

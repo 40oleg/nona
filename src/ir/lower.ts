@@ -6,7 +6,7 @@ import {CompileError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
-type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string;/** `object.#name`: key holds the private name record */privateName?:boolean};
+type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string;/** `object.#name`: key holds the private name record */privateName?:boolean;privateKind?:A.PrivateName['privateKind']};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
@@ -424,7 +424,7 @@ class Lowerer {
       const receiver=this.slot();this.emit({kind:'currentThis',dest:receiver});
       const key=this.expression(e.property),object=this.slot();return {object,key,receiver};
     }
-    if(e.property.kind==='PrivateName'){const object=this.expression(e.object);return {object,key:this.privateName(e.property),privateName:true};}
+    if(e.property.kind==='PrivateName'){const object=this.expression(e.object);return {object,key:this.privateName(e.property),privateName:true,privateKind:e.property.privateKind};}
     // Keep the raw key: RHS effects may mutate an object used as a key.
     const object=this.expression(e.object),key=this.expression(e.property);
     if(e.property.kind==='Literal'&&typeof e.property.value==='string')return {object,key,keyName:e.property.value};
@@ -455,6 +455,9 @@ class Lowerer {
   }
   private getReference(ref:Reference):number {
     if('id'in ref)return this.read(ref.id,false,ref.withRef);
+    // Fields and methods are read natively (their name is a WeakMap from
+    // object to value or method); accessors call their getter in the prelude.
+    if(ref.privateName&&ref.privateKind!=='accessor'){const dest=this.slot();this.emit({kind:'privateGet',dest,object:ref.object,name:ref.key});return dest;}
     if(ref.privateName)return this.preludeCall('privateGet',[ref.object,ref.key]);
     const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
@@ -472,6 +475,7 @@ class Lowerer {
       // The reference was already resolved (with objects included) by reference().
       this.writeStatic(ref.id,source);
     }
+    else if(ref.privateName&&ref.privateKind==='field')this.emit({kind:'privateSet',object:ref.object,name:ref.key,source});
     else if(ref.privateName)this.preludeCall('privateSet',[ref.object,ref.key,source]);
     else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
     else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false});
@@ -621,7 +625,7 @@ class Lowerer {
     for(const link of e.links){
       if(link.kind==='property'){
         const object=materialize();if(link.optional)optionalCheck(object);
-        state={kind:'reference',reference:link.property.kind==='PrivateName'?{object,key:this.privateName(link.property),privateName:true}:{object,key:this.expression(link.property)}};
+        state={kind:'reference',reference:link.property.kind==='PrivateName'?{object,key:this.privateName(link.property),privateName:true,privateKind:link.property.privateKind}:{object,key:this.expression(link.property)}};
       }else{
         let receiver:number|undefined;
         if(state.kind==='reference'&&'object'in state.reference)receiver=state.reference.receiver??state.reference.object;
