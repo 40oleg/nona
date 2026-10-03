@@ -11,6 +11,18 @@ type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';re
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
 
+import {removeRedundantInitializationChecks} from './initialization.js';
+import {markNumericOperations} from './numbers.js';
+import {coalesceMoves,propagateCopies} from './copies.js';
+/**
+ * IR clean-up after lowering (roadmap item 15): drop dead-zone checks of
+ * initialized bindings, forward copies, mark operations on proven Numbers
+ * (which may turn ToNumeric into a copy, so copies are forwarded again) and
+ * let Number results go straight to their binding.
+ */
+function optimizeFunction(fn:FunctionIR):FunctionIR {
+  return coalesceMoves(propagateCopies(markNumericOperations(propagateCopies(removeRedundantInitializationChecks(fn)))));
+}
 export function lower(bound:BoundProgram):ModuleIR {
   const templateCaches={next:bound.globals.length,ffi:[] as FfiDeclarationIR[]};
   const functions=[new Lowerer(bound,null,templateCaches,bound.modules?-1:undefined).run(bound.ast.body)];
@@ -21,7 +33,7 @@ export function lower(bound:BoundProgram):ModuleIR {
   return {
     ...(templateCaches.ffi.length?{ffi:templateCaches.ffi}:{}),
     globalCount:templateCaches.next,
-    functions,
+    functions:functions.map(optimizeFunction),
     globalProperties:bound.globals.filter(b=>!b.lexical&&!b.module).map(({name,index})=>({name,index})),
     globalFunctionProperties:bound.declarations.flatMap(fn=>{
       const binding=bound.bindings.get(fn.declaration.id!);

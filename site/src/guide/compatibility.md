@@ -52,7 +52,7 @@ Every executable contains the runtime, but its large optional parts are linked o
 
 `split`, `replace` and `replaceAll` with string arguments do not need the RegExp engine.
 
-Built-in libraries written in JavaScript that only install globals or methods (about 0.8 MB together) are linked the same way, when a source contains one of their names:
+Built-in libraries written in JavaScript that only install globals or methods (about 0.7 MB together) are linked the same way, when a source contains one of their names:
 
 | Part | Names |
 | --- | --- |
@@ -66,7 +66,7 @@ Built-in libraries written in JavaScript that only install globals or methods (a
 | `Object.freeze`, `seal`, `isFrozen`, `isSealed` through Proxy traps (otherwise native versions for ordinary objects) | the same names |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__` | the same names |
 
-A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` or `Reflect.ownKeys` links all of them, since it could list the built-ins ([#84](https://github.com/40oleg/nona/issues/84)). A hello world is about 2.4 MB; with every part it is 7 MB.
+A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` or `Reflect.ownKeys` links all of them, since it could list the built-ins ([#84](https://github.com/40oleg/nona/issues/84)). A hello world is about 2.2 MB; with every part it is 7 MB.
 
 A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--full-runtime` (or the `fullRuntime` option of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)).
 

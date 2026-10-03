@@ -2,7 +2,7 @@ import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/excepti
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
-import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
+import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
@@ -38,6 +38,8 @@ const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
+/** Operations that only move values: no runtime call, no collection, no user code. */
+const movesOnly=new Set<string>(['constant','copy','uninitialized','loadGlobal']);
 const cachedRuntimePreludes=new Map<string,ModuleIR>();
 /**
  * Runtime and prelude code are identical for equal options: generate them
@@ -233,6 +235,24 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
       a.jmp(done);a.label(slow);return done;
     };
+    // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
+    const knownArithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
+    const knownRelation:Record<string,Condition>={'<':'b','<=':'be','>':'a','>=':'ae','==':'e','===':'e','!=':'e','!==':'e'};
+    const emitKnownNumberBinary=(dest:number,operator:string,left:number,right:number):boolean=>{
+      if(operator in knownArithmetic){a.movsd('xmm0',payload(left));a[knownArithmetic[operator]!]('xmm0',payload(right));setNumber(dest);return true;}
+      if(!(operator in knownRelation))return false;
+      const negated=operator==='!='||operator==='!==',holds=a.unique('holds'),store=a.unique('store');
+      a.movsd('xmm0',payload(left));a.ucomisd('xmm0',payload(right));a.mov('rax',0);a.jcc('p',store);
+      a.jcc(knownRelation[operator]!,holds);a.jmp(store);a.label(holds);a.mov('rax',1);
+      a.label(store);if(negated)a.xor('rax',1);setBoolean(dest);return true;
+    };
+    const emitKnownNumberUnary=(dest:number,operator:string,argument:number):boolean=>{
+      if(!['numeric','increment','decrement','-','+'].includes(operator))return false;
+      a.movsd('xmm0',payload(argument));
+      if(operator==='increment'||operator==='decrement'){a.mov('rax',1);a.cvtsi2sd('xmm1','rax');if(operator==='increment')a.addsd('xmm0','xmm1');else a.subsd('xmm0','xmm1');}
+      else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
+      setNumber(dest);return true;
+    };
     const emitNumberUnary=(dest:number,operator:string,argument:number):boolean=>{
       if(!['numeric','increment','decrement','-','+','!'].includes(operator))return false;
       const slow=a.unique('generic'),done=a.unique('fastDone');
@@ -269,9 +289,29 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
     for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
     const entrySets=new Map<number,Set<number>>(),exitSets=new Map<number,Set<number>>();
+    // Dead locations are cleared (so a collection does not keep what they
+    // last held alive) at the start of every block, where the safepoint is,
+    // and before every operation that can reach the runtime. Operations that
+    // only move values between slots and globals cannot run a collection or
+    // user code, so clearing before them is deferred to the next boundary
+    // that needs it; a location rewritten in between is never cleared.
+    const inline=(op:Operation):boolean=>{
+      if(movesOnly.has(op.kind))return true;
+      // Arithmetic, comparisons and updates on proven Numbers are inline.
+      if(op.kind==='binary'&&op.numeric&&['+','-','*','/','<','<=','>','>=','==','===','!=','!=='].includes(op.operator))return true;
+      return op.kind==='unary'&&!!op.numeric&&['numeric','increment','decrement','-','+'].includes(op.operator);
+    };
+    // A block of inline operations allocates nothing: it needs no safepoint,
+    // and without one nothing has to be cleared at its start either.
+    const needsSafepoint=(block:BlockIR):boolean=>!block.operations.every(inline);
+    const clearsBefore=(block:BlockIR,index:number):boolean=>index===0?needsSafepoint(block):!inline(block.operations[index]!);
     const exitOf=(block:BlockIR,entry:Set<number>):Set<number>=>{
-      if(!block.operations.length)return entry;
-      const last=block.operations.length-1,exit=new Set(liveness.get(block.id)!.before[last]!);const op=block.operations[last]!;if('dest'in op)exit.add(op.dest as number);return exit;
+      let possible=entry;
+      for(const [index,op] of block.operations.entries()){
+        if(clearsBefore(block,index))possible=new Set(liveness.get(block.id)!.before[index]!);else possible=new Set(possible);
+        for(const d of destinations(op))possible.add(d);
+      }
+      return possible;
     };
     for(let changed=true;changed;){
       changed=false;
@@ -288,12 +328,17 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       a.label(fn.id+'.block.'+block.id);
       // After the first safepoint only previously live slots/new destinations need clearing.
       let possible=new Set(entrySets.get(block.id)??allSlots);
+      let fused:Extract<Operation,{kind:'binary'}>|undefined;
       for(const [index,op] of block.operations.entries()){
        // A location is cleared when none of the slots sharing it is live.
-       const live=liveness.get(block.id)!.before[index]!,liveLocations=new Set([...live].map(location));
-       const dead=[...new Set([...possible].map(location))].filter(l=>!liveLocations.has(l));
-       if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
-       possible=new Set(live);for(const d of destinations(op))possible.add(d);
+       const live=liveness.get(block.id)!.before[index]!;
+       if(clearsBefore(block,index)){
+        const liveLocations=new Set([...live].map(location));
+        const dead=[...new Set([...possible].map(location))].filter(l=>!liveLocations.has(l));
+        if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
+        possible=new Set(live);
+       }else possible=new Set(possible);
+       for(const d of destinations(op))possible.add(d);
        // Safepoint at the start of every block (every loop iteration passes
        // one): the check of rt.safepoint inline, so that only a collection
        // costs a call. Every slot is rooted and every dead one cleared at
@@ -301,7 +346,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
        // per block bounds the garbage a block can accumulate by its length.
        // GC stress collects before every operation to catch rooting errors.
        if(options.gcStress)a.call('rt.collect');
-       else if(index===0){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
+       else if(index===0&&needsSafepoint(block)){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':{
@@ -479,9 +524,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
             a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
+          if(op.numeric&&emitKnownNumberUnary(op.dest,op.operator,op.argument))break;
           if(emitNumberUnary(op.dest,op.operator,op.argument))break;
           pointer('rcx',op.dest);pointer('rdx',op.argument);a.call('rt.'+unary[op.operator]);break;
         case 'binary':{
+          // A comparison of Numbers that only decides this block's branch is
+          // fused into it: no boolean is materialized.
+          if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!liveness.get(block.id)!.liveOut.has(op.dest)){fused=op;break;}
+          if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
           const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
           if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
@@ -496,6 +546,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       switch(term.kind){
         case 'jump':a.jmp(fn.id+'.block.'+term.target);break;
         case 'branch':{
+          if(fused){
+            // ucomisd: unordered (NaN) sets parity; only != holds then.
+            const yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no,negated=fused.operator==='!='||fused.operator==='!==';
+            a.movsd('xmm0',payload(fused.left));a.ucomisd('xmm0',payload(fused.right));
+            if(negated){a.jcc('p',yes);a.jcc('e',no);a.jmp(yes);}else{a.jcc('p',no);a.jcc(knownRelation[fused.operator]!,yes);a.jmp(no);}
+            break;
+          }
           // Booleans (the result of every comparison) and numbers decide inline;
           // the other tags go through rt.toBoolean.
           const slow=a.unique('branchSlow'),test=a.unique('branchTest'),yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no;
