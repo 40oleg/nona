@@ -6,7 +6,7 @@ import {CompileError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
-type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string};
+type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string;/** `object.#name`: key holds the private name record */privateName?:boolean};
 type ChainState={kind:'value';slot:number;receiver?:number}|{kind:'reference';reference:Reference};
 type Control={stop:number;next?:number;labels:string[];unlabelledBreak:boolean;handlerDepth:number;finalizerDepth:number;iterator?:number};
 type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
@@ -147,8 +147,17 @@ class Lowerer {
       this.select(objectBranch);this.emit({kind:'property',operation:'get',dest:basePrototype,object:base,key:prototypeKey});this.end({kind:'jump',target:join.id});
       this.select(join);this.emit({kind:'validateClassPrototype',prototype:basePrototype});
     }
+    // Private names are created anew by each evaluation of the class.
+    // One list per class, filled one name at a time: a slot per name would
+    // keep thousands of values live in a class with thousands of names.
+    let privateList:number|undefined;
+    if(node.privateNames?.length){
+      privateList=this.slot();this.emit({kind:'newObject',dest:privateList,array:true,length:0});
+      node.privateNames.forEach((name,index)=>this.emit({kind:'setProperty',strict:true,object:privateList!,key:this.constant(index),
+        source:this.preludeCall('privateName',[this.constant(name.name),this.constant(name.kind==='field'?0:name.kind==='method'?1:2)]),define:true}));
+      this.store(this.binding(node.privateNames[0]!.id),privateList);
+    }
     const constructor=this.closure(this.bound.functionNodes.get(node.constructorMethod)!,node.id?.name==='*default*'?'default':node.id?.name??inferredName??'');
-    if(classScope)this.store(classScope[0]!,constructor);
     const prototype=this.slot();this.emit({kind:'property',operation:'get',dest:prototype,object:constructor,key:prototypeKey});
     if(base!==null){
       // extends null keeps %Function.prototype% as the constructor's parent.
@@ -159,16 +168,84 @@ class Lowerer {
     }
     this.emit({kind:'setFunctionHomeObject',func:constructor,homeObject:prototype});
     this.emit({kind:'defineDataProperty',object:constructor,key:prototypeKey,source:prototype,attributes:0});
+    // Instance and static elements, as triples for rt.prelude.initializeFields:
+    // brands of private methods first, then fields (and static blocks) in order.
+    // Static elements as triples for rt.prelude.initializeFields, appended as
+    // they are evaluated: brands of static private methods, then fields and blocks.
+    const list=()=>{const dest=this.slot();this.emit({kind:'newObject',dest,array:true,length:0});return {dest,length:0};};
+    const staticBrands=list(),staticFields=list(),branded=new Set<string>();
+    const append=(target:{dest:number;length:number},values:number[])=>{
+      for(const source of values)this.emit({kind:'setProperty',strict:true,object:target.dest,key:this.constant(target.length++),source,define:true});
+    };
+    const undefinedValue=this.constant(undefined);
     for(const method of node.methods){
-      const rawKey=this.expression(method.key),target=method.isStatic?constructor:prototype;
+      const target=method.isStatic?constructor:prototype;
+      if(method.element==='field'&&!method.isStatic){
+        // Defined by the instance initializer; a computed key is converted now.
+        if(method.keyBinding){
+          const rawKey=this.expression(method.key),key=this.slot();
+          this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:rawKey});this.store(this.binding(method.keyBinding),key);
+        }
+        continue;
+      }
+      if(method.element==='staticBlock'){
+        append(staticFields,[this.constant(3),this.closure(this.bound.functionNodes.get(method.value!)!,'',constructor),undefinedValue]);continue;
+      }
+      if(method.key.kind==='PrivateName'){
+        // A getter and setter share the binding of the name's first declaration.
+        const name=this.slot();
+        this.emit({kind:'property',operation:'get',dest:name,object:privateList!,key:this.constant(node.privateNames!.findIndex(declared=>declared.name===(method.key as A.PrivateName).name))});
+        if(method.element==='field'){
+          append(staticFields,[this.constant(2),name,method.value?this.closure(this.bound.functionNodes.get(method.value)!,'',target):undefinedValue]);continue;
+        }
+        const value=this.closure(this.bound.functionNodes.get(method.value!)!,(method.accessor?method.accessor+' ':'')+method.key.name,target);
+        this.preludeCall('privateMethod',[name,value,this.constant(method.accessor==='get'?1:method.accessor==='set'?2:0)]);
+        if(method.isStatic&&!branded.has(method.key.name)){branded.add(method.key.name);append(staticBrands,[this.constant(0),name,undefinedValue]);}
+        continue;
+      }
+      const rawKey=this.expression(method.key);
       let key=this.slot();
       this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:rawKey});
+      if(method.element==='field'){
+        append(staticFields,[this.constant(1),key,method.value?this.closure(this.bound.functionNodes.get(method.value)!,'',target):undefinedValue]);continue;
+      }
       if(method.isStatic&&method.computed)key=this.preludeCall('staticMethodKey',[key]);
-      const value=this.closure(this.bound.functionNodes.get(method.value)!,this.methodName(key,method.accessor?method.accessor+' ':undefined),target);
+      const value=this.closure(this.bound.functionNodes.get(method.value!)!,this.methodName(key,method.accessor?method.accessor+' ':undefined),target);
       if(method.accessor)this.emit({kind:'defineAccessor',object:target,key,source:value,setter:method.accessor==='set',nonEnumerable:true});
       else this.emit({kind:'defineDataProperty',object:target,key,source:value,attributes:5});
     }
+    // The class binding is initialized after the elements are defined (computed keys see it uninitialized).
+    if(classScope&&node.id&&node.id.name!=='*default*')this.store(classScope[0]!,constructor);
+    if(node.instanceInitializer&&node.instanceFields)this.store(this.binding(node.instanceFields),this.closure(this.bound.functionNodes.get(node.instanceInitializer)!,'',prototype));
+    if(staticBrands.length)this.preludeCall('initializeFields',[constructor,staticBrands.dest]);
+    if(staticFields.length)this.preludeCall('initializeFields',[constructor,staticFields.dest]);
     return constructor;
+  }
+  /** The record of a private name: an element of its class's list. */
+  private privateName(e:A.PrivateName):number {
+    const dest=this.slot();this.emit({kind:'property',operation:'get',dest,object:this.read(e.id),key:this.constant(e.index!)});return dest;
+  }
+  /** Runs the class's instance initializer (its fields and private method brands) on a new this. */
+  private initializeInstance(instance:number,initializer:A.Identifier):void {
+    const dest=this.slot();this.invokeWithArguments(dest,this.read(initializer),{fixed:[]},instance);
+  }
+  /** One step of an instance initializer: define a field on this, or add a private method's brand. */
+  private classFieldDefinition(e:A.ClassFieldDefinition):number {
+    const object=this.currentThis();
+    if(e.key.kind==='PrivateName'){
+      const name=this.privateName(e.key);
+      if(e.brand){this.preludeCall('privateBrand',[object,name]);return this.constant(undefined);}
+      const value=e.value?this.expression(e.value,e.key.name):this.constant(undefined);
+      this.preludeCall('privateDefine',[object,name,value]);return this.constant(undefined);
+    }
+    let key:number,name:string|number|undefined;
+    if(e.key.kind==='Identifier'){
+      key=this.read(e.key);
+      const anonymous=!!e.value&&(e.value.kind==='FunctionExpression'||e.value.kind==='ClassExpression')&&!e.value.id;
+      name=anonymous?this.methodName(key):undefined;
+    }else{key=this.constant(e.key.value);name=String(e.key.value);}
+    const value=e.value?this.expression(e.value,name):this.constant(undefined);
+    this.emit({kind:'defineField',object,key,source:value});return this.constant(undefined);
   }
   private lowerArguments(args:A.Argument[]):{fixed:number[]}|{array:number}{
     if(!args.some(arg=>arg.kind==='SpreadElement'))return {fixed:args.map(arg=>this.expression(arg as A.Expression))};
@@ -347,6 +424,7 @@ class Lowerer {
       const receiver=this.slot();this.emit({kind:'currentThis',dest:receiver});
       const key=this.expression(e.property),object=this.slot();return {object,key,receiver};
     }
+    if(e.property.kind==='PrivateName'){const object=this.expression(e.object);return {object,key:this.privateName(e.property),privateName:true};}
     // Keep the raw key: RHS effects may mutate an object used as a key.
     const object=this.expression(e.object),key=this.expression(e.property);
     if(e.property.kind==='Literal'&&typeof e.property.value==='string')return {object,key,keyName:e.property.value};
@@ -354,7 +432,7 @@ class Lowerer {
   }
   /** Read-modify-write references convert the key once (ToPropertyKey before GetValue). */
   private settledReference(ref:Reference):Reference {
-    if('id'in ref)return ref;
+    if('id'in ref||ref.privateName)return ref;
     // Super references read their base (GetSuperBase) before the key is converted.
     if(ref.receiver!==undefined){
       this.emit({kind:'superBase',dest:ref.object});
@@ -377,6 +455,7 @@ class Lowerer {
   }
   private getReference(ref:Reference):number {
     if('id'in ref)return this.read(ref.id,false,ref.withRef);
+    if(ref.privateName)return this.preludeCall('privateGet',[ref.object,ref.key]);
     const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
   private putReference(ref:Reference,source:number):void {
@@ -393,6 +472,7 @@ class Lowerer {
       // The reference was already resolved (with objects included) by reference().
       this.writeStatic(ref.id,source);
     }
+    else if(ref.privateName)this.preludeCall('privateSet',[ref.object,ref.key,source]);
     else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
     else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false});
   }
@@ -541,7 +621,7 @@ class Lowerer {
     for(const link of e.links){
       if(link.kind==='property'){
         const object=materialize();if(link.optional)optionalCheck(object);
-        const key=this.expression(link.property);state={kind:'reference',reference:{object,key}};
+        state={kind:'reference',reference:link.property.kind==='PrivateName'?{object,key:this.privateName(link.property),privateName:true}:{object,key:this.expression(link.property)}};
       }else{
         let receiver:number|undefined;
         if(state.kind==='reference'&&'object'in state.reference)receiver=state.reference.receiver??state.reference.object;
@@ -677,6 +757,8 @@ class Lowerer {
       }
       case 'Identifier':return this.read(e);
       case 'ClassExpression':return this.classValue(e,inferredName);
+      case 'PrivateName':throw new Error('Unexpected private name');
+      case 'ClassFieldDefinition':return this.classFieldDefinition(e);
       case 'FunctionExpression':return this.closure(this.bound.functionNodes.get(e)!,inferredName);
       case 'Member':return this.getReference(this.reference(e));
       case 'OptionalChain':return this.optionalChain(e,'value');
@@ -791,7 +873,9 @@ class Lowerer {
           else{this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});}
           const target=this.slot();this.emit({kind:'newTarget',dest:target});
           this.invokeWithArguments(result,base,this.lowerArguments(e.arguments),receiver,true,target);
-          this.emit({kind:'constructorResult',dest,result,instance:receiver});this.emit({kind:'setCurrentThis',source:dest});return dest;
+          this.emit({kind:'constructorResult',dest,result,instance:receiver});this.emit({kind:'setCurrentThis',source:dest});
+          if(e.instanceFields)this.initializeInstance(dest,e.instanceFields);
+          return dest;
         }
         if(e.callee.kind==='Identifier'&&this.bound.withChains.has(e.callee)){
           // A function found in an object environment is called with that object as this.
@@ -808,6 +892,7 @@ class Lowerer {
         this.invokeWithArguments(dest,callee,args,receiver,false,undefined,this.tailCalls.has(e));return dest;
       }
       case 'Binary': {
+        if(e.operator==='in'&&e.left.kind==='PrivateName'){const name=this.privateName(e.left);return this.preludeCall('privateIn',[name,this.expression(e.right)]);}
         const left=this.expression(e.left);
         if(e.operator===',')return this.expression(e.right);
         if(e.operator==='&&'||e.operator==='||'||e.operator==='??') {
@@ -1025,7 +1110,10 @@ class Lowerer {
       case 'Return':{
         const derived=this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor;
         if(s.argument&&this.tailPosition())this.collectTailCalls(s.argument);
-        let value=s.argument?this.expression(s.argument):this.constant(undefined);
+        // A field initializer names an anonymous function after the field (its parameter).
+        const fieldName=this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.fieldInitializer&&s.argument&&(s.argument.kind==='FunctionExpression'||s.argument.kind==='ClassExpression')&&!s.argument.id
+          ?this.methodName(this.read(this.fn.declaration.parameters[0] as A.Identifier)):undefined;
+        let value=s.argument?this.expression(s.argument,fieldName):this.constant(undefined);
         // Async generator return awaits its operand (ES2020 14.4.14 Return).
         if(s.argument&&this.fn?.declaration.async&&this.fn.declaration.generator){const awaited=this.slot();this.emit({kind:'await',dest:awaited,source:value});value=awaited;}
         this.complete({kind:'return',value},0,0,[...this.controls].reverse().flatMap(c=>c.iterator===undefined?[]:[c.iterator]));break;
@@ -1156,6 +1244,9 @@ class Lowerer {
       const dest=this.slot();this.emit({kind:'newArguments',dest,...(unmapped?{unmapped:true}:{}),parameters:this.fn.parameters.map(p=>!this.fn!.strict&&!this.fn!.restParameter&&!this.fn!.declaration.defaults?.some(Boolean)&&this.fn!.declaration.parameters.every(id=>id.kind==='Identifier')&&last.get(p.name)===p?this.cellSlot(p):-1)});
       this.store(this.fn.argumentsBinding,dest);
     }
+    // A base class constructor initializes its instance elements first (ES2022 [[Construct]] step 6.b).
+    if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.instanceFields&&!this.fn.declaration.derivedConstructor)
+      this.initializeInstance(this.currentThis(),this.fn.declaration.instanceFields);
     if(needsInitialization){
       for(const [index,pattern] of this.fn!.declaration.parameters.entries()){
         const init=this.fn!.declaration.defaults?.[index];
@@ -1187,7 +1278,9 @@ class Lowerer {
       const base=this.slot(),receiver=this.slot(),args=this.slot(),result=this.slot(),dest=this.slot();
       this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});this.emit({kind:'newRestArray',dest:args,start:0});
       const target=this.slot();this.emit({kind:'newTarget',dest:target});
-      this.invokeWithArguments(result,base,{array:args},receiver,true,target);this.emit({kind:'constructorResult',dest,result,instance:receiver});this.end({kind:'return',value:dest});
+      this.invokeWithArguments(result,base,{array:args},receiver,true,target);this.emit({kind:'constructorResult',dest,result,instance:receiver});
+      if(this.fn.declaration.instanceFields)this.initializeInstance(dest,this.fn.declaration.instanceFields);
+      this.end({kind:'return',value:dest});
     }
     if(this.moduleIndex===-1)this.moduleMain();
     body.forEach(s=>this.statement(s));

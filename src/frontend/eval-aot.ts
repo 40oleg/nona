@@ -47,7 +47,11 @@ interface Context {fn:FunctionInfo;strict:boolean;blocks:Set<string>[];newTarget
   /** Lexical names of the global code (conflict with eval var declarations at global level). */
   globalLexicals:Set<string>;
   /** Inside parameter initializers: eval vars stay local, and `arguments` may not be declared. */
-  parameters?:boolean}
+  parameters?:boolean;
+  /** Private names of the enclosing class bodies, visible to direct eval code. */
+  privateNames?:string[];
+  /** Inside a class field initializer: direct eval code may not contain `arguments`. */
+  fieldInitializer?:boolean}
 
 const id=(name:string,span:Span):A.Identifier=>({kind:'Identifier',name,span});
 const literal=(value:string|undefined|boolean,span:Span):A.Literal=>({kind:'Literal',value,span});
@@ -100,7 +104,14 @@ function parseEval(source:string,ctx:Context,indirect:boolean):{body:A.Statement
   const strictPrefix=!indirect&&ctx.strict?'"use strict";':'';
   const wrappers:[string,string,(p:A.Program)=>A.Block][]=[];
   const fnBody=(p:A.Program)=>((p.body[0] as A.ExpressionStatement).expression as A.FunctionExpression).body;
-  if(!indirect&&ctx.superCall)wrappers.push(['(class extends Object{constructor(){'+strictPrefix+'\n','\n}})',p=>((p.body[0] as A.ExpressionStatement).expression as A.ClassExpression).constructorMethod.body]);
+  // Private names of enclosing classes are declared by a wrapping class body.
+  const privateNames=indirect?'':[...new Set(ctx.privateNames??[])].map(name=>name+';').join('');
+  const classOf=(p:A.Program)=>(p.body[0] as A.ExpressionStatement).expression as A.ClassExpression;
+  if(!indirect&&ctx.superCall)wrappers.push(['(class extends Object{'+privateNames+'constructor(){'+strictPrefix+'\n','\n}})',p=>classOf(p).constructorMethod.body]);
+  // A field initializer: an arrow in a static field, so `arguments` is an early error.
+  else if(!indirect&&ctx.fieldInitializer)wrappers.push(['(class{'+privateNames+'static x=()=>{'+strictPrefix+'\n','\n}})',
+    p=>((classOf(p).methods.at(-1)!.value!.body.body[0] as A.Return).argument as A.FunctionExpression).body]);
+  else if(!indirect&&privateNames)wrappers.push(['(class{'+privateNames+'m(){'+strictPrefix+'\n','\n}})',p=>classOf(p).methods.at(-1)!.value!.body]);
   else if(!indirect&&ctx.superProperty)wrappers.push(['({m(){'+strictPrefix+'\n','\n}})',p=>(((p.body[0] as A.ExpressionStatement).expression as A.ObjectLiteral).properties[0] as {value:A.FunctionExpression}).value.body]);
   else if(!indirect&&ctx.newTarget)wrappers.push(['(function(){'+strictPrefix+'\n','\n})',fnBody]);
   else wrappers.push(['(function(){'+strictPrefix+'\n','\n})',fnBody]);
@@ -408,7 +419,7 @@ export function lowerLiteralEval(program:A.Program):A.Program {
     if(indirect){
       // Global code: a dynamic function (own strictness, global scope) called with the global object as this.
       const name=hiddenPrefix+'indirectEval'+n;
-      const factory:A.FunctionExpression={kind:'FunctionExpression',id:null,dynamic:true,nameOverride:'',parameters:[],body:thunkBody,span,noAnnexB:true} as A.FunctionExpression;
+      const factory:A.FunctionExpression={kind:'FunctionExpression',id:null,dynamic:true,globalCode:true,nameOverride:'',parameters:[],body:thunkBody,span,noAnnexB:true} as A.FunctionExpression;
       factories.push({kind:'Var',declarationKind:'var',declarations:[{id:id(name,span),init:factory}],span});
       return helper('callWithGlobalThis',[id(name,span)],span);
     }
@@ -449,6 +460,8 @@ export function lowerLiteralEval(program:A.Program):A.Program {
     const info:FunctionInfo={node,strict,arrow,varNames:staticVarNames(node),evalNames:new Set(),topLexicals:lexicalNames(node.body.body,false)};
     const method=node.kind==='FunctionExpression'&&(!!node.method||!!node.classMethod||!!node.classConstructor);
     const ctx:Context={fn:info,strict,blocks:[],globalLexicals:outer.globalLexicals,
+      ...(outer.privateNames?{privateNames:outer.privateNames}:{}),
+      ...((arrow?outer.fieldInitializer:node.kind==='FunctionExpression'&&node.fieldInitializer)?{fieldInitializer:true}:{}),
       newTarget:arrow?outer.newTarget:true,superProperty:arrow?outer.superProperty:method,
       superCall:arrow?outer.superCall:node.kind==='FunctionExpression'&&!!node.derivedConstructor};
     const parameterCtx={...ctx,parameters:true};
@@ -517,10 +530,11 @@ export function lowerLiteralEval(program:A.Program):A.Program {
     else if(p.kind==='ObjectPattern'){for(const prop of p.properties){if(prop.computed)expression(prop.key,ctx,x=>{prop.key=x;});pattern(prop.value.id,ctx);if(prop.value.init)expression(prop.value.init,ctx,x=>{prop.value.init=x;});}if(p.rest)pattern(p.rest,ctx);}
     else if(p.kind==='Member')expression(p,ctx,()=>{});
   };
-  const classNode=(c:A.ClassDeclaration|A.ClassExpression,ctx:Context):void=>{
-    const strict={...ctx,strict:true};
-    if(c.superClass)expression(c.superClass,strict,x=>{c.superClass=x;});
-    for(const m of c.methods){if(m.computed)expression(m.key,strict,x=>{m.key=x;});visitFunction(m.value,strict);}
+  const classNode=(c:A.ClassDeclaration|A.ClassExpression,outer:Context):void=>{
+    if(c.superClass)expression(c.superClass,{...outer,strict:true},x=>{c.superClass=x;});
+    const names=(c.privateNames??[]).map(name=>name.name);
+    const strict={...outer,strict:true,...(names.length?{privateNames:[...(outer.privateNames??[]),...names]}:{})};
+    for(const m of c.methods){if(m.computed)expression(m.key,strict,x=>{m.key=x;});if(m.value)visitFunction(m.value,strict);}if(c.instanceInitializer)visitFunction(c.instanceInitializer,strict);
     visitFunction(c.constructorMethod,strict);
   };
   const expression=(e:A.Expression,ctx:Context,replace:(e:A.Expression)=>void):void=>{

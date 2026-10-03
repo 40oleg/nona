@@ -2,6 +2,8 @@ export type Constant = undefined|null|boolean|number|bigint|string;
 export type Operation =
   | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;async?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
   | {kind:'defineDataProperty';object:number;key:number;source:number;attributes:number}
+  /** CreateDataPropertyOrThrow (class fields): key is a property key. */
+  | {kind:'defineField';object:number;key:number;source:number}
   | {kind:'newCell';dest:number;source:number}
   | {kind:'readCell';dest:number;cell:number}
   | {kind:'writeCell';cell:number;source:number}

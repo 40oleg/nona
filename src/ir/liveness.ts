@@ -36,7 +36,7 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'newArguments':for(const parameter of operation.parameters)if(parameter>=0)live.add(parameter);return;
   case 'constructorResult':live.add(operation.result);live.add(operation.instance);return;
   case 'derivedReturn':live.add(operation.source);return;
-  case 'defineAccessor':case 'setProperty':case 'defineDataProperty':live.add(operation.object);live.add(operation.key);live.add(operation.source);return;
+  case 'defineAccessor':case 'setProperty':case 'defineDataProperty':case 'defineField':live.add(operation.object);live.add(operation.key);live.add(operation.source);return;
   case 'setPrototype':live.add(operation.object);live.add(operation.prototype);return;
   case 'setFunctionHomeObject':live.add(operation.func);live.add(operation.homeObject);return;
   case 'setCurrentThis':live.add(operation.source);return;

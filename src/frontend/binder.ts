@@ -14,6 +14,8 @@ class EvalScope extends WithScope {constructor(binding:StorageBinding,readonly n
 export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const globals:StorageBinding[]=[],mainLocals:StorageBinding[]=[],functions:BoundFunction[]=[],bindings=new Map<A.Node,Binding>();
   const declarations:BoundFunction[]=[],functionNodes=new Map<A.FunctionNode,BoundFunction>();
+  /** Class scopes: index of each private name in the class's list. */
+  const privateIndexes=new WeakMap<Map<string,Binding>,Map<string,number>>();
   const lexicalScopes=new Map<A.Node,StorageBinding[]>(),scopeFunctions=new Map<A.Node,BoundFunction[]>(),globalNames=new Map<string,Binding>();
   const argumentOwners=new Map<StorageBinding,BoundFunction>();
   const catchBindings=new Set<Binding>(),withChains=new Map<A.Node,StorageBinding[]>(),annexBFunctions=new Map<A.Node,Binding>();
@@ -139,7 +141,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       lexicalScopes.set(node,entries);
     };
     declareLexicals(owner,body,functionNames,'var');
-    if(fn&&!(fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow)){
+    if(fn&&!(fn.declaration.kind==='FunctionExpression'&&(fn.declaration.arrow||fn.declaration.globalCode))){
       const existing=functionNames.get('arguments');
       const parameterName=fn.parameters.some(p=>p.name==='arguments');
       const shadowed=existing&&(existing.kind==='parameter'||'lexical'in existing&&existing.lexical)||body.some(s=>s.kind==='Function'&&s.id.name==='arguments');
@@ -166,6 +168,10 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       scopes.push(scope);action();scopes.pop();
     };
     const resolve=(id:A.Identifier,mode:'value'|'write'|'call'|'typeof'='value'):Binding=>{
+      if(id.name==='arguments'){
+        let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
+        if(owner?.declaration.kind==='FunctionExpression'&&(owner.declaration.fieldInitializer||owner.declaration.staticBlock))fail(id,'arguments is not allowed in class field initializers and static blocks');
+      }
       if(strict&&(id.name==='yield'||id.name==='let'||strictReserved.has(id.name)))fail(id,'Restricted strict identifier');
       if(strict&&mode==='write'&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict assignment');
       let b:Binding|undefined;const withs:StorageBinding[]=[];
@@ -193,8 +199,16 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       if(withs.length)withChains.set(id,withs);
       bindings.set(id,result);return result;
     };
+    /** A private name must be declared by an enclosing class body. */
+    const privateName=(e:A.PrivateName):void=>{
+      const scope=[...scopes].reverse().find(scope=>!(scope instanceof WithScope)&&scope.has(e.id.name));
+      if(!scope)fail(e,`Private name ${e.name} is not declared in an enclosing class`);
+      e.index=privateIndexes.get(scope!)!.get(e.id.name)!;resolve(e.id);
+    };
     const expression=(e:A.Expression):void=>{
       switch(e.kind){
+        case 'PrivateName':fail(e,'Unexpected private name');break;
+        case 'ClassFieldDefinition':if(e.key.kind==='PrivateName')privateName(e.key);else if(e.key.kind==='Identifier')resolve(e.key);if(e.value)expression(e.value);break;
         case 'NewTarget':{
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
           if(!owner)fail(e,'new.target requires a non-arrow function');break;
@@ -212,18 +226,19 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         }
         case 'ClassExpression':analyzeClass(e);break;
         case 'Identifier':resolve(e);break;
-        case 'Unary':if(strict&&e.operator==='delete'&&e.argument.kind==='Identifier')fail(e,'Strict delete of identifier');if((e.operator==='typeof'||e.operator==='delete')&&e.argument.kind==='Identifier')resolve(e.argument,'typeof');else expression(e.argument);break;
+        case 'Unary':if(strict&&e.operator==='delete'&&e.argument.kind==='Identifier')fail(e,'Strict delete of identifier');
+          if(e.operator==='delete'&&(e.argument.kind==='Member'&&e.argument.property.kind==='PrivateName'||e.argument.kind==='OptionalChain'&&e.argument.links.at(-1)?.kind==='property'&&(e.argument.links.at(-1) as {property:A.Expression}).property.kind==='PrivateName'))fail(e,'Private fields cannot be deleted');if((e.operator==='typeof'||e.operator==='delete')&&e.argument.kind==='Identifier')resolve(e.argument,'typeof');else expression(e.argument);break;
         case 'Update':if((e.argument as A.Expression).kind==='Call'&&strict)fail(e,'Invalid update target in strict mode code');if(e.argument.kind==='Identifier')resolve(e.argument,'write');else expression(e.argument);break;
         case 'Assignment':if((e.left as A.Expression).kind==='Call'&&(strict||!['=','+=','-=','*=','/=','%=','**=','<<=','>>=','>>>=','&=','^=','|='].includes(e.operator)))fail(e,'Invalid assignment target');if(e.left.kind==='Identifier')resolve(e.left,'write');else if(e.left.kind==='ArrayPattern'||e.left.kind==='ObjectPattern'){for(const id of boundNames(e.left))resolve(id,'write');patternInitializers(e.left);}else expression(e.left);expression(e.right);break;
-        case 'Member':expression(e.object);expression(e.property);break;
-        case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property')expression(link.property);else link.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
+        case 'Member':expression(e.object);if(e.property.kind==='PrivateName')privateName(e.property);else expression(e.property);break;
+        case 'OptionalChain':expression(e.base);for(const link of e.links)if(link.kind==='property'){if(link.property.kind==='PrivateName')privateName(link.property);else expression(link.property);}else link.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
         case 'ArrayLiteral':for(const item of e.elements)if(item)expression(item.kind==='SpreadElement'?item.argument:item);break;
         case 'Template':e.expressions.forEach(expression);break;
         case 'TaggedTemplate':expression(e.tag);e.expressions.forEach(expression);break;
         case 'Yield':if(!fn?.declaration.generator)fail(e,'yield outside generator');if(e.argument)expression(e.argument);break;
         case 'Await':if(!fn?.declaration.async)fail(e,'await outside async function');expression(e.argument);break;
         case 'ObjectLiteral':if(e.duplicateProto)fail(e,'Duplicate __proto__ property');for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
-        case 'Binary':expression(e.left);expression(e.right);break;
+        case 'Binary':if(e.operator==='in'&&e.left.kind==='PrivateName')privateName(e.left);else expression(e.left);expression(e.right);break;
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
         case 'New':case 'Call':if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001')){/* runtime helper (eval-aot) */}else if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
@@ -232,6 +247,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
             const func:A.Identifier={kind:'Identifier',name:'#superFunction',span:e.span},receiver:A.Identifier={kind:'Identifier',name:'#superReceiver',span:e.span};
             e.superRefs={func,receiver};resolve(func);resolve(receiver);
           }
+          if((owner!.declaration as A.FunctionExpression).instanceFields){e.instanceFields={kind:'Identifier',name:'\u0002fields',span:e.span};resolve(e.instanceFields);}
         }else expression(e.callee);e.arguments.forEach(arg=>expression(arg.kind==='SpreadElement'?arg.argument:arg));break;
       }
     };
@@ -239,18 +255,39 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       // The class scope has an immutable binding of the class name (ClassDefinitionEvaluation step 4),
       // separate from the outer binding a declaration creates.
       const namedExpression=node.id&&node.id.name!=='*default*'?node.id:null;
+      // The class scope: its name, then hidden bindings for each private name
+      // and for the list of instance elements (the name binding comes first).
+      const classBindings:StorageBinding[]=[],classScope=new Map<string,Binding>();
+      const hidden=(id:A.Identifier|null,name:string):StorageBinding=>{
+        const storage=fn?fn.locals:mainLocals;
+        const binding:StorageBinding={kind:'local',name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:false};
+        storage.push(binding);if(id)bindings.set(id,binding);classBindings.push(binding);classScope.set(name,binding);return binding;
+      };
       if(namedExpression){
         // All parts of a class, including its name, are strict mode code.
         if(['eval','arguments','yield','let'].includes(namedExpression.name)||strictReserved.has(namedExpression.name))fail(namedExpression,'Restricted class name');
-        const storage=fn?fn.locals:mainLocals;
-        const binding:StorageBinding={kind:'local',name:namedExpression.name,index:storage.length,owner:fn?.index??-1,lexical:true,mutable:false};
-        storage.push(binding);if(node.kind==='ClassExpression')bindings.set(namedExpression,binding);lexicalScopes.set(node,[binding]);
-        scopes.push(new Map([[namedExpression.name,binding]]));
+        // A declaration's own name node is the outer binding.
+        hidden(node.kind==='ClassExpression'?namedExpression:null,namedExpression.name);
       }
+      const scoped=classBindings.length>0||!!node.privateNames||!!node.instanceFields;
+      if(scoped){lexicalScopes.set(node,classBindings);scopes.push(classScope);}
+      // The heritage sees the class name but the enclosing class's private names.
       classCode++;if(node.superClass)expression(node.superClass);classCode--;
-      for(const method of node.methods){if(method.computed){classCode++;expression(method.key);classCode--;}const nested=register(method.value,fn);analyze(method.value.body.body,nested,method.value.body,scopes);}
+      // All private names of the class share one binding: the list of their records.
+      if(node.privateNames?.length){
+        const list=hidden(node.privateNames[0]!.id,'\u0002private'),indexes=new Map<string,number>();
+        node.privateNames.forEach((name,index)=>{bindings.set(name.id,list);classScope.set(name.id.name,list);indexes.set(name.id.name,index);});
+        privateIndexes.set(classScope,indexes);
+      }
+      if(node.instanceFields)hidden(node.instanceFields,node.instanceFields.name);
+      for(const method of node.methods)if(method.keyBinding)hidden(method.keyBinding,method.keyBinding.name);
+      for(const method of node.methods){
+        if(method.computed){classCode++;expression(method.key);classCode--;}
+        if(method.value){const nested=register(method.value,fn);analyze(method.value.body.body,nested,method.value.body,scopes);}
+      }
+      if(node.instanceInitializer){const nested=register(node.instanceInitializer,fn);analyze(node.instanceInitializer.body.body,nested,node.instanceInitializer.body,scopes);}
       const constructor=register(node.constructorMethod,fn);analyze(node.constructorMethod.body.body,constructor,node.constructorMethod.body,scopes);
-      if(namedExpression)scopes.pop();
+      if(scoped)scopes.pop();
     };
     const patternInitializers=(pattern:A.BindingPattern):void=>{
       if(pattern.kind==='Identifier')return;
@@ -353,7 +390,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
           labels.set(s.label.name,['While','DoWhile','For','ForIn','ForOf'].includes(target.kind));
           statements([s.body],loops,switches);labels.delete(s.label.name);break;
         }
-        case 'Return':if(!fn)fail(s,'return outside function');if(s.argument)expression(s.argument);break;
+        case 'Return':if(!fn||fn.declaration.kind==='FunctionExpression'&&fn.declaration.staticBlock)fail(s,'return outside function');if(s.argument)expression(s.argument);break;
         case 'Break':case 'Continue':
           if(s.label){
             if(!labels.has(s.label.name))fail(s.label,'Unknown label');
@@ -376,6 +413,8 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       if(fn.declaration.rest)patternInitializers(fn.declaration.rest);
       scopes[last]=saved;
     }
+    // A class constructor initializes the instance elements of its class.
+    if(fn?.declaration.kind==='FunctionExpression'&&fn.declaration.instanceFields)resolve(fn.declaration.instanceFields);
     statements(body,0);
   };
   if(!moduleRecords){

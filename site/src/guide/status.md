@@ -24,7 +24,7 @@ All "other" failures on Windows are classified:
 - `built-ins/Function` (25): the function source comes from `toString` of objects at run time — the `eval` exception.
 - `is-a-constructor` for `AsyncFunction`, `AsyncGeneratorFunction` and `GeneratorFunction` (4): the Test262 harness builds source text at run time.
 - Other realms (7): default prototypes from another realm ([#7](https://github.com/40oleg/nona/issues/7)).
-- Private class fields on non-extensible objects (2): ES2022 private fields without a newer-feature tag.
+- Since the ES2022 class elements ([#106](https://github.com/40oleg/nona/issues/106)), the two private-field tests on non-extensible objects pass. Their audit adds 24 `eval` failures in `language/expressions/class`: classes evaluated from source text through an `eval` alias, `Function` or another realm.
 
 ## Open work
 

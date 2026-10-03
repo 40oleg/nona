@@ -5,7 +5,7 @@ import {stringLiteral} from './value.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 
 // Runtime helpers implemented by the Promise prelude and called from IR.
-export const preludeHelpers=['getAsyncIterator','withObject','withHasBinding','withGetBindingValue','withSetMutableBinding','createImportMeta','createNamespace','registerModule','evaluateModule','dynamicImport','registerScript','staticMethodKey','isEval','evalDeclareVars','evalGlobalDeclarations','callWithGlobalThis'] as const;
+export const preludeHelpers=['getAsyncIterator','withObject','withHasBinding','withGetBindingValue','withSetMutableBinding','createImportMeta','createNamespace','registerModule','evaluateModule','dynamicImport','registerScript','staticMethodKey','privateName','privateMethod','privateBrand','privateDefine','privateGet','privateSet','privateIn','initializeFields','isEval','evalDeclareVars','evalGlobalDeclarations','callWithGlobalThis'] as const;
 // Intrinsic prototypes of async functions and async generators. Their
 // methods and metadata are installed by the Promise prelude, which owns the
 // job queue and the async drivers.

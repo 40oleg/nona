@@ -29,6 +29,16 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.lea('r8',slot(128));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(64+n));a.store({base:'rcx',disp:n},'rax');}
  });
+ // RCX object, RDX property key, R8 value: CreateDataPropertyOrThrow, as a
+ // class field definition (DefineField) needs it.
+ rootedFn(b,'rt.defineField',248,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'locals',offset:112,count:6}],a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.mov('rax',2);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(112+offset),'rax');
+  a.mov('rax',1);for(const offset of [D.enumerable,D.configurable,D.writable])a.store(slot(112+offset+8),'rax');
+  for(const offset of [0,8]){a.load('rax',{base:'r8',disp:offset});a.store(slot(112+D.value+offset),'rax');}
+  a.mov('rax',F.data);a.store(slot(112+D.present),'rax');
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(112));a.call('rt.defineOwnProperty');a.test('rax','rax');failIf(a,'e','rt.throwTypeError');
+ });
  // RCX complete record -> RAX compact property attributes.
  b.fn('rt.descriptorAttributes',40,a=>{
   a.load('rax',{base:'rcx',disp:D.enumerable+8});a.shl('rax',1);a.load('r10',{base:'rcx',disp:D.configurable+8});a.shl('r10',2);a.or('rax','r10');
