@@ -96,7 +96,8 @@ export function compile(source:string, options:CompileOptions):CompileResult {
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
     return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
-    if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
+    // A diagnostic from an imported module keeps that module's path.
+    if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:d.file||options.fileName}))};
     throw error;
   }
 }
