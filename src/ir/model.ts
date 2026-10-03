@@ -54,8 +54,8 @@ export type Operation =
   | {kind:'copy';dest:number;source:number}
   | {kind:'loadGlobal';dest:number;index:number;prelude?:boolean}
   | {kind:'storeGlobal';strict?:boolean;source:number;index:number;prelude?:boolean}
-  | {kind:'unary';dest:number;operator:string;argument:number}
-  | {kind:'binary';dest:number;operator:string;left:number;right:number}
+  | {kind:'unary';dest:number;operator:string;argument:number;/** The argument is a Number (src/ir/numbers.ts). */numeric?:boolean}
+  | {kind:'binary';dest:number;operator:string;left:number;right:number;/** Both operands are Numbers (src/ir/numbers.ts). */numeric?:boolean}
   | {kind:'call';dest:number;target:string;arguments:number[]};
 export type Terminator = {kind:'throw';value:number}| {kind:'jump';target:number}|{kind:'branch';condition:number;yes:number;no:number}|{kind:'return';value:number};
 export interface BlockIR {id:number;exceptionTarget?:number;operations:Operation[];terminator:Terminator}
