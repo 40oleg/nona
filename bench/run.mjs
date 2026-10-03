@@ -1,7 +1,11 @@
 // Runs the micro-benchmarks in this directory on Nona and, when installed, on
 // Node.js, Deno and Bun. Prints one JSON line per run; see PERFORMANCE.md.
 //
-//   node bench/run.mjs [--scale 0.1] [--runs 3] [--timeout 600] [--only 05,06] [--runtimes node,nona]
+//   node bench/run.mjs [--scale 0.1] [--runs 3] [--timeout 600] [--only 05,06] [--runtimes node,nona] [--real]
+//
+// --real runs the real-world corpus in bench/real/ instead (libraries fetched
+// by `node bench/real/fetch.mjs`; every script runs with bench/real as its
+// working directory).
 //
 // Every script reads SCALE from the environment: the problem size is
 // SCALE × the size named in the script (1M elements, 10M calls, ...). The
@@ -24,7 +28,10 @@ const runtimes = opt('runtimes', 'node,deno,bun,nona').split(',');
 const target = process.platform === 'win32' ? 'win32-x64' : 'linux-x64';
 const exe = process.platform === 'win32' ? '.exe' : '';
 
-const scripts = readdirSync(here).filter(f => /^\d\d_.*\.(m?js)$/.test(f) && !f.startsWith('01_'))
+const real = args.includes('--real');
+const directory = real ? resolve(here, 'real') : here;
+if (real && !existsSync(resolve(directory, 'vendor'))) throw new Error('run `node bench/real/fetch.mjs` first');
+const scripts = readdirSync(directory).filter(f => real ? /\.m?js$/.test(f) && f !== 'fetch.mjs' : /^\d\d_.*\.(m?js)$/.test(f) && !f.startsWith('01_'))
   .filter(f => only.length === 0 || only.some(p => f.startsWith(p)));
 
 function has(cmd) {return spawnSync(cmd, ['--version'], {stdio: 'ignore'}).status === 0;}
@@ -32,14 +39,14 @@ const available = {node: true, deno: has('deno'), bun: has('bun'), nona: true};
 
 function build(script) {
   const out = resolve(here, 'build', basename(script, extname(script)) + exe);
-  const r = spawnSync('node', [resolve(here, '..', 'dist', 'cli.js'), 'build', resolve(here, script), '-o', out, '--target', target], {encoding: 'utf8'});
+  const r = spawnSync('node', [resolve(here, '..', 'dist', 'cli.js'), 'build', resolve(directory, script), '-o', out, '--target', target], {encoding: 'utf8'});
   if (r.status !== 0) throw new Error(`nona build failed for ${script}: ${r.stderr}`);
   return out;
 }
 
 function measure(cmd, cmdArgs) {
   const t0 = performance.now();
-  const r = spawnSync(cmd, cmdArgs, {encoding: 'utf8', timeout, env: {...process.env, SCALE: String(scale)}});
+  const r = spawnSync(cmd, cmdArgs, {encoding: 'utf8', timeout, cwd: directory, env: {...process.env, SCALE: String(scale)}});
   const wall = (performance.now() - t0) / 1000;
   const out = (r.stdout || '').trim().split('\n').pop() || '';
   let metrics = null;
@@ -48,7 +55,7 @@ function measure(cmd, cmdArgs) {
 }
 
 for (const script of scripts) {
-  const path = resolve(here, script);
+  const path = resolve(directory, script);
   let bin = null;
   for (const rt of runtimes) {
     if (!available[rt]) continue;

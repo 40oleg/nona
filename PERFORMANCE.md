@@ -200,6 +200,28 @@ lookup every time. `apply` with a fresh array per call is the exception that
 grows faster than linear (×72 at 100k, ×369 at 1M), as does `new` with a
 million live instances (777 MB RSS).
 
+## Real-world code
+
+The scripts above are micro-benchmarks written for Nona. [`bench/real/`](bench/real/)
+runs unmodified libraries instead: `node bench/real/fetch.mjs` downloads
+pinned versions from npm into a git-ignored `vendor` directory, and
+`node bench/run.mjs --real` builds and runs them (measured 2026-10-03, Node.js
+22.22.2, same machine, best of 3).
+
+| Benchmark | Node | Nona | Nona / Node |
+| --- | --- | --- | --- |
+| acorn 8.18.0 parses its own 233 KB source, first parse (ms) | 117 | 1 604 | ×14 |
+| … then 10 more parses (ms) | 247 | 12 855 | ×52 |
+| Whole program, wall time (s) | 0.43 | 14.6 | ×34 |
+
+Both produce the same tree (32 757 nodes, `locations: true`). The first
+parse is the closest to a real one-shot use: V8 has not optimized acorn yet,
+so the gap is ×14; with the JIT warm it grows to ×52, about the ratio of the
+call and closure benchmarks above.
+
+marked is not in the corpus yet: every current version declares class fields
+(ES2022), which Nona does not parse.
+
 ## Where the time goes
 
 Grouping the ratios against Node by their cause:
