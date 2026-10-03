@@ -50,6 +50,20 @@ export function emitStringBuilder(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('r11',{base:'rcx',disp:B.length});a.lea('rax',{base:'r11',disp:1});a.store({base:'rcx',disp:B.length},'rax');
   a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');a.load('r8',slot(48));a.store({base:'r11'},'r8',16);
  });
+ // RCX builder, RDX signed integer with |x| < 2^53: appends its decimal
+ // digits (the same text Number::toString produces for it).
+ b.fn('rt.builderAppendInteger',56,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.mov('rdx',17);a.call('rt.builderReserve');
+  a.load('rcx',slot(40));a.load('r11',{base:'rcx',disp:B.length});a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');
+  a.load('rax',slot(48));const positive=a.unique('positive');a.test('rax','rax');a.jcc('ge',positive);
+  a.mov('r10',45);a.store({base:'r11'},'r10',16);a.add('r11',2);a.neg('rax');a.label(positive);
+  // R9 digits: the smallest count whose power of ten exceeds the value.
+  const count=a.unique('count'),counted=a.unique('counted'),digit=a.unique('digit');
+  a.mov('r9',1);a.mov('r10',10);a.mov('rdx',10);a.label(count);a.cmp('rax','r10');a.jcc('b',counted);a.imul('r10','rdx');a.add('r9',1);a.jmp(count);a.label(counted);
+  a.mov('r8','r9');a.shl('r8',1);a.add('r8','r11');a.mov('r11','r8');a.mov('r10',10);
+  a.label(digit);a.xor('rdx','rdx');a.div('r10');a.add('rdx',48);a.sub('r8',2);a.store({base:'r8'},'rdx',16);a.test('rax','rax');a.jcc('ne',digit);
+  a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:B.buffer});a.sub('r11','rax');a.shr('r11',1);a.store({base:'rcx',disp:B.length},'r11');
+ });
  // RCX builder, RDX result Value*: the accumulated string; the builder is
  // released and zeroed.
  b.fn('rt.builderFinish',72,a=>{

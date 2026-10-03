@@ -71,9 +71,13 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   const omitted=a.unique('omitted'),nullValue=a.unique('nullValue'),convert=a.unique('convert'),quote=a.unique('quote'),composite=a.unique('composite'),array=a.unique('array'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),produced=a.unique('produced');
   a.load('rax',slot(64));a.cmp('rax',7);const notBigInt=a.unique('notBigInt');a.jcc('ne',notBigInt);a.call('rt.throwTypeError');a.label(notBigInt);a.cmp('rax',1);a.jcc('e',convert);a.cmp('rax',2);a.jcc('e',convert);a.cmp('rax',4);a.jcc('e',quote);a.cmp('rax',5);a.jcc('e',composite);a.cmp('rax',3);a.jcc('ne',omitted);
   a.movsd('xmm0',slot(72));a.ucomisd('xmm0','xmm0');a.jcc('p',nullValue);for(const bits of [0x7ff0000000000000n,0xfff0000000000000n]){a.mov('rax',bits);a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('e',nullValue);}
+  // An exact integer below 2^53 in magnitude: its digits go straight to the builder.
+  {const general=a.unique('general');a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ne',general);a.jcc('p',general);
+   a.mov('r10',9007199254740992n);a.cmp('rax','r10');a.jcc('ge',general);a.neg('r10');a.cmp('rax','r10');a.jcc('le',general);
+   builder();a.mov('rdx','rax');a.call('rt.builderAppendInteger');a.jmp(produced);a.label(general);}
   // A primitive: its text goes to the builder.
   a.label(convert);a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toString');builder();a.load('rdx',slot(88));a.call('rt.builderAppend');a.jmp(produced);
-  a.label(quote);a.lea('rcx',slot(80));a.load('rdx',slot(72));a.call('rt.jsonQuote');builder();a.load('rdx',slot(88));a.call('rt.builderAppend');a.jmp(produced);
+  a.label(quote);builder();a.load('rdx',slot(72));a.call('rt.builderAppendQuoted');a.jmp(produced);
   a.label(nullValue);appendLiteral('rt.json.null');a.jmp(produced);
   a.label(composite);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('e',omitted);
   a.load('rax',{base:'r10',disp:O.stringifying});a.test('rax','rax');const enter=a.unique('enter');a.jcc('e',enter);a.call('rt.throwTypeError');a.label(enter);
@@ -98,7 +102,9 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.call('rt.safepoint');
   a.load('rax',slot(200));a.load('r10',slot(216));a.cmp('rax','r10');a.jcc('ae',finish);
   a.load('r10',slot(208));a.test('r10','r10');a.jcc('ne',objectKey);
-  a.lea('rcx',slot(96));a.load('rdx',slot(200));a.call('rt.arrayIndexKey');a.jmp('rt.jsonStringifyValue.keyReady');
+  // Array elements are read with a Number key (the dense-element fast path);
+  // toJSON and a replacer still receive its string form (see stringKey above).
+  a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');a.jmp('rt.jsonStringifyValue.keyReady');
   a.label(objectKey);a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
   a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.call('rt.getProperty');for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(96+n),'rax');}
   a.label('rt.jsonStringifyValue.keyReady');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
@@ -109,7 +115,7 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noLine=a.unique('noLine');a.jcc('e',noLine);
   appendLiteral('rt.json.newline');builder();a.load('r10',slot(56));a.load('rdx',{base:'r10',disp:40});a.call('rt.builderAppend');a.label(noLine);
   a.load('rax',slot(208));a.test('rax','rax');a.jcc('e',prefixed);
-  a.lea('rcx',slot(176));a.load('rdx',slot(104));a.call('rt.jsonQuote');builder();a.load('rdx',slot(184));a.call('rt.builderAppend');
+  builder();a.load('rdx',slot(104));a.call('rt.builderAppendQuoted');
   appendLiteral('rt.json.colon');
   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:24});a.load('rax',{base:'rax'});a.test('rax','rax');const noColonSpace=a.unique('noColonSpace');a.jcc('e',noColonSpace);appendLiteral('rt.json.space');a.label(noColonSpace);
   a.label(prefixed);a.load('rax',slot(56));a.store(slot(32),'rax');a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.lea('r8',slot(96));a.lea('r9',slot(64));a.call('rt.jsonStringifyValue');
