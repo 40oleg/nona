@@ -36,6 +36,15 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--modul
 - 编译器拒绝覆盖自己的输入文件，包括通过硬链接或符号链接的情况。
 - Linux 输出文件的权限为 `0755`。
 
+## 运行时缓存
+
+对于链接相同部分的程序，编译后的运行时和前导代码完全相同，而生成它们占构建的大部分时间。命令行把它们保存在缓存目录中，之后的构建快约三倍（Linux 上的 hello world：1.1 秒，之后 0.33 秒）。有无缓存输出完全相同。缓存条目只属于某一个编译器构建，更新后会被忽略。
+
+| 变量 | 作用 |
+| --- | --- |
+| `NONA_CACHE_DIR` | 缓存目录。默认：Windows 为 `%LOCALAPPDATA%\nona\cache`，macOS 为 `~/Library/Caches/nona`，其他系统为 `$XDG_CACHE_HOME/nona` 或 `~/.cache/nona`。 |
+| `NONA_CACHE=0` | 不读取也不写入缓存。 |
+
 ## 诊断与退出码
 
 成功时退出状态为 `0`，出现任何错误时为 `1`。源码错误的输出格式为：

@@ -11,6 +11,13 @@ import type { CodeFragment, Fixup } from "../pe/model.js";
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
 export type { CodeFragment, Fixup } from "../pe/model.js";
 let serial = 0;
+/** The next label serial; a restored code image reserves the serials it used. */
+export function assemblerSerial(): number {
+  return serial;
+}
+export function reserveAssemblerSerial(next: number): void {
+  if (serial < next) serial = next;
+}
 export class Assembler {
   private bytes: number[] = [];
   private fixups: Fixup[] = [];

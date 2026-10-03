@@ -8,7 +8,7 @@ import { bind } from './frontend/binder.js';
 import { lower } from './ir/lower.js';
 import type {ModuleIR} from './ir/model.js';
 import type {Program} from './frontend/ast.js';
-import { generate } from './backend/x64/codegen.js';
+import { generate, type BaseImageCache } from './backend/x64/codegen.js';
 import { linkPe } from './backend/pe/writer.js';
 import {iconResources,manifestResource,versionResource,defaultManifest,type VersionInfo,type PeResource} from './backend/pe/resources.js';
 import { linkLinux } from './backend/linux/index.js';
@@ -21,7 +21,7 @@ import {fullRuntimeLink} from './runtime/link.js';
 export type Target='win32-x64'|'linux-x64';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget:Target=process.platform==='linux'?'linux-x64':'win32-x64';
-export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean}
+export interface CompileOptions {fileName:string;target:'win32-x64'|'linux-x64';/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -87,13 +87,13 @@ export function compile(source:string, options:CompileOptions):CompileResult {
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link}));
+    const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(options.target==='linux-x64'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
     const resources=peResources(options);
-    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link});
+    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.baseCache?{baseCache:options.baseCache}:{})});
     return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
     if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};

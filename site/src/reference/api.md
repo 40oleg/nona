@@ -36,6 +36,7 @@ Compiles one source text and returns `CompileResult`. It does not write files.
 | `moduleHost` | `ModuleHost` | Custom module resolution (see below). |
 | `unhandledRejections` | `'throw' \| 'ignore'` | Whether an unhandled Promise rejection fails the program (default `'throw'`). |
 | `fullRuntime` | `boolean` | Link the whole runtime instead of only the parts the program can reach (see [Linked runtime parts](/guide/compatibility#linked-runtime-parts)). |
+| `baseCache` | `BaseImageCache` | Keep the compiled runtime and preludes between processes. `fileBaseImageCache(directory?)` from `src/cache.ts` (Node.js only) stores them in a directory; the command line uses it by default (see [Runtime cache](/reference/cli#runtime-cache)). Within one process they are always reused. |
 | `scriptPrelude`, `realms`, `agents` | — | Options used by the Test262 harness. |
 
 ### `CompileResult`

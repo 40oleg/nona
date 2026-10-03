@@ -38,6 +38,15 @@ Each option may appear once. See [Windows executables](/reference/windows-execut
 - The compiler refuses to overwrite its input, including through a hard link or symbolic link.
 - Linux outputs get mode `0755`.
 
+## Runtime cache
+
+The compiled runtime and preludes are the same for every program that links the same parts, and generating them is most of a build. The command line keeps them in a cache directory, so later builds are about three times faster (a Linux hello world: 1.1 s, then 0.33 s). The output is identical with or without the cache. Entries belong to one compiler build and are ignored after an update.
+
+| Variable | Effect |
+| --- | --- |
+| `NONA_CACHE_DIR` | Cache directory. Default: `%LOCALAPPDATA%\nona\cache` on Windows, `~/Library/Caches/nona` on macOS, `$XDG_CACHE_HOME/nona` or `~/.cache/nona` elsewhere. |
+| `NONA_CACHE=0` | Do not read or write the cache. |
+
 ## Diagnostics and exit codes
 
 The exit status is `0` on success and `1` on any error. Source errors are printed as:

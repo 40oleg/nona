@@ -1,6 +1,6 @@
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
-import { Assembler, type Mem, type Condition } from './assembler.js';
+import { Assembler, assemblerSerial, reserveAssemblerSerial, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
@@ -39,8 +39,14 @@ const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',ty
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 const cachedRuntimePreludes=new Map<string,ModuleIR>();
-/** Runtime and prelude code are identical for equal options: generate them once. */
-interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>}
+/**
+ * Runtime and prelude code are identical for equal options: generate them
+ * once. `serial` is the assembler label serial after generation; a restored
+ * image reserves it so later labels cannot collide with the image's.
+ */
+export interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>;serial:number}
+/** A store for base images that outlives the process (see src/cache.ts). Keys are option fingerprints. */
+export interface BaseImageCache {get(key:string):BaseImage|undefined;set(key:string,image:BaseImage):void}
 const baseImages=new Map<string,BaseImage>();
 
 /** The optional preludes `link` selects, with their dependencies, in declaration order. */
@@ -50,42 +56,51 @@ function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink}={}):NativeProgram {
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
   const regexpLink={regexp:link.regexp,unicodeProperties:link.regexp&&link.unicodeProperties};
   const linked=linkedPreludes(link);
-  const preludeKey=JSON.stringify({rejectionPolicy,regexpLink,linked});
-  let prelude=module.runtimePrelude?cachedRuntimePreludes.get(preludeKey):undefined;
-  if(module.runtimePrelude&&!prelude){
-    const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    // Order matters: later preludes capture intrinsics installed by earlier ones.
-    const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
-      ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-      ['process',processPreludeSource],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
-    prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
-    cachedRuntimePreludes.set(preludeKey,prelude);
+  const hasPrelude=!!module.runtimePrelude;
+  const realms=hasPrelude?options.realms??0:0;
+  const baseKey=JSON.stringify({prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
+  let base=baseImages.get(baseKey);
+  if(!base&&options.baseCache){
+    base=options.baseCache.get(baseKey);
+    if(base){reserveAssemblerSerial(base.serial);baseImages.set(baseKey,base);}
   }
-  if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
+  // The prelude is lowered only when its code has to be generated.
+  const lowerPrelude=():ModuleIR=>{
+    const preludeKey=JSON.stringify({rejectionPolicy,regexpLink,linked});
+    let prelude=cachedRuntimePreludes.get(preludeKey);
+    if(!prelude){
+      const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
+      // Order matters: later preludes capture intrinsics installed by earlier ones.
+      const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
+        ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
+        ['process',processPreludeSource],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+      prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
+      cachedRuntimePreludes.set(preludeKey,prelude);
+    }
+    if(prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
+    return prelude;
+  };
   const prefix=(id:string)=>id.replace(/^js\./,'js.regexpVm.');
-  const preludeFunctions=(prelude?.functions??[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
+  const preludeFunctions=()=>(hasPrelude?lowerPrelude().functions:[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
       operations:block.operations.map(op=>{
         if(op.kind==='newFunction')return {...op,target:prefix(op.target)};
         if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,prelude:true};
         return op;
       }),
     }))}));
-  const realms=prelude?options.realms??0:0;
-  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
-  const base=baseImages.get(baseKey);
   let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
   const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
   if(base){fragments=copyFragments(base.fragments);functions=base.functions.map(fn=>({...fn}));imports=[...base.imports];literals=new Map(base.literals);}
   else{
     const runtime=emitRuntime({operations:new Set(),realms,unicodeNormalization:link.unicodeNormalization});
     fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
-    if(prelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
+    if(hasPrelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }
   const runtime={imports};
   const literal=(value:string):string=>{
@@ -95,8 +110,10 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
   };
   if(!base){
-    preludeFunctions.forEach(fn=>emitFunction(fn));
-    baseImages.set(baseKey,{fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals)});
+    preludeFunctions().forEach(fn=>emitFunction(fn));
+    const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
+    baseImages.set(baseKey,image);
+    options.baseCache?.set(baseKey,image);
   }
   for(const name of module.globalFunctionProperties??[]){
     const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
@@ -502,7 +519,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   // Both targets' declarations are compiled into every image, so one program
   // can be linked as PE and ELF; each linker binds the other target's imports
   // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=prelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
+  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
@@ -511,12 +528,12 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
   }
-  if(prelude&&linked.includes('timers')){
+  if(hasPrelude&&linked.includes('timers')){
     // Event-loop primitives, captured and removed from the global object by the timer prelude.
     hostGlobal('__nonaHostNow','rt.hostNow.code',0);
     hostGlobal('__nonaHostWait','rt.agentSleep.code',1);
   }
-  if(prelude&&linked.includes('encoding')){
+  if(hasPrelude&&linked.includes('encoding')){
     // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.
     hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
     hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);
@@ -586,12 +603,12 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     entry.mov('r8',0);entry.lea('r9',stack(48));entry.call('rt.invoke');
   };
   callArguments();
-  if(prelude){entry.call('js.regexpVm.main');callArguments();}
+  if(hasPrelude){entry.call('js.regexpVm.main');callArguments();}
   entry.call('js.main');
-  if(prelude)drain();
+  if(hasPrelude)drain();
   if(options.agent){
     // An agent thread handles one broadcast, runs its jobs and returns.
-    entry.call('rt.agentAwaitBroadcast');if(prelude)drain();
+    entry.call('rt.agentAwaitBroadcast');if(hasPrelude)drain();
     entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }else{
     entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);

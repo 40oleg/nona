@@ -1,3 +1,4 @@
+import {fileBaseImageCache} from './cache.js';
 import {readFileSync,writeFileSync,renameSync,unlinkSync,mkdirSync,realpathSync,statSync,existsSync} from 'node:fs';
 import {resolve,dirname,basename,join} from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -50,7 +51,9 @@ export function main(args:string[]):number {
       try{versionFields=JSON.parse(readFileSync(resolve(versionInfo),'utf8'));}catch(error){throw new Error('Cannot read version information '+versionInfo+': '+(error instanceof Error?error.message:String(error)));}
       if(versionFields===null||typeof versionFields!=='object'||Array.isArray(versionFields))throw new Error('Version information must be a JSON object');
     }
-    const result=compile(source,{fileName:inputArg,target,module,...(fullRuntime?{fullRuntime}:{}),...(subsystem?{subsystem}:{}),
+    // NONA_CACHE=0 disables the on-disk runtime cache; NONA_CACHE_DIR moves it.
+    const baseCache=process.env.NONA_CACHE==='0'?undefined:fileBaseImageCache();
+    const result=compile(source,{fileName:inputArg,target,module,...(fullRuntime?{fullRuntime}:{}),...(baseCache?{baseCache}:{}),...(subsystem?{subsystem}:{}),
       ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
       ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
       ...(versionFields!==undefined?{versionInfo:versionFields}:{})});
