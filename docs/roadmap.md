@@ -48,7 +48,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | 14 | Iterative native `JSON.parse` with exact pre-sized objects; segmented `JSON.stringify` output | JSON.parse (7.6), faster JSON.stringify | **done** (#41, #88; the object model limits the rest) |
 | 15 | Static type inference over the CFG (int32 / double / boolean) to drop tag checks and keep loop counters in registers | Maglev representation selection, Turboshaft typing | |
 | 16 | Direct calls to known functions and an argument-adaptor-free calling convention | Adaptor frame removal (8.9) | |
-| 17 | `super.x` as an ordinary lookup with a separate receiver; `defineField` for class fields; Proxy "no trap" fast paths | Fast super, faster class features, optimizing proxies | |
+| 17 | `super.x` as an ordinary lookup with a separate receiver; `defineField` for class fields; Proxy "no trap" fast paths | Fast super, faster class features, optimizing proxies | super as an ordinary lookup **done** (#91); class fields are not parsed yet (ES2022); Proxy without traps is within 2× of V8 |
 | 18 | Real-world benchmarks (acorn, marked, lodash, Web Tooling Benchmark, the compiler itself) and per-runtime-function call statistics | Real-world performance, Web Tooling Benchmark | partly done (performance page) |
 | 19 | `--coverage` builds with V8-format output (c8/Istanbul) | JavaScript code coverage | |
 | 20 | Persistent on-disk cache of the lowered preludes | Code caching | **done** (#86, the whole compiled runtime and prelude image) |

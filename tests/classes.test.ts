@@ -43,3 +43,25 @@ test('class: derived lexical this survives GC before and after super',()=>{
  const run=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+
+// super.x is base.[[Get]](x, this) and super.x = v is base.[[Set]](x, v, this)
+// (roadmap item 17): a Proxy in the chain answers through get/set, not
+// through getOwnPropertyDescriptor.
+test('super property access goes through Proxy get and set traps',()=>{
+ const source=String.raw`
+const log=[];
+const proto=new Proxy({m(){return 'target'},v:1},{
+ get(t,k,r){log.push('get '+String(k));return k==='m'?function(){return 'trap:'+(this===r)}:Reflect.get(t,k,r)},
+ set(t,k,v,r){log.push('set '+String(k)+'='+v+' '+(r===b));return Reflect.set(t,k,v,r)},
+ getOwnPropertyDescriptor(t,k){log.push('gopd '+String(k));return Reflect.getOwnPropertyDescriptor(t,k)}});
+class A{}Object.setPrototypeOf(A.prototype,proto);
+class B extends A{m(){return super.m()} get v(){return super.v} put(){super.w=5;return this.w}}
+const b=new B();console.log(b.m(),b.v,b.put(),Object.keys(b).join(),log.join(','));
+const plain={__proto__:{get x(){return this.tag},set s(v){this.got=v}},tag:'own',f(){super.s=3;super.q=4;return super.x+','+this.got+','+this.q}};console.log(plain.f());
+const orphan={f(){return super.missing}};Object.setPrototypeOf(orphan,null);try{orphan.f()}catch(e){console.log(e.constructor.name)}
+const frozen=Object.freeze({__proto__:{},f(){'use strict';try{super.z=1}catch(e){return e.constructor.name}return 'no'}});console.log(frozen.f());
+`;
+ const native=runNative(linkHost(generate(compileToIR(source),{gcStress:true})));
+ assert.equal(native.status,0,native.stderr.toString());
+ assert.equal(native.stdout.toString(),runOracle(source).stdout);
+});
