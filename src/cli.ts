@@ -59,7 +59,17 @@ export function main(args:string[]):number {
       ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
       ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
       ...(versionFields!==undefined?{versionInfo:versionFields}:{})});
-    if(!result.ok){for(const d of result.diagnostics){const p=position(source,d.span.start);process.stderr.write(`${d.file}:${p.line}:${p.column} ${d.code}: ${d.message}\n`);}return 1;}
+    if(!result.ok){
+      // Each diagnostic is positioned in its own file (an imported module has its own text).
+      const texts=new Map<string,string|undefined>([[inputArg,source]]);
+      const text=(file:string)=>{if(!texts.has(file)){let read:string|undefined;try{read=readFileSync(resolve(file),'utf8');}catch{read=undefined;}texts.set(file,read);}return texts.get(file);};
+      for(const d of result.diagnostics){
+        const t=text(d.file);
+        const where=t!==undefined&&d.span.start<=t.length?((p)=>`:${p.line}:${p.column}`)(position(t,d.span.start)):'';
+        process.stderr.write(`${d.file}${where} ${d.code}: ${d.message}\n`);
+      }
+      return 1;
+    }
     mkdirSync(dirname(output),{recursive:true});
     temporary=join(dirname(output),'.nona-'+randomUUID()+'.tmp');
     writeFileSync(temporary,result.image,{flag:'wx',mode:target==='linux-x64'?0o755:0o666});

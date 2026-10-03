@@ -103,7 +103,14 @@ export function compile(source:string, options:CompileOptions):CompileResult {
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
     return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
   } catch(error) {
-    if(error instanceof CompileError)return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:options.fileName}))};
+    // A diagnostic from an imported module keeps that module's path: the
+    // file name as given for the entry, a host path for the default host
+    // (canonical '/C:/x' is C:\x on Windows), the host's own path otherwise.
+    if(error instanceof CompileError){
+      const entry=options.module?modulePath(options.fileName):undefined;
+      const file=(path:string)=>!path||path===entry?options.fileName:!options.moduleHost&&/^\/[A-Za-z]:\//.test(path)?path.slice(1).replaceAll('/','\\'):path;
+      return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:file(d.file)}))};
+    }
     throw error;
   }
 }
