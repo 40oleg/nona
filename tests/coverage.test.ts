@@ -37,7 +37,9 @@ function build(directory:string,file:string,text:string,options:Partial<CompileO
  return executable;
 }
 // Function ranges (the first range of each function) with their counts.
-const functionRanges=(coverage:Coverage,url:string)=>coverage.result.filter(script=>script.url===url)
+// Node.js may name the script by its real path (long Windows names, not the
+// 8.3 temporary directory), so its script is matched by file name.
+const functionRanges=(coverage:Coverage,url:string)=>coverage.result.filter(script=>script.url===url||script.url.endsWith('/'+url))
  .flatMap(script=>script.functions.map(fn=>`${fn.ranges[0]!.startOffset}-${fn.ranges[0]!.endOffset}:${fn.ranges[0]!.count}`)).sort();
 const readAll=(directory:string)=>readdirSync(directory).filter(name=>name.endsWith('.json')).map(name=>JSON.parse(readFileSync(join(directory,name),'utf8')) as Coverage);
 
@@ -48,13 +50,15 @@ test('a coverage build reports the function ranges and counts V8 reports',()=>{
   mkdirSync(ours);mkdirSync(node);writeFileSync(file,source);
   const run=spawnSync(build(directory,file,source,{coverage:{directory:ours,url}}),[],{encoding:'utf8',timeout:60_000,windowsHide:true});
   assert.equal(run.status,0,run.stderr);
-  const reference=spawnSync(process.execPath,[file],{encoding:'utf8',env:{...process.env,NODE_V8_COVERAGE:node}});
-  assert.equal(run.stdout,reference.stdout);
+  const nodeRun=spawnSync(process.execPath,[file],{encoding:'utf8',env:{...process.env,NODE_V8_COVERAGE:node}});
+  assert.equal(run.stdout,nodeRun.stdout);
   const [coverage]=readAll(ours);
   assert.ok(coverage,'one coverage file');
   assert.equal(readAll(ours).length,1);
   assert.ok(coverage.result[0]!.functions.every(fn=>fn.isBlockCoverage===false));
-  assert.deepEqual(functionRanges(coverage,url),functionRanges(readAll(node).find(c=>c.result.some(s=>s.url===url))!,url));
+  const reference=readAll(node).find(c=>c.result.some(s=>s.url.endsWith('/app.js')));
+  assert.ok(reference,'Node.js coverage of app.js');
+  assert.deepEqual(functionRanges(coverage,url),functionRanges(reference,'app.js'));
   const names=coverage.result[0]!.functions.map(fn=>fn.functionName);
   for(const name of ['','used','unused','square','inner','Point','outer','add'])assert.ok(names.includes(name),name);
  }finally{removeTemporaryDirectory(directory);}
