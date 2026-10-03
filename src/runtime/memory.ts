@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {emitCallStats} from './call-stats.js';
 import {HeapLayout as H} from './heap-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 
@@ -55,6 +56,8 @@ const T={key:0,base:8,large:16,size:24} as const;
 const times24=(a:Assembler,dst:'r11'|'r10'|'rax',src:'rax'|'r11'|'r10'|'r9')=>{a.mov(dst,src);a.shl(dst,1);a.add(dst,src);a.shl(dst,3);};
 
 export function emitMemory(b:RuntimeBuilder):void {
+ // rt.fail reports call statistics, so they live with it (call-stats.ts).
+ emitCallStats(b);
  b.data('rt.heap',new Uint8Array(8),'.data');
  for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
@@ -291,6 +294,6 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.label(clear);a.test('r11','r11');a.jcc('e',cleared);a.store({base:'r10'},'rax');a.add('r10',8);a.sub('r11',8);a.jmp(clear);
   a.label(cleared);
  });
- b.fn('rt.fail',72,a=>{a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');a.mov('rcx',1);a.callImport('ExitProcess');});
+ b.fn('rt.fail',72,a=>{a.call('rt.callStatsReport');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');a.mov('rcx',1);a.callImport('ExitProcess');});
  b.data('rt.error',new TextEncoder().encode('Nona runtime error\r\n'));
 }

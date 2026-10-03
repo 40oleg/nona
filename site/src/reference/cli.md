@@ -5,7 +5,7 @@
 ```text
 Nona 0.7.0 — JavaScript subset to native Windows/Linux x64
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
-       [--full-runtime]
+       [--full-runtime] [--call-stats]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -22,6 +22,7 @@ From a clone of the repository run `node dist/cli.js …`; after `npm link` the 
 | `--target` | `win32-x64` (default), `linux-x64` | Output format: PE32+ for Windows or ELF64 for Linux. |
 | `--module` | — | Compile the input as an ES module. Inputs ending in `.mjs` are modules automatically. |
 | `--full-runtime` | — | Link the whole runtime. By default the RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them; see [Linked runtime parts](/guide/compatibility#linked-runtime-parts). |
+| `--call-stats` | — | Count every call the program and its runtime make, by target, and print the counts to stderr when the program ends or fails, most frequent first (`count  target` per line). JavaScript functions are called through `rt.invoke`, so their calls are counted there. The executable is larger and slower; use it to find the runtime functions a program spends its calls in. `process.exit()` skips the report. |
 | `--subsystem` | `console` (default), `windows` | Windows GUI program without a console window. `win32-x64` only. A GUI program without `--manifest` gets a default manifest. |
 | `--icon` | `.ico` file | Embed every image of the icon file. `win32-x64` only. |
 | `--manifest` | XML file | Embed an application manifest. It must be valid: Windows refuses to start a program with a malformed manifest. `win32-x64` only. |

@@ -73,7 +73,7 @@ node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
 
 ```text
 nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
-           [--full-runtime]
+           [--full-runtime] [--call-stats]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version

@@ -18,6 +18,14 @@ export function assemblerSerial(): number {
 export function reserveAssemblerSerial(next: number): void {
   if (serial < next) serial = next;
 }
+/**
+ * Call statistics: when set, every call is preceded by an increment of the
+ * 64-bit counter symbol the hook returns for its target (none: not counted).
+ */
+let callCounter: ((target: string) => string | undefined) | undefined;
+export function setCallCounter(hook: ((target: string) => string | undefined) | undefined): void {
+  callCounter = hook;
+}
 export class Assembler {
   private bytes: number[] = [];
   private fixups: Fixup[] = [];
@@ -235,6 +243,9 @@ export class Assembler {
     this.rel32(0xe9, s);
   }
   call(s: string): void {
+    const counter = callCounter?.(s);
+    // inc qword [rip+counter]: no register changes.
+    if (counter !== undefined) this.instruction([0xff], 0, { rip: counter });
     this.rel32(0xe8, s);
   }
   jumpRegister(register:Reg):void {this.instruction([0xff],4,register,false);}

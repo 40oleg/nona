@@ -1,6 +1,6 @@
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
-import { Assembler, assemblerSerial, reserveAssemblerSerial, type Mem, type Condition } from './assembler.js';
+import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
@@ -49,6 +49,30 @@ export interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[]
 export interface BaseImageCache {get(key:string):BaseImage|undefined;set(key:string,image:BaseImage):void}
 const baseImages=new Map<string,BaseImage>();
 
+/**
+ * `callStats` counts every call by target and prints the counts when the
+ * program ends (see call-stats.ts); otherwise this is generateImage.
+ */
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean}={}):NativeProgram {
+  if(!options.callStats)return generateImage(module,options);
+  const counted=new Set<string>();
+  setCallCounter(target=>{if(target==='rt.callStatsReport')return undefined;counted.add(target);return 'stats.'+target;});
+  let program:NativeProgram;
+  try{program=generateImage(module,options);}finally{setCallCounter(undefined);}
+  // A counter and a name record per target, and the table that lists them.
+  const targets=[...counted].sort(),table=new Uint8Array(8+16*targets.length),fixups:NamedFragment['fixups']=[];
+  new DataView(table.buffer).setBigUint64(0,BigInt(targets.length),true);
+  targets.forEach((target,index)=>{
+    const name=new TextEncoder().encode(target),record=new Uint8Array(8+name.length);
+    new DataView(record.buffer).setBigUint64(0,BigInt(name.length),true);record.set(name,8);
+    program.fragments.push({name:'stats.'+target,section:'.data',alignment:8,bytes:new Uint8Array(8),fixups:[],symbols:{}});
+    program.fragments.push({name:'stats.name.'+index,section:'.rdata',alignment:8,bytes:record,fixups:[],symbols:{}});
+    fixups.push({offset:8+16*index,kind:'va64',target:'stats.name.'+index,addend:0},{offset:16+16*index,kind:'va64',target:'stats.'+target,addend:0});
+  });
+  const fragment=program.fragments.find(f=>f.name==='rt.callStatsTable')!;
+  fragment.bytes=table;fragment.fixups=fixups;
+  return program;
+}
 /** The optional preludes `link` selects, with their dependencies, in declaration order. */
 function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   const selected=new Set(optionalPreludes.filter(name=>link.preludes[name]));
@@ -56,7 +80,7 @@ function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache}={}):NativeProgram {
+function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
@@ -65,8 +89,9 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;
   const baseKey=JSON.stringify({prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
-  let base=baseImages.get(baseKey);
-  if(!base&&options.baseCache){
+  // A call-statistics build counts the runtime's calls too: it is generated afresh.
+  let base=options.callStats?undefined:baseImages.get(baseKey);
+  if(!base&&options.baseCache&&!options.callStats){
     base=options.baseCache.get(baseKey);
     if(base){reserveAssemblerSerial(base.serial);baseImages.set(baseKey,base);}
   }
@@ -112,8 +137,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   if(!base){
     preludeFunctions().forEach(fn=>emitFunction(fn));
     const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
-    baseImages.set(baseKey,image);
-    options.baseCache?.set(baseKey,image);
+    if(!options.callStats){baseImages.set(baseKey,image);options.baseCache?.set(baseKey,image);}
   }
   for(const name of module.globalFunctionProperties??[]){
     const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
@@ -611,7 +635,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     entry.call('rt.agentAwaitBroadcast');if(hasPrelude)drain();
     entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }else{
-    entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }
