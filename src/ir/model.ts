@@ -22,7 +22,7 @@ export type Operation =
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}
   | {kind:'readGlobalProperty';dest:number;name:string;allowMissing:boolean}
-  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean}
+  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean;/** Code label of the function the callee is expected to be (src/ir/calls.ts). */direct?:string;/** That function is strict (receives this unchanged). */directStrict?:boolean}
   | {kind:'invokeArray';dest:number;callee:number;array:number;receiver?:number;construct?:boolean;newTarget?:number}
   | {kind:'yield';dest:number;source:number}
   | {kind:'await';dest:number;source:number}

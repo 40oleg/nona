@@ -10,6 +10,7 @@ import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
+import { TailCallTag } from '../../runtime/tail-calls.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
 import {fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
@@ -117,6 +118,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const preludeFunctions=()=>(hasPrelude?lowerPrelude().functions:[]).map(fn=>({...fn,id:prefix(fn.id),blocks:fn.blocks.map(block=>({...block,
       operations:block.operations.map(op=>{
         if(op.kind==='newFunction')return {...op,target:prefix(op.target)};
+        if(op.kind==='invoke'&&op.direct)return {...op,direct:prefix(op.direct)};
         if(op.kind==='loadGlobal'||op.kind==='storeGlobal')return {...op,prelude:true};
         return op;
       }),
@@ -458,13 +460,37 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');
           a.label(done);break;
         }
-        case 'invoke':
+        case 'invoke':{
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
+          const general=a.unique('generalCall'),called=a.unique('called');
+          if(op.direct){
+            // A callee known at compile time (src/ir/calls.ts): if it is a
+            // function running that code, call the code directly with the
+            // calling convention rt.invoke uses (RCX result, RDX argc, R8 argv,
+            // R9 function, then this and new.target Value pointers).
+            a.load('rax',value(op.callee));a.cmp('rax',5);a.jcc('ne',general);
+            a.load('r9',payload(op.callee));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',general);
+            a.load('rax',{base:'r9',disp:FunctionLayout.code});a.lea('r10',{rip:op.direct});a.cmp('rax','r10');a.jcc('ne',general);
+            // this: unchanged for strict code; sloppy code gets the global
+            // object for undefined/null and an object receiver as is
+            // (primitives, which need boxing, take the general path).
+            if(op.receiver===undefined)a.lea('rax',{rip:op.directStrict?'rt.undefinedValue':'rt.globalValue'});
+            else if(op.directStrict)a.lea('rax',value(op.receiver));
+            else{const object=a.unique('objectThis'),ready=a.unique('thisReady');a.load('rax',value(op.receiver));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',1);a.jcc('a',general);
+             a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
+            a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+            pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
+            // A tail call made by the callee comes back as a marker (rt.invoke does the same).
+            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('ne',called);pointer('rcx',op.dest);a.call('rt.tailDispatch');a.jmp(called);
+          }
+          a.label(general);
           if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
           a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
           a.store(stack(40),'rax');
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');break;
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
+          a.label(called);break;
+        }
         case 'invokeArray':
           a.mov('rax',op.construct?1:0);a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
