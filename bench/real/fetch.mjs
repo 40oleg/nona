@@ -13,7 +13,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {gunzipSync} from 'node:zlib';
 
-const packages = {acorn: '8.18.0'};
+const packages = {acorn: '8.18.0', marked: '12.0.2'};
 
 const here = dirname(fileURLToPath(import.meta.url));
 const vendor = join(here, 'vendor');
