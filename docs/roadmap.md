@@ -28,7 +28,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | --- | --- | --- | --- |
 | 1 | Number arithmetic, comparisons and branches inline instead of runtime calls | Sparkplug, Liftoff, Maglev | **done** (#41) |
 | 2 | Collection check once per basic block instead of before every operation | Maglev, jank busters | **done** (#41) |
-| 3 | Cache compiled regular expressions; skip to a literal prefix | Speeding up regular expressions | **done** (#41) |
+| 3 | Cache compiled regular expressions; skip to a literal prefix; try anchored patterns only at the start | Speeding up regular expressions | **done** (#41, #107) |
 | 4 | Seeded string hashing and cached key hashes (hash flooding) | Hash flooding, hash codes | **done** (#66) |
 | 5 | Collector: leaf blocks are not greyed, larger start threshold, poisoned cells under GC stress | Orinoco, Oilpan, temporal memory safety | **done** (#67) |
 | 6 | Spread, destructuring and rest step array iterators directly and append to dense elements | Spread elements, high-performance ES2015 | **done** (#65) |

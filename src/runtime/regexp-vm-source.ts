@@ -434,7 +434,10 @@ const regexpVmTemplate=String.raw`(function(){
       }
     }
     validateReferences(tree);
-    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null};
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false};
+    // A pattern whose every alternative starts with ^ (without the m flag) can
+    // only match at index 0: search tries no other start position.
+    if(indexOf(flags,'m')<0)compiled.anchored=startsAnchored(tree);
     // A pattern that starts with a literal (outside ignore-case and unicode
     // mode) can only match where that literal occurs: execute skips ahead
     // with indexOf instead of trying every position.
@@ -448,6 +451,16 @@ const regexpVmTemplate=String.raw`(function(){
       if(first.kind==='char')compiled.prefix=first.value
     }
     return compiled
+  }
+  function startsAnchored(node){
+    if(node.kind==='anchor')return node.value==='^';
+    if(node.kind==='sequence')return node.value.length>0&&startsAnchored(node.value[0]);
+    if(node.kind==='group')return startsAnchored(node.value);
+    if(node.kind==='alternative'){
+      for(var i=0;i<node.value.length;i++)if(!startsAnchored(node.value[i]))return false;
+      return true
+    }
+    return false
   }
   // Matching runs as a small backtracking program on explicit stacks: no
   // native recursion per character (long inputs cannot exhaust the stack) and
@@ -997,7 +1010,9 @@ const regexpVmTemplate=String.raw`(function(){
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
     var prefix=sticky?null:compiled.prefix;
+    var anchored=compiled.anchored;
     for(var candidate=start;candidate<=length;candidate++){
+      if(anchored&&candidate>0)return null;
       if(prefix!==null){
         var found=safeIndexOf.call(input,prefix,candidate);
         if(found<0)return null;
@@ -1006,7 +1021,7 @@ const regexpVmTemplate=String.raw`(function(){
       for(var s=0;s<stateSize;s++)state[s]=NONE;
       undoTop=0;frameTop=0;
       var end=run(0,candidate);
-      if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky);
+      if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky||anchored);
       if(end>=0){
         // Capture bounds as registers: 4294967295 marks a group that did not
         // participate (slots 0 and 1 are unused).

@@ -130,3 +130,17 @@ test('the Pike VM finds the match the backtracker finds',()=>{
   const expected=cases.map(([p,f,s])=>{const m=new RegExp(p,f).exec(s);return m?m.index+':'+[...m].map(x=>x===undefined?'-':x).join('|'):'null'}).join('\n')+'\n';
   expectProgram(native,expected);
 });
+
+// A pattern whose every alternative starts with ^ (no m flag) is only tried
+// at index 0 (#107): a failing exec on a long string is constant time.
+test('anchored patterns are tried only at the start of the input',()=>{
+  const cases:[string,string,string,number][]=[['^abc','','xabc',0],['^abc','g','abcabc',3],['^a|^b','','cab',0],['^(?:a|b)c','','bc',0],['(^a)|b','','cb',0],
+    ['^b','m','a\nb',0],['^a','y','ab',0],['^a','y','ba',1],['^(a+)+$','','aaaa!',0],['(?:^x|^y)z','','yz',0],['^','g','abc',2],['^\\w+','','  word',0]];
+  const native=`let vm=${regexpVmSource};
+  for(const [p,f,s,start] of ${JSON.stringify(cases)}){const r=vm.execute(vm.compile(p,f),s,start,f.includes('y'));console.log(r===null?'null':r.start+'-'+r.end)}
+  const long='x'.repeat(100000)+'abc';let found=0;
+  for(let i=0;i<500;i++)if(vm.execute(vm.compile('^abc',''),long,0,false)!==null)found++;
+  console.log(found)`;
+  const expected=cases.map(([p,f,s,start])=>{const re=new RegExp(p,f.includes('y')||f.includes('g')?f:f+'g');re.lastIndex=start;const m=re.exec(s);return m?m.index+'-'+(m.index+m[0].length):'null'}).join('\n')+'\n0\n';
+  expectProgram(native,expected);
+});
