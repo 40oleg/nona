@@ -294,6 +294,6 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.label(clear);a.test('r11','r11');a.jcc('e',cleared);a.store({base:'r10'},'rax');a.add('r10',8);a.sub('r11',8);a.jmp(clear);
   a.label(cleared);
  });
- b.fn('rt.fail',72,a=>{a.call('rt.callStatsReport');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');a.mov('rcx',1);a.callImport('ExitProcess');});
+ b.fn('rt.fail',72,a=>{a.call('rt.callStatsReport');a.call('rt.runExitHook');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');a.mov('rcx',1);a.callImport('ExitProcess');});
  b.data('rt.error',new TextEncoder().encode('Nona runtime error\r\n'));
 }

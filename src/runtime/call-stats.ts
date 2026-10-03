@@ -10,6 +10,10 @@ import {RuntimeBuilder,slot} from './abi.js';
  */
 export function emitCallStats(b:RuntimeBuilder):void {
  b.data('rt.callStatsTable',new Uint8Array(8),'.data');
+ // A function to run before the process ends, normally or on a runtime error
+ // (coverage output; 0 when none). The code generator fills it.
+ b.data('rt.exitHook',new Uint8Array(8),'.data');
+ b.fn('rt.runExitHook',40,a=>{const none=a.unique('none');a.load('rax',{rip:'rt.exitHook'});a.test('rax','rax');a.jcc('e',none);a.callRegister('rax');a.label(none);});
  // Line buffer: slot 96 (12 columns of count, two spaces, the name, a line feed).
  b.fn('rt.callStatsReport',408,a=>{
   const done=a.unique('done'),outer=a.unique('outer'),scan=a.unique('scan'),next=a.unique('next'),scanned=a.unique('scanned'),digit=a.unique('digit'),copy=a.unique('copy'),copied=a.unique('copied'),short=a.unique('short');

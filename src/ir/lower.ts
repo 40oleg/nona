@@ -28,11 +28,34 @@ export function lower(bound:BoundProgram):ModuleIR {
   const templateCaches={next:bound.globals.length,ffi:[] as FfiDeclarationIR[]};
   const functions=[new Lowerer(bound,null,templateCaches,bound.modules?-1:undefined).run(bound.ast.body)];
   for(const module of bound.modules??[])functions.push(new Lowerer(bound,null,templateCaches,module.record.index).run(module.record.ast.body));
+  // Source ranges for coverage (V8 reports the script itself as an unnamed function).
+  if(!bound.modules)functions[0]={...functions[0]!,source:{script:0,name:'',start:0,end:bound.ast.span.end}};
+  (bound.modules??[]).forEach((module,i)=>{functions[i+1]={...functions[i+1]!,source:{script:module.record.index+1,name:'',start:0,end:module.record.ast.span.end}};});
   for(const f of bound.functions){
-    functions.push(new Lowerer(bound,f,templateCaches).run(f.declaration.body.body));
+    const lowered=new Lowerer(bound,f,templateCaches).run(f.declaration.body.body);
+    functions.push({...lowered,source:{script:f.module===undefined?0:f.module+1,name:lowered.name.startsWith('<')?'':lowered.name,start:f.declaration.span.start,end:f.declaration.span.end}});
   }
+  // Names as V8 reports them: the name given where the function is created
+  // (declarations, `const f = () => …`, classes), a method's literal key, and
+  // a get/set prefix for accessors.
+  const names=new Map<string,string>();
+  for(const fn of functions)for(const block of fn.blocks){
+    const constants=new Map<number,string>(),created=new Map<number,string>();
+    for(const op of block.operations){
+      if(op.kind==='constant'&&typeof op.value==='string')constants.set(op.dest,op.value);
+      else if((op.kind==='copy'||op.kind==='unary'&&op.operator==='propertyKey')&&constants.has(op.kind==='copy'?op.source:op.argument))constants.set(op.dest,constants.get(op.kind==='copy'?op.source:op.argument)!);
+      if(op.kind==='newFunction'){
+        const name=op.name!==undefined&&op.name!==''?op.name:op.nameSlot!==undefined?constants.get(op.nameSlot):undefined;
+        if(name!==undefined&&!names.has(op.target))names.set(op.target,name);
+        created.set(op.dest,op.target);
+      }
+      if(op.kind==='defineAccessor'&&created.has(op.source)){const target=created.get(op.source)!,name=names.get(target);if(name!==undefined)names.set(target,(op.setter?'set ':'get ')+name);}
+    }
+  }
+  for(const [i,fn] of functions.entries())if(fn.source&&fn.source.name===''&&names.has(fn.id))functions[i]={...fn,source:{...fn.source,name:names.get(fn.id)!}};
   return annotateDirectCalls({
     ...(templateCaches.ffi.length?{ffi:templateCaches.ffi}:{}),
+    scripts:['',...(bound.modules??[]).map(module=>module.record.path)],
     globalCount:templateCaches.next,
     functions:functions.map(optimizeFunction),
     globalProperties:bound.globals.filter(b=>!b.lexical&&!b.module).map(({name,index})=>({name,index})),
