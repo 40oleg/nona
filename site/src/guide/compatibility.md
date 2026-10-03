@@ -42,7 +42,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 
 ## Linked runtime parts
 
-Every executable contains the runtime, but three large parts are linked only when the program can reach them. The compiler decides from the text of every source it compiles — the program, its modules and compile-time `eval`/`Function` sources:
+Every executable contains the runtime, but its large optional parts are linked only when the program can reach them. The compiler decides from the text of every source it compiles — the program, its modules and compile-time `eval`/`Function` sources:
 
 | Part | Size | Linked when a source contains |
 | --- | --- | --- |
@@ -50,9 +50,25 @@ Every executable contains the runtime, but three large parts are linked only whe
 | Unicode property tables for `\p{…}`/`\P{…}` | about 2 MB | `\p{` or `\P{` in a RegExp literal or a string, or one of the names above (a pattern may be built at run time) |
 | Unicode normalization tables | about 0.7 MB | the name `normalize` or `localeCompare` |
 
-`split`, `replace` and `replaceAll` with string arguments do not need the RegExp engine. A program without regular expressions is about 3 MB instead of 7 MB.
+`split`, `replace` and `replaceAll` with string arguments do not need the RegExp engine.
 
-A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. Such a call throws an `Error` whose message names the missing part. Compile with `--full-runtime` (or the `fullRuntime` option of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)).
+Built-in libraries written in JavaScript that only install globals or methods (about 0.8 MB together) are linked the same way, when a source contains one of their names:
+
+| Part | Names |
+| --- | --- |
+| `Proxy` | `Proxy` |
+| `TextEncoder`, `TextDecoder` | `TextEncoder`, `TextDecoder` (also linked with `process`) |
+| `process` | `process` |
+| Timers, the event loop, `queueMicrotask` and `performance` | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any` | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables` |
+| Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names |
+| Stable merge `Array.prototype.sort` | `sort` |
+| `Object.freeze`, `seal`, `isFrozen`, `isSealed` through Proxy traps (otherwise native versions for ordinary objects) | the same names |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__` | the same names |
+
+A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` or `Reflect.ownKeys` links all of them, since it could list the built-ins ([#84](https://github.com/40oleg/nona/issues/84)). A hello world is about 2.4 MB; with every part it is 7 MB.
+
+A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--full-runtime` (or the `fullRuntime` option of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)).
 
 ## Realms
 

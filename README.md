@@ -79,7 +79,7 @@ nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
 nona --help | --version
 ```
 
-`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. The RegExp engine and the Unicode tables are linked only when the program can reach them, so a program without regular expressions is about 3 MB instead of 7 MB; `--full-runtime` links everything ([details](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts)). The `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. The RegExp engine, the Unicode tables and built-in libraries such as `Proxy`, timers or `process` are linked only when the program can reach them, so a hello world is about 2.4 MB instead of 7 MB; `--full-runtime` links everything ([details](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts)). The `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
 
 ## Limitations
 

@@ -12,9 +12,9 @@ import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
-import {fullRuntimeLink,type RuntimeLink} from '../../runtime/link.js';
+import {fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
-import {proxyPreludeSource} from '../../runtime/proxy-source.js';
+import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
 import {processPreludeSource,processHostDeclarations} from '../../runtime/process-source.js';
@@ -43,17 +43,28 @@ const cachedRuntimePreludes=new Map<string,ModuleIR>();
 interface BaseImage {fragments:NamedFragment[];functions:UnwindFunction[];imports:NativeProgram['imports'];literals:Map<string,string>}
 const baseImages=new Map<string,BaseImage>();
 
+/** The optional preludes `link` selects, with their dependencies, in declaration order. */
+function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
+  const selected=new Set(optionalPreludes.filter(name=>link.preludes[name]));
+  for(const name of [...selected])for(const dependency of preludeDependencies[name]??[])selected.add(dependency);
+  return optionalPreludes.filter(name=>selected.has(name));
+}
 /** `link` selects the optional runtime parts (all by default). */
 export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
   const regexpLink={regexp:link.regexp,unicodeProperties:link.regexp&&link.unicodeProperties};
-  const preludeKey=JSON.stringify({rejectionPolicy,regexpLink});
+  const linked=linkedPreludes(link);
+  const preludeKey=JSON.stringify({rejectionPolicy,regexpLink,linked});
   let prelude=module.runtimePrelude?cachedRuntimePreludes.get(preludeKey):undefined;
   if(module.runtimePrelude&&!prelude){
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
-    prelude=lower(bind(parse(lex(regexpVmPrelude(regexpLink)+'\n'+reflectPreludeSource+'\n'+objectAnnexBPreludeSource+'\n'+arraySortPreludeSource+'\n'+objectIntegrityPreludeSource+'\n'+annexBBuiltinsPreludeSource+'\n'+es2021PreludeSource+'\n'+promiseSource+'\n'+encodingPreludeSource+'\n'+processPreludeSource+'\n'+timersPreludeSource+'\n'+proxyPreludeSource))));
+    // Order matters: later preludes capture intrinsics installed by earlier ones.
+    const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
+      ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
+      ['process',processPreludeSource],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+    prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
     cachedRuntimePreludes.set(preludeKey,prelude);
   }
   if(prelude&&prelude.globalCount!==2)throw new Error('Runtime prelude must have two global bindings');
@@ -66,7 +77,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
       }),
     }))}));
   const realms=prelude?options.realms??0:0;
-  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization});
+  const baseKey=JSON.stringify({prelude:!!prelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
   const base=baseImages.get(baseKey);
   let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
   const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
@@ -491,7 +502,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   // Both targets' declarations are compiled into every image, so one program
   // can be linked as PE and ELF; each linker binds the other target's imports
   // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=prelude?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
+  const hostFfi=prelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
@@ -500,10 +511,12 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
     fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
   }
-  if(prelude){
+  if(prelude&&linked.includes('timers')){
     // Event-loop primitives, captured and removed from the global object by the timer prelude.
     hostGlobal('__nonaHostNow','rt.hostNow.code',0);
     hostGlobal('__nonaHostWait','rt.agentSleep.code',1);
+  }
+  if(prelude&&linked.includes('encoding')){
     // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.
     hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
     hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);

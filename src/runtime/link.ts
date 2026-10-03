@@ -10,7 +10,41 @@ export interface RuntimeLink {
   unicodeProperties:boolean;
   /** Unicode normalization tables for String.prototype.normalize and localeCompare. */
   unicodeNormalization:boolean;
+  /** Optional JavaScript preludes (see preludeTriggers). */
+  preludes:Record<OptionalPrelude,boolean>;
 }
-export const fullRuntimeLink:RuntimeLink={regexp:true,unicodeProperties:true,unicodeNormalization:true};
+/**
+ * Preludes that only install globals or built-in methods. Each is linked when
+ * one of its trigger names appears in a source: as an identifier, a property
+ * name or a string literal (computed access such as globalThis['Proxy']).
+ * Reflect and Promise (which also carries the module and script machinery)
+ * are always linked.
+ */
+export const preludeTriggers={
+  proxy:['Proxy'],
+  encoding:['TextEncoder','TextDecoder'],
+  process:['process'],
+  // Timers installs enumerable globals, which a program can list through globalThis.
+  timers:['setTimeout','setInterval','setImmediate','clearTimeout','clearInterval','clearImmediate','queueMicrotask','performance','globalThis'],
+  // The prelude also adds its methods to Array.prototype[Symbol.unscopables].
+  es2021:['at','findLast','findLastIndex','hasOwn','AggregateError','any','unscopables'],
+  annexB:['escape','unescape','substr','setYear','toGMTString','compile','anchor','big','blink','bold','fixed','fontcolor','fontsize','italics','link','small','strike','sub','sup'],
+  arraySort:['sort'],
+  objectIntegrity:['freeze','seal','isFrozen','isSealed'],
+  objectAnnexB:['__defineGetter__','__defineSetter__','__lookupGetter__','__lookupSetter__'],
+} as const satisfies Record<string,readonly string[]>;
+export type OptionalPrelude=keyof typeof preludeTriggers;
+export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
+/** Preludes another prelude needs while it initializes. */
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding']};
+/**
+ * Names that enumerate built-ins: a program using one could observe a missing
+ * method, so it links every prelude.
+ */
+export const reflectiveNames:readonly string[]=['getOwnPropertyNames','getOwnPropertyDescriptors','ownKeys'];
+export function preludeSet(value:boolean):Record<OptionalPrelude,boolean> {
+  return Object.fromEntries(optionalPreludes.map(name=>[name,value])) as Record<OptionalPrelude,boolean>;
+}
+export const fullRuntimeLink:RuntimeLink={regexp:true,unicodeProperties:true,unicodeNormalization:true,preludes:preludeSet(true)};
 /** The hint every "not linked" error ends with. */
 export const fullRuntimeHint='Compile with --full-runtime (compile option fullRuntime) to include it.';
