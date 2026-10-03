@@ -14,6 +14,7 @@ type Finalizer={body:A.Block;handlerDepth:number;controls:Control[]};
 import {removeRedundantInitializationChecks} from './initialization.js';
 import {markNumericOperations} from './numbers.js';
 import {coalesceMoves,propagateCopies} from './copies.js';
+import {annotateDirectCalls} from './calls.js';
 /**
  * IR clean-up after lowering (roadmap item 15): drop dead-zone checks of
  * initialized bindings, forward copies, mark operations on proven Numbers
@@ -30,7 +31,7 @@ export function lower(bound:BoundProgram):ModuleIR {
   for(const f of bound.functions){
     functions.push(new Lowerer(bound,f,templateCaches).run(f.declaration.body.body));
   }
-  return {
+  return annotateDirectCalls({
     ...(templateCaches.ffi.length?{ffi:templateCaches.ffi}:{}),
     globalCount:templateCaches.next,
     functions:functions.map(optimizeFunction),
@@ -39,7 +40,7 @@ export function lower(bound:BoundProgram):ModuleIR {
       const binding=bound.bindings.get(fn.declaration.id!);
       return binding?.kind==='globalProperty'?[binding.name]:[];
     }),
-  };
+  });
 }
 class Lowerer {
   private blocks:BlockIR[]=[];

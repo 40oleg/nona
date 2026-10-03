@@ -34,8 +34,9 @@ test('a call-statistics build prints every called target with its count, most fr
  assert.ok(rows.length>20,String(rows.length));
  for(let i=1;i<rows.length;i++)assert.ok(rows[i-1]!.count>=rows[i]!.count,'sorted');
  assert.equal(new Set(rows.map(row=>row.name)).size,rows.length,'one line per target');
- // f(12) makes 465 calls, all through rt.invoke.
- assert.ok(rows.find(row=>row.name==='rt.invoke')!.count>=465);
+ // f(12) makes 465 calls: direct calls to its code (js.fn.0, see src/ir/calls.ts) or through rt.invoke.
+ const count=(name:string)=>rows.find(row=>row.name===name)?.count??0;
+ assert.ok(count('js.fn.0')+count('rt.invoke')>=465);
  assert.ok(!rows.some(row=>row.name==='rt.callStatsReport'));
 });
 
