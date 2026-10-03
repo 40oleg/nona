@@ -10,7 +10,7 @@ import {removeTemporaryDirectory} from './helpers/cleanup.js';
 
 // A diagnostic from an imported module names that module and is positioned
 // in its text, not the entry's.
-const files:Record<string,string>={'/app.mjs':'import {x} from "./lib.mjs";\nconsole.log(x);\n','/lib.mjs':'export const x = 1;\nclass A {\n  #p = 2;\n}\n'};
+const files:Record<string,string>={'/app.mjs':'import {x} from "./lib.mjs";\nconsole.log(x);\n','/lib.mjs':'export const x = 1;\nclass A {\n  @p = 2;\n}\n'};
 const moduleHost={resolve:(specifier:string)=>'/'+specifier.replace(/^\.\//,''),read:(path:string)=>files[path]};
 
 test('compile reports a module error with the module path',()=>{
@@ -18,7 +18,7 @@ test('compile reports a module error with the module path',()=>{
  assert.equal(result.ok,false);
  if(result.ok)return;
  assert.equal(result.diagnostics[0]!.file,'/lib.mjs');
- assert.equal(files['/lib.mjs']!.slice(result.diagnostics[0]!.span.start,result.diagnostics[0]!.span.end),'#');
+ assert.equal(files['/lib.mjs']!.slice(result.diagnostics[0]!.span.start,result.diagnostics[0]!.span.end),'@');
 });
 
 test('the command line positions a module error in the module',()=>{
@@ -28,6 +28,11 @@ test('the command line positions a module error in the module',()=>{
   const cli=fileURLToPath(new URL('../src/cli.js',import.meta.url));
   const run=spawnSync(process.execPath,[cli,'build',join(directory,'app.mjs'),'-o',join(directory,'out'),'--target','linux-x64'],{encoding:'utf8'});
   assert.equal(run.status,1);
-  assert.equal(run.stderr,`${join(directory,'lib.mjs')}:3:3 E_LEX: Unsupported character "#"\n`);
+  assert.equal(run.stderr,`${join(directory,'lib.mjs')}:3:3 E_LEX: Unsupported character "@"\n`);
+  // An error in the entry module is reported under the name it was given.
+  writeFileSync(join(directory,'bad.mjs'),'let x = 1;\nlet x = 2;\n');
+  const entry=spawnSync(process.execPath,[cli,'build','bad.mjs','-o','out','--target','linux-x64'],{encoding:'utf8',cwd:directory});
+  assert.equal(entry.status,1);
+  assert.match(entry.stderr,/^bad\.mjs:2:5 E_/);
  }finally{removeTemporaryDirectory(directory);}
 });
