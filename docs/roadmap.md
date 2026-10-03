@@ -51,7 +51,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | 17 | `super.x` as an ordinary lookup with a separate receiver; `defineField` for class fields; Proxy "no trap" fast paths | Fast super, faster class features, optimizing proxies | |
 | 18 | Real-world benchmarks (acorn, marked, lodash, Web Tooling Benchmark, the compiler itself) and per-runtime-function call statistics | Real-world performance, Web Tooling Benchmark | partly done (performance page) |
 | 19 | `--coverage` builds with V8-format output (c8/Istanbul) | JavaScript code coverage | |
-| 20 | Persistent on-disk cache of the lowered preludes | Code caching | |
+| 20 | Persistent on-disk cache of the lowered preludes | Code caching | **done** (#86, the whole compiled runtime and prelude image) |
 
 ## Foundation (L)
 

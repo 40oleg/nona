@@ -36,6 +36,15 @@ Cada opción puede aparecer una sola vez. Consulta [Ejecutables de Windows](/es/
 - El compilador se niega a sobrescribir su propia entrada, también a través de un enlace duro o simbólico.
 - Las salidas de Linux reciben el modo `0755`.
 
+## Caché del runtime
+
+El runtime y los preludios compilados son iguales para todos los programas que enlazan las mismas partes, y generarlos ocupa la mayor parte de una compilación. La línea de comandos los guarda en un directorio de caché, así que las compilaciones siguientes son unas tres veces más rápidas (un hello world en Linux: 1,1 s y luego 0,33 s). La salida es idéntica con o sin caché. Las entradas pertenecen a una sola versión del compilador y se ignoran tras una actualización.
+
+| Variable | Efecto |
+| --- | --- |
+| `NONA_CACHE_DIR` | Directorio de caché. Por defecto: `%LOCALAPPDATA%\nona\cache` en Windows, `~/Library/Caches/nona` en macOS y `$XDG_CACHE_HOME/nona` o `~/.cache/nona` en los demás sistemas. |
+| `NONA_CACHE=0` | No leer ni escribir la caché. |
+
 ## Diagnósticos y códigos de salida
 
 El estado de salida es `0` si todo va bien y `1` ante cualquier error. Los errores en el código fuente se muestran así:
