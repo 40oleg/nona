@@ -159,6 +159,28 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.WriteConsoleW.code',40,a=>a.mov('rax',0));
+ // CreateFileW for coverage output: RCX UTF-16 path (NUL-terminated); opened
+ // write-only, created or truncated (CREATE_ALWAYS), mode 0644. The path is
+ // converted to UTF-8 (code points up to U+FFFF) in a 4 KiB stack buffer.
+ b.fn('linux.CreateFileW.code',4168,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+  const loop=a.unique('loop'),one=a.unique('one'),two=a.unique('two'),next=a.unique('next'),end=a.unique('end'),failed=a.unique('failed'),done=a.unique('done');
+  a.lea('r11',slot(64));a.lea('r9',slot(64+4090));
+  a.label(loop);a.load('rax',{base:'rcx'},16);a.add('rcx',2);a.test('rax','rax');a.jcc('e',end);a.cmp('r11','r9');a.jcc('ae',failed);
+  a.cmp('rax',0x80);a.jcc('b',one);a.cmp('rax',0x800);a.jcc('b',two);
+  a.mov('r10','rax');a.shr('r10',12);a.or('r10',0xe0);a.store({base:'r11'},'r10',8);a.add('r11',1);
+  a.mov('r10','rax');a.shr('r10',6);a.and('r10',0x3f);a.or('r10',0x80);a.store({base:'r11'},'r10',8);a.add('r11',1);
+  a.and('rax',0x3f);a.or('rax',0x80);a.jmp(one);
+  a.label(two);a.mov('r10','rax');a.shr('r10',6);a.or('r10',0xc0);a.store({base:'r11'},'r10',8);a.add('r11',1);a.and('rax',0x3f);a.or('rax',0x80);
+  a.label(one);a.store({base:'r11'},'rax',8);a.add('r11',1);a.jmp(loop);
+  a.label(end);a.mov('rax',0);a.store({base:'r11'},'rax',8);
+  a.lea('rdi',slot(64));a.mov('rsi',0x241);a.mov('rdx',0o644);a.mov('rax',2);a.emit([0x0f,0x05]);
+  a.cmp('rax',-4095);a.jcc('b',done);
+  a.label(failed);a.mov('rax',-1);
+  a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
+ b.fn('linux.CloseHandle.code',56,a=>{a.store(slot(40),'rdi');a.mov('rdi','rcx');a.mov('rax',3);a.emit([0x0f,0x05]);a.load('rdi',slot(40));a.mov('rax',1);});
+ b.fn('linux.GetCurrentProcessId.code',40,a=>{a.mov('rax',39);a.emit([0x0f,0x05]);});
  b.fn('linux.WriteFile.code',72,a=>{
   a.store(slot(40),'r9');a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('rax',1);a.emit([0x0f,0x05]);
   const failed=a.unique('failed'),done=a.unique('done');a.cmp('rax',-4095);a.jcc('ae',failed);

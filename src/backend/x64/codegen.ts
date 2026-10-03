@@ -11,6 +11,7 @@ import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
+import { addCoverage, type CoverageOptions } from './coverage.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
 import {fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
@@ -56,8 +57,9 @@ const baseImages=new Map<string,BaseImage>();
  * `callStats` counts every call by target and prints the counts when the
  * program ends (see call-stats.ts); otherwise this is generateImage.
  */
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean}={}):NativeProgram {
-  if(!options.callStats)return generateImage(module,options);
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions}={}):NativeProgram {
+  if(!options.callStats&&!options.coverage)return generateImage(module,options);
+  if(!options.callStats)return addCoverage(module,generateImage(module,options),options.coverage!);
   const counted=new Set<string>();
   setCallCounter(target=>{if(target==='rt.callStatsReport')return undefined;counted.add(target);return 'stats.'+target;});
   let program:NativeProgram;
@@ -74,7 +76,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
   });
   const fragment=program.fragments.find(f=>f.name==='rt.callStatsTable')!;
   fragment.bytes=table;fragment.fixups=fixups;
-  return program;
+  return options.coverage?addCoverage(module,program,options.coverage):program;
 }
 /** The optional preludes `link` selects, with their dependencies, in declaration order. */
 function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
@@ -83,7 +85,7 @@ function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
-function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean}={}):NativeProgram {
+function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
@@ -172,6 +174,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
     if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
     // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
+    // Coverage: one call count per function of the program (not the preludes).
+    if(options.coverage&&fn.source&&!fn.id.startsWith('js.regexpVm.'))a.incrementMemory({rip:'cov.'+fn.id});
     {const fits=a.unique('stackFits');a.lea('r11',{base:'rsp',disp:-allocation});a.load('r10',{rip:'rt.stackLimit'});a.cmp('r11','r10');a.jcc('ae',fits);
      a.sub('rsp',8);a.call('rt.throwStackOverflow');a.label(fits);}
     if(allocation>=4096){
@@ -718,7 +722,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     entry.call('rt.agentAwaitBroadcast');if(hasPrelude)drain();
     entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }else{
-    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
   }
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

@@ -38,6 +38,7 @@ Compiles one source text and returns `CompileResult`. It does not write files.
 | `fullRuntime` | `boolean` | Link the whole runtime instead of only the parts the program can reach (see [Linked runtime parts](/guide/compatibility#linked-runtime-parts)). |
 | `baseCache` | `BaseImageCache` | Keep the compiled runtime and preludes between processes. `fileBaseImageCache(directory?)` from `src/cache.ts` (Node.js only) stores them in a directory; the command line uses it by default (see [Runtime cache](/reference/cli#runtime-cache)). Within one process they are always reused. |
 | `callStats` | `boolean` | Count every call by target and print the counts to stderr when the program ends (see [`--call-stats`](/reference/cli#options)). |
+| `coverage` | `{directory, url}` | Write per-function V8 coverage to `directory` when the program ends; `url` is the program's script URL (`file://…`) in the report (see [`--coverage`](/reference/cli#options)). |
 | `scriptPrelude`, `realms`, `agents` | — | Options used by the Test262 harness. |
 
 ### `CompileResult`

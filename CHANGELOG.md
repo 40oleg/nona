@@ -4,6 +4,7 @@
 
 - The collector marks strings and other reference-free blocks without queueing them for tracing, and in GC stress mode fills freed cells with a poison pattern so a missing root fails at once instead of when the cell is reused ([#67](https://github.com/40oleg/nona/issues/67)).
 - Added call-statistics builds: `--call-stats` (`compile({callStats: true})`) counts every call the program and its runtime make and prints the counts to stderr when the program ends, most frequent first ([#90](https://github.com/40oleg/nona/issues/90)).
+- Added coverage builds: `--coverage <dir>` (`compile({coverage: {directory, url}})`) makes the program write per-function call counts in the `NODE_V8_COVERAGE` format when it ends, for `c8 report` ([#100](https://github.com/40oleg/nona/issues/100)).
 - Added the [roadmap](docs/roadmap.md) from a review of the V8 blog, with the planned target architectures ([#64](https://github.com/40oleg/nona/issues/64)).
 - Native test runs retry removing their temporary directory and no longer fail when Windows keeps a just-exited executable locked ([#78](https://github.com/40oleg/nona/issues/78)).
 - Made spread, array destructuring and array rest step built-in array iterators directly and append elements to the dense element store: `[...a]` and `const [x, ...rest] = a` are 5–8 times faster ([#65](https://github.com/40oleg/nona/issues/65)).

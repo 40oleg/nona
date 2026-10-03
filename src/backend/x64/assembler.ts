@@ -242,10 +242,14 @@ export class Assembler {
   jmp(s: string): void {
     this.rel32(0xe9, s);
   }
+  /** inc qword [m]: counts without touching a register (flags only). */
+  incrementMemory(m: Mem): void {
+    this.instruction([0xff], 0, m);
+  }
   call(s: string): void {
     const counter = callCounter?.(s);
     // inc qword [rip+counter]: no register changes.
-    if (counter !== undefined) this.instruction([0xff], 0, { rip: counter });
+    if (counter !== undefined) this.incrementMemory({ rip: counter });
     this.rel32(0xe8, s);
   }
   jumpRegister(register:Reg):void {this.instruction([0xff],4,register,false);}
