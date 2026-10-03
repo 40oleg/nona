@@ -6,6 +6,7 @@ import {runNative} from './helpers/native.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkHost} from './helpers/program.js';
+import {runOnHost} from './helpers/host.js';
 
 test('JSON Proxy traversal preserves values during GC stress',()=>{
  const source=`var replacer=new Proxy(['b'],{get:function(t,k){for(var i=0;i<12;i++)({i:i});return t[k]}});
@@ -49,3 +50,25 @@ test('JSON.stringify replacer function receives holder and key',()=>expectProgra
 test('JSON.stringify replacer array controls object keys recursively',()=>expectProgram(`let a={a:{b:2,c:3},b:1,c:4};console.log(JSON.stringify(a,['c','b','a','b']));console.log(JSON.stringify({a:1},[]))`,'{"c":4,"b":1,"a":{"c":3,"b":2}}\n{}\n'));
 test('JSON operations recognize array proxies and observe their length',()=>expectProgram(`let r=new Proxy(['b'],{});console.log(JSON.stringify({a:1,b:2},r));let a=new Proxy([], {get(t,k){if(k==='length')return 2;return Number(k)}});console.log(JSON.stringify(a));let seen=0;JSON.parse('[null,null]',function(k,v){if(k==='0')this[1]=new Proxy([],{});if(k==='other')seen++;return v});console.log(seen)`,'{"b":2}\n[0,1]\n0\n'));
 test('JSON.stringify space indents nested arrays and objects',()=>expectProgram(`console.log(JSON.stringify({a:[1,{b:2}]},null,'  '));console.log(JSON.stringify([1,2],null,1))`,'{\n  "a": [\n    1,\n    {\n      "b": 2\n    }\n  ]\n}\n[\n 1,\n 2\n]\n'));
+
+// Fast paths (roadmap item 14): keys shared through a per-parse cache, exact
+// decimals without ToNumber, array elements by Number key, strings quoted and
+// integers written straight into the stringify builder. Under GC stress every
+// member is a collection, which also invalidates the key cache.
+const fastPathSource=String.raw`
+const texts=['{"a":1,"a":2,"b":[1,2,{"a":"x"}]}',
+ '[0.1,0.2,0.3,1.5,-2.5,123.456,0.000001,9007199254740.993,1234567890.12345,99999999999999.9,0.30000000000000004,-0.0,12.5e-3,5e-324,123456789012345.6,0.1234567890123456,1.0000000000000002]',
+ '{"k\\u0041":1,"kA":2,"\\"q":3,"é":4,"":5,"long key with spaces":6}',
+ JSON.stringify(Array.from({length:40},(_, i)=>({["key"+i]:i,["key"+(i%7)]:"v"+i})))];
+for(const t of texts){const v=JSON.parse(t);console.log(JSON.stringify(v),Object.is(JSON.parse("-0.0"),-0),Object.keys(v).length);}
+console.log(JSON.stringify([0,-0,9,-98765,2**31,2**53-1,-(2**53-1),2**53,2**53+2,1e21,4294967295,0.5,-1e-7,NaN,Infinity]));
+console.log(JSON.stringify({a:"x\"y\\z\n\u0001\ud800é😀",b:["","plain","tab\there"],"key\"q":1,"ключ":[true,false,null]}));
+console.log(JSON.stringify([1,[2,{toJSON(k){return "k="+k+typeof k}}]]),JSON.stringify([5,6],(k,v)=>Array.isArray(v)?v:k+typeof k));
+const holes=[1,,3];holes.length=5;console.log(JSON.stringify(holes));
+for(const bad of ['{"a" 1}','{"a\\x":1}','[1,]','{"a":01}','1.','.5','-']){try{JSON.parse(bad);console.log('accepted',bad)}catch(e){console.log(e.name)}}
+`;
+test('JSON fast paths agree with Node.js under GC stress',()=>{
+ const run=runOnHost(fastPathSource);
+ assert.equal(run.status,0,run.stderr);
+ assert.equal(run.stdout,runOracle(fastPathSource).stdout);
+});

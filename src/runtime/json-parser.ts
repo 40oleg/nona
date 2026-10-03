@@ -27,7 +27,7 @@ export function emitJsonParser(b:RuntimeBuilder):void {
  // current composite Value, 96 key Value, 112 element Value, 128 index key
  // Value, 144 scratch, 152 scratch, 160 scratch.
  rootedFn(b,'rt.jsonParseAt',184,[{kind:'output',register:'rcx'},{kind:'locals',offset:80,count:4}],a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(168),'r9');
   a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('rax',{base:'rax'});a.store(slot(64),'rax');
   const invalid=a.unique('invalid'),done=a.unique('done');
   // R11 = code unit at the position (invalid at the end).
@@ -59,9 +59,9 @@ export function emitJsonParser(b:RuntimeBuilder):void {
    a.label(member);skipWhitespace();a.cmp('r11',44);a.jcc('e','rt.jsonParseAt.nextMember');a.cmp('r11',125);a.jcc('ne',invalid);a.jmp(close);
    a.label('rt.jsonParseAt.nextMember');advance();skipWhitespace();
    a.label(first);a.call('rt.safepoint');peek();a.cmp('r11',34);a.jcc('ne',invalid);
-   a.lea('rcx',slot(96));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.jsonParseStringAt');a.store(slot(56),'rax');
+   a.lea('rcx',slot(96));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(168));a.call('rt.jsonParseKeyAt');a.store(slot(56),'rax');
    skipWhitespace();a.cmp('r11',58);a.jcc('ne',invalid);advance();
-   a.lea('rcx',slot(112));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.jsonParseAt');a.store(slot(56),'rax');
+   a.lea('rcx',slot(112));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(168));a.call('rt.jsonParseAt');a.store(slot(56),'rax');
    a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.mov('r9',1);a.call('rt.setProperty');a.jmp(member);
    a.label(close);advance();a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(done);}
 
@@ -72,8 +72,8 @@ export function emitJsonParser(b:RuntimeBuilder):void {
    a.label(element);skipWhitespace();a.cmp('r11',44);a.jcc('e','rt.jsonParseAt.nextElement');a.cmp('r11',93);a.jcc('ne',invalid);a.jmp(close);
    a.label('rt.jsonParseAt.nextElement');advance();
    a.label(first);a.call('rt.safepoint');
-   a.lea('rcx',slot(112));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.jsonParseAt');a.store(slot(56),'rax');
-   a.lea('rcx',slot(128));a.load('rdx',slot(144));a.call('rt.arrayIndexKey');a.load('rax',slot(144));a.add('rax',1);a.store(slot(144),'rax');
+   a.lea('rcx',slot(112));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(168));a.call('rt.jsonParseAt');a.store(slot(56),'rax');
+   a.load('rax',slot(144));a.cvtsi2sd('xmm0','rax');a.storesd(slot(136),'xmm0');a.mov('r10',3);a.store(slot(128),'r10');a.add('rax',1);a.store(slot(144),'rax');
    a.lea('rcx',slot(80));a.lea('rdx',slot(128));a.lea('r8',slot(112));a.mov('r9',1);a.call('rt.setProperty');a.jmp(element);
    a.label(close);advance();a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(done);}
 
@@ -88,7 +88,7 @@ export function emitJsonParser(b:RuntimeBuilder):void {
    a.label(nonzero);a.cmp('r11',49);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);
    a.label(integerLoop);advance();peekOrEnd(numberEnd);a.cmp('r11',48);a.jcc('b',digitsDone);a.cmp('r11',57);a.jcc('be',integerLoop);
    a.label(digitsDone);a.cmp('r11',46);a.jcc('e',fraction);a.cmp('r11',101);a.jcc('e',exponent);a.cmp('r11',69);a.jcc('e',exponent);a.jmp(numberEnd);
-   a.label(fraction);a.mov('rax',0);a.store(slot(152),'rax');advance();peek();a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);
+   a.label(fraction);a.mov('rax',2);a.store(slot(152),'rax');a.load('rax',slot(56));a.store(slot(176),'rax');advance();peek();a.cmp('r11',48);a.jcc('b',invalid);a.cmp('r11',57);a.jcc('a',invalid);
    a.label(fractionLoop);advance();peekOrEnd(numberEnd);a.cmp('r11',48);a.jcc('b','rt.jsonParseAt.afterFraction');a.cmp('r11',57);a.jcc('be',fractionLoop);
    a.label('rt.jsonParseAt.afterFraction');a.cmp('r11',101);a.jcc('e',exponent);a.cmp('r11',69);a.jcc('e',exponent);a.jmp(numberEnd);
    a.label(exponent);a.mov('rax',0);a.store(slot(152),'rax');advance();peek();a.cmp('r11',43);a.jcc('e',exponentSign);a.cmp('r11',45);a.jcc('ne',exponentDigit);
@@ -99,11 +99,19 @@ export function emitJsonParser(b:RuntimeBuilder):void {
   // A plain integer of at most 15 digits is exact as a double and is
   // accumulated directly; everything else is converted from its text.
   {const slow=a.unique('viaText'),loop=a.unique('accumulate'),accumulated=a.unique('accumulated'),positive=a.unique('positive');
+   // A decimal of at most 15 significant digits (no exponent) is the exact
+   // integer of its digits divided by an exact power of ten: one correctly
+   // rounded division, the same double as ToNumber of the text.
+   const scaled=a.unique('scaled'),skipDot=a.unique('skipDot');
    a.load('rax',slot(152));a.test('rax','rax');a.jcc('e',slow);
-   a.load('rcx',slot(144));a.load('rax',slot(160));a.add('rcx','rax');a.load('rdx',slot(56));a.sub('rdx','rcx');a.cmp('rdx',15);a.jcc('a',slow);
+   a.load('rcx',slot(144));a.load('rax',slot(160));a.add('rcx','rax');a.load('rdx',slot(56));a.sub('rdx','rcx');
+   {const limit=a.unique('limit');a.mov('r9',15);a.load('rax',slot(152));a.cmp('rax',2);a.jcc('ne',limit);a.mov('r9',16);a.label(limit);a.cmp('rdx','r9');a.jcc('a',slow);}
    a.mov('rax',0);a.load('r10',slot(72));a.shl('rcx',1);a.add('r10','rcx');a.add('r10',8);
-   a.label(loop);a.test('rdx','rdx');a.jcc('e',accumulated);a.load('r11',{base:'r10'},16);a.sub('r11',48);a.mov('r9','rax');a.shl('rax',3);a.add('rax','r9');a.add('rax','r9');a.add('rax','r11');a.add('r10',2);a.sub('rdx',1);a.jmp(loop);
-   a.label(accumulated);a.cvtsi2sd('xmm0','rax');a.load('rax',slot(160));a.test('rax','rax');a.jcc('e',positive);
+   a.label(loop);a.test('rdx','rdx');a.jcc('e',accumulated);a.load('r11',{base:'r10'},16);a.cmp('r11',46);a.jcc('e',skipDot);a.sub('r11',48);a.mov('r9','rax');a.shl('rax',3);a.add('rax','r9');a.add('rax','r9');a.add('rax','r11');a.label(skipDot);a.add('r10',2);a.sub('rdx',1);a.jmp(loop);
+   a.label(accumulated);a.cvtsi2sd('xmm0','rax');
+   a.load('rax',slot(152));a.cmp('rax',2);a.jcc('ne',scaled);
+   a.load('rax',slot(56));a.load('r10',slot(176));a.sub('rax','r10');a.sub('rax',1);a.shl('rax',3);a.lea('r10',{rip:'rt.json.powersOfTen'});a.add('r10','rax');a.movsd('xmm1',{base:'r10'});a.divsd('xmm0','xmm1');
+   a.label(scaled);a.load('rax',slot(160));a.test('rax','rax');a.jcc('e',positive);
    // -0 for "-0", otherwise the negated value.
    a.mov('rax',0x8000000000000000n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');
    a.label(positive);a.load('rcx',slot(40));a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
@@ -151,4 +159,39 @@ export function emitJsonParser(b:RuntimeBuilder):void {
   a.label(invalid);a.call('rt.throwSyntaxError');
   a.label(done);
  });
+ // 10^0 … 10^22, all exact doubles.
+ {const powers=new Uint8Array(23*8),view=new DataView(powers.buffer);for(let k=0;k<=22;k++)view.setFloat64(k*8,Number('1e'+k),true);b.data('rt.json.powersOfTen',powers,'.rdata');}
+
+ // RCX out Value*, RDX source string Value*, R8 position of a key's opening
+ // quote, R9 key cache -> RAX position after the closing quote. Keys repeat
+ // in most documents, so a key without escapes is looked up in a small
+ // direct-mapped cache of string records first and shares the record on a
+ // hit. The cache lives on JSON.parse's frame: an epoch word (rt.gcCount when
+ // it was filled; a collection may free records it holds) and 64 records.
+ b.fn('rt.jsonParseKeyAt',88,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  const slow=a.unique('slow'),scan=a.unique('scan'),found=a.unique('found'),epochOk=a.unique('epochOk'),clear=a.unique('clear'),miss=a.unique('miss'),compare=a.unique('compare'),hit=a.unique('hit'),done=a.unique('done');
+  const resetIfStale=()=>{const fresh=a.unique('fresh');a.load('r9',slot(64));a.load('r8',{rip:'rt.gcCount'});a.load('r10',{base:'r9'});a.cmp('r10','r8');a.jcc('e',fresh);
+   a.store({base:'r9'},'r8');a.mov('r10',0);a.mov('rcx',64);const zero=a.unique('zero');a.label(zero);a.store({base:'r9',disp:8},'r10');a.add('r9',8);a.sub('rcx',1);a.jcc('ne',zero);a.label(fresh);};
+  a.load('r10',{base:'rdx',disp:8});a.load('r11',{base:'r10'});a.add('r10',8);a.mov('rcx','r8');a.add('rcx',1);a.mov('rax',0);a.mov('r9',31);
+  a.label(scan);a.cmp('rcx','r11');a.jcc('ae',slow);a.mov('r8','rcx');a.shl('r8',1);a.add('r8','r10');a.load('rdx',{base:'r8'},16);
+  a.cmp('rdx',34);a.jcc('e',found);a.cmp('rdx',92);a.jcc('e',slow);a.cmp('rdx',32);a.jcc('b',slow);
+  a.imul('rax','r9');a.add('rax','rdx');a.add('rcx',1);a.jmp(scan);
+  // RCX closing quote, RAX hash; slot 72 = entry address, slot 80 = end.
+  a.label(found);a.store(slot(80),'rcx');a.and('rax',63);a.shl('rax',3);a.store(slot(72),'rax');
+  resetIfStale();
+  a.load('r9',slot(64));a.load('rax',slot(72));a.add('r9','rax');a.add('r9',8);a.store(slot(72),'r9');a.load('r11',{base:'r9'});a.test('r11','r11');a.jcc('e',miss);
+  // R11 cached record: same length and units?
+  a.load('rcx',slot(80));a.load('r8',slot(56));a.sub('rcx','r8');a.sub('rcx',1);a.load('r10',{base:'r11'});a.cmp('r10','rcx');a.jcc('ne',miss);
+  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.add('r10',10);a.load('r8',slot(56));a.shl('r8',1);a.add('r10','r8');a.lea('r8',{base:'r11',disp:8});
+  a.label(compare);a.test('rcx','rcx');a.jcc('e',hit);a.load('rax',{base:'r8'},16);a.load('rdx',{base:'r10'},16);a.cmp('rax','rdx');a.jcc('ne',miss);a.add('r8',2);a.add('r10',2);a.sub('rcx',1);a.jmp(compare);
+  a.label(hit);a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r11');a.load('rax',slot(80));a.add('rax',1);a.jmp(done);
+  // Decode it, then remember the record (after any collection the decode ran).
+  a.label(miss);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.jsonParseStringAt');a.store(slot(80),'rax');
+  {const same=a.unique('sameEpoch');a.load('r9',slot(64));a.load('r8',{rip:'rt.gcCount'});a.load('r10',{base:'r9'});a.cmp('r10','r8');a.jcc('e',same);resetIfStale();a.label(same);}
+  a.load('rcx',slot(40));a.load('r11',{base:'rcx',disp:8});a.load('r9',slot(72));a.store({base:'r9'},'r11');a.load('rax',slot(80));a.jmp(done);
+  a.label(slow);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.jsonParseStringAt');
+  a.label(done);
+ });
+
 }
