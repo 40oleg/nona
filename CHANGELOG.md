@@ -15,6 +15,7 @@
 - Added a playground to the documentation site: the compiler runs in the browser and produces a Windows or Linux executable to download ([#56](https://github.com/40oleg/nona/issues/56)).
 - Added features newer than ES2020: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `.at()` on arrays, strings and typed arrays, `findLast`/`findLastIndex`, `Object.hasOwn` and the `cause` option of error constructors ([#69](https://github.com/40oleg/nona/issues/69)).
 - Translated the documentation site into Chinese, Hindi, Spanish, French, Arabic, Bengali, Portuguese and Russian ([#58](https://github.com/40oleg/nona/issues/58)).
+- Built-in libraries written in JavaScript (`Proxy`, `TextEncoder`/`TextDecoder`, `process`, timers, the ES2021 additions, Annex B `escape`/`substr`/…, the stable `sort`, `Object.freeze`/`seal` and the legacy accessor methods) are linked only when a source names them: a hello world is 2.4 MB instead of 3.2 MB ([#84](https://github.com/40oleg/nona/issues/84)).
 - The RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them: a hello world is 3 MB instead of 7 MB. `--full-runtime` (`compile({fullRuntime: true})`) links everything ([#62](https://github.com/40oleg/nona/issues/62)). See [linked runtime parts](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts).
 
 ## v0.7.0 — 2026-10-01

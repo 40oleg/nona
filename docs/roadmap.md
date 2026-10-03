@@ -44,7 +44,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | 10 | Dense array elements with holes and a dictionary fallback | Fast properties, elements kinds | **done** (#41) |
 | 11 | RegExp: bytecode with an explicit backtrack stack (no native recursion, no step limit), fused class runs | Non-backtracking RegExp, RegExp tier-up | **done** (#14; class runs not fused yet) |
 | 12 | RegExp: linear-time (Pike VM) fallback instead of the backtracking limit for eligible patterns | Non-backtracking RegExp | |
-| 13 | Link only the preludes a program can reach (RegExp, Promise, Proxy, Reflect, timers, fs, process) | Lazy deserialization, V8 Lite | in progress for RegExp (#62) |
+| 13 | Link only the preludes a program can reach (RegExp, Promise, Proxy, Reflect, timers, fs, process) | Lazy deserialization, V8 Lite | **done** (#62, #84; Reflect and Promise stay linked) |
 | 14 | Iterative native `JSON.parse` with exact pre-sized objects; segmented `JSON.stringify` output | JSON.parse (7.6), faster JSON.stringify | partly done (#41) |
 | 15 | Static type inference over the CFG (int32 / double / boolean) to drop tag checks and keep loop counters in registers | Maglev representation selection, Turboshaft typing | |
 | 16 | Direct calls to known functions and an argument-adaptor-free calling convention | Adaptor frame removal (8.9) | |

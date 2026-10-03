@@ -20,6 +20,11 @@ export const proxyPreludeSource=String.raw`(function(){
   Object.defineProperty(globalThis,'Proxy',{value:Proxy,writable:true,configurable:true});
   markNative(Proxy);
   markNative(revocable);
+})()`;
+
+// Runs last, after every optional prelude: removes the internal hooks the
+// preludes captured from Function.prototype.
+export const preludeCleanupSource=String.raw`;(function(){
   delete Function.prototype.__nonaProxyCreateInternal;
   delete Function.prototype.__nonaProxyRevokeInternal;
   delete Function.prototype.__nonaProxyPreventInternal;
@@ -31,4 +36,5 @@ export const proxyPreludeSource=String.raw`(function(){
   delete Function.prototype.__nonaMarkNativeInternal;
   delete Function.prototype.__nonaMarkPromiseInternal;
   delete Function.prototype.__nonaSharedQueueInternal;
+  delete Function.prototype.__nonaRegExpCopyInternal;
 })()`;

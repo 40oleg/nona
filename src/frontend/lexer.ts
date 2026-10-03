@@ -1,7 +1,7 @@
 import { CompileError } from '../diagnostics.js';
 import {runInNewContext} from 'node:vm';
 import {regexpVmSource} from '../runtime/regexp-vm-source.js';
-import type {RuntimeLink} from '../runtime/link.js';
+import {type RuntimeLink,type OptionalPrelude,optionalPreludes,preludeSet,preludeTriggers,reflectiveNames} from '../runtime/link.js';
 import type { Token,TokenStream } from './token.js';
 
 let compileRegExpPattern:((pattern:string,flags:string)=>unknown)|undefined;
@@ -27,10 +27,33 @@ const unicodeGroupName=/(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage:SourceUsage|undefined;
 /** Runs `run` and reports what every source lexed during it can use. */
 export function collectSourceUsage<T>(run:()=>T):{result:T;usage:SourceUsage} {
-  const outer=usage,current:SourceUsage={regexp:false,unicodeProperties:false,unicodeNormalization:false};
+  const outer=usage,current:SourceUsage={regexp:false,unicodeProperties:false,unicodeNormalization:false,preludes:preludeSet(false)};
   usage=current;
   try{return {result:run(),usage:current};}
-  finally{usage=outer;if(outer){outer.regexp||=current.regexp;outer.unicodeProperties||=current.unicodeProperties;outer.unicodeNormalization||=current.unicodeNormalization;}}
+  finally{
+    usage=outer;
+    if(outer){
+      outer.regexp||=current.regexp;outer.unicodeProperties||=current.unicodeProperties;outer.unicodeNormalization||=current.unicodeNormalization;
+      for(const name of optionalPreludes)outer.preludes[name]||=current.preludes[name];
+    }
+  }
+}
+/** Trigger name → the preludes it links (see preludeTriggers). */
+const preludeByName=new Map<string,OptionalPrelude[]>();
+for(const name of optionalPreludes)for(const trigger of preludeTriggers[name]){
+  const list=preludeByName.get(trigger)??[];list.push(name);preludeByName.set(trigger,list);
+}
+// Long trigger names are also found inside strings (template code, messages
+// naming the API); short ones such as 'at' only as a whole string.
+const longTriggers=[...preludeByName.keys()].filter(name=>name.length>=6);
+function recordPreludeName(name:string,inString:boolean):void {
+  if(!usage)return;
+  if(reflectiveNames.includes(name)||inString&&reflectiveNames.some(reflective=>name.includes(reflective))){
+    for(const prelude of optionalPreludes)usage.preludes[prelude]=true;
+    return;
+  }
+  for(const prelude of preludeByName.get(name)??[])usage.preludes[prelude]=true;
+  if(inString)for(const trigger of longTriggers)if(name.includes(trigger))for(const prelude of preludeByName.get(trigger)!)usage.preludes[prelude]=true;
 }
 function recordUsage(tokens:TokenStream):void {
   if(!usage)return;
@@ -42,11 +65,13 @@ function recordUsage(tokens:TokenStream):void {
       // A pattern built at run time may use any Unicode property.
       if(regexpNames.includes(String(token.value)))usage.regexp=usage.unicodeProperties=true;
       if(normalizationNames.includes(String(token.value)))usage.unicodeNormalization=true;
+      recordPreludeName(String(token.value),false);
     }else if(token.kind==='string'||token.kind.startsWith('template')){
       const text=typeof token.value==='string'?token.value:token.text;
       // Names in strings cover computed access (globalThis['RegExp'], s['match']).
       if(regexpNames.some(name=>text.includes(name))||unicodePropertyEscape.test(text))usage.regexp=usage.unicodeProperties=true;
       if(normalizationNames.some(name=>text.includes(name)))usage.unicodeNormalization=true;
+      recordPreludeName(text,true);
     }
   }
 }
