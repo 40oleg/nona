@@ -36,7 +36,7 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 ## Performances
 
 - Les tableaux et `Map`/`Set` stockent leurs éléments dans des structures chaînées ; les très grandes collections sont plus lentes qu’avec V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
-- Le moteur RegExp est une VM à retour arrière écrite en JavaScript.
+- Le moteur RegExp est une VM à retour arrière écrite en JavaScript. Un motif sans références arrière ni assertions avant/arrière qui revient trop souvent en arrière (sans le drapeau `u`) est terminé par un moteur en temps linéaire.
 - Sous Windows, les minuteurs se réveillent au rythme du tick système (en général 15,6 ms).
 - Il n’y a pas de JIT : le code est compilé une seule fois, à l’avance, sans optimisation guidée par profil.
 

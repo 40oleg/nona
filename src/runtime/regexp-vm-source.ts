@@ -802,6 +802,7 @@ const regexpVmTemplate=String.raw`(function(){
       // Failure: resume at the newest choice point of this run.
       for(;;){
         if(frameTop===base){unwind(entryUndo);return -1}
+        if(++backtracks>backtrackBudget&&switchToPike()){frameTop=base;unwind(entryUndo);return -2}
         frameTop-=6;
         var frameKind=frames[frameTop];
         unwind(frames[frameTop+3]);
@@ -823,7 +824,162 @@ const regexpVmTemplate=String.raw`(function(){
       }
     }
   }
+  // Linear-time fallback (Pike VM). The backtracker above is exact but can
+  // take exponential time ((a+)+b on a run of a's). After a budget of
+  // backtracking steps, a pattern without backreferences or lookarounds,
+  // whose optional iterations cannot match the empty string, and outside
+  // unicode mode (where every atom consumes one code unit) is
+  // matched again by simulating all its paths in parallel: one list of
+  // threads per input position, kept in priority order so the leftmost,
+  // highest-priority match is the one backtracking would find, and each
+  // instruction visited at most once per position, so the time is linear in
+  // the input. Captures are per-thread registers.
+  //
+  // Instructions: 0 MATCH; 1-7 atom kind, datum; 8 SPLIT first, second;
+  // 9 JMP target; 10 SAVE register; 11 GROUP_END group, register;
+  // 12-15 assertions (as above); 23 CLEAR from, to (captures of an
+  // iteration); 24 MARK register (iteration start); 25 PROGRESS register
+  // (an iteration past the minimum that matched nothing fails).
+  var backtrackBudget=1000000,backtracks=0;
+  function pikeCompile(compiled){
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0;
+    if(indexOf(flags,'u')>=0)return null;
+    var code=[],pdata=[],registers=compiled.groups*2+2,limit=20000,ineligible=false;
+    function emit(value){append(code,value)}
+    function datum(value){append(pdata,value);return pdata.length-1}
+    function range(node,out){
+      var k=node.kind;
+      if(k==='group'){if(node.capture!==0){if(node.capture<out[0])out[0]=node.capture;if(node.capture>out[1])out[1]=node.capture}range(node.value,out)}
+      else if(k==='sequence'||k==='alternative'){for(var i=0;i<node.value.length;i++)range(node.value[i],out)}
+      else if(k==='repeat'||k==='look')range(node.value,out)
+    }
+    // Whether a node can match the empty string. Threads are merged per
+    // instruction and position, which is exact only when an iteration past
+    // the minimum always consumes input: then its progress check never
+    // decides, and two threads at the same place have the same future.
+    function nullable(node){
+      var k=node.kind,i;
+      if(k==='char'||k==='dot'||k==='class'||k==='classEscape'||k==='property')return false;
+      if(k==='sequence'){for(i=0;i<node.value.length;i++)if(!nullable(node.value[i]))return false;return true}
+      if(k==='alternative'){for(i=0;i<node.value.length;i++)if(nullable(node.value[i]))return true;return false}
+      if(k==='group')return nullable(node.value);
+      if(k==='repeat')return node.min===0||nullable(node.value);
+      return true
+    }
+    function gen(node){
+      if(ineligible||code.length>limit){ineligible=true;return}
+      var k=node.kind,i;
+      if(k==='repeat'&&node.max>node.min&&nullable(node.value)){ineligible=true;return}
+      if(k==='sequence'){for(i=0;i<node.value.length;i++)gen(node.value[i]);return}
+      if(k==='alternative'){
+        var jumps=[];
+        for(i=0;i<node.value.length;i++){
+          if(i===node.value.length-1){gen(node.value[i]);break}
+          var split=code.length;emit(8);emit(split+3);emit(0);
+          gen(node.value[i]);append(jumps,code.length);emit(9);emit(0);code[split+2]=code.length
+        }
+        for(i=0;i<jumps.length;i++)code[jumps[i]+1]=code.length;
+        return
+      }
+      if(k==='group'){
+        if(node.capture===0){gen(node.value);return}
+        var register=registers++;emit(10);emit(register);gen(node.value);emit(11);emit(node.capture);emit(register);return
+      }
+      if(k==='anchor'){emit(node.value==='^'?12:13);return}
+      if(k==='boundary'){emit(node.value==='b'?14:15);return}
+      if(k==='look'||k==='backref'||k==='namedBackref'){ineligible=true;return}
+      if(k==='repeat'){
+        var min=node.min,max=node.max,lazy=node.lazy,captures=[NONE,0];range(node.value,captures);
+        var clear=function(){if(captures[0]<=captures[1]){emit(23);emit(captures[0]);emit(captures[1])}};
+        for(i=0;i<min;i++){clear();gen(node.value);if(ineligible)return}
+        var mark=registers++;
+        if(max===Infinity){
+          var head=code.length;emit(8);emit(0);emit(0);
+          var body=code.length;emit(24);emit(mark);clear();gen(node.value);emit(25);emit(mark);emit(9);emit(head);
+          var exit=code.length;
+          if(lazy){code[head+1]=exit;code[head+2]=body}else{code[head+1]=body;code[head+2]=exit}
+          return
+        }
+        var exits=[];
+        for(i=min;i<max;i++){
+          var choice=code.length;emit(8);emit(0);emit(0);append(exits,choice);
+          var start=code.length;emit(24);emit(mark);clear();gen(node.value);emit(25);emit(mark);if(ineligible)return;
+          code[choice+(lazy?2:1)]=start
+        }
+        for(i=0;i<exits.length;i++)code[exits[i]+(lazy?1:2)]=code.length;
+        return
+      }
+      // A single atom: the same kinds as the backtracker (char text is one unit here).
+      if(k==='char'){if(!ignore&&node.value.length===1){emit(6);emit(charCodeAt(node.value,0))}else{emit(1);emit(datum(node.value))}return}
+      if(k==='dot'){emit(2);emit(0);return}
+      if(k==='class'){emit(3);emit(datum(node.value));return}
+      if(k==='classEscape'){emit(4);emit(datum(node.value));return}
+      if(k==='property'){emit(5);emit(datum({ranges:node.value,negated:node.negated}));return}
+      ineligible=true
+    }
+    gen(compiled.tree);emit(0);
+    if(ineligible)return null;
+    return {code:code,data:pdata,registers:registers}
+  }
+  // Runs the Pike program from start; returns the backtracker's result shape.
+  function pikeSearch(compiled,pike,start,sticky){
+    var pcode=pike.code,count=pike.registers,size=pcode.length;
+    var savedData=data;data=pike.data;
+    // Thread lists: program counters and register arrays, in priority order.
+    var cpc=[],cregs=[],npc=[],nregs=[],seen=new PositionArray(size),generation=0;
+    var matched=null,matchEnd=-1;
+    function assertion(op,pos){
+      if(op===12)return pos===0||multiline&&terminator(input[pos-1]);
+      if(op===13)return pos===length||multiline&&terminator(input[pos]);
+      return (word(input[pos-1])!==word(input[pos]))===(op===14)
+    }
+    // Follows the instructions that consume nothing, depth first in
+    // priority order, and lists the threads that wait on an atom or match.
+    function add(pcs,regsList,pc,regs,pos){
+      if(seen[pc]===generation)return;
+      seen[pc]=generation;
+      var op=pcode[pc];
+      if(op===9){add(pcs,regsList,pcode[pc+1],regs,pos);return}
+      if(op===8){add(pcs,regsList,pcode[pc+1],regs,pos);add(pcs,regsList,pcode[pc+2],regs,pos);return}
+      if(op===10||op===24){var saved=arraySlice.call(regs);saved[pcode[pc+1]]=pos;add(pcs,regsList,pc+2,saved,pos);return}
+      if(op===11){var ended=arraySlice.call(regs),group=pcode[pc+1];ended[group*2]=regs[pcode[pc+2]];ended[group*2+1]=pos;add(pcs,regsList,pc+3,ended,pos);return}
+      if(op===23){var cleared=arraySlice.call(regs);for(var g=pcode[pc+1];g<=pcode[pc+2];g++){cleared[g*2]=NONE;cleared[g*2+1]=NONE}add(pcs,regsList,pc+3,cleared,pos);return}
+      if(op===25){if(regs[pcode[pc+1]]!==pos)add(pcs,regsList,pc+2,regs,pos);return}
+      if(op>=12&&op<=15){if(assertion(op,pos))add(pcs,regsList,pc+1,regs,pos);return}
+      append(pcs,pc);append(regsList,regs)
+    }
+    // Register 0 (unused by captures) holds where the thread's match began.
+    function initial(at){var regs=[];for(var r=0;r<count;r++)append(regs,NONE);regs[0]=at;return regs}
+    generation++;add(cpc,cregs,0,initial(start),start);
+    for(var pos=start;;pos++){
+      generation++;
+      for(var t=0;t<cpc.length;t++){
+        var pc=cpc[t],op=pcode[pc];
+        if(op===0){matched=cregs[t];matchEnd=pos;break}
+        if(pos<length&&atom(op,pcode[pc+1],pos,1)===pos+1)add(npc,nregs,pc+2,cregs[t],pos+1)
+      }
+      if(pos>=length)break;
+      if(matched===null&&!sticky)add(npc,nregs,0,initial(pos+1),pos+1);
+      // No thread left: done once a match exists (or the search is anchored);
+      // otherwise the next position is still tried.
+      if(npc.length===0&&(matched!==null||sticky))break;
+      cpc=npc;cregs=nregs;npc=[];nregs=[]
+    }
+    data=savedData;
+    if(matched===null)return null;
+    var captures=new PositionArray(compiled.groups*2+2);
+    for(var c=2;c<captures.length;c++)captures[c]=matched[c];
+    return {end:matchEnd,captures:captures,start:matched[0]}
+  }
+  // Past the budget: use the Pike VM if the pattern allows it (compiled once).
+  function switchToPike(){
+    var program=current.program;
+    if(program.pike===undefined)program.pike=pikeCompile(current);
+    if(program.pike===null){backtracks=-Infinity;return false}
+    return true
+  }
   function execute(compiled,subject,start,sticky){
+    backtracks=0;
     var program=compiled.program;
     if(program===undefined){program=assemble(compiled);compiled.program=program}
     ignore=program.ignore;unicode=program.unicode;dotAll=program.dotAll;multiline=program.multiline;
@@ -850,6 +1006,7 @@ const regexpVmTemplate=String.raw`(function(){
       for(var s=0;s<stateSize;s++)state[s]=NONE;
       undoTop=0;frameTop=0;
       var end=run(0,candidate);
+      if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky);
       if(end>=0){
         // Capture bounds as registers: 4294967295 marks a group that did not
         // participate (slots 0 and 1 are unused).
@@ -865,7 +1022,8 @@ const regexpVmTemplate=String.raw`(function(){
     }
     return null
   }
-  return {compile:compile,execute:execute}
+  // setBacktrackBudget is for tests: 0 switches to the Pike VM at the first backtrack.
+  return {compile:compile,execute:execute,setBacktrackBudget:function(steps){backtrackBudget=steps}}
 })()`;
 
 /** Which optional parts of the RegExp engine an executable contains (see RuntimeLink). */

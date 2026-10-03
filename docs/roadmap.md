@@ -43,7 +43,7 @@ The enabling step for every new instruction set is to stop writing the runtime d
 | 9 | Map/Set ordered hash tables | Hash codes, release 6.x | **done** (#41, hash index over the entry list) |
 | 10 | Dense array elements with holes and a dictionary fallback | Fast properties, elements kinds | **done** (#41) |
 | 11 | RegExp: bytecode with an explicit backtrack stack (no native recursion, no step limit), fused class runs | Non-backtracking RegExp, RegExp tier-up | **done** (#14; class runs not fused yet) |
-| 12 | RegExp: linear-time (Pike VM) fallback instead of the backtracking limit for eligible patterns | Non-backtracking RegExp | |
+| 12 | RegExp: linear-time (Pike VM) fallback instead of the backtracking limit for eligible patterns | Non-backtracking RegExp | **done** (#98; not for the `u` flag or nullable optional loops) |
 | 13 | Link only the preludes a program can reach (RegExp, Promise, Proxy, Reflect, timers, fs, process) | Lazy deserialization, V8 Lite | **done** (#62, #84; Reflect and Promise stay linked) |
 | 14 | Iterative native `JSON.parse` with exact pre-sized objects; segmented `JSON.stringify` output | JSON.parse (7.6), faster JSON.stringify | **done** (#41, #88; the object model limits the rest) |
 | 15 | Static type inference over the CFG (int32 / double / boolean) to drop tag checks and keep loop counters in registers | Maglev representation selection, Turboshaft typing | first step **done** (#94: Number inference, inline arithmetic, copy forwarding); registers and int32 open |

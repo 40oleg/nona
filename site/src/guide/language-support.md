@@ -32,7 +32,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 | Object, Function, Boolean, Symbol, Error | Supported | Including property descriptors, integrity operations and the global and well-known symbols. |
 | Number, Math, URI functions | Supported | Shortest round-trip number formatting, `toFixed`/`toExponential`/`toPrecision`, all ES2020 `Math` functions. |
 | String | Supported | ES2020 methods, Unicode normalization, `localeCompare` without ECMA-402 locale data. |
-| RegExp | Supported | Named groups, lookbehind, `s`, `u`, `y` and `g` flags, Unicode property escapes, `matchAll`. The engine is a backtracking VM written as a prelude; it is slower than V8. |
+| RegExp | Supported | Named groups, lookbehind, `s`, `u`, `y` and `g` flags, Unicode property escapes, `matchAll`. The engine is a backtracking VM written as a prelude, with a linear-time fallback for patterns that backtrack excessively; it is slower than V8. |
 | Array | Supported | All ES2020 methods, species, holes and very large lengths. |
 | Date, JSON | Supported | Date parsing and formatting in UTC and local time, `JSON.parse` with revivers, `JSON.stringify` with replacers and indentation. |
 | Map, Set, WeakMap, WeakSet | Supported | Ephemeron semantics for weak collections. |

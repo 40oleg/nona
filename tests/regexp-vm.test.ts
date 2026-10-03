@@ -109,3 +109,24 @@ test('RegExp VM backtracks on explicit stacks without a step limit',()=>expectPr
   'true ["ab",null]\n'+
   '["","1","053"] ["abc\\""]\n'+
   '["😀😀"] ["x"]\n'));
+
+// Linear-time fallback (roadmap item 12): past the backtracking budget an
+// eligible pattern is matched by the Pike VM, with the same result.
+test('catastrophic patterns finish through the linear-time fallback',()=>expectProgram(String.raw`
+  const a='a'.repeat(28);
+  console.log(/(a+)+b/.test(a),/(?:a|aa)*c/.exec(a+'b'),/^(\w+\s?)*$/.test('word '.repeat(6)+'!'));
+  const m=/(a+)+(b)?/.exec(a+'x');console.log(m[0].length,m[1].length,m[2]);
+`,'false null false\n28 28 undefined\n'));
+
+test('the Pike VM finds the match the backtracker finds',()=>{
+  const cases:[string,string,string][]=[['(a|ab)(c|bcd)(d*)','','abcd'],['(z)((a+)?(b+)?(c))*','','zaacbbbcac'],['(a+)+b','','aaab'],['(?:a|b)*?c','','ababc'],
+    ['\\b\\w+\\b','','  hello world'],['x{2,3}?','','xxxx'],['(\\d+)-(\\d+)?','','12-'],['^(?:(a)|b)+$','m','ab\nba'],['[^"]*"','i','abc"d'],
+    ['(.)*?x','','abcx'],['(a{2})+','','aaaaa'],['(?:(a)|(b))+','','ab'],['a$|b','m','a\nb'],['(a?b){2,3}','','ababab']];
+  const native=`let vm=${regexpVmSource};vm.setBacktrackBudget(0);
+  for(const [p,f,s] of ${JSON.stringify(cases)}){const c=vm.compile(p,f),r=vm.execute(c,s,0,false);
+   if(r===null){console.log('null');continue}
+   const parts=[s.slice(r.start,r.end)];for(let g=1;g<=c.groups;g++){const b=r.captures[g*2];parts.push(b===4294967295?'-':s.slice(b,r.captures[g*2+1]))}
+   console.log(r.start+':'+parts.join('|'))}`;
+  const expected=cases.map(([p,f,s])=>{const m=new RegExp(p,f).exec(s);return m?m.index+':'+[...m].map(x=>x===undefined?'-':x).join('|'):'null'}).join('\n')+'\n';
+  expectProgram(native,expected);
+});
