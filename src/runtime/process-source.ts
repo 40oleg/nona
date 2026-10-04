@@ -182,6 +182,7 @@ export function processHostDeclarations(target:'win32-x64'|'linux-x64'|'linux-ar
 
 /** Target-specific host boundary without introducing prelude global bindings. */
 export function processPreludeForTarget(target:string|undefined):string {
+ if(target==='win32-arm64')return processPreludeSource.replace("value('arch','x64')","value('arch','arm64')");
  if(target!=='linux-arm64')return processPreludeSource;
  return processPreludeSource.replace("value('arch','x64')","value('arch','arm64')").replace('var windows=host.GetCommandLineW()!==0;',
   'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};');

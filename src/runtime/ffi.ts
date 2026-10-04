@@ -1,3 +1,4 @@
+import {currentNativeTarget} from '../backend/machine/context.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -44,7 +45,7 @@ export function emitFfi(declarations:FfiDeclaration[],options:{prefix?:string;su
       imported.add(symbol);b.bundle.imports.push({dll:declaration.dll,name:declaration.name,symbol});
       if(declaration.dll==='syscall'){
         if(signature.parameters.length>6)throw new Error('System calls take at most six arguments');
-        syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
+        if(currentNativeTarget()==='win32-arm64')b.fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));else syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
       }else if(prefix!=='ffi')b.fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));
     }
     const base=prefix+'.'+index;
@@ -144,7 +145,7 @@ function thunk(b:RuntimeBuilder,name:string,symbol:string,parameters:FfiType[],r
       const type=parameters[i]!;
       if(type==='f32'||type==='f64')a.movsd(xmm[i]!,slot(ARGS+8*i));else a.load(gp[i]!,slot(ARGS+8*i));
     }
-    a.callImport(symbol);
+    a.callImport(symbol,parameters.map(type=>type==='f32'||type==='f64'?type:'gp'));
     a.store(slot(RESULT),'rax');a.storesd(slot(RESULT_XMM),'xmm0');
     a.callImport('GetLastError');a.store({rip:'rt.ffiLastError'},'rax',32);
     parameters.forEach((type,i)=>{

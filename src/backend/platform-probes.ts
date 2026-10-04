@@ -1,3 +1,5 @@
+import {Arm64Assembler} from './arm64/assembler.js';
+import {linkWindowsArm64} from './arm64/windows.js';
 import {Assembler} from './x64/assembler.js';
 import {linkElf} from './elf/writer.js';
 import {linkMachO} from './macho/writer.js';
@@ -30,11 +32,11 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
-  if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||target==='darwin-x64'){
+  if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||target==='darwin-x64'||target==='win32-arm64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));
     const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
-    probes.push({name:'gc-stress',image:target==='darwin-x64'?linkDarwin(program):target==='linux-arm64'?linkLinux(program,'arm64'):linkBsd(program,target==='freebsd-x64'?'freebsd':'openbsd'),expected:'200 19900 x199\n'});
+    probes.push({name:'gc-stress',image:target==='win32-arm64'?linkWindowsArm64(program):target==='darwin-x64'?linkDarwin(program):target==='linux-arm64'?linkLinux(program,'arm64'):linkBsd(program,target==='freebsd-x64'?'freebsd':'openbsd'),expected:'200 19900 x199\n'});
     const agent='$262.agent.receiveBroadcast(function(sab){let a=new Int32Array(sab);$262.agent.sleep(10);Atomics.store(a,0,42);Atomics.notify(a,0,1);$262.agent.report("done")})';
     const main='__nonaAgentStart(0);let b=new SharedArrayBuffer(4),a=new Int32Array(b);__nonaAgentBroadcast(b,0);let status=Atomics.wait(a,0,0,1000),report=null;for(let i=0;i<400&&report===null;i++){report=__nonaAgentGetReport();if(report===null)__nonaAgentSleep(5)}console.log(status==="ok"||status==="not-equal",Atomics.load(a,0),report)';
     const result=compile(main,{fileName:'agents.js',target,agents:[agent]});
@@ -59,7 +61,11 @@ export function assertNativeHost(target:string,platform:string=process.platform,
 
 /** This is a loader/ABI probe, not a claim that the JavaScript backend works. */
 export function loaderProbe(target:Target):Uint8Array {
-  const descriptor=getTarget(target);if(!descriptor||descriptor.os==='win32')throw new Error(`Loader probe is not implemented for ${target}`);
+  const descriptor=getTarget(target);if(!descriptor)throw new Error(`Loader probe is not implemented for ${target}`);
+  if(target==='win32-arm64'){
+    const result=compile('console.log("hello")',{fileName:'loader.js',target});if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));return result.image;
+  }
+  if(descriptor.os==='win32')throw new Error('Unsupported Windows loader probe');
   let code:CodeFragment;
   if(descriptor.arch==='x64'){
     const a=new Assembler('probe.start');

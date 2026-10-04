@@ -8,6 +8,7 @@ import {
   type Condition,
 } from "./encoder.js";
 import type { CodeFragment, Fixup } from "../pe/model.js";
+export type NativeArgumentKind='gp'|'f32'|'f64';
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
 export type { CodeFragment, Fixup } from "../pe/model.js";
 let serial = 0;
@@ -276,7 +277,7 @@ export class Assembler {
   callRegister(register:Reg):void {
     this.instruction([0xff],2,register,false);
   }
-  callImport(s: string): void {
+  callImport(s: string, _parameters?:readonly NativeArgumentKind[]): void {
     this.rel32([0xff, 0x15], s);
   }
   jcc(c: Condition, s: string): void {

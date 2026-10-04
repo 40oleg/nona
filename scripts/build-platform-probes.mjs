@@ -6,7 +6,7 @@ import {arm64MathProbe,arm64MathCases} from '../dist/src/backend/arm64/math.js';
 
 const directory=resolve(process.argv[2]??'work/platform-probes');
 mkdirSync(directory,{recursive:true});
-const targets=['linux-x64','linux-arm64','freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64'];
+const targets=['linux-x64','linux-arm64','freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64','win32-arm64'];
 for(const target of targets){
   writeFileSync(join(directory,target),loaderProbe(target),{mode:0o755});
 }
@@ -16,7 +16,7 @@ writeFileSync(join(directory,'linux-arm64-cpu'),arm64CpuProbe(),{mode:0o755});
 writeFileSync(join(directory,'linux-arm64-math-kernels'),arm64MathProbe(),{mode:0o755});
 writeFileSync(join(directory,'arm64-math-cases.json'),JSON.stringify(arm64MathCases,(_,v)=>typeof v==='number'&&!Number.isFinite(v)?String(v):Object.is(v,-0)?'-0':v,null,2)+'\n');
 runtime['linux-arm64']=[{file:'linux-arm64-cpu',expected:loaderProbeOutput},{file:'linux-arm64-math-kernels',expected:loaderProbeOutput}];
-for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64']){
+for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','win32-arm64']){
   runtime[target]=[...(runtime[target]??[]),...runtimeProbes(target).map(probe=>{
     const file=`${target}-${probe.name}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);

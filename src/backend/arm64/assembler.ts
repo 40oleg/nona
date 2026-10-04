@@ -1,4 +1,4 @@
-import {Assembler,type Reg,type Mem,type Xmm,type Condition,type CodeFragment,type Fixup} from '../x64/assembler.js';
+import {Assembler,type Reg,type Mem,type Xmm,type Condition,type NativeArgumentKind,type CodeFragment,type Fixup} from '../x64/assembler.js';
 
 // Preserve the existing runtime's logical calling convention while lowering
 // each operation to A64. x18 stays available to the operating system.
@@ -226,9 +226,43 @@ export class Arm64Assembler extends Assembler {
   override call(target:string):void {
     this.countCall(target);const after=this.returnSlot();this.jmp(target);this.label(after);
   }
-  override callImport(target:string):void {
-    if(this.os==='win32')throw new Error('Windows ARM64 import bridge is not implemented yet');
+  override callImport(target:string,parameters?:readonly NativeArgumentKind[]):void {
+    if(this.os==='win32'&&target!=='CreateThread'){this.nativeImport(target,parameters);return;}
     this.load('r11',{rip:target});this.callRegister('r11');
+  }
+  private nativeImport(target:string,parameters?:readonly NativeArgumentKind[]):void {
+    // The logical ABI has four positional registers and 8-byte stack slots.
+    // Windows A64 uses separate compact GP/FP banks and no shadow space.
+    const counts:Record<string,number>={WideCharToMultiByte:8,CreateFileW:7,WriteFile:5,ReadFile:5,'CreateThread.native':6};
+    const kinds=parameters??Array<NativeArgumentKind>(counts[target]??4).fill('gp');
+    if(kinds.length>32||kinds.some(k=>!['gp','f32','f64'].includes(k)))throw new Error('Invalid ARM64 import arguments');
+    const outgoing=Math.ceil(kinds.length*8/16)*16,saves=outgoing,staging=saves+208;
+    const frame=Math.ceil((staging+kinds.length*8)/16)*16;
+    this.nativeImmediate(17,frame);this.nativeWord(0xcb11038b); // sub x11,x28,x17
+    this.nativeImmediate(17,-16);this.nativeWord(0x8a11016b); // align the physical SP
+    const mem=(load:boolean,reg:number,offset:number)=>this.nativeWord(((load?0xf9400000:0xf9000000)|((offset/8)<<10)|(11<<5)|reg)>>>0);
+    this.nativeWord(0x910003f1);mem(false,17,saves); // save original physical SP
+    for(let i=0;i<4;i++)mem(false,3+i,saves+8+8*i);
+    for(let i=6;i<16;i++)this.nativeWord((0x3d800000|(((saves+48+16*(i-6))/16)<<10)|(11<<5)|i)>>>0);
+    const logical=[1,2,7,8];
+    for(let i=0;i<kinds.length;i++){
+      if(i<4){
+        if(kinds[i]==='gp')mem(false,logical[i]!,staging+i*8);
+        else this.nativeWord((0xfd000000|(((staging+i*8)/8)<<10)|(11<<5)|i)>>>0);
+      }else {this.nativeMemory(true,17,{base:'rsp',disp:32+(i-4)*8},64);mem(false,17,staging+i*8);}
+    }
+    let gp=0,fp=0,stack=0;
+    for(let i=0;i<kinds.length;i++){
+      if(kinds[i]==='gp'&&gp<8)mem(true,gp++,staging+i*8);
+      else if(kinds[i]!=='gp'&&fp<8)this.nativeWord((0xfd400000|(((staging+i*8)/8)<<10)|(11<<5)|fp++)>>>0);
+      else {mem(true,17,staging+i*8);mem(false,17,stack);stack+=8;}
+    }
+    this.nativeWord(0x9100017f); // mov sp,x11
+    this.nativeAddress(16,{rip:target});this.nativeWord(0xf9400210);this.nativeWord(0xd63f0200); // ldr/blr x16
+    this.nativeWord(0x910003eb); // mov x11,sp (native volatile registers changed)
+    for(let i=6;i<16;i++)this.nativeWord((0x3dc00000|(((saves+48+16*(i-6))/16)<<10)|(11<<5)|i)>>>0);
+    for(let i=0;i<4;i++)mem(true,3+i,saves+8+8*i);
+    mem(true,17,saves);this.nativeWord(0x9100023f); // restore physical SP
   }
   override incrementMemory(mem:Mem):void {
     this.nativeAddress(11,mem);this.nativeWord(0xf940016c);this.nativeMove(16,23);

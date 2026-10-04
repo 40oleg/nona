@@ -1,4 +1,5 @@
 import type { NativeProgram, NamedFragment } from "./model.js";
+import {isArm64Relocation,relocateArm64} from '../arm64/relocations.js';
 import { checkedRel32 } from "../x64/encoder.js";
 import { buildImports } from "./imports.js";
 import { buildRelocations } from "./relocations.js";
@@ -22,12 +23,14 @@ interface Section {
   flags: number;
 }
 export interface PeOptions {
+  arch?:'x64'|'arm64';
   /** Optional-header subsystem: console (3, default) or windows GUI (2, no console window). */
   subsystem?: "console" | "windows";
   /** Win32 resources (icons, manifest, version information) for the .rsrc section. */
   resources?: PeResource[];
 }
 export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Array {
+  const arch=options.arch??'x64';if(arch!=='x64'&&arch!=='arm64')throw new Error('Unsupported PE architecture');
   // System call declarations only exist in ELF images; in a PE image their
   // import cells point to the declaring prefix's "unavailable" stub instead.
   const syscalls = program.imports.filter((i) => i.dll === "syscall");
@@ -134,7 +137,10 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
       const target = u32(resolve(fix.target) + fix.addend),
         place = s.rva + offset + fix.offset,
         o = offset + fix.offset;
-      if (fix.kind === "rel32")
+      if(isArm64Relocation(fix.kind)){
+        if(arch!=='arm64')throw new Error('ARM64 relocation in x64 PE');
+        view.setUint32(o,relocateArm64(fix.kind,view.getUint32(o,true),Number(imageBase)+place,Number(imageBase)+target),true);
+      }else if (fix.kind === "rel32")
         view.setInt32(o, checkedRel32(target - place - 4), true);
       else if (fix.kind === "rva32") view.setUint32(o, u32(target), true);
       else if (fix.kind === "va64") {
@@ -144,7 +150,9 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
     }
   }
   let pdata: Section | undefined;
-  if (program.functions.length) {
+  // Logical ARM64 frames use the runtime's separate stack; x64 unwind codes
+  // describe a different ISA and must never be advertised as ARM unwind data.
+  if (program.functions.length&&arch==='x64') {
     let size = 0;
     const funcs = program.functions
       .map((f) => {
@@ -201,7 +209,7 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
   w16(0, 0x5a4d);
   w32(60, 0x80);
   w32(0x80, 0x4550);
-  w16(0x84, 0x8664);
+  w16(0x84, arch==='arm64'?0xaa64:0x8664);
   w16(0x86, sections.length);
   w16(0x94, 240);
   w16(0x96, 0x22);
