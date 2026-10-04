@@ -117,3 +117,8 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - CI run 37233682546, job 111528469486: both the extended CPU probe and log/exp Node-oracle probe passed on Linux ARM64. This covers signed 128-bit division, 8/16/32-bit atomic flags and partial results, imported internal calls, native syscall marshaling, timestamps, preserved carry on memory increments and zero-count shifts, and log/exp's subnormal/non-finite/boundary cases.
 - Added log1p/expm1 cancellation handling and tiny-input/signed-zero preservation, plus sin/cos/tan polynomial kernels using the existing 1152-bit reciprocal argument reducer. Missing helper assertions observed RED then GREEN; helper/probe layout tests and image construction pass. New native numerical gates are pending this checkpoint's push.
 - Native math oracle checks now require exact signed-zero/Infinity/NaN classification and exact smallest-subnormal results, with finite relative tolerances elsewhere. None of this enables a public ARM64 compile target before the remaining runtime/math/OS services are complete.
+
+## Windows regression diagnosis (fff3f2e)
+
+- Job 111526724358 finished with 2295 passed, 65 skipped and one failure: existing CLI locked-output test's PowerShell lock helper timed out before signaling readiness. This is a startup timeout, not a failed executable-output or compiler assertion. Do not dismiss it without an isolated rerun.
+- Added a manual `cli` diagnostic scope to the native workflow, preserving the default full check/compare gate. Run that scope on the current branch, then require the complete full scope on final head before PR readiness. Earlier full Windows check/compare success remains recorded separately.

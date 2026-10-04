@@ -3,6 +3,12 @@ on:
   push:
     branches: [issue-117-native-platforms]
   workflow_dispatch:
+    inputs:
+      regression_scope:
+        description: Windows regression scope
+        type: choice
+        options: [full, cli]
+        default: full
   pull_request:
     paths:
       - 'src/backend/**'
@@ -27,8 +33,12 @@ jobs:
           node-version: '26.9.0'
           cache: npm
       - run: npm ci
+      - run: npm run build
+      - run: node --test dist/tests/cli.test.js
       - run: npm run check
+        if: github.event.inputs.regression_scope != 'cli'
       - run: npm run compare
+        if: github.event.inputs.regression_scope != 'cli'
   linux-regression:
     runs-on: ubuntu-24.04
     steps:
