@@ -81,6 +81,35 @@ jobs:
         with:
           name: loader-${{ matrix.target }}
           path: work/platform-probes
+  linux-distributions:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:43', 'alpine:3.22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-platform-probes.mjs
+      # Reuse exactly the same compiler output inside glibc and musl systems.
+      - run: |
+          docker run --rm -v "$PWD/work/platform-probes:/probes:ro" '${{ matrix.image }}' sh -c '
+            set -eu
+            /probes/linux-x64 > /tmp/actual
+            cmp /probes/expected.txt /tmp/actual
+            for expected in /probes/linux-x64-*.expected; do
+              binary=${expected%.expected}
+              echo "Running $binary"
+              "$binary" > /tmp/actual
+              cmp "$expected" /tmp/actual
+            done
+            cat /etc/os-release
+          '
   bsd-loaders:
     runs-on: ubuntu-24.04
     strategy:
