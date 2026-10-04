@@ -85,7 +85,14 @@ export function emitPower(bundle:RuntimeBundle):void {
  // Store |x| and y in the low scratch slots used by the x87 sequence.
  a.store({base:'rsp',disp:96},'r14');a.store({base:'rsp',disp:104},'r13');
  if(getTarget(currentNativeTarget()??'')?.arch==='arm64'){
-   a.movsd('xmm0',{base:'rsp',disp:96});a.call('rt.armMath.log');a.mulsd('xmm0',{base:'rsp',disp:104});a.call('rt.armMath.exp');a.movqFromXmm('rax','xmm0');
+   const logarithmic=a.unique('powLogarithmic'),integer=a.unique('powInteger'),positive=a.unique('powPositive'),skip=a.unique('powSkipMultiply'),finish=a.unique('powComputed');
+   a.test('rbx','rbx');a.jcc('e',logarithmic);a.movqToXmm('xmm1','r15');a.cvttsd2si('r10','xmm1');
+   a.cmp('r10',65536);a.jcc('ae',logarithmic);a.test('r10','r10');a.jcc('le',logarithmic);
+   a.movqToXmm('xmm1','r14');a.mov('rax',ONE);a.movqToXmm('xmm0','rax');
+   a.test('r13','r13');a.jcc('ns',positive);a.divsd('xmm0','xmm1');a.movsd('xmm1','xmm0');a.movqToXmm('xmm0','rax');
+   a.label(positive);a.label(integer);a.mov('r11','r10');a.and('r11',1);a.test('r11','r11');a.jcc('e',skip);a.mulsd('xmm0','xmm1');
+   a.label(skip);a.shr('r10',1);a.test('r10','r10');a.jcc('e',finish);a.mulsd('xmm1','xmm1');a.jmp(integer);
+   a.label(logarithmic);a.movsd('xmm0',{base:'rsp',disp:96});a.call('rt.armMath.log');a.mulsd('xmm0',{base:'rsp',disp:104});a.call('rt.armMath.exp');a.label(finish);a.movqFromXmm('rax','xmm0');
  }else {
  // fld y; fld |x|; fyl2x => y*log2(|x|)
  a.emit([0xdd,0x44,0x24,104,0xdd,0x44,0x24,96,0xd9,0xf1]);
