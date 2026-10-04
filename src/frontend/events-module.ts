@@ -13,8 +13,10 @@ function checkListener(listener) {
     throw error;
   }
 }
+// The listener table is created on the first listener: most emitters made by
+// node:http (requests, responses) never get one.
 function eventsOf(emitter) {
-  if (emitter._events === undefined || emitter._events === Object.getPrototypeOf(emitter)._events) {
+  if (emitter._events === undefined) {
     emitter._events = Object.create(null);
     emitter._eventsCount = 0;
   }
@@ -55,12 +57,10 @@ function onceWrap(target, type, listener) {
   return wrapped;
 }
 export class EventEmitter {
+  // The listener table and counters default to the prototype's values and
+  // become own properties on the first listener: objects in Nona are
+  // property lists, and node:http creates two emitters per request.
   constructor(options) {
-    if (this._events === undefined || this._events === Object.getPrototypeOf(this)._events) {
-      this._events = Object.create(null);
-      this._eventsCount = 0;
-    }
-    this._maxListeners = this._maxListeners || undefined;
     if (options && options.captureRejections) this[kCapture] = true;
   }
   static get defaultMaxListeners() { return defaultMaxListeners; }

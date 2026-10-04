@@ -3,112 +3,114 @@
  * and http.IncomingMessage. It follows the observable behaviour of Node.js
  * Readable streams in flowing mode (`data`/`end`/`close`, pause/resume,
  * setEncoding, pipe, async iteration) without the full node:stream API.
+ *
+ * Every HTTP request is one of these, so the state lives in a few fields of
+ * the object itself (no state record, no queue until a chunk has to wait),
+ * and deferred work is only scheduled when there is something to deliver.
  * Deferred events use queueMicrotask where Node.js uses process.nextTick.
  */
 export const streamModuleSource=String.raw`
 import { EventEmitter } from 'node:events';
 import { StringDecoder } from 'node:string_decoder';
 import { Buffer } from 'node:buffer';
-function chunkLength(chunk) { return typeof chunk === 'string' ? chunk.length : chunk.length; }
 export class Readable extends EventEmitter {
   constructor(options) {
     super();
-    this._readableState = { buffer: [], length: 0, flowing: null, ended: false, endEmitted: false, decoder: null, encoding: null,
-      destroyed: false, closed: false, errored: null, flushScheduled: false, highWaterMark: (options && options.highWaterMark) || 16384, readCalled: false };
+    if (options && options.highWaterMark) this._hwm = options.highWaterMark;
   }
-  get readable() { const s = this._readableState; return !s.destroyed && !s.endEmitted && !s.errored; }
-  get readableEnded() { return this._readableState.endEmitted; }
-  get readableFlowing() { return this._readableState.flowing; }
-  get readableLength() { return this._readableState.length; }
-  get readableEncoding() { return this._readableState.encoding; }
-  get readableHighWaterMark() { return this._readableState.highWaterMark; }
-  get destroyed() { return this._readableState.destroyed; }
-  get errored() { return this._readableState.errored; }
-  get closed() { return this._readableState.closed; }
+  get readable() { return !this._destroyed && !this._endEmitted && !this._errored; }
+  get readableEnded() { return this._endEmitted; }
+  get readableFlowing() { return this._flowing; }
+  get readableLength() { return this._queued; }
+  get readableEncoding() { return this._decoder === null ? null : this._decoder.encoding; }
+  get readableHighWaterMark() { return this._hwm; }
+  get destroyed() { return this._destroyed; }
+  get errored() { return this._errored; }
+  get closed() { return this._closed; }
   /** Producer side: a chunk (Buffer), or null at the end of the data. */
   push(chunk) {
-    const s = this._readableState;
-    if (s.destroyed || s.ended) return false;
-    if (chunk === null) { s.ended = true; this._scheduleFlush(); return false; }
+    if (this._destroyed || this._ended) return false;
+    if (chunk === null) { this._ended = true; this._scheduleFlush(); return false; }
     let value = chunk;
-    if (s.decoder !== null) { value = s.decoder.write(chunk); if (value === '') return s.length < s.highWaterMark; }
-    if (s.flowing === true && s.length === 0 && !s.flushScheduled) this.emit('data', value);
-    else { s.buffer.push(value); s.length += chunkLength(value); if (s.flowing === true) this._scheduleFlush(); }
-    return s.length < s.highWaterMark;
+    if (this._decoder !== null) { value = this._decoder.write(chunk); if (value === '') return this._queued < this._hwm; }
+    if (this._flowing === true && this._queued === 0 && !this._flushScheduled) { this.emit('data', value); return true; }
+    if (this._queue === null) this._queue = [];
+    this._queue.push(value);
+    this._queued += value.length;
+    if (this._flowing === true) this._scheduleFlush();
+    return this._queued < this._hwm;
   }
   /** Consumer wants data again (after a pause): producers resume reading. */
   _read() {}
   _scheduleFlush() {
-    const s = this._readableState;
-    if (s.flushScheduled) return;
-    s.flushScheduled = true;
-    queueMicrotask(() => { s.flushScheduled = false; this._flush(); });
+    // Without a consumer nothing is delivered; resume() or read() schedules again.
+    if (this._flushScheduled || (this._flowing !== true && !this._readCalled)) return;
+    this._flushScheduled = true;
+    queueMicrotask(() => { this._flushScheduled = false; this._flush(); });
   }
   _flush() {
-    const s = this._readableState;
-    while (s.flowing === true && s.buffer.length > 0 && !s.destroyed) {
-      const chunk = s.buffer.shift();
-      s.length -= chunkLength(chunk);
+    const queue = this._queue;
+    while (this._flowing === true && queue !== null && queue.length > 0 && !this._destroyed) {
+      const chunk = queue.shift();
+      this._queued -= chunk.length;
       this.emit('data', chunk);
     }
     // A drained buffer asks the producer for more (a paused socket resumes).
-    if (s.flowing === true && !s.ended && !s.destroyed && s.length < s.highWaterMark) this._read();
-    if (s.ended && s.buffer.length === 0 && !s.endEmitted && !s.destroyed && (s.flowing === true || s.readCalled)) {
-      if (s.decoder !== null) { const rest = s.decoder.end(); s.decoder = new StringDecoder(s.encoding); if (rest !== '') this.emit('data', rest); }
-      s.endEmitted = true;
+    if (this._flowing === true && !this._ended && !this._destroyed && this._queued < this._hwm) this._read();
+    if (this._ended && this._queued === 0 && !this._endEmitted && !this._destroyed && (this._flowing === true || this._readCalled)) {
+      if (this._decoder !== null) { const rest = this._decoder.end(); this._decoder = new StringDecoder(this._decoder.encoding); if (rest !== '') this.emit('data', rest); }
+      this._endEmitted = true;
       this.emit('end');
-      this._ended();
+      this._ended_();
     }
   }
   /** Called once 'end' has been emitted. */
-  _ended() {}
+  _ended_() {}
   on(type, listener) {
     super.on(type, listener);
-    const s = this._readableState;
-    if (type === 'data' && s.flowing !== false) this.resume();
-    else if (type === 'readable' && !s.endEmitted) { s.flowing = false; queueMicrotask(() => { if (s.length > 0 || s.ended) this.emit('readable'); }); }
+    if (type === 'data' && this._flowing !== false) this.resume();
+    else if (type === 'readable' && !this._endEmitted) {
+      this._flowing = false;
+      queueMicrotask(() => { if (this._queued > 0 || this._ended) this.emit('readable'); });
+    }
     return this;
   }
   addListener(type, listener) { return this.on(type, listener); }
   resume() {
-    const s = this._readableState;
-    if (s.flowing !== true) {
-      s.flowing = true;
-      queueMicrotask(() => { if (s.flowing === true) this.emit('resume'); });
+    if (this._flowing !== true) {
+      this._flowing = true;
+      if (this._events !== undefined && this._events.resume !== undefined) queueMicrotask(() => { if (this._flowing === true) this.emit('resume'); });
       this._read();
-      this._scheduleFlush();
+      if (this._queued > 0 || this._ended) this._scheduleFlush();
     }
     return this;
   }
   pause() {
-    const s = this._readableState;
-    if (s.flowing !== false) { s.flowing = false; this.emit('pause'); }
+    if (this._flowing !== false) { this._flowing = false; this.emit('pause'); }
     return this;
   }
-  isPaused() { return this._readableState.flowing === false; }
+  isPaused() { return this._flowing === false; }
   setEncoding(encoding) {
-    const s = this._readableState;
-    s.decoder = new StringDecoder(encoding);
-    s.encoding = s.decoder.encoding;
-    const buffered = s.buffer;
-    s.buffer = []; s.length = 0;
-    let text = '';
-    for (const chunk of buffered) text += typeof chunk === 'string' ? chunk : s.decoder.write(chunk);
-    if (text !== '') { s.buffer.push(text); s.length = text.length; }
+    this._decoder = new StringDecoder(encoding);
+    const queue = this._queue;
+    if (queue !== null && queue.length > 0) {
+      let text = '';
+      for (const chunk of queue) text += typeof chunk === 'string' ? chunk : this._decoder.write(chunk);
+      this._queue = text === '' ? [] : [text];
+      this._queued = text.length;
+    }
     return this;
   }
   read() {
-    const s = this._readableState;
-    s.readCalled = true;
-    if (s.buffer.length === 0) { if (s.ended) this._scheduleFlush(); else this._read(); return null; }
-    let out;
-    if (s.decoder !== null || typeof s.buffer[0] === 'string') out = s.buffer.join('');
-    else out = Buffer.concat(s.buffer, s.length);
-    s.buffer = []; s.length = 0;
-    if (s.ended) this._scheduleFlush(); else this._read();
+    this._readCalled = true;
+    const queue = this._queue;
+    if (queue === null || queue.length === 0) { if (this._ended) this._scheduleFlush(); else this._read(); return null; }
+    const out = this._decoder !== null || typeof queue[0] === 'string' ? queue.join('') : Buffer.concat(queue, this._queued);
+    this._queue = []; this._queued = 0;
+    if (this._ended) this._scheduleFlush(); else this._read();
     return out;
   }
-  unshift(chunk) { const s = this._readableState; s.buffer.unshift(chunk); s.length += chunkLength(chunk); }
+  unshift(chunk) { if (this._queue === null) this._queue = []; this._queue.unshift(chunk); this._queued += chunk.length; }
   pipe(destination, options) {
     const end = !options || options.end !== false;
     const ondata = chunk => { if (destination.write(chunk) === false) { this.pause(); destination.once('drain', () => this.resume()); } };
@@ -124,14 +126,13 @@ export class Readable extends EventEmitter {
     return this;
   }
   destroy(error) {
-    const s = this._readableState;
-    if (s.destroyed) return this;
-    s.destroyed = true;
-    if (error) s.errored = error;
+    if (this._destroyed) return this;
+    this._destroyed = true;
+    if (error) this._errored = error;
     this._destroy(error || null, finalError => {
       queueMicrotask(() => {
         if (finalError) this.emit('error', finalError);
-        s.closed = true;
+        this._closed = true;
         this.emit('close');
       });
     });
@@ -159,4 +160,20 @@ export class Readable extends EventEmitter {
     };
   }
 }
+/**
+ * Defines the initial values of instance fields on a prototype (writable,
+ * not enumerable): an instance only gets its own property when a field is
+ * first written, so short-lived objects stay small.
+ */
+export function defaults(proto, values) {
+  for (const key of Object.keys(values)) Object.defineProperty(proto, key, { value: values[key], writable: true, configurable: true });
+}
+defaults(Readable.prototype, {
+  _queue: null,          // chunks waiting for a consumer
+  _queued: 0,            // their total length
+  _flowing: null,        // null: no consumer yet; true; false: paused
+  _ended: false,         // push(null) seen
+  _endEmitted: false, _decoder: null, _destroyed: false, _closed: false, _errored: null,
+  _flushScheduled: false, _readCalled: false, _hwm: 16384, _pipes: null
+});
 `;

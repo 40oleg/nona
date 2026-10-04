@@ -77,7 +77,8 @@ __nonaPromiseDrainJobs=(function(drain){
   }
   // Socket readiness (node:net registers a poller on first use): active()
   // counts the handles that keep the loop alive, poll(timeout) waits at most
-  // timeout ms (-1: no limit) and returns the callbacks of ready handles.
+  // timeout ms (-1: no limit) and returns the number of ready entries, and
+  // run(i) runs entry i.
   var io=null;
   defineProperty(globalThis,'__nonaIoLoop',{value:function(poller){io=poller},writable:true,configurable:true});
   return function eventLoop(){
@@ -95,7 +96,7 @@ __nonaPromiseDrainJobs=(function(drain){
       }
       if(io===null||io.total()===0){hostWait(timeout);continue}
       var ready=io.poll(timeout);
-      for(var i=0;i<ready.length;i++){ready[i]();drain()}
+      for(var i=0;i<ready;i++){io.run(i);drain()}
     }
   }
 })(__nonaPromiseDrainJobs);
