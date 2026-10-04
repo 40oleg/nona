@@ -47,9 +47,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     const contended=compile(contention,{fileName:'atomic-contention.js',target,agents:Array(4).fill(worker)});
     if(!contended.ok)throw new Error(JSON.stringify(contended.diagnostics));probes.push({name:'atomic-contention',image:contended.image,expected:'4 20000 20000\n'});
   }
-  if(target==='linux-arm64'){
+  if(target==='linux-arm64'||target==='win32-arm64'){
     const extra=[
-      {name:'process',source:'console.log(process.platform,process.arch,process.pid>0,process.execPath.length>0,process.argv.length>0,process.cwd().length>0,typeof process.env.PATH)',expected:'linux arm64 true true true true string\n'},
+      {name:'process',source:'console.log(process.platform,process.arch,process.pid>0,process.execPath.length>0,process.argv.length>0,process.cwd().length>0,typeof (process.env.PATH||process.env.Path))',expected:(target==='linux-arm64'?'linux':'win32')+' arm64 true true true true string\n'},
       {name:'filesystem',source:'import * as fs from "node:fs";let d="work/platform-probes/arm-fs",stage="mkdir";try{fs.mkdirSync(d);stage="write";fs.writeFileSync(d+"/a","hello");stage="append";fs.appendFileSync(d+"/a"," world");stage="copy";fs.copyFileSync(d+"/a",d+"/b");stage="rename";fs.renameSync(d+"/b",d+"/c");stage="read-stat-list";console.log(fs.readFileSync(d+"/a","utf8"),fs.statSync(d+"/c").size,fs.statSync(d).isDirectory(),fs.readdirSync(d).sort().join(","));fs.unlinkSync(d+"/a");fs.unlinkSync(d+"/c");fs.rmdirSync(d);console.log(fs.existsSync(d))}catch(e){console.log("FAIL",stage,e.code,e.syscall,e.message);throw e}',expected:'hello world 11 true a,c\nfalse\n',module:true},
     ];
     for(const probe of extra){const result=compile(probe.source,{fileName:probe.name+'.js',target,module:probe.module});if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));probes.push({name:probe.name,image:result.image,expected:probe.expected});}

@@ -365,6 +365,6 @@ function linuxArm64Source():string {
 }
 
 export function fsModuleSource(target:Target):string {
-  if(target!=='win32-x64'&&target!=='linux-x64'&&target!=='linux-arm64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
+  if(target!=='win32-x64'&&target!=='win32-arm64'&&target!=='linux-x64'&&target!=='linux-arm64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
   return (target==='linux-arm64'?linuxArm64Source():target==='linux-x64'?linux:win32)+common;
 }
