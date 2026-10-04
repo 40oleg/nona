@@ -9,7 +9,7 @@ const directory=resolve(process.argv[2]??'work/platform-probes');
 mkdirSync(directory,{recursive:true});
 const targets=['linux-x64','linux-arm64','freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64','win32-arm64'];
 for(const target of targets){
-  writeFileSync(join(directory,target),loaderProbe(target),{mode:0o755});
+  writeFileSync(join(directory,target+(target.startsWith('win32-')?'.exe':'')),loaderProbe(target),{mode:0o755});
 }
 writeFileSync(join(directory,'expected.txt'),loaderProbeOutput);
 const runtime={};
@@ -20,7 +20,7 @@ writeFileSync(join(directory,'arm64-math-cases.json'),JSON.stringify(arm64MathCa
 runtime['linux-arm64']=[{file:'linux-arm64-bridge',expected:loaderProbeOutput},{file:'linux-arm64-cpu',expected:loaderProbeOutput},{file:'linux-arm64-math-kernels',expected:loaderProbeOutput}];
 for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','win32-arm64']){
   runtime[target]=[...(runtime[target]??[]),...runtimeProbes(target).map(probe=>{
-    const file=`${target}-${probe.name}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
+    const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);
     return {file,expected:probe.expected};
   })];
