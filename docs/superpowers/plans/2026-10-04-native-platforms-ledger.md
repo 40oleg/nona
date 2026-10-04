@@ -40,3 +40,18 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Syscall metadata records the instruction after the MOV-immediate, not the number-loading instruction. Cache encoding/decoding preserves those positions.
 - Verification: missing named operations RED → GREEN with independent ISA byte expectations; cached syscall metadata loss RED → GREEN. Build plus focused operation/x64/layout/registry suites: 23 passed. Existing base-cache suite: 4 passed, only compiler/Node subprocesses (no native executable execution).
 - Task 4 remains in progress: scoped architecture selection and x87 mathematical operation isolation still need implementation.
+
+## Tasks 3/7 — Mach-O layout and signing phase
+
+- Added a fixed-address Mach-O64 writer with PAGEZERO, separate text/constants/data protections, native x64/ARM64 UNIXTHREAD state, build version, and embedded SHA-256 ad-hoc CodeDirectory/SuperBlob.
+- Signing hashes final relocated bytes and load commands; ARM64 uses 16 KiB segment geometry, code-signature hash pages remain 4 KiB.
+- Source evidence: Apple XNU mach-o/loader.h, cs_blobs.h and ARM/i386 thread_status.h inspected 2026-10-04. No third-party implementation copied.
+- Verification: Mach-O/ARM64/signature behaviors RED → GREEN; 4 layout/signature/bounds tests passed. No macOS native execution result yet.
+- Ruling: implement ARM64 Mach-O layout together with x64 layout, before the ARM64 runtime, because the shared writer and signature need early native-loader evidence. This is only format support, not a completed compiler target.
+
+## Task 8 — early native loader gates
+
+- Added six raw loader/ABI probes: Linux x64/ARM64, Darwin x64/ARM64, FreeBSD/OpenBSD x64. They are explicitly marked loader probes, not JavaScript runtime verification.
+- Runner validates exact OS/CPU before execution and asks macOS codesign to verify the embedded signature. BSD VM gates run the generated image and compare stdout without installing a Node runtime inside the VM.
+- Verification: missing probe generation and host-mismatch checks RED → GREEN; 6 focused probe/Mach-O tests passed; all six files built locally without execution.
+- The new workflow runs on this feature branch to validate each backend during development. Existing complete regression gates will run before the PR is ready.

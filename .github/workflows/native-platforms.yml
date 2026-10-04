@@ -1,0 +1,86 @@
+name: native-platforms
+on:
+  push:
+    branches: [issue-117-native-platforms]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/backend/**'
+      - 'src/target.ts'
+      - 'scripts/*platform-probes.mjs'
+      - '.github/workflows/native-platforms.yml'
+permissions:
+  contents: read
+concurrency:
+  group: native-platforms-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  loaders:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, target: linux-x64}
+          - {runner: ubuntu-24.04-arm, target: linux-arm64}
+          - {runner: macos-15-intel, target: darwin-x64}
+          - {runner: macos-15, target: darwin-arm64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-platform-probes.mjs
+      - run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loader-${{ matrix.target }}
+          path: work/platform-probes
+  bsd-loaders:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-platform-probes.mjs
+      - uses: vmactions/freebsd-vm@v1
+        if: matrix.os == 'freebsd'
+        with:
+          release: '14.3'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -m)" = amd64
+            chmod 755 work/platform-probes/freebsd-x64
+            work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
+            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            uname -a
+      - uses: vmactions/openbsd-vm@v1
+        if: matrix.os == 'openbsd'
+        with:
+          release: '7.8'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -m)" = amd64
+            chmod 755 work/platform-probes/openbsd-x64
+            work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
+            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            uname -a
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loader-${{ matrix.os }}-x64
+          path: work/platform-probes
