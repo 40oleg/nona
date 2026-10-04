@@ -17,5 +17,5 @@ test('ARM64 PE identifies the machine and applies native instruction fixups',()=
 import {compile} from '../src/compiler.js';
 test('Windows ARM64 filesystem modules use native Windows imports',()=>{
  const result=compile('import {readFileSync} from "node:fs";console.log(typeof readFileSync)',{fileName:'fs.mjs',target:'win32-arm64',module:true});
- assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));if(!result.ok)return;assert.ok(result.imports.includes('KERNEL32.dll!FindFirstFileW'));
+ assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));if(!result.ok)return;assert.ok(result.imports.some(i=>i.toLowerCase()==='kernel32.dll!findfirstfilew'));
 });

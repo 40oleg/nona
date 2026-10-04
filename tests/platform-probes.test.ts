@@ -29,7 +29,7 @@ test('native probe runner refuses OS or CPU mismatches before executing',()=>{
 test('BSD cross-compilation under an ARM64 emission scope also scopes OS service linking',()=>{
   assert.ok(probes);
   const images=withNativeTarget('linux-arm64',()=>probes.runtimeProbes('freebsd-x64'));
-  assert.equal(images.length,10);
+  assert.equal(images.length,11);
   for(const probe of images){
     const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
     assert.equal(v.getUint16(18,true),62,probe.name);

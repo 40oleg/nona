@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {sha256} from './sha256.js';
 
 const page=4096,header=88,identifier=new TextEncoder().encode('nona\0');
 const hashOffset=Math.ceil((header+identifier.length)/8)*8;
@@ -19,6 +19,6 @@ export function adHocSignature(code:Uint8Array,textSize:number):Uint8Array {
   bytes[directory+36]=32;bytes[directory+37]=2;bytes[directory+39]=12;
   v.setBigUint64(directory+64,0n);v.setBigUint64(directory+72,BigInt(textSize));v.setBigUint64(directory+80,1n);
   bytes.set(identifier,directory+header);
-  for(let i=0;i<slots;i++)bytes.set(createHash('sha256').update(code.subarray(i*page,Math.min((i+1)*page,code.length))).digest(),directory+hashOffset+i*32);
+  for(let i=0;i<slots;i++)bytes.set(sha256(code.subarray(i*page,Math.min((i+1)*page,code.length))),directory+hashOffset+i*32);
   return bytes;
 }
