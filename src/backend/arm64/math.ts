@@ -16,12 +16,14 @@ const bits=(value:number)=>{const b=new DataView(new ArrayBuffer(8));b.setFloat6
 function constant(a:Assembler,register:Xmm,value:number):void {a.mov('rax',bits(value));a.movqToXmm(register,'rax');}
 function answer(a:Assembler,value:bigint,done:string):void {a.mov('rax',value);a.movqToXmm('xmm0','rax');a.jmp(done);}
 const ln2High=6.93147180369123816490e-1,ln2Low=1.90821492927058770002e-10;
-export const arm64MathCases=[
+export const arm64MathCases:{name:string;input:number;second?:number;expected:number}[]=[
   ...[-1,-0,0,Number.MIN_VALUE,1e-300,.5,1,1+Number.EPSILON,2,10,1000,1e300,Infinity,NaN].map(input=>({name:'log',input,expected:Math.log(input)})),
   ...[-Infinity,-1000,-746,-745,-710,-10,-1,-0,0,.5,1,10,100,709,709.7827,710,NaN,Infinity].map(input=>({name:'exp',input,expected:Math.exp(input)})),
   ...[-Infinity,-2,-1,-.9,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,1e20,Infinity,NaN].map(input=>({name:'log1p',input,expected:Math.log1p(input)})),
   ...[-Infinity,-10,-1,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,10,Infinity,NaN].map(input=>({name:'expm1',input,expected:Math.expm1(input)})),
   ...(['sin','cos','tan'] as const).flatMap(name=>[-1e300,-10,-.5,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,.5,10,1e300,Infinity,NaN].map(input=>({name,input,expected:Math[name](input)}))),
+  ...[-Infinity,-1e300,-10,-1,-.5,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,.5,1,10,1e300,Infinity,NaN].map(input=>({name:'atan',input,expected:Math.atan(input)})),
+  ...([[1,1],[1,-1],[-1,1],[-1,-1],[0,1],[-0,1],[0,-1],[-0,-1],[1,0],[-1,-0],[Infinity,Infinity],[-Infinity,-Infinity],[Infinity,1],[1,-Infinity],[Number.MIN_VALUE,1e300],[NaN,1]] as const).map(([input,second])=>({name:'atan2',input,second,expected:Math.atan2(input,second)})),
 ];
 
 /** Native execution gate, including signed zeros, subnormals and non-finites. */
@@ -32,7 +34,7 @@ export function arm64MathProbe():Uint8Array {
     const failures:{label:string;stage:number}[]=[];
     for(const [index,c] of arm64MathCases.entries()){
       const failed=a.unique('mathFailure');failures.push({label:failed,stage:index+1});
-      constant(a,'xmm0',c.input);a.call('rt.armMath.'+c.name);
+      constant(a,'xmm0',c.input);if(c.second!==undefined)constant(a,'xmm1',c.second);a.call('rt.armMath.'+c.name);
       if(Number.isNaN(c.expected)){a.ucomisd('xmm0','xmm0');a.jcc('np',failed);}
       else if(!Number.isFinite(c.expected)||c.expected===0||Math.abs(c.expected)===Number.MIN_VALUE){a.movqFromXmm('r10','xmm0');a.mov('rax',bits(c.expected));a.cmp('rax','r10');a.jcc('ne',failed);}
       else {
@@ -148,6 +150,37 @@ export function emitArm64Math(b:RuntimeBuilder):void {
       a.load('rax',{base:'rsp',disp:40});a.mov('r10',SIGN);a.and('rax','r10');a.movqFromXmm('r10','xmm0');a.xor('rax','r10');a.movqToXmm('xmm0','rax');
     }
     a.jmp(done);a.label(small);if(name==='cos')answer(a,bits(1),done);else a.jmp(done);
+    a.label(invalid);answer(a,QNAN,done);a.label(done);
+  });
+  b.fn('rt.armMath.atan',88,a=>{
+    const medium=a.unique('atanMedium'),reduced=a.unique('atanReduced'),done=a.unique('atanDone');
+    a.storesd({base:'rsp',disp:40},'xmm0');a.movqFromXmm('rax','xmm0');a.mov('r10',ABS);a.and('rax','r10');a.mov('r11',INF);a.cmp('rax','r11');a.jcc('a',done);
+    a.mov('r11',bits(2**-27));a.cmp('rax','r11');a.jcc('b',done);a.movqToXmm('xmm0','rax');
+    constant(a,'xmm1',1+Math.SQRT2);a.ucomisd('xmm0','xmm1');a.jcc('be',medium);
+    constant(a,'xmm1',-1);a.divsd('xmm1','xmm0');a.movsd('xmm0','xmm1');constant(a,'xmm1',Math.PI/2);a.jmp(reduced);
+    a.label(medium);constant(a,'xmm1',Math.SQRT2-1);a.ucomisd('xmm0','xmm1');
+    const small=a.unique('atanSmall');a.jcc('be',small);
+    constant(a,'xmm1',1);a.movsd('xmm2','xmm0');a.addsd('xmm2','xmm1');a.subsd('xmm0','xmm1');a.divsd('xmm0','xmm2');constant(a,'xmm1',Math.PI/4);a.jmp(reduced);
+    a.label(small);constant(a,'xmm1',0);a.label(reduced);a.storesd({base:'rsp',disp:48},'xmm1');
+    a.movsd('xmm2','xmm0');a.mulsd('xmm2','xmm2');constant(a,'xmm3',1/65);
+    for(let i=31;i>=1;i--){a.mulsd('xmm3','xmm2');constant(a,'xmm1',(i%2?-1:1)/(2*i+1));a.addsd('xmm3','xmm1');}
+    a.mulsd('xmm3','xmm2');constant(a,'xmm1',1);a.addsd('xmm3','xmm1');a.mulsd('xmm0','xmm3');a.addsd('xmm0',{base:'rsp',disp:48});
+    a.load('rax',{base:'rsp',disp:40});a.mov('r10',SIGN);a.and('rax','r10');a.movqFromXmm('r10','xmm0');a.xor('rax','r10');a.movqToXmm('xmm0','rax');a.label(done);
+  });
+  b.fn('rt.armMath.atan2',104,a=>{
+    const zeroY=a.unique('atan2ZeroY'),zeroX=a.unique('atan2ZeroX'),bothInfinite=a.unique('atan2BothInfinite'),angleZero=a.unique('atan2AngleZero'),invalid=a.unique('atan2Invalid'),angleReady=a.unique('atan2AngleReady'),positiveX=a.unique('atan2PositiveX'),done=a.unique('atan2Done');
+    a.storesd({base:'rsp',disp:40},'xmm0');a.storesd({base:'rsp',disp:48},'xmm1');
+    a.movqFromXmm('r8','xmm0');a.movqFromXmm('r9','xmm1');a.mov('r10',ABS);a.and('r8','r10');a.and('r9','r10');a.mov('r11',INF);
+    a.cmp('r8','r11');a.jcc('a',invalid);a.cmp('r9','r11');a.jcc('a',invalid);
+    a.test('r8','r8');a.jcc('e',zeroY);a.test('r9','r9');a.jcc('e',zeroX);
+    a.cmp('r8','r11');const finiteY=a.unique('atan2FiniteY');a.jcc('ne',finiteY);a.cmp('r9','r11');a.jcc('e',bothInfinite);a.jmp(zeroX);
+    a.label(finiteY);a.cmp('r9','r11');a.jcc('e',angleZero);
+    a.movqToXmm('xmm0','r8');a.movqToXmm('xmm1','r9');a.divsd('xmm0','xmm1');a.call('rt.armMath.atan');a.jmp(angleReady);
+    a.label(zeroY);a.jmp(angleZero);a.label(zeroX);constant(a,'xmm0',Math.PI/2);a.jmp(angleReady);
+    a.label(bothInfinite);constant(a,'xmm0',Math.PI/4);a.jmp(angleReady);a.label(angleZero);constant(a,'xmm0',0);
+    a.label(angleReady);a.load('rax',{base:'rsp',disp:48});a.test('rax','rax');a.jcc('ns',positiveX);
+    constant(a,'xmm1',Math.PI);a.subsd('xmm1','xmm0');a.movsd('xmm0','xmm1');a.label(positiveX);
+    a.load('rax',{base:'rsp',disp:40});a.mov('r10',SIGN);a.and('rax','r10');a.movqFromXmm('r10','xmm0');a.xor('rax','r10');a.movqToXmm('xmm0','rax');a.jmp(done);
     a.label(invalid);answer(a,QNAN,done);a.label(done);
   });
 }

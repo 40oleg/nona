@@ -122,3 +122,9 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 
 - Job 111526724358 finished with 2295 passed, 65 skipped and one failure: existing CLI locked-output test's PowerShell lock helper timed out before signaling readiness. This is a startup timeout, not a failed executable-output or compiler assertion. Do not dismiss it without an isolated rerun.
 - Added a manual `cli` diagnostic scope to the native workflow, preserving the default full check/compare gate. Run that scope on the current branch, then require the complete full scope on final head before PR readiness. Earlier full Windows check/compare success remains recorded separately.
+
+## Native math and isolated CLI evidence (65c48f7)
+
+- Manual diagnostic run 37233928827: Windows CLI suite passed, including the previously timed-out locked-output test (job 111529196090). The failure occurs under the full-suite load and was not reproduced in isolation; do not change compiler behavior or weaken the output-preservation assertion. A final full Windows gate is still required.
+- Linux ARM64 loader/CPU/math gates passed (job 111529196126), now including log1p/expm1 cancellation/tiny-input cases and sin/cos/tan with 1e300 arguments. This confirms the shared reciprocal argument reducer also works for the moderate arguments used by ARM64.
+- Added atan/atan2 range reduction and series, with quadrant/non-finite/zero handling and Node-oracle cases. Missing-helper assertion RED then focused tests GREEN; native validation is pending this checkpoint's push.
