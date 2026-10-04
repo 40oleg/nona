@@ -45,7 +45,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:T.entries});a.test('r10','r10');a.jcc('e',empty);
   a.load('r11',slot(56));a.test('r11','r11');a.jcc('e',next);
   a.load('rdx',slot(48));a.cmp('r10','rdx');a.jcc('ne',next);
-  a.load('rcx',{base:'rax',disp:T.entries+8});a.load('rcx',{base:'rcx',disp:P.key});a.mov('rdx','r11');a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',found);
+  a.load('rcx',{base:'rax',disp:T.entries+8});a.load('rcx',{base:'rcx',disp:P.key});a.cmp('rcx','r11');a.jcc('e',found);a.mov('rdx','r11');a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',found);
   a.label(next);a.load('rcx',slot(40));a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);
   a.load('rax',slot(64));a.add('rax',1);a.and('rax','r9');a.store(slot(64),'rax');a.jmp(loop);
   a.label(found);a.load('rax',slot(72));a.add('rax',T.entries);a.mov('r10',1);a.jmp(done);

@@ -82,8 +82,13 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.call('rt.propIndexFind');a.jmp(finish);
     a.label(scan);a.label(loop);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
     a.load('r10',slot(64));a.add('r10',1);a.store(slot(64),'r10');
-    a.load('rcx',{base:'rax',disp:P.key});a.load('rdx',slot(40));a.call('rt.compareStrings');
-    a.test('rax','rax');const next=a.unique('next');a.jcc('ne',next);a.load('rax',slot(48));a.jmp(done);
+    // Same record, or same length and then the same code units (a symbol has
+    // length -1 and is only equal to itself).
+    const next=a.unique('next'),hit=a.unique('hit');
+    a.load('rcx',{base:'rax',disp:P.key});a.load('rdx',slot(40));a.cmp('rcx','rdx');a.jcc('e',hit);
+    a.load('r8',{base:'rcx'});a.load('r9',{base:'rdx'});a.cmp('r8','r9');a.jcc('ne',next);a.cmp('r8',-1);a.jcc('e',next);
+    a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',next);
+    a.label(hit);a.load('rax',slot(48));a.jmp(done);
     a.label(next);a.load('rax',slot(48));a.load('rax',{base:'rax',disp:P.next});a.store(slot(48),'rax');a.jmp(loop);
     a.label(done);a.store(slot(72),'rax');
     const small=a.unique('small');a.load('r10',slot(64));a.cmp('r10',propertyIndexThreshold);a.jcc('b',small);
