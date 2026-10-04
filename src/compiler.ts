@@ -12,6 +12,7 @@ import { generate, type BaseImageCache } from './backend/x64/codegen.js';
 import { linkPe } from './backend/pe/writer.js';
 import {iconResources,manifestResource,versionResource,defaultManifest,type VersionInfo,type PeResource} from './backend/pe/resources.js';
 import { linkLinux } from './backend/linux/index.js';
+import {linkBsd} from './backend/bsd/index.js';
 import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
 import {withBuiltinModules} from './frontend/builtin-modules.js';
@@ -84,7 +85,8 @@ function peResources(options:CompileOptions):PeResource[] {
 }
 export function compile(source:string, options:CompileOptions):CompileResult {
   try {
-    if(options.target===undefined||!getTarget(options.target)||options.target!=='win32-x64'&&options.target!=='linux-x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.target===undefined||!getTarget(options.target)||!['win32-x64','linux-x64','freebsd-x64','openbsd-x64'].includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    const descriptor=getTarget(options.target)!;
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     // Every source lexed by the frontend (the program, its modules, agents and
@@ -95,14 +97,16 @@ export function compile(source:string, options:CompileOptions):CompileResult {
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
+    if((descriptor.os==='freebsd'||descriptor.os==='openbsd')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
-    const foreign=ffi.filter(d=>(d.dll==='syscall')!==(options.target==='linux-x64'));
+    const foreign=ffi.filter(d=>(d.dll==='syscall')!==(descriptor.os!=='win32'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
     const resources=peResources(options);
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
-    return {ok:true,image:options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources}),imports:options.target==='linux-x64'?[]:program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name)};
+    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources});
+    return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[]};
   } catch(error) {
     // A diagnostic from an imported module keeps that module's path: the
     // file name as given for the entry, a host path for the default host

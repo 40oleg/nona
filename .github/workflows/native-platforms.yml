@@ -66,6 +66,12 @@ jobs:
             chmod 755 work/platform-probes/freebsd-x64
             work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
             cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            for probe in work/platform-probes/freebsd-x64-*.expected; do
+              binary=${probe%.expected}
+              chmod 755 "$binary"
+              "$binary" > "$binary.actual"
+              cmp "$probe" "$binary.actual"
+            done
             uname -a
       - uses: vmactions/openbsd-vm@v1
         if: matrix.os == 'openbsd'
@@ -78,6 +84,12 @@ jobs:
             chmod 755 work/platform-probes/openbsd-x64
             work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
             cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            for probe in work/platform-probes/openbsd-x64-*.expected; do
+              binary=${probe%.expected}
+              chmod 755 "$binary"
+              "$binary" > "$binary.actual"
+              cmp "$probe" "$binary.actual"
+            done
             uname -a
       - uses: actions/upload-artifact@v4
         if: always()

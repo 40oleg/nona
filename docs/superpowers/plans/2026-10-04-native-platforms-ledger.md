@@ -62,3 +62,11 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Darwin ARM64: embedded codesign verification passed, exec rejected with errno 85. XNU mach_loader.c explicitly disallows static ARM64 MH_EXECUTE outside development kernels; dyldMain.cpp explicitly requires libSystem.B.dylib. This conflicts with AGENTS.md's no-libc requirement. Asked the owner asynchronously whether macOS ARM64 may use the mandatory system library; dependent implementation waits for that answer, other work continues.
 - OpenBSD 7.8: exec fell back to a shell with NUL-byte syntax failure. Root cause: elf_os_pt_note returns ENOEXEC without the OpenBSD PT_NOTE before the later EI_OSABI fallback. Snapshot bf77f7791990d60dce2ce2110b463cd21f077b72 confirms this in sys/kern/exec_elf.c. Added the required note; regression test observed RED then GREEN locally.
 - OpenBSD 7.8 syscall snapshot uses mmap=49 (not the obsolete guessed 197); __tfork=8, futex=83, clock_gettime=87, nanosleep=91, __threxit=302. Use pinned source definitions, never guessed tables.
+
+## Task 2 — BSD runtime adapter phase
+
+- Reused the Linux service bodies through explicit syscall/override hooks; Linux default emission remains unchanged. Added BSD syscall errno normalization and pinned memory/clock/open/exit mappings.
+- Implemented native FreeBSD thr_new/thr_exit and OpenBSD __tfork/__threxit entry paths, plus _umtx_op/futex wait/wake adaptations. OpenBSD anonymous mappings carry MAP_STACK for suspended runtime stacks.
+- BSD compile target test observed E_TARGET RED then GREEN; 13 focused compile/layout/cache tests passed. Seven runtime probes per BSD target now compile: arithmetic chain, closures/objects, BigInt division/multiplication, x87 Math, generator stack switching, promises/async, realtime clock. Literal outputs verified against independent Node.js execution before remote submission.
+- Process/procfs and filesystem adapters are explicitly unfinished and rejected; do not label BSD support complete yet. Full runtime, native thread behavior and GC stress gates remain required.
+- Native loader run after the ABI-note fix: recorded below through remote job status; awaiting runtime VM execution of this phase.
