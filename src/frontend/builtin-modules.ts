@@ -4,6 +4,7 @@ import {fsModuleSource} from './fs-module.js';
 import {eventsModuleSource} from './events-module.js';
 import {bufferModuleSource,stringDecoderModuleSource} from './buffer-module.js';
 import {streamModuleSource} from './stream-module.js';
+import {nativeModuleSource} from './native-module.js';
 import {netModuleSource} from './net-module.js';
 import {httpModuleSource} from './http-module.js';
 
@@ -96,6 +97,7 @@ const sources=new Map<string,(target:Target)=>string>([
   ['node:string_decoder',()=>stringDecoderModuleSource],
   ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
   ['nona:internal/stream',()=>streamModuleSource],
+  ['nona:internal/native',()=>nativeModuleSource],
   ['node:net',netModuleSource],
   ['nona:net',()=>aliasOf('node:net')],
   ['node:http',()=>httpModuleSource],

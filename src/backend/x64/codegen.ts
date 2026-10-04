@@ -109,7 +109,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['process',processPreludeSource],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['process',processPreludeSource],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -651,6 +651,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.
     hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
     hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);
+  }
+  if(hasPrelude&&linked.includes('network')){
+    // Captured and removed from the global object by nona:internal/native.
+    hostGlobal('__nonaNetParse','rt.netParse.code',4);
+    hostGlobal('__nonaNetLatin1','rt.netLatin1.code',3);
+    hostGlobal('__nonaNetWrite','rt.netWrite.code',4);
+    hostGlobal('__nonaNetCopy','rt.netCopy.code',5);
+    hostGlobal('__nonaNetCheck','rt.netCheck.code',2);
   }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
