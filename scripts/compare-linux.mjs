@@ -29,6 +29,7 @@ for(const file of readdirSync(inputs).filter(name=>/\.c?js$/.test(name)).sort())
  const match=!node.error&&!native.error&&node.status===0&&native.status===0&&stdoutMatch&&stderrMatch;
  results.push({file,match,stdoutMatch,stderrMatch,nodeStatus:node.status,nativeStatus:native.status,nodeStdout:node.stdout?.toString('utf8'),nativeStdout:native.stdout?.toString('utf8'),nativeStderr:native.stderr?.toString('utf8'),nativeError:native.error?.message});
  console.log(`${match?'PASS':'FAIL'} ${file}`);
+ if(!match)console.error(JSON.stringify(results.at(-1)));
 }
 writeFileSync(join(work,'linux-compat-report.json'),JSON.stringify({date:new Date().toISOString(),node:process.version,results},null,2)+'\n');
 if(!results.length||results.some(result=>!result.match))process.exitCode=1;

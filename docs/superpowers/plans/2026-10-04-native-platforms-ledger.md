@@ -150,3 +150,6 @@ Linux ARM64 broad oracle run 37234983689: 148/152 passed. Two actual failures we
 ARM64 page geometry assertions RED 4096 -> GREEN: Linux ARM guard/large mmap lengths round to 64 KiB, valid on 4/16/64 KiB kernels; Darwin ARM guard uses 16 KiB. Existing x64/Windows guard stays 4 KiB. Native 64 KiB-kernel execution has not been performed; loader/runtime arithmetic alignment is checked, 4 KiB ARM runner gates remain required.
 
 Windows ARM64 first loader CI failed before native execution: spawn ENOENT because the binary lacked .exe and Windows process creation appended that suffix. Added .exe filenames for Windows manifest probes; the runner accepts only a basename with optional .exe. No Windows binary executed locally.
+
+Linux ARM64 repeat: all 152 runtime oracle tests passed, native typed-import bridge probe passed, filesystem lifecycle passed. Example comparison found only Math.exp(1) off by one ulp. This also occurs in OpenLibm e_exp.c, which returns the correctly rounded e for x==1; added that mathematical constant path and exact native exp(1) oracle assertion. All other comparison expectations remain unchanged.
+Windows ARM64 run 37235524984 job 111533725601 passed loader and all ten native JS/GC/async/timer/agent probes.

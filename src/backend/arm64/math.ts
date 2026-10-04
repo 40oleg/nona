@@ -16,10 +16,10 @@ const bits=(value:number)=>{const b=new DataView(new ArrayBuffer(8));b.setFloat6
 function constant(a:Assembler,register:Xmm,value:number):void {a.mov('rax',bits(value));a.movqToXmm(register,'rax');}
 function answer(a:Assembler,value:bigint,done:string):void {a.mov('rax',value);a.movqToXmm('xmm0','rax');a.jmp(done);}
 const ln2High=6.93147180369123816490e-1,ln2Low=1.90821492927058770002e-10;
-export const arm64MathCases:{name:string;input:number;second?:number;expected:number}[]=[
+export const arm64MathCases:{name:string;input:number;second?:number;expected:number;exact?:boolean}[]=[
   ...[-1,-0,0,Number.MIN_VALUE,1e-300,.5,1,1+Number.EPSILON,2,10,1000,1e300,Infinity,NaN].map(input=>({name:'log',input,expected:Math.log(input)})),
   ...(['log2','log10'] as const).flatMap(name=>[Number.MIN_VALUE,.5,1,2,8,10,1000,1e300].map(input=>({name,input,expected:Math[name](input)}))),
-  ...[-Infinity,-1000,-746,-745,-710,-10,-1,-0,0,.5,1,10,100,709,709.7827,710,NaN,Infinity].map(input=>({name:'exp',input,expected:Math.exp(input)})),
+  ...[-Infinity,-1000,-746,-745,-710,-10,-1,-0,0,.5,1,10,100,709,709.7827,710,NaN,Infinity].map(input=>({name:'exp',input,expected:Math.exp(input),exact:input===1})),
   ...[-Infinity,-2,-1,-.9,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,1e20,Infinity,NaN].map(input=>({name:'log1p',input,expected:Math.log1p(input)})),
   ...[-Infinity,-10,-1,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,10,Infinity,NaN].map(input=>({name:'expm1',input,expected:Math.expm1(input)})),
   ...(['sin','cos','tan'] as const).flatMap(name=>[-1e300,-10,-.5,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,.5,10,1e300,Infinity,NaN].map(input=>({name,input,expected:Math[name](input)}))),
@@ -37,7 +37,7 @@ export function arm64MathProbe():Uint8Array {
       const failed=a.unique('mathFailure');failures.push({label:failed,stage:index+1});
       constant(a,'xmm0',c.input);if(c.second!==undefined)constant(a,'xmm1',c.second);a.call('rt.armMath.'+c.name);
       if(Number.isNaN(c.expected)){a.ucomisd('xmm0','xmm0');a.jcc('np',failed);}
-      else if(!Number.isFinite(c.expected)||c.expected===0||Math.abs(c.expected)===Number.MIN_VALUE){a.movqFromXmm('r10','xmm0');a.mov('rax',bits(c.expected));a.cmp('rax','r10');a.jcc('ne',failed);}
+      else if(c.exact||!Number.isFinite(c.expected)||c.expected===0||Math.abs(c.expected)===Number.MIN_VALUE){a.movqFromXmm('r10','xmm0');a.mov('rax',bits(c.expected));a.cmp('rax','r10');a.jcc('ne',failed);}
       else {
         constant(a,'xmm1',c.expected);a.subsd('xmm0','xmm1');a.movqFromXmm('rax','xmm0');a.mov('r10',ABS);a.and('rax','r10');a.movqToXmm('xmm0','rax');
         constant(a,'xmm1',Math.max(Number.MIN_VALUE*2,Math.abs(c.expected)*4e-14));a.ucomisd('xmm0','xmm1');a.jcc('p',failed);a.jcc('a',failed);
@@ -85,6 +85,8 @@ export function emitArm64Math(b:RuntimeBuilder):void {
     const special=a.unique('expSpecial'),zero=a.unique('expZero'),one=a.unique('expOne'),overflow=a.unique('expOverflow'),scale=a.unique('expScale'),small=a.unique('expSmall'),scaled=a.unique('expScaled'),done=a.unique('expDone');
     a.movqFromXmm('rax','xmm0');a.mov('r10',ABS);a.and('r10','rax');a.mov('r11',INF);a.cmp('r10','r11');a.jcc('ae',special);
     a.test('r10','r10');a.jcc('e',one);
+    // exp(1) is the correctly rounded constant e; reduction can be one ulp high.
+    const reduced=a.unique('expReduced');a.mov('r11',bits(1));a.cmp('rax','r11');a.jcc('ne',reduced);answer(a,bits(Math.E),done);a.label(reduced);
     constant(a,'xmm1',709.782712893383973096);a.ucomisd('xmm0','xmm1');a.jcc('a',overflow);
     constant(a,'xmm1',-745.133219101941108420);a.ucomisd('xmm0','xmm1');a.jcc('b',zero);
     constant(a,'xmm1',Math.LOG2E);a.mulsd('xmm1','xmm0');a.cvtsd2si('r9','xmm1');a.cvtsi2sd('xmm2','r9');
