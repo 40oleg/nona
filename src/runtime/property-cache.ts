@@ -27,9 +27,13 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * Every object that a cache fill walks through on the way to the holder is
  * flagged ObjectFlags.cachedPrototype, and the epoch advances when a
  * property is added to, removed from or redefined on a flagged object, when
- * any object's prototype changes, and at every collection (a freed prototype
+ * a flagged object's prototype changes, and at every collection (a freed prototype
  * could otherwise be mistaken for a new object at the same address). The
  * global object is never cached: script bindings alias its properties.
+ * Objects that are not flagged are on no cached chain: a receiver's own
+ * list and its prototype are read at every hit, so creating objects with a
+ * prototype, changing an ordinary object's prototype or deleting its own
+ * properties leaves every cache valid.
  */
 /** Four entries of {prototype, node}, newest first, behind one epoch. */
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */

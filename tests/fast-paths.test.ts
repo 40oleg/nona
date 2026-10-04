@@ -232,6 +232,30 @@ out.push(churn.length);
 const arr=[1,2,3];function len(a){return a.push(4);}out.push(len(arr),len(arr),arr.length);
 console.log(out.join());
 `,
+ 'inline caches across prototype changes and deletes':`
+const out=[];
+const a={m(){return 'a';}},b={m(){return 'b';}};
+const mid=Object.create(a),leaf=Object.create(mid);
+function call(o){return o.m();}
+for(let i=0;i<3;i++)out.push(call(leaf));
+// The chain above a cached receiver changes: mid is a flagged prototype.
+Object.setPrototypeOf(mid,b);out.push(call(leaf),call(leaf));
+mid.__proto__=a;out.push(call(leaf));
+// Objects created and re-parented in between do not disturb the cache.
+for(let i=0;i<50;i++){const t={__proto__:b,k:i};Object.setPrototypeOf(t,a);delete t.k;out.push(call(t));}
+// An object that was re-parented before it became a prototype.
+const p=Object.create(b);Object.setPrototypeOf(p,a);const q=Object.create(p);out.push(call(q),call(q));
+Object.setPrototypeOf(p,b);out.push(call(q));
+// Deleting from a prototype after its re-parenting, and an own shadow.
+b.m=function(){return 'b2';};out.push(call(q));delete b.m;out.push(q.m===undefined?'none':'some');
+try{call(q);}catch(e){out.push(e.constructor.name);}
+const own={m(){return 'own';},__proto__:a};out.push(call(own));delete own.m;out.push(call(own));
+class C{m(){return 'C';}}const objs=[];for(let i=0;i<20;i++)objs.push(new C());
+for(const o of objs){delete o.x;out.push(call(o));}
+C.prototype.m=function(){return 'C2';};out.push(call(objs[3]));
+Object.setPrototypeOf(C.prototype,{m(){return 'up';}});delete C.prototype.m;out.push(call(objs[4]));
+console.log(out.join());
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];
