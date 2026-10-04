@@ -1,10 +1,10 @@
 # Nona
 
-**Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into standalone native Windows and Linux x64 executables.**
+**Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into standalone native executables for Windows, Linux, Intel macOS, FreeBSD and OpenBSD.**
 
 [Documentation](https://40oleg.github.io/nona/) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [ES2020 status](docs/v0.17-v0.20-status.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md)
 
-Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code and links a PE32+ (Windows) or ELF64 (Linux) executable. The output does not embed Node.js, V8 or any interpreter and needs no C/C++ toolchain or LLVM: Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI), Linux executables use direct system calls and no libc.
+Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 or AArch64 machine code and links a PE32+ (Windows), ELF64 (Linux/BSD) or Mach-O64 (macOS) executable. The output does not embed Node.js, V8 or any interpreter and needs no C/C++ toolchain or LLVM: Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI), Linux, BSD and Intel macOS executables use direct kernel calls and no libc.
 
 > **Status:** `v0.7.0`. The full pinned Test262 suite (ES2020 features) passes **17298/17337** language, **15491/15559** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified in the [status report](docs/v0.17-v0.20-status.md): `eval` of source text computed at run time, other realms, and semantics newer than ES2020. Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
 
@@ -31,7 +31,7 @@ JavaScript source (script or module graph)
  lexer → parser → early errors and scope binding → compile-time eval/Function
                                                          │
                                                          ▼
-                                     IR lowering → x86-64 code generation
+                                     IR lowering → x86-64/AArch64 code generation
                                                          │
                                                          ▼
                        runtime (native code + JS preludes) → PE32+ or ELF64 linker
@@ -41,8 +41,8 @@ The compiler is written in TypeScript and runs on Node.js. A generated executabl
 
 ## Requirements
 
-- To run the compiler: Node.js 26 or newer and npm, on Windows or Linux.
-- Targets: Windows 10/11 x64 (`win32-x64`, the default) and Linux x86-64 (`linux-x64`).
+- To run the compiler: Node.js 26 or newer and npm.
+- Targets: Windows/Linux x64 and ARM64, Intel macOS, FreeBSD/OpenBSD x64. The default follows the host OS and CPU; see [native platforms](docs/native-platforms.md) for verification and API limits.
 
 ## Build Nona
 
@@ -72,7 +72,7 @@ node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
 ```
 
 ```text
-nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|freebsd-x64|openbsd-x64] [--module]
            [--full-runtime] [--call-stats] [--coverage dir]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
@@ -87,7 +87,7 @@ nona --help | --version
 - Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 - Node.js modules other than the built-in `fs` and `process` subsets, npm packages, and browser APIs are not available.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
-- The only targets are Windows and Linux on x86-64.
+- macOS ARM64 is not yet enabled. Optional process/filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
 
@@ -95,7 +95,7 @@ Unsupported syntax is rejected at compile time. The [language support matrix](do
 
 The full plan, based on a review of the V8 blog, is in [docs/roadmap.md](docs/roadmap.md). In short:
 
-- **Targets:** today `win32-x64` and `linux-x64`; next `linux-arm64`, `macos-arm64`, `windows-arm64`, `macos-x64`, `wasm32-wasi`, then `linux-riscv64`. A portable builtins language comes first, so the runtime is not rewritten in assembly per architecture.
+- **Targets:** Windows/Linux x64 and ARM64, Intel macOS and BSD x64 are implemented; Apple Silicon startup remains blocked by the system-library policy. Future targets include `wasm32-wasi` and `linux-riscv64`.
 - **Quick wins:** inline number operators, per-block safepoints, RegExp cache and number formatting are done; seeded hashing, collector fixes, fast array iteration, cheaper `await` and small post-ES2020 features are in progress.
 - **Medium:** RegExp bytecode with a linear-time fallback, linking only the preludes a program uses, native JSON, static type inference, direct calls, real-world benchmarks, coverage builds.
 - **Foundation:** shapes with in-object slots, a startup snapshot in the executable, a page-based heap, an SSA IR with register allocation, a builtins DSL, native RegExp matchers.

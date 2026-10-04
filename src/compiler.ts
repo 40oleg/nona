@@ -21,7 +21,7 @@ import {withBuiltinModules} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
 import {collectSourceUsage} from './frontend/lexer.js';
 import {fullRuntimeLink} from './runtime/link.js';
-import {detectHostTarget,getTarget,requireHostTarget,type Target} from './target.js';
+import {detectHostTarget,getTarget,supportedNativeTargets,requireHostTarget,type Target} from './target.js';
 import {withNativeTarget} from './backend/machine/context.js';
 /** A module path as a coverage URL: absolute paths become file:// URLs, others are kept (built-in modules). */
 function scriptUrl(path:string):string|undefined {
@@ -91,7 +91,7 @@ export function compile(source:string, options:CompileOptions):CompileResult {
 }
 function compileOnTarget(source:string,options:CompileOptions):CompileResult {
   try {
-    if(options.target===undefined||!getTarget(options.target)||!['win32-x64','win32-arm64','linux-x64','linux-arm64','darwin-x64','freebsd-x64','openbsd-x64'].includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.target===undefined||!getTarget(options.target)||!supportedNativeTargets.includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     const descriptor=getTarget(options.target)!;
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
@@ -106,9 +106,9 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     if((descriptor.os==='freebsd'||descriptor.os==='openbsd'||descriptor.os==='darwin')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
-    // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
+    // DLL imports exist in Windows images; other OS targets use raw kernel calls.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(descriptor.os!=='win32'));
-    if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
+    if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} requires a Linux, Darwin or BSD target`:`FFI declaration ${d.dll}!${d.name} requires a Windows target`})));
     const resources=peResources(options);
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
     const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources});

@@ -21,6 +21,29 @@ concurrency:
   group: native-platforms-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
+  browser-compiler:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - run: npm run check:playground
+        working-directory: site
+      - run: npm run check:samples
+        working-directory: site
+      - run: npm run check:links
+        working-directory: site
   windows-regression:
     # Complete regressions run before PR readiness; development pushes use the
     # native probes and focused Linux regression below.
@@ -49,7 +72,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/elf.test.js dist/tests/x64.test.js dist/tests/base-cache.test.js dist/tests/native-targets.test.js dist/tests/machine-context.test.js dist/tests/machine-operations.test.js dist/tests/macho.test.js dist/tests/elf-platform-layout.test.js dist/tests/platform-probes.test.js dist/tests/bsd.test.js dist/tests/arm64-assembler.test.js dist/tests/arm64-relocations.test.js dist/tests/arm64-image-relocations.test.js dist/tests/arm64-math.test.js dist/tests/arm64-runtime-emission.test.js dist/tests/linux-arm64.test.js dist/tests/linux-arm64-host.test.js dist/tests/darwin-runtime.test.js dist/tests/arm64-windows-bridge.test.js dist/tests/arm64-page-geometry.test.js dist/tests/sha256.test.js
+      - run: node --test dist/tests/elf.test.js dist/tests/x64.test.js dist/tests/base-cache.test.js dist/tests/native-targets.test.js dist/tests/machine-context.test.js dist/tests/machine-operations.test.js dist/tests/macho.test.js dist/tests/elf-platform-layout.test.js dist/tests/platform-probes.test.js dist/tests/bsd.test.js dist/tests/arm64-assembler.test.js dist/tests/arm64-relocations.test.js dist/tests/arm64-image-relocations.test.js dist/tests/arm64-math.test.js dist/tests/arm64-runtime-emission.test.js dist/tests/linux-arm64.test.js dist/tests/linux-arm64-host.test.js dist/tests/darwin-runtime.test.js dist/tests/arm64-windows-bridge.test.js dist/tests/arm64-page-geometry.test.js dist/tests/sha256.test.js dist/tests/native-ffi-targets.test.js
       - run: npm run compare:linux
   loaders:
     strategy:

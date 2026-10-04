@@ -32,3 +32,9 @@ Nona-র কোনো নিরাপত্তা নিরীক্ষা হ�
 - [শুরু করা](/bn/guide/getting-started) — কম্পাইলার এবং আপনার প্রথম প্রোগ্রাম বিল্ড করুন।
 - [কীভাবে কাজ করে](/bn/guide/how-it-works) — পাইপলাইন, রানটাইম ও লিঙ্কার।
 - [উদাহরণ](/bn/examples/) — hello world থেকে ওয়ালপেপার পরিবর্তক পর্যন্ত।
+
+## নেটিভ প্ল্যাটফর্ম
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: not enabled yet.

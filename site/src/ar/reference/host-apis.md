@@ -23,3 +23,8 @@
 - يحتسب جامع المهملات مكدسات الروتينات المشتركة المحجوزة (1 MiB لكل دالة غير متزامنة أو مولّد قيد التشغيل، `rt.generatorStackBytes`) ضمن عتبته، لذا فالروتينات المشتركة المتروكة، التي لا تحرّر مكدساتها إلا مرحلة الكنس، تطلق عمليات جمع كما تفعل المهملات العادية.
 - يتحقق `tests/stability.test.ts` من أن زيادة عدد مرات انطلاق المؤقتات عشرة أضعاف (مع مهام Promise ومهملات في كل نبضة) لا ترفع ذروة الذاكرة، وأن آلاف الروتينات المشتركة المتروكة تُحرَّر، وأن برنامجًا ينتظر مؤقتًا مدته ثانيتان لا يكاد يستهلك المعالج.
 - قيود معروفة: تخزين الخصائص والعناصر وMap خطي (#36)، لذا تتباطأ البرامج التي فيها مئات المؤقتات الحية أو كائنات كبيرة؛ وعلى Linux كل كتلة من الكومة تعيين ذاكرة مستقل (#37).
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

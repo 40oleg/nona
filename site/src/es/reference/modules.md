@@ -80,3 +80,8 @@ Declaraciones listas para usar construidas sobre [`nona:ffi`](/es/reference/ffi)
 | `readHandle(buffer)` | Lee un handle (por ejemplo, un `HKEY`) que una función escribió en un búfer de 8 bytes. |
 
 Para las funciones que no aparecen en la lista, decláralas tú mismo con `define` de [`nona:ffi`](/es/reference/ffi).
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

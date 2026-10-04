@@ -32,3 +32,9 @@ Nona no ha pasado una auditoría de seguridad. No compiles código fuente no con
 - [Primeros pasos](/es/guide/getting-started): compila el compilador y tu primer programa.
 - [Cómo funciona](/es/guide/how-it-works): el pipeline, el runtime y los enlazadores.
 - [Ejemplos](/es/examples/): desde un hello world hasta un cambiador de fondos de pantalla.
+
+## Plataformas nativas
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: not enabled yet.

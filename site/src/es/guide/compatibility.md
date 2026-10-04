@@ -49,3 +49,9 @@ El código en tiempo de ejecución se sigue en [#11](https://github.com/40oleg/n
 - Destinos: solo Windows 10/11 x64 y Linux x86-64.
 - Los ejecutables de Windows solo importan `KERNEL32.dll`, `KERNELBASE.dll` y las DLL declaradas mediante FFI; los ejecutables de Linux son estáticos y usan llamadas al sistema directamente.
 - FFI hacia DLL solo existe en Windows; las llamadas al sistema directas, solo en Linux.
+
+## Plataformas nativas
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: not enabled yet.

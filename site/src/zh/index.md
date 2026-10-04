@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: 把 JavaScript 编译成原生可执行文件
-  tagline: 一个提前（ahead-of-time）编译器，把 ES2020 JavaScript 编译成独立的 Windows 和 Linux x64 可执行文件。没有内嵌解释器，也不需要 C 工具链。
+  tagline: 一个提前（ahead-of-time）编译器，把 ES2020 JavaScript 编译成独立的 Windows 和 Linux x64 可执行文件。没有内嵌解释器，也不需要 C 工具链。 Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: 快速开始

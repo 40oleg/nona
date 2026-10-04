@@ -23,3 +23,8 @@ Globales: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - El recolector cuenta las pilas de corrutinas reservadas (1 MiB por cada función async o generador en ejecución, `rt.generatorStackBytes`) para su umbral, de modo que las corrutinas abandonadas, cuyas pilas solo libera el barrido, disparan recolecciones igual que la basura ordinaria.
 - `tests/stability.test.ts` comprueba que diez veces más disparos de temporizador (con tareas de Promise y basura en cada tick) no aumentan el pico de memoria, que miles de corrutinas abandonadas se liberan y que un programa que espera un temporizador de dos segundos apenas consume CPU.
 - Límites conocidos: el almacenamiento de propiedades, elementos y Map es lineal (#36), así que los programas con cientos de temporizadores vivos u objetos grandes se ralentizan; en Linux cada bloque del heap es un mapeo de memoria aparte (#37).
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 पाथ होस्ट द्वारा चुनी गई कैनोनिकल, `/` से अलग की गई स्ट्रिंग होते हैं। डिफ़ॉल्ट होस्ट रिलेटिव स्पेसिफ़ायर को संदर्भित करने वाली फ़ाइल के पास रिज़ॉल्व करता है और फ़ाइलें डिस्क से पढ़ता है। `candidates` उन मॉड्यूलों की सूची देता है जिनका नाम कोई computed `import()` ले सकता है, ताकि वे कंपाइल में शामिल हो जाएँ। बिल्ट-इन `nona:*` और `node:*` मॉड्यूल होस्ट से पूछने से पहले ही रिज़ॉल्व हो जाते हैं।
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

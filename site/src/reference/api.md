@@ -27,7 +27,7 @@ Compiles one source text and returns `CompileResult`. It does not write files.
 | Option | Type | Description |
 | --- | --- | --- |
 | `fileName` | `string` | Name used in diagnostics; for modules also the path that relative imports are resolved against. Required. |
-| `target` | `'win32-x64' \| 'linux-x64'` | Output format. Required. |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | Compile as an ES module. |
 | `subsystem` | `'console' \| 'windows'` | PE subsystem (`win32-x64` only). |
 | `icon` | `Uint8Array` | Contents of an `.ico` file (`win32-x64` only). |
@@ -62,3 +62,8 @@ interface ModuleHost {
 ```
 
 Paths are canonical `/`-separated strings chosen by the host. The default host resolves relative specifiers next to the referring file and reads files from disk. `candidates` lists the modules a computed `import()` may name, so that they are compiled in. Built-in `nona:*` and `node:*` modules are resolved before the host is asked.
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

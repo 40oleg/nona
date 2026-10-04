@@ -49,3 +49,9 @@ Test262-এর জন্য `$262.createRealm` সমর্থিত। JavaScri
 - টার্গেট: কেবল Windows 10/11 x64 ও Linux x86-64।
 - Windows এক্সিকিউটেবল কেবল `KERNEL32.dll`, `KERNELBASE.dll` এবং FFI দিয়ে ঘোষিত DLL ইমপোর্ট করে; Linux এক্সিকিউটেবল স্ট্যাটিক এবং সরাসরি সিস্টেম কল ব্যবহার করে।
 - DLL-এ FFI কেবল Windows-এ; সরাসরি সিস্টেম কল কেবল Linux-এ।
+
+## নেটিভ প্ল্যাটফর্ম
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: not enabled yet.

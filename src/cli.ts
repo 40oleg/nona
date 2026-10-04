@@ -1,4 +1,4 @@
-import {detectHostTarget,getTarget} from './target.js';
+import {detectHostTarget,getTarget,supportedNativeTargets} from './target.js';
 import {fileBaseImageCache} from './cache.js';
 import {readFileSync,writeFileSync,renameSync,unlinkSync,mkdirSync,realpathSync,statSync,existsSync} from 'node:fs';
 import {resolve,dirname,basename,join} from 'node:path';
@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
 import {position} from './source.js';
 
-const help='Nona 0.7.0 — JavaScript subset to native Windows/Linux x64\nUsage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona 0.7.0 — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}

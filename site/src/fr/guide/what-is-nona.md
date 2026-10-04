@@ -32,3 +32,9 @@ Nona n’a fait l’objet d’aucun audit de sécurité. Ne compilez pas de code
 - [Prise en main](/fr/guide/getting-started) — compilez le compilateur et votre premier programme.
 - [Fonctionnement](/fr/guide/how-it-works) — la chaîne de compilation, le runtime et les éditeurs de liens.
 - [Exemples](/fr/examples/) — d’un hello world à un changeur de fond d’écran.
+
+## Plateformes natives
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: not enabled yet.

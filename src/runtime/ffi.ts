@@ -58,14 +58,16 @@ export function emitFfi(declarations:FfiDeclaration[],options:{prefix?:string;su
   return b;
 }
 
-/** Linux system call with Win64 arguments (the ELF linker binds the import cell to it). */
+/** Target kernel call with logical Win64 arguments and negative errno results. */
 function syscallStub(b:RuntimeBuilder,name:string,number:number):void {
+  const target=currentNativeTarget(),darwin=target?.startsWith('darwin-'),carryError=darwin||target?.startsWith('freebsd-')||target?.startsWith('openbsd-');
   b.fn(name,56,a=>{
     a.store(slot(40),'rsi');a.store(slot(48),'rdi');
     a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('r10','r9');
     // Arguments 5 and 6 above the return address and the caller's shadow space.
     a.load('r8',slot(56+40));a.load('r9',slot(56+48));
-    a.syscall(number);
+    a.syscall(darwin?0x2000000+number:number);
+    if(carryError){const done=a.unique('syscallDone');a.jcc('ae',done);a.neg('rax');a.label(done);}
     a.load('rsi',slot(40));a.load('rdi',slot(48));
   });
 }

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: JavaScript से नेटिव एक्ज़ीक्यूटेबल तक
-  tagline: एक ahead-of-time कंपाइलर, जो ES2020 JavaScript को Windows और Linux x64 के स्वतंत्र एक्ज़ीक्यूटेबल में बदलता है। न कोई एम्बेडेड इंटरप्रेटर, न C टूलचेन।
+  tagline: एक ahead-of-time कंपाइलर, जो ES2020 JavaScript को Windows और Linux x64 के स्वतंत्र एक्ज़ीक्यूटेबल में बदलता है। न कोई एम्बेडेड इंटरप्रेटर, न C टूलचेन। Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: शुरू करें

@@ -74,3 +74,9 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 - 运行时出现 `EvalError` 表示 `eval` 或 `Function` 收到了编译时未知的源码。
 
 [命令行参考](/zh/reference/cli)列出了所有选项和错误。
+
+## 原生平台
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: not enabled yet.

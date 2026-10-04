@@ -75,3 +75,9 @@ tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
+
+## नेटिव प्लेटफ़ॉर्म
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: not enabled yet.

@@ -23,3 +23,8 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 由原生�
 - 回收器会把已提交的协程栈（每个运行中的异步函数或生成器 1 MiB，`rt.generatorStackBytes`）计入阈值，因此被遗弃的协程——它们的栈只能由清除阶段释放——会像普通垃圾一样触发回收。
 - `tests/stability.test.ts` 检查：定时器触发次数增加十倍（每个节拍都有 Promise 任务和垃圾）不会提高内存峰值；数千个被遗弃的协程会被释放；等待两秒定时器的程序几乎不占用 CPU。
 - 已知限制：属性、元素和 Map 的存储是线性的（#36），因此拥有数百个存活定时器或大对象的程序会变慢；在 Linux 上，每个堆块都是一个单独的内存映射（#37）。
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

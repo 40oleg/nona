@@ -23,3 +23,8 @@ Globais: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, 
 - O coletor conta as pilhas de corrotinas alocadas (1 MiB por função async ou gerador em execução, `rt.generatorStackBytes`) para o seu limite, de modo que corrotinas abandonadas, cujas pilhas só a varredura libera, disparam coletas como lixo comum.
 - `tests/stability.test.ts` verifica que dez vezes mais disparos de timer (com jobs de Promise e lixo a cada tick) não aumentam o pico de memória, que milhares de corrotinas abandonadas são liberadas e que um programa esperando um timer de dois segundos quase não usa CPU.
 - Limites conhecidos: o armazenamento de propriedades, elementos e Map é linear (#36), então programas com centenas de timers vivos ou objetos grandes ficam mais lentos; no Linux, cada bloco do heap é um mapeamento de memória separado (#37).
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

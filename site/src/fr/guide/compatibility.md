@@ -49,3 +49,9 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 - Cibles : Windows 10/11 x64 et Linux x86-64 uniquement.
 - Les exécutables Windows n’importent que `KERNEL32.dll`, `KERNELBASE.dll` et les DLL déclarées via FFI ; les exécutables Linux sont statiques et utilisent directement les appels système.
 - La FFI vers des DLL n’existe que sous Windows ; les appels système bruts, que sous Linux.
+
+## Plateformes natives
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: not enabled yet.

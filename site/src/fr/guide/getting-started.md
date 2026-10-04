@@ -74,3 +74,9 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 - Une `EvalError` à l’exécution signifie que `eval` ou `Function` a reçu un texte source inconnu à la compilation.
 
 La [référence de la ligne de commande](/fr/reference/cli) liste toutes les options et erreurs.
+
+## Plateformes natives
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: not enabled yet.

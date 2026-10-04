@@ -2,8 +2,8 @@
 
 ## Requirements
 
-- To run the compiler: Node.js 26 or newer and npm, on Windows or Linux.
-- Targets: Windows 10/11 x64 (`win32-x64`, the default) and Linux x86-64 (`linux-x64`).
+- To run the compiler: Node.js 26 or newer and npm, on any host running Node.js 26.
+- Targets: Windows/Linux x64 and ARM64, Intel macOS, FreeBSD/OpenBSD x64. The default follows the host OS and CPU.
 
 ## Build the compiler
 
@@ -74,3 +74,9 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 - `EvalError` at run time means `eval` or `Function` received source text that was not known at compile time.
 
 The [command line reference](/reference/cli) lists every option and error.
+
+## Native platforms
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: not enabled yet.

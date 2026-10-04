@@ -23,3 +23,8 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 - কালেক্টর কমিট করা coroutine স্ট্যাক (প্রতিটি চলমান async ফাংশন বা জেনারেটরের জন্য 1 MiB, `rt.generatorStackBytes`) তার থ্রেশহোল্ডে গণনা করে, তাই পরিত্যক্ত coroutine, যাদের স্ট্যাক কেবল sweep-ই মুক্ত করে, সাধারণ আবর্জনার মতোই কালেকশন চালু করে।
 - `tests/stability.test.ts` যাচাই করে যে দশ গুণ বেশি টাইমার ফায়ারিং (প্রতিটি টিকে promise জব ও আবর্জনাসহ) সর্বোচ্চ মেমরি বাড়ায় না, হাজার হাজার পরিত্যক্ত coroutine মুক্ত হয়, এবং দুই সেকেন্ডের টাইমারের জন্য অপেক্ষারত প্রোগ্রাম প্রায় কোনো CPU ব্যবহার করে না।
 - জানা সীমাবদ্ধতা: প্রপার্টি, এলিমেন্ট ও Map স্টোরেজ রৈখিক (#36), তাই শত শত জীবিত টাইমার বা বড় অবজেক্টসহ প্রোগ্রাম ধীর হয়ে যায়; Linux-এ প্রতিটি হিপ ব্লক একটি আলাদা মেমরি ম্যাপিং (#37)।
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

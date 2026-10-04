@@ -74,3 +74,9 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 - रनटाइम पर `EvalError` का अर्थ है कि `eval` या `Function` को ऐसा सोर्स टेक्स्ट मिला जो कंपाइल के समय ज्ञात नहीं था।
 
 [कमांड लाइन संदर्भ](/hi/reference/cli) में हर विकल्प और एरर की सूची है।
+
+## नेटिव प्लेटफ़ॉर्म
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: not enabled yet.

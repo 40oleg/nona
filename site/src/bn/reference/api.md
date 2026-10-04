@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 পাথগুলো হোস্টের বেছে নেওয়া ক্যানোনিক্যাল, `/` দিয়ে আলাদা করা স্ট্রিং। ডিফল্ট হোস্ট আপেক্ষিক স্পেসিফায়ারকে রেফারকারী ফাইলের পাশে রিজলভ করে এবং ডিস্ক থেকে ফাইল পড়ে। `candidates` সেই মডিউলগুলোর তালিকা দেয়, যাদের নাম একটি computed `import()` নিতে পারে, যাতে সেগুলো কম্পাইলে অন্তর্ভুক্ত হয়। বিল্ট-ইন `nona:*` ও `node:*` মডিউল হোস্টকে জিজ্ঞাসা করার আগেই রিজলভ হয়।
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

@@ -3,6 +3,8 @@
 Nona programs run without Node.js. The host APIs below are implemented by the
 native runtime and small JavaScript preludes compiled into every executable.
 
+See [native platforms](native-platforms.md) for the OS/CPU capability matrix. Optional `process` and filesystem adapters currently require Windows or Linux; timers, clocks and the shared runtime are available on every enabled target.
+
 ## Timers and the event loop
 
 Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,

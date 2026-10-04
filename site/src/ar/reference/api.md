@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 المسارات سلاسل قانونية مفصولة بـ `/` يختارها المضيف. يحلّ المضيف الافتراضي المحدِّدات النسبية بجوار الملف المرجعي ويقرأ الملفات من القرص. ويسرد `candidates` الوحدات التي قد يسمّيها `import()` محسوب، كي تُترجَم ضمن البرنامج. وتُحَلّ الوحدات المدمجة `nona:*` و`node:*` قبل سؤال المضيف.
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

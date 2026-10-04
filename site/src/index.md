@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: JavaScript to native executables
-  tagline: An ahead-of-time compiler that turns ES2020 JavaScript into standalone Windows and Linux x64 executables. No embedded interpreter, no C toolchain.
+  tagline: An ahead-of-time compiler that turns ES2020 JavaScript into standalone Windows and Linux x64 executables. No embedded interpreter, no C toolchain. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: Get started

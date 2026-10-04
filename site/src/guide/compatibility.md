@@ -76,6 +76,12 @@ A program can still reach an omitted part through a name computed at run time, f
 
 ## Platforms
 
-- Targets: Windows 10/11 x64 and Linux x86-64 only.
+- macOS ARM64 is not yet enabled; optional process/filesystem APIs remain unavailable on Darwin/BSD.
 - Windows executables import only `KERNEL32.dll`, `KERNELBASE.dll` and DLLs declared through FFI; Linux executables are static and use system calls directly.
 - FFI to DLLs is Windows-only; raw system calls are Linux-only.
+
+## Native platforms
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: not enabled yet.

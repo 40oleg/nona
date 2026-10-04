@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 路径是由宿主选择的、以 `/` 分隔的规范字符串。默认宿主相对于引用文件解析相对说明符，并从磁盘读取文件。`candidates` 列出计算形式的 `import()` 可能引用的模块，以便把它们编译进程序。内置的 `nona:*` 和 `node:*` 模块会在询问宿主之前解析。
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

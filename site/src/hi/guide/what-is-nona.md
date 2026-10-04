@@ -32,3 +32,9 @@ Nona का सुरक्षा ऑडिट नहीं हुआ है। 
 - [शुरुआत करें](/hi/guide/getting-started) — कंपाइलर और अपना पहला प्रोग्राम बनाइए।
 - [यह कैसे काम करता है](/hi/guide/how-it-works) — पाइपलाइन, रनटाइम और लिंकर।
 - [उदाहरण](/hi/examples/) — hello world से लेकर वॉलपेपर बदलने वाले प्रोग्राम तक।
+
+## नेटिव प्लेटफ़ॉर्म
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: not enabled yet.

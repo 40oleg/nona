@@ -20,7 +20,7 @@ Nona programs run without Node.js. The host APIs below are part of the compiler:
 - Globals are available in scripts and modules.
 - Built-in modules can be imported from module code (`.mjs` or `--module`) and with literal `import()` from scripts. FFI declarations (`define`) must be in module code.
 - Only `node:fs` and `node:process` exist among the `node:` modules; they are aliases of the Nona subsets, not the Node.js implementations. `node:path`, `Buffer` and `require` are not available.
-- `nona:win32` and DLL declarations compile only for `win32-x64`; system call declarations only for `linux-x64`.
+- `nona:win32` and DLL declarations require Windows x64 or ARM64; system call declarations use the selected Linux, Darwin or BSD kernel.
 
 ## `nona:win32`
 
@@ -80,3 +80,8 @@ Ready-made declarations built on [`nona:ffi`](/reference/ffi). Every function is
 | `readHandle(buffer)` | Reads a handle (for example an `HKEY`) that a function wrote into an 8-byte buffer. |
 
 For functions that are not listed, declare them yourself with `define` from [`nona:ffi`](/reference/ffi).
+
+
+## Native target availability
+
+Windows/Linux x64 and ARM64, Intel macOS and FreeBSD/OpenBSD x64 targets are available. Apple Silicon startup is not enabled. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

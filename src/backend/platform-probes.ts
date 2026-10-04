@@ -54,6 +54,11 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     ];
     for(const probe of extra){const result=compile(probe.source,{fileName:probe.name+'.js',target,module:probe.module});if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));probes.push({name:probe.name,image:result.image,expected:probe.expected});}
   }
+  if(getTarget(target)!.os!=='win32'){
+    const read=target==='linux-arm64'?63:target==='linux-x64'?0:3,pid=target==='linux-arm64'?172:target==='linux-x64'?39:20;
+    const result=compile(`import {define} from 'nona:ffi';const read=define('syscall','${read}','i64(i32,ptr,u32)'),pid=define('syscall','${pid}','i64()');console.log(pid()>0,read(-1,null,0))`,{fileName:'ffi-syscall.mjs',target,module:true});
+    if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));probes.push({name:'ffi-syscall',image:result.image,expected:'true -9\n'});
+  }
   return probes;
 }
 /** Refuse accidental emulation (including Rosetta) in native verification. */

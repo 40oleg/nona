@@ -23,7 +23,7 @@ function monotonic(a:Assembler):void {
 export function linkDarwin(program:NativeProgram):Uint8Array {
   return withNativeTarget('darwin-x64',()=>{
     const b=new RuntimeBuilder();
-    const replace=new Set(['linux.WaitOnAddress.code','linux.WakeByAddressSingle.code','linux.CreateThread.code']);
+    const replace=new Set(['linux.Sleep.code','linux.WaitOnAddress.code','linux.WakeByAddressSingle.code','linux.CreateThread.code']);
     const fragments=linuxShims(program.imports,{replace,syscall:(a,number)=>{
       if(number===9){a.mov('r10',0x1002);nativeCall(a,197);}
       else if(number===228){
@@ -33,14 +33,22 @@ export function linkDarwin(program:NativeProgram):Uint8Array {
         a.label(real);a.store(slot(8),'rsi');a.mov('rdi','rsi');a.mov('rsi',0);nativeCall(a,116);
         const failed=a.unique('clockFailed');a.test('rax','rax');a.jcc('ne',failed);
         a.load('r10',slot(8));a.load('r11',{base:'r10',disp:8},32);a.mov('rdx',1000);a.imul('r11','rdx');a.store({base:'r10',disp:8},'r11');a.label(failed);a.label(done);
-      }else if(number===35){
-        a.load('r8',{base:'rdi'});a.load('r9',{base:'rdi',disp:8});a.mov('rdi',0);a.mov('rsi',0);a.mov('rdx',1);a.mov('r10',1);nativeCall(a,334);
       }else if(number===2){a.mov('rsi',0x601);nativeCall(a,5);}
       else{
         const mapped=new Map([[1,4],[3,6],[10,74],[11,73],[39,20],[231,1]]).get(number);
         if(mapped===undefined)throw new Error(`Unadapted Darwin runtime syscall ${number}`);nativeCall(a,mapped);
       }
     }});
+    b.fn('linux.Sleep.code',72,a=>{
+      a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
+      const loop=a.unique('sleepChunk'),ready=a.unique('sleepReady');a.label(loop);
+      a.load('rdx',slot(56));a.cmp('rdx',0x7fffffff);a.jcc('be',ready);a.mov('rdx',0x7fffffff);a.label(ready);a.store(slot(64),'rdx');
+      // poll_nocancel with no descriptors blocks without a Mach semaphore.
+      // Its timeout is a signed int, so larger delays use bounded chunks.
+      a.mov('rdi',0);a.mov('rsi',0);nativeCall(a,417);
+      a.load('rax',slot(56));a.load('r10',slot(64));a.sub('rax','r10');a.store(slot(56),'rax');a.test('rax','rax');a.jcc('ne',loop);
+      a.load('rsi',slot(40));a.load('rdi',slot(48));
+    });
     b.fn('linux.WaitOnAddress.code',104,a=>{
       a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');a.load('rdx',{base:'rdx'},32);
       const bad=a.unique('bad'),ready=a.unique('ready'),done=a.unique('done');a.cmp('r8',4);a.jcc('ne',bad);

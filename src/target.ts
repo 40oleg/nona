@@ -29,3 +29,6 @@ export function requireHostTarget():Target {
   if(target===undefined)throw new Error(`Unsupported native host ${process.platform}/${process.arch}; supply an explicit target`);
   return target;
 }
+
+/** Compiler backends with complete native runtime linking. */
+export const supportedNativeTargets:readonly Target[]=Object.freeze(nativeTargets.filter(t=>t.target!=='darwin-arm64').map(t=>t.target));

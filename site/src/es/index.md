@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: De JavaScript a ejecutables nativos
-  tagline: Un compilador ahead-of-time que convierte JavaScript ES2020 en ejecutables autónomos para Windows y Linux x64. Sin intérprete embebido y sin toolchain de C.
+  tagline: Un compilador ahead-of-time que convierte JavaScript ES2020 en ejecutables autónomos para Windows y Linux x64. Sin intérprete embebido y sin toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: Empezar
