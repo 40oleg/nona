@@ -89,7 +89,7 @@ export function compile(source:string, options:CompileOptions):CompileResult {
 }
 function compileOnTarget(source:string,options:CompileOptions):CompileResult {
   try {
-    if(options.target===undefined||!getTarget(options.target)||!['win32-x64','linux-x64','freebsd-x64','openbsd-x64'].includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
+    if(options.target===undefined||!getTarget(options.target)||!['win32-x64','linux-x64','linux-arm64','freebsd-x64','openbsd-x64'].includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     const descriptor=getTarget(options.target)!;
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
@@ -101,7 +101,7 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    if((descriptor.os==='freebsd'||descriptor.os==='openbsd')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
+    if((descriptor.os==='freebsd'||descriptor.os==='openbsd'||options.target==='linux-arm64')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
@@ -109,7 +109,7 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} is only supported for the linux-x64 target`:`FFI declaration ${d.dll}!${d.name} is only supported for the win32-x64 target`})));
     const resources=peResources(options);
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
-    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):options.target==='linux-x64'?linkLinux(program):linkPe(program,{subsystem:options.subsystem,resources});
+    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkPe(program,{subsystem:options.subsystem,resources});
     return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[]};
   } catch(error) {
     // A diagnostic from an imported module keeps that module's path: the
