@@ -71,6 +71,10 @@ jobs:
       - run: npm run build
       - run: node scripts/build-platform-probes.mjs
       - run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js dist/tests/process.test.js dist/tests/fs.test.js
+        if: matrix.target == 'linux-arm64'
+      - run: npm run compare:linux
+        if: matrix.target == 'linux-arm64'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

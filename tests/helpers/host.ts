@@ -7,6 +7,7 @@ import {runNative} from './native.js';
 import {compileToIR} from '../../src/compiler.js';
 import {generate} from '../../src/backend/x64/codegen.js';
 import {linkPe} from '../../src/backend/pe/writer.js';
+import {requireHostTarget,getTarget} from '../../src/target.js';
 import {linkLinux} from '../../src/backend/linux/index.js';
 
 export interface HostRun {status:number|null;stdout:string;stderr:string;error?:Error}
@@ -20,7 +21,7 @@ export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:tr
  const directory=mkdtempSync(join(tmpdir(),'nona-host-'));
  try{
   const executable=join(directory,'image');
-  writeFileSync(executable,linkLinux(program));chmodSync(executable,0o755);
+  writeFileSync(executable,linkLinux(program,getTarget(requireHostTarget())!.arch));chmodSync(executable,0o755);
   const result=spawnSync(executable,[],{encoding:'utf8',timeout:60_000});
   return {status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
  }finally{removeTemporaryDirectory(directory);}
@@ -35,7 +36,7 @@ export function runModulesOnHost(files:Record<string,string>,entry:string,option
   const program=generate(compileModuleToIR(files[entry]!,join(directory,entry)),{gcStress:options.gcStress});
   const executable=join(directory,process.platform==='linux'?'image':'image.exe');
   // Both programs run in the temporary directory, so relative paths stay inside it.
-  writeFileSync(executable,process.platform==='linux'?linkLinux(program):linkPe(program));chmodSync(executable,0o755);
+  writeFileSync(executable,process.platform==='linux'?linkLinux(program,getTarget(requireHostTarget())!.arch):linkPe(program));chmodSync(executable,0o755);
   const result=spawnSync(executable,[],{cwd:directory,encoding:'utf8',timeout:60_000,windowsHide:true});
   const native:HostRun={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
   const oracle=spawnSync(process.execPath,[join(directory,entry)],{cwd:directory,encoding:'utf8',timeout:10_000});
