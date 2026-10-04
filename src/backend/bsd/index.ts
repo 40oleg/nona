@@ -59,7 +59,9 @@ function linkBsdOnTarget(program:NativeProgram,os:BsdOS):Uint8Array {
   b.fn('linux.CreateThread.code',232,a=>{
     a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
     const bad=a.unique('bad'),done=a.unique('done'),failed=a.unique('failed');
-    a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',os==='openbsd'?0x5002:0x1402);a.mov('r8',-1);a.mov('r9',0);nativeCall(a,sys.mmap);
+    // FreeBSD MAP_STACK puts a non-shrinkable guard at the returned address.
+    // This fixed-size allocation owns all its pages, including entry metadata.
+    a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',os==='openbsd'?0x5002:0x1002);a.mov('r8',-1);a.mov('r9',0);nativeCall(a,sys.mmap);
     a.cmp('rax',-4095);a.jcc('ae',bad);a.store(slot(72),'rax');
     for(let offset=80;offset<184;offset+=8){a.mov('r10',0);a.store(slot(offset),'r10');}
     if(os==='freebsd'){

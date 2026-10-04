@@ -88,3 +88,10 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - CI run 37231979751: OpenBSD 7.8 passed all ten runtime probes, including timers, forced GC and a real shared-memory agent thread with wait/notify.
 - FreeBSD 14.3 agent probe raised SIGBUS before the loop reached the other strengthened probes. Investigating the exact PC/register state with LLDB in the disposable FreeBSD VM; do not guess a fix from the signal alone.
 - Ruling: keep regression gate failure visible; add diagnostic names and a debugger only on failure, preserving the failed exit code. Darwin ARM64 stays an unresolved libc-policy question awaiting the owner's answer.
+
+## Task 5 — ARM64 relocations and FreeBSD thread diagnosis
+
+- Added checked ADRP/ADD and B/BL instruction relocations to ELF and Mach-O. Loader probes now use slide-invariant PC-relative addresses rather than absolute pointers embedded in executable text.
+- Verification: missing instruction module and image fixup dispatch observed RED; 14 relocation/layout/signature tests GREEN. Linux ARM64 native loader revalidation is pending the next CI run.
+- CI run 37232283290 passed Linux regression/compare and OpenBSD probes. Windows full check/compare is still running. FreeBSD LLDB stopped at `movq %r10,(%rax)`, the metadata write to the returned thread mapping's first page.
+- Root cause confirmed in FreeBSD 14.3 mmap(2): MAP_STACK returns a guard at its base, and that guard cannot shrink below the configured minimum. Use a plain fixed-size private anonymous mapping for the runtime-owned stack and metadata; retain OpenBSD's required MAP_STACK. Native failure was reproduced before this fix; native revalidation is pending.

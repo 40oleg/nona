@@ -1,5 +1,6 @@
 import type {NativeProgram,NamedFragment} from '../pe/model.js';
 import {checkedRel32} from '../x64/encoder.js';
+import {isArm64Relocation,relocateArm64} from '../arm64/relocations.js';
 import {adHocSignature,signatureSize} from './signature.js';
 
 export interface MachOOptions {arch?:'x64'|'arm64'}
@@ -57,6 +58,10 @@ export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Ar
       if(fixup.kind==='va64')v.setBigUint64(at+fixup.offset,BigInt(resolved),true);
       else if(fixup.kind==='rva32')v.setUint32(at+fixup.offset,u32(resolved-base),true);
       else if(fixup.kind==='rel32')v.setInt32(at+fixup.offset,checkedRel32(resolved-place-4),true);
+      else if(isArm64Relocation(fixup.kind)){
+        if(arch!=='arm64')throw new Error('ARM64 relocation requires ARM64 architecture');
+        v.setUint32(at+fixup.offset,relocateArm64(fixup.kind,v.getUint32(at+fixup.offset,true),place,resolved),true);
+      }
       else throw new Error('Unknown Mach-O fixup');
     }
   }

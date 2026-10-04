@@ -1,5 +1,6 @@
 import type {NativeProgram,NamedFragment} from '../pe/model.js';
 import {checkedRel32} from '../x64/encoder.js';
+import {isArm64Relocation,relocateArm64} from '../arm64/relocations.js';
 import {writeFileSync} from 'node:fs';
 
 const align=(value:number,boundary:number)=>Math.ceil(value/boundary)*boundary;
@@ -76,6 +77,10 @@ export function linkElf(program:NativeProgram,options:ElfOptions={}):Uint8Array 
    if(fixup.kind==='rel32')view.setInt32(at,checkedRel32(resolved-place-4),true);
    else if(fixup.kind==='rva32')view.setUint32(at,u32(resolved-base),true);
    else if(fixup.kind==='va64')view.setBigUint64(at,BigInt(resolved),true);
+   else if(isArm64Relocation(fixup.kind)){
+    if(machine!=='arm64')throw new Error('ARM64 relocation requires ARM64 architecture');
+    view.setUint32(at,relocateArm64(fixup.kind,view.getUint32(at,true),place,resolved),true);
+   }
    else throw new Error('Unknown ELF fixup');
   }
  }

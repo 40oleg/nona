@@ -62,13 +62,16 @@ export function loaderProbe(target:Target):Uint8Array {
     // ARM64 uses x0..x2 arguments; Linux uses x8/SVC 0, Darwin x16/SVC 0x80.
     const bytes:number[]=[],word=(value:number)=>{for(let i=0;i<4;i++)bytes.push(value>>>(i*8)&255);};
     word(0xd2800020); // mov x0, #1
-    word(0x58000041);word(0x14000003); // ldr x1, literal; skip address
-    const pointer=bytes.length;for(let i=0;i<8;i++)bytes.push(0);
+    const pointer=bytes.length;
+    word(0x90000001);word(0x91000021); // adrp/add x1, message (slide invariant)
     word(0xd28000c2); // mov x2, #6
     const linux=descriptor.os==='linux';
     word(linux?0xd2800808:0xd2800090);word(linux?0xd4000001:0xd4001001);
     word(0xd2800000);word(linux?0xd2800ba8:0xd2800030);word(linux?0xd4000001:0xd4001001);
-    code={bytes:Uint8Array.from(bytes),symbols:{},fixups:[{offset:pointer,kind:'va64',target:'probe.message',addend:0}]};
+    code={bytes:Uint8Array.from(bytes),symbols:{},fixups:[
+      {offset:pointer,kind:'arm64-page21',target:'probe.message',addend:0},
+      {offset:pointer+4,kind:'arm64-pageoff12',target:'probe.message',addend:0},
+    ]};
   }
   const program:NativeProgram={entry:'probe.start',imports:[],functions:[],fragments:[
     {...code,name:'probe.start',section:'.text'},
