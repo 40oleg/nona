@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { compile } from '../../src/compiler.js';
 import { runNative } from './native.js';
+import {linkDarwin} from '../../src/backend/darwin/index.js';
+import {linkWindowsArm64} from '../../src/backend/arm64/windows.js';
+import {linkBsd} from '../../src/backend/bsd/index.js';
 import { linkPe } from '../../src/backend/pe/writer.js';
 import { linkLinux } from '../../src/backend/linux/index.js';
 import {requireHostTarget,getTarget,type Target} from '../../src/target.js';
@@ -18,5 +21,9 @@ export function expectProgram(source:string, expected:string):void {
 }
 /** Link a program for the host target, so that runNative can run it here. */
 export function linkHost(program:NativeProgram,target:Target=hostTarget):Uint8Array {
-  return getTarget(target)!.os === 'linux' ? linkLinux(program,getTarget(target)!.arch) : linkPe(program);
+  const descriptor=getTarget(target)!;
+  if(descriptor.os==='linux')return linkLinux(program,descriptor.arch);
+  if(descriptor.os==='darwin')return linkDarwin(program);
+  if(descriptor.os==='freebsd'||descriptor.os==='openbsd')return linkBsd(program,descriptor.os);
+  return descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program);
 }

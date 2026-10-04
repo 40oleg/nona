@@ -6,7 +6,7 @@ import {spawnSync} from 'node:child_process';
 import {runNative} from './native.js';
 import {compileToIR} from '../../src/compiler.js';
 import {generate} from '../../src/backend/x64/codegen.js';
-import {linkPe} from '../../src/backend/pe/writer.js';
+import {linkHost} from './program.js';
 import {requireHostTarget,getTarget} from '../../src/target.js';
 import {linkLinux} from '../../src/backend/linux/index.js';
 
@@ -15,7 +15,7 @@ export interface HostRun {status:number|null;stdout:string;stderr:string;error?:
 export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:true}):HostRun {
  const program=generate(compileToIR(source),{gcStress:options.gcStress});
  if(process.platform!=='linux'){
-  const result=runNative(linkPe(program));
+  const result=runNative(linkHost(program));
   return {status:result.status,stdout:result.stdout.toString(),stderr:result.stderr.toString(),error:result.error};
  }
  const directory=mkdtempSync(join(tmpdir(),'nona-host-'));
@@ -36,7 +36,7 @@ export function runModulesOnHost(files:Record<string,string>,entry:string,option
   const program=generate(compileModuleToIR(files[entry]!,join(directory,entry)),{gcStress:options.gcStress});
   const executable=join(directory,process.platform==='linux'?'image':'image.exe');
   // Both programs run in the temporary directory, so relative paths stay inside it.
-  writeFileSync(executable,process.platform==='linux'?linkLinux(program,getTarget(requireHostTarget())!.arch):linkPe(program));chmodSync(executable,0o755);
+  writeFileSync(executable,linkHost(program));chmodSync(executable,0o755);
   const result=spawnSync(executable,[],{cwd:directory,encoding:'utf8',timeout:60_000,windowsHide:true});
   const native:HostRun={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
   const oracle=spawnSync(process.execPath,[join(directory,entry)],{cwd:directory,encoding:'utf8',timeout:10_000});
