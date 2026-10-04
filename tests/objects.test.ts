@@ -1,5 +1,5 @@
 import {test} from 'node:test';
-import {expectProgram} from './helpers/program.js';
+import {expectProgram,hostTarget} from './helpers/program.js';
 import {runOracle} from './helpers/oracle.js';
 import assert from 'node:assert/strict';
 import {compile} from '../src/compiler.js';
@@ -43,7 +43,7 @@ for(const source of [
  'console.log(""+{toString:1});',
  'let o={};delete o.__proto__.toString;console.log(""+o);',
 ])test(`object runtime rejects: ${source}`,()=>{
- const result=compile(source,{fileName:'invalid-object.js',target:'win32-x64'});
+ const result=compile(source,{fileName:'invalid-object.js',target:hostTarget});
  assert.equal(result.ok,true);if(!result.ok)return;
  const run=runNative(result.image);
  assert.equal(run.error,undefined);assert.equal(run.status,1);

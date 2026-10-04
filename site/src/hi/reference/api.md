@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | विकल्प | टाइप | विवरण |
 | --- | --- | --- |
 | `fileName` | `string` | डायग्नोस्टिक्स में उपयोग होने वाला नाम; मॉड्यूल के लिए यह वह पाथ भी है जिसके सापेक्ष रिलेटिव इम्पोर्ट रिज़ॉल्व होते हैं। अनिवार्य। |
-| `target` | `'win32-x64' \| 'linux-x64'` | आउटपुट फ़ॉर्मैट। अनिवार्य। |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | ES मॉड्यूल के रूप में कंपाइल करें। |
 | `subsystem` | `'console' \| 'windows'` | PE सबसिस्टम (केवल `win32-x64`)। |
 | `icon` | `Uint8Array` | `.ico` फ़ाइल की सामग्री (केवल `win32-x64`)। |

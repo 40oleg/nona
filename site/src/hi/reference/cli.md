@@ -18,7 +18,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | विकल्प | मान | विवरण |
 | --- | --- | --- |
 | `-o` | पाथ | आउटपुट फ़ाइल। ज़रूरी। ग़ायब डायरेक्टरी बना दी जाती हैं। |
-| `--target` | `win32-x64` (डिफ़ॉल्ट), `linux-x64` | आउटपुट फ़ॉर्मैट: Windows के लिए PE32+ या Linux के लिए ELF64। |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | इनपुट को ES मॉड्यूल के रूप में कंपाइल करें। `.mjs` पर ख़त्म होने वाले इनपुट अपने आप मॉड्यूल होते हैं। |
 | `--subsystem` | `console` (डिफ़ॉल्ट), `windows` | कंसोल विंडो के बिना Windows GUI प्रोग्राम। केवल `win32-x64`। `--manifest` के बिना GUI प्रोग्राम को डिफ़ॉल्ट मैनिफ़ेस्ट मिलता है। |
 | `--icon` | `.ico` फ़ाइल | आइकन फ़ाइल की हर इमेज जोड़ें। केवल `win32-x64`। |

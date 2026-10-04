@@ -18,7 +18,7 @@ Em um clone do repositório, execute `node dist/cli.js …`; depois de `npm link
 | Opção | Valor | Descrição |
 | --- | --- | --- |
 | `-o` | caminho | Arquivo de saída. Obrigatória. Diretórios ausentes são criados. |
-| `--target` | `win32-x64` (padrão), `linux-x64` | Formato de saída: PE32+ para Windows ou ELF64 para Linux. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compila a entrada como módulo ES. Entradas terminadas em `.mjs` são módulos automaticamente. |
 | `--subsystem` | `console` (padrão), `windows` | Programa gráfico do Windows sem janela de console. Apenas `win32-x64`. Um programa gráfico sem `--manifest` recebe um manifesto padrão. |
 | `--icon` | arquivo `.ico` | Incorpora todas as imagens do arquivo de ícone. Apenas `win32-x64`. |

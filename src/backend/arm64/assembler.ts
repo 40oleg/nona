@@ -350,7 +350,8 @@ export class Arm64Assembler extends Assembler {
   }
   private atomic(dst:Mem,src:Reg,width:8|16|32|64,operation:'exchange'|'add'|'compare'):void {
     const loop=this.unique('atomicRetry'),failed=this.unique('atomicMismatch'),done=this.unique('atomicDone'),size={8:0,16:1,32:2,64:3}[width],source=arm64Registers[src];
-    this.nativeAddress(11,dst);this.nativeMove(16,source);
+    this.nativeAddress(11,dst);
+    if(width<64)this.extract(16,source,0,width);else this.nativeMove(16,source);
     if(operation==='compare'){
       if(width<64)this.extract(26,0,0,width);else this.nativeMove(26,0);
     }

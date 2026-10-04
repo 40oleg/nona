@@ -18,7 +18,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | الخيار | القيمة | الوصف |
 | --- | --- | --- |
 | `-o` | مسار | ملف الناتج. إلزامي. تُنشأ المجلدات الناقصة. |
-| `--target` | `win32-x64` (الافتراضي)، `linux-x64` | صيغة الناتج: PE32+ لنظام Windows أو ELF64 لنظام Linux. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ترجمة المدخل كوحدة ES. المدخلات المنتهية بـ `.mjs` وحدات تلقائيًا. |
 | `--subsystem` | `console` (الافتراضي)، `windows` | برنامج Windows رسومي بلا نافذة طرفية. للمنصة `win32-x64` فقط. البرنامج الرسومي بلا `--manifest` يحصل على بيان افتراضي. |
 | `--icon` | ملف `.ico` | تضمين كل صور ملف الأيقونة. للمنصة `win32-x64` فقط. |

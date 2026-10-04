@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | অপশন | টাইপ | বিবরণ |
 | --- | --- | --- |
 | `fileName` | `string` | ডায়াগনস্টিকে ব্যবহৃত নাম; মডিউলের ক্ষেত্রে এটি সেই পাথও, যার সাপেক্ষে আপেক্ষিক ইমপোর্ট রিজলভ হয়। আবশ্যক। |
-| `target` | `'win32-x64' \| 'linux-x64'` | আউটপুট ফরম্যাট। আবশ্যক। |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | ES মডিউল হিসেবে কম্পাইল করে। |
 | `subsystem` | `'console' \| 'windows'` | PE সাবসিস্টেম (কেবল `win32-x64`)। |
 | `icon` | `Uint8Array` | একটি `.ico` ফাইলের বিষয়বস্তু (কেবল `win32-x64`)। |

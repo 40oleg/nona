@@ -27,7 +27,7 @@ Compila um texto-fonte e retorna `CompileResult`. Não grava arquivos.
 | Opção | Tipo | Descrição |
 | --- | --- | --- |
 | `fileName` | `string` | Nome usado nos diagnósticos; para módulos, também o caminho em relação ao qual as importações relativas são resolvidas. Obrigatória. |
-| `target` | `'win32-x64' \| 'linux-x64'` | Formato de saída. Obrigatória. |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | Compilar como módulo ES. |
 | `subsystem` | `'console' \| 'windows'` | Subsistema PE (apenas `win32-x64`). |
 | `icon` | `Uint8Array` | Conteúdo de um arquivo `.ico` (apenas `win32-x64`). |

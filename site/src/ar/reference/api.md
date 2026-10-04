@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | الخيار | النوع | الوصف |
 | --- | --- | --- |
 | `fileName` | `string` | الاسم المستخدم في التشخيصات؛ وللوحدات هو أيضًا المسار الذي تُحَلّ الاستيرادات النسبية بالنسبة إليه. إلزامي. |
-| `target` | `'win32-x64' \| 'linux-x64'` | صيغة الناتج. إلزامي. |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | الترجمة كوحدة ES. |
 | `subsystem` | `'console' \| 'windows'` | النظام الفرعي لـ PE ‏(`win32-x64` فقط). |
 | `icon` | `Uint8Array` | محتوى ملف `.ico` ‏(`win32-x64` فقط). |

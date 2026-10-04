@@ -19,7 +19,7 @@ From a clone of the repository run `node dist/cli.js …`; after `npm link` the 
 | Option | Value | Description |
 | --- | --- | --- |
 | `-o` | path | Output file. Required. Missing directories are created. |
-| `--target` | See [native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64. Defaults to the host OS and CPU. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compile the input as an ES module. Inputs ending in `.mjs` are modules automatically. |
 | `--full-runtime` | — | Link the whole runtime. By default the RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them; see [Linked runtime parts](/guide/compatibility#linked-runtime-parts). |
 | `--call-stats` | — | Count every call the program and its runtime make, by target, and print the counts to stderr when the program ends or fails, most frequent first (`count  target` per line). Calls to function declarations known at compile time are counted under their code label (`js.fn.N`); other JavaScript calls go through `rt.invoke` and are counted there. The executable is larger and slower; use it to find the runtime functions a program spends its calls in. `process.exit()` skips the report. |

@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | 选项 | 类型 | 说明 |
 | --- | --- | --- |
 | `fileName` | `string` | 诊断信息中使用的名称；对模块而言，也是解析相对导入的基准路径。必填。 |
-| `target` | `'win32-x64' \| 'linux-x64'` | 输出格式。必填。 |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | 按 ES 模块编译。 |
 | `subsystem` | `'console' \| 'windows'` | PE 子系统（仅限 `win32-x64`）。 |
 | `icon` | `Uint8Array` | `.ico` 文件的内容（仅限 `win32-x64`）。 |
