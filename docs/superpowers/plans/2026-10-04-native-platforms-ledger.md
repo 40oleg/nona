@@ -24,3 +24,12 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Verification correction: the existing PE suite contained three small Windows execution tests and ran them in the combined verification command. Do not describe this run as execution-free. Subsequent local checks must inspect test bodies and use explicit names to exclude all execution tests; full native suites remain CI-only.
 - The full repository check has not been run locally due the Windows native-execution constraint; it remains a required remote gate.
 - Task 1 integration remains in progress until PE-only options and builtin process platform/arch values are tested for every implemented backend.
+
+## Task 2 — ELF layout phase
+
+- Added ELF machine/OS/page/base options. Linux ARM64 defaults to 64 KiB load alignment; BSD x64 gets its native OSABI identifier.
+- Added OpenBSD PT_OPENBSD_SYSCALLS records, validating each location against executable syscall bytes. ET_EXEC pin locations are absolute virtual addresses, matching the kernel's zero exe_base followed by elf_adjustpins.
+- Source evidence: OpenBSD sys/kern/exec_elf.c and sys/sys/exec_elf.h (upstream master, inspected 2026-10-04); FreeBSD syscall numbers pinned from releng/14.3 for the following runtime phase.
+- Verification: all four missing ELF platform behaviors observed RED; negative/wrapped relocations also observed RED; build and 10 focused layout/registry tests GREEN; existing ELF RIP-fixup test GREEN. These tests inspect bytes only and do not prove execution of a new OS/CPU target.
+- Task 2 remains in progress: BSD runtime adapters and native VM gates have not run yet.
+- Dependency ruling: shared semantic syscall emission is needed before BSD adapters can safely register locations; implement that part of Task 4 before continuing Task 2 rather than duplicate raw opcode tracking.
