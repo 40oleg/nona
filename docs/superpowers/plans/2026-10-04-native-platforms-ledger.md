@@ -15,3 +15,12 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Repository/architecture exploration complete; no platform implementation or native support claim yet.
 - Issue #117 created and claimed with enhancement/blocked labels.
 - Spec and implementation plan self-reviewed for target coverage, no placeholders, explicit local execution limits, and native verification gates.
+
+## Task 1 — registry phase
+
+- Introduced OS/CPU/format/file-mode registry and explicit unsupported-host detection. CLI now selects the native host instead of always Windows x64. Frontend target defaults no longer silently select Windows for unknown OS/CPU.
+- Ruling: defer the new filesystem syscall tables and process ABI to their OS/architecture implementation tasks; temporarily reject unfinished adapters explicitly rather than emit Windows calls for another OS. The registry describes target identities, not completed backend support.
+- Verification: target detection/layout assertions RED → GREEN; build passed; native-target/frontend/PE tests 57 passed.
+- Verification correction: the existing PE suite contained three small Windows execution tests and ran them in the combined verification command. Do not describe this run as execution-free. Subsequent local checks must inspect test bodies and use explicit names to exclude all execution tests; full native suites remain CI-only.
+- The full repository check has not been run locally due the Windows native-execution constraint; it remains a required remote gate.
+- Task 1 integration remains in progress until PE-only options and builtin process platform/arch values are tested for every implemented backend.

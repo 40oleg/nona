@@ -74,7 +74,7 @@ export function exit(code) { return process.exit(code); }
 export function cwd() { return process.cwd(); }
 `;
 
-type Target='win32-x64'|'linux-x64';
+import type {Target} from '../target.js';
 const sources=new Map<string,(target:Target)=>string>([
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],

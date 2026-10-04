@@ -1,3 +1,5 @@
+import type {Target} from '../target.js';
+import {CompileError} from '../diagnostics.js';
 /**
  * Source of the built-in `nona:fs` (alias `node:fs`) module: a synchronous
  * subset of Node.js fs. A small platform layer (Win32 through nona:ffi, Linux
@@ -341,6 +343,7 @@ const sys = {
 };
 `;
 
-export function fsModuleSource(target:'win32-x64'|'linux-x64'):string {
+export function fsModuleSource(target:Target):string {
+  if(target!=='win32-x64'&&target!=='linux-x64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
   return (target==='linux-x64'?linux:win32)+common;
 }
