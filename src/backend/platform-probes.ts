@@ -42,6 +42,10 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     const result=compile(main,{fileName:'agents.js',target,agents:[agent]});
     if(!result.ok)throw new Error(`${target}/agents: ${JSON.stringify(result.diagnostics)}`);
     probes.push({name:'agents',image:result.image,expected:'true 42 done\n'});
+    const worker='$262.agent.receiveBroadcast(function(sab){let a=new Int32Array(sab);for(let i=0;i<5000;i++){let old;do{old=Atomics.load(a,0)}while(Atomics.compareExchange(a,0,old,old+1)!==old);Atomics.add(a,1,1)}$262.agent.report("done")})';
+    const contention='for(let i=0;i<4;i++)__nonaAgentStart(i);let b=new SharedArrayBuffer(8),a=new Int32Array(b);__nonaAgentBroadcast(b,0);let count=0;for(let i=0;i<2000&&count<4;i++){let report=__nonaAgentGetReport();if(report!==null)count++;else __nonaAgentSleep(5)}console.log(count,Atomics.load(a,0),Atomics.load(a,1))';
+    const contended=compile(contention,{fileName:'atomic-contention.js',target,agents:Array(4).fill(worker)});
+    if(!contended.ok)throw new Error(JSON.stringify(contended.diagnostics));probes.push({name:'atomic-contention',image:contended.image,expected:'4 20000 20000\n'});
   }
   if(target==='linux-arm64'){
     const extra=[
