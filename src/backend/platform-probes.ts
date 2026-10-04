@@ -4,6 +4,10 @@ import {linkMachO} from './macho/writer.js';
 import {getTarget,type Target} from '../target.js';
 import type {CodeFragment,NativeProgram} from './pe/model.js';
 import {compile} from '../compiler.js';
+import {compileToIR} from '../compiler.js';
+import {collectSourceUsage} from '../frontend/lexer.js';
+import {generate} from './x64/codegen.js';
+import {linkBsd} from './bsd/index.js';
 
 export const loaderProbeOutput='hello\n';
 /** Small language/runtime probes with hand-derived observable results. */
@@ -15,13 +19,26 @@ export const runtimeProbeSources=[
   {name:'generator',source:'function* f(){for(let i=0;i<20;i++)yield i*i}let sum=0;for(let x of f())sum+=x;console.log(sum)',expected:'2470\n'},
   {name:'async',source:'async function f(x){return (await Promise.resolve(x))+1}f(41).then(x=>console.log(x))',expected:'42\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now();console.log(a>1700000000000,b>=a)',expected:'true true\n'},
+  {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
 ] as const;
 export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
-  return runtimeProbeSources.map(probe=>{
+  const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
+  if(target==='freebsd-x64'||target==='openbsd-x64'){
+    const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
+    const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));
+    const program=generate(ir,{gcStress:true,link:usage});
+    probes.push({name:'gc-stress',image:linkBsd(program,target==='freebsd-x64'?'freebsd':'openbsd'),expected:'200 19900 x199\n'});
+    const agent='$262.agent.receiveBroadcast(function(sab){let a=new Int32Array(sab);$262.agent.sleep(10);Atomics.store(a,0,42);Atomics.notify(a,0,1);$262.agent.report("done")})';
+    const main='__nonaAgentStart(0);let b=new SharedArrayBuffer(4),a=new Int32Array(b);__nonaAgentBroadcast(b,0);let status=Atomics.wait(a,0,0,1000),report=null;for(let i=0;i<400&&report===null;i++){report=__nonaAgentGetReport();if(report===null)__nonaAgentSleep(5)}console.log(status==="ok"||status==="not-equal",Atomics.load(a,0),report)';
+    const result=compile(main,{fileName:'agents.js',target,agents:[agent]});
+    if(!result.ok)throw new Error(`${target}/agents: ${JSON.stringify(result.diagnostics)}`);
+    probes.push({name:'agents',image:result.image,expected:'true 42 done\n'});
+  }
+  return probes;
 }
 /** Refuse accidental emulation (including Rosetta) in native verification. */
 export function assertNativeHost(target:string,platform:string=process.platform,arch:string=process.arch):void {

@@ -70,3 +70,8 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - BSD compile target test observed E_TARGET RED then GREEN; 13 focused compile/layout/cache tests passed. Seven runtime probes per BSD target now compile: arithmetic chain, closures/objects, BigInt division/multiplication, x87 Math, generator stack switching, promises/async, realtime clock. Literal outputs verified against independent Node.js execution before remote submission.
 - Process/procfs and filesystem adapters are explicitly unfinished and rejected; do not label BSD support complete yet. Full runtime, native thread behavior and GC stress gates remain required.
 - Native loader run after the ABI-note fix: recorded below through remote job status; awaiting runtime VM execution of this phase.
+
+## BSD native JavaScript evidence (bd69b35)
+
+- CI run 37231703918: both FreeBSD 14.3 x64 and OpenBSD 7.8 x64 VMs passed all seven compiled JavaScript probes (arithmetic chain/strings, closures/objects, BigInt, Math, generator, async, clock), in addition to their loader probe. Linux x64/ARM64 and Darwin x64 loader probes also passed.
+- Extended BSD probes to exercise the monotonic timer loop, forced GC with captured closures/strings, and a real agent thread sharing an Int32Array with Atomics.wait/notify. These stronger checks have built successfully and are now submitted for native execution; they are not claimed passing yet.
