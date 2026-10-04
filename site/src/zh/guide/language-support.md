@@ -1,6 +1,6 @@
 # 语言支持
 
-Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.7.0** 支持的内容；数据来自 [Test262](/zh/reference/test262) 页面所述的固定 Test262 版本。
+Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.8.0** 支持的内容；数据来自 [Test262](/zh/reference/test262) 页面所述的固定 Test262 版本。
 
 **支持**表示已实现，并在“说明”列所述的范围内由单元测试和 Test262 覆盖。带测试名称的详细特性矩阵见 [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)（俄文）。
 
@@ -54,8 +54,8 @@ Windows x64 上固定版本 Test262 的完整运行结果（ES2020 及更早的�
 
 | 目录 | 通过 / 适用 | 剩余失败 |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 个 `eval`，6 个新语义，3 个其他 |
-| `built-ins/` | 15491 / 15559 | 16 个 `eval`，14 个新语义，38 个其他 |
+| `language/` | 22436 / 22492 | 44 个 `eval`，1 个新语义，11 个其他 |
+| `built-ins/` | 15868 / 15933 | 16 个 `eval`，12 个新语义，37 个其他 |
 | `built-ins/Atomics`（代理） | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 个 `eval` |
 

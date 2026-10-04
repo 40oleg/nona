@@ -3,7 +3,7 @@
 ## Synopsis
 
 ```text
-Nona 0.7.0 — JavaScript subset to native Windows/Linux x64
+Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
        [--full-runtime] [--call-stats] [--coverage dir]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]

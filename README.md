@@ -6,7 +6,7 @@
 
 Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 machine code and links a PE32+ (Windows) or ELF64 (Linux) executable. The output does not embed Node.js, V8 or any interpreter and needs no C/C++ toolchain or LLVM: Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI), Linux executables use direct system calls and no libc.
 
-> **Status:** `v0.7.0`. The full pinned Test262 suite (ES2020 features) passes **17298/17337** language, **15491/15559** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified in the [status report](docs/v0.17-v0.20-status.md): `eval` of source text computed at run time, other realms, and semantics newer than ES2020. Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status:** `v0.8.0`. The full pinned Test262 suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status): `eval` of source text computed at run time, other realms, and semantics newer than ES2020. Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## What you get
 

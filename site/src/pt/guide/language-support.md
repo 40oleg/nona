@@ -1,6 +1,6 @@
 # Suporte à linguagem
 
-O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.7.0**; os números vêm da revisão fixada do Test262 descrita na página [Test262](/pt/reference/test262).
+O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.8.0**; os números vêm da revisão fixada do Test262 descrita na página [Test262](/pt/reference/test262).
 
 **Suportado** significa implementado e coberto por testes unitários e pelo Test262 dentro dos limites indicados na coluna Observações. A matriz detalhada por recurso, com os nomes dos testes, fica em [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (em russo).
 
@@ -54,8 +54,8 @@ Execução completa do Test262 fixado no Windows x64 (recursos do ES2020 e anter
 
 | Diretório | Aprovados / aplicáveis | Falhas restantes |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 semântica mais nova, 3 outras |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 semântica mais nova, 38 outras |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 semântica mais nova, 11 outras |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 semântica mais nova, 37 outras |
 | `built-ins/Atomics` (agentes) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
