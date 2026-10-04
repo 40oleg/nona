@@ -359,6 +359,7 @@ function linuxArm64Source():string {
   "const sysRmdir = define('syscall', '84', 'i64(buf)');":"const unlinkat = define('syscall', '35', 'i64(i64,buf,i64)');function sysRmdir(path){return unlinkat(-100,path,512)}",
   "const sysUnlink = define('syscall', '87', 'i64(buf)');":"function sysUnlink(path){return unlinkat(-100,path,0)}",
   'getUint32(24, true)':'getUint32(16, true)',
+  'O_DIRECTORY = 0x10000':'O_DIRECTORY = 0x4000',
  };
  let source=linux;for(const [from,to] of Object.entries(replacements))source=source.replace(from,to);return source;
 }
