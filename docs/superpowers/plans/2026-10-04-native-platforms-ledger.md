@@ -95,3 +95,11 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Verification: missing instruction module and image fixup dispatch observed RED; 14 relocation/layout/signature tests GREEN. Linux ARM64 native loader revalidation is pending the next CI run.
 - CI run 37232283290 passed Linux regression/compare and OpenBSD probes. Windows full check/compare is still running. FreeBSD LLDB stopped at `movq %r10,(%rax)`, the metadata write to the returned thread mapping's first page.
 - Root cause confirmed in FreeBSD 14.3 mmap(2): MAP_STACK returns a guard at its base, and that guard cannot shrink below the configured minimum. Use a plain fixed-size private anonymous mapping for the runtime-owned stack and metadata; retain OpenBSD's required MAP_STACK. Native failure was reproduced before this fix; native revalidation is pending.
+
+## Native revalidation (36c3831) and ARM64 CPU phase
+
+- CI run 37232591028: FreeBSD and OpenBSD passed all ten JavaScript runtime probes. Linux x64/ARM64 and Darwin x64 loader probes passed with the new ARM64 PC-relative addressing. Linux regression/compare passed. Windows full `npm run check` and `npm run compare` passed (job 111525269902).
+- Darwin ARM64 remains the known static-loader failure; the mandatory system-library policy exception is still awaiting the owner. No ARM64 compiler target is enabled yet.
+- Added an A64 assembler lowering logical runtime registers to native ARM registers, with a runtime return-slot stack, checked native fixups, explicit raw-x64 rejection, saved condition flags/parity, integer shifts/multiply/128-bit divide, binary64 FP and conversions, atomics, fences and bulk memory.
+- Encoding vectors were cross-checked against LLVM's primary AArch64 assembler test source. Each missing operation group was observed RED before implementation; focused assembler/relocation tests now pass (9 tests). This proves encoding/linking, not native execution.
+- Added a Linux ARM64 CPU execution probe with Node BigInt arithmetic expectations and explicit exit-stage diagnostics. Native execution is pending CI; this commit is a reviewable integration checkpoint needed to dispatch that gate. Compiler factory dispatch remains disabled until the complete runtime is ready.

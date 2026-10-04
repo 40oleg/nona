@@ -16,3 +16,10 @@ if(process.platform==='darwin'){
 const run=spawnSync(executable,[],{encoding:'utf8',timeout:15000,windowsHide:true});
 if(run.error||run.status!==0||run.stdout!==manifest.expected)throw new Error(`Loader probe ${target} failed: status=${run.status}, signal=${run.signal}, stdout=${JSON.stringify(run.stdout)}, stderr=${JSON.stringify(run.stderr)}, error=${run.error??''}`);
 console.log(`Native loader probe passed on ${process.platform}/${process.arch}: ${target}`);
+for(const probe of manifest.runtime?.[target]??[]){
+  if(typeof probe.file!=='string'||!/^[a-z0-9-]+$/.test(probe.file)||typeof probe.expected!=='string')throw new Error('Invalid runtime probe manifest');
+  const file=join(directory,probe.file);chmodSync(file,0o755);
+  const result=spawnSync(file,[],{encoding:'utf8',timeout:15000,windowsHide:true});
+  if(result.error||result.status!==0||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);
+  console.log(`Native execution probe passed: ${probe.file}`);
+}

@@ -1,6 +1,7 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {loaderProbe,loaderProbeOutput,runtimeProbes} from '../dist/src/backend/platform-probes.js';
+import {arm64CpuProbe} from '../dist/src/backend/arm64/cpu-probe.js';
 
 const directory=resolve(process.argv[2]??'work/platform-probes');
 mkdirSync(directory,{recursive:true});
@@ -10,6 +11,8 @@ for(const target of targets){
 }
 writeFileSync(join(directory,'expected.txt'),loaderProbeOutput);
 const runtime={};
+writeFileSync(join(directory,'linux-arm64-cpu'),arm64CpuProbe(),{mode:0o755});
+runtime['linux-arm64']=[{file:'linux-arm64-cpu',expected:loaderProbeOutput}];
 for(const target of ['freebsd-x64','openbsd-x64']){
   runtime[target]=runtimeProbes(target).map(probe=>{
     const file=`${target}-${probe.name}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
