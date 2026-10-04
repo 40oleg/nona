@@ -224,9 +224,10 @@ export class OutgoingMessage extends EventEmitter {
   get writableNeedDrain() { return !this.destroyed && !this.finished && this.writableLength >= 16384; }
   get closed() { return this._closed; }
   get errored() { return null; }
+  /** Index of the field's entry in _fields ([key, name, value, ...]), or -1. */
   _find(key) {
-    const keys = this._keys;
-    if (keys !== null) for (let i = 0; i < keys.length; i++) if (keys[i] === key) return i;
+    const fields = this._fields;
+    if (fields !== null) for (let i = 0; i < fields.length; i += 3) if (fields[i] === key) return i;
     return -1;
   }
   setHeader(name, value) {
@@ -236,9 +237,9 @@ export class OutgoingMessage extends EventEmitter {
     const key = lowerName(name), index = this._find(key);
     const special = specialFields.get(key);
     if (special !== undefined) this._special |= special;
-    if (index >= 0) { this._names[index] = name; this._values[index] = value; }
-    else if (this._keys === null) { this._keys = [key]; this._names = [name]; this._values = [value]; }
-    else { this._keys.push(key); this._names.push(name); this._values.push(value); }
+    if (index >= 0) { this._fields[index + 1] = name; this._fields[index + 2] = value; }
+    else if (this._fields === null) this._fields = [key, name, value];
+    else this._fields.push(key, name, value);
     return this;
   }
   appendHeader(name, value) {
@@ -248,8 +249,8 @@ export class OutgoingMessage extends EventEmitter {
     const index = this._find(lowerName(name));
     if (index < 0) return this.setHeader(name, value);
     this._special |= SPECIAL_ARRAY;
-    const existing = this._values[index];
-    this._values[index] = (Array.isArray(existing) ? existing : [existing]).concat(value);
+    const existing = this._fields[index + 2];
+    this._fields[index + 2] = (Array.isArray(existing) ? existing : [existing]).concat(value);
     return this;
   }
   setHeaders(headers) {
@@ -261,13 +262,13 @@ export class OutgoingMessage extends EventEmitter {
   getHeader(name) {
     if (typeof name !== 'string') throw invalidArgType('name', 'of type string', name);
     const index = this._find(lowerName(name));
-    return index < 0 ? undefined : this._values[index];
+    return index < 0 ? undefined : this._fields[index + 2];
   }
-  getHeaderNames() { return this._keys === null ? [] : this._keys.slice(); }
-  getRawHeaderNames() { return this._names === null ? [] : this._names.slice(); }
+  getHeaderNames() { const out = []; if (this._fields !== null) for (let i = 0; i < this._fields.length; i += 3) out.push(this._fields[i]); return out; }
+  getRawHeaderNames() { const out = []; if (this._fields !== null) for (let i = 1; i < this._fields.length; i += 3) out.push(this._fields[i]); return out; }
   getHeaders() {
     const out = Object.create(null);
-    if (this._keys !== null) for (let i = 0; i < this._keys.length; i++) out[this._keys[i]] = this._values[i];
+    if (this._fields !== null) for (let i = 0; i < this._fields.length; i += 3) out[this._fields[i]] = this._fields[i + 2];
     return out;
   }
   hasHeader(name) {
@@ -284,7 +285,7 @@ export class OutgoingMessage extends EventEmitter {
     else if (key === 'transfer-encoding') this._removedTE = true;
     else if (key === 'date') this.sendDate = false;
     const index = this._find(key);
-    if (index >= 0) { this._keys.splice(index, 1); this._names.splice(index, 1); this._values.splice(index, 1); }
+    if (index >= 0) this._fields.splice(index, 3);
   }
   /**
    * Composes the head: the first line, the given fields (this message's own,
@@ -293,7 +294,7 @@ export class OutgoingMessage extends EventEmitter {
    */
   _compose(firstLine, fields) {
     const state = { head: firstLine, date: false, connection: false, length: false, encoding: false, trailer: false, expect: false };
-    if (fields === this) { if (this._names !== null) for (let i = 0; i < this._names.length; i++) this._field(state, this._names[i], this._values[i], false); }
+    if (fields === this) { const own = this._fields; if (own !== null) for (let i = 0; i < own.length; i += 3) this._field(state, own[i + 1], own[i + 2], false); }
     else if (Array.isArray(fields)) {
       if (fields.length && Array.isArray(fields[0])) for (const entry of fields) this._field(state, entry[0], entry[1], true);
       else {
@@ -308,8 +309,11 @@ export class OutgoingMessage extends EventEmitter {
     else if (!state.connection) {
       if (this.shouldKeepAlive && (state.length || this.useChunkedEncodingByDefault || this.agent)) {
         if (this.maxRequestsOnConnectionReached) head += 'Connection: close\r\n';
-        else if (this._keepAliveTimeout && this._defaultKeepAlive) head += keepAliveLines(this._keepAliveTimeout, this._maxRequestsPerSocket);
-        else head += 'Connection: keep-alive\r\n';
+        else {
+          const server = this._connection === null ? null : this._connection.server;
+          if (server !== null && server.keepAliveTimeout && this._defaultKeepAlive) head += keepAliveLines(server.keepAliveTimeout, server.maxRequestsPerSocket);
+          else head += 'Connection: keep-alive\r\n';
+        }
       } else { this._last = true; head += 'Connection: close\r\n'; }
     }
     if (!state.length && !state.encoding) {
@@ -380,13 +384,13 @@ export class OutgoingMessage extends EventEmitter {
   }
   _writeOut(bytes, length, callback) {
     const socket = this.socket;
-    if (socket !== null && socket._httpMessage === this && !socket.connecting && !socket.destroyed) {
+    if (socket !== null && socket._httpMessage === this && !socket.connecting && !socket._destroyed) {
       if (this._output !== null) this._flushOutput();
-      if (length === 0) { if (callback) callback(); return true; }
+      if (length === 0) { if (callback) done(callback, null); return true; }
       return socket._sendNow(bytes, length, callback);
     }
-    if (socket !== null && socket.destroyed) {
-      if (callback) queueMicrotask(() => callback(codedError('ERR_STREAM_DESTROYED', 'Cannot call write after a stream was destroyed')));
+    if (socket !== null && socket._destroyed) {
+      if (callback && typeof callback === 'function') queueMicrotask(() => callback(codedError('ERR_STREAM_DESTROYED', 'Cannot call write after a stream was destroyed')));
       return false;
     }
     const copy = new Uint8Array(length);
@@ -402,7 +406,7 @@ export class OutgoingMessage extends EventEmitter {
     let ok = true;
     for (let i = 0; i < output.length; i += 2) {
       const bytes = output[i], callback = output[i + 1];
-      if (bytes.length === 0) { if (callback) callback(); continue; }
+      if (bytes.length === 0) { if (callback) done(callback, null); continue; }
       ok = socket._sendNow(bytes, bytes.length, callback);
     }
     return ok;
@@ -475,7 +479,7 @@ export class OutgoingMessage extends EventEmitter {
     }
     this.finished = true;
     // Head, last data and terminator go out in one write.
-    const done = () => this._finished();
+    const done = this;
     if (chunk && this._hasBody) {
       if (this.chunkedEncoding) {
         const length = byteLength(chunk, encoding);
@@ -486,6 +490,8 @@ export class OutgoingMessage extends EventEmitter {
     else this._emit(null, null, null, null, done);
     return this;
   }
+  /** Write completion when the message itself is the callback (no closure per message). */
+  _sent(error) { if (!error) this._finished(); }
   /** All bytes of the message are with the socket. */
   _finished() {
     if (this.socket !== null && this.socket._hadError) return;
@@ -515,12 +521,14 @@ export class OutgoingMessage extends EventEmitter {
   uncork() {}
 }
 defaults(OutgoingMessage.prototype, {
-  _special: 0, _keys: null, _names: null, _values: null, _header: null, _headerSent: false, finished: false, writableFinished: false, destroyed: false,
+  _special: 0, _fields: null, _connection: null, _header: null, _headerSent: false, finished: false, writableFinished: false, destroyed: false,
   _closed: false, chunkedEncoding: false, useChunkedEncodingByDefault: true, shouldKeepAlive: true, sendDate: false, _last: false, _hasBody: true,
-  _contentLength: null, _removedConnection: false, _removedContLen: false, _removedTE: false, _defaultKeepAlive: true, _keepAliveTimeout: 0,
-  _maxRequestsPerSocket: 0, maxRequestsOnConnectionReached: false, _trailer: '', socket: null, _output: null, _outputSize: 0, strictContentLength: false,
+  _contentLength: null, _removedConnection: false, _removedContLen: false, _removedTE: false, _defaultKeepAlive: true,
+  maxRequestsOnConnectionReached: false, _trailer: '', socket: null, _output: null, _outputSize: 0, strictContentLength: false,
   agent: undefined
 });
+/** Calls a write callback: a function, or a message (its _sent method). */
+function done(callback, error) { if (typeof callback === 'function') callback(error); else callback._sent(error); }
 function byteLength(chunk, encoding) {
   if (typeof chunk !== 'string') return chunk.length;
   if (encoding === null || encoding === undefined || encoding === 'utf8' || encoding === 'utf-8') return writeString(chunk, undefined, 0, false);
@@ -654,7 +662,7 @@ export class ServerResponse extends OutgoingMessage {
     }
     this.statusCode = statusCode;
     let fields = obj;
-    if (this._keys !== null) {
+    if (this._fields !== null) {
       if (Array.isArray(obj)) {
         if (obj.length % 2 !== 0) throw codedError('ERR_INVALID_ARG_VALUE', "The argument 'headers' is invalid.", TypeError);
         for (let n = 0; n < obj.length; n += 2) this.removeHeader(obj[n]);
@@ -684,13 +692,16 @@ export class ServerResponse extends OutgoingMessage {
     if (!message) { message = STATUS_CODES[code] || 'unknown'; this.statusMessage = message; }
     else if (message !== STATUS_CODES[code] && checkChars(message, 1) >= 0) return super.end(chunk, encoding, callback);
     let head = statusLine(code, message);
-    const names = this._names;
-    if (names !== null) { const values = this._values; for (let i = 0; i < names.length; i++) head += fieldLines(names[i], values[i]); }
+    const fields = this._fields;
+    if (fields !== null) for (let i = 1; i < fields.length; i += 3) head += fieldLines(fields[i], fields[i + 1]);
     if (this.sendDate) head += dateLine();
     if (!this.shouldKeepAlive) { this._last = true; head += 'Connection: close\r\n'; }
     else if (this.maxRequestsOnConnectionReached) head += 'Connection: close\r\n';
-    else if (this._keepAliveTimeout && this._defaultKeepAlive) head += keepAliveLines(this._keepAliveTimeout, this._maxRequestsPerSocket);
-    else head += 'Connection: keep-alive\r\n';
+    else {
+      const server = this._connection === null ? null : this._connection.server;
+      if (server !== null && server.keepAliveTimeout && this._defaultKeepAlive) head += keepAliveLines(server.keepAliveTimeout, server.maxRequestsPerSocket);
+      else head += 'Connection: keep-alive\r\n';
+    }
     const hasBody = this._hasBody && code !== 204 && code !== 304 && (code < 100 || code > 199);
     if (!hasBody) this._hasBody = false;
     const body = hasBody && chunk ? chunk : '';
@@ -703,12 +714,12 @@ export class ServerResponse extends OutgoingMessage {
     let size = writeString(head, out, 0, true);
     this._headerSent = true;
     if (length > 0) size += writeString(body, out, size, false);
-    this._writeOut(out, size, this._done || (this._done = () => this._finished()));
+    this._writeOut(out, size, this);
     return this;
   }
   _afterFinish() { if (this._connection !== null) this._connection.finished(this); }
 }
-defaults(ServerResponse.prototype, { statusCode: 200, statusMessage: undefined, sendDate: true, _sent100: false, _expect_continue: false, _connection: null, req: null });
+defaults(ServerResponse.prototype, { statusCode: 200, statusMessage: undefined, sendDate: true, _sent100: false, _expect_continue: false, req: null });
 
 // ---- Server --------------------------------------------------------------------------
 export class Server extends net.Server {
@@ -738,9 +749,9 @@ export class Server extends net.Server {
   }
   setTimeout(msecs, callback) { this.timeout = msecs; if (callback) this.on('timeout', callback); return this; }
   close(callback) { this.closeIdleConnections(); return super.close(callback); }
-  closeAllConnections() { for (const socket of Array.from(this._connections)) socket.destroy(); }
+  closeAllConnections() { for (const socket of this._connections.values()) socket.destroy(); }
   closeIdleConnections() {
-    for (const socket of Array.from(this._connections)) {
+    for (const socket of this._connections.values()) {
       const connection = socket._httpConnection;
       if (connection && connection.incoming.length === 0 && !socket._httpMessage) socket.destroy();
     }
@@ -865,9 +876,7 @@ class ServerConnection {
     this.incoming.push(req);
     const res = new server._ServerResponse(req);
     res._connection = this;
-    res._keepAliveTimeout = server.keepAliveTimeout;
-    res._maxRequestsPerSocket = server.maxRequestsPerSocket;
-    res.shouldKeepAlive = keepAlive;
+    if (!keepAlive) res.shouldKeepAlive = false;
     res.socket = socket;
     if (socket._httpMessage === null) socket._httpMessage = res; else this.waiting.push(res);
     if (chunked) { this.body = req; this.decoder = new ChunkedDecoder(chunk => this.deliver(chunk)); }

@@ -12,7 +12,7 @@
 const common=String.raw`
 import { EventEmitter } from 'node:events';
 import { Buffer } from 'node:buffer';
-import { Readable } from 'nona:internal/stream';
+import { Readable, defaults } from 'nona:internal/stream';
 import { copy as copyBytes } from 'nona:internal/native';
 const READ = 1, WRITE = 2, ERROR = 4, HANGUP = 8;
 const EAGAIN = -11, EINTR = -4, EINPROGRESS = -115;
@@ -120,6 +120,28 @@ function lookup(host) {
   return found;
 }
 
+// ---- Handle lists ----------------------------------------------------------------
+/**
+ * An unordered list of handles with O(1) add and remove: each handle keeps
+ * its position in a field. Sets and Maps are not used for sets that change on
+ * every request: a deleted entry stays in their entry list (for iterators),
+ * so constant churn makes them grow and their small-size lookups linear.
+ */
+class HandleList {
+  constructor(field) { this.items = []; this.field = field; }
+  get size() { return this.items.length; }
+  has(handle) { const i = handle[this.field]; return i !== undefined && i >= 0 && this.items[i] === handle; }
+  add(handle) { if (this.has(handle)) return; handle[this.field] = this.items.length; this.items.push(handle); }
+  delete(handle) {
+    if (!this.has(handle)) return false;
+    const i = handle[this.field], last = this.items.pop();
+    if (last !== handle) { this.items[i] = last; last[this.field] = i; }
+    handle[this.field] = -1;
+    return true;
+  }
+  values() { return this.items.slice(); }
+}
+
 // ---- Event loop integration ------------------------------------------------
 // Handles (sockets and servers) are registered while they are open. The loop
 // asks the poller how many referenced handles keep the program alive, then
@@ -133,7 +155,7 @@ let immediates = [], dirty = [];
 const byFd = [];
 const readyHandles = [], readyEvents = [];
 // Inactivity timeouts: deadlines in loop time; scanned only when the earliest one is due.
-const timed = new Set();
+const timed = new HandleList('_timedIndex');
 let earliestDeadline = Infinity;
 /** Loop time in milliseconds, updated after every wait (like libuv's uv_now). */
 let loopNow = performance.now();
@@ -170,7 +192,7 @@ function unwatch(handle) {
   const fd = handle._fd;
   if (fd < 0) return;
   if (byFd[fd] === handle) byFd[fd] = undefined;
-  if (handle._watched !== 0) { sys.watch(fd, 0, handle._watched); handle._watched = 0; }
+  if (handle._watched !== 0) { sys.watch(fd, 0, handle._watched, handle); handle._watched = 0; }
 }
 function markDirty(handle) { if (!handle._dirty) { handle._dirty = true; dirty.push(handle); } }
 function setDeadline(handle, deadline) {
@@ -194,7 +216,7 @@ const poller = {
         handle._dirty = false;
         if (handle._fd < 0 || byFd[handle._fd] !== handle) continue;
         const want = handle._interest();
-        if (want !== handle._watched) { sys.watch(handle._fd, want, handle._watched); handle._watched = want; }
+        if (want !== handle._watched) { sys.watch(handle._fd, want, handle._watched, handle); handle._watched = want; }
       }
     }
     if (earliestDeadline !== Infinity) {
@@ -211,7 +233,7 @@ const poller = {
     }
     if (earliestDeadline <= loopNow) {
       let next = Infinity;
-      for (const handle of timed) {
+      for (const handle of timed.values()) {
         if (handle._deadline <= loopNow) { handle._deadline = 0; timed.delete(handle); readyHandles[count] = handle; readyEvents[count] = TIMEOUT; count++; }
         else if (handle._deadline < next) next = handle._deadline;
       }
@@ -233,32 +255,16 @@ const poller = {
   }
 };
 
+/** Write callbacks are functions, or (from node:http) objects with a _sent method. */
+function invoke(callback, error) { if (typeof callback === 'function') callback(error); else callback._sent(error); }
+
 // ---- Socket ----------------------------------------------------------------
 const readBuffer = new Uint8Array(65536);
 export class Socket extends Readable {
+  // Field defaults live on the prototype (see defaults() below).
   constructor(options) {
     super(options);
-    options = options || {};
-    this._fd = -1;
-    this.connecting = false;
-    this._refed = true;
-    this._writeQueue = [];
-    this._writeLength = 0;
-    this._needDrain = false;
-    this._writeEnded = false;
-    this._shutdown = false;
-    this._finished = false;
-    this._eof = false;
-    this._timeout = 0; this._deadline = 0;
-    this._registered = false; this._dirty = false; this._watched = 0;
-    this._consumer = null;
-    this.allowHalfOpen = !!options.allowHalfOpen;
-    this.bytesRead = 0;
-    this._bytesWritten = 0;
-    this._hadError = false;
-    this.server = null;
-    this._pendingWrites = [];
-    this._sockname = null; this._peername = null;
+    if (options && options.allowHalfOpen) this.allowHalfOpen = true;
   }
   get bytesWritten() { return this._bytesWritten; }
   get pending() { return this._fd < 0 || this.connecting; }
@@ -268,7 +274,7 @@ export class Socket extends Readable {
     const readable = !this._eof, writable = !this._writeEnded;
     return readable && writable ? 'open' : readable ? 'readOnly' : writable ? 'writeOnly' : 'closed';
   }
-  get writable() { return !this.destroyed && !this._writeEnded; }
+  get writable() { return !this._destroyed && !this._writeEnded; }
   get writableLength() { return this._writeLength; }
   get bufferSize() { return this._writeLength; }
   get writableEnded() { return this._writeEnded; }
@@ -303,7 +309,7 @@ export class Socket extends Readable {
     register(this);
     // Like Node.js, the lookup and the connect call happen on a later tick, so
     // errors reach listeners attached after connect() returns.
-    queueMicrotask(() => { if (this.connecting && !this.destroyed) this._startConnect(host, port); });
+    queueMicrotask(() => { if (this.connecting && !this._destroyed) this._startConnect(host, port); });
     return this;
   }
   _startConnect(host, port) {
@@ -312,7 +318,7 @@ export class Socket extends Readable {
     catch (error) { this.connecting = false; this.destroy(error); return; }
     const target = addresses[0].address;
     this.emit('lookup', null, target, addresses[0].family, host);
-    if (this.destroyed) return;
+    if (this._destroyed) return;
     const fd = sys.socket(isIPv4(target) ? sys.AF_INET : sys.AF_INET6);
     if (fd < 0) { this.destroy(errnoException(fd, 'connect', target, port)); return; }
     this._fd = fd;
@@ -324,7 +330,7 @@ export class Socket extends Readable {
     else if (result >= 0) queueMicrotask(() => this._connected());
   }
   _connected() {
-    if (this.destroyed || !this.connecting) return;
+    if (this._destroyed || !this.connecting) return;
     this.connecting = false;
     markDirty(this);
     this._touch();
@@ -333,15 +339,15 @@ export class Socket extends Readable {
     this._flushWrites();
   }
   _interest() {
-    if (this._fd < 0 || this.destroyed) return 0;
+    if (this._fd < 0 || this._destroyed) return 0;
     if (this.connecting) return WRITE;
     let interest = 0;
     if (!this._eof && this._flowing !== false && this._queued < this._hwm) interest |= READ;
-    if (this._writeQueue.length > 0) interest |= WRITE;
+    if (this._writeQueue !== null && this._writeQueue.length > 0) interest |= WRITE;
     return interest;
   }
   _ready(revents) {
-    if (this.destroyed || this._fd < 0) return;
+    if (this._destroyed || this._fd < 0) return;
     if (this.connecting) {
       const error = sys.socketError(this._fd);
       if (error < 0) { this.destroy(errnoException(error, 'connect', this._target.address, this._target.port)); return; }
@@ -350,10 +356,10 @@ export class Socket extends Readable {
       return;
     }
     if (revents & (READ | ERROR | HANGUP)) this._readNow();
-    if (!this.destroyed && (revents & (WRITE | ERROR | HANGUP)) && this._writeQueue.length > 0) this._flushWrites();
+    if (!this._destroyed && (revents & (WRITE | ERROR | HANGUP)) && this._writeQueue !== null && this._writeQueue.length > 0) this._flushWrites();
   }
   _readNow() {
-    if (this._eof || this.destroyed) return;
+    if (this._eof || this._destroyed) return;
     const n = sys.recv(this._fd, readBuffer);
     if (n === EAGAIN || n === EINTR) return;
     if (n < 0) { this.destroy(errnoException(n, 'read')); return; }
@@ -387,12 +393,12 @@ export class Socket extends Readable {
       throw error;
     }
     const bytes = typeof data === 'string' ? Buffer.from(data, encoding) : data;
-    if (this.destroyed) {
+    if (this._destroyed) {
       const error = codedError('ERR_STREAM_DESTROYED', 'Cannot call write after a stream was destroyed');
       if (callback) queueMicrotask(() => callback(error));
       return false;
     }
-    this._writeQueue.push({ bytes, offset: 0, length: bytes.length, callback });
+    (this._writeQueue || (this._writeQueue = [])).push({ bytes, offset: 0, length: bytes.length, callback });
     this._writeLength += bytes.length;
     if (!this.connecting && this._fd >= 0) this._flushWrites();
     const ok = this._writeLength < 16384;
@@ -400,7 +406,7 @@ export class Socket extends Readable {
     return ok;
   }
   _flushWrites() {
-    while (this._writeQueue.length > 0 && !this.destroyed) {
+    while (this._writeQueue !== null && this._writeQueue.length > 0 && !this._destroyed) {
       const item = this._writeQueue[0];
       if (item.length > item.offset) {
         if (item.offset > 0) { const rest = new Uint8Array(item.length - item.offset); copyBytes(item.bytes, item.offset, item.length, rest, 0); item.bytes = rest; item.length = rest.length; item.offset = 0; }
@@ -412,11 +418,11 @@ export class Socket extends Readable {
         if (item.offset < item.length) { markDirty(this); return; }
       }
       this._writeQueue.shift();
-      if (item.callback) { const callback = item.callback; queueMicrotask(() => callback(null)); }
+      if (item.callback) { const callback = item.callback; queueMicrotask(() => invoke(callback, null)); }
     }
-    if (this._writeQueue.length === 0) {
+    if (this._writeQueue === null || this._writeQueue.length === 0) {
       if (this._watched & WRITE) markDirty(this);
-      if (this._needDrain) { this._needDrain = false; queueMicrotask(() => { if (!this.destroyed) this.emit('drain'); }); }
+      if (this._needDrain) { this._needDrain = false; queueMicrotask(() => { if (!this._destroyed) this.emit('drain'); }); }
       if (this._writeEnded && !this._shutdown) this._finishWrites();
     }
   }
@@ -424,7 +430,7 @@ export class Socket extends Readable {
     this._shutdown = true;
     if (this._fd >= 0) sys.shutdown(this._fd);
     queueMicrotask(() => {
-      if (this.destroyed) return;
+      if (this._destroyed) return;
       this._finished = true;
       this.emit('finish');
       this._maybeClose();
@@ -437,7 +443,7 @@ export class Socket extends Readable {
     if (typeof callback === 'function') this.once('finish', callback);
     if (this._writeEnded) return this;
     this._writeEnded = true;
-    if (!this.connecting && this._fd >= 0 && this._writeQueue.length === 0) this._finishWrites();
+    if (!this.connecting && this._fd >= 0 && (this._writeQueue === null || this._writeQueue.length === 0)) this._finishWrites();
     else if (this._fd < 0 && !this.connecting) queueMicrotask(() => this.destroy());
     return this;
   }
@@ -446,7 +452,7 @@ export class Socket extends Readable {
     if (this._finished) this.destroy(); else this.once('finish', () => this.destroy());
   }
   _maybeClose() {
-    if (this.destroyed) return;
+    if (this._destroyed) return;
     if ((this._endEmitted || (this._eof && this._flowing !== true)) && this._finished) this.destroy();
   }
   _destroy(error, callback) {
@@ -460,13 +466,13 @@ export class Socket extends Readable {
       this._fd = -1;
     }
     unregister(this);
-    for (const item of this._writeQueue) if (item.callback) { const cb = item.callback; queueMicrotask(() => cb(error || codedError('ERR_STREAM_DESTROYED', 'Cannot call write after a stream was destroyed'))); }
-    this._writeQueue = []; this._writeLength = 0;
+    if (this._writeQueue !== null) for (const item of this._writeQueue) if (item.callback) { const cb = item.callback; queueMicrotask(() => invoke(cb, error || codedError('ERR_STREAM_DESTROYED', 'Cannot call write after a stream was destroyed'))); }
+    this._writeQueue = null; this._writeLength = 0;
     if (this.server !== null) this.server._removeConnection(this);
     callback(error);
   }
   destroy(error) {
-    if (this.destroyed) return this;
+    if (this._destroyed) return this;
     super.destroy(error);
     return this;
   }
@@ -483,7 +489,7 @@ export class Socket extends Readable {
     this._touch();
     return this;
   }
-  _touch() { if (this._timeout > 0 && !this.destroyed) setDeadline(this, loopNow + this._timeout); else if (this._deadline !== 0) setDeadline(this, 0); }
+  _touch() { if (this._timeout > 0 && !this._destroyed) setDeadline(this, loopNow + this._timeout); else if (this._deadline !== 0) setDeadline(this, 0); }
   pause() { super.pause(); markDirty(this); return this; }
   resume() { super.resume(); markDirty(this); return this; }
   /**
@@ -491,7 +497,7 @@ export class Socket extends Readable {
    * (copied) for when the socket is writable. Internal fast path of node:http.
    */
   _sendNow(bytes, length, callback) {
-    if (this._writeQueue.length > 0 || this.connecting || this._fd < 0 || this.destroyed) {
+    if ((this._writeQueue !== null && this._writeQueue.length > 0) || this.connecting || this._fd < 0 || this._destroyed) {
       const copy = new Uint8Array(length); copyBytes(bytes, 0, length, copy, 0);
       return this.write(copy, callback);
     }
@@ -502,17 +508,23 @@ export class Socket extends Readable {
     this._bytesWritten += n;
     if (n < length) {
       const rest = new Uint8Array(length - n); copyBytes(bytes, n, length, rest, 0);
-      this._writeQueue.push({ bytes: rest, offset: 0, length: rest.length, callback });
+      (this._writeQueue || (this._writeQueue = [])).push({ bytes: rest, offset: 0, length: rest.length, callback });
       this._writeLength += rest.length;
       markDirty(this);
       return this._writeLength < 16384;
     }
-    if (callback) callback(null);
+    if (callback) invoke(callback, null);
     return true;
   }
   ref() { setRef(this, true); return this; }
   unref() { setRef(this, false); return this; }
 }
+defaults(Socket.prototype, {
+  _fd: -1, connecting: false, _refed: true, _writeQueue: null, _writeLength: 0, _needDrain: false, _writeEnded: false, _shutdown: false,
+  _finished: false, _eof: false, _timeout: 0, _deadline: 0, _registered: false, _dirty: false, _watched: 0, _consumer: null, allowHalfOpen: false,
+  bytesRead: 0, _bytesWritten: 0, _hadError: false, server: null, _sockname: null, _peername: null, _noDelay: false, _target: null, _host: undefined,
+  _httpMessage: null, _httpConnection: null
+});
 export const Stream = Socket;
 
 // ---- Server ----------------------------------------------------------------
@@ -520,15 +532,9 @@ export class Server extends EventEmitter {
   constructor(options, listener) {
     super();
     if (typeof options === 'function') { listener = options; options = {}; }
-    this._options = options || {};
+    if (options) this._options = options;
     if (typeof listener === 'function') this.on('connection', listener);
-    this._fd = -1;
-    this._refed = true;
-    this._registered = false; this._dirty = false; this._watched = 0; this._deadline = 0;
-    this._connections = new Set();
-    this._sockname = null;
-    this.listening = false;
-    this.maxConnections = undefined;
+    this._connections = new HandleList('_connectionIndex');
   }
   get connections() { return this._connections.size; }
   listen(...args) {
@@ -624,6 +630,10 @@ export class Server extends EventEmitter {
   unref() { setRef(this, false); return this; }
   [Symbol.asyncDispose]() { return new Promise(resolve => this.close(resolve)); }
 }
+defaults(Server.prototype, {
+  _options: Object.freeze({}), _fd: -1, _refed: true, _registered: false, _dirty: false, _watched: 0, _deadline: 0, _sockname: null,
+  listening: false, maxConnections: undefined, _closing: false, _closeEmitted: false
+});
 export function createServer(options, listener) { return new Server(options, listener); }
 export function connect(...args) {
   const socket = new Socket(args[0] !== null && typeof args[0] === 'object' ? args[0] : undefined);
@@ -670,19 +680,27 @@ const one = new Uint32Array([1]), zero = new Uint32Array([0]), optionValue = new
 const nameBuffer = new Uint8Array(28), nameLength = new Int32Array(1);
 let pollBuffer = new Uint8Array(16 * 64), pollView = new DataView(pollBuffer.buffer);
 function setHandle(view, offset, handle) { view.setUint32(offset, handle % 4294967296, true); view.setUint32(offset + 4, Math.floor(handle / 4294967296), true); }
-// Interest per descriptor; WSAPoll gets the whole set on every wait.
-const watched = new Map();
+// Watched handles; WSAPoll gets the whole set on every wait.
+const watched = [];
 let readyList = [], readyMask = [];
 const sys = {
   AF_INET: 2, AF_INET6: 23,
-  watch(fd, want, had) { if (want === 0) watched.delete(fd); else watched.set(fd, want); },
+  watch(fd, want, had, handle) {
+    handle._want = want;
+    if (want !== 0 && had === 0) { handle._watchIndex = watched.length; watched.push(handle); }
+    else if (want === 0 && had !== 0) {
+      const i = handle._watchIndex, last = watched.pop();
+      if (last !== handle) { watched[i] = last; last._watchIndex = i; }
+    }
+  },
   wait(timeout) {
-    const count = watched.size;
+    const count = watched.length;
     if (count === 0) { if (timeout !== 0) Sleep(timeout < 0 ? 0xffffffff : timeout); return 0; }
     if (pollBuffer.length < 16 * count) { pollBuffer = new Uint8Array(16 * count * 2); pollView = new DataView(pollBuffer.buffer); }
     const fds = [];
     let i = 0;
-    for (const [fd, want] of watched) {
+    for (const handle of watched) {
+      const fd = handle._fd, want = handle._want;
       fds.push(fd);
       setHandle(pollView, 16 * i, fd);
       pollView.setInt16(16 * i + 8, (want & 1 ? 0x100 : 0) | (want & 2 ? 0x10 : 0), true);
