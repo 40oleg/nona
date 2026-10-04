@@ -256,6 +256,28 @@ C.prototype.m=function(){return 'C2';};out.push(call(objs[3]));
 Object.setPrototypeOf(C.prototype,{m(){return 'up';}});delete C.prototype.m;out.push(call(objs[4]));
 console.log(out.join());
 `,
+ 'inline caches for getters and objects of every kind':`
+class A { constructor() { this._x = 1; } get x() { return this._x * 2; } set x(v) { this._x = v; } get self() { return this; } }
+const a = new A(); const out = [];
+for (let i = 0; i < 5; i++) { out.push(a.x); a.x = i; }
+out.push(a.self === a);
+const m = new Map([[1, 2]]); out.push(m.size, typeof m.get, m.get(1));
+const ta = new Int32Array(4); out.push(ta.length, ta.byteLength, ta.NaN, ta.Infinity, ta['-1'], ta.foo);
+ta.foo = 5; ta.Nx = 3; out.push(ta.foo, ta.Nx, Object.keys(ta).join());
+out.push('hello'.length, ''.length, 'héllo'.length);
+Object.defineProperty(A.prototype, 'x', { get() { return 'redefined'; }, configurable: true });
+out.push(a.x);
+const o = { get g() { return 'og'; } }; out.push(o.g, o.g);
+const s = new Set([1]); s.tag = 'set'; out.push(s.size, s.tag, s.has(1));
+const d = new Date(0); d.label = 'd'; out.push(d.label, typeof d.getTime);
+const e = new Error('m'); out.push(e.message, e.name);
+const p = new Proxy({}, { get: (t, k) => 'proxy:' + String(k) }); out.push(p.abc, p.abc);
+const nob = { __proto__: { get v() { return this === nob; } } }; out.push(nob.v);
+String.prototype.lenx = 7; out.push('ab'.lenx);
+Object.defineProperty(String.prototype, 'gs', { get() { return typeof this; }, configurable: true }); out.push('ab'.gs);
+const so = { get onlySet() { return undefined; }, set onlySet2(v) {} }; out.push(so.onlySet, so.onlySet2);
+console.log(out.join(','));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];
@@ -287,4 +309,21 @@ for(const [name,source] of Object.entries(programs))test(`fast paths agree with 
  const expected=runOracle(source).stdout;
  const run=runOnHost(source,{gcStress:!plainPrograms.has(name)});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,expected);
+});
+
+test('the named fast paths list the ordinary object kinds by their numbers',async()=>{
+ const {namedPropertyKinds,namedTypedArrayKind}=await import('../src/runtime/property-cache.js');
+ const kinds=await Promise.all([
+  import('../src/runtime/arguments.js').then(m=>m.ArgumentsKind),import('../src/runtime/boxing.js').then(m=>m.BoxKind),
+  import('../src/runtime/errors.js').then(m=>m.ErrorKind),import('../src/runtime/date.js').then(m=>m.DateKind),
+  import('../src/runtime/iterators.js').then(m=>m.IteratorKind),import('../src/runtime/generator.js').then(m=>m.GeneratorKind),
+  import('../src/runtime/regexp.js').then(m=>m.RegExpKind),import('../src/runtime/array-buffer.js').then(m=>m.ArrayBufferKind),
+  import('../src/runtime/data-view.js').then(m=>m.DataViewKind),import('../src/runtime/typed-array.js').then(m=>m.TypedArrayKind),
+  import('../src/runtime/shared-array-buffer.js').then(m=>m.SharedArrayBufferKind),import('../src/runtime/map.js').then(m=>m.MapKind),
+  import('../src/runtime/map-iterator.js').then(m=>m.MapIteratorKind),import('../src/runtime/set.js').then(m=>m.SetKind),
+  import('../src/runtime/set-iterator.js').then(m=>m.SetIteratorKind),import('../src/runtime/weak-collections.js').then(m=>[m.WeakMapKind,m.WeakSetKind])]);
+ assert.deepEqual(namedPropertyKinds,[0,1,2,...kinds.flat()]);
+ assert.equal(namedTypedArrayKind,(await import('../src/runtime/typed-array.js')).TypedArrayKind);
+ const {ProxyKind}=await import('../src/runtime/object-layout.js');
+ assert.ok(!namedPropertyKinds.includes(ProxyKind));
 });

@@ -55,21 +55,41 @@ export function bumpEpoch(a:Assembler):void {
  a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
 }
 
+/**
+ * Object kinds whose named properties (keys that are not indices and not
+ * "length" of an array or wrapper) follow the ordinary [[Get]] and [[Set]]:
+ * plain objects, arrays, functions, arguments, wrappers, errors, dates,
+ * iterators, generators, regular expressions, buffers, views, typed arrays
+ * (see ordinaryObject for their numeric names), maps, sets and their
+ * iterators and weak variants. Proxies and unknown kinds stay generic.
+ */
+// The numbers of ArgumentsKind ... WeakSetKind, spelled out to keep this
+// module free of import cycles (tests/fast-paths.test.ts checks them).
+export const namedPropertyKinds=[0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+export const namedTypedArrayKind=13;
+/** Jumps to MISS unless the object header in REG has a kind of namedPropertyKinds. Leaves the kind in RAX; clobbers R11. */
+export function emitNamedKindCheck(a:Assembler,reg:'r10'|'r11'|'rcx',miss:string):void {
+ a.load('rax',{base:reg,disp:O.kind});a.cmp('rax',32);a.jcc('ae',miss);
+ a.lea('r11',{rip:'rt.namedKinds'});a.add('r11','rax');a.load('r11',{base:'r11'},8);a.test('r11','r11');a.jcc('e',miss);
+}
+
 export function emitPropertyCache(b:RuntimeBuilder):void {
+ {const table=new Uint8Array(32);for(const kind of namedPropertyKinds)table[kind]=1;b.data('rt.namedKinds',table,'.data');}
  b.data('rt.shapeEpoch',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
  // Last hit of rt.namedGetFast: the node and the object holding it (0 on a miss).
  for(const name of ['rt.namedGetNode','rt.namedGetHolder'])b.data(name,new Uint8Array(8),'.data');
  // RCX result Value*, RDX base Value*, R8 key Value* (a cacheable string
  // literal), R9 cache record.
- b.fn('rt.getPropertyCached',88,a=>{
-  const L=PropertyCacheLayout,generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
+ b.fn('rt.getPropertyCached',104,a=>{
+  const L=PropertyCacheLayout,getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   // The receiver: an ordinary object, array or function, or the prototype
   // of a string, number or boolean.
   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('e',ready);a.cmp('rax',3);a.jcc('e',ready);a.cmp('rax',2);a.jcc('ne',generic);
   a.label(ready);a.mov('rcx','rdx');a.call('rt.propertyBase');a.mov('r10','rax');a.jmp(scan);
-  a.label(object);a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('a',generic);a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
-  // An own property answers by itself.
+  a.label(object);a.load('r10',{base:'rdx',disp:8});emitNamedKindCheck(a,'r10',generic);
+  {const plain=a.unique('plain');a.cmp('rax',namedTypedArrayKind);a.jcc('ne',plain);a.load('r11',{base:'r8',disp:8});a.load('r11',{base:'r11',disp:8},16);for(const c of '-IN'){a.cmp('r11',c.charCodeAt(0));a.jcc('e',generic);}a.label(plain);}
+  a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
   // An own property answers by itself. A receiver with a property index is
   // probed with the key's hash, kept in the record (no rehash per read).
   a.label(scan);a.store(slot(72),'r10');
@@ -89,14 +109,17 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.load('rax',{base:'r9',disp:L.prototype+L.entry*i});a.cmp('rax','r10');a.jcc('ne',next);a.load('rax',{base:'r9',disp:L.node+L.entry*i});a.jmp(read);
    if(i+1<L.entries)a.label(next);
   }
-  // RAX = the node: a data property that is not an argument cell.
-  a.label(read);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',generic);
+  // RAX = the node: a data property that is not an argument cell, or an
+  // accessor whose getter is called with the original receiver.
+  a.label(read);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',getter);
   a.load('r11',{base:'rax',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',generic);
   a.load('rcx',slot(40));a.store({base:'rcx'},'r11');a.load('r11',{base:'rax',disp:P.value+8});a.store({base:'rcx',disp:8},'r11');a.jmp(done);
   // Miss: the named fast path answers and reports the node it found; the
   // entries shift and the new one takes the first place.
-  a.label(fill);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('e',generic);
-  a.load('rax',{rip:'rt.namedGetNode'});a.test('rax','rax');a.jcc('e',done);
+  // An accessor found by the fast path (answered 0, node reported) is
+  // remembered like a data property and then read through its getter.
+  a.label(fill);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.namedGetFast');a.store(slot(80),'rax');
+  {const node=a.unique('node');a.load('rax',{rip:'rt.namedGetNode'});a.test('rax','rax');a.jcc('ne',node);a.load('r10',slot(80));a.test('r10','r10');a.jcc('e',generic);a.jmp(done);a.label(node);}
   a.load('r9',slot(64));a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});
   a.load('r11',{rip:'rt.shapeEpoch'});
   {const sameEpoch=a.unique('sameEpoch'),shifted=a.unique('shifted');a.load('rcx',{base:'r9',disp:L.epoch});a.cmp('rcx','r11');a.jcc('e',sameEpoch);
@@ -109,7 +132,11 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.load('r11',{rip:'rt.namedGetHolder'});
   a.label(flag);a.test('r10','r10');a.jcc('e',flagged);a.load('rcx',{base:'r10',disp:O.flags});a.or('rcx',ObjectFlags.cachedPrototype);a.store({base:'r10',disp:O.flags},'rcx');
   a.cmp('r10','r11');a.jcc('e',flagged);a.load('r10',{base:'r10',disp:O.prototype});a.jmp(flag);
-  a.label(flagged);a.jmp(done);
+  a.label(flagged);a.load('r10',slot(80));a.test('r10','r10');a.jcc('ne',done);a.load('rax',{rip:'rt.namedGetNode'});a.jmp(read);
+  a.label(getter);a.load('r11',{base:'rax',disp:P.getter});a.store(slot(88),'r11');a.load('r11',{base:'rax',disp:P.getter+8});a.store(slot(96),'r11');
+  {const call=a.unique('call');a.load('r11',slot(88));a.test('r11','r11');a.jcc('ne',call);
+   a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+   a.label(call);a.load('rax',slot(48));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(88));a.mov('r8',0);a.mov('r9',0);a.call('rt.invoke');a.jmp(done);}
   a.label(generic);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.getProperty');
   a.label(done);
  });
