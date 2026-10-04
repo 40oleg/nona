@@ -74,6 +74,9 @@ records. JavaScript exceptions use the runtime's own mechanism.
 ARM math helpers are compiled into the image and require no `libm`.
 Transcendental results are checked against Node.js with numerical tolerances;
 identical last-bit results for every input are not guaranteed across engines.
+Date retains the existing UTC policy for local fields and formatting. Date
+oracle tests explicitly select `Etc/UTC` in Node rather than inheriting the
+runner's timezone; this does not add local timezone support to the runtime.
 
 ## Verification
 

@@ -32,10 +32,10 @@ Files: `src/target.ts`, `src/compiler.ts`, `src/cli.ts`, `src/frontend/builtin-m
 
 Interfaces: `Target`, `TargetDescriptor`, `getTarget(target)`, `detectHostTarget(platform,arch)`; descriptors expose OS, CPU, format, and executable-file behavior. `compile` keeps returning positioned diagnostics for unsupported options.
 
-- [ ] Test that native-target detection distinguishes linux/arm64, darwin/x64 and arm64, win32/arm64, and BSD/x64, and returns undefined for unsupported combinations.
-- [ ] Observe the missing behavior fail, implement registry/integration, and prove the original targets still emit identical metadata and reject invalid targets.
-- [ ] Test PE-only option rejection and target-dependent built-in module platform/arch values.
-- [ ] Commit after the focused build/tests pass; record evidence in the ledger.
+- [x] Test that native-target detection distinguishes linux/arm64, darwin/x64 and arm64, win32/arm64, and BSD/x64, and returns undefined for unsupported combinations.
+- [x] Observe the missing behavior fail, implement registry/integration, and prove the original targets still emit identical metadata and reject invalid targets.
+- [x] Test PE-only option rejection and target-dependent built-in module platform/arch values.
+- [x] Commit after the focused build/tests pass; record evidence in the ledger.
 
 ## Task 2: ELF and BSD x64
 
@@ -43,10 +43,10 @@ Files: `src/backend/elf/writer.ts`, `src/backend/bsd/`, `tests/elf.test.ts`, `te
 
 Interfaces: `linkElf(program, options)` accepts machine/OS layout; `linkBsd(program, target)` resolves imports and required metadata without libc.
 
-- [ ] Pin ELF machine, OS identification, entry/fixup bounds, and syscall-entry requirements with failing tests.
-- [ ] Implement writer parameters and BSD memory/IO/exit/clock services using authoritative syscall definitions.
-- [ ] Add native VM probes for arithmetic, strings, closures, arrays, GC, clocks and IO; implement wait/wake/thread services before labeling the target verified.
-- [ ] Run focused local layout tests and BSD VM gates; commit verified changes and record failures by target.
+- [x] Pin ELF machine, OS identification, entry/fixup bounds, and syscall-entry requirements with failing tests.
+- [x] Implement writer parameters and BSD memory/IO/exit/clock services using authoritative syscall definitions.
+- [x] Add native VM probes for arithmetic, strings, closures, arrays, GC, clocks and IO; implement wait/wake/thread services before labeling the target verified.
+- [x] Run focused local layout tests and BSD VM gates; commit verified changes and record failures by target.
 
 ## Task 3: Mach-O x64
 
@@ -54,10 +54,10 @@ Files: `src/backend/macho/`, `src/backend/darwin/`, `tests/macho.test.ts`, platf
 
 Interfaces: `linkMachO(program, options)` writes checked segment/entry/signature metadata; `linkDarwin(program,target)` supplies Darwin services.
 
-- [ ] Add failing end-to-end compile/layout assertions for darwin-x64, permissions, entry addresses, and invalid imports/fixups.
-- [ ] Implement Mach-O layout and Darwin startup/memory/IO/clocks without libSystem calls for core runtime services.
-- [ ] Execute representative binaries on the Intel macOS runner; resolve loader and service failures before continuing.
-- [ ] Extend probes to coroutine/async and thread behavior, then commit with exact evidence.
+- [x] Add failing end-to-end compile/layout assertions for darwin-x64, permissions, entry addresses, and invalid imports/fixups.
+- [x] Implement Mach-O layout and Darwin startup/memory/IO/clocks without libSystem calls for core runtime services.
+- [x] Execute representative binaries on the Intel macOS runner; resolve loader and service failures before continuing.
+- [x] Extend probes to coroutine/async and thread behavior, then commit with exact evidence.
 
 ## Task 4: Shared emission and raw-operation isolation
 
@@ -65,9 +65,9 @@ Files: `src/backend/x64/assembler.ts`, `src/backend/machine/`, `src/runtime/abi.
 
 Interfaces: named semantic operations for sign extension, setcc/zero extension, timestamps, syscalls, and mathematical primitives; architecture-scoped assembler creation restores its previous context on exit.
 
-- [ ] Capture x64 byte/semantic baselines and test scoped context restoration after nested calls and exceptions.
-- [ ] Isolate raw CPU operations without changing x64 bytes; keep label/fixup offsets stable.
-- [ ] Verify old assembler/ELF/PE suites plus Linux native regression; commit the compatibility layer.
+- [x] Capture x64 byte/semantic baselines and test scoped context restoration after nested calls and exceptions.
+- [x] Isolate raw CPU operations without changing x64 bytes; keep label/fixup offsets stable.
+- [x] Verify old assembler/ELF/PE suites plus Linux native regression; commit the compatibility layer.
 
 ## Task 5: ARM64 integer, FP, call, and stack emission
 
@@ -75,11 +75,11 @@ Files: `src/backend/arm64/`, shared assembler facade, `tests/arm64-assembler.tes
 
 Interfaces: ARM64 emitter implements the shared runtime operation API and produces NativeProgram fragments with checked literal-address/branch fixups.
 
-- [ ] Add red encoding tests for loads/stores, arithmetic, comparison/flags, branches, address formation, integer division/high multiply, and FP conversions.
-- [ ] Implement lowering and logical-register mapping; include overflow/NaN/negative-zero and address-range tests.
-- [ ] Add call/return, indirect calls, frame, and suspended-stack tests; keep the platform ABI stack aligned independently of runtime slots.
-- [ ] Add atomics/fences and bulk-memory tests, including real shared-memory execution on the Linux ARM64 runner.
-- [ ] Commit only after the focused encoding and native Linux ARM64 probes pass.
+- [x] Add red encoding tests for loads/stores, arithmetic, comparison/flags, branches, address formation, integer division/high multiply, and FP conversions.
+- [x] Implement lowering and logical-register mapping; include overflow/NaN/negative-zero and address-range tests.
+- [x] Add call/return, indirect calls, frame, and suspended-stack tests; keep the platform ABI stack aligned independently of runtime slots.
+- [x] Add atomics/fences and bulk-memory tests, including real shared-memory execution on the Linux ARM64 runner.
+- [x] Commit only after the focused encoding and native Linux ARM64 probes pass.
 
 ## Task 6: ARM64 mathematical helpers and runtime
 
@@ -87,10 +87,10 @@ Files: ARM64 numeric helpers, runtime Math/numeric call sites, `tests/arm64-runt
 
 Interfaces: self-contained binary64 helpers replace x87-only operations when the selected architecture is ARM64.
 
-- [ ] Add failing native cases for trigonometry, log/log1p, exp/expm1, atan/atan2, powers, and domain/Infinity/negative-zero boundaries.
-- [ ] Implement numerical helpers with checked argument reduction and documented source/licenses; retain x64's original path.
-- [ ] Run existing Math/numeric/GC/generator/async suites on Linux ARM64 and inspect oracle tolerances by operation.
-- [ ] Verify architecture-specific cache identity and isolation; commit runtime coverage and evidence.
+- [x] Add failing native cases for trigonometry, log/log1p, exp/expm1, atan/atan2, powers, and domain/Infinity/negative-zero boundaries.
+- [x] Implement numerical helpers with checked argument reduction and documented source/licenses; retain x64's original path.
+- [x] Run existing Math/numeric/GC/generator/async suites on Linux ARM64 and inspect oracle tolerances by operation.
+- [x] Verify architecture-specific cache identity and isolation; commit runtime coverage and evidence.
 
 ## Task 7: macOS and Windows ARM64
 
@@ -98,9 +98,9 @@ Files: Mach-O signing/layout, PE ARM64 layout, platform ABI adapters, ARM64 OS s
 
 Interfaces: Mach-O emits an embedded ad-hoc signature over the final image; PE resolves ARM64 imports/relocations and typed native-call bridges.
 
-- [ ] Pin CPU headers, final-image signature hashes, malformed metadata, and unsupported ABI option behavior with failing tests.
+- [x] Pin CPU headers, final-image signature hashes, malformed metadata, and unsupported ABI option behavior with failing tests.
 - [ ] Implement Darwin ARM64 startup/syscalls/signing and execute on Apple Silicon CI.
-- [ ] Implement Windows ARM64 platform-call bridge and PE metadata; execute on windows-11-arm CI.
+- [x] Implement Windows ARM64 platform-call bridge and PE metadata; execute on windows-11-arm CI.
 - [ ] Run managed-runtime, GC, coroutine, timers/IO, and agent probes on both targets; commit after gates pass.
 
 ## Task 8: CI and distro verification
@@ -109,7 +109,7 @@ Files: `.github/workflows/native-platforms.yml`, `scripts/build-platform-probes.
 
 Interfaces: generated probe manifests identify target/CPU and oracle outputs; runners reject a mismatched host instead of emulating another CPU silently.
 
-- [ ] Add explicit host/target mismatch and failing-probe diagnostics to the runner tests.
+- [x] Add explicit host/target mismatch and failing-probe diagnostics to the runner tests.
 - [ ] Verify eight native target gates, existing regression, and Linux distro compatibility without compiling separately per distro.
 - [ ] Confirm OS/kernel floors from the syscall adapters and record native versus format-only/emulated evidence separately.
 
@@ -117,7 +117,7 @@ Interfaces: generated probe manifests identify target/CPU and oracle outputs; ru
 
 Files: README.md, README.ru.md, docs/native-platforms.md, docs/host-apis.md, CHANGELOG.md Unreleased, applicable site pages/translations.
 
-- [ ] Document target names, cross-compilation, ABI/capability limits, verified OS floors, and actual CI results.
+- [x] Document target names, cross-compilation, ABI/capability limits, verified OS floors, and actual CI results.
 - [ ] Run required existing build/regression/compare gates in CI, plus platform gates; review the entire diff and resolve concrete failures.
 - [ ] Open and attach the PR with `Closes #117`, design, verification, and limitations; leave it unmerged and do not push main.
 - [ ] Mark the goal complete only after the requested platform work and reviewable PR are actually finished.
