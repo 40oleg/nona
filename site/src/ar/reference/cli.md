@@ -3,7 +3,7 @@
 ## الصيغة العامة
 
 ```text
-Nona 0.7.0 — JavaScript subset to native Windows/Linux x64
+Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
