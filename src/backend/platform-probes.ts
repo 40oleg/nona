@@ -18,7 +18,7 @@ export const loaderProbeOutput='hello\n';
 /** Small language/runtime probes with hand-derived observable results. */
 export const runtimeProbeSources=[
   {name:'arithmetic',source:'let a=3;for(let i=0;i<100;i++)a=(a*7+i)%997;console.log(6*7,"a"+"b",10/4,17%5,a)',expected:'42 ab 2.5 2 693\n'},
-  {name:'closures',source:'function make(n){return function(x){return n+x}}let f=make(9),a=[];for(let i=0;i<2000;i++)a.push({x:f(i)});console.log(a.length,a[0].x,a[1999].x)',expected:'2000 9 2008\n'},
+  {name:'closures',source:'function make(n){return function(x){return n+x}}let f=make(9),a=[];for(let i=0;i<2000;i++)a.push({x:f(i)});console.log(a.length,a[0].x,a[1999].x);console.log(Object.getOwnPropertyNames(Reflect).includes("apply"),Reflect.ownKeys({x:1}).join(","))',expected:'2000 9 2008\ntrue x\n'},
   {name:'bigint',source:'let x=1234567890123456789n;console.log(String(x*9n),String(x/7n),String(x%7n))',expected:'11111111011111111101 176366841446208112 5\n'},
   {name:'math',source:'console.log(Math.sqrt(81),Math.abs(-17),Math.pow(2,10),Math.round(Math.sin(0.5)*1000000),Math.round(Math.log(2)*1000000))',expected:'9 17 1024 479426 693147\n'},
   {name:'generator',source:'function* f(){for(let i=0;i<20;i++)yield i*i}let sum=0;for(let x of f())sum+=x;console.log(sum)',expected:'2470\n'},

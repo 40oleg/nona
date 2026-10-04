@@ -58,6 +58,8 @@ on Windows and Linux x64/ARM64. Their syscall numbers, flags and structure
 layouts follow the selected target. Darwin and BSD optional process/filesystem
 adapters remain unavailable and produce `E_HOST_MODULE`; `--full-runtime`
 also requests the process adapter and is therefore unavailable on those ports.
+Object reflection links the available preludes without requesting that
+unavailable adapter; ordinary `getOwnPropertyNames`/`Reflect.ownKeys` work.
 
 Raw `nona:ffi` syscall declarations use the **target kernel's actual syscall
 number** (on Darwin, the BSD number without its class prefix). They are not
