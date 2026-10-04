@@ -9,6 +9,8 @@ export const arm64Registers:Readonly<Record<Reg,number>>=Object.freeze({
 
 export class Arm64Assembler extends Assembler {
   private instructionFixups:Fixup[]=[];
+  private nativeCalls:{offset:number;number:number}[]=[];
+  constructor(name='',readonly os:'linux'|'darwin'|'win32'='linux'){super(name);}
   override emit(_bytes:number[]|Uint8Array):void {
     throw new Error('Raw x64 bytes cannot be emitted in an ARM64 assembler');
   }
@@ -19,7 +21,8 @@ export class Arm64Assembler extends Assembler {
   }
   override finish():CodeFragment {
     const fragment=super.finish();
-    return {...fragment,fixups:[...fragment.fixups,...this.instructionFixups.map(f=>({...f}))]};
+    return {...fragment,fixups:[...fragment.fixups,...this.instructionFixups.map(f=>({...f}))],
+      ...(this.nativeCalls.length?{syscalls:this.nativeCalls.map(call=>({...call}))}:{})};
   }
   private relocated(value:number,kind:Fixup['kind'],target:string,addend=0):void {
     this.instructionFixups.push({offset:this.offset,kind,target,addend});this.nativeWord(value>>>0);
@@ -37,6 +40,25 @@ export class Arm64Assembler extends Assembler {
   override mov(dst:Reg,src:Reg|number|bigint):void {
     const d=arm64Registers[dst];
     if(typeof src==='string')this.nativeMove(d,arm64Registers[src]);else this.nativeImmediate(d,src);
+  }
+  override initializeStack():void {this.nativeWord(0x910003fc);}
+  override timestamp():void {
+    this.nativeWord(0xd5033fdf);this.nativeWord(0xd53be04d); // isb; mrs x13, cntvct_el0
+    this.extract(2,13,32,32);this.extract(0,13,0,32);
+  }
+  override syscall(number:number):void {
+    if(!Number.isInteger(number)||number<0||number>0xffffffff)throw new RangeError('Invalid syscall number');
+    if(this.os==='win32')throw new Error('Raw system calls are unavailable on Windows ARM64');
+    // Marshal the runtime's syscall argument registers to x0..x5. Preserve
+    // logical non-result registers in scratch registers across the kernel trap.
+    for(const [dst,src] of [[12,3],[13,4],[14,5],[15,8],[0,6],[1,5],[3,9],[4,7],[5,8]])this.nativeMove(dst!,src!);
+    this.nativeImmediate(this.os==='darwin'?16:8,this.os==='darwin'?number&0xffffff:number);
+    this.nativeCalls.push({offset:this.offset,number});this.nativeWord(this.os==='darwin'?0xd4001001:0xd4000001);
+    if(this.os==='darwin')this.nativeWord(0xd53b4217);
+    if(this.os==='linux'&&number===220){
+      const parent=this.unique('cloneParent');this.nativeWord(0xf100001f);this.nativeConditional(1,parent);this.initializeStack();this.label(parent);
+    }
+    for(const [dst,src] of [[3,12],[4,13],[5,14],[8,15]])this.nativeMove(dst!,src!);
   }
   private operand(src:Reg|number):number {
     if(typeof src==='string')return arm64Registers[src];
@@ -202,7 +224,17 @@ export class Arm64Assembler extends Assembler {
     this.nativeWord(0xd100239c);this.nativeWord(0xf900039e);return after;
   }
   override call(target:string):void {
-    const after=this.returnSlot();this.jmp(target);this.label(after);
+    this.countCall(target);const after=this.returnSlot();this.jmp(target);this.label(after);
+  }
+  override callImport(target:string):void {
+    if(this.os==='win32')throw new Error('Windows ARM64 import bridge is not implemented yet');
+    this.load('r11',{rip:target});this.callRegister('r11');
+  }
+  override incrementMemory(mem:Mem):void {
+    this.nativeAddress(11,mem);this.nativeWord(0xf940016c);this.nativeMove(16,23);
+    this.nativeImmediate(13,1);this.nativeWord(0xab0d018c);this.flags(12);
+    this.nativeImmediate(13,0x20000000);this.nativeWord(0x8a0d0210);this.nativeWord(0x8a2d02f7);this.nativeWord(0xaa1002f7);
+    this.nativeWord(0xf900016c);
   }
   override callRegister(reg:Reg):void {
     const after=this.returnSlot();this.jumpRegister(reg);this.label(after);

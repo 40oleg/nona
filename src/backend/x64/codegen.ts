@@ -696,7 +696,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
-  const entry=createAssembler('entry');entry.sub('rsp',72);const p=entry.offset;
+  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();entry.sub('rsp',72);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
   // GC stress: freed cells are poisoned so a missing root fails at once.

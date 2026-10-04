@@ -69,6 +69,8 @@ export class Assembler {
   }
   signExtendRax():void {this.emit([0x48,0x99]);}
   timestamp():void {this.emit([0x0f,0x31]);}
+  /** Platform entry bridges initialize the runtime stack on architectures that need it. */
+  initializeStack():void {}
   setCondition(condition:Condition):void {
     this.emit([0x0f,0x90+conditionCodes[condition],0xc0,0x48,0x0f,0xb6,0xc0]);
   }
@@ -260,10 +262,13 @@ export class Assembler {
     this.instruction([0xff], 0, m);
   }
   call(s: string): void {
+    this.countCall(s);
+    this.rel32(0xe8, s);
+  }
+  protected countCall(s:string):void {
     const counter = callCounter?.(s);
     // inc qword [rip+counter]: no register changes.
     if (counter !== undefined) this.incrementMemory({ rip: counter });
-    this.rel32(0xe8, s);
   }
   jumpRegister(register:Reg):void {this.instruction([0xff],4,register,false);}
   loadXmm128(d:Xmm,s:Mem):void {this.instruction([0x0f,0x10],regCode(d),s,false);}

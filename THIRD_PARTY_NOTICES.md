@@ -1,5 +1,18 @@
 # Third-party notices
 
+## ARM64 logarithm and exponential range reduction
+
+The reduction constants in `src/backend/arm64/math.ts` follow Sun fdlibm,
+as published in OpenLibm's [e_log.c](https://github.com/JuliaMath/openlibm/blob/master/src/e_log.c)
+and [e_exp.c](https://github.com/JuliaMath/openlibm/blob/master/src/e_exp.c).
+Nona emits its own native instructions and convergent polynomial approximations.
+
+Copyright (C) 1993, 2004 by Sun Microsystems, Inc. All rights reserved.
+Permission to use, copy, modify, and distribute this software is freely
+granted, provided that this notice is preserved.
+
+## Nondecimal numeric formatting
+
 The nondecimal numeric digit/rounding strategy in
 `src/runtime/numeric/radix.ts` is adapted from V8's
 [DoubleToRadixStringView](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/src/numbers/conversions.cc).
