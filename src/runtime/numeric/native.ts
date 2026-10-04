@@ -1,3 +1,4 @@
+import {createAssembler,currentNativeTarget} from '../../backend/machine/context.js';
 import { Assembler, type Reg } from '../../backend/x64/assembler.js';
 import type { RuntimeBundle } from '../abi.js';
 
@@ -10,7 +11,7 @@ export class Native {
   prolog: number;
   allocationCodeOffset: number;
   constructor(readonly name:string, readonly frame=360) {
-    this.a=new Assembler(name);
+    this.a=createAssembler(name);
     // A frame of a page or more touches each page first, as Windows guard pages require.
     if(frame>=4096){
       this.a.mov('r11','rsp');this.a.mov('rax',Math.floor(frame/4096));

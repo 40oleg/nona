@@ -75,3 +75,16 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 
 - CI run 37231703918: both FreeBSD 14.3 x64 and OpenBSD 7.8 x64 VMs passed all seven compiled JavaScript probes (arithmetic chain/strings, closures/objects, BigInt, Math, generator, async, clock), in addition to their loader probe. Linux x64/ARM64 and Darwin x64 loader probes also passed.
 - Extended BSD probes to exercise the monotonic timer loop, forced GC with captured closures/strings, and a real agent thread sharing an Int32Array with Atomics.wait/notify. These stronger checks have built successfully and are now submitted for native execution; they are not claimed passing yet.
+
+## Task 4 — target scope and cache isolation phase
+
+- Routed runtime, numeric helpers and codegen assembler construction through a native-target scope. Unsupported host/unfinished ARM64 dispatch fails explicitly; no x64 bytes can accidentally stand in for ARM64.
+- Scopes restore after nested compilation and exceptions. Base/prelude caches are keyed by the full native target; the cross-process cache test observed unsafe Windows/Linux sharing RED then target isolation GREEN.
+- Added a cross-compilation test running all BSD probe generation inside an ARM64 outer scope. It exposed unscoped OS service linking RED; BSD/Linux linkers now scope their own service generation and the test is GREEN.
+- Verification: build passed; context/cache/probe tests 8 passed; all 20 BSD runtime probe images built locally without execution. Full Windows check/compare and Linux native regression/compare are now scheduled remotely.
+
+## Stronger BSD native run (d63bc5a)
+
+- CI run 37231979751: OpenBSD 7.8 passed all ten runtime probes, including timers, forced GC and a real shared-memory agent thread with wait/notify.
+- FreeBSD 14.3 agent probe raised SIGBUS before the loop reached the other strengthened probes. Investigating the exact PC/register state with LLDB in the disposable FreeBSD VM; do not guess a fix from the signal alone.
+- Ruling: keep regression gate failure visible; add diagnostic names and a debugger only on failure, preserving the failed exit code. Darwin ARM64 stays an unresolved libc-policy question awaiting the owner's answer.

@@ -3,6 +3,7 @@ import {linuxShims} from '../linux/shims.js';
 import {linkElf} from '../elf/writer.js';
 import type {Assembler} from '../x64/assembler.js';
 import type {NativeProgram} from '../pe/model.js';
+import {withNativeTarget} from '../machine/context.js';
 
 export type BsdOS='freebsd'|'openbsd';
 const numbers={
@@ -15,6 +16,9 @@ function nativeCall(a:Assembler,number:number):void {
 }
 
 export function linkBsd(program:NativeProgram,os:BsdOS):Uint8Array {
+  return withNativeTarget(`${os}-x64`,()=>linkBsdOnTarget(program,os));
+}
+function linkBsdOnTarget(program:NativeProgram,os:BsdOS):Uint8Array {
   const sys=numbers[os],b=new RuntimeBuilder();
   const replace=new Set(['linux.WaitOnAddress.code','linux.WakeByAddressSingle.code','linux.CreateThread.code']);
   const fragments=linuxShims(program.imports,{replace,syscall:(a,number)=>{

@@ -1,3 +1,4 @@
+import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
@@ -93,7 +94,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const linked=linkedPreludes(link);
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;
-  const baseKey=JSON.stringify({prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
+  const baseKey=JSON.stringify({target:currentNativeTarget(),prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
   // A call-statistics build counts the runtime's calls too: it is generated afresh.
   let base=options.callStats?undefined:baseImages.get(baseKey);
   if(!base&&options.baseCache&&!options.callStats){
@@ -102,7 +103,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   }
   // The prelude is lowered only when its code has to be generated.
   const lowerPrelude=():ModuleIR=>{
-    const preludeKey=JSON.stringify({rejectionPolicy,regexpLink,linked});
+    const preludeKey=JSON.stringify({target:currentNativeTarget(),rejectionPolicy,regexpLink,linked});
     let prelude=cachedRuntimePreludes.get(preludeKey);
     if(!prelude){
       const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
@@ -165,7 +166,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   function emitFunction(fn:FunctionIR):void {
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
-    const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
+    const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
     let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
       if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
@@ -668,7 +669,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // realm.createRealm(): initialize the next cloned realm and return its global.
     hostGlobal('__nonaCreateRealm','realm.createRealm.code',0);
     fragments.push({name:'realm.count',section:'.data',alignment:8,bytes:new Uint8Array(8),fixups:[],symbols:{}});
-    const a=new Assembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
+    const a=createAssembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
     a.store(stack(72),'rcx');
     a.load('rax',{rip:'realm.count'});a.add('rax',1);a.cmp('rax',realms);failIf(a,'a','rt.throwRangeError');a.store({rip:'realm.count'},'rax');
     const done=a.unique('done');
@@ -695,7 +696,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
-  const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
+  const entry=createAssembler('entry');entry.sub('rsp',72);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
   // GC stress: freed cells are poisoned so a missing root fails at once.

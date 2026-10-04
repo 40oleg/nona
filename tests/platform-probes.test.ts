@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {withNativeTarget} from '../src/backend/machine/context.js';
 const probePath='../src/backend/platform-probes.js';
 const probes=await import(probePath).catch(()=>undefined);
 
@@ -23,4 +24,14 @@ test('native probe runner refuses OS or CPU mismatches before executing',()=>{
   assert.throws(()=>probes.assertNativeHost('darwin-arm64','darwin','x64'),/host.*target|target.*host/i);
   assert.throws(()=>probes.assertNativeHost('linux-x64','win32','x64'),/host.*target|target.*host/i);
   assert.throws(()=>probes.assertNativeHost('linux-mint-x64','linux','x64'),/target/i);
+});
+
+test('BSD cross-compilation under an ARM64 emission scope also scopes OS service linking',()=>{
+  assert.ok(probes);
+  const images=withNativeTarget('linux-arm64',()=>probes.runtimeProbes('freebsd-x64'));
+  assert.equal(images.length,10);
+  for(const probe of images){
+    const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
+    assert.equal(v.getUint16(18,true),62,probe.name);
+  }
 });

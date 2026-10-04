@@ -20,6 +20,7 @@ import {resolve as resolvePath} from 'node:path';
 import {collectSourceUsage} from './frontend/lexer.js';
 import {fullRuntimeLink} from './runtime/link.js';
 import {detectHostTarget,getTarget,requireHostTarget,type Target} from './target.js';
+import {withNativeTarget} from './backend/machine/context.js';
 /** A module path as a coverage URL: absolute paths become file:// URLs, others are kept (built-in modules). */
 function scriptUrl(path:string):string|undefined {
   if(path.startsWith('/'))return 'file://'+encodeURI(path);
@@ -84,6 +85,9 @@ function peResources(options:CompileOptions):PeResource[] {
   return resources;
 }
 export function compile(source:string, options:CompileOptions):CompileResult {
+  return options.target&&getTarget(options.target)?withNativeTarget(options.target,()=>compileOnTarget(source,options)):compileOnTarget(source,options);
+}
+function compileOnTarget(source:string,options:CompileOptions):CompileResult {
   try {
     if(options.target===undefined||!getTarget(options.target)||!['win32-x64','linux-x64','freebsd-x64','openbsd-x64'].includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     const descriptor=getTarget(options.target)!;
