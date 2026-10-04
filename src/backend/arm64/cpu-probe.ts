@@ -40,6 +40,9 @@ export function arm64CpuProbe():Uint8Array {
   for(const width of [8,16,32] as const){
     const max=(1n<<BigInt(width))-1n;a.mov('rax',max);a.store({base:'rdi',disp:8},'rax',width);a.mov('r10',1);
     a.atomicXadd({base:'rdi',disp:8},'r10',width);check('ne');check('ae');check('o');equal('r10',max);a.load('rax',{base:'rdi',disp:8},width);equal('rax',0);
+    a.mov('rax',1);a.store({base:'rdi',disp:8},'rax',width);a.mov('r10',(1n<<BigInt(width))+2n);
+    a.atomicXadd({base:'rdi',disp:8},'r10',width);check('b');check('e');check('o');
+    equal('r10',width<32?(1n<<BigInt(width))+1n:1n);a.load('rax',{base:'rdi',disp:8},width);equal('rax',3);
   }
   a.mov('rax',127);a.store({base:'rdi',disp:8},'rax',8);a.mov('rax',0x10080);a.mov('r10',18);
   a.atomicCompareExchange({base:'rdi',disp:8},'r10',8);check('e');check('b');check('no');equal('rax',0x1007f);
