@@ -89,8 +89,9 @@ export function linkElf(program:NativeProgram,options:ElfOptions={}):Uint8Array 
   // subtracts its executable text base when constructing the pin table.
   view.setUint32(pinOffset+index*8,u32(resolved),true);view.setUint32(pinOffset+index*8+4,pin.number,true);
  }
- const headers=sections.length+1+(pins.length?1:0);
- if(64+56*headers>page)throw new Error('ELF program headers exceed first page');
+ const headers=sections.length+1+(pins.length?1:0)+(os==='openbsd'?1:0);
+ const noteOffset=64+56*headers;
+ if(noteOffset+(os==='openbsd'?24:0)>page)throw new Error('ELF program headers exceed first page');
  image.set([0x7f,0x45,0x4c,0x46,2,1,1],0);
  image[7]=os==='freebsd'?9:os==='openbsd'?12:0;
  view.setUint16(16,2,true);view.setUint16(18,machine==='arm64'?183:62,true);view.setUint32(20,1,true);
@@ -103,6 +104,14 @@ export function linkElf(program:NativeProgram,options:ElfOptions={}):Uint8Array 
   view.setBigUint64(at+40,BigInt(length),true);view.setBigUint64(at+48,BigInt(page),true);
  };
  segment(0,0,page,4);sections.forEach((section,index)=>segment(index+1,section.offset,section.length,section.flags));
+ if(os==='openbsd'){
+  // Released kernels validate the OpenBSD PT_NOTE before checking EI_OSABI.
+  const at=64+(sections.length+1)*56;view.setUint32(at,4,true);view.setUint32(at+4,4,true);
+  view.setBigUint64(at+8,BigInt(noteOffset),true);view.setBigUint64(at+16,BigInt(base+noteOffset),true);
+  view.setBigUint64(at+32,24n,true);view.setBigUint64(at+40,24n,true);view.setBigUint64(at+48,4n,true);
+  view.setUint32(noteOffset,8,true);view.setUint32(noteOffset+4,4,true);view.setUint32(noteOffset+8,1,true);
+  image.set(new TextEncoder().encode('OpenBSD\0'),noteOffset+12);
+ }
  if(pins.length){
   const at=64+(headers-1)*56;view.setUint32(at,0x65a3dbe9,true);view.setUint32(at+4,4,true);
   view.setBigUint64(at+8,BigInt(pinOffset),true);view.setBigUint64(at+32,BigInt(pinSize),true);view.setBigUint64(at+48,4n,true);

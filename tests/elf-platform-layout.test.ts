@@ -50,6 +50,14 @@ test('OpenBSD syscall locations are registered in executable code',()=>{
   assert.throws(()=>link(fixture(),{os:'openbsd',syscallPins:[{symbol:'entry',offset:0,number:1}]}),/syscall/i);
 });
 
+test('OpenBSD carries the ABI note required by released kernels',()=>{
+  const image=link(fixture(),{os:'openbsd',syscallPins:[{symbol:'entry',offset:1,number:1}]}),v=view(image);
+  const note=headers(image).find(h=>h.type===4);assert.ok(note);
+  assert.equal(v.getUint32(note.offset,true),8);assert.equal(v.getUint32(note.offset+4,true),4);
+  assert.equal(v.getUint32(note.offset+8,true),1);
+  assert.equal(new TextDecoder().decode(image.subarray(note.offset+12,note.offset+20)),'OpenBSD\0');
+});
+
 test('invalid ELF target geometry is rejected instead of truncated',()=>{
   for(const options of [{machine:'mips'},{os:'mint'},{pageSize:3},{pageSize:2048},{base:0x400001},{base:-1}])
     assert.throws(()=>link(fixture(),options),/ELF|target|alignment/i);

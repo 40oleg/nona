@@ -55,3 +55,10 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Runner validates exact OS/CPU before execution and asks macOS codesign to verify the embedded signature. BSD VM gates run the generated image and compare stdout without installing a Node runtime inside the VM.
 - Verification: missing probe generation and host-mismatch checks RED → GREEN; 6 focused probe/Mach-O tests passed; all six files built locally without execution.
 - The new workflow runs on this feature branch to validate each backend during development. Existing complete regression gates will run before the PR is ready.
+
+## First native-loader run (9bcd014)
+
+- CI run 37231171114: Linux x64, Linux ARM64, Darwin x64, FreeBSD x64 passed native execution. Darwin ARM64 and OpenBSD x64 failed.
+- Darwin ARM64: embedded codesign verification passed, exec rejected with errno 85. XNU mach_loader.c explicitly disallows static ARM64 MH_EXECUTE outside development kernels; dyldMain.cpp explicitly requires libSystem.B.dylib. This conflicts with AGENTS.md's no-libc requirement. Asked the owner asynchronously whether macOS ARM64 may use the mandatory system library; dependent implementation waits for that answer, other work continues.
+- OpenBSD 7.8: exec fell back to a shell with NUL-byte syntax failure. Root cause: elf_os_pt_note returns ENOEXEC without the OpenBSD PT_NOTE before the later EI_OSABI fallback. Snapshot bf77f7791990d60dce2ce2110b463cd21f077b72 confirms this in sys/kern/exec_elf.c. Added the required note; regression test observed RED then GREEN locally.
+- OpenBSD 7.8 syscall snapshot uses mmap=49 (not the obsolete guessed 197); __tfork=8, futex=83, clock_gettime=87, nanosleep=91, __threxit=302. Use pinned source definitions, never guessed tables.
