@@ -79,7 +79,8 @@ export function emitObjects(b:RuntimeBuilder):void {
     // A dense element (array-elements.ts) becomes a node for whoever needs one.
     {const noDense=a.unique('noDense');a.call('rt.denseFind');a.test('rax','rax');a.jcc('e',noDense);a.load('rcx',slot(56));a.call('rt.elementsMaterialize');a.jmp(finish);a.label(noDense);a.load('rcx',slot(56));}
     a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',scan);
-    a.call('rt.propIndexFind');a.jmp(finish);
+    // (rt.denseFind does not preserve RDX: reload the key)
+    a.load('rdx',slot(40));a.call('rt.propIndexFind');a.jmp(finish);
     a.label(scan);a.label(loop);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',done);
     a.load('r10',slot(64));a.add('r10',1);a.store(slot(64),'r10');
     // Same record, or same length and then the same code units (a symbol has

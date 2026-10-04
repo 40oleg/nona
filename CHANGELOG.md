@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed a crash when a property was looked up on an object with more than 32 own properties that also had indexed elements, such as `Math[1] = true; Array.prototype.indexOf.call(Math, true)` ([#119](https://github.com/40oleg/nona/issues/119)).
 - Own property lookups compare key records by identity and length before their characters, and `object.name` reads keep the key's hash in their inline cache instead of rehashing it: acorn parses 11% and marked renders 8% faster ([#112](https://github.com/40oleg/nona/issues/112)).
 - Added marked to the real-world benchmark corpus (`bench/real/marked.mjs`): it renders a 200-section Markdown document ([#110](https://github.com/40oleg/nona/issues/110)).
 - A regular expression whose every alternative starts with `^` (without the `m` flag) is only tried at the start of the input, so a failing search no longer scans the whole string; marked, whose lexer runs such patterns against the rest of the document, renders 20 times faster ([#107](https://github.com/40oleg/nona/issues/107)).
