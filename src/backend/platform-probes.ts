@@ -7,6 +7,7 @@ import {compile} from '../compiler.js';
 import {compileToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
+import {linkDarwin} from './darwin/index.js';
 import {linkLinux} from './linux/index.js';
 import {linkBsd} from './bsd/index.js';
 import {withNativeTarget} from './machine/context.js';
@@ -29,11 +30,11 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
-  if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'){
+  if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||target==='darwin-x64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));
     const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
-    probes.push({name:'gc-stress',image:target==='linux-arm64'?linkLinux(program,'arm64'):linkBsd(program,target==='freebsd-x64'?'freebsd':'openbsd'),expected:'200 19900 x199\n'});
+    probes.push({name:'gc-stress',image:target==='darwin-x64'?linkDarwin(program):target==='linux-arm64'?linkLinux(program,'arm64'):linkBsd(program,target==='freebsd-x64'?'freebsd':'openbsd'),expected:'200 19900 x199\n'});
     const agent='$262.agent.receiveBroadcast(function(sab){let a=new Int32Array(sab);$262.agent.sleep(10);Atomics.store(a,0,42);Atomics.notify(a,0,1);$262.agent.report("done")})';
     const main='__nonaAgentStart(0);let b=new SharedArrayBuffer(4),a=new Int32Array(b);__nonaAgentBroadcast(b,0);let status=Atomics.wait(a,0,0,1000),report=null;for(let i=0;i<400&&report===null;i++){report=__nonaAgentGetReport();if(report===null)__nonaAgentSleep(5)}console.log(status==="ok"||status==="not-equal",Atomics.load(a,0),report)';
     const result=compile(main,{fileName:'agents.js',target,agents:[agent]});
