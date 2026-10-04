@@ -100,18 +100,22 @@ jobs:
       - run: node scripts/build-platform-probes.mjs
       # Reuse exactly the same compiler output inside glibc and musl systems.
       - run: |
-          docker run --rm -v "$PWD/work/platform-probes:/probes:ro" '${{ matrix.image }}' sh -c '
+          mkdir -p work/distro-results
+          docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
             set -eu
-            /probes/linux-x64 > /tmp/actual
-            cmp /probes/expected.txt /tmp/actual
+            /probes/linux-x64 > /results/loader.actual
             for expected in /probes/linux-x64-*.expected; do
               binary=${expected%.expected}
               echo "Running $binary"
-              "$binary" > /tmp/actual
-              cmp "$expected" /tmp/actual
+              "$binary" > "/results/${binary##*/}.actual"
             done
             cat /etc/os-release
           '
+          cmp work/platform-probes/expected.txt work/distro-results/loader.actual
+          for expected in work/platform-probes/linux-x64-*.expected; do
+            binary=${expected%.expected}
+            cmp "$expected" "work/distro-results/${binary##*/}.actual"
+          done
   bsd-loaders:
     runs-on: ubuntu-24.04
     strategy:
