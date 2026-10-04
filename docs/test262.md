@@ -81,9 +81,7 @@ Following Test262:
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): class fields and private
-methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`,
-`Error.prototype.stack`/`cause`, RegExp `v` flag and match indices, top-level
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
 await, and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/pr5-es2020-remaining-work.md` and
 the release status.

@@ -84,7 +84,7 @@ nona --help | --version
 ## Limitations
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time. Computed strings throw `EvalError` ([contract](docs/es2020-contract.md)).
-- Most language and library features added after ES2020 (class fields, `WeakRef`, top-level `await`, …) are not supported. Supported additions: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
+- Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 - Node.js modules other than the built-in `fs` and `process` subsets, npm packages, and browser APIs are not available.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
 - The only targets are Windows and Linux on x86-64.

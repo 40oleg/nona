@@ -34,13 +34,14 @@ const excludePathFilters = [excludePathFilter,
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
 // this list: AggregateError, Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Promise.any.
+// Promise.any, and the ES2022 class elements (fields, private methods and
+// accessors, static blocks, `#x in obj`, and private elements refused on
+// non-extensible objects).
 const postEs2020Features = ['Iterator.prototype.join','iterator-chunking','iterator-includes','source-phase-imports-module-source','Array.fromAsync','array-grouping','arbitrary-module-namespace-names',
-  'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','class-fields-private','class-fields-private-in','class-fields-public',
-  'class-methods-private','class-static-block','class-static-fields-private','class-static-fields-public','class-static-methods-private','decorators',
+  'arraybuffer-transfer','Atomics.pause','Atomics.waitAsync','change-array-by-copy','decorators',
   'Error.isError','explicit-resource-management','Float16Array','FinalizationRegistry','hashbang','immutable-arraybuffer','import-assertions',
   'import-attributes','import-defer','import-bytes','import-text','iterator-helpers','iterator-sequencing','joint-iteration','json-modules','json-parse-with-source',
-  'legacy-regexp','Math.sumPrecise','nonextensible-applies-to-private',
+  'legacy-regexp','Math.sumPrecise',
   'promise-try','promise-with-resolvers','Promise.allKeyed','RegExp.escape','regexp-duplicate-named-groups','regexp-match-indices',
   'regexp-modifiers','regexp-v-flag','resizable-arraybuffer','set-methods','ShadowRealm','source-phase-imports',
   'String.prototype.isWellFormed','String.prototype.replaceAll','String.prototype.toWellFormed','symbols-as-weakmap-keys','Temporal',

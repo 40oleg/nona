@@ -56,9 +56,10 @@ class Parser {
   private functionIdentifier(generator:boolean,isAsync=false,expression=false):A.Identifier {
     // Declarations take their name from the enclosing context; expressions
     // bind the name inside their own generator/async context.
-    const previous=this.generatorContext,previousAsync=this.asyncContext;
-    if(expression){this.generatorContext=generator;this.asyncContext=isAsync;}
-    try{return this.id();}finally{this.generatorContext=previous;this.asyncContext=previousAsync;}
+    const previous=this.generatorContext,previousAsync=this.asyncContext,previousAwait=this.awaitIdentifierForbidden;
+    // (a static block's restriction on await does not reach a function expression's name)
+    if(expression){this.generatorContext=generator;this.asyncContext=isAsync;this.awaitIdentifierForbidden=false;}
+    try{return this.id();}finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
   }
   private bindingPattern():A.BindingPattern {
     if(this.at('{')){
@@ -109,35 +110,114 @@ class Parser {
     try{const body=this.block(true);body.strict=this.checkDirective(body.body);return body;}
     finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
   }
+  /** A token that can start a class element name (after a modifier). */
+  private elementNameStart(token:Token|undefined):boolean {
+    return !!token&&(token.kind==='word'||token.kind==='string'||token.kind==='number'||token.kind==='private'||token.text==='[');
+  }
+  private privateName(token:Token):A.PrivateName {
+    return {kind:'PrivateName',name:String(token.value),id:{kind:'Identifier',name:'\u0002'+String(token.value),span:token.span},span:token.span};
+  }
   private classTail(start:number,id:A.Identifier|null):A.ClassExpression {
     const superClass=this.match('extends')?this.leftHandSide():null;
     this.need('{');const methods:A.ClassMethod[]=[];let constructorMethod:A.FunctionExpression|null=null;
+    const privateNames=new Map<string,A.ClassPrivateName&{getter?:boolean;setter?:boolean}>();
+    const declarePrivate=(key:A.PrivateName,kind:'field'|'method'|'accessor',isStatic:boolean,accessor?:'get'|'set'):void=>{
+      if(key.name==='#constructor')this.error('#constructor is not a valid private name');
+      const existing=privateNames.get(key.name);
+      // A getter and a setter (both static or both not) may share a name.
+      if(existing){
+        if(kind==='accessor'&&existing.kind==='accessor'&&existing.isStatic===isStatic&&!(accessor==='get'?existing.getter:existing.setter)){existing[accessor==='get'?'getter':'setter']=true;return;}
+        this.error(`Duplicate private name ${key.name}`);
+      }
+      privateNames.set(key.name,{name:key.name,id:key.id,kind,isStatic,...(accessor?{[accessor==='get'?'getter':'setter']:true}:{})});
+    };
+    // The instance initializer: brands of private methods, then fields in order.
+    const brands:A.ClassFieldDefinition[]=[],definitions:A.ClassFieldDefinition[]=[];let computedKeys=0;
     while(!this.at('}')){
       if(this.match(';'))continue;
       let methodStart=this.token.span.start;let isStatic=false,accessor:'get'|'set'|undefined,computed=false;
-      if(this.at('static')&&this.tokens[this.index+1]?.text!=='('){this.take();isStatic=true;methodStart=this.token.span.start;}
+      const next=this.tokens[this.index+1];
+      if(this.at('static')&&this.token.kind==='word'&&next?.text==='{'){
+        // ClassStaticBlock: its body runs once, with the class as this.
+        this.take();const blockStart=this.token.span.start;
+        const previous=this.generatorContext,previousAsync=this.asyncContext,previousAwait=this.awaitIdentifierForbidden;
+        this.generatorContext=false;this.asyncContext=false;this.awaitIdentifierForbidden=true;
+        let body:A.Block;try{body=this.block(true);}finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.awaitIdentifierForbidden=previousAwait;}
+        const value:A.FunctionExpression={kind:'FunctionExpression',method:true,classMethod:true,staticBlock:true,id:null,parameters:[],defaults:[],rest:null,body,span:this.span(blockStart)};
+        methods.push({key:{kind:'Literal',value:'',span:body.span},computed:false,isStatic:true,element:'staticBlock',value});continue;
+      }
+      if(this.at('static')&&this.token.kind==='word'&&(this.elementNameStart(next)||next?.text==='*')){this.take();isStatic=true;methodStart=this.token.span.start;}
       const isAsync=this.atAsyncMethod()&&!!this.take();
-      if(!isAsync&&(this.at('get')||this.at('set'))&&this.tokens[this.index+1]?.text!=='('){accessor=this.take().text as 'get'|'set';}
+      const afterModifier=this.tokens[this.index+1],afterName=this.tokens[this.index+2];
+      // get/set before a name start an accessor; on another line only when a method follows (`get\n x(){}`).
+      if(!isAsync&&(this.at('get')||this.at('set'))&&this.token.kind==='word'&&this.elementNameStart(afterModifier)&&(!afterModifier!.lineBreakBefore||afterModifier!.text==='['||afterName?.text==='('))accessor=this.take().text as 'get'|'set';
       const generator=this.match('*');if(generator&&accessor)this.error('Generator method cannot be an accessor');
-      let key:A.Expression;
+      let key:A.Expression;const keyToken=this.token;
       if(this.match('[')){computed=true;key=this.assignment();this.need(']');}
-      else{const token=this.token;if(!['word','string','number'].includes(token.kind))this.error('Expected a class method name');this.take();key={kind:'Literal',value:String(token.value??token.text),span:token.span};}
-      if(isStatic&&!computed&&key.kind==='Literal'&&key.value==='prototype')this.error('Static prototype method is not allowed');
-      if(!isStatic&&!computed&&accessor&&key.kind==='Literal'&&key.value==='constructor')this.error('Class constructor cannot be an accessor');
+      else if(keyToken.kind==='private'){this.take();key=this.privateName(keyToken);}
+      else{if(!['word','string','number'].includes(keyToken.kind))this.error('Expected a class element name');this.take();key={kind:'Literal',value:String(keyToken.value??keyToken.text),span:keyToken.span};}
+      const name=!computed&&key.kind==='Literal'?key.value:undefined;
+      if(!this.at('(')){
+        // FieldDefinition: name, optional initializer, then ; (or ASI).
+        if(generator||isAsync||accessor)this.error('Expected a method');
+        if(name==='constructor'||isStatic&&name==='prototype')this.error(`Classes may not have a${isStatic?' static':''} field named '${name}'`);
+        if(key.kind==='PrivateName')declarePrivate(key,'field',isStatic);
+        let initializer:A.Expression|null=null;const initStart=this.token.span.start;
+        if(this.match('=')){
+          const previous=this.generatorContext,previousAsync=this.asyncContext,previousYield=this.yieldIdentifierForbidden;
+          this.generatorContext=false;this.asyncContext=false;this.yieldIdentifierForbidden=false;
+          try{initializer=this.assignment();}finally{this.generatorContext=previous;this.asyncContext=previousAsync;this.yieldIdentifierForbidden=previousYield;}
+        }
+        this.semi();
+        if(!isStatic){
+          // Instance fields are defined by the class's instance initializer;
+          // a computed key is evaluated now and kept in a class-scope binding.
+          let keyBinding:A.Identifier|undefined,definitionKey=key as A.Literal|A.Identifier|A.PrivateName;
+          if(computed){const name='\u0002key'+computedKeys++;keyBinding={kind:'Identifier',name,span:key.span};definitionKey={kind:'Identifier',name,span:key.span};}
+          definitions.push({kind:'ClassFieldDefinition',key:definitionKey,computed,value:initializer,span:this.span(methodStart)});
+          methods.push({key,computed,isStatic,element:'field',value:null,...(keyBinding?{keyBinding}:{})});continue;
+        }
+        // A static field initializer is a method run with the class as this;
+        // its parameter is the field name, for NamedEvaluation.
+        let value:A.FunctionExpression|null=null;
+        if(initializer){
+          const span=this.span(initStart),parameter:A.Identifier={kind:'Identifier',name:'\u0002key',span};
+          value={kind:'FunctionExpression',method:true,classMethod:true,fieldInitializer:true,id:null,parameters:[parameter],defaults:[null],rest:null,body:{kind:'Block',body:[{kind:'Return',argument:initializer,span}],span},span};
+        }
+        methods.push({key,computed,isStatic,element:'field',value});continue;
+      }
+      if(isStatic&&!computed&&name==='prototype')this.error('Static prototype method is not allowed');
+      if(!isStatic&&!computed&&accessor&&name==='constructor')this.error('Class constructor cannot be an accessor');
       const {parameters,defaults,rest}=this.functionParameters(generator,isAsync);
       if(accessor==='get'&&(parameters.length||rest))this.error('Getter requires no parameters');
       if(accessor==='set'&&(parameters.length!==1||rest))this.error('Setter requires one parameter');
       const body=this.functionBody(generator,isAsync);
       const value:A.FunctionExpression={kind:'FunctionExpression',generator,...(isAsync?{async:true}:{}),method:true,classMethod:true,id:null,parameters,defaults,rest,body,span:this.span(methodStart)};
-      const constructor=!isStatic&&!computed&&!accessor&&key.kind==='Literal'&&key.value==='constructor';
+      const constructor=!isStatic&&!accessor&&name==='constructor'&&key.kind==='Literal'&&!computed;
       if(constructor){if(generator)this.error('Class constructor cannot be a generator');if(isAsync)this.error('Class constructor cannot be async');if(constructorMethod)this.error('Duplicate constructor');value.classConstructor=true;constructorMethod=value;}
-      else methods.push({key,computed,isStatic,...(accessor?{accessor}:{}),value});
+      else{
+        if(key.kind==='PrivateName'){
+          declarePrivate(key,accessor?'accessor':'method',isStatic,accessor);
+          if(!isStatic&&!brands.some(brand=>(brand.key as A.PrivateName).name===key.name))
+            brands.push({kind:'ClassFieldDefinition',key:{kind:'PrivateName',name:key.name,id:{kind:'Identifier',name:key.id.name,span:key.span},span:key.span},computed:false,value:null,brand:true,span:key.span});
+        }
+        methods.push({key,computed,isStatic,...(accessor?{accessor}:{}),value});
+      }
     }
     this.need('}');
     const defaultClassConstructor=!constructorMethod;
     constructorMethod??={kind:'FunctionExpression',method:true,classMethod:true,classConstructor:true,id:null,parameters:[],defaults:[],rest:null,body:{kind:'Block',body:[],span:this.span(start)},span:this.span(start)};
     constructorMethod.derivedConstructor=!!superClass;constructorMethod.defaultClassConstructor=defaultClassConstructor;constructorMethod.sourceSpan=this.span(start);
-    return {kind:'ClassExpression',id,superClass,methods,constructorMethod,span:this.span(start)};
+    const result:A.ClassExpression={kind:'ClassExpression',id,superClass,methods,constructorMethod,span:this.span(start)};
+    if(privateNames.size)result.privateNames=[...privateNames.values()].map(({name,id,kind,isStatic})=>({name,id,kind,isStatic}));
+    if(brands.length||definitions.length){
+      const span=this.span(start);
+      result.instanceInitializer={kind:'FunctionExpression',method:true,classMethod:true,fieldInitializer:true,id:null,parameters:[],defaults:[],rest:null,
+        body:{kind:'Block',body:[...brands,...definitions].map(expression=>({kind:'ExpressionStatement',expression,span:expression.span})),span},span};
+      result.instanceFields={kind:'Identifier',name:'\u0002fields',span};
+      constructorMethod.instanceFields={kind:'Identifier',name:'\u0002fields',span};
+    }
+    return result;
   }
   private semi(): void {
     if (this.match(';') || this.at('}') || this.token.kind === 'eof' || this.token.lineBreakBefore) return;
@@ -632,8 +712,10 @@ class Parser {
     }else expression=this.primary();
     while(true) {
       if(this.match('.')) {
-        const t=this.token;if(t.kind!=='word')this.error('Expected a property name');this.take();
-        const property:A.Literal={kind:'Literal',value:String(t.value??t.text),span:t.span};
+        const t=this.token;if(t.kind!=='word'&&t.kind!=='private')this.error('Expected a property name');
+        if(t.kind==='private'&&expression.kind==='Super')this.error('Unexpected private name after super');
+        this.take();
+        const property:A.Literal|A.PrivateName=t.kind==='private'?this.privateName(t):{kind:'Literal',value:String(t.value??t.text),span:t.span};
         const member:A.Member={kind:'Member',object:expression,property,span:this.span(start)};
         if(expression.kind==='OptionalChain'&&!this.parenthesized.has(expression))
           expression=this.chain(expression,{kind:'property',property,computed:false,optional:false,span:member.span},start);
@@ -650,8 +732,8 @@ class Parser {
         }else if(this.match('[')){
           const property=this.expression();this.need(']');expression=this.chain(expression,{kind:'property',property,computed:true,optional:true,span:this.span(start)},start);
         }else{
-          const t=this.token;if(t.kind!=='word')this.error('Expected an optional property or call');this.take();
-          const property:A.Literal={kind:'Literal',value:String(t.value??t.text),span:t.span};
+          const t=this.token;if(t.kind!=='word'&&t.kind!=='private')this.error('Expected an optional property or call');this.take();
+          const property:A.Literal|A.PrivateName=t.kind==='private'?this.privateName(t):{kind:'Literal',value:String(t.value??t.text),span:t.span};
           expression=this.chain(expression,{kind:'property',property,computed:false,optional:true,span:this.span(start)},start);
         }
       }else if(allowCalls&&this.at('(')) {
@@ -697,6 +779,8 @@ class Parser {
     if(t.kind==='templateNoSub'||t.kind==='templateHead')return this.template();
     if(this.match('super')){if(!this.at('.')&&!this.at('[')&&!this.at('('))this.error('Expected super property or call');return {kind:'Super',span:t.span};}
     if(this.match('this'))return {kind:'This',span:t.span};
+    // `#x in obj` (ES2022): the binder checks that the name is only the left operand of in.
+    if(t.kind==='private'&&this.tokens[this.index+1]?.text==='in'){this.take();return this.privateName(t);}
     if(this.at('import')){
       this.take();
       if(this.match('.')){

@@ -12,7 +12,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 | `var`, `let`, `const`, TDZ | Supported | Hoisting, block scope, per-iteration bindings, declaration conflicts as early errors. |
 | Functions | Supported | Declarations and expressions, closures, `arguments` (mapped and unmapped), default and rest parameters, destructuring parameters, `this`, `new.target`, `Function.prototype.toString` with exact source text. |
 | Arrow functions | Supported | Lexical `this`, `arguments`, `new.target` and `super`; `async` arrows. |
-| Classes | Supported | Declarations and expressions, constructors, instance and static methods and accessors, computed names, inheritance including built-ins and `extends null`, `super()` and `super.x`. Class fields and private names (ES2022) are not supported. |
+| Classes | Supported | Declarations and expressions, constructors, instance and static methods and accessors, computed names, inheritance including built-ins and `extends null`, `super()` and `super.x`. ES2022 class elements: public and private fields, private methods and accessors, static blocks and `#x in obj`. |
 | Destructuring, spread | Supported | Declarations, assignments, parameters, `for-in`/`for-of` targets; array, object, call and `new` spread. |
 | Iterators and generators | Supported | The iterator protocol, `for-of`, generator functions and methods, `yield*`, `return`/`throw`. |
 | Async functions | Supported | Async functions, arrows and methods, `await`, async generators and `for await`, with the ES2020 job order. |
@@ -44,7 +44,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 ## Beyond ES2020
 
-Features from later editions are not supported: class fields and private names, static blocks, `Promise.any`, `WeakRef` and `FinalizationRegistry`, logical assignment operators, numeric separators, the RegExp `v` flag, top-level `await` and `Array.prototype.at`. A few later library additions, such as `String.prototype.replaceAll`, are available. Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
+Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, the RegExp `v` flag and top-level `await`. Supported additions: class fields, private methods and accessors, static blocks and `#x in obj` (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`. Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
 
 Host APIs that are not part of ECMAScript — timers, `process`, `node:fs`, `TextEncoder`/`TextDecoder` and FFI — are described in the [Reference](/reference/modules).
 

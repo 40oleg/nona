@@ -183,7 +183,10 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
       else templateSegment(i,true);
       continue;
     }
-    if (identifierStart(codePoint())||c==='\\') {
+    // ES2022 private names (#x): an identifier after '#', as one token.
+    const privateName=c==='#'&&i+1<source.length&&(identifierStart(String.fromCodePoint(source.codePointAt(i+1)!))||source[i+1]==='\\');
+    if (privateName||identifierStart(codePoint())||c==='\\') {
+      if(privateName)i++;
       let value='';
       while(i<source.length) {
         let char=codePoint();const valid=value?identifierPart:identifierStart;
@@ -198,6 +201,7 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
         }
         value+=char;
       }
+      if(privateName){push('private',start,'#'+value);continue;}
       push('word',start,value);continue;
     }
     if (/[0-9]/.test(c) || c === '.' && /[0-9]/.test(source[i + 1] ?? '')) {
