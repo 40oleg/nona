@@ -233,7 +233,7 @@ export class Arm64Assembler extends Assembler {
   private nativeImport(target:string,parameters?:readonly NativeArgumentKind[]):void {
     // The logical ABI has four positional registers and 8-byte stack slots.
     // Windows A64 uses separate compact GP/FP banks and no shadow space.
-    const counts:Record<string,number>={WideCharToMultiByte:8,CreateFileW:7,WriteFile:5,ReadFile:5,'CreateThread.native':6};
+    const counts:Record<string,number>={WideCharToMultiByte:8,CreateFileW:7,WriteFile:5,WriteConsoleW:5,ReadFile:5,'CreateThread.native':6};
     const kinds=parameters??Array<NativeArgumentKind>(counts[target]??4).fill('gp');
     if(kinds.length>32||kinds.some(k=>!['gp','f32','f64'].includes(k)))throw new Error('Invalid ARM64 import arguments');
     const outgoing=Math.ceil(kinds.length*8/16)*16,saves=outgoing,staging=saves+208;

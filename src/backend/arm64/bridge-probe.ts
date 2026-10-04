@@ -30,6 +30,11 @@ export function arm64BridgeProbe():Uint8Array {
   };
   call('bridge.integer',Array<NativeArgumentKind>(11).fill('gp'));
   call('bridge.mixed',Array.from({length:18},(_,i)=>i%2?'f64':'gp'));
+  // Redirected output never reaches WriteConsoleW in CI. Verify the default
+  // import signature with a native callee that exposes lpReserved in x4.
+  addCallee('WriteConsoleW',[0xaa0403e0,0xd65f03c0]);
+  a.mov('rbp',0x456);a.mov('rax',0);a.store({base:'rsp',disp:32},'rax');a.callImport('WriteConsoleW');
+  a.test('rax','rax');a.jcc('ne','bridge.failed');a.cmp('rbp',0x456);a.jcc('ne','bridge.failed');
   a.nativeImmediate(0,1);a.lea('rcx',{rip:'bridge.message'});a.nativeImmediate(2,6);a.nativeImmediate(8,64);a.nativeWord(0xd4000001);
   a.nativeImmediate(0,0);a.nativeImmediate(8,93);a.nativeWord(0xd4000001);
   a.label('bridge.failed');a.nativeImmediate(0,1);a.nativeImmediate(8,93);a.nativeWord(0xd4000001);

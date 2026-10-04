@@ -58,6 +58,7 @@ export function linkElf(program:NativeProgram,options:ElfOptions={}):Uint8Array 
  // NONA_ELF_MAP=<file>: write the symbol table as JSON, for profiling tools.
  if(process.env.NONA_ELF_MAP)writeFileSync(process.env.NONA_ELF_MAP,JSON.stringify(Object.fromEntries(symbols)));
  const entry=symbols.get(program.entry);
+ if(machine==='arm64'&&entry!==undefined&&entry%4)throw new Error('ARM64 ELF entry is unaligned');
  const code=sections.find(section=>section.name==='.text');
  if(entry===undefined||!code||entry<base+code.offset||entry>=base+code.offset+code.length)throw new Error('ELF entry is outside executable code');
  const pins=options.syscallPins??[];

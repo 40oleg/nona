@@ -13,6 +13,11 @@ test('ARM64 PE identifies the machine and applies native instruction fixups',()=
  const image=linkPe({entry:'entry',functions:[],imports:[],fragments:[{...a.finish(),name:'entry',section:'.text'},{name:'data',section:'.data',bytes:new Uint8Array(8),symbols:{},fixups:[]}]},{arch:'arm64'} as never);
  const v=new DataView(image.buffer);assert.equal(v.getUint16(v.getUint32(60,true)+4,true),0xaa64);
 });
+test('WriteConsoleW default bridge includes its required NULL fifth argument',()=>{
+ const defaults=new Arm64Assembler('entry','win32'),typed=new Arm64Assembler('entry','win32');
+ defaults.callImport('WriteConsoleW');typed.callImport('WriteConsoleW',Array(5).fill('gp'));
+ assert.deepEqual(defaults.finish(),typed.finish());
+});
 
 import {compile} from '../src/compiler.js';
 test('Windows ARM64 filesystem modules use native Windows imports',()=>{

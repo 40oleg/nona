@@ -188,6 +188,7 @@ export function linkPe(program: NativeProgram, options: PeOptions = {}): Uint8Ar
   if (relocations.length)
     reloc = addSection(".reloc", buildRelocations(relocations), 0x42000040);
   const entry = resolve(program.entry);
+  if(arch==='arm64'&&entry%4)throw Error('ARM64 PE entry is unaligned');
   if (
     !sections.some(
       (s) =>

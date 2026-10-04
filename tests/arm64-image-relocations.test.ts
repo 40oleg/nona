@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {linkElf} from '../src/backend/elf/writer.js';
 import {linkMachO} from '../src/backend/macho/writer.js';
+import {linkPe} from '../src/backend/pe/writer.js';
 import type {NativeProgram} from '../src/backend/pe/model.js';
 
 function fixture():NativeProgram {
@@ -31,4 +32,11 @@ test('ELF and Mach-O resolve native ARM64 instructions without absolute code poi
 test('x64 images reject ARM64 instruction fixups',()=>{
   assert.throws(()=>linkElf(fixture()),/ARM64|architecture/i);
   assert.throws(()=>linkMachO(fixture()),/ARM64|architecture/i);
+});
+
+test('ARM64 executable writers reject entry points inside an instruction',()=>{
+  const program=fixture();program.entry='unaligned';program.fragments[0]!.symbols.unaligned=1;
+  assert.throws(()=>linkElf(program,{machine:'arm64'}),/entry.*align|align.*entry/i);
+  assert.throws(()=>linkPe(program,{arch:'arm64'}),/entry.*align|align.*entry/i);
+  assert.throws(()=>linkMachO(program,{arch:'arm64'}),/entry.*align|align.*entry/i);
 });
