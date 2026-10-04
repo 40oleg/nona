@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added marked to the real-world benchmark corpus (`bench/real/marked.mjs`): it renders a 200-section Markdown document ([#110](https://github.com/40oleg/nona/issues/110)).
 - A regular expression whose every alternative starts with `^` (without the `m` flag) is only tried at the start of the input, so a failing search no longer scans the whole string; marked, whose lexer runs such patterns against the rest of the document, renders 20 times faster ([#107](https://github.com/40oleg/nona/issues/107)).
 - Added the ES2022 class elements: public and private instance and static fields, private methods and accessors, static initialization blocks and `#x in obj`. Fields are defined (not assigned) when the instance is initialized, at the start of a base constructor or when `super()` returns; private names are checked at compile time and create new names each time the class is evaluated ([#106](https://github.com/40oleg/nona/issues/106)).
 - Added a real-world benchmark corpus: `node bench/real/fetch.mjs` downloads pinned libraries from npm and `node bench/run.mjs --real` runs them on Nona and the installed runtimes; it starts with acorn parsing its own source, 14 times slower than Node.js on the first parse ([#104](https://github.com/40oleg/nona/issues/104)). See [PERFORMANCE.md](PERFORMANCE.md#real-world-code).

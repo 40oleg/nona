@@ -213,14 +213,19 @@ pinned versions from npm into a git-ignored `vendor` directory, and
 | acorn 8.18.0 parses its own 233 KB source, first parse (ms) | 117 | 1 604 | ×14 |
 | … then 10 more parses (ms) | 247 | 12 855 | ×52 |
 | Whole program, wall time (s) | 0.43 | 14.6 | ×34 |
+| marked 12.0.2 renders a 200-section document, first render (ms) | 24 | 1 587 | ×66 |
+| … then 5 more renders (ms) | 53 | 7 716 | ×146 |
 
 Both produce the same tree (32 757 nodes, `locations: true`). The first
 parse is the closest to a real one-shot use: V8 has not optimized acorn yet,
 so the gap is ×14; with the JIT warm it grows to ×52, about the ratio of the
 call and closure benchmarks above.
 
-marked is not in the corpus yet: every current version declares class fields
-(ES2022), which Nona does not parse.
+marked compiles since class fields (#106). Its lexer matches anchored regular
+expressions against the rest of the document, which was quadratic before #107
+(162 s for the five renders). The remaining gap, as for acorn, is mostly
+property lookup: the object model keeps properties in linked nodes, so
+`rt.findOwnProperty`, `rt.ownNamedNode` and string comparison lead the profile.
 
 ## Where the time goes
 
