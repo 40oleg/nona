@@ -17,5 +17,5 @@ function arm64Call(a:Assembler,number:number):void {
  a.syscall(mapped);
 }
 export function linkLinux(program:NativeProgram,arch:NativeArch='x64'):Uint8Array {
- return withNativeTarget(`linux-${arch}`,()=>linkElf({...program,imports:[],fragments:[...program.fragments,...linuxShims(program.imports,arch==='arm64'?{syscall:arm64Call}:{})]},{machine:arch}));
+ return withNativeTarget(`linux-${arch}`,()=>linkElf({...program,imports:[],fragments:[...program.fragments,...linuxShims(program.imports,arch==='arm64'?{syscall:arm64Call,pageSize:65536}:{})]},{machine:arch}));
 }

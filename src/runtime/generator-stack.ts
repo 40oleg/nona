@@ -1,6 +1,7 @@
+import {currentNativeTarget} from '../backend/machine/context.js';
 import {RuntimeBuilder,slot} from './abi.js';
 
-export const GeneratorStack={bytes:1024*1024,guard:4096} as const;
+export const GeneratorStack={bytes:1024*1024,get guard(){const target=currentNativeTarget();return target==='linux-arm64'?65536:target==='darwin-arm64'?16384:4096;}} as const;
 const poolCapacity=16;
 
 // The returned base includes a permanently inaccessible low page. The

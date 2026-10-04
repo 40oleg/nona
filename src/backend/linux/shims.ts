@@ -6,9 +6,9 @@ import type {NamedFragment,NativeProgram} from '../pe/model.js';
 /** Linux syscall implementations of the small Win64-style native ABI used by
  * the existing runtime. They let semantic runtime code remain target-neutral.
  */
-export interface PosixShimOptions {syscall?:(a:Assembler,number:number)=>void;replace?:ReadonlySet<string>}
+export interface PosixShimOptions {pageSize?:4096|65536;syscall?:(a:Assembler,number:number)=>void;replace?:ReadonlySet<string>}
 export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOptions={}):NamedFragment[] {
- const b=new RuntimeBuilder();
+ const b=new RuntimeBuilder(),pageSize=options.pageSize??4096;
  const systemCall=options.syscall??((a:Assembler,number:number)=>a.syscall(number));
  const fn=(name:string,size:number,body:(a:Assembler)=>void)=>{if(!options.replace?.has(name))b.fn(name,size,body);};
  for(const {symbol} of imports){
@@ -55,7 +55,7 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
   a.load('rdi',slot(40));a.lea('r10',{base:'rax'});a.add('r10','rdi');
   a.label(fits);a.store({rip:'linux.heapCursor'},'r10');unlock(a);
   a.label(got);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
-  a.label(large);a.add('rsi',4095);a.and('rsi',-4096);
+  a.label(large);a.add('rsi',pageSize-1);a.and('rsi',-pageSize);
   a.store(slot(40),'rsi');a.mov('rdi',0);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);systemCall(a,9);
   a.cmp('rax',-4095);a.jcc('ae',bad);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
