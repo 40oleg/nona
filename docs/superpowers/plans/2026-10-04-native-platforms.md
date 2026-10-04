@@ -118,6 +118,6 @@ Interfaces: generated probe manifests identify target/CPU and oracle outputs; ru
 Files: README.md, README.ru.md, docs/native-platforms.md, docs/host-apis.md, CHANGELOG.md Unreleased, applicable site pages/translations.
 
 - [x] Document target names, cross-compilation, ABI/capability limits, verified OS floors, and actual CI results.
-- [ ] Run required existing build/regression/compare gates in CI, plus platform gates; review the entire diff and resolve concrete failures.
-- [ ] Open and attach the PR with `Closes #117`, design, verification, and limitations; leave it unmerged and do not push main.
+- [x] Run required existing build/regression/compare gates in CI and enabled-platform gates; review the entire diff and resolve concrete failures. The eighth target remains tracked in Tasks 7/8.
+- [x] Open and attach the PR with `Closes #117`, design, verification, and limitations; leave it unmerged and do not push main. Draft PR #122 records the unresolved Apple Silicon decision.
 - [ ] Mark the goal complete only after the requested platform work and reviewable PR are actually finished.

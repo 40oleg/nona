@@ -71,4 +71,4 @@ done; at least 30 ms passed: true
 
 ## 状态
 
-当前版本是 **v0.7.0**。在 Windows x64 上，固定版本的 Test262 测试集（ES2020 特性）通过了 17298/17337 个 language 测试、15491/15559 个 built-ins 测试、268/268 个 Atomics 测试和 996/1016 个 Annex B 测试；剩余的每个失败都已在[状态页面](/zh/guide/status)中分类。启动速度、可执行文件大小和内存占用是 Nona 的强项；程序内部的计算比 V8 慢 20–100 倍，部分操作（`Map`、`sort`、字符串拼接、长 Promise 链）仍然是超线性的，参见[性能](/zh/guide/performance)。Nona 仍处于实验阶段：它不能直接替代 Node.js，也没有经过安全审计。
+当前版本是 **v0.8.0**。在 Windows x64 上，固定版本的 Test262 测试集（ES2020 特性）通过了 22436/22492 个 language 测试、15868/15933 个 built-ins 测试、268/268 个 Atomics 测试和 996/1016 个 Annex B 测试；剩余的每个失败都已在[状态页面](/zh/guide/status)中分类。启动速度、可执行文件大小和内存占用是 Nona 的强项；程序内部的计算比 V8 慢 20–100 倍，部分操作（`Map`、`sort`、字符串拼接、长 Promise 链）仍然是超线性的，参见[性能](/zh/guide/performance)。Nona 仍处于实验阶段：它不能直接替代 Node.js，也没有经过安全审计。

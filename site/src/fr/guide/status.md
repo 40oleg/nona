@@ -2,7 +2,7 @@
 
 ## Version actuelle
 
-**v0.7.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
+**v0.8.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
 
 ## Audit Test262
 
@@ -10,8 +10,8 @@ Test262 figé complet sous Windows x64 (`scripts/test262-audit.ps1 -Unit`, fonct
 
 | Répertoire | Réussis / applicables | Échecs restants |
 | --- | --- | --- |
-| `language/` | **17298 / 17337** (26 ignorés) | 30 `eval`, 6 sémantique plus récente, 3 autres |
-| `built-ins/` | **15491 / 15559** | 16 `eval`, 14 sémantique plus récente, 38 autres |
+| `language/` | **22436 / 22492** (26 ignorés) | 44 `eval`, 1 sémantique plus récente, 11 autres |
+| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 sémantique plus récente, 37 autres |
 | `built-ins/Atomics` (agents) | **268 / 268** | — |
 | `annexB/` | **996 / 1016** (8 ignorés) | 20 `eval` |
 

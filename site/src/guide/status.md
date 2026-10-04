@@ -2,16 +2,16 @@
 
 ## Current release
 
-**v0.7.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
+**v0.8.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
 
 ## Test262 audit
 
-Full pinned Test262 on Windows x64 (`scripts/test262-audit.ps1 -Unit`, features from ES2020 and earlier):
+Full pinned Test262 on Windows x64 for v0.8.0 (`scripts/test262-audit.ps1 -Unit`, features from ES2020 and earlier plus the supported later ones such as the ES2022 class elements):
 
 | Directory | Passed / applicable | Remaining failures |
 | --- | --- | --- |
-| `language/` | **17298 / 17337** (26 skipped) | 30 `eval`, 6 newer semantics, 3 other |
-| `built-ins/` | **15491 / 15559** | 16 `eval`, 14 newer semantics, 38 other |
+| `language/` | **22436 / 22492** (26 skipped) | 44 `eval`, 1 newer semantics, 11 other |
+| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 newer semantics, 37 other |
 | `built-ins/Atomics` (agents) | **268 / 268** | — |
 | `annexB/` | **996 / 1016** (8 skipped) | 20 `eval` |
 
@@ -21,10 +21,12 @@ The classification comes from `scripts/test262-summary.mjs`: "`eval`" tests call
 
 All "other" failures on Windows are classified:
 
-- `built-ins/Function` (25): the function source comes from `toString` of objects at run time — the `eval` exception.
-- `is-a-constructor` for `AsyncFunction`, `AsyncGeneratorFunction` and `GeneratorFunction` (4): the Test262 harness builds source text at run time.
-- Other realms (7): default prototypes from another realm ([#7](https://github.com/40oleg/nona/issues/7)).
-- Since the ES2022 class elements ([#106](https://github.com/40oleg/nona/issues/106)), the two private-field tests on non-extensible objects pass. Their audit adds 24 `eval` failures in `language/expressions/class`: classes evaluated from source text through an `eval` alias, `Function` or another realm.
+- `built-ins/Function` (26): the function source comes from `toString` of objects at run time — the `eval` exception.
+- `is-a-constructor` for `AsyncFunction`, `AsyncGeneratorFunction` and `GeneratorFunction`, and the async arrow `prototype` test (4): the Test262 harness builds source text at run time.
+- Other realms (8): default prototypes from another realm ([#7](https://github.com/40oleg/nona/issues/7)).
+- Classes created through `Function`, also in another realm (10, `language/expressions/class`): source text built at run time. The same tests through an `eval` alias count as `eval` failures.
+
+The audit of v0.8.0 also found seven crashes (`Array.prototype.indexOf` on `Math` with an element, inherited and own keys of typed arrays) introduced with dense elements; they are fixed in [#119](https://github.com/40oleg/nona/issues/119), and the rerun of `built-ins/Array` and `built-ins/TypedArrayConstructors` after the fix (included above) passes them.
 
 ## Open work
 

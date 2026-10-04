@@ -1,6 +1,6 @@
 # Language support
 
-Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported as of **v0.7.0**; the numbers come from the pinned Test262 revision described on the [Test262](/reference/test262) page.
+Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported as of **v0.8.0**; the numbers come from the pinned Test262 revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. The detailed per-feature matrix with test names is kept in [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (Russian).
 
@@ -50,12 +50,12 @@ Host APIs that are not part of ECMAScript — timers, `process`, `node:fs`, `Tex
 
 ## Test262 results
 
-Full pinned Test262 run on Windows x64 (features from ES2020 and earlier):
+Full pinned Test262 run on Windows x64 for v0.8.0 (features from ES2020 and earlier, plus the supported later ones):
 
 | Directory | Passed / applicable | Remaining failures |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 newer semantics, 3 other |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 newer semantics, 38 other |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 newer semantics, 11 other |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 newer semantics, 37 other |
 | `built-ins/Atomics` (agents) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
