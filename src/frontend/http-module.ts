@@ -104,6 +104,7 @@ function dateLine() {
 }
 // One output buffer for all writes: a message is encoded into it and sent at once.
 let outBuffer = new Uint8Array(65536);
+let lastBody = null, lastBytes = null;
 function reserve(size) { if (outBuffer.length < size) outBuffer = new Uint8Array(Math.max(size, outBuffer.length * 2)); return outBuffer; }
 
 // ---- Deferred notifications ----------------------------------------------------
@@ -705,7 +706,10 @@ export class ServerResponse extends OutgoingMessage {
     const hasBody = this._hasBody && code !== 204 && code !== 304 && (code < 100 || code > 199);
     if (!hasBody) this._hasBody = false;
     const body = hasBody && chunk ? chunk : '';
-    const length = body === '' ? 0 : writeString(body, undefined, 0, false);
+    // A large body that was just sent is likely sent again (a cached page):
+    // its bytes are kept and copied instead of encoded twice per response.
+    const cached = body.length >= 2048 && body === lastBody;
+    const length = body === '' ? 0 : cached ? lastBytes.length : writeString(body, undefined, 0, false);
     this._contentLength = chunk ? (typeof chunk === 'string' ? (length || writeString(chunk, undefined, 0, false)) : chunk.length) : 0;
     if (hasBody) head += 'Content-Length: ' + this._contentLength + '\r\n\r\n'; else head += '\r\n';
     this._header = head;
@@ -713,7 +717,12 @@ export class ServerResponse extends OutgoingMessage {
     const out = reserve(head.length + length);
     let size = writeString(head, out, 0, true);
     this._headerSent = true;
-    if (length > 0) size += writeString(body, out, size, false);
+    if (cached) { copyBytes(lastBytes, 0, length, out, size); size += length; }
+    else if (length > 0) {
+      const written = writeString(body, out, size, false);
+      if (body.length >= 2048) { lastBody = body; lastBytes = new Uint8Array(written); copyBytes(out, size, size + written, lastBytes, 0); }
+      size += written;
+    }
     this._writeOut(out, size, this);
     return this;
   }

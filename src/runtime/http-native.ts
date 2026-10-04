@@ -241,9 +241,34 @@ export function emitHttpNative(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),end=a.unique('end'),ascii=a.unique('ascii'),two=a.unique('two'),three=a.unique('three'),pair=a.unique('pair'),lone=a.unique('lone'),low=a.unique('low'),utf8=a.unique('utf8');
   const put=(reg:'rax')=>{const skip=a.unique('skip');a.test('r9','r9');a.jcc('e',skip);a.cmp('r9','rdx');a.jcc('ae',overflow);a.store({base:'r9'},reg,8);a.add('r9',1);a.label(skip);a.add('r8',1);};
   const unit=()=>{a.mov('rax','rcx');a.add('rax','rax');a.add('rax','r10');a.load('rax',{base:'rax'},16);a.add('rcx',1);};
-  {a.load('rax',slot(64));a.test('rax','rax');a.jcc('e',utf8);
-   const l1=a.unique('latin1');a.label(l1);a.cmp('rcx','r11');a.jcc('ae',end);unit();put('rax');a.jmp(l1);}
+  /**
+   * Four units at a time while they fit: RAX = the next four UTF-16 units
+   * (one qword); with `mask` (an all-ASCII test) a block that fails it goes
+   * to `slow`. The low bytes are packed into one dword: R11 is borrowed
+   * between push and pop, which contain no jumps.
+   */
+  const block=(name:string,slow:string,ascii:boolean)=>{
+   const top=a.unique(name),count=a.unique(name+'Count'),stored=a.unique(name+'Stored');
+   a.label(top);
+   a.mov('rax','rcx');a.add('rax',4);a.cmp('rax','r11');a.jcc('a',slow);
+   a.test('r9','r9');a.jcc('e',count);a.mov('rax','r9');a.add('rax',4);a.cmp('rax','rdx');a.jcc('a',slow);
+   a.label(count);
+   a.mov('rax','rcx');a.add('rax','rax');a.add('rax','r10');a.load('rax',{base:'rax'});
+   if(ascii){a.push('r11');a.mov('r11',0xFF80FF80FF80FF80n);a.test('rax','r11');a.pop('r11');a.jcc('ne',slow);}
+   a.test('r9','r9');a.jcc('e',stored);
+   a.push('r11');
+   if(!ascii){a.mov('r11',0x00FF00FF00FF00FFn);a.and('rax','r11');}
+   a.mov('r11','rax');a.shr('r11',8);a.or('rax','r11');a.mov('r11',0x0000FFFF0000FFFFn);a.and('rax','r11');a.mov('r11','rax');a.shr('r11',16);a.or('rax','r11');
+   a.pop('r11');
+   a.store({base:'r9'},'rax',32);a.add('r9',4);
+   a.label(stored);a.add('rcx',4);a.add('r8',4);a.jmp(top);
+  };
+  {const l1=a.unique('latin1'),single=a.unique('latin1Single');a.load('rax',slot(64));a.test('rax','rax');a.jcc('e',utf8);
+   block('latin1Block',single,false);
+   a.label(single);a.cmp('rcx','r11');a.jcc('ae',end);unit();put('rax');a.jmp(l1);
+   a.label(l1);block('latin1Block2',single,false);}
   a.label(utf8);
+  block('asciiBlock',loop,true);
   a.label(loop);a.cmp('rcx','r11');a.jcc('ae',end);unit();
   a.cmp('rax',0x80);a.jcc('b',ascii);a.cmp('rax',0x800);a.jcc('b',two);
   a.cmp('rax',0xd800);a.jcc('b',three);a.cmp('rax',0xdc00);a.jcc('ae',low);
@@ -261,12 +286,14 @@ export function emitHttpNative(b:RuntimeBuilder):void {
    a.store(slot(72),'rax');
    for(const [shift,mask,prefix] of parts){a.load('rax',slot(72));if(shift)a.shr('rax',shift);a.and('rax',mask);a.or('rax',prefix);put('rax');}
   };
-  a.label(ascii);put('rax');a.jmp(loop);
-  a.label(two);emitBytes([[6,0x1f,0xc0],[0,0x3f,0x80]]);a.jmp(loop);
-  a.label(three);emitBytes([[12,0x0f,0xe0],[6,0x3f,0x80],[0,0x3f,0x80]]);a.jmp(loop);
+  const next=a.unique('next');
+  a.label(ascii);put('rax');a.jmp(next);
+  a.label(two);emitBytes([[6,0x1f,0xc0],[0,0x3f,0x80]]);a.jmp(next);
+  a.label(three);emitBytes([[12,0x0f,0xe0],[6,0x3f,0x80],[0,0x3f,0x80]]);a.jmp(next);
   // Pair: code point = slot 72 + slot 80; R11 is borrowed (no jumps while pushed).
   a.label(pair);a.push('r11');a.load('r11',slot(80+8));a.load('rax',slot(72+8));a.add('rax','r11');a.pop('r11');
-  emitBytes([[18,0x07,0xf0],[12,0x3f,0x80],[6,0x3f,0x80],[0,0x3f,0x80]]);a.jmp(loop);
+  emitBytes([[18,0x07,0xf0],[12,0x3f,0x80],[6,0x3f,0x80],[0,0x3f,0x80]]);
+  a.label(next);block('asciiBlock2',loop,true);
   a.label(end);numberResult(a,'r8');a.jmp(done);
   a.label(overflow);a.mov('rax',-1);numberResult(a,'rax');a.jmp(done);
   a.label(bad);undefinedResult(a);a.label(done);
