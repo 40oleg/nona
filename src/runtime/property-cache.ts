@@ -32,7 +32,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * global object is never cached: script bindings alias its properties.
  */
 /** Four entries of {prototype, node}, newest first, behind one epoch. */
-export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,size:8+16*4} as const;
+/** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
+export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,size:8+16*4+8} as const;
 
 /** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
 export function cacheableName(name:string):boolean {
@@ -65,7 +66,17 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.label(ready);a.mov('rcx','rdx');a.call('rt.propertyBase');a.mov('r10','rax');a.jmp(scan);
   a.label(object);a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('a',generic);a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
   // An own property answers by itself.
-  a.label(scan);a.store(slot(72),'r10');a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',read);
+  // An own property answers by itself. A receiver with a property index is
+  // probed with the key's hash, kept in the record (no rehash per read).
+  a.label(scan);a.store(slot(72),'r10');
+  {const listScan=a.unique('listScan'),hashed=a.unique('hashed'),probed=a.unique('probed');
+   a.load('rax',{base:'r10',disp:O.index});a.test('rax','rax');a.jcc('e',listScan);
+   a.load('rdx',{base:'r9',disp:L.hash});a.test('rdx','rdx');a.jcc('ne',hashed);
+   a.load('rcx',{base:'r8',disp:8});a.call('rt.propKeyHash');a.load('r9',slot(64));a.store({base:'r9',disp:L.hash},'rax');a.mov('rdx','rax');a.load('r8',slot(56));a.load('r10',slot(72));
+   a.label(hashed);a.load('rcx',{base:'r10',disp:O.index});a.load('r8',{base:'r8',disp:8});a.call('rt.propIndexProbe');a.test('r10','r10');a.jcc('e',probed);
+   a.load('rax',{base:'rax',disp:8});a.jmp(read);
+   a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',read);
+   a.label(probed);}
   // Otherwise the entry for the receiver's prototype, at the current epoch.
   a.load('r9',slot(64));a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});a.test('r10','r10');a.jcc('e',generic);
   a.load('rax',{base:'r9',disp:L.epoch});a.load('r11',{rip:'rt.shapeEpoch'});a.cmp('rax','r11');a.jcc('ne',fill);
