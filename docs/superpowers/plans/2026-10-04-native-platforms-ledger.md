@@ -1,0 +1,17 @@
+# Native platform execution ledger
+
+Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f9c566f2b502d6aa.
+
+## Rulings
+
+- Ruling: proceed autonomously through design, plan and implementation — the user explicitly asked to keep working while away for several hours; the PR remains their review point and is never merged by this task.
+- Ruling: reuse the current isolated worktree and create the issue-specific branch from fresh main — tracked files were clean and this preserves the primary checkout and its untracked output/tmp directories.
+- Ruling: use native code emission and a shared runtime operation layer rather than C/LLVM or duplicate runtimes — required by AGENTS.md and avoids semantic drift.
+- Ruling: native tests execute in CI/VMs — local Windows Application Control has already blocked generated binaries; WSL is not installed and is not installed by this task.
+- Ruling: Linux distro names do not become target names — the ABI/CPU determines the emitted Linux file, while distro compatibility remains separately verified.
+
+## Progress
+
+- Repository/architecture exploration complete; no platform implementation or native support claim yet.
+- Issue #117 created and claimed with enhancement/blocked labels.
+- Spec and implementation plan self-reviewed for target coverage, no placeholders, explicit local execution limits, and native verification gates.
