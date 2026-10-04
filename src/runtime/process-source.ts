@@ -153,7 +153,7 @@ __nonaPromiseDrainJobs=(function(drain){
 
 import type {FfiDeclaration} from '../ffi.js';
 /** Host functions used by the process prelude, per target. */
-export function processHostDeclarations(target:'win32-x64'|'linux-x64'):{name:string;declaration:FfiDeclaration}[] {
+export function processHostDeclarations(target:'win32-x64'|'linux-x64'|'linux-arm64'):{name:string;declaration:FfiDeclaration}[] {
   const list:[string,string,string,string][]=target==='win32-x64'?[
     ['lstrlenW','KERNEL32.dll','lstrlenW','i32(ptr)'],
     ['RtlMoveMemory','KERNEL32.dll','RtlMoveMemory','void(buf,ptr,u64)'],
@@ -173,5 +173,16 @@ export function processHostDeclarations(target:'win32-x64'|'linux-x64'):{name:st
     ['sys_readlink','syscall','89','i64(buf,buf,i64)'],
     ['sys_exit','syscall','231','i64(i64)'],
   ];
+  if(target==='linux-arm64'){
+    const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94'};
+    for(const entry of list){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';}
+  }
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
+}
+
+/** Target-specific host boundary without introducing prelude global bindings. */
+export function processPreludeForTarget(target:string|undefined):string {
+ if(target!=='linux-arm64')return processPreludeSource;
+ return processPreludeSource.replace("value('arch','x64')","value('arch','arm64')").replace('var windows=host.GetCommandLineW()!==0;',
+  'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};');
 }

@@ -40,6 +40,13 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     if(!result.ok)throw new Error(`${target}/agents: ${JSON.stringify(result.diagnostics)}`);
     probes.push({name:'agents',image:result.image,expected:'true 42 done\n'});
   }
+  if(target==='linux-arm64'){
+    const extra=[
+      {name:'process',source:'console.log(process.platform,process.arch,process.pid>0,process.execPath.length>0,process.argv.length>0,process.cwd().length>0,typeof process.env.PATH)',expected:'linux arm64 true true true true string\n'},
+      {name:'filesystem',source:'import * as fs from "node:fs";let d="work/platform-probes/arm-fs";fs.mkdirSync(d);fs.writeFileSync(d+"/a","hello");fs.appendFileSync(d+"/a"," world");fs.copyFileSync(d+"/a",d+"/b");fs.renameSync(d+"/b",d+"/c");console.log(fs.readFileSync(d+"/a","utf8"),fs.statSync(d+"/c").size,fs.statSync(d).isDirectory(),fs.readdirSync(d).sort().join(","));fs.unlinkSync(d+"/a");fs.unlinkSync(d+"/c");fs.rmdirSync(d);console.log(fs.existsSync(d))',expected:'hello world 11 true a,c\nfalse\n',module:true},
+    ];
+    for(const probe of extra){const result=compile(probe.source,{fileName:probe.name+'.js',target,module:probe.module});if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));probes.push({name:probe.name,image:result.image,expected:probe.expected});}
+  }
   return probes;
 }
 /** Refuse accidental emulation (including Rosetta) in native verification. */

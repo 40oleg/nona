@@ -343,7 +343,27 @@ const sys = {
 };
 `;
 
+
+/** AArch64's asm-generic table uses *at calls and a distinct stat layout. */
+function linuxArm64Source():string {
+ const replacements:Record<string,string>={
+  "const sysRead = define('syscall', '0'":"const sysRead = define('syscall', '63'",
+  "const sysWrite = define('syscall', '1'":"const sysWrite = define('syscall', '64'",
+  "const sysClose = define('syscall', '3'":"const sysClose = define('syscall', '57'",
+  "const sysFstat = define('syscall', '5'":"const sysFstat = define('syscall', '80'",
+  "const sysGetdents = define('syscall', '217'":"const sysGetdents = define('syscall', '61'",
+  "const sysOpen = define('syscall', '2', 'i64(buf,i64,i64)');":"const openat = define('syscall', '56', 'i64(i64,buf,i64,i64)');function sysOpen(path,flags,mode){return openat(-100,path,flags,mode)}",
+  "const sysStat = define('syscall', '4', 'i64(buf,buf)');":"const statat = define('syscall', '79', 'i64(i64,buf,buf,i64)');function sysStat(path,buffer){return statat(-100,path,buffer,0)}",
+  "const sysRename = define('syscall', '82', 'i64(buf,buf)');":"const renameat = define('syscall', '276', 'i64(i64,buf,i64,buf,i64)');function sysRename(from,to){return renameat(-100,from,-100,to,0)}",
+  "const sysMkdir = define('syscall', '83', 'i64(buf,i64)');":"const mkdirat = define('syscall', '34', 'i64(i64,buf,i64)');function sysMkdir(path,mode){return mkdirat(-100,path,mode)}",
+  "const sysRmdir = define('syscall', '84', 'i64(buf)');":"const unlinkat = define('syscall', '35', 'i64(i64,buf,i64)');function sysRmdir(path){return unlinkat(-100,path,512)}",
+  "const sysUnlink = define('syscall', '87', 'i64(buf)');":"function sysUnlink(path){return unlinkat(-100,path,0)}",
+  'getUint32(24, true)':'getUint32(16, true)',
+ };
+ let source=linux;for(const [from,to] of Object.entries(replacements))source=source.replace(from,to);return source;
+}
+
 export function fsModuleSource(target:Target):string {
-  if(target!=='win32-x64'&&target!=='linux-x64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
-  return (target==='linux-x64'?linux:win32)+common;
+  if(target!=='win32-x64'&&target!=='linux-x64'&&target!=='linux-arm64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
+  return (target==='linux-arm64'?linuxArm64Source():target==='linux-x64'?linux:win32)+common;
 }

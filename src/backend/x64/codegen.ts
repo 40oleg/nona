@@ -20,7 +20,7 @@ import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
-import {processPreludeSource,processHostDeclarations} from '../../runtime/process-source.js';
+import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -110,7 +110,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['process',processPreludeSource],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -634,7 +634,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   // Both targets' declarations are compiled into every image, so one program
   // can be linked as PE and ELF; each linker binds the other target's imports
   // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
+  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations(currentNativeTarget()==='linux-arm64'?'linux-arm64':'linux-x64')]:[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);

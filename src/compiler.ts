@@ -101,7 +101,7 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    if((descriptor.os==='freebsd'||descriptor.os==='openbsd'||options.target==='linux-arm64')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
+    if((descriptor.os==='freebsd'||descriptor.os==='openbsd')&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist only in PE images; raw system calls ('syscall') only in ELF images.
