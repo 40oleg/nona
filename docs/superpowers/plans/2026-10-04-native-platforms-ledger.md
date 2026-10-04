@@ -33,3 +33,10 @@ Issue: #117. Branch: issue-117-native-platforms. Base: 569270afc85a4ece2e1cc312f
 - Verification: all four missing ELF platform behaviors observed RED; negative/wrapped relocations also observed RED; build and 10 focused layout/registry tests GREEN; existing ELF RIP-fixup test GREEN. These tests inspect bytes only and do not prove execution of a new OS/CPU target.
 - Task 2 remains in progress: BSD runtime adapters and native VM gates have not run yet.
 - Dependency ruling: shared semantic syscall emission is needed before BSD adapters can safely register locations; implement that part of Task 4 before continuing Task 2 rather than duplicate raw opcode tracking.
+
+## Task 4 — raw operation isolation phase
+
+- Introduced syscall(number), signExtendRax(), timestamp() and setCondition() semantic operations; replaced matching raw instruction call sites in codegen, Date, FFI, random/hash seeding, and Linux services.
+- Syscall metadata records the instruction after the MOV-immediate, not the number-loading instruction. Cache encoding/decoding preserves those positions.
+- Verification: missing named operations RED → GREEN with independent ISA byte expectations; cached syscall metadata loss RED → GREEN. Build plus focused operation/x64/layout/registry suites: 23 passed. Existing base-cache suite: 4 passed, only compiler/Node subprocesses (no native executable execution).
+- Task 4 remains in progress: scoped architecture selection and x87 mathematical operation isolation still need implementation.

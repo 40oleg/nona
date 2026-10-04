@@ -23,7 +23,7 @@ export function emitDateStrings(b:RuntimeBuilder):void {
   a.load('rax',slot(64));const valid=a.unique('valid'),done=a.unique('done');a.test('rax','rax');a.jcc('ne',valid);
   a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.lea('rax',{rip:'rt.str.invalidDate'});a.store({base:'rcx',disp:8},'rax');a.jmp(done);a.label(valid);
   a.load('rdx',slot(240));a.load('r10',{base:'rdx',disp:8});a.movsd('xmm0',{base:'r10',disp:DateLayout.time});a.cvttsd2si('rax','xmm0');
-  a.emit([0x48,0x99]);a.mov('r10',86400000);a.idiv('r10');a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',86400000);a.label(positive);a.store(slot(104),'rdx');
+  a.signExtendRax();a.mov('r10',86400000);a.idiv('r10');a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',86400000);a.label(positive);a.store(slot(104),'rdx');
   for(const [offset,scale] of [[112,3600000],[120,60000],[128,1000]] as const){a.load('rax',slot(104));a.xor('rdx','rdx');a.mov('r10',scale);a.div('r10');a.store(slot(offset),'rax');a.store(slot(104),'rdx');}
   a.load('rax',slot(72));a.mov('r10',0);a.test('rax','rax');const yearPositive=a.unique('yearPositive');a.jcc('ge',yearPositive);a.neg('rax');a.mov('r10',1);a.label(yearPositive);a.store(slot(136),'rax');a.store(slot(152),'r10');
   a.mov('r10',4);a.cmp('rax',10000);const widthReady=a.unique('widthReady'),five=a.unique('five'),six=a.unique('six');a.jcc('ae',five);a.jmp(widthReady);a.label(five);a.mov('r10',5);a.cmp('rax',100000);a.jcc('ae',six);a.jmp(widthReady);a.label(six);a.mov('r10',6);a.label(widthReady);a.store(slot(144),'r10');

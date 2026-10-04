@@ -67,7 +67,7 @@ export function emitMemory(b:RuntimeBuilder):void {
  // index), so colliding keys cannot be precomputed (hash flooding).
  b.data('rt.hashSeed',new Uint8Array(8),'.data');
  b.fn('rt.init',40,a=>{
-  a.emit([0x0f,0x31]);a.shl('rdx',32);a.or('rax','rdx');a.mov('r10',0x9E3779B97F4A7C15n);a.imul('rax','r10');a.store({rip:'rt.hashSeed'},'rax');
+  a.timestamp();a.shl('rdx',32);a.or('rax','rdx');a.mov('r10',0x9E3779B97F4A7C15n);a.imul('rax','r10');a.store({rip:'rt.hashSeed'},'rax');
   a.callImport('GetProcessHeap');a.store({rip:'rt.heap'},'rax');a.test('rax','rax');failIf(a,'e');
  });
 

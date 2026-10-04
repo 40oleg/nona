@@ -64,7 +64,7 @@ function syscallStub(b:RuntimeBuilder,name:string,number:number):void {
     a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('r10','r9');
     // Arguments 5 and 6 above the return address and the caller's shadow space.
     a.load('r8',slot(56+40));a.load('r9',slot(56+48));
-    a.mov('rax',number);a.emit([0x0f,0x05]);
+    a.syscall(number);
     a.load('rsi',slot(40));a.load('rdi',slot(48));
   });
 }

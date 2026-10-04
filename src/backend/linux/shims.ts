@@ -45,14 +45,14 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.load('r11',{rip:'linux.heapEnd'});a.cmp('r10','r11');const fits=a.unique('fits');a.test('rax','rax');a.jcc('e',small);a.cmp('r10','r11');a.jcc('be',fits);
   a.label(small);
   // New 1 MiB chunk (syscalls clobber RCX/R11).
-  a.mov('rdi',0);a.mov('rsi',1<<20);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.mov('rdi',0);a.mov('rsi',1<<20);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.syscall(9);
   const mapped=a.unique('mapped');a.cmp('rax',-4095);a.jcc('b',mapped);unlock(a);a.jmp(bad);
   a.label(mapped);a.mov('r10','rax');a.add('r10',1<<20);a.store({rip:'linux.heapEnd'},'r10');
   a.load('rdi',slot(40));a.lea('r10',{base:'rax'});a.add('r10','rdi');
   a.label(fits);a.store({rip:'linux.heapCursor'},'r10');unlock(a);
   a.label(got);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
   a.label(large);a.add('rsi',4095);a.and('rsi',-4096);
-  a.store(slot(40),'rsi');a.mov('rdi',0);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.store(slot(40),'rsi');a.mov('rdi',0);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.syscall(9);
   a.cmp('rax',-4095);a.jcc('ae',bad);a.load('r10',slot(40));a.store({base:'rax'},'r10');a.add('rax',16);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
  });
@@ -65,7 +65,7 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(find);a.cmp('r10','rsi');a.jcc('ae',found);a.shl('r10',1);a.add('r9',1);a.jmp(find);a.label(found);
   a.store(slot(56),'r9');lock(a);a.load('r9',slot(56));a.shl('r9',3);a.lea('r10',{rip:'linux.heapFree'});a.add('r10','r9');
   a.load('r11',{base:'r10'});a.store({base:'rdi',disp:16},'r11');a.store({base:'r10'},'rdi');unlock(a);a.mov('rax',1);a.jmp(done);
-  a.label(large);a.mov('rax',11);a.emit([0x0f,0x05]);
+  a.label(large);a.syscall(11);
   a.test('rax','rax');a.jcc('ne',no);a.mov('rax',1);a.jmp(done);
   a.label(no);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
@@ -79,11 +79,11 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
   const bad=a.unique('bad'),done=a.unique('done'),noHead=a.unique('noHead'),noTail=a.unique('noTail');
   a.test('rcx','rcx');a.jcc('ne',bad);a.cmp('r8',0x3000);a.jcc('ne',bad);a.cmp('r9',4);a.jcc('ne',bad);a.store(slot(56),'rdx');
-  a.mov('rdi',0);a.mov('rsi','rdx');a.add('rsi',1<<16);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.mov('rdi',0);a.mov('rsi','rdx');a.add('rsi',1<<16);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.syscall(9);
   a.cmp('rax',-4095);a.jcc('ae',bad);a.store(slot(64),'rax');
   a.mov('r10','rax');a.add('r10',0xffff);a.and('r10',-65536);a.store(slot(72),'r10');
-  a.mov('rsi','r10');a.sub('rsi','rax');a.test('rsi','rsi');a.jcc('e',noHead);a.mov('rdi','rax');a.mov('rax',11);a.emit([0x0f,0x05]);
-  a.label(noHead);a.load('rdi',slot(72));a.load('rax',slot(56));a.add('rdi','rax');a.load('rsi',slot(64));a.add('rsi','rax');a.add('rsi',1<<16);a.sub('rsi','rdi');a.test('rsi','rsi');a.jcc('e',noTail);a.mov('rax',11);a.emit([0x0f,0x05]);
+  a.mov('rsi','r10');a.sub('rsi','rax');a.test('rsi','rsi');a.jcc('e',noHead);a.mov('rdi','rax');a.syscall(11);
+  a.label(noHead);a.load('rdi',slot(72));a.load('rax',slot(56));a.add('rdi','rax');a.load('rsi',slot(64));a.add('rsi','rax');a.add('rsi',1<<16);a.sub('rsi','rdi');a.test('rsi','rsi');a.jcc('e',noTail);a.syscall(11);
   a.label(noTail);a.load('rax',slot(72));a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
@@ -92,7 +92,7 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   const bad=a.unique('bad'),done=a.unique('done');
   a.cmp('rdx',GeneratorStack.guard);a.jcc('ne',bad);a.cmp('r8',1);a.jcc('ne',bad);
   a.mov('rax',4);a.store({base:'r9'},'rax',32);
-  a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx',0);a.mov('rax',10);a.emit([0x0f,0x05]);
+  a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx',0);a.syscall(10);
   a.test('rax','rax');a.jcc('ne',bad);a.mov('rax',1);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
@@ -103,7 +103,7 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   const bad=a.unique('bad'),done=a.unique('done'),sized=a.unique('sized');
   a.cmp('r8',0x4000);a.jcc('e',sized);
   a.test('rdx','rdx');a.jcc('ne',bad);a.cmp('r8',0x8000);a.jcc('ne',bad);a.mov('rdx',GeneratorStack.bytes);
-  a.label(sized);a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rax',11);a.emit([0x0f,0x05]);
+  a.label(sized);a.mov('rdi','rcx');a.mov('rsi','rdx');a.syscall(11);
   a.test('rax','rax');a.jcc('ne',bad);a.mov('rax',1);a.jmp(done);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
@@ -116,7 +116,7 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');a.load('rdx',{base:'rdx'},32);
   a.mov('r10',0);a.mov('r11',0xffffffffn);a.cmp('r9','r11');const infinite=a.unique('infinite');a.jcc('e',infinite);
   a.mov('rax','r9');a.mov('rdx',0);a.mov('r11',1000);a.div('r11');a.store(slot(72),'rax');a.mov('rax','rdx');a.mov('r11',1000000);a.imul('rax','r11');a.store(slot(80),'rax');a.lea('r10',slot(72));a.load('rdx',slot(56));a.load('rdx',{base:'rdx'},32);
-  a.label(infinite);a.load('rdi',slot(56));a.mov('rsi',128);a.mov('rax',202);a.emit([0x0f,0x05]);
+  a.label(infinite);a.load('rdi',slot(56));a.mov('rsi',128);a.syscall(202);
   const failed=a.unique('failed'),done=a.unique('done');a.test('rax','rax');a.jcc('ne',failed);a.mov('rax',1);a.jmp(done);a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  // Threads for Test262 agents: RCX attributes, RDX stack size, R8 start
@@ -125,31 +125,31 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
  b.fn('linux.CreateThread.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
   const bad=a.unique('bad'),done=a.unique('done'),child=a.unique('child');
-  a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.mov('rax',9);a.emit([0x0f,0x05]);
+  a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);a.syscall(9);
   a.cmp('rax',-4095);a.jcc('ae',bad);
   a.mov('rsi','rax');a.add('rsi',64*1024*1024-16);
   a.load('r10',slot(56));a.store({base:'rsi'},'r10');a.load('r10',slot(64));a.store({base:'rsi',disp:8},'r10');
-  a.mov('rdi',0x50f00);a.mov('rdx',0);a.mov('r10',0);a.mov('r8',0);a.mov('rax',56);a.emit([0x0f,0x05]);
+  a.mov('rdi',0x50f00);a.mov('rdx',0);a.mov('r10',0);a.mov('r8',0);a.syscall(56);
   a.test('rax','rax');a.jcc('e',child);a.cmp('rax',-4095);a.jcc('ae',bad);a.jmp(done);
   a.label(child);
   a.load('r11',{base:'rsp'});a.load('rcx',{base:'rsp',disp:8});a.add('rsp',16);a.sub('rsp',48);a.callRegister('r11');
-  a.mov('rdi',0);a.mov('rax',60);a.emit([0x0f,0x05]);
+  a.mov('rdi',0);a.syscall(60);
   a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.Sleep.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
   a.mov('rax','rcx');a.mov('rdx',0);a.mov('r11',1000);a.div('r11');a.store(slot(56),'rax');a.mov('rax','rdx');a.mov('r11',1000000);a.imul('rax','r11');a.store(slot(64),'rax');
-  a.lea('rdi',slot(56));a.mov('rsi',0);a.mov('rax',35);a.emit([0x0f,0x05]);
+  a.lea('rdi',slot(56));a.mov('rsi',0);a.syscall(35);
   a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.WakeByAddressSingle.code',56,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
-  a.mov('rdi','rcx');a.mov('rsi',129);a.mov('rdx',1);a.mov('rax',202);a.emit([0x0f,0x05]);
+  a.mov('rdi','rcx');a.mov('rsi',129);a.mov('rdx',1);a.syscall(202);
   a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.GetSystemTimeAsFileTime.code',104,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
-  a.mov('rdi',0);a.lea('rsi',slot(72));a.mov('rax',228);a.emit([0x0f,0x05]);
+  a.mov('rdi',0);a.lea('rsi',slot(72));a.syscall(228);
   const done=a.unique('done');a.test('rax','rax');a.jcc('ne',done);
   a.load('rax',slot(72));a.mov('r10',10000000);a.imul('rax','r10');
   a.store(slot(64),'rax');a.load('rax',slot(80));a.xor('rdx','rdx');a.mov('r10',100);a.div('r10');
@@ -174,15 +174,15 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
   a.label(two);a.mov('r10','rax');a.shr('r10',6);a.or('r10',0xc0);a.store({base:'r11'},'r10',8);a.add('r11',1);a.and('rax',0x3f);a.or('rax',0x80);
   a.label(one);a.store({base:'r11'},'rax',8);a.add('r11',1);a.jmp(loop);
   a.label(end);a.mov('rax',0);a.store({base:'r11'},'rax',8);
-  a.lea('rdi',slot(64));a.mov('rsi',0x241);a.mov('rdx',0o644);a.mov('rax',2);a.emit([0x0f,0x05]);
+  a.lea('rdi',slot(64));a.mov('rsi',0x241);a.mov('rdx',0o644);a.syscall(2);
   a.cmp('rax',-4095);a.jcc('b',done);
   a.label(failed);a.mov('rax',-1);
   a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
- b.fn('linux.CloseHandle.code',56,a=>{a.store(slot(40),'rdi');a.mov('rdi','rcx');a.mov('rax',3);a.emit([0x0f,0x05]);a.load('rdi',slot(40));a.mov('rax',1);});
- b.fn('linux.GetCurrentProcessId.code',40,a=>{a.mov('rax',39);a.emit([0x0f,0x05]);});
+ b.fn('linux.CloseHandle.code',56,a=>{a.store(slot(40),'rdi');a.mov('rdi','rcx');a.syscall(3);a.load('rdi',slot(40));a.mov('rax',1);});
+ b.fn('linux.GetCurrentProcessId.code',40,a=>{a.syscall(39);});
  b.fn('linux.WriteFile.code',72,a=>{
-  a.store(slot(40),'r9');a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('rax',1);a.emit([0x0f,0x05]);
+  a.store(slot(40),'r9');a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.syscall(1);
   const failed=a.unique('failed'),done=a.unique('done');a.cmp('rax',-4095);a.jcc('ae',failed);
   a.load('r10',slot(40));a.store({base:'r10'},'rax',32);a.mov('rax',1);a.jmp(done);
   a.label(failed);a.mov('rax',0);a.label(done);a.load('rsi',slot(48));a.load('rdi',slot(56));
@@ -192,12 +192,12 @@ export function linuxShims(imports:NativeProgram['imports']):NamedFragment[] {
  // Monotonic clock in nanoseconds; the frequency is fixed at 1e9.
  b.fn('linux.QueryPerformanceCounter.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'rcx');
-  a.mov('rdi',1);a.lea('rsi',slot(24));a.mov('rax',228);a.emit([0x0f,0x05]);
+  a.mov('rdi',1);a.lea('rsi',slot(24));a.syscall(228);
   a.load('rax',slot(24));a.mov('r10',1000000000);a.imul('rax','r10');a.load('r10',slot(32));a.add('rax','r10');
   a.load('rcx',slot(56));a.store({base:'rcx'},'rax');a.mov('rax',1);a.load('rsi',slot(40));a.load('rdi',slot(48));
  });
  b.fn('linux.QueryPerformanceFrequency.code',40,a=>{a.mov('rax',1000000000);a.store({base:'rcx'},'rax');a.mov('rax',1);});
- b.fn('linux.ExitProcess.code',40,a=>{a.mov('rdi','rcx');a.mov('rax',231);a.emit([0x0f,0x05]);});
+ b.fn('linux.ExitProcess.code',40,a=>{a.mov('rdi','rcx');a.syscall(231);});
  b.fn('linux.WideCharToMultiByte.code',120,a=>{
   a.store(slot(40),'r8');a.store(slot(48),'r9');a.load('rax',slot(160));a.store(slot(56),'rax');a.load('rax',slot(168));a.store(slot(64),'rax');a.mov('rax',0);a.store(slot(72),'rax');
   const loop=a.unique('loop'),done=a.unique('done'),invalid=a.unique('invalid'),encoded=a.unique('encoded');

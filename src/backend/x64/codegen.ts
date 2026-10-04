@@ -554,7 +554,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'unary':
           if(op.operator==='isReturnMarker'){
             // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
-            a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
+            a.load('rax',value(op.argument));a.cmp('rax',254);a.setCondition('e');// sete al; movzx rax,al
             a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
           if(op.numeric&&emitKnownNumberUnary(op.dest,op.operator,op.argument))break;

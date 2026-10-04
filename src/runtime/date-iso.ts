@@ -13,7 +13,7 @@ export function emitDateIso(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.load('rdx',slot(208));a.lea('rcx',slot(64));a.call('rt.dateComponents');
   a.load('rax',slot(64));a.test('rax','rax');const valid=a.unique('valid');a.jcc('ne',valid);a.call('rt.throwRangeError');a.label(valid);
   a.load('rdx',slot(208));a.load('r10',{base:'rdx',disp:8});a.movsd('xmm0',{base:'r10',disp:DateLayout.time});a.cvttsd2si('rax','xmm0');
-  a.emit([0x48,0x99]);a.mov('r10',86400000);a.idiv('r10');a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',86400000);a.label(positive);a.store(slot(104),'rdx');
+  a.signExtendRax();a.mov('r10',86400000);a.idiv('r10');a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',86400000);a.label(positive);a.store(slot(104),'rdx');
   for(const [offset,scale] of [[112,3600000],[120,60000],[128,1000]] as const){
    a.load('rax',slot(104));a.xor('rdx','rdx');a.mov('r10',scale);a.div('r10');a.store(slot(offset),'rax');a.store(slot(104),'rdx');
   }

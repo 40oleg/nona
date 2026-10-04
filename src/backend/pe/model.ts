@@ -8,6 +8,8 @@ export interface CodeFragment {
   bytes: Uint8Array;
   fixups: Fixup[];
   symbols: Record<string, number>;
+  /** Native syscall instruction positions for OS loader registration. */
+  syscalls?: {offset:number;number:number}[];
 }
 export type NamedFragment = CodeFragment & {
   name: string;

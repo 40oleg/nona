@@ -117,7 +117,7 @@ export function emitMath(b:RuntimeBuilder):void {
  b.fn('rt.Math.random.fn.code',40,a=>{
   a.store(slot(32),'rcx');a.load('rax',{rip:'rt.Math.random.state'});
   const seeded=a.unique('seeded');a.test('rax','rax');a.jcc('ne',seeded);
-  a.emit([0x0f,0x31]); // RDTSC seeds the per-process xorshift state.
+  a.timestamp(); // RDTSC seeds the per-process xorshift state.
   a.shl('rdx',32);a.or('rax','rdx');a.mov('r10',1);a.or('rax','r10');
   a.label(seeded);a.mov('r10','rax');a.shr('r10',12);a.xor('rax','r10');
   a.mov('r10','rax');a.shl('r10',25);a.xor('rax','r10');

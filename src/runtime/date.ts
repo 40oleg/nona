@@ -122,7 +122,7 @@ export function emitDate(b:RuntimeBuilder):void {
   a.mov('rax',-9223372036854775807n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('be',invalid);
   a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm0','rax');a.storesd(slot(72),'xmm0');
   a.movsd('xmm0',slot(56));a.ucomisd('xmm0','xmm0');a.jcc('p',invalidOriginal);
-  a.cvttsd2si('rax','xmm0');a.store(slot(48),'rax');a.emit([0x48,0x99]);a.mov('r10',1000);a.idiv('r10');
+  a.cvttsd2si('rax','xmm0');a.store(slot(48),'rax');a.signExtendRax();a.mov('r10',1000);a.idiv('r10');
   a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',1000);a.label(positive);
   a.load('rax',slot(48));a.sub('rax','rdx');a.cvtsi2sd('xmm0','rax');a.addsd('xmm0',slot(72));
   a.mov('rax',8640000000000000n);a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('a',invalid);
@@ -139,7 +139,7 @@ export function emitDate(b:RuntimeBuilder):void {
   a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);failIf(a,'ne','rt.throwTypeError');
   a.movsd('xmm0',{base:'r10',disp:DateLayout.time});a.ucomisd('xmm0','xmm0');
   const invalid=a.unique('invalid'),save=a.unique('save'),positive=a.unique('positive');a.jcc('p',invalid);
-  a.cvttsd2si('rax','xmm0');a.emit([0x48,0x99]);a.mov('r10',86400000);a.idiv('r10');
+  a.cvttsd2si('rax','xmm0');a.signExtendRax();a.mov('r10',86400000);a.idiv('r10');
   a.mov('rax','rdx');a.test('rax','rax');a.jcc('ge',positive);a.add('rax',86400000);a.label(positive);
   if(divisor!==1){a.xor('rdx','rdx');a.mov('r10',divisor);a.div('r10');}
   a.xor('rdx','rdx');a.mov('r10',modulus);a.div('r10');a.mov('rax','rdx');

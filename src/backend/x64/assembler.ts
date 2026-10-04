@@ -11,6 +11,7 @@ import type { CodeFragment, Fixup } from "../pe/model.js";
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
 export type { CodeFragment, Fixup } from "../pe/model.js";
 let serial = 0;
+const conditionCodes:Record<Condition,number>={o:0,no:1,b:2,ae:3,e:4,ne:5,be:6,a:7,s:8,ns:9,p:10,np:11,l:12,ge:13,le:14,g:15};
 /** The next label serial; a restored code image reserves the serials it used. */
 export function assemblerSerial(): number {
   return serial;
@@ -29,6 +30,7 @@ export function setCallCounter(hook: ((target: string) => string | undefined) | 
 export class Assembler {
   private bytes: number[] = [];
   private fixups: Fixup[] = [];
+  private syscalls:{offset:number;number:number}[]=[];
   private symbols: Record<string, number> = Object.create(null) as Record<
     string,
     number
@@ -57,7 +59,18 @@ export class Assembler {
       bytes: Uint8Array.from(this.bytes),
       fixups: this.fixups.map((x) => ({ ...x })),
       symbols: { ...this.symbols },
+      ...(this.syscalls.length?{syscalls:this.syscalls.map(call=>({...call}))}:{}),
     };
+  }
+  /** Emit a raw native syscall number; OS service adapters choose its ABI. */
+  syscall(number:number):void {
+    if(!Number.isInteger(number)||number<0||number>0xffffffff)throw new RangeError('Invalid syscall number');
+    this.mov('rax',number);this.syscalls.push({offset:this.offset,number});this.emit([0x0f,0x05]);
+  }
+  signExtendRax():void {this.emit([0x48,0x99]);}
+  timestamp():void {this.emit([0x0f,0x31]);}
+  setCondition(condition:Condition):void {
+    this.emit([0x0f,0x90+conditionCodes[condition],0xc0,0x48,0x0f,0xb6,0xc0]);
   }
   rel32(opcode: number[] | number, target: string, addend = 0): void {
     this.emit(typeof opcode === "number" ? [opcode] : opcode);
@@ -262,25 +275,7 @@ export class Assembler {
     this.rel32([0xff, 0x15], s);
   }
   jcc(c: Condition, s: string): void {
-    const cc: Record<Condition, number> = {
-      o: 0,
-      no: 1,
-      b: 2,
-      ae: 3,
-      e: 4,
-      ne: 5,
-      be: 6,
-      a: 7,
-      s: 8,
-      ns: 9,
-      p: 10,
-      np: 11,
-      l: 12,
-      ge: 13,
-      le: 14,
-      g: 15,
-    };
-    this.rel32([0x0f, 0x80 + cc[c]], s);
+    this.rel32([0x0f, 0x80 + conditionCodes[c]], s);
   }
   private sse(d: Xmm, s: Xmm | Mem, op: number, prefix = 0xf2): void {
     this.instruction([0x0f, op], regCode(d), s, false, [prefix]);
