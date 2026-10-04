@@ -28,7 +28,7 @@ export const runtimeProbeSources=[
 ] as const;
 export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
   const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
-    const result=compile(probe.source,{fileName:`${probe.name}.js`,target});
+    const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
