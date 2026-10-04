@@ -8,7 +8,7 @@ const module=await import(path).catch(()=>undefined);
 test('ARM64 logarithm and exponential helpers emit self-contained native code',()=>{
   assert.ok(module,'ARM64 software mathematics must exist');
   const bundle=withNativeTarget('linux-arm64',()=>{const b=new RuntimeBuilder();module.emitArm64Math(b);return b.bundle;});
-  for(const name of ['log','exp'])assert.ok(bundle.fragments.some(f=>f.name==='rt.armMath.'+name));
+  for(const name of ['log','exp','log1p','expm1','sin','cos','tan'])assert.ok(bundle.fragments.some(f=>f.name==='rt.armMath.'+name),'Missing helper '+name);
   assert.deepEqual(bundle.imports,[]);
   for(const f of bundle.fragments.filter(f=>f.section==='.text')){
     assert.equal(f.bytes.length%4,0);assert.ok(f.fixups.every(f=>f.kind.startsWith('arm64-')));
