@@ -1,5 +1,7 @@
 import type {RuntimeBundle} from '../abi.js';
 import {Native} from './native.js';
+import {currentNativeTarget} from '../../backend/machine/context.js';
+import {getTarget} from '../../target.js';
 
 const SIGN=0x8000000000000000n;
 const ABS=0x7fffffffffffffffn;
@@ -82,12 +84,17 @@ export function emitPower(bundle:RuntimeBundle):void {
  a.label('pow.core');
  // Store |x| and y in the low scratch slots used by the x87 sequence.
  a.store({base:'rsp',disp:96},'r14');a.store({base:'rsp',disp:104},'r13');
+ if(getTarget(currentNativeTarget()??'')?.arch==='arm64'){
+   a.movsd('xmm0',{base:'rsp',disp:96});a.call('rt.armMath.log');a.mulsd('xmm0',{base:'rsp',disp:104});a.call('rt.armMath.exp');a.movqFromXmm('rax','xmm0');
+ }else {
  // fld y; fld |x|; fyl2x => y*log2(|x|)
  a.emit([0xdd,0x44,0x24,104,0xdd,0x44,0x24,96,0xd9,0xf1]);
  // Split at the nearest integer, calculate 2^fraction, then scale by 2^integer.
  a.emit([0xd9,0xc0,0xd9,0xfc,0xd9,0xc9,0xd8,0xe1,0xd9,0xf0,0xd9,0xe8,0xde,0xc1,0xd9,0xfd,0xdd,0xd9]);
  // fstp qword [rsp+112]
- a.emit([0xdd,0x5c,0x24,112]);a.load('rax',{base:'rsp',disp:112});a.xor('rax','rsi');a.movqToXmm('xmm0','rax');a.jmp(done);
+ a.emit([0xdd,0x5c,0x24,112]);a.load('rax',{base:'rsp',disp:112});
+ }
+ a.xor('rax','rsi');a.movqToXmm('xmm0','rax');a.jmp(done);
 
  a.label('pow.original');from('r12');
  a.label('pow.one');answer(ONE);

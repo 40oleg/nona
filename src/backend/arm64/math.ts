@@ -18,6 +18,7 @@ function answer(a:Assembler,value:bigint,done:string):void {a.mov('rax',value);a
 const ln2High=6.93147180369123816490e-1,ln2Low=1.90821492927058770002e-10;
 export const arm64MathCases:{name:string;input:number;second?:number;expected:number}[]=[
   ...[-1,-0,0,Number.MIN_VALUE,1e-300,.5,1,1+Number.EPSILON,2,10,1000,1e300,Infinity,NaN].map(input=>({name:'log',input,expected:Math.log(input)})),
+  ...(['log2','log10'] as const).flatMap(name=>[Number.MIN_VALUE,.5,1,2,8,10,1000,1e300].map(input=>({name,input,expected:Math[name](input)}))),
   ...[-Infinity,-1000,-746,-745,-710,-10,-1,-0,0,.5,1,10,100,709,709.7827,710,NaN,Infinity].map(input=>({name:'exp',input,expected:Math.exp(input)})),
   ...[-Infinity,-2,-1,-.9,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,1e20,Infinity,NaN].map(input=>({name:'log1p',input,expected:Math.log1p(input)})),
   ...[-Infinity,-10,-1,-.5,-1e-10,-Number.MIN_VALUE,-0,0,Number.MIN_VALUE,1e-10,.5,1,10,Infinity,NaN].map(input=>({name:'expm1',input,expected:Math.expm1(input)})),
@@ -54,7 +55,7 @@ export function arm64MathProbe():Uint8Array {
 /** Self-contained binary64 helpers: input/result in XMM0, volatile scratch only. */
 export function emitArm64Math(b:RuntimeBuilder):void {
   emitTrigReduce(b);
-  b.fn('rt.armMath.log',88,a=>{
+  for(const name of ['log','log2','log10'] as const)b.fn('rt.armMath.'+name,88,a=>{
     const zero=a.unique('logZero'),invalid=a.unique('logInvalid'),special=a.unique('logSpecial'),normal=a.unique('logNormal'),normalized=a.unique('logNormalized'),done=a.unique('logDone');
     a.movqFromXmm('rax','xmm0');a.mov('r10',ABS);a.and('r10','rax');a.test('r10','r10');a.jcc('e',zero);
     a.mov('r11',INF);a.cmp('r10','r11');a.jcc('ae',special);a.test('rax','rax');a.jcc('s',invalid);
@@ -69,8 +70,14 @@ export function emitArm64Math(b:RuntimeBuilder):void {
     a.movsd('xmm2','xmm0');a.mulsd('xmm2','xmm2');constant(a,'xmm3',1/39);
     for(let denominator=37;denominator>=3;denominator-=2){a.mulsd('xmm3','xmm2');constant(a,'xmm1',1/denominator);a.addsd('xmm3','xmm1');}
     a.mulsd('xmm3','xmm2');constant(a,'xmm1',1);a.addsd('xmm3','xmm1');a.mulsd('xmm0','xmm3');constant(a,'xmm1',2);a.mulsd('xmm0','xmm1');
-    a.cvtsi2sd('xmm2','r9');constant(a,'xmm1',ln2Low);a.mulsd('xmm1','xmm2');a.addsd('xmm0','xmm1');
-    constant(a,'xmm1',ln2High);a.mulsd('xmm1','xmm2');a.addsd('xmm0','xmm1');a.jmp(done);
+    a.cvtsi2sd('xmm2','r9');
+    if(name==='log2'){constant(a,'xmm1',Math.LOG2E);a.mulsd('xmm0','xmm1');a.addsd('xmm0','xmm2');}
+    else {
+      constant(a,'xmm1',ln2Low);a.mulsd('xmm1','xmm2');a.addsd('xmm0','xmm1');
+      constant(a,'xmm1',ln2High);a.mulsd('xmm1','xmm2');a.addsd('xmm0','xmm1');
+      if(name==='log10'){constant(a,'xmm1',Math.LOG10E);a.mulsd('xmm0','xmm1');}
+    }
+    a.jmp(done);
     a.label(special);a.cmp('r10','r11');a.jcc('a',done);a.test('rax','rax');a.jcc('ns',done);
     a.label(invalid);answer(a,QNAN,done);a.label(zero);answer(a,INF|SIGN,done);a.label(done);
   });
