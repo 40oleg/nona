@@ -39,7 +39,8 @@ export const bufferPreludeSource=String.raw`
  function decodeBytes(view,enc){
   if(enc==='utf8')return apply(decode,decoder,[view]);
   var text='',i,c,d;
-  if(enc==='hex'){for(i=0;i<view.length;i++){c=view[i];text+=hex[c>>4]+hex[c&15]}return text}
+  // ASCII bytes avoid repeated growing-string copies and per-byte allocations.
+  if(enc==='hex'){var encoded=new U8(view.length*2),digits=[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102];for(i=0;i<view.length;i++){c=view[i];encoded[i*2]=digits[c>>4];encoded[i*2+1]=digits[c&15]}return apply(decode,decoder,[encoded])}
   if(enc==='base64'||enc==='base64url'){
    for(i=0;i<view.length;i+=3){c=view[i];d=i+1<view.length?view[i+1]:0;var e=i+2<view.length?view[i+2]:0;text+=alphabet[c>>2]+alphabet[(c&3)<<4|d>>4]+(i+1<view.length?alphabet[(d&15)<<2|e>>6]:'=')+(i+2<view.length?alphabet[e&63]:'=')}
    if(enc==='base64url')text=text.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return text
