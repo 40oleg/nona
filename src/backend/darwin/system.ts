@@ -5,7 +5,7 @@ import type {Xmm} from '../x64/assembler.js';
 /** Bridge Nona's logical Win64 boundary to the OS C ABI, without a C runtime. */
 export function darwinProcessSystemAdapters(program:NativeProgram,arch:'x64'|'arm64'){
  const system=program.imports.filter(item=>item.dll==='/usr/lib/libSystem.B.dylib'),b=new RuntimeBuilder();
- const arity:Record<string,number>={mach_host_self:0,host_page_size:2,host_statistics64:4,setenv:3,unsetenv:1,getenv:1,__error:0,getpwnam:1,getpwuid:1,getgrnam:1,getgrgid:1,initgroups:2};
+ const arity:Record<string,number>={mach_host_self:0,host_page_size:2,host_statistics64:4,setenv:3,unsetenv:1,getenv:1,__error:0,getpwnam:1,getpwuid:1,getgrnam:1,getgrgid:1,initgroups:2,mach_thread_self:0,thread_info:4};
  for(const item of system){
   const count=arity[item.name];if(count===undefined)throw new Error('Unsupported Darwin process system API '+item.name);
   b.fn('linux.'+item.symbol+'.code',arch==='x64'?232:40,a=>{

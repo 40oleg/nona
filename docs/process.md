@@ -58,6 +58,8 @@ and minor page faults from native process APIs. Unavailable Windows resource
 counters are omitted. `kill(pid, signal?)` delivers native POSIX signals, or
 checks process existence with signal 0; Windows supports existence checks and
 termination signals. Installing JavaScript signal handlers is unsupported.
+`threadCpuUsage(previous)` returns current JavaScript-thread user/system CPU microseconds and optionally subtracts prior values. Windows uses GetThreadTimes with the current-thread pseudo handle; Linux/FreeBSD14.3/OpenBSD7.8 use verified RUSAGE_THREAD=1. Darwin uses Mach THREAD_BASIC_INFO=3 with ten 32-bit words and signed seconds/microseconds time values, retaining one thread right for the runtime lifetime. The API queries actual thread counters, not process-wide CPU totals. Previous-value validation follows the Node26 oracle, including nonnegative fractional values and ignored falsy arguments.
+
 POSIX also exposes `getuid`, `geteuid`, `getgid`, `getegid`, `getgroups`, `umask`,
 and `setuid`, `seteuid`, `setgid`, `setegid`, `setgroups`, `initgroups`. Group
 queries include the effective group. Setters accept unsigned 32-bit IDs or account

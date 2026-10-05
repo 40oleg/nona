@@ -11,7 +11,7 @@ import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
 import {runtimeProbes} from '../src/backend/platform-probes.js';
-import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
@@ -120,6 +120,15 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64'){
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
  runInContext(processPreludeForTarget(target),context);return context;
 }
+test('thread CPU reports RUSAGE_THREAD counters with Node 26 previous-value validation',()=>{
+ const output:string[]=[],context=mockProcess({console:{log:(...args:unknown[])=>output.push(args.join(' '))},__nonaHost_sys_getrusage:(who:number,words:Uint32Array)=>{assert.equal(who,1);words.set([2,0,3,0,4,0,5,0]);return 0}});
+ assert.equal(runInContext('JSON.stringify(process.threadCpuUsage())',context),'{"user":2000003,"system":4000005}');
+ runInContext(processThreadOracle,context);assert.equal(output.join('\n')+'\n',runOracle(processThreadOracle).stdout);
+});
+test('Darwin thread CPU uses original Mach time-value ABI and caches the thread right',()=>{
+ let rights=0;const context=mockProcess({__nonaHost_mach_thread_self:()=>{rights++;return 71},__nonaHost_thread_info:(port:number,flavor:number,words:Int32Array,count:Uint32Array)=>{assert.equal(port,71);assert.equal(flavor,3);assert.equal(count[0],10);words.set([2,3,4,5]);return 0}},'darwin-x64');
+ assert.equal(runInContext('JSON.stringify(process.threadCpuUsage())',context),'{"user":2000003,"system":4000005}');runInContext('process.threadCpuUsage()',context);assert.equal(rights,1);
+});
 test('process environment mutations publish owned native UTF-8 vectors matching Node coercion',()=>{
  let entries:string[]=[];const context=mockProcess({__nonaHost_replaceEnvironment:(bytes:Uint8Array,size:number,count:number)=>{assert.equal(size,bytes.length);entries=new TextDecoder().decode(bytes).split('\0').filter(Boolean);assert.equal(entries.length,count)},__nonaHost_environmentVector:()=>1234,
   __nonaHost_environmentContains:(bytes:Uint8Array)=>entries.includes(new TextDecoder().decode(bytes).split('\0')[0]!)});
@@ -179,10 +188,12 @@ test('process Windows memory queries honor actual process Job Object limits',()=
  const context=mockProcess({__nonaHost_GetCommandLineW:()=>100,__nonaHost_lstrlenW:()=>0,__nonaHost_RtlMoveMemory:()=>{},__nonaHost_GetModuleFileNameW:()=>0,
   __nonaHost_GetEnvironmentStringsW:()=>0,__nonaHost_GetCurrentProcessId:()=>123,__nonaHost_NtQueryInformationProcess:()=>-1,
   __nonaHost_K32GetProcessMemoryInfo:(_process:number,words:Uint32Array,size:number)=>{assert.equal(size,72);assert.equal(words[0],72);words[2]=16384;words[4]=8192;return true},
+  __nonaHost_GetThreadTimes:(thread:number,_creation:Uint32Array,_exit:Uint32Array,kernel:Uint32Array,user:Uint32Array)=>{assert.equal(thread,-2);kernel[0]=50;user[0]=30;return true},
   __nonaHost_GlobalMemoryStatusEx:(words:Uint32Array)=>{words[4]=8192;return true},__nonaHost_IsProcessInJob:(_process:number,_job:number,yes:Uint32Array)=>{yes[0]=1;return true},
   __nonaHost_QueryInformationJobObject:(_job:number,_class:number,words:Uint32Array)=>{words[4]=0x100;words[28]=4096;return true}});
  assert.equal(runInContext('process.constrainedMemory()',context),4096);assert.equal(runInContext('process.availableMemory()',context),4096);
  assert.equal(runInContext('process.memoryUsage.rss()',context),8192);
+ assert.equal(runInContext('JSON.stringify(process.threadCpuUsage())',context),'{"user":3,"system":5}');
 });
 test('process Darwin memory queries use native Mach page statistics and cache the host right',()=>{
  let hosts=0;const context=mockProcess({__nonaHost_mach_host_self:()=>{hosts++;return 77},
@@ -236,6 +247,6 @@ test('process native standard output boundary writes exact bytes',()=>{
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
- const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+ const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle+processThreadOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 

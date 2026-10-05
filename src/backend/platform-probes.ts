@@ -33,6 +33,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const processThread=compile('let usage=process.threadCpuUsage(),delta=process.threadCpuUsage(usage);console.log(Object.keys(usage).join(","),usage.user>=0,usage.system>=0,delta.user>=0,delta.system>=0)',{fileName:'process-thread.js',target});
+  if(!processThread.ok)throw new Error(`${target}/process-thread: ${JSON.stringify(processThread.diagnostics)}`);
+  probes.push({name:'process-thread',image:processThread.image,expected:'user,system true true true true\n'});
   const processAccounts=compile('if(process.platform==="win32")console.log(true,true,true);else{let uid=process.geteuid(),gid=process.getegid(),user=__nonaRegexpVm.processAccountName(uid,false),group=__nonaRegexpVm.processAccountName(gid,true);let sameUser=__nonaRegexpVm.processAccountId(user,false)===uid,sameGroup=__nonaRegexpVm.processAccountId(group,true)===gid;if(!sameUser||!sameGroup)throw new Error("Account identity mismatch");process.seteuid(user);process.setegid(group);console.log(process.geteuid()===uid,process.getegid()===gid,typeof process.initgroups==="function")}',{fileName:'process-accounts.js',target});
   if(!processAccounts.ok)throw new Error(`${target}/process-accounts: ${JSON.stringify(processAccounts.diagnostics)}`);
   probes.push({name:'process-accounts',image:processAccounts.image,expected:'true true true\n'});

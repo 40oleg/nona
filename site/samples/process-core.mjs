@@ -11,3 +11,4 @@ nextTick(() => console.log('tick', String(hrtime.bigint() - started)));
 Promise.resolve().then(() => console.log('promise'));
 console.log(process.memoryUsage());
 if (typeof process.getgroups === 'function') console.log(typeof process.initgroups);
+console.log(process.threadCpuUsage());

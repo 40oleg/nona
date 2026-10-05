@@ -260,6 +260,7 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['TerminateProcess','KERNEL32.dll','TerminateProcess','bool(ptr,u32)'],
     ['CloseHandle','KERNEL32.dll','CloseHandle','bool(ptr)'],
     ['GetProcessTimes','KERNEL32.dll','GetProcessTimes','bool(ptr,buf,buf,buf,buf)'],
+    ['GetThreadTimes','KERNEL32.dll','GetThreadTimes','bool(ptr,buf,buf,buf,buf)'],
     ['K32GetProcessMemoryInfo','KERNEL32.dll','K32GetProcessMemoryInfo','bool(ptr,buf,u32)'],
     ['CreateFileW','KERNEL32.dll','CreateFileW','ptr(buf,u32,u32,ptr,u32,u32,ptr)'],
     ['GlobalMemoryStatusEx','KERNEL32.dll','GlobalMemoryStatusEx','bool(buf)'],
@@ -312,6 +313,7 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
   if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)'],['setenv','/usr/lib/libSystem.B.dylib','setenv','i32(buf,buf,i32)'],['unsetenv','/usr/lib/libSystem.B.dylib','unsetenv','i32(buf)']);
   if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);
   if(target.startsWith('darwin-'))list.push(['getpwnam','/usr/lib/libSystem.B.dylib','getpwnam','ptr(buf)'],['getpwuid','/usr/lib/libSystem.B.dylib','getpwuid','ptr(u32)'],['getgrnam','/usr/lib/libSystem.B.dylib','getgrnam','ptr(buf)'],['getgrgid','/usr/lib/libSystem.B.dylib','getgrgid','ptr(u32)'],['initgroups','/usr/lib/libSystem.B.dylib','initgroups','i32(buf,u32)']);
+  if(target.startsWith('darwin-'))list.push(['mach_thread_self','/usr/lib/libSystem.B.dylib','mach_thread_self','u32()'],['thread_info','/usr/lib/libSystem.B.dylib','thread_info','i32(u32,u32,buf,buf)']);
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
 }
 

@@ -17,6 +17,9 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
   ]});
  }
  fn('linux.GetProcessHeap.code',40,a=>a.mov('rax',1));
+ // Windows thread handles are unavailable here; the process adapter queries
+ // Linux/BSD RUSAGE_THREAD directly instead of claiming a successful Win32 call.
+ fn('linux.GetThreadTimes.code',40,a=>a.mov('rax',0));
  // Heap: size classes of 32..4096 bytes (header included) carved from 1 MiB
  // mmap chunks with per-class free lists; larger blocks map their own pages.
  // The 16-byte header holds the block size. A spin lock serializes agents.
