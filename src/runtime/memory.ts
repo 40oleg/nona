@@ -46,8 +46,8 @@ export const ChunkLayout={next:0,cellSize:8,cells:16,carved:24,magic:32,size:64}
 /** Large mapping header, followed by the block header. */
 export const LargeLayout={next:0,bytes:8,size:64} as const;
 export const chunkBytes=1<<16;
-/** Total block sizes (header included): 16-byte steps up to 1024, then doublings to 16384. */
-export const smallClasses=62,classCount=66,largestClass=16384;
+/** Total block sizes (header included): 16-byte steps up to 1024, then doublings to 32768 (one cell per chunk, so a 16 KiB buffer is recycled from a free list instead of mapping and unmapping pages). */
+export const smallClasses=62,classCount=67,largestClass=32768;
 /** Released large mappings kept for reuse, and the largest one worth keeping. */
 export const largeCacheLimit=16,largeCacheMaxBytes=8<<20;
 const C=ChunkLayout,L=LargeLayout;
