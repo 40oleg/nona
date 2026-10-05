@@ -1470,6 +1470,8 @@ __nonaRegexpVm.bufferTypeError=TypeError;
 __nonaRegexpVm.bufferRangeError=RangeError;
 __nonaRegexpVm.arrayBufferLength=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'byteLength').get;
 __nonaRegexpVm.arrayBufferCopy=ArrayBuffer.__nonaCopyInternal;
+__nonaRegexpVm.arrayBufferAlignment=ArrayBuffer.__nonaAlignmentInternal;
+delete ArrayBuffer.__nonaAlignmentInternal;
 delete ArrayBuffer.__nonaCopyInternal;
 Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
   'use strict';

@@ -27,10 +27,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | স্ট্রিম, `nextTick`, `hrtime`, …-সহ একটি EventEmitter |
 | টাইমার id | Number | `Timeout` অবজেক্ট |
 | `readFileSync(path)` | `Uint8Array` ফেরত দেয় | `Buffer` ফেরত দেয় |
-| এনকোডিং | কেবল `utf8` | অনেক |
+| এনকোডিং | কেবল `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | অনেক |
 | Windows-এ ত্রুটির বার্তা | যেভাবে দেওয়া হয়েছে সেভাবেই পাথ থাকে | পরম (absolute) পাথ থাকে |
-| মডিউল | `nona:*`, `node:fs`, `node:process` ও আপেক্ষিক ফাইল | `node:*`-এর সবকিছু এবং npm প্যাকেজ |
-| `require`, `Buffer`, `node:path` | উপলব্ধ নয় | উপলব্ধ |
+| মডিউল | `nona:*`, `node:fs`, `node:process`, `node:buffer` ও আপেক্ষিক ফাইল | `node:*`-এর সবকিছু এবং npm প্যাকেজ |
+| `require`, `node:path` | উপলব্ধ নয় | উপলব্ধ |
 | স্ট্যান্ডার্ড আউটপুট ছাড়া `console.log` | আউটপুট বাদ দেওয়া হয় | আউটপুট বাদ দেওয়া হয় বা ত্রুটি ওঠে |
 
 ## পারফরম্যান্স
@@ -55,3 +55,7 @@ Test262-এর জন্য `$262.createRealm` সমর্থিত। JavaScri
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob streams and object URL creation are unavailable; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

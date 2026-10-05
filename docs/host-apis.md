@@ -43,3 +43,27 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - Known limits: property, element and Map storage is linear (#36), so programs
   with hundreds of live timers or large objects slow down; on Linux every heap
   block is a separate memory mapping (#37).
+
+## Buffer and binary data
+
+The global `Buffer` and the `node:buffer`, `buffer` and `nona:buffer` ES modules use the same constructor on every native target. Buffer storage is a native `Uint8Array`: indexing, iteration, ArrayBuffer views and inherited typed-array methods work without an interpreter or external libraries.
+
+`Buffer.from` copies strings, buffers, arrays, array-like objects and JSON buffer records. An ArrayBuffer or SharedArrayBuffer argument shares its backing store. `slice` and `subarray` return Buffer views that share storage; `Buffer.from(buffer)` makes a copy.
+
+Supported encodings are UTF-8 (`utf8`, `utf-8`), UTF-16 little endian (`utf16le`, `utf-16le`, `ucs2`, `ucs-2`), Latin-1 (`latin1`, `binary`), ASCII, hex, base64 and base64url. UTF-8 decoding preserves a BOM and replaces malformed input; UTF-8/UTF-16 writes do not store incomplete characters. Hex decoding stops at the first invalid byte pair; base64 accepts whitespace and the URL-safe alphabet.
+
+The API includes `alloc`, `allocUnsafe`, `allocUnsafeSlow`, `byteLength`, `isBuffer`, `isEncoding`, `compare`, `concat`, `copyBytesFrom`, `poolSize`; instance conversion, JSON, inspection, equality, comparison, overlapping copy, fill, write, shared slices, swap16/32/64, includes/indexOf/lastIndexOf; signed/unsigned integer reads and writes in both byte orders (fixed widths and one through six bytes), float/double access, 64-bit BigInt access, and Uint spelling aliases. Searches accept the Node 26 exclusive `end` bound. Aligned unsafe allocations accept powers of two through 2 ** 30 and align the actual native backing address.
+
+The module also exports `isAscii`, `isUtf8`, `atob`, `btoa`, `transcode` (UTF-8, UTF-16LE, ASCII and Latin-1), `INSPECT_MAX_BYTES`, `kMaxLength`, `kStringMaxLength` and `constants`. `SlowBuffer` is retained as a legacy compatibility export. The default export is the shared module API object.
+
+Global and module `Blob` and `File` constructors provide immutable copied data, `size`, `type`, `slice`, Promise-returning `text`/`arrayBuffer`/`bytes`, and File `name`/`lastModified` metadata. Blob string parts normalize unpaired surrogates; `endings: 'native'` uses CRLF on Windows and LF elsewhere. Returned bytes and ArrayBuffers are independent copies.
+
+### Buffer module limitations
+
+- Allocations are independent and zero-filled, including unsafe allocations. `poolSize` is present but no shared slab pool is used. Nona's backing-store and reported maximum lengths are 2 ** 31 - 1 bytes, smaller than Node's platform-specific maxima.
+- `Blob.stream()` and `Blob.textStream()` throw `ERR_NOT_IMPLEMENTED` because Web Streams are not yet implemented.
+- `URL.createObjectURL` and `URL.revokeObjectURL` are unavailable. `resolveObjectURL` returns undefined for unregistered URLs; there is no object URL registry.
+- CommonJS `require('buffer')` is unavailable; use ES imports. Buffer error classes and codes are covered by oracle tests, but diagnostic wording and base64 DOMException prototypes may differ from Node.
+- `node:fs` continues to return Uint8Array data. Convert it with `Buffer.from(bytes)` when Buffer methods are needed.
+
+See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buffer.html) for the shared API contract and [the runnable Buffer sample](../site/samples/buffer.mjs).

@@ -27,10 +27,10 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | An EventEmitter with streams, `nextTick`, `hrtime`, … |
 | Timer ids | Numbers | `Timeout` objects |
 | `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
-| Encodings | `utf8` only | Many |
+| Encodings | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) only | Many |
 | Error messages on Windows | Contain the path as given | Contain the absolute path |
-| Modules | `nona:*`, `node:fs`, `node:process` and relative files | Everything in `node:*` and npm packages |
-| `require`, `Buffer`, `node:path` | Not available | Available |
+| Modules | `nona:*`, `node:fs`, `node:process`, `node:buffer` and relative files | Everything in `node:*` and npm packages |
+| `require`, `node:path` | Not available | Available |
 | `console.log` without standard output | Output is dropped | Output is dropped or an error is raised |
 
 ## Performance
@@ -85,3 +85,7 @@ A program can still reach an omitted part through a name computed at run time, f
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob streams and object URL creation are unavailable; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
