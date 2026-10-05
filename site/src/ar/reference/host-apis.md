@@ -28,3 +28,16 @@
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## Events
+
+`node:events`, `events` and `nona:events` share one built-in module. The default
+export is `EventEmitter`; listener ordering, once/prepend listeners, removal,
+introspection, meta events, error monitoring and rejection capture are supported.
+Promise `once` and async-iterator `on` include cleanup, close events, externally
+supplied abort signals and emitter watermarks. Listener/max-listener helpers and
+disposable `addAbortListener` subscriptions are also available.
+
+Nona does not supply EventTarget, AbortController, async hooks or process warning
+reporting. See the [English events reference](/reference/host-apis#events) for the
+complete supported API and limitations.
