@@ -388,6 +388,13 @@ const arr=[1,2,3];arr[100]=4;out.push(arr[100],arr[50]);
 function C(){this[3]='three';}out.push(new C()[3]);
 console.log(out.join(' '));
 `,
+ 'this in constructors, arrows and sloppy functions':`
+class A{constructor(){this.v=1;}m(){return this.v;}arrow(){return (()=>this.v)();}}
+class B extends A{constructor(){const f=()=>this;let e;try{f();}catch(x){e=x.constructor.name;}super();this.e=e;this.g=f()===this;}}
+const b=new B();console.log(b.m(),b.arrow(),b.e,b.g);
+class C extends A{constructor(){try{this.x=1;}catch(e){console.log('tdz',e.constructor.name);}super();}}new C();
+function sloppy(){return typeof this;}console.log(sloppy(),sloppy.call(5));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];

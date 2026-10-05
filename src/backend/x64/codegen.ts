@@ -166,6 +166,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset,stackAllocation:size,savedRegisters});
   }
   function emitFunction(fn:FunctionIR):void {
+    // Slow paths emitted after the blocks, so that the common paths stay dense.
+    const cold:(()=>void)[]=[];
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
     const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
@@ -217,7 +219,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // the SSE instruction in place; anything else falls through to the call.
     // Returns the label the caller places after the generic call, or undefined
     // when the operator has no inline form.
-    const emitNumberBinary=(dest:number,operator:string,left:number,right:number):string|undefined=>{
+    const emitNumberBinary=(dest:number,operator:string,left:number,right:number):{slow:string,done:string}|undefined=>{
       const arithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
       const relation:Record<string,Condition>={'<':'b','<=':'be','>':'a','>=':'ae','==':'e','===':'e','!=':'e','!==':'e'};
       const bitwise=['&','|','^','<<','>>','>>>'];
@@ -252,7 +254,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         }
         a.cvtsi2sd('xmm0','r10');setNumber(dest);
       }
-      a.jmp(done);a.label(slow);return done;
+      a.jmp(done);return {slow,done};
     };
     // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
     const knownArithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
@@ -284,7 +286,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
         setNumber(dest);
       }
-      a.jmp(done);a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.label(done);return true;
+      a.jmp(done);cold.push(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
     // Every value location starts cleared (the GC scans them). Large frames
     // use `rep stosq`: the argument registers are already saved and RDI is
@@ -455,10 +457,16 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'currentFunction':
           a.load('rax',stack(64));a.store(payload(op.dest),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
         case 'currentThis':{
-          const direct=a.unique('directThis'),done=a.unique('thisReady');a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('ne',direct);
-          pointer('rcx',op.dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');a.jmp(done);
-          a.label(direct);copy(value(op.dest),stack(thisBase));a.label(done);
-          a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
+          // `this` is a cell when an arrow function captured it (read out of
+          // line); only a derived constructor's own `this`, or a captured
+          // one, can still be uninitialized.
+          const cell=a.unique('cellThis'),done=a.unique('thisReady');a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('e',cell);
+          copy(value(op.dest),stack(thisBase));
+          if(fn.derivedConstructor){a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');}
+          a.label(done);
+          {const dest=op.dest;cold.push(()=>{a.label(cell);pointer('rcx',dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');
+            a.load('rax',value(dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');a.jmp(done);});}
+          break;
         }
         case 'newInstance':
           pointer('rcx',op.callee);
@@ -501,15 +509,21 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
              a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
             a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
             pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
-            // A tail call made by the callee comes back as a marker (rt.invoke does the same).
-            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('ne',called);pointer('rcx',op.dest);a.call('rt.tailDispatch');a.jmp(called);
+            // A tail call made by the callee comes back as a marker (rt.invoke
+            // does the same); it and the general call are out of line.
+            const tail=a.unique('tailMarker'),dest=op.dest;
+            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
+            cold.push(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
           }
-          a.label(general);
-          if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
-          a.store(stack(32),'rax');
-          if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
-          a.store(stack(40),'rax');
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
+          const generalCall=(op:Extract<Operation,{kind:'invoke'}>)=>{
+            a.label(general);
+            if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
+            a.store(stack(32),'rax');
+            if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
+            a.store(stack(40),'rax');
+            pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
+          };
+          if(op.direct){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
           a.label(called);break;
         }
         case 'invokeArray':
@@ -597,10 +611,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             if(op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
             break;
           }
-          const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
-          pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
-          if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
-          if(done)a.label(done);break;
+          const fast=emitNumberBinary(op.dest,op.operator,op.left,op.right);
+          const generic=()=>{pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
+            if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}};
+          // The generic call is placed after the function's blocks, out of the
+          // path that Numbers take.
+          if(fast){cold.push(()=>{a.label(fast.slow);generic();a.jmp(fast.done);});a.label(fast.done);}else generic();
+          break;
         }
         case 'call':
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -623,7 +640,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           const slow=a.unique('branchSlow'),test=a.unique('branchTest'),yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no;
           a.load('rax',value(term.condition));a.load('r10',payload(term.condition));a.cmp('rax',2);a.jcc('e',test);a.cmp('rax',3);a.jcc('ne',slow);
           a.movqToXmm('xmm0','r10');a.xor('rax','rax');a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',no);a.jcc('e',no);a.jmp(yes);
-          a.label(slow);pointer('rcx',term.condition);a.call('rt.toBoolean');a.mov('r10','rax');
+          {const condition=term.condition;cold.push(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
           a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
         }
         case 'throw':pointer('rcx',term.value);a.call('rt.throw');break;
@@ -635,6 +652,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.load('rbp',{base:'rsp',disp:savedFrameBase});a.add('rsp',allocation);a.ret();break;
       }
     }
+    for(const emit of cold)emit();
     finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));
