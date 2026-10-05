@@ -37,7 +37,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
  */
 /** Four entries of {prototype, node}, newest first, behind one epoch. */
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
-export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,size:8+16*4+8} as const;
+/** Then the key's bit in object key filters (rt.keyFilterBit), also 0 until first use. */
+export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,size:8+16*4+16} as const;
 
 /** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
 export function cacheableName(name:string):boolean {
@@ -94,6 +95,15 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   // probed with the key's hash, kept in the record (no rehash per read).
   a.label(scan);a.store(slot(72),'r10');
   {const listScan=a.unique('listScan'),hashed=a.unique('hashed'),probed=a.unique('probed');
+   // A complete key filter of the receiver without the key's bit (kept in
+   // the record) rules out an own property without touching the key.
+   {const unfiltered=a.unique('unfiltered'),haveBit=a.unique('haveBit');
+    a.load('rax',{base:'r10',disp:O.keys});a.test('rax','rax');a.jcc('ns',unfiltered);
+    a.load('r11',{base:'r9',disp:L.bit});a.test('r11','r11');a.jcc('ne',haveBit);
+    a.load('rcx',{base:'r8',disp:8});a.call('rt.keyFilterBit');a.mov('r11','rax');a.load('r9',slot(64));a.store({base:'r9',disp:L.bit},'r11');
+    a.load('r8',slot(56));a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.keys});
+    a.label(haveBit);a.and('rax','r11');a.jcc('e',probed);
+    a.label(unfiltered);}
    a.load('rax',{base:'r10',disp:O.index});a.test('rax','rax');a.jcc('e',listScan);
    a.load('rdx',{base:'r9',disp:L.hash});a.test('rdx','rdx');a.jcc('ne',hashed);
    a.load('rcx',{base:'r8',disp:8});a.call('rt.propKeyHash');a.load('r9',slot(64));a.store({base:'r9',disp:L.hash},'rax');a.mov('rdx','rax');a.load('r8',slot(56));a.load('r10',slot(72));
