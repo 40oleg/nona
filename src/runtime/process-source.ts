@@ -140,9 +140,9 @@ __nonaPromiseDrainJobs=(function(drain){
     }
     function exitStatus(code){
       if(code===undefined||code===null)return undefined;
-      if(typeof code==='string'&&code.trim()!==''&&Number.isInteger(Number(code)))code=Number(code);
+      if(typeof code==='string'&&code!==''&&!Number.isNaN(Number(code)))code=Number(code);
       if(typeof code!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','The code argument must be a number or an integer string');
-      if(!Number.isInteger(code))throw argumentError('ERR_OUT_OF_RANGE','The code argument must be an integer',true);
+      if(!Number.isSafeInteger(code))throw argumentError('ERR_OUT_OF_RANGE','The code argument must be a safe integer',true);
       return code|0
     }
     function exitNow(code){

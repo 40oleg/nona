@@ -30,6 +30,9 @@ test('process boundary validates exitCode and directory arguments',()=>{
  assert.equal(runInContext('process.exitCode=" 3 ";process.exitCode',context),3);
  assert.equal(runInContext('process.exitCode=null;process.exitCode',context),undefined);
  assert.equal(runInContext('try{process.exitCode=1.5}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('try{process.exitCode="1.5"}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('try{process.exitCode=1e30}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('process.exitCode=" ";process.exitCode',context),0);
  assert.equal(runInContext('try{process.chdir(1)}catch(e){e.code}',context),'ERR_INVALID_ARG_TYPE');
  assert.equal(runInContext('process.chdir("/other");process.cwd()',context),'/other');
  assert.equal(runInContext('process.ppid',context),45);
@@ -47,7 +50,7 @@ console.log(process.ppid>0,typeof process.argv0,Array.isArray(process.execArgv))
 let old=process.cwd();process.chdir('.');console.log(process.cwd()===old);
 let t=process.hrtime(),n=process.hrtime.bigint(),d=process.hrtime(t);
 console.log(t.length,t[1]>=0&&t[1]<1000000000,d[0]>=0,d[1]>=0,process.hrtime.bigint()>=n,process.uptime()>=0);
-for(let value of [true,{},1.5,NaN,Infinity,'']){try{process.exitCode=value}catch(e){console.log(e.name,e.code)}}
+for(let value of [true,{},1.5,NaN,Infinity,'','1.5','Infinity','NaN',1e30]){try{process.exitCode=value}catch(e){console.log(e.name,e.code)}}
 process.exitCode='3';console.log(process.exitCode);process.exitCode=undefined;
 for(let value of [null,1,{},undefined]){try{process.nextTick(value)}catch(e){console.log(e.name,e.code)}}
 for(let value of [null,1,{}]){try{process.chdir(value)}catch(e){console.log(e.name,e.code)}}
