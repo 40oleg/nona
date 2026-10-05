@@ -66,6 +66,8 @@ Global and module `Blob` and `File` constructors provide immutable copied data, 
 
 The global URL constructor currently parses and serializes `blob:nodedata:` object URLs only; unsupported general URLs throw `ERR_INVALID_URL`. Full WHATWG URL parsing belongs to future URL-module support. The global ReadableStream and reader prototypes support streams returned by Blob; arbitrary underlying-source construction, configurable queuing strategies and TransformStream construction are not yet provided. These dependency APIs are independently authored and use no external runtime library.
 
+Teeing a cancelled or completed stream preserves its terminal state. A tee branch cancellation waits for the other branch to cancel or consume the source to EOF; branch reasons are combined when cancelling the source. Writable sink initialization rejection and controller errors reject acquired writers' `closed` promises, including writers acquired after the failure.
+
 ### Buffer module limitations
 
 - Allocations are independent and zero-filled, including unsafe allocations. `poolSize` is present but no shared slab pool is used. Nona's backing-store and reported maximum lengths are 2 ** 31 - 1 bytes, smaller than Node's platform-specific maxima.

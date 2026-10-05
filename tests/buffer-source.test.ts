@@ -20,8 +20,7 @@ test('Buffer compile only: every native target links the full module',()=>{
 });
 
 test('Buffer native platform probe matches the Node oracle',()=>{
- const probe=runtimeProbeSources.find(probe=>probe.name==='buffer')!;
- assert.equal(runOracle(probe.source).stdout,probe.expected);
+ for(const probe of runtimeProbeSources.filter(probe=>probe.name.startsWith('buffer')))assert.equal(runOracle(probe.source).stdout,probe.expected,probe.name);
 });
 
 test('Buffer module utilities prelude oracle',()=>{
