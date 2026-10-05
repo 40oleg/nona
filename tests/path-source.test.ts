@@ -7,6 +7,16 @@ import {pathParitySources} from './helpers/path-cases.js';
 // Exercise the actual built-in source independently of native linking. Native
 // module/GC parity is covered by path.test.ts on Windows and Linux in CI.
 const implementation:typeof oracle=new Function(pathModuleSource.replace(/^export .*$/gm,'')+'\nreturn path;')();
+test('path source: concatenated extglob oracle matrix',()=>{
+ const atoms=['a','b','?','*','[ab]','[!a]','@(a|b)','!(a|b)','!(a)','+(a|b)','?(a|b)','*(a|b)'];
+ const texts=['a','b','ab','aa','abc','foo','bar','.a','a.js','abc.js','é','😀','a/b','a/b/c'];
+ const differences:string[]=[];
+ for(const flavor of ['posix','win32'] as const)for(const first of atoms)for(const second of atoms)for(const text of texts){
+  const pattern=first+second,actual=implementation[flavor].matchesGlob(text,pattern),expected=oracle[flavor].matchesGlob(text,pattern);
+  if(actual!==expected)differences.push(JSON.stringify([flavor,text,pattern,actual,expected]));
+ }
+ assert.deepEqual(differences,[]);
+});
 test('path source: Windows flavor resolves from a POSIX host cwd',()=>{
  const host={platform:'linux',env:{},cwd:()=>'/tmp/nona/path-tests'};
  const source=pathModuleSource.replace('const pathHost=globalThis.process;','').replace(/^export .*$/gm,'');

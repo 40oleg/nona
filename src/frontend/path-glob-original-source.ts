@@ -56,9 +56,11 @@ function globParseSegment(pattern){
 function globSegmentMatch(text,pattern,nocase){
  let tokens=globParseSegment(pattern);
  if(nocase&&tokens.some(token=>token.kind!=='literal')){text=text.toLowerCase();pattern=pattern.toLowerCase();tokens=globParseSegment(pattern);}
- function allowsDot(sequence){for(const token of sequence){if(token.kind==='literal')return token.value==='.';if(token.kind!=='group'||token.operator==='!')return false;if(token.branches.some(branch=>allowsDot(branch)))return true;if(token.operator!=='?'&&token.operator!=='*')return false;}return false;}
+ // A nullable leading group can expose an unguarded following token.
+ function allowsDot(sequence){for(let i=0;i<sequence.length;i++){const token=sequence[i];if(token.kind==='literal')return token.value==='.';if(token.kind!=='group'||token.operator==='!')return false;if(token.branches.some(branch=>allowsDot(branch)))return true;if(token.operator!=='?'&&token.operator!=='*')return false;if(i+1<sequence.length)return true;}return false;}
  if(text[0]==='.'&&!allowsDot(tokens))return false;
- if((text==='.'||text==='..')&&pattern!==text&&/[?*\[]/.test(pattern))return false;
+ const nullablePrefix=tokens.length>1&&tokens[0].kind==='group'&&(tokens[0].operator==='?'||tokens[0].operator==='*');
+ if((text==='.'||text==='..')&&!nullablePrefix&&pattern!==text&&/[?*\[]/.test(pattern))return false;
  if(!text&&tokens.length===1&&tokens[0].kind==='many')return false;
  function ends(sequence,start){
   let positions=[start];
@@ -75,8 +77,13 @@ function globSegmentMatch(text,pattern,nocase){
      if(token.operator==='@')next.push(...matches);
      else if(token.operator==='?')next.push(position,...matches);
      else if(token.operator==='!'){
-      let blocked=false;for(const branch of token.branches)if(ends(branch.concat(sequence.slice(tokenIndex+1)),position).includes(text.length))blocked=true;
-      if(!blocked||matches.includes(text.length))for(let end=position;end<=text.length;end++)if(!matches.includes(end))next.push(end);
+      const suffix=sequence.slice(tokenIndex+1);let blocked=false;
+      for(const branch of token.branches)for(const end of ends(branch,position)){
+       // The exclusion suffix consisting solely of * requires a character.
+       if(suffix.length===1&&suffix[0].kind==='many'&&end===text.length)continue;
+       if(ends(suffix,end).includes(text.length))blocked=true;
+      }
+      if(!blocked)for(let end=position;end<=text.length;end++)if(!matches.includes(end))next.push(end);
      }
      else{const queue=token.operator==='*'?[position]:matches.slice(),seen=[];while(queue.length){const end=queue.shift();if(seen.includes(end))continue;seen.push(end);next.push(end);for(const branch of token.branches)for(const further of ends(branch,end))if(further>end)queue.push(further);}}
     }

@@ -1,4 +1,8 @@
 export const pathParitySources:Record<string,string>={
+ 'concatenated extglob regressions': String.raw`
+const pairs=[['b','!(a|b)!(a)'],['a','!(a|b)?(a|b)'],['b','!(a|b)*(a|b)'],['a','!(a)?(a|b)'],['a','!(a)*(a|b)'],['a','!(a)*'],['aa','!(a)*'],['.a','?(a|b)*'],['.a','?(a|b)!(a|b)'],['.a','?(a|b)!(a)'],['.a','*(a|b)*'],['.a','*(a|b)!(a|b)'],['.a','*(a|b)!(a)'],['.','?(a|b)?'],['..','*(a|b)*'],['a/b','!(a|b)?(a|b)']];
+for(const p of [path.posix,path.win32])for(const pair of pairs)console.log(pair[0],pair[1],p.matchesGlob(...pair));
+`,
  'path components and normalization': String.raw`
 const paths=['','.', '..','../..','a/./b/../c/','///a//b///','//','/','/..','/a/.hidden','a..','a.','..foo','..','C:','C:/','C:foo/..','C:\\foo\\bar\\..\\','\\\\server\\share','\\\\server\\share\\foo','\\\\?\\C:\\foo','\\\\.\\pipe\\x','foo:bar','NUL:foo','é/😀.txt'];
 for(const p of [path.posix,path.win32]) for(const s of paths) {

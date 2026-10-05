@@ -77,7 +77,8 @@ Nona, not interpreted at runtime.
 `tests/path.test.ts` compares native module output with Node on Windows/Linux
 under GC stress. `tests/path-source.test.ts` separately checks the actual
 module source against Node, including 91,000 seeded component/root/path-pair
-comparisons and 5,888 glob token/traversal cases.
+comparisons, 5,888 glob token/traversal cases and 4,032 concatenated extglob
+cases. Compact native regressions also cover nullable and negated groups.
 The native platform probe matrix exercises runtime cwd resolution, relative
 paths, both flavors and glob matching on all eight OS/CPU targets.
 
