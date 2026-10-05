@@ -359,6 +359,35 @@ const g=make(6);Object.defineProperty(g,'x',{get(){return 'gx';},configurable:tr
 const px=new Proxy({},{set(t,k,v){out.push('trap '+k+'='+v);t[k]=v;return true;}});setX(px,7);setZ(px,8);
 console.log(out.join(' '));
 `,
+ 'array length assignments':`
+const out=[];
+const a=[1,2,3,4,5];a.length=3;out.push(a.join(),a.length,a[3],3 in a);a.length=6;out.push(a.length,a[5],5 in a,a.join());a.length=0;out.push(a.length,a[0]);
+const b=[1,2,3];b.x=1;b.length=1;out.push(b.join(),b.x,Object.keys(b).join());
+const c=[1,2,3];Object.defineProperty(c,'1',{value:9,configurable:false});c.length=0;out.push(c.length,c.join());
+const d=[1,2,3];Object.defineProperty(d,'length',{writable:false});d.length=1;out.push(d.length);
+try{(function(){'use strict';const e=[1];Object.freeze(e);e.length=0;})();}catch(err){out.push(err.constructor.name);}
+for(const v of [1.5,-1,2**32,NaN,'2',{valueOf(){return 1;}}]){const f=[1,2,3];try{f.length=v;out.push(f.length);}catch(err){out.push(err.constructor.name);}}
+const g=[];for(let i=0;i<100;i++)g.push(i);g.length=10;out.push(g.reduce((x,y)=>x+y,0));g.length=50;g[49]=1;out.push(g.length,g[20]);
+const h={length:5};h.length=1;out.push(h.length);
+console.log(out.join(' '));
+`,
+ 'computed reads of getters':`
+const out=[];const u=new Uint8Array(5);const k='length';out.push(u[k],u.length,new Map([[1,1]])['size']);
+class G{get v(){return this.w*2;}constructor(){this.w=3;}}const g=new G();const key='v';out.push(g[key],g['v']);
+const o={get x(){return this;}};out.push(o['x']===o);const s='str';out.push(s['length'],s[k]);
+Object.defineProperty(Object.prototype,'ww',{set(v){},configurable:true});out.push(({})['ww']);delete Object.prototype.ww;
+const arr=[1,2];out.push(arr[k]);const p=new Proxy({},{get:(t,q)=>'P'+String(q)});out.push(p[k]);
+console.log(out.join(' '));
+`,
+ 'Number keys of plain objects':`
+const T={100:'a',200:'b',404:'c',1.5:'d','-1':'e'};const out=[];
+for(const k of [100,200,404,500,1.5,-1,0,-0,NaN,1e21]){out.push(T[k]);}
+const proto={7:'p'};const child=Object.create(proto);child[8]='c';out.push(child[7],child[8],child[9]);
+const acc={};Object.defineProperty(acc,'5',{get(){return 'g';}});out.push(acc[5]);
+const arr=[1,2,3];arr[100]=4;out.push(arr[100],arr[50]);
+function C(){this[3]='three';}out.push(new C()[3]);
+console.log(out.join(' '));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];

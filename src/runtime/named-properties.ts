@@ -113,9 +113,10 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
  for(const [name,allowGlobal] of [['rt.namedGetFast',false],['rt.namedGetFastGlobal',true]] as const)b.fn(name,88,a=>{
   const miss=a.unique('miss'),done=a.unique('done'),chain=a.unique('chain'),missing=a.unique('missing'),found=a.unique('found'),object=a.unique('object'),primitive=a.unique('primitive');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+  // rt.namedGetNode is 0 on every miss but an accessor's (see below).
+  a.mov('rax',0);a.store({rip:'rt.namedGetNode'},'rax');
   a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('ne',miss);
   a.load('r9',{base:'r8',disp:8});plainName(a,miss);a.store(slot(64),'r8');
-  a.mov('rax',0);a.store({rip:'rt.namedGetNode'},'rax');
   // A string's "length" is its own, unchangeable data property.
   {const notLength=a.unique('notStringLength');a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('ne',notLength);a.test('r8','r8');a.jcc('e',notLength);
    a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax'});a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
