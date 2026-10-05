@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Targets: win32-x64, linux-x64, darwin-x64, darwin-arm64, linux-arm64, win32-arm64, freebsd-x64, openbsd-x64.
-- No C/LLVM toolchain, libc, bundled runtime, or interpreter dependency in output.
+- No C/LLVM toolchain, bundled runtime, or interpreter dependency in output. The owner authorized macOS system libSystem for native startup and OS services on 2026-10-05; other targets remain libc-free.
 - No generated Windows executable execution on the local maintainer host.
 - No main push, merge, security-policy changes, WSL installation, or global Node switch.
 - Write repo artifacts in English, commit as helgus, retain issue #117's claim.

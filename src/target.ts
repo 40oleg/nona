@@ -31,4 +31,4 @@ export function requireHostTarget():Target {
 }
 
 /** Compiler backends with complete native runtime linking. */
-export const supportedNativeTargets:readonly Target[]=Object.freeze(nativeTargets.filter(t=>t.target!=='darwin-arm64').map(t=>t.target));
+export const supportedNativeTargets:readonly Target[]=Object.freeze(nativeTargets.map(t=>t.target));

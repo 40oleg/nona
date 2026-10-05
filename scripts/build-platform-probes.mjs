@@ -22,7 +22,7 @@ if(targets.includes('linux-arm64')){
   writeFileSync(join(directory,'arm64-math-cases.json'),JSON.stringify(arm64MathCases,(_,v)=>typeof v==='number'&&!Number.isFinite(v)?String(v):Object.is(v,-0)?'-0':v,null,2)+'\n');
   runtime['linux-arm64']=[{file:'linux-arm64-bridge',expected:loaderProbeOutput},{file:'linux-arm64-cpu',expected:loaderProbeOutput},{file:'linux-arm64-math-kernels',expected:loaderProbeOutput}];
 }
-for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','win32-arm64','linux-x64']){
+for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','darwin-arm64','win32-arm64','linux-x64']){
   if(!targets.includes(target))continue;
   runtime[target]=[...(runtime[target]??[]),...runtimeProbes(target).map(probe=>{
     const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});

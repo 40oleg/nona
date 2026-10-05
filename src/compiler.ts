@@ -112,7 +112,7 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} requires a Linux, Darwin or BSD target`:`FFI declaration ${d.dll}!${d.name} requires a Windows target`})));
     const resources=peResources(options);
     const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
-    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources});
+    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources});
     return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[]};
   } catch(error) {
     // A diagnostic from an imported module keeps that module's path: the

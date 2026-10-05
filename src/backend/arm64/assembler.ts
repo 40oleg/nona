@@ -227,6 +227,10 @@ export class Arm64Assembler extends Assembler {
     this.countCall(target);const after=this.returnSlot();this.jmp(target);this.label(after);
   }
   override callImport(target:string,parameters?:readonly NativeArgumentKind[]):void {
+    if(this.os==='darwin'&&target.startsWith('libSystem.')){
+      if(!parameters||parameters.length>8||parameters.some(k=>k!=='gp'))throw new Error('Darwin system imports require at most eight explicit integer/pointer arguments');
+      this.nativeImport(target,parameters);return;
+    }
     if(this.os==='win32'&&target!=='CreateThread'){this.nativeImport(target,parameters);return;}
     this.load('r11',{rip:target});this.callRegister('r11');
   }

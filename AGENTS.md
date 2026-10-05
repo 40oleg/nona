@@ -73,3 +73,6 @@ exactly.
   `src/backend/linux/shims.ts`, or the ELF link fails.
 - Keep generated executables free of external dependencies: no libc, no C
   toolchain, no bundled DLLs.
+  Exception authorized by the owner: macOS may link the operating system's
+  `/usr/lib/libSystem.B.dylib` for native startup and OS services. This does not
+  permit a bundled library, JavaScript interpreter, or C toolchain dependency.

@@ -6,7 +6,7 @@ import type {NamedFragment,NativeProgram} from '../pe/model.js';
 /** Linux syscall implementations of the small Win64-style native ABI used by
  * the existing runtime. They let semantic runtime code remain target-neutral.
  */
-export interface PosixShimOptions {pageSize?:4096|65536;syscall?:(a:Assembler,number:number)=>void;replace?:ReadonlySet<string>}
+export interface PosixShimOptions {pageSize?:4096|16384|65536;syscall?:(a:Assembler,number:number)=>void;replace?:ReadonlySet<string>}
 export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOptions={}):NamedFragment[] {
  const b=new RuntimeBuilder(),pageSize=options.pageSize??4096;
  const systemCall=options.syscall??((a:Assembler,number:number)=>a.syscall(number));

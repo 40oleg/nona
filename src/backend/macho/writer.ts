@@ -12,11 +12,15 @@ const u32=(value:number)=>{
   return value;
 };
 
-/** Fixed-address Mach-O64 executable with direct kernel startup and no dylibs. */
+/** Intel uses direct kernel startup; Apple Silicon uses the system dyld/libSystem. */
 export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Array {
   const arch=options.arch??'x64';
   if(arch!=='x64'&&arch!=='arm64')throw new Error('Unsupported Mach-O architecture');
-  if(program.imports.length)throw new Error('Mach-O requires resolved native imports');
+  const dynamic=arch==='arm64';
+  if(program.imports.length&&!dynamic)throw new Error('Mach-O requires resolved native imports');
+  if(program.imports.some(i=>i.dll!=='/usr/lib/libSystem.B.dylib'||!/^[_a-zA-Z][_a-zA-Z0-9]*$/.test(i.name)))throw new Error('Mach-O imports must name libSystem functions');
+  const imported=program.imports.map(i=>({name:i.symbol,section:'.data' as const,alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]}));
+  program={...program,fragments:[...program.fragments,...imported]};
   const page=arch==='arm64'?16384:4096,segments:Segment[]=[];
   let next=page;
   for(const [section,name,protection] of [['.text','__TEXT',5],['.rdata','__DATA_CONST',1],['.data','__DATA',3]] as const){
@@ -44,7 +48,29 @@ export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Ar
   }
   const entry=symbols.get(program.entry),text=segments.find(s=>s.section==='.text');
   if(entry===undefined||!text||entry<base+text.offset||entry>=base+text.offset+text.length||arch==='arm64'&&entry%4)throw new Error('Mach-O entry is outside executable code or unaligned');
-  const codeLimit=next,signSize=signatureSize(codeLimit);
+  const uleb=(value:number):number[]=>{const bytes:number[]=[];do{const low=value%128;value=Math.floor(value/128);bytes.push(low|(value?128:0));}while(value);return bytes;};
+  const rebases:number[]=[],bindings:number[]=[];
+  if(dynamic){
+    for(let i=0;i<segments.length;i++)for(const {fragment,offset} of segments[i]!.members)for(const fixup of fragment.fixups){
+      if(fixup.kind!=='va64')continue;
+      if(segments[i]!.section==='.text')throw new Error('Mach-O dynamic absolute pointers must be in data');
+      rebases.push(0x11,0x20|(i+1),...uleb(offset+fixup.offset),0x51);
+    }
+    rebases.push(0);
+    for(const imported of program.imports){
+      const segment=segments.findIndex(s=>s.members.some(m=>m.fragment.name===imported.symbol));
+      const member=segments[segment]!.members.find(m=>m.fragment.name===imported.symbol)!;
+      bindings.push(0x11,0x40,...new TextEncoder().encode('_'+imported.name),0,0x51,0x70|(segment+1),...uleb(member.offset),0x90);
+    }
+    bindings.push(0);
+  }
+  const linkeditStart=next,rebaseOffset=next;next+=rebases.length;
+  const bindOffset=next;next+=bindings.length;next=align(next,8);
+  const symbolOffset=next;next+=dynamic?program.imports.length*16:0;
+  const strings:number[]=[0],stringIndices:number[]=[];
+  for(const imported of program.imports){stringIndices.push(strings.length);strings.push(...new TextEncoder().encode('_'+imported.name),0);}
+  const stringOffset=next;if(dynamic)next+=strings.length;
+  const codeLimit=dynamic?align(next,16):next,signSize=signatureSize(codeLimit);
   const image=new Uint8Array(codeLimit+signSize),v=new DataView(image.buffer);
   for(const segment of segments)for(const {fragment,offset} of segment.members){
     const at=segment.offset+offset;image.set(fragment.bytes,at);
@@ -66,7 +92,11 @@ export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Ar
     }
   }
   v.setUint32(0,0xfeedfacf,true);v.setUint32(4,arch==='arm64'?0x100000c:0x1000007,true);
-  v.setUint32(8,arch==='arm64'?0:3,true);v.setUint32(12,2,true);v.setUint32(24,1,true);
+  if(dynamic){
+    image.set(rebases,rebaseOffset);image.set(bindings,bindOffset);image.set(strings,stringOffset);
+    for(let i=0;i<program.imports.length;i++){const at=symbolOffset+i*16;v.setUint32(at,stringIndices[i]!,true);image[at+4]=1;v.setUint16(at+6,0x100,true);}
+  }
+  v.setUint32(8,arch==='arm64'?0:3,true);v.setUint32(12,2,true);v.setUint32(24,dynamic?0x200085:1,true);
   let command=32,count=0;
   const name=(at:number,value:string)=>image.set(new TextEncoder().encode(value),at);
   const segmentCommand=(value:string,address:number,vmSize:number,fileOffset:number,fileSize:number,protection:number,section?:Segment)=>{
@@ -74,7 +104,9 @@ export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Ar
     v.setUint32(at,0x19,true);v.setUint32(at+4,size,true);name(at+8,value);
     v.setBigUint64(at+24,BigInt(address),true);v.setBigUint64(at+32,BigInt(vmSize),true);
     v.setBigUint64(at+40,BigInt(fileOffset),true);v.setBigUint64(at+48,BigInt(fileSize),true);
-    v.setUint32(at+56,protection,true);v.setUint32(at+60,protection,true);
+    const constant=dynamic&&value==='__DATA_CONST';
+    v.setUint32(at+56,constant?3:protection,true);v.setUint32(at+60,constant?3:protection,true);
+    if(constant)v.setUint32(at+68,0x10,true); // SG_READ_ONLY after dyld fixups
     if(section){
       v.setUint32(at+64,1,true);const s=at+72;
       name(s,section.section==='.text'?'__text':section.section==='.data'?'__data':'__const');name(s+16,value);
@@ -88,11 +120,26 @@ export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Ar
     if(segment.section==='.text')segmentCommand(segment.name,base,segment.offset+segment.size,0,segment.offset+segment.size,segment.protection,segment);
     else segmentCommand(segment.name,base+segment.offset,segment.size,segment.offset,segment.size,segment.protection,segment);
   }
-  segmentCommand('__LINKEDIT',base+codeLimit,align(signSize,page),codeLimit,signSize,1);
-  const thread=command,threadSize=16+(arch==='arm64'?272:168);command+=threadSize;count++;
+  segmentCommand('__LINKEDIT',base+linkeditStart,align(codeLimit-linkeditStart+signSize,page),linkeditStart,codeLimit-linkeditStart+signSize,1);
+  if(dynamic){
+    const pathCommand=(type:number,path:string,header:number)=>{
+      const bytes=new TextEncoder().encode(path+'\0'),size=align(header+bytes.length,8),at=command;command+=size;count++;
+      v.setUint32(at,type,true);v.setUint32(at+4,size,true);v.setUint32(at+8,header,true);image.set(bytes,at+header);
+      if(type===0xc){v.setUint32(at+16,1<<16,true);v.setUint32(at+20,1<<16,true);}
+    };
+    pathCommand(0xe,'/usr/lib/dyld',12);pathCommand(0xc,'/usr/lib/libSystem.B.dylib',24);
+    const main=command;command+=24;count++;v.setUint32(main,0x80000028,true);v.setUint32(main+4,24,true);v.setBigUint64(main+8,BigInt(entry-base),true);
+    const info=command;command+=48;count++;v.setUint32(info,0x80000022,true);v.setUint32(info+4,48,true);
+    for(const [offset,value] of [[8,rebaseOffset],[12,rebases.length],[16,bindOffset],[20,bindings.length]])v.setUint32(info+offset!,value!,true);
+    const symtab=command;command+=24;count++;v.setUint32(symtab,2,true);v.setUint32(symtab+4,24,true);
+    for(const [offset,value] of [[8,symbolOffset],[12,program.imports.length],[16,stringOffset],[20,strings.length]])v.setUint32(symtab+offset!,value!,true);
+    const dysym=command;command+=80;count++;v.setUint32(dysym,0xb,true);v.setUint32(dysym+4,80,true);v.setUint32(dysym+28,program.imports.length,true);
+  }else{
+  const thread=command,threadSize=184;command+=threadSize;count++;
   v.setUint32(thread,5,true);v.setUint32(thread+4,threadSize,true);
-  v.setUint32(thread+8,arch==='arm64'?6:4,true);v.setUint32(thread+12,arch==='arm64'?68:42,true);
-  v.setBigUint64(thread+16+(arch==='arm64'?256:128),BigInt(entry),true);
+  v.setUint32(thread+8,4,true);v.setUint32(thread+12,42,true);
+  v.setBigUint64(thread+16+128,BigInt(entry),true);
+  }
   const build=command;command+=24;count++;
   v.setUint32(build,0x32,true);v.setUint32(build+4,24,true);v.setUint32(build+8,1,true);
   v.setUint32(build+12,11<<16,true);v.setUint32(build+16,11<<16,true);

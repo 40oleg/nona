@@ -4,6 +4,7 @@ import {linkMachO} from '../macho/writer.js';
 import {withNativeTarget} from '../machine/context.js';
 import type {Assembler} from '../x64/assembler.js';
 import type {NativeProgram} from '../pe/model.js';
+import {linkDarwinArm64} from './arm64.js';
 
 function nativeCall(a:Assembler,number:number):void {
   a.syscall(0x2000000+number);const done=a.unique('syscallDone');a.jcc('ae',done);a.neg('rax');a.label(done);
@@ -20,7 +21,8 @@ function monotonic(a:Assembler):void {
   a.mov('r10',0x7fffffe00068n);a.load('r10',{base:'r10'},32);a.cmp('r9','r10');a.jcc('ne',retry);
 }
 
-export function linkDarwin(program:NativeProgram):Uint8Array {
+export function linkDarwin(program:NativeProgram,arch:'x64'|'arm64'='x64'):Uint8Array {
+  if(arch==='arm64')return linkDarwinArm64(program);
   return withNativeTarget('darwin-x64',()=>{
     const b=new RuntimeBuilder();
     const replace=new Set(['linux.Sleep.code','linux.WaitOnAddress.code','linux.WakeByAddressSingle.code','linux.CreateThread.code']);

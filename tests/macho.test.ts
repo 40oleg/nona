@@ -34,13 +34,28 @@ test('Mach-O maps text, constants and mutable data with separate permissions',()
   assert.equal(v.getBigUint64(thread.offset+16+16*8,true),0x100001000n);
 });
 
-test('ARM64 Mach-O uses its native thread state and 16 KiB segment alignment',()=>{
+test('ARM64 Mach-O uses dyld startup and 16 KiB segment alignment',()=>{
   const image=link(fixture(),'arm64'),v=view(image);
   assert.equal(v.getUint32(4,true),0x100000c);
-  const thread=commands(image).find(c=>c.type===5)!;
-  assert.equal(v.getUint32(thread.offset+8,true),6);assert.equal(v.getUint32(thread.offset+12,true),68);
-  assert.equal(v.getBigUint64(thread.offset+16+256,true),0x100004000n);
+  const main=commands(image).find(c=>c.type===0x80000028);
+  assert.ok(main);assert.equal(v.getBigUint64(main.offset+8,true),0x4000n);
+  assert.ok(commands(image).some(c=>c.type===0xe));
+  const library=commands(image).find(c=>c.type===0xc);assert.ok(library);
+  const nameOffset=library.offset+v.getUint32(library.offset+8,true);
+  assert.equal(new TextDecoder().decode(image.subarray(nameOffset,nameOffset+27)), '/usr/lib/libSystem.B.dylib\0');
+  assert.equal(commands(image).some(c=>c.type===5),false);
   for(const c of commands(image).filter(c=>c.type===0x19))assert.equal(v.getBigUint64(c.offset+24,true)%16384n,0n);
+});
+
+test('ARM64 Mach-O binds only system-library imports and rebases absolute data pointers',()=>{
+  const program=fixture();program.imports=[{dll:'/usr/lib/libSystem.B.dylib',name:'clock_gettime',symbol:'system.clock'}];
+  const image=link(program,'arm64'),v=view(image);
+  const info=commands(image).find(c=>c.type===0x80000022);assert.ok(info);
+  const rebaseOffset=v.getUint32(info.offset+8,true),rebaseSize=v.getUint32(info.offset+12,true);
+  assert.ok(rebaseSize>0);assert.equal(image[rebaseOffset],0x11);
+  const bindOffset=v.getUint32(info.offset+16,true),bindSize=v.getUint32(info.offset+20,true);
+  assert.ok(bindSize>0);assert.ok(new TextDecoder().decode(image.subarray(bindOffset,bindOffset+bindSize)).includes('_clock_gettime\0'));
+  program.imports[0]!.dll='third-party.dylib';assert.throws(()=>link(program,'arm64'),/libSystem/);
 });
 
 test('Mach-O embedded ad-hoc signature hashes the final image including load commands',()=>{
