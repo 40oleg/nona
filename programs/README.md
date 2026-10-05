@@ -33,7 +33,15 @@ stderr or mismatched stdout fails the test. Windows CRLF output is normalized
 to LF; no other output differences are ignored. Existing helpers limit the
 Node.js run to 5 seconds and each native run to 60 seconds.
 
-The corpus is also included in `npm run check`. To run one case after building:
+The corpus is also included in `npm run check`.
+
+The dedicated `program corpus` GitHub Actions workflow runs `npm run check:programs`
+on both Linux and Windows for every branch push and pull request. Each platform
+runs all programs in normal and GC-stress execution; a failed comparison fails
+its job. Push and pull-request runs have separate concurrency groups so they
+cannot cancel each other.
+
+To run one case after building:
 
 ```sh
 node --test --test-name-pattern=005-expression-parser dist/tests/program-corpus.test.js
