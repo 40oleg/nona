@@ -113,10 +113,9 @@ export function emitArrayBuffer(b:RuntimeBuilder):void {
   a.label(zero);a.mov('rax',0);a.store(slot(72),'rax');a.jmp(ready);
   a.label(invalid);a.call('rt.throwRangeError');
   a.label(ready);
+  // rt.alloc returns zeroed memory: the bytes start as zeros without a
+  // second pass over them.
   a.load('rcx',slot(72));a.call('rt.alloc');a.store(slot(64),'rax');
-  a.load('r8',slot(72));a.load('rdx',slot(64));a.mov('r10',0);
-  const fill=a.unique('fill'),filled=a.unique('filled');a.label(fill);a.test('r8','r8');a.jcc('e',filled);
-  a.store({base:'rdx'},'r10',8);a.add('rdx',1);a.sub('r8',1);a.jmp(fill);a.label(filled);
   a.mov('rcx',ArrayBufferLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',ArrayBufferKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
