@@ -47,5 +47,5 @@ Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
 protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
 and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
 local context storage. Promise, await, timer and microtask callbacks preserve
-captured context. Native resource hooks and automatic GC destruction are outside
+captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
 this API; see the English reference for the precise boundaries.

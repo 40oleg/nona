@@ -97,6 +97,11 @@ storage supports run, enterWith, exit, disable, bind and snapshot; contexts are
 captured when Promise reactions, await continuations, timers and microtasks are
 registered.
 
+Captured bind, snapshot and resource contexts retain their original stores after
+later `enterWith` or `disable` calls, and restore the caller's context on return.
+Registration reuses immutable context records rather than copying a Map for
+every Promise reaction; scope changes create a new record and store map.
+
 Boundaries: hooks describe explicitly created resources; native Promise and timer
 resource creation, Promise resolution hooks, GC-triggered destruction and Node's
 async resource type catalog are not emitted. Timer callbacks preserve captured

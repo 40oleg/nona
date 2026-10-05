@@ -59,7 +59,11 @@ emitter.on('x',()=>console.log('emitter',local.getStore(),executionAsyncId()===e
 local.run('dispatch',()=>emitter.emit('x'));
 local.run('registered',()=>{pending.then(()=>console.log('then',local.getStore()));queueMicrotask(()=>console.log('microtask',local.getStore()));setTimeout(()=>console.log('timer',local.getStore()),5);async function task(){await pending;console.log('await',local.getStore())}task()});
 local.run('resolved',()=>resolve());console.log('outside',local.getStore());emitter.emitDestroy();resource.emitDestroy();
-`,expected:'resource true true\nemitter construction true true\noutside undefined\nmicrotask registered\nthen registered\nawait registered\ntimer registered\n'},
+const saved=new AsyncLocalStorage();let bound,snapshot,savedResource;
+saved.run('saved',()=>{bound=AsyncLocalStorage.bind(change=>{const before=saved.getStore();if(change)saved.enterWith('changed');return before});snapshot=AsyncLocalStorage.snapshot();savedResource=new AsyncResource('saved')});
+saved.disable();saved.run('caller',()=>console.log('capture',bound(true),bound(false),snapshot(()=>saved.getStore()),savedResource.runInAsyncScope(()=>saved.getStore()),saved.getStore()));
+console.log('capture outside',saved.getStore());
+`,expected:'resource true true\nemitter construction true true\noutside undefined\ncapture saved saved saved saved caller\ncapture outside undefined\nmicrotask registered\nthen registered\nawait registered\ntimer registered\n'},
 ] as const;
 
 /** Compile module probes under allocation stress; callers choose when to execute. */

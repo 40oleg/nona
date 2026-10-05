@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reused immutable asynchronous context snapshots to avoid per-reaction Map copies under GC stress; fixed captured store restoration after `enterWith` and `disable`, bind argument validation and exit receiver validation ([#137](https://github.com/40oleg/nona/issues/137)).
+
 - Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers, including protected Blob piping cancellation ([#137](https://github.com/40oleg/nona/issues/137)).
 
 
