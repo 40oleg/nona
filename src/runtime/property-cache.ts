@@ -199,7 +199,7 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.load('rcx',{base:'r8',disp:8});a.call('rt.propKeyHash');a.load('r9',slot(64));a.store({base:'r9',disp:L.hash},'rax');a.mov('rdx','rax');a.load('r8',slot(56));a.load('r10',slot(72));
    a.label(hashed);a.load('rcx',{base:'r10',disp:O.index});a.load('r8',{base:'r8',disp:8});a.call('rt.propIndexProbe');a.test('r10','r10');a.jcc('e',probed);
    a.load('rax',{base:'rax',disp:8});a.jmp(ownFound);
-   a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',ownFound);
+   a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNodeScan');a.test('rax','rax');a.jcc('ne',ownFound);
    a.jmp(probed);
    // RAX = an own node of the receiver (slot 72): an inline one is remembered.
    a.label(ownFound);{const remembered=a.unique('remembered');

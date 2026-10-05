@@ -58,12 +58,18 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
  });
  // RCX object payload, RDX key record -> RAX own property node or 0.
  b.fn('rt.ownNamedNode',72,a=>{
-  const scan=a.unique('scan'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),chars=a.unique('chars'),scanned=a.unique('scanned');
+  const done=a.unique('done');
   // A complete key filter without the key's bit: the key is not an own key.
   {const unknown=a.unique('unfiltered');a.load('rax',{base:'rcx',disp:O.keys});a.test('rax','rax');a.jcc('ns',unknown);
    a.store(slot(48),'rcx');a.store(slot(56),'rdx');a.mov('rcx','rdx');a.call('rt.keyFilterBit');a.load('rcx',slot(48));a.load('rdx',slot(56));
    a.load('r10',{base:'rcx',disp:O.keys});a.and('rax','r10');a.jcc('e',done);
    a.label(unknown);}
+  a.call('rt.ownNamedNodeScan');
+  a.label(done);
+ });
+ // The same without consulting the key filter (the caller already did).
+ b.fn('rt.ownNamedNodeScan',72,a=>{
+  const scan=a.unique('scan'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),chars=a.unique('chars'),scanned=a.unique('scanned');
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',scan);a.call('rt.propIndexFind');a.jmp(done);
   a.label(scan);a.store(slot(48),'rcx');a.mov('r10',0);a.store(slot(56),'r10');a.load('rax',{base:'rcx',disp:O.properties});a.load('r9',{base:'rdx'});a.store(slot(40),'r9');
   a.label(loop);a.test('rax','rax');a.jcc('e',scanned);a.load('r10',{base:'rax',disp:P.key});a.cmp('r10','rdx');a.jcc('e',scanned);
