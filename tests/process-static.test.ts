@@ -109,6 +109,15 @@ test('Darwin account adapters copy OS TLS records and use native initgroups',()=
  assert.deepEqual(calls,[['euid',501],['egid',20],['init','alice',20]]);
  assert.throws(()=>runInContext('process.setuid("unknown")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
 });
+test('Darwin initgroups forwards named users to OS permission handling before user lookup',()=>{
+ const calls:string[]=[];const context=mockProcess({__nonaHost_getpwnam:()=>{throw Error('Unexpected name lookup')},__nonaHost_initgroups:(bytes:Uint8Array)=>{calls.push(new TextDecoder().decode(bytes).split('\0')[0]!);return -1},__nonaHost___error:()=>1000,__nonaHost_copy:(out:Uint32Array)=>out[0]=1},'darwin-arm64');
+ assert.throws(()=>runInContext('process.initgroups("nona_missing_user_81763",20)',context),{code:'EPERM',syscall:'initgroups'});
+ assert.deepEqual(calls,['nona_missing_user_81763']);
+ assert.throws(()=>runInContext('process.initgroups({},20)',context),{code:'ERR_INVALID_ARG_TYPE'});
+});
+test('Windows ARM process startup diagnostic compiles with enforced phase output',()=>{
+ const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.ok(probe.expected.includes('process init native environment\nprocess init extensions\nprocess built win32 undefined\n'));
+});
 test('process active resource inventory follows real timer and stdin lifecycle',()=>{
  let clock=0;const context=mockProcess({__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms}});runInContext(timersPreludeSource,context);
  assert.equal(runInContext('JSON.stringify(process.getActiveResourcesInfo())',context),'[]');

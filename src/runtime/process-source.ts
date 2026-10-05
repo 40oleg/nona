@@ -64,6 +64,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var decoder=new TextDecoder(),encoder=new TextEncoder(),created=null;
   // Built on first access, so programs that never use process pay nothing at startup.
   function build(){
+    function startupPhase(name){if(globalThis.__nonaProcessStartupTrace===true)console.log('process init',name)}
+    startupPhase('begin');
     function cstring(text){var bytes=encoder.encode(text),out=new Uint8Array(bytes.length+1);out.set(bytes);return out}
     function readProc(path){
       var fd=host.sys_open(cstring(path),0x80000,0);
@@ -104,8 +106,10 @@ __nonaPromiseDrainJobs=(function(drain){
     if(windows){
       var path=new Uint16Array(32768),length=host.GetModuleFileNameW(null,path,32768);
       execPath=fromUnits(path,length);
+      startupPhase('executable');
       var line=host.GetCommandLineW();
       commandLine=parseCommandLine(wide(line,host.lstrlenW(line)));
+      startupPhase('arguments');
       environment=[];
       var block=host.GetEnvironmentStringsW();
       if(block){
@@ -115,6 +119,7 @@ __nonaPromiseDrainJobs=(function(drain){
         }
         host.FreeEnvironmentStringsW(block)
       }
+      startupPhase('environment read');
     }else if(platform==='linux'){
       var link=new Uint8Array(4096),linkLength=host.sys_readlink(cstring('/proc/self/exe'),link,link.length);
       execPath=linkLength>0?decoder.decode(link.subarray(0,linkLength)):'';
@@ -140,6 +145,7 @@ __nonaPromiseDrainJobs=(function(drain){
       if(windows){var upper=key.toUpperCase(),known=false;for(var existing in env)if(existing.toUpperCase()===upper){known=true;break}if(known)continue}
       defineProperty(env,key,{value:entry.slice(eq+1),writable:true,enumerable:true,configurable:true})
     }
+    startupPhase('environment parsed');
     function exitStatus(code){
       if(code===undefined||code===null)return undefined;
       if(typeof code==='string'&&code!==''&&!Number.isNaN(Number(code)))code=Number(code);
@@ -203,7 +209,9 @@ __nonaPromiseDrainJobs=(function(drain){
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});
     value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
+    startupPhase('core properties');
 ${processExtensionsSource}
+    startupPhase('extensions');
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}

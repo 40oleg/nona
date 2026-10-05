@@ -30,8 +30,11 @@ export const processAccountsSource=String.raw`
     function credentialId(id,group){return typeof id==='number'?numericId(id):findAccount(id,group).id}
     if(!windows){__nonaRegexpVm.processAccountName=function(id,group){return findAccount(id,group).name};__nonaRegexpVm.processAccountId=function(name,group){return findAccount(name,group).id}}
     if(!windows)value('initgroups',function(user,extraGroup){
+      if(platform==='darwin'){
+        var name=typeof user==='number'?findAccount(user,false).name:accountName(user),base=credentialId(extraGroup,true);
+        if(host.initgroups(cstring(name),base)!==0)throw darwinEnvironmentError('initgroups',name);return
+      }
       var account=findAccount(user,false),base=credentialId(extraGroup,true);
-      if(platform==='darwin'){if(host.initgroups(cstring(account.name),base)!==0)throw darwinEnvironmentError('initgroups',account.name);return}
       var groups=[base],records=localAccounts(true);for(var i=0;i<records.length;i++)if(records[i].members.indexOf(account.name)!==-1&&groups.indexOf(records[i].id)===-1)groups.push(records[i].id);
       var ids=new Uint32Array(groups),r=host.sys_setgroups(ids.length,ids);if(r<0)throw hostError('initgroups',-r)
     });
