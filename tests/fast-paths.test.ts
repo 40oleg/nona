@@ -504,6 +504,20 @@ class C extends Array{last(){return super.at(-1)} len(){return super.length}};co
 class E extends Error{msg(){return super.toString()}};log(new E('x').msg());
 A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<10000;i++)s+=d.m().length;log(s);
 `,
+ 'global name reads':`
+const log=(...a)=>console.log(a.map(x=>typeof x==='function'?'fn:'+x.name:JSON.stringify(x)).join(" "));
+function readAll(){return [typeof Math, Math.PI, typeof Date, typeof queueMicrotask, typeof undeclaredThing, globalThis.foo===undefined?'nofoo':foo]}
+for(let i=0;i<3;i++)log(readAll());
+globalThis.foo=1;log(readAll());
+globalThis.foo=2;log(readAll());
+delete globalThis.foo;log(readAll());
+Object.defineProperty(globalThis,'foo',{get(){return 'getter'},configurable:true});log(readAll());
+Object.defineProperty(globalThis,'foo',{value:'data',configurable:true,writable:true});log(readAll());
+const savedMath=Math;globalThis.Math={PI:3};log(readAll());globalThis.Math=savedMath;log(readAll());
+delete globalThis.Math;try{log(readAll())}catch(e){log(e.constructor.name)}globalThis.Math=savedMath;log(readAll());
+function bar(){return baz}try{bar()}catch(e){log(e.constructor.name)}globalThis.baz=7;log(bar());delete globalThis.baz;try{bar()}catch(e){log(e.constructor.name)}
+let s=0;for(let i=0;i<10000;i++)s+=Math.abs(-1);log(s);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to

@@ -410,7 +410,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // Prelude code is shared by every program and cannot know which
           // names a script declares, so only user code gets the fast path.
           const prelude=fn.id.startsWith('js.regexpVm.'),notBinding=!prelude&&!globalProperties.some(p=>p.name===op.name);
-          pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));a.call('rt.readGlobalProperty');break;
+          pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));
+          if(notBinding){const cache='gc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(16),fixups:[],symbols:{}});a.lea('r9',{rip:cache});a.call('rt.readGlobalCached');}
+          else a.call('rt.readGlobalProperty');break;
         }
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
