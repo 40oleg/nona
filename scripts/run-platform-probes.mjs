@@ -17,9 +17,13 @@ const run=spawnSync(executable,[],{encoding:'utf8',timeout:15000,windowsHide:tru
 if(run.error||run.status!==0||run.stdout!==manifest.expected)throw new Error(`Loader probe ${target} failed: status=${run.status}, signal=${run.signal}, stdout=${JSON.stringify(run.stdout)}, stderr=${JSON.stringify(run.stderr)}, error=${run.error??''}`);
 console.log(`Native loader probe passed on ${process.platform}/${process.arch}: ${target}`);
 for(const probe of manifest.runtime?.[target]??[]){
-  if(typeof probe.file!=='string'||!/^[a-z0-9-]+(?:\.exe)?$/.test(probe.file)||typeof probe.expected!=='string')throw new Error('Invalid runtime probe manifest');
+  if(typeof probe.file!=='string'||!/^[a-z0-9-]+(?:\.exe)?$/.test(probe.file)||typeof probe.expected!=='string'||(probe.minimalEnvironment!==undefined&&typeof probe.minimalEnvironment!=='boolean'))throw new Error('Invalid runtime probe manifest');
+  if(probe.signal!==undefined&&probe.signal!=='SIGABRT')throw new Error('Invalid runtime probe signal');
+  if(probe.status!==undefined&&(!Number.isInteger(probe.status)||probe.status<0||probe.status>255))throw new Error('Invalid runtime probe status');
   const file=join(directory,probe.file);chmodSync(file,0o755);
-  const result=spawnSync(file,[],{encoding:'utf8',timeout:15000,windowsHide:true});
-  if(result.error||result.status!==(probe.status??0)||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);
+  const env=probe.minimalEnvironment?(process.platform==='win32'?{SystemRoot:process.env.SystemRoot}:{}):process.env;
+  const result=spawnSync(file,[],{encoding:'utf8',timeout:15000,windowsHide:true,env});
+  const terminated=probe.signal?result.status===null&&result.signal===probe.signal:result.status===(probe.status??0);
+  if(result.error||!terminated||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);
   console.log(`Native execution probe passed: ${probe.file}`);
 }

@@ -1,7 +1,6 @@
 /** Original process lifecycle finalization with native GC-owned callback metadata. */
 export const processFinalizationSource=String.raw`
-    var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has;
-    var finalizationApply=Reflect.apply,finalizationOn=process.on,finalizationOff=process.removeListener;
+    var finalizationOn=process.on,finalizationOff=process.removeListener;
     var finalizationExit=[],finalizationBefore=[],finalizationExitListening=false,finalizationBeforeListening=false,finalizationExitDepth=0,finalizationBeforeDepth=0;
     function finalizationClear(entry){entry.active=false;finalizationNative(entry.map,2,undefined)}
     function finalizationRun(entries,event){
@@ -26,13 +25,13 @@ export const processFinalizationSource=String.raw`
       if(target===null||(typeof target!=='object'&&typeof target!=='function'))throw argumentError('ERR_INVALID_ARG_TYPE','The finalization reference must be an object or function');
       var map=new finalizationMap();finalizationApply(finalizationSet,map,[target,true]);finalizationNative(map,2,callback);
       var entry={map:map,active:true};
-      if(before){finalizationBefore.push(entry);if(!finalizationBeforeListening){finalizationBeforeListening=true;finalizationApply(finalizationOn,process,['beforeExit',finalizeBefore])}}
-      else{finalizationExit.push(entry);if(!finalizationExitListening){finalizationExitListening=true;finalizationApply(finalizationOn,process,['exit',finalizeExit])}}
+      if(before){finalizationApply(finalizationPush,finalizationBefore,[entry]);if(!finalizationBeforeListening){finalizationBeforeListening=true;finalizationApply(finalizationOn,process,['beforeExit',finalizeBefore])}}
+      else{finalizationApply(finalizationPush,finalizationExit,[entry]);if(!finalizationExitListening){finalizationExitListening=true;finalizationApply(finalizationOn,process,['exit',finalizeExit])}}
     }
     function finalizationDetachEmpty(entries,event,listener){
       // Preserve indices while a callback is dispatching; outside dispatch,
       // unregister also releases its WeakMap and bookkeeping immediately.
-      if((event==='exit'?finalizationExitDepth:finalizationBeforeDepth)===0)for(var index=entries.length-1;index>=0;index--)if(!entries[index].active)entries.splice(index,1);
+      if((event==='exit'?finalizationExitDepth:finalizationBeforeDepth)===0)for(var index=entries.length-1;index>=0;index--)if(!entries[index].active)finalizationApply(finalizationSplice,entries,[index,1]);
       for(var index=0;index<entries.length;index++)if(entries[index].active)return;
       finalizationApply(finalizationOff,process,[event,listener]);
       if(event==='exit')finalizationExitListening=false;else finalizationBeforeListening=false;

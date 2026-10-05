@@ -641,7 +641,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     fragments.push(...host.fragments.filter(f=>externalFragment(f.name)));functions.push(...host.functions.filter(f=>externalFragment(f.begin)));
     runtime.imports.push(...host.imports.filter(i=>!internalSymbols.has(i.symbol)));
     if(internal.length){
-      const helpers=processNativeHelpers().bundle;fragments.push(...helpers.fragments);functions.push(...helpers.functions);
+      const helpers=processNativeHelpers().bundle;fragments.push(...helpers.fragments);functions.push(...helpers.functions);runtime.imports.push(...helpers.imports);
       for(const h of internal)fragments.push({name:'hostffi'+ffiImportSymbol(h.declaration).slice(3),section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[{offset:0,kind:'va64',target:'process.'+h.declaration.name+'.code',addend:0}]});
       hostGlobal('__nonaProcessNow','rt.hostNow.code',0);
       hostGlobal('__nonaProcessFinalization','process.finalization.code',3);

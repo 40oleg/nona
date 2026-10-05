@@ -495,3 +495,21 @@ test('local initgroups uses named memberships without passwd lookup and reports 
   assert.throws(()=>runInContext('process.initgroups("nona_missing_user_81763","missing_group")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});assert.equal(calls.length,1);
  }
 });
+test('Darwin title probe queries full PROCARGS2 size before independent argv readback',()=>{
+ const bytes=new Uint8Array(10000),encoder=new TextEncoder();bytes[0]=1;
+ bytes.set(encoder.encode('/fixture/executable'),4);const start=4+'/fixture/executable'.length+3;bytes.set(encoder.encode('ntit_729'),start);
+ const calls:string[]=[],output:unknown[][]=[];
+ const context=createContext({TextDecoder,process:{pid:42,title:'before',argv:['original'],env:{}},console:{log:(...args:unknown[])=>output.push(args)},define:()=> (_mib:Int32Array,_count:number,out:Uint8Array|null,length:Uint32Array)=>{calls.push(out?'read':'size');if(!out){length[0]=bytes.length;return 0}assert.equal(out.length,bytes.length);out.set(bytes);return 0}});
+ runInContext(processTitleProbe('darwin-x64').source.replace("import {define} from 'nona:ffi';",''),context);
+ assert.deepEqual(calls,['size','read']);assert.deepEqual(output,[[true,true,true],[true]]);
+});
+
+test('native probe manifest rejects malformed termination and environment metadata',()=>{
+ const runner=readFileSync(new URL('../../scripts/run-platform-probes.mjs',import.meta.url),'utf8');
+ const validation=runner.slice(runner.indexOf("  if(typeof probe.file"),runner.indexOf('  const file=join(directory,probe.file)'));
+ const validate=(probe:unknown)=>runInContext(validation,createContext({probe}));
+ const good={file:'process-probe',expected:'',status:134,signal:'SIGABRT',minimalEnvironment:true};validate(good);validate({file:'process-probe',expected:''});
+ for(const extra of [{signal:'SIGTERM'},{signal:1},{status:-1},{status:256},{status:1.5},{status:'134'},{minimalEnvironment:'true'}])assert.throws(()=>validate({...good,...extra}));
+ const builder=readFileSync(new URL('../../scripts/build-platform-probes.mjs',import.meta.url),'utf8'),workflow=readFileSync(new URL('../../.github/workflows/native-platforms.yml',import.meta.url),'utf8');
+ assert.ok(builder.includes("file+'.minimal-environment'"));assert.equal((workflow.match(/cat "\$binary\.minimal-environment"/g)??[]).length,3);assert.equal((workflow.match(/env -i "\$binary"/g)??[]).length,3);
+});

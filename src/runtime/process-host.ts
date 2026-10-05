@@ -5,6 +5,8 @@ import {emitProcessMemory} from './process-memory.js';
 import {emitProcessEnvironment} from './process-environment.js';
 import {emitProcessTitle} from './process-title.js';
 import {emitProcessFinalization} from './process-finalization.js';
+import {emitPosixProcessAbort} from './process-abort.js';
+import {currentNativeTarget} from '../backend/machine/context.js';
 
 /** Private, allocation-free native helpers for the process prelude. */
 export function processNativeHelpers():RuntimeBuilder {
@@ -13,6 +15,8 @@ export function processNativeHelpers():RuntimeBuilder {
  emitProcessEnvironment(b);
  emitProcessTitle(b);
  emitProcessFinalization(b);
+ const target=currentNativeTarget()??'win32-x64';
+ if(target!=='win32-arm64')emitPosixProcessAbort(b,target==='win32-x64'?'linux-x64':target);
  b.data('process.startupArgv',new Uint8Array(8),'.data');
  b.data('process.startupEnv',new Uint8Array(8),'.data');
  for(const name of ['startupArgv','startupEnv'])b.fn('process.'+name+'.code',40,a=>a.load('rax',{rip:'process.'+name}));

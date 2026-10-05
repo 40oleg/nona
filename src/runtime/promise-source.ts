@@ -546,11 +546,12 @@ var __nonaPromiseDrainJobs=(function(){
       preventExtensions(){return true}
     })
   };
-  var moduleTable=[],modulePaths=objectCreate(null);
-  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError){
+  var moduleTable=[],modulePaths=objectCreate(null),builtinModules=objectCreate(null);
+  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError,aliases){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
     moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
-    modulePaths[path]=index
+    modulePaths[path]=index;
+    if(aliases)for(var i=0;i<aliases.length;i++)builtinModules[aliases[i]]=index
   };
   var scriptRecord;
   __nonaRegexpVm.registerScript=function(path,specifiers,targets){
@@ -576,6 +577,15 @@ var __nonaPromiseDrainJobs=(function(){
     for(var i=0;i<record.requests.length;i++){var error=linkError(record.requests[i],seen);if(error!==undefined)return error}
     return undefined
   }
+  __nonaRegexpVm.getBuiltinModule=function(id){
+    if(typeof id!=='string'){var error=new TypeError('The "id" argument must be a string');error.code='ERR_INVALID_ARG_TYPE';throw error}
+    if(!hasOwn.call(builtinModules,id))return undefined;
+    var index=builtinModules[id],failure=linkError(index,objectCreate(null));
+    if(failure!==undefined)throw new SyntaxError(failure);
+    evaluateModule(index);
+    var namespace=moduleTable[index].namespace;
+    return hasOwn.call(namespace,'default')?namespace.default:namespace
+  };
   function resolveSpecifier(specifier,referrerPath){
     if(!(specifier.slice(0,2)==='./'||specifier.slice(0,3)==='../'||specifier.slice(0,1)==='/'))return undefined;
     var parts=[],segments=specifier.split('/'),i;

@@ -6,11 +6,11 @@ export const processExtensionsSource=String.raw`
     function emitter(object){
       var events=new Map(),maximum=10;
       function records(name){return events.get(name)||[]}
-      function removeRecord(name,record){var list=records(name).slice(),index=list.indexOf(record);if(index<0)return;list.splice(index,1);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,record.fn)}
+      function removeRecord(name,record){var list=records(name).slice(),index=list.indexOf(record);if(index<0)return;apply(finalizationSplice,list,[index,1]);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,record.fn)}
       function add(name,fn,once,prepend){
         if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
         if(name!=='newListener')object.emit('newListener',name,fn);
-        var list=records(name).slice(),record={fn:fn,once:once};if(prepend)list.unshift(record);else list.push(record);events.set(name,list);
+        var list=records(name).slice(),record={fn:fn,once:once};if(prepend)list.unshift(record);else apply(finalizationPush,list,[record]);events.set(name,list);
         if(object===input&&name==='data')input.resume();return object
       }
       object.on=object.addListener=function(name,fn){return add(name,fn,false,false)};
@@ -19,14 +19,14 @@ export const processExtensionsSource=String.raw`
       object.prependOnceListener=function(name,fn){return add(name,fn,true,true)};
       object.removeListener=object.off=function(name,fn){
         if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
-        var list=records(name).slice();for(var i=list.length-1;i>=0;i--)if(list[i].fn===fn){list.splice(i,1);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,fn);break}return object
+        var list=records(name).slice();for(var i=list.length-1;i>=0;i--)if(list[i].fn===fn){apply(finalizationSplice,list,[i,1]);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,fn);break}return object
       };
       object.removeAllListeners=function(name){
         if(arguments.length){var list=records(name).slice();for(var i=list.length-1;i>=0;i--)object.removeListener(name,list[i].fn)}
         else{var names=Array.from(events.keys());for(var i=0;i<names.length;i++)object.removeAllListeners(names[i])}return object
       };
       object.emit=function(name){
-        var list=records(name).slice(),args=[];for(var i=1;i<arguments.length;i++)args.push(arguments[i]);
+        var list=records(name).slice(),args=[];for(var i=1;i<arguments.length;i++)apply(finalizationPush,args,[arguments[i]]);
         if(!list.length){if(name==='error')throw (args[0] instanceof Error?args[0]:new Error('Unhandled error event'));return false}
         for(var i=0;i<list.length;i++){var record=list[i];if(record.once){if(record.fired)continue;record.fired=true;removeRecord(name,record)}apply(record.fn,object,args)}return true
       };

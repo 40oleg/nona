@@ -4,6 +4,24 @@
 default export of `node:process` and `nona:process`. Named exports include
 the metadata, control, timing, streams, events and OS helpers described below.
 
+`getBuiltinModule(id)` synchronously returns the actual default export of an
+implemented builtin, with shared identity for bare and `node:` aliases.
+`getBuiltinModule('process') === process`. Unknown names return `undefined`;
+non-string arguments, including boxed strings, throw `ERR_INVALID_ARG_TYPE`.
+Nona modules without a default export return their actual module namespace
+through the explicit `nona:` name. The compiler links literal requests or the
+target-supported inventory for computed requests; evaluation remains lazy.
+This registry uses compiled modules and introduces no interpreter or package
+loader. `fs` remains unavailable on Darwin and BSD.
+
+`abort()` terminates immediately without running exit, beforeExit, capture,
+queued callbacks or finalization handlers. POSIX restores and unblocks SIGABRT
+and delivers the real signal; macOS uses the operating system's abort service.
+Windows terminates through `ExitProcess(134)`, matching the Node 26 native
+oracle, with no CRT dependency. Native probes require empty stdout and the
+actual POSIX SIGABRT or Windows status 134. CI disables core files and Windows
+error dialogs for these child probes.
+
 | Member | Behavior |
 | --- | --- |
 | `argv` | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules. |
@@ -215,3 +233,7 @@ Programs that never link the process prelude have no process startup work.
 Once linked, monotonic uptime starts during prelude initialization; metadata
 and environment decoding remain lazy. Node.js 26 black-box oracles check the
 shared API and native CI probes exercise all eight targets.
+
+The focused finalization and builtin-registry GC-stress probes use an empty
+POSIX environment or only `SystemRoot` on Windows. Environment compatibility
+probes retain the inherited environment; native execution budgets are unchanged.

@@ -25,6 +25,10 @@ const unicodePropertyEscape=/\\[pP]\{/;
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName=/(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage:SourceUsage|undefined;
+/** Select a runtime dependency discovered from parsed source expressions. */
+export function requireRuntimePrelude(name:OptionalPrelude):void {
+  if(usage)usage.preludes[name]=true;
+}
 // Enumeration links every available prelude. Explicit names still request
 // unavailable host adapters, allowing the compiler to diagnose that request.
 let unavailableReflectivePreludes:readonly OptionalPrelude[]=[];

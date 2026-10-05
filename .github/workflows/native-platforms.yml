@@ -88,7 +88,14 @@ jobs:
         shell: pwsh
         run: ./scripts/process-abort-oracle.ps1
       - name: Execute native loader and runtime probes
+        if: matrix.target == 'win32-arm64'
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Execute native POSIX loader and runtime probes
+        if: matrix.target != 'win32-arm64'
+        shell: bash
+        run: |
+          ulimit -c 0
+          node scripts/run-platform-probes.mjs ${{ matrix.target }}
       - name: Core runtime oracle suites
         run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
       # These exercise byte memory/FP conversions and the large Unicode/RegExp
@@ -129,12 +136,13 @@ jobs:
           mkdir -p work/distro-results
           docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
             set -eu
+            ulimit -c 0
             /probes/linux-x64 > /results/loader.actual
             for expected in /probes/linux-x64-*.expected; do
               binary=${expected%.expected}
               echo "Running $binary"
               status=0
-              "$binary" > "/results/${binary##*/}.actual" || status=$?
+              if [ "$(cat "$binary.minimal-environment")" = 1 ]; then env -i "$binary" > "/results/${binary##*/}.actual" || status=$?; else "$binary" > "/results/${binary##*/}.actual" || status=$?; fi
               expected_status=0
               if [ -f "$binary.status" ]; then expected_status=$(cat "$binary.status"); fi
               if [ "$status" -ne "$expected_status" ]; then
@@ -172,6 +180,7 @@ jobs:
           usesh: true
           run: |
             set -eu
+            ulimit -c 0
             uname -a
             test "$(uname -s)" = FreeBSD
             test "$(uname -m)" = amd64
@@ -182,7 +191,8 @@ jobs:
               binary=${probe%.expected}
               echo "Running $binary"
               chmod 755 "$binary"
-              if "$binary" > "$binary.actual"; then
+              minimal=$(cat "$binary.minimal-environment")
+              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then
                 status=0
               else
                 status=$?
@@ -204,6 +214,7 @@ jobs:
           usesh: true
           run: |
             set -eu
+            ulimit -c 0
             uname -a
             test "$(uname -s)" = OpenBSD
             test "$(uname -m)" = amd64
@@ -214,7 +225,8 @@ jobs:
               binary=${probe%.expected}
               echo "Running $binary"
               chmod 755 "$binary"
-              if "$binary" > "$binary.actual"; then status=0; else status=$?; fi
+              minimal=$(cat "$binary.minimal-environment")
+              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then status=0; else status=$?; fi
               expected_status=$(cat "$binary.status")
               if [ "$status" -ne "$expected_status" ]; then exit 1; fi
               cmp "$probe" "$binary.actual"

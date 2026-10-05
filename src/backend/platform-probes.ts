@@ -10,6 +10,8 @@ import {compile} from '../compiler.js';
 import {processTitleProbe} from './process-title-probe.js';
 import {processFinalizationProbeSource,processFinalizationProbeExpected} from './process-finalization-probe.js';
 import {nonaVersion} from '../version.js';
+import {processAbortProbeSource} from './process-abort-probe.js';
+import {processBuiltinProbes} from './process-builtin-probes.js';
 import {compileToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
@@ -30,15 +32,17 @@ export const runtimeProbeSources=[
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
 ] as const;
-export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string;status?:number}[] {
-  const probes:{name:string;image:Uint8Array;expected:string;status?:number}[]=runtimeProbeSources.map(probe=>{
+export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string;status?:number;signal?:string;minimalEnvironment?:boolean}[] {
+  const probes:{name:string;image:Uint8Array;expected:string;status?:number;signal?:string;minimalEnvironment?:boolean}[]=runtimeProbeSources.map(probe=>{
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  probes.push(...processBuiltinProbes(target));
+  {const abort=compile(processAbortProbeSource,{fileName:'process-abort.js',target});if(!abort.ok)throw new Error(JSON.stringify(abort.diagnostics));probes.push({name:'process-abort',image:abort.image,expected:'',status:134,...(!target.startsWith('win32-')?{signal:'SIGABRT'}:{})})}
   const metadata=compile('console.log(process.version,Object.keys(process.versions).join(","),process.versions.nona,process.release.name,process.features.aot,process.features.inspector,process.config.target,Object.isFrozen(process.config))',{fileName:'process-metadata.js',target});if(!metadata.ok)throw new Error(JSON.stringify(metadata.diagnostics));probes.push({name:'process-metadata',image:metadata.image,expected:`v${nonaVersion} nona ${nonaVersion} nona true false ${descriptor.os}-${descriptor.arch} true\n`});
-  probes.push({name:'process-finalization',image:processFinalizationProbeImage(target),expected:processFinalizationProbeExpected});
+  probes.push({name:'process-finalization',image:processFinalizationProbeImage(target),expected:processFinalizationProbeExpected,minimalEnvironment:true});
   const title=processTitleProbe(target),titleImage=compile(title.source,{fileName:'process-title.mjs',target,module:true});if(!titleImage.ok)throw new Error(`${target}/process-title: ${JSON.stringify(titleImage.diagnostics)}`);probes.push({name:'process-title',image:titleImage.image,expected:title.expected});
   if(target.startsWith('win32-')){
     const startup=compile('console.log("process getter");let p=process;console.log("process built",p.platform,typeof p.execve)',{fileName:'process-startup.js',target});

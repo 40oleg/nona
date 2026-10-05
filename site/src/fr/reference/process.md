@@ -222,3 +222,6 @@ Programs that never link the process prelude have no process startup work.
 Once linked, monotonic uptime starts during prelude initialization; metadata
 and environment decoding remain lazy. Node.js 26 black-box oracles check the
 shared API and native CI probes exercise all eight targets.
+
+
+`getBuiltinModule(id)` renvoie le véritable export du module intégré ; les alias partagent son identité et les noms inconnus renvoient `undefined`. `abort()` termine immédiatement sans gestionnaires de cycle de vie : SIGABRT sur POSIX, statut 134 sur Windows.

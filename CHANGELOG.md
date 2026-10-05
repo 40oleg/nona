@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add immediate OS process.abort termination with real POSIX SIGABRT and Windows status134, bypassing JavaScript lifecycle hooks ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add a compiler-linked lazy process.getBuiltinModule registry with real provider defaults, aliases and target capabilities ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Resolve named initgroups memberships directly from local group records and preserve native permission errors without requiring a passwd entry ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Publish genuine build-generated Nona process metadata and share its version with the CLI ([#141](https://github.com/40oleg/nona/issues/141)).

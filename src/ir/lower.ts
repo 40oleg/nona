@@ -282,7 +282,8 @@ class Lowerer {
       const requests=this.arrayOf(module.record.staticRequests.map(index=>this.constant(index)));
       const specifiers=this.arrayOf([...module.record.requests.keys()].map(key=>this.constant(key)));
       const targets=this.arrayOf([...module.record.requests.values()].map(index=>this.constant(index)));
-      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.readStorage(module.namespace),specifiers,targets,module.linkError===undefined?this.constant(undefined):this.constant(module.linkError)]);
+      const builtinAliases=this.arrayOf((module.record.builtinAliases??[]).map(alias=>this.constant(alias)));
+      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.readStorage(module.namespace),specifiers,targets,module.linkError===undefined?this.constant(undefined):this.constant(module.linkError),builtinAliases]);
     }
     const script=this.bound.ast;
     if(!script.module){

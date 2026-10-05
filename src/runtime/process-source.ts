@@ -18,7 +18,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var hostNow=__nonaProcessNow,origin=hostNow();delete globalThis.__nonaProcessNow;
   var ticks=[],tickHead=0;
   var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
-  var defineProperty=Object.defineProperty,fromCharCode=String.fromCharCode,apply=Reflect.apply;
+  var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply;
+  var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has,finalizationPush=Array.prototype.push,finalizationSplice=Array.prototype.splice,finalizationApply=apply;
   // The foreign OS boundary returns 0; native helpers are bound in the image.
   var windows=host.GetCommandLineW()!==0;
   var platform=windows?'win32':'__NONA_PROCESS_PLATFORM__';
@@ -200,7 +201,9 @@ __nonaPromiseDrainJobs=(function(drain){
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
-${processMetadataSource()}
+${processMetadataSource(undefined,true)}
+    value('getBuiltinModule',function getBuiltinModule(id){return __nonaRegexpVm.getBuiltinModule(id)});
+    value('abort',function abort(){if(windows)host.ExitProcess(134);else host.abort()});
     value('pid',windows?host.GetCurrentProcessId():host.sys_getpid());
     value('ppid',parentPid());value('argv0',commandLine[0]);value('execArgv',[]);
     var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
@@ -323,6 +326,7 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['replaceExecEnvironment','nona.internal','replaceExecEnvironment','void(buf,u64,u64)'],['execEnvironmentVector','nona.internal','execEnvironmentVector','ptr()'],
   ];
   list.push(['GetConsoleTitleW','KERNEL32.dll','GetConsoleTitleW','u32(buf,u32)'],['SetConsoleTitleW','KERNEL32.dll','SetConsoleTitleW','bool(buf)'],['SetLastError','KERNEL32.dll','SetLastError','void(u32)']);
+  if(target!=='win32-arm64')list.push(['abort','nona.internal','abort','void()']);
   if(target.startsWith('linux-')||target.startsWith('win32-'))list.push(['sys_prctl','syscall',target==='linux-arm64'?'167':'157','i32(i32,buf,u64,u64,u64)']);
   if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)'],['setenv','/usr/lib/libSystem.B.dylib','setenv','i32(buf,buf,i32)'],['unsetenv','/usr/lib/libSystem.B.dylib','unsetenv','i32(buf)']);
   if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);

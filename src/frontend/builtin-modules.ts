@@ -1,6 +1,8 @@
 import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
+import {CompileError} from '../diagnostics.js';
+import {getTarget,type Target} from '../target.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -81,10 +83,11 @@ export const getActiveResourcesInfo = process.getActiveResourcesInfo, ref = proc
 export const setUncaughtExceptionCaptureCallback = process.setUncaughtExceptionCaptureCallback, hasUncaughtExceptionCaptureCallback = process.hasUncaughtExceptionCaptureCallback;
 export const addUncaughtExceptionCaptureCallback = process.addUncaughtExceptionCaptureCallback;
 export const finalization = process.finalization;
+export const getBuiltinModule = process.getBuiltinModule;
+export const abort = process.abort;
 export const version = process.version, versions = process.versions, release = process.release, features = process.features, config = process.config;
 `;
 
-import type {Target} from '../target.js';
 const sources=new Map<string,(target:Target)=>string>([
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
@@ -94,13 +97,38 @@ const sources=new Map<string,(target:Target)=>string>([
   ['node:process',()=>processModuleSource],
 ]);
 
-export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
+export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier)||sources.has('node:'+specifier);}
+
+/** Resolve provider aliases against the actual implementation for this target. */
+function builtinInventory(target:Target):{path:string;source:string;aliases:string[]}[] {
+ const implemented=new Map<string,string>();
+ for(const [specifier,provider] of sources){
+  if(specifier==='nona:win32'&&getTarget(target)!.os!=='win32')continue;
+  let source:string;
+  try{source=provider(target)}catch(error){
+   if(error instanceof CompileError&&error.diagnostics.every(d=>d.code==='E_HOST_MODULE'))continue;
+   throw error;
+  }
+  implemented.set(specifier,source);
+ }
+ const records=new Map<string,{path:string;source:string;aliases:string[]}>();
+ for(const [specifier,source] of implemented){
+  const nodeAlias='node:'+(specifier.startsWith('nona:')?specifier.slice(5):specifier);
+  const path=!specifier.startsWith('node:')&&implemented.get(nodeAlias)===source?nodeAlias:specifier;
+  let record=records.get(path);if(!record){record={path,source,aliases:[]};records.set(path,record)}
+  for(const alias of [specifier,...(specifier.startsWith('node:')?[specifier.slice(5)]:[])])if(!record.aliases.includes(alias))record.aliases.push(alias);
+ }
+ return [...records.values()];
+}
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
 export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
+  const inventory=builtinInventory(target),aliases=new Map(inventory.flatMap(record=>record.aliases.map(alias=>[alias,record] as const)));
   return {
-    resolve:(specifier,referrer)=>sources.has(specifier)?specifier:host.resolve(specifier,referrer),
-    read:path=>sources.get(path)?.(target)??host.read(path),
+    resolve:(specifier,referrer)=>aliases.get(specifier)?.path??(sources.has(specifier)?specifier:host.resolve(specifier,referrer)),
+    read:path=>aliases.get(path)?.source??sources.get(path)?.(target)??host.read(path),
+    builtinAliases:path=>aliases.get(path)?.aliases,
+    builtinCandidates:()=>inventory.map(record=>record.path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };
 }
