@@ -36,7 +36,8 @@ const probes={
  'blob-native-endings':String.raw`new Blob(['a\rb\r\nc\n'],{endings:'native'}).text().then(s=>console.log(JSON.stringify(s)));`,
  'combined-markers':`let b=Buffer.from('hé😀'),s=b.subarray(0,1);s[0]=72;let n=Buffer.allocUnsafe(32,64);n.writeUIntLE(0x123456,0,3);n.writeDoubleBE(1.5,4);n.writeBigInt64LE(-123n,16);let a=Buffer.from('abcabc'),blob=new Blob([b]),file=new File([blob],'x',{lastModified:12});blob.text().then(x=>{console.log('text',x);let id=URL.createObjectURL(blob);console.log('before revoke');URL.revokeObjectURL(id);console.log('before r declaration');let r;console.log('before stream');let stream=blob.stream();console.log('before getReader');try{r=stream.getReader({mode:'byob'})}catch(e){console.log('reader failed',e.name,e.code,e.message);throw e}console.log('before view');let v=new Uint8Array(16);console.log('before read');let p=r.read(v);console.log('detached',v.byteLength);p.then(q=>{console.log('result',q.done,Buffer.from(q.value).toString());r.releaseLock();blob.textStream().getReader().read().then(t=>console.log(t.done,t.value))})});`,
 };
-probes['stream-state']=runtimeProbeSources.find(probe=>probe.name==='buffer-stream-state').source;
+const streamStateProbe=runtimeProbeSources.find(probe=>probe.name==='buffer-stream-state');
+probes['stream-state']=streamStateProbe.source;
 const directory=resolve('work/buffer-native-diagnostics',target);mkdirSync(directory,{recursive:true});let failed=false;
 for(const [name,source] of Object.entries(probes))for(const gcStress of [false,true]){
  const id=name+(gcStress?'-stress':'-normal'),{result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));
@@ -45,7 +46,8 @@ for(const [name,source] of Object.entries(probes))for(const gcStress of [false,t
  const file=join(directory,id+(descriptor.os==='win32'?'.exe':''));writeFileSync(file,image);
  if(compileOnly){console.log('compiled',id,image.length);continue}
  chmodSync(file,0o755);const start=Date.now(),run=spawnSync(file,[],{encoding:'utf8',timeout:60000,windowsHide:true});
- console.log(JSON.stringify({id,elapsed_ms:Date.now()-start,status:run.status,signal:run.signal,stdout:run.stdout,stderr:run.stderr,error:run.error?.message}));
- if(run.status!==0||run.error)failed=true;
+ const outputMatches=name==='stream-state'?run.stdout===streamStateProbe.expected:undefined;
+ console.log(JSON.stringify({id,elapsed_ms:Date.now()-start,status:run.status,signal:run.signal,stdout:run.stdout,stderr:run.stderr,error:run.error?.message,outputMatches}));
+ if(run.status!==0||run.error||outputMatches===false)failed=true;
 }
 if(failed)process.exitCode=1;
