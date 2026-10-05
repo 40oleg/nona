@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve Nona's logical call ABI for Windows ARM64 process helpers and unavailable syscall stubs; retain native marshaling for actual Windows imports ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Use bounded original scanners for process account IDs and Linux memory fields under GC stress; keep source boundary fixtures current with native environment ownership ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Add real POSIX process.execve with original UTF-8 argv/envp ownership, coded nonfatal syscall errors and safe native self-reexecution probes ([#141](https://github.com/40oleg/nona/issues/141)).

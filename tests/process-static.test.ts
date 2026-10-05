@@ -6,6 +6,7 @@ import {runtimeRegExpLink} from '../src/runtime/link.js';
 import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {captureProcessStartup} from '../src/runtime/process-host.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
+import {Arm64Assembler,arm64Registers} from '../src/backend/arm64/assembler.js';
 import {processNativeHelpers} from '../src/runtime/process-host.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
@@ -114,6 +115,15 @@ test('Darwin initgroups forwards named users to OS permission handling before us
  assert.throws(()=>runInContext('process.initgroups("nona_missing_user_81763",20)',context),{code:'EPERM',syscall:'initgroups'});
  assert.deepEqual(calls,['nona_missing_user_81763']);
  assert.throws(()=>runInContext('process.initgroups({},20)',context),{code:'ERR_INVALID_ARG_TYPE'});
+});
+test('Windows ARM imports preserve logical internal/syscall calls and native OS marshaling',()=>{
+ const words=(bytes:Uint8Array)=>Array.from({length:bytes.length/4},(_,i)=>new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getUint32(i*4,true));
+ for(const symbol of ['hostffi.nona.internal!replaceEnvironment','hostffi.syscall!1','ffi.syscall!1','CreateThread']){
+  const assembler=new Arm64Assembler('logical','win32');assembler.callImport(symbol,['gp','gp','gp']);const fragment=assembler.finish(),instructions=words(fragment.bytes);
+  assert.ok(fragment.fixups.some(item=>item.target===symbol));assert.ok(instructions.includes(0xf900039e),'logical return address stored at x28');assert.ok(instructions.includes((0xd61f0000|(arm64Registers.r11<<5))>>>0),'logical branch through import pointer');assert.ok(!instructions.includes(0xd63f0200),'no native BLR marshaling');
+ }
+ const native=new Arm64Assembler('native','win32');native.callImport('hostffi.kernel32.dll!GetModuleFileNameW',['gp','gp','gp']);const fragment=native.finish(),instructions=words(fragment.bytes);
+ assert.ok(instructions.includes(0xd63f0200),'real Windows import uses native BLR');assert.ok(!instructions.includes(0xf900039e),'native bridge has no logical return slot');assert.ok(fragment.fixups.some(item=>item.target==='hostffi.kernel32.dll!GetModuleFileNameW'));
 });
 test('Windows ARM process startup diagnostic compiles with enforced phase output',()=>{
  const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.ok(probe.expected.includes('process init native environment\nprocess init extensions\nprocess built win32 undefined\n'));
