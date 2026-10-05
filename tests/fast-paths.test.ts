@@ -444,6 +444,11 @@ Array.prototype[3]="p";const q=[0,1,2];q.push(9);log(q[3],q.length,q.pop(),q.pop
 const r=[1,2,3];r.length=1;log(r.pop(),r.length,r.pop(),r.length,r.pop());
 const g=[1,2];Object.defineProperty(g,"1",{get(){return "g"},configurable:true});log(g.pop(),g.length);
 `,
+ 'integer remainder':`
+const v=[5,-5,0,-0,5.5,1e20,2**53,NaN,Infinity,-Infinity,3,-3,1,"7",null,true,2**31,-(2**31),4294967296];
+const out=[];for(const x of v)for(const y of v)out.push(Object.is(x%y,-0)?"-0":String(x%y));console.log(out.join(","));
+let s=0;for(let i=0;i<1000;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
