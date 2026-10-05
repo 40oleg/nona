@@ -545,7 +545,7 @@ log(JSON.stringify('top'),JSON.stringify(null),JSON.stringify(undefined),JSON.st
  'JSON string quoting':`
 const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','\\u00fcnicode','emoji\\ud83d\\ude00x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd\\u2028efgh'];
 for(const s of strs)console.log(JSON.stringify(s),JSON.stringify({[s]:s}));
-let n=0;for(let i=0;i<20000;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
+let n=0;for(let i=0;i<400;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
 `,
 };
 

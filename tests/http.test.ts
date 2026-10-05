@@ -27,9 +27,13 @@ const server = http.createServer((req, res) => {
     res.setHeader('X-Test', ['a', 'b']);
     res.end('hello ' + req.method + ' ' + body);
   });
-  req.on('close', () => console.log('server: req close'));
+  // Node.js 22 closes the response first and Node.js 26 the request: only
+  // that both close is compared.
+  let closed = 0;
+  const close = () => { if (++closed === 2) console.log('server: req and res close'); };
+  req.on('close', close);
   res.on('finish', () => console.log('server: res finish', res.writableFinished));
-  res.on('close', () => console.log('server: res close'));
+  res.on('close', close);
 });
 let port;
 server.listen(0, '127.0.0.1', () => {
