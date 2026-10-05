@@ -53,6 +53,8 @@ Nona разбирает JavaScript, переводит его в собстве�
 | macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
 | FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
 
+В [браузерной песочнице](https://40oleg.github.io/nona/playground) можно собрать и скачать программу для любой из этих восьми целей без установки Nona.
+
 Один Linux-бинарник для выбранного процессора подходит для Mint, Ubuntu, Debian, Fedora и Alpine; отдельная сборка для каждого дистрибутива не нужна.
 
 ## Сборка
