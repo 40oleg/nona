@@ -81,6 +81,12 @@ const e=new EventEmitter(),signal=new Signal();once(e,'x',{signal}).catch(x=>con
 const original=process.emitWarning;process.emitWarning=w=>console.log(w.name,w.count,w.type,w.emitter===e);
 const e=new EventEmitter().setMaxListeners(1);const f=()=>{};e.on('x',f).on('x',f).on('x',f);e.removeAllListeners('x');e.on('x',f).on('x',f);process.emitWarning=original;
 `],
+ ['constructor options, default helper limits and watermark validation', `
+for(const options of [undefined,null,false,1,'x',{}])console.log(new EventEmitter(options).getMaxListeners());
+console.log(setMaxListeners());
+for(const n of [0,-1,NaN,'x',1.1]){try{on(new EventEmitter(),'x',{highWaterMark:n})}catch(e){console.log(e.name,e.code)}}
+for(const n of [0,-1,NaN,'x',1.1]){try{on(new EventEmitter(),'x',{lowWaterMark:n})}catch(e){console.log(e.name,e.code)}}
+`],
  ['iterator pending requests, return and errors', `
 async function run(){const e=new EventEmitter(),it=on(e,'x');const p=it.next();e.emit('x',9);console.log((await p).value.join());await it.return();console.log((await it.next()).done,e.eventNames().length);
 const jt=on(e,'y');e.emit('y',1);e.emit('error',new Error('bad'));console.log((await jt.next()).value.join());try{await jt.next()}catch(x){console.log(x.message)}console.log((await jt.next()).done);}

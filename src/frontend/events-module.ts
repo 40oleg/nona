@@ -14,7 +14,7 @@ function init(emitter) { if (!Object.prototype.hasOwnProperty.call(emitter, '_ev
 export function EventEmitter(options) {
   init(this);
   this._maxListeners = undefined;
-  const enabled = options && options.captureRejections;
+  const enabled = options == null ? undefined : options.captureRejections;
   if (enabled !== undefined && typeof enabled !== 'boolean') throw invalid('options.captureRejections');
   this[capture] = enabled === undefined ? captureRejections : enabled;
 }
@@ -119,7 +119,7 @@ EventEmitter.prototype.getMaxListeners = function() { return this._maxListeners 
 export function listenerCount(emitter, name) { return emitter.listenerCount(name); }
 export function getEventListeners(emitter, name) { if (typeof emitter.listeners === 'function') return emitter.listeners(name); throw invalid('emitter'); }
 export function getMaxListeners(emitter) { if (typeof emitter.getMaxListeners === 'function') return emitter.getMaxListeners(); throw invalid('emitter'); }
-export function setMaxListeners(n, ...targets) { checkMax(n); if (!targets.length) defaultMaxListeners = n; else for (const target of targets) target.setMaxListeners(n); }
+export function setMaxListeners(n = defaultMaxListeners, ...targets) { checkMax(n); if (!targets.length) defaultMaxListeners = n; else for (const target of targets) target.setMaxListeners(n); }
 function abortError(signal) { const e = new Error('The operation was aborted'); e.name = 'AbortError'; e.code = 'ABORT_ERR'; e.cause = signal.reason; return e; }
 function subscribe(target, name, listener) { if (typeof target.on === 'function') target.on(name, listener); else target.addEventListener(name, listener); }
 function unsubscribe(target, name, listener) { if (typeof target.removeListener === 'function') target.removeListener(name, listener); else target.removeEventListener(name, listener); }
@@ -143,6 +143,10 @@ export function on(emitter, name, options) {
   let ended = false, failure, paused = false;
   const high = options.highWaterMark === undefined ? Number.MAX_SAFE_INTEGER : options.highWaterMark;
   const low = options.lowWaterMark === undefined ? 1 : options.lowWaterMark;
+  for (const mark of [high, low]) {
+    if (typeof mark !== 'number') throw invalid('watermark');
+    if (!Number.isSafeInteger(mark) || mark < 1) { const e = new RangeError('The watermark is out of range'); e.code = 'ERR_OUT_OF_RANGE'; throw e; }
+  }
   function cleanup() { unsubscribe(emitter, name, event); if (name !== 'error' && typeof emitter.on === 'function') unsubscribe(emitter, 'error', error); for (const key of close) unsubscribe(emitter, key, finish); if (signal) signal.removeEventListener('abort', aborted); }
   function finish() { if (ended) return; ended = true; cleanup(); while (waiting.length) waiting.shift().resolve({value:undefined,done:true}); }
   function error(value) { if (ended) return; failure = value; ended = true; cleanup(); if (waiting.length) { waiting.shift().reject(value); failure = undefined; while (waiting.length) waiting.shift().resolve({value:undefined,done:true}); } }
