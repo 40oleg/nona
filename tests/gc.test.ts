@@ -82,7 +82,7 @@ for(const source of [
 });
 
 for(const [name,source,requireCollection] of [
- ['allocation pressure','function work(){let total=0;for(let i=0;i<2000;i++){let o={text:""+i};o.self=o;let a=[o,o];total+=+a[0].text;}return total;}console.log(work());',true],
+ ['allocation pressure','function work(){let total=0;for(let i=0;i<40000;i++){let o={text:""+i};o.self=o;let a=[o,o];total+=+a[0].text;}return total;}console.log(work());',true],
  ['expired top-level blocks','{let a={x:1};}for(let a={x:2};false;){}outer:{const a={x:3};break outer;}console.log("released");',false],
 ] as const)test(`exited scopes retain no heap roots: ${name}`,()=>{
  const program=generate(lower(bind(parse(lex(source)))));

@@ -60,6 +60,15 @@ import {stringNormalizeRoots,stringNormalizePropertyRoots} from './string-normal
 import {stringLocaleCompareRoots,stringLocaleComparePropertyRoots} from './string-locale-compare.js';
 import {stringReplaceRoots,stringReplacePropertyRoots} from './string-replace.js';
 
+/**
+ * The next collection runs when the managed heap reaches twice the bytes
+ * that survived the last one, and never below this. Every collection marks
+ * all live objects, so a small floor made programs that churn short-lived
+ * buffers (a server receiving request bodies) collect every few hundred
+ * kilobytes of garbage.
+ */
+export const minimumGcThreshold=8<<20;
+
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 /** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
 export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
@@ -67,7 +76,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   b.data('rt.'+name,new Uint8Array(8),'.data');
  // Nonzero once a cloned realm is initialized; the main realm is always live.
  b.data('rt.realmReady',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
- const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,1048576n,true);
+ const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,BigInt(minimumGcThreshold),true);
  b.data('rt.gcThreshold',threshold,'.data');
 
  // Only typed pointers reach this function. A string descriptor can be interior
@@ -335,7 +344,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(ephemerons);a.call('rt.gcPendingFree');a.call('rt.gcPruneWeakEntries');
   a.label(sweep);a.call('rt.gcSweep');a.call('rt.keyHashCacheClear');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
-  const thresholdReady=a.unique('thresholdReady');a.cmp('rax',1048576);a.jcc('ae',thresholdReady);a.mov('rax',1048576);
+  const thresholdReady=a.unique('thresholdReady');a.cmp('rax',minimumGcThreshold);a.jcc('ae',thresholdReady);a.mov('rax',minimumGcThreshold);
   a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');
  });
  b.fn('rt.safepoint',40,a=>{
