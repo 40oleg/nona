@@ -4,11 +4,14 @@ $abortWerPath = 'HKCU:\Software\Microsoft\Windows\Windows Error Reporting'
 $abortWerExisted = Test-Path -LiteralPath $abortWerPath
 $abortWerCreated = $false
 $abortWerOriginal = @{}
+$abortWerPresent = @{}
 $abortWerModified = @()
 try {
     if (-not $abortWerExisted) { New-Item -Path $abortWerPath -Force | Out-Null; $abortWerCreated = $true }
     foreach ($abortWerName in @('Disabled', 'DontShowUI')) {
-        $abortWerOriginal[$abortWerName] = Get-ItemPropertyValue -LiteralPath $abortWerPath -Name $abortWerName -ErrorAction SilentlyContinue
+        $abortWerKey = Get-Item -LiteralPath $abortWerPath
+        $abortWerPresent[$abortWerName] = $abortWerKey.GetValueNames() -contains $abortWerName
+        $abortWerOriginal[$abortWerName] = $abortWerKey.GetValue($abortWerName, $null)
         $abortWerModified += $abortWerName
         New-ItemProperty -LiteralPath $abortWerPath -Name $abortWerName -Value 1 -PropertyType DWord -Force | Out-Null
     }
@@ -16,7 +19,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Node abort oracle failed' }
 } finally {
     foreach ($abortWerName in $abortWerModified) {
-        if ($null -eq $abortWerOriginal[$abortWerName]) { Remove-ItemProperty -LiteralPath $abortWerPath -Name $abortWerName -ErrorAction SilentlyContinue }
+        if (-not $abortWerPresent[$abortWerName]) { Remove-ItemProperty -LiteralPath $abortWerPath -Name $abortWerName -ErrorAction SilentlyContinue }
         else { New-ItemProperty -LiteralPath $abortWerPath -Name $abortWerName -Value $abortWerOriginal[$abortWerName] -PropertyType DWord -Force | Out-Null }
     }
     if ($abortWerCreated) {
