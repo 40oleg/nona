@@ -40,6 +40,8 @@ console.log('aggregate',box.p[key]('process')===process,roots[0][rootKey][key]('
 console.log('reflected',Reflect.get(globalThis,rootKey)[key]('process')===process);
 `;
  return [
+  {name:"process-builtin-00-startup",source:'console.log("startup entry");globalThis.__nonaProcessStartupTrace=true;console.log("startup platform",process.platform);delete globalThis.__nonaProcessStartupTrace;',module:false,expected:"startup entry\nprocess init begin\nprocess init host read\nprocess init host decoded\nprocess init extensions\nprocess init ready\nstartup platform "+os+"\n"},
+  {name:"process-builtin-01-inventory",source:'console.log("inventory entry");globalThis.__nonaProcessStartupTrace=true;const lookup=process.getBuiltinModule;console.log("inventory identity",lookup("process")===process);delete globalThis.__nonaProcessStartupTrace;',module:false,expected:"inventory entry\nprocess init begin\nprocess init host read\nprocess init host decoded\nprocess init extensions\nprocess init ready\ninventory identity true\n"},
   {name:'process-builtin-literal',source:literal,module:true,expected:'process true true true true\n'+(filesystem?'fs true true true true\n':'fs undefined\n')+'unknown true true true\n'},
   {name:'process-builtin-dynamic',source:dynamic,module:false,expected:'dynamic true true '+(filesystem?'object':'undefined')+'\nnamespace true function function\nvalidation 7 true true\nwin32 true\n'},
  {name:'process-builtin-escaped',source:escaped,module:false,expected:'escaped true true\naggregate true true\nreflected true\n'},

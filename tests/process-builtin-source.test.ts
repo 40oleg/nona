@@ -152,7 +152,7 @@ test('Nona-only providers without a default return their real namespace and link
 });
 
 test('literal actual-default native fixture matches the Node26 module oracle',()=>{
- const probe=processBuiltinProbeCases('win32-x64')[0]!;
+ const probe=processBuiltinProbeCases('win32-x64').find(probe=>probe.name==='process-builtin-literal')!;
  const source=probe.source.replace(/nona:process/g,'node:process').replace(/nona:fs/g,'node:fs');
  const result=spawnSync(process.execPath,['--input-type=module','-e',source],{encoding:'utf8',windowsHide:true});
  assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,probe.expected);
@@ -167,7 +167,7 @@ for(const target of supportedNativeTargets)test('actual public builtin GC-stress
  const unlinked=collectSourceUsage(()=>compileToIR('console.log(1)',undefined,emptyHost,target));
  const bare=withNativeTarget(target,()=>generate(unlinked.result,{gcStress:true,link:unlinked.usage}));
  assert.ok(!bare.fragments.some(fragment=>fragment.name==='process.finalization.code'),target+' must retain independent cached runtime selection');
- const probes=processBuiltinProbes(target);assert.equal(probes.length,4);
+ const probes=processBuiltinProbes(target);assert.equal(probes.length,6);
  for(const probe of probes){assert.ok(probe.image.length>1024);assert.ok(probe.expected.endsWith('\n'))}
  const image=probes[0]!.image;
  if(target.startsWith('win32-'))assert.deepEqual(Array.from(image.subarray(0,2)),[0x4d,0x5a]);

@@ -85,7 +85,10 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
  fn('linux.VirtualAlloc.code',88,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
   const bad=a.unique('bad'),done=a.unique('done'),noHead=a.unique('noHead'),noTail=a.unique('noTail');
-  a.test('rcx','rcx');a.jcc('ne',bad);a.cmp('r8',0x3000);a.jcc('ne',bad);a.cmp('r9',4);a.jcc('ne',bad);a.store(slot(56),'rdx');
+  a.test('rcx','rcx');a.jcc('ne',bad);a.cmp('r8',0x3000);a.jcc('ne',bad);a.cmp('r9',4);a.jcc('ne',bad);
+  // Trimming must begin after the last live page. FreeBSD munmap accepts
+  // unaligned addresses and would otherwise remove that page as well.
+  a.add('rdx',pageSize-1);a.and('rdx',-pageSize);a.store(slot(56),'rdx');
   a.mov('rdi',0);a.mov('rsi','rdx');a.add('rsi',1<<16);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);systemCall(a,9);
   a.cmp('rax',-4095);a.jcc('ae',bad);a.store(slot(64),'rax');
   a.mov('r10','rax');a.add('r10',0xffff);a.and('r10',-65536);a.store(slot(72),'r10');

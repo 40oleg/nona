@@ -67,6 +67,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var decoder=new TextDecoder(),encoder=new TextEncoder(),created=null;
   // Built on first access, so programs that never use process pay nothing at startup.
   function build(){
+    function startupPhase(name){if(globalThis.__nonaProcessStartupTrace===true)console.log("process init",name)}
+    startupPhase("begin");
     function copyProcessBytes(source,target,offset){__nonaRegexpVm.arrayBufferCopy(source.buffer,target.buffer,source.byteOffset,source.byteLength,target.byteOffset+(offset||0))}
     function cstring(text){var bytes=encoder.encode(text),out=new Uint8Array(bytes.length+1);copyProcessBytes(bytes,out,0);return out}
     function readProc(path){
@@ -104,6 +106,7 @@ __nonaPromiseDrainJobs=(function(drain){
       var code=codes[number]||'UNKNOWN',error=new Error(code+': '+syscall+(path===undefined?'':" '"+path+"'"));error.code=code;error.errno=-number;error.syscall=syscall;if(path!==undefined)error.path=path;return error
     }
     function argumentError(code,message,range){var error=range?new RangeError(message):new TypeError(message);error.code=code;return error}
+    startupPhase("host read");
     var execPath,commandLine,environment;
     if(windows){
       var path=new Uint16Array(32768),length=host.GetModuleFileNameW(null,path,32768);
@@ -135,6 +138,7 @@ __nonaPromiseDrainJobs=(function(drain){
     }
     var argv=[execPath];
     for(var a=1;a<commandLine.length;a++)argv[argv.length]=commandLine[a];
+    startupPhase("host decoded");
     var env={};
     for(var e=0;e<environment.length;e++){
       var entry=environment[e],eq=entry.indexOf('=',1);
@@ -210,7 +214,9 @@ ${processMetadataSource(undefined,true)}
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});
     value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
+    startupPhase("extensions");
 ${processExtensionsSource}
+    startupPhase("ready");
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}
