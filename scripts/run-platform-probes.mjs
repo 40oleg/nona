@@ -22,7 +22,8 @@ for(const probe of manifest.runtime?.[target]??[]){
   if(probe.status!==undefined&&(!Number.isInteger(probe.status)||probe.status<0||probe.status>255))throw new Error('Invalid runtime probe status');
   const file=join(directory,probe.file);chmodSync(file,0o755);
   const env=probe.minimalEnvironment?(process.platform==='win32'?{SystemRoot:process.env.SystemRoot}:{}):process.env;
-  const result=spawnSync(file,[],{encoding:'utf8',timeout:15000,windowsHide:true,env});
+  const timeout=probe.file.includes('-buffer')?60000:15000;
+  const result=spawnSync(file,[],{encoding:'utf8',timeout,windowsHide:true,env});
   const terminated=probe.signal?result.status===null&&result.signal===probe.signal:result.status===(probe.status??0);
   if(result.error||!terminated||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);
   console.log(`Native execution probe passed: ${probe.file}`);

@@ -3,6 +3,7 @@ import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {CompileError} from '../diagnostics.js';
 import {getTarget,type Target} from '../target.js';
+import {bufferModuleSource} from './buffer-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -89,6 +90,9 @@ export const version = process.version, versions = process.versions, release = p
 `;
 
 const sources=new Map<string,(target:Target)=>string>([
+  ['node:buffer',()=>bufferModuleSource],
+  ['buffer',()=>bufferModuleSource],
+  ['nona:buffer',()=>bufferModuleSource],
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],

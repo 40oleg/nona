@@ -27,10 +27,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | 定时器 id | 数字 | `Timeout` 对象 |
 | `readFileSync(path)` | 返回 `Uint8Array` | 返回 `Buffer` |
-| 编码 | 仅 `utf8` | 多种 |
+| 编码 | 仅 `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | 多种 |
 | Windows 上的错误消息 | 包含原样传入的路径 | 包含绝对路径 |
-| 模块 | `nona:*`、`node:fs`、`node:process` 和相对路径文件 | 全部 `node:*` 模块和 npm 包 |
-| `require`、`Buffer`、`node:path` | 不可用 | 可用 |
+| 模块 | `nona:*`、`node:fs`、`node:process`、`node:buffer` 和相对路径文件 | 全部 `node:*` 模块和 npm 包 |
+| `require`、`node:path` | 不可用 | 可用 |
 | 没有标准输出时的 `console.log` | 输出被丢弃 | 输出被丢弃或抛出错误 |
 
 ## 性能
@@ -55,3 +55,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

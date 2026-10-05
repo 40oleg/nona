@@ -9,8 +9,8 @@ import {SharedArrayBufferKind} from './shared-array-buffer.js';
 
 export const ArrayBufferKind=11;
 export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,detached:O.size+16,size:O.size+24} as const;
-export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn','rt.arrayBufferDetach.fn'];
-export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferDetach.fn','__nonaDetachInternal','rt.ArrayBuffer')];
+export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn','rt.arrayBufferDetach.fn','rt.arrayBufferAlignment.fn'];
+export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferDetach.fn','__nonaDetachInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferAlignment.fn','__nonaAlignmentInternal','rt.ArrayBuffer')];
 
 export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
  const bytes=new Uint8Array(O.size);
@@ -20,6 +20,18 @@ export function emitArrayBufferPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitArrayBuffer(b:RuntimeBuilder):void {
+ // Returns the byte offset that aligns an ArrayBuffer's backing address.
+ // No call can allocate here, and the owning ArrayBuffer retains the whole block.
+ prependFunctionBuiltin(b,'rt.arrayBufferAlignment.fn','__nonaAlignmentInternal',2,'rt.ArrayBuffer');
+ b.fn('rt.arrayBufferAlignment.fn.code',40,a=>{
+  a.cmp('rdx',2);failIf(a,'b','rt.throwTypeError');
+  a.load('rax',{base:'r8'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r8',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ArrayBufferKind);failIf(a,'ne','rt.throwTypeError');
+  a.load('rax',{base:'r8',disp:16});a.cmp('rax',3);failIf(a,'ne','rt.throwTypeError');
+  a.movsd('xmm0',{base:'r8',disp:24});a.cvttsd2si('r11','xmm0');a.sub('r11',1);
+  a.load('rax',{base:'r10',disp:ArrayBufferLayout.bytes});a.neg('rax');a.and('rax','r11');a.cvtsi2sd('xmm0','rax');
+  a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+ });
  prependFunctionBuiltin(b,'rt.arrayBufferDetach.fn','__nonaDetachInternal',1,'rt.ArrayBuffer');
  b.fn('rt.arrayBufferDetach.fn.code',40,a=>{
   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');

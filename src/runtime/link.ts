@@ -23,6 +23,7 @@ export interface RuntimeLink {
 export const preludeTriggers={
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
+  buffer:['Buffer','Blob','File','URL','ReadableStream','ReadableStreamDefaultReader','ReadableStreamBYOBReader','WritableStream','WritableStreamDefaultWriter','node:buffer','nona:buffer','bufferModule'],
   process:['process'],
   // Timers installs enumerable globals, which a program can list through globalThis.
   timers:['setTimeout','setInterval','setImmediate','clearTimeout','clearInterval','clearImmediate','queueMicrotask','performance','globalThis'],
@@ -36,10 +37,10 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers']};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers'],buffer:['encoding']};
 /** Process parses dotenv/memory text and validates masks with original regexes. */
-export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]){
- const regexp=link.regexp||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
+export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]=[]){
+ const regexp=link.regexp||link.preludes.buffer||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
 }
 /**
  * Names that enumerate built-ins: a program using one could observe a missing

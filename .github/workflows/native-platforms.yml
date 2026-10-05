@@ -98,6 +98,8 @@ jobs:
           node scripts/run-platform-probes.mjs ${{ matrix.target }}
       - name: Core runtime oracle suites
         run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
+      - name: Buffer and Blob oracle suites
+        run: node --test dist/tests/buffer.test.js
       # These exercise byte memory/FP conversions and the large Unicode/RegExp
       # preludes in addition to the CPU, math, GC and coroutine probes.
       - name: Portable language and built-in oracle suites

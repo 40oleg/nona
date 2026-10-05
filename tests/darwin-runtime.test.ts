@@ -4,7 +4,7 @@ import {compile,compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {linkHost} from './helpers/program.js';
-import {runtimeProbes} from '../src/backend/platform-probes.js';
+import {runtimeProbes,runtimeProbeSources} from '../src/backend/platform-probes.js';
 test('host-link helper preserves the Darwin ARM64 CPU for native oracle suites',()=>{
  const program=withNativeTarget('darwin-arm64',()=>generate(compileToIR('console.log(42)',undefined,undefined,'darwin-arm64')));
  const image=linkHost(program,'darwin-arm64');assert.equal(new DataView(image.buffer).getUint32(4,true),0x100000c);
