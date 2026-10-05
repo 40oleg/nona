@@ -2,7 +2,14 @@
 
 ## Unreleased
 
+- Resolve named initgroups memberships directly from local group records and preserve native permission errors without requiring a passwd entry ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Publish genuine build-generated Nona process metadata and share its version with the CLI ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add process lifecycle finalization with original native weak-key tracking and callback release; match `execve` function reflection ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Use native bounded copies for process OS file buffers under GC stress, and expose Windows `process.execve` with Node 26's coded platform error ([#141](https://github.com/40oleg/nona/issues/141)).
+- Add original OS-backed process.title operations and independently observable native probes on all eight targets ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Preserve Nona's logical call ABI for Windows ARM64 process helpers and unavailable syscall stubs; retain native marshaling for actual Windows imports ([#141](https://github.com/40oleg/nona/issues/141)).
 - Dispatch process exception monitors/capture callbacks and promise rejection lifecycle events from original native entry and job boundaries; preserve Node fatal statuses and promise identities ([#141](https://github.com/40oleg/nona/issues/141)).

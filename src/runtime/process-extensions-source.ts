@@ -1,6 +1,7 @@
 /** Original process I/O, events and OS controls; inserted inside build(). */
 import {processSystemSource} from './process-system-source.js';
 import {processExceptionsSource} from './process-exceptions-source.js';
+import {processFinalizationSource} from './process-finalization-source.js';
 export const processExtensionsSource=String.raw`
     function emitter(object){
       var events=new Map(),maximum=10;
@@ -163,4 +164,5 @@ ${processSystemSource}
     beforeExitCallback=function(){process.emit('beforeExit',process.exitCode||0)};
     exitCallback=function(code){process.emit('exit',code)};
 ${processExceptionsSource}
+${processFinalizationSource}
 `;

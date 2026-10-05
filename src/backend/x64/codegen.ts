@@ -644,6 +644,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       const helpers=processNativeHelpers().bundle;fragments.push(...helpers.fragments);functions.push(...helpers.functions);
       for(const h of internal)fragments.push({name:'hostffi'+ffiImportSymbol(h.declaration).slice(3),section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[{offset:0,kind:'va64',target:'process.'+h.declaration.name+'.code',addend:0}]});
       hostGlobal('__nonaProcessNow','rt.hostNow.code',0);
+      hostGlobal('__nonaProcessFinalization','process.finalization.code',3);
     }
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
   }

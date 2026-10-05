@@ -16,7 +16,9 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
-import {runtimeProbes,processExceptionProbes} from '../src/backend/platform-probes.js';
+import {runtimeProbes,processExceptionProbes,processFinalizationProbeImage} from '../src/backend/platform-probes.js';
+import {processTitleProbe} from '../src/backend/process-title-probe.js';
+
 import {emitRuntime} from '../src/runtime/index.js';
 import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle,processExceptionOracle,processRejectionOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
@@ -104,7 +106,7 @@ test('original local account parser resolves names and collects supplementary gr
  assert.deepEqual(calls,[['uid',501],['gid',20],['groups',2,20,40],['groups',3,0,20,40],['groups',3,0,20,40]]);
  assert.throws(()=>runInContext('process.setuid("unknown")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
  assert.throws(()=>runInContext('process.setgid("invalid")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
- assert.throws(()=>runInContext('process.initgroups("unknown",0)',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
+ runInContext('process.initgroups("unknown",0)',context);assert.deepEqual(calls.at(-1),['groups',1,0]);
  assert.throws(()=>runInContext('process.setuid("alice\\0suffix")',context),{code:'ERR_INVALID_ARG_VALUE'});
 });
 test('Darwin account adapters copy OS TLS records and use native initgroups',()=>{
@@ -147,6 +149,23 @@ test('uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI',()=
 });
 test('Windows ARM process startup compiles with enforced public getter output',()=>{
  const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.equal(probe.expected,'process getter\nprocess built win32 function\n');
+});
+test('process title coercion and truncation use real writable argument storage',()=>{
+ let stored='original';const calls:unknown[][]=[];const context=mockProcess({__nonaHost_titleCapacity:()=>32,__nonaHost_titleAddress:()=>1000,__nonaHost_length:()=>new TextEncoder().encode(stored).length,__nonaHost_copy:(out:Uint8Array)=>out.set(new TextEncoder().encode(stored)),__nonaHost_sys_prctl:(...args:unknown[])=>{calls.push(args);return 0},__nonaHost_writeArgumentTitle:(bytes:Uint8Array,length:number,capacity:number)=>{assert.equal(capacity,32);stored=new TextDecoder().decode(bytes.subarray(0,length))}});
+ const source='for(let value of [undefined,null,7,true,{},"abc\\0def",""]){process.title=value;console.log(JSON.stringify(process.title))}try{process.title=Symbol("title")}catch(error){console.log(error.name)}';const output:string[]=[];context.console={log:(...args:unknown[])=>output.push(args.join(' '))};runInContext(source,context);assert.equal(output.join('\n')+'\n',runOracle(source).stdout);assert.equal(calls.length,7);
+});
+test('Windows titles update real console state and retain cached values without a console',()=>{
+ let stored='original',error=0,missing=false;const calls:string[]=[];
+ const context=mockProcess({__nonaHost_GetCommandLineW:()=>1000,__nonaHost_GetModuleFileNameW:()=>0,__nonaHost_lstrlenW:()=>0,__nonaHost_RtlMoveMemory:()=>{},__nonaHost_GetEnvironmentStringsW:()=>0,__nonaHost_GetCurrentProcessId:()=>123,__nonaHost_NtQueryInformationProcess:()=>0,__nonaHost_SetLastError:(value:number)=>error=value,__nonaHost_GetLastError:()=>error,
+ __nonaHost_GetConsoleTitleW:(units:Uint16Array)=>{if(missing){error=6;return 0}for(let i=0;i<stored.length;i++)units[i]=stored.charCodeAt(i);return stored.length},__nonaHost_SetConsoleTitleW:(units:Uint16Array)=>{if(missing){error=6;return false}stored='';for(let i=0;i<units.length&&units[i];i++)stored+=String.fromCharCode(units[i]!);calls.push(stored);return true}},'win32-arm64');
+ runInContext('process.title="nona Ω"',context);assert.equal(stored,'nona Ω');assert.equal(runInContext('process.title',context),'nona Ω');assert.deepEqual(calls,['nona Ω']);stored='external console title';assert.equal(runInContext('process.title',context),'nona Ω');missing=true;runInContext('process.title="headless"',context);assert.equal(runInContext('process.title',context),'headless');
+});
+test('BSD titles publish native ps_strings and FreeBSD kernel argument cache',()=>{
+ for(const target of ['freebsd-x64','openbsd-x64']){
+  const calls:unknown[][]=[];const context=mockProcess({__nonaHost_sys_sysctl:(mib:Int32Array,_count:number,out:Uint32Array|null,length:Uint32Array|null,input:Uint8Array|null)=>{calls.push(Array.from(mib));if(out){new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4)[0]=4096;if(length)length[0]=8}return 0},__nonaHost_writePsTitle:(pointer:number,bytes:Uint8Array,length:number)=>calls.push([pointer,new TextDecoder().decode(bytes.subarray(0,length))])},target);
+  runInContext('process.title="ntit_729"',context);assert.ok(calls.some(call=>JSON.stringify(call)==='[4096,"ntit_729"]'));
+  if(target==='freebsd-x64')assert.ok(calls.some(call=>JSON.stringify(call)==='[1,14,7,-1]'));else assert.ok(calls.some(call=>JSON.stringify(call)==='[2,3]'));
+ }
 });
 test('process active resource inventory follows real timer and stdin lifecycle',()=>{
  let clock=0;const context=mockProcess({__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms}});runInContext(timersPreludeSource,context);
@@ -445,6 +464,8 @@ test('fatal exit listeners can change status while handler failures skip exit li
 for(const target of supportedNativeTargets)test(`process exception/rejection boundary compiles for ${target}`,()=>{
  const result=compile(processExceptionOracle+processRejectionOracle+'throw Error("top level")',{fileName:'process-exceptions.js',target});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
  for(const probe of processExceptionProbes){const native=compile(probe.source,{fileName:probe.name+'.js',target});assert.ok(native.ok,native.ok?'':JSON.stringify(native.diagnostics))}
+ const title=processTitleProbe(target),nativeTitle=compile(title.source,{fileName:'process-title.mjs',target,module:true});assert.ok(nativeTitle.ok,nativeTitle.ok?'':JSON.stringify(nativeTitle.diagnostics));
+ assert.ok(processFinalizationProbeImage(target).length>0);
 });
 
 test('process OS file copies bypass JavaScript typed-array set',()=>{
@@ -456,8 +477,21 @@ test('process OS file copies bypass JavaScript typed-array set',()=>{
 
 test('Windows execve reports Node 26 platform unavailability before validation',()=>{
  const context=mockProcess({__nonaHost_GetCommandLineW:()=>100,__nonaHost_RtlMoveMemory:()=>{},__nonaHost_GetModuleFileNameW:()=>0,__nonaHost_lstrlenW:()=>0,__nonaHost_GetEnvironmentStringsW:()=>0,__nonaHost_GetCurrentProcessId:()=>123,__nonaHost_NtQueryInformationProcess:()=>-1},'win32-x64');
+ const shape='JSON.stringify([process.execve.name,process.execve.length])';
+ assert.equal(runInContext(shape,context),runOracle('console.log('+shape+')').stdout.trim());
+ assert.equal(runInContext(shape,mockProcess()),runOracle('console.log('+shape+')').stdout.trim());
  for(const args of [[],[1],['/missing'],['/missing',[]],['/missing',[],null]]){
   if(process.platform==='win32'){const oracle=spawnSync(process.execPath,['-e',`try{process.execve(...${JSON.stringify(args)})}catch(e){console.log(e.name,e.code,e.syscall,e.path)}`],{encoding:'utf8'});assert.equal(oracle.stdout,'TypeError ERR_FEATURE_UNAVAILABLE_ON_PLATFORM undefined undefined\n')}
   assert.throws(()=>runInContext(`process.execve(...${JSON.stringify(args)})`,context),{name:'TypeError',code:'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM'});
+ }
+});
+
+test('local initgroups uses named memberships without passwd lookup and reports native permission',()=>{
+ for(const target of ['linux-x64','freebsd-x64','openbsd-x64']){
+  let done=false;const calls:number[][]=[],bytes=new TextEncoder().encode('project:x:40:nona_missing_user_81763\n');
+  const context=mockProcess({__nonaHost_sys_sysctl:(_mib:Int32Array,_n:number,out:Uint8Array,length:Uint32Array)=>{const path=new TextEncoder().encode('/image\0');out.set(path);length[0]=path.length;return 0},__nonaHost_sys_open:(path:Uint8Array)=>{const name=new TextDecoder().decode(path).split('\0')[0];if(name==='/etc/passwd')throw Error('Named initgroups must not look up passwd');if(name!=='/etc/group')return -2;done=false;return 10},__nonaHost_sys_read:(_fd:number,out:Uint8Array)=>{if(done)return 0;done=true;out.set(bytes);return bytes.length},__nonaHost_sys_close:()=>0,__nonaHost_sys_setgroups:(n:number,ids:Uint32Array)=>{calls.push([n,...ids]);return -1}},target);
+  assert.throws(()=>runInContext('process.initgroups("nona_missing_user_81763",20)',context),{code:'EPERM',syscall:'initgroups'});
+  assert.deepEqual(calls,[[2,20,40]]);
+  assert.throws(()=>runInContext('process.initgroups("nona_missing_user_81763","missing_group")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});assert.equal(calls.length,1);
  }
 });

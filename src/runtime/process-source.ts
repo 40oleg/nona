@@ -3,8 +3,10 @@
 // generator as __nonaHost_* globals; the prelude captures and removes them.
 // It wraps the Promise drain (or event loop) so a set exitCode is used at exit.
 import {processExtensionsSource} from './process-extensions-source.js';
+import {processMetadataSource} from './process-metadata-source.js';
 export const processPreludeSource=String.raw`
 __nonaPromiseDrainJobs=(function(drain){
+  var finalizationNative=globalThis.__nonaProcessFinalization;delete globalThis.__nonaProcessFinalization;
   var names=__NONA_PROCESS_HOST_NAMES__;
   var host={},found=false;
   for(var i=0;i<names.length;i++){
@@ -198,6 +200,7 @@ __nonaPromiseDrainJobs=(function(drain){
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
+${processMetadataSource()}
     value('pid',windows?host.GetCurrentProcessId():host.sys_getpid());
     value('ppid',parentPid());value('argv0',commandLine[0]);value('execArgv',[]);
     var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
@@ -312,11 +315,15 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['startupArgv','nona.internal','startupArgv','ptr()'],['startupEnv','nona.internal','startupEnv','ptr()'],
     ['copy','nona.internal','copy','void(buf,ptr,u64)'],['length','nona.internal','length','u64(ptr)'],
     ['heapSnapshot','nona.internal','heapSnapshot','void(buf)'],
+    ['titleAddress','nona.internal','titleAddress','ptr()'],['titleCapacity','nona.internal','titleCapacity','u64()'],
+    ['writeArgumentTitle','nona.internal','writeArgumentTitle','void(buf,u64,u64)'],['writePsTitle','nona.internal','writePsTitle','void(ptr,buf,u64)'],
     ['replaceEnvironment','nona.internal','replaceEnvironment','void(buf,u64,u64)'],['environmentVector','nona.internal','environmentVector','ptr()'],
     ['environmentContains','nona.internal','environmentContains','bool(buf)'],
     ['replaceArguments','nona.internal','replaceArguments','void(buf,u64,u64)'],['argumentVector','nona.internal','argumentVector','ptr()'],
     ['replaceExecEnvironment','nona.internal','replaceExecEnvironment','void(buf,u64,u64)'],['execEnvironmentVector','nona.internal','execEnvironmentVector','ptr()'],
   ];
+  list.push(['GetConsoleTitleW','KERNEL32.dll','GetConsoleTitleW','u32(buf,u32)'],['SetConsoleTitleW','KERNEL32.dll','SetConsoleTitleW','bool(buf)'],['SetLastError','KERNEL32.dll','SetLastError','void(u32)']);
+  if(target.startsWith('linux-')||target.startsWith('win32-'))list.push(['sys_prctl','syscall',target==='linux-arm64'?'167':'157','i32(i32,buf,u64,u64,u64)']);
   if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)'],['setenv','/usr/lib/libSystem.B.dylib','setenv','i32(buf,buf,i32)'],['unsetenv','/usr/lib/libSystem.B.dylib','unsetenv','i32(buf)']);
   if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);
   if(target.startsWith('darwin-'))list.push(['getpwnam','/usr/lib/libSystem.B.dylib','getpwnam','ptr(buf)'],['getpwuid','/usr/lib/libSystem.B.dylib','getpwuid','ptr(u32)'],['getgrnam','/usr/lib/libSystem.B.dylib','getgrnam','ptr(buf)'],['getgrgid','/usr/lib/libSystem.B.dylib','getgrgid','ptr(u32)'],['initgroups','/usr/lib/libSystem.B.dylib','initgroups','i32(buf,u32)']);

@@ -83,6 +83,10 @@ jobs:
       - run: npm run build
       - name: Build native probes
         run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
+      - name: Record isolated Windows Node abort behavior
+        if: matrix.target == 'win32-arm64'
+        shell: pwsh
+        run: ./scripts/process-abort-oracle.ps1
       - name: Execute native loader and runtime probes
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
       - name: Core runtime oracle suites

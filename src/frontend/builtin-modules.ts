@@ -80,6 +80,8 @@ export const getuid = process.getuid, geteuid = process.geteuid, getgid = proces
 export const getActiveResourcesInfo = process.getActiveResourcesInfo, ref = process.ref, unref = process.unref, loadEnvFile = process.loadEnvFile, availableMemory = process.availableMemory, constrainedMemory = process.constrainedMemory, memoryUsage = process.memoryUsage, threadCpuUsage = process.threadCpuUsage, execve = process.execve;
 export const setUncaughtExceptionCaptureCallback = process.setUncaughtExceptionCaptureCallback, hasUncaughtExceptionCaptureCallback = process.hasUncaughtExceptionCaptureCallback;
 export const addUncaughtExceptionCaptureCallback = process.addUncaughtExceptionCaptureCallback;
+export const finalization = process.finalization;
+export const version = process.version, versions = process.versions, release = process.release, features = process.features, config = process.config;
 `;
 
 import type {Target} from '../target.js';

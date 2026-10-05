@@ -2,10 +2,14 @@ import {Arm64Assembler} from './arm64/assembler.js';
 import {linkWindowsArm64} from './arm64/windows.js';
 import {Assembler} from './x64/assembler.js';
 import {linkElf} from './elf/writer.js';
+import {linkPe} from './pe/writer.js';
 import {linkMachO} from './macho/writer.js';
 import {getTarget,type Target} from '../target.js';
 import type {CodeFragment,NativeProgram} from './pe/model.js';
 import {compile} from '../compiler.js';
+import {processTitleProbe} from './process-title-probe.js';
+import {processFinalizationProbeSource,processFinalizationProbeExpected} from './process-finalization-probe.js';
+import {nonaVersion} from '../version.js';
 import {compileToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
@@ -33,6 +37,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const metadata=compile('console.log(process.version,Object.keys(process.versions).join(","),process.versions.nona,process.release.name,process.features.aot,process.features.inspector,process.config.target,Object.isFrozen(process.config))',{fileName:'process-metadata.js',target});if(!metadata.ok)throw new Error(JSON.stringify(metadata.diagnostics));probes.push({name:'process-metadata',image:metadata.image,expected:`v${nonaVersion} nona ${nonaVersion} nona true false ${descriptor.os}-${descriptor.arch} true\n`});
+  probes.push({name:'process-finalization',image:processFinalizationProbeImage(target),expected:processFinalizationProbeExpected});
+  const title=processTitleProbe(target),titleImage=compile(title.source,{fileName:'process-title.mjs',target,module:true});if(!titleImage.ok)throw new Error(`${target}/process-title: ${JSON.stringify(titleImage.diagnostics)}`);probes.push({name:'process-title',image:titleImage.image,expected:title.expected});
   if(target.startsWith('win32-')){
     const startup=compile('console.log("process getter");let p=process;console.log("process built",p.platform,typeof p.execve)',{fileName:'process-startup.js',target});
     if(!startup.ok)throw new Error(`${target}/process-startup: ${JSON.stringify(startup.diagnostics)}`);
@@ -150,4 +157,10 @@ export function loaderProbe(target:Target):Uint8Array {
   return linkElf(program,{machine:descriptor.arch,os:descriptor.os,...(descriptor.os==='openbsd'?{
     syscallPins:code.syscalls!.map(call=>({symbol:'probe.start',...call})),
   }:{})});
+}
+
+export function processFinalizationProbeImage(target:Target):Uint8Array {
+ const {result:ir,usage}=collectSourceUsage(()=>compileToIR(processFinalizationProbeSource,undefined,undefined,target));
+ const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
+ return descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):target==='win32-arm64'?linkWindowsArm64(program):linkPe(program);
 }

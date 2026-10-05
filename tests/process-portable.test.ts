@@ -6,6 +6,7 @@ import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget} from '../src/runtime/process-source.js';
 import {runProcess as runOnHost} from './helpers/process.js';
 import {runOracle} from './helpers/oracle.js';
+import {nonaVersion} from '../src/version.js';
 
 for(const target of supportedNativeTargets)test(`process core compiles for ${target}`,()=>{
  const result=compile('console.log(process.argv,process.env,process.cwd(),process.ppid,process.hrtime.bigint());process.chdir(".");process.nextTick(()=>console.log(process.uptime()));',{fileName:'process.js',target});
@@ -35,6 +36,6 @@ test('process exitCode waits for next ticks, Promise jobs and timers',()=>{
  const native=runOnHost(source);assert.equal(native.status,7,native.stderr);assert.equal(native.stdout,'tick\npromise\ntimer\n');
 });
 test('unsupported process members remain absent',()=>{
- const source='console.log(["send","versions","report","channel"].every(key=>process[key]===undefined))';
- const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true\n');
+ const source='console.log(["send","report","channel"].every(key=>process[key]===undefined));console.log(Object.keys(process.versions).join(","),process.versions.nona,process.release.name)';
+ const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true\nnona '+nonaVersion+' nona\n');
 });

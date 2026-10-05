@@ -34,8 +34,8 @@ export const processAccountsSource=String.raw`
         var name=typeof user==='number'?findAccount(user,false).name:accountName(user),base=credentialId(extraGroup,true);
         if(host.initgroups(cstring(name),base)!==0)throw darwinEnvironmentError('initgroups',name);return
       }
-      var account=findAccount(user,false),base=credentialId(extraGroup,true);
-      var groups=[base],records=localAccounts(true);for(var i=0;i<records.length;i++)if(records[i].members.indexOf(account.name)!==-1&&groups.indexOf(records[i].id)===-1)groups.push(records[i].id);
+      var name=typeof user==='number'?findAccount(user,false).name:accountName(user),base=credentialId(extraGroup,true);
+      var groups=[base],records=localAccounts(true);for(var i=0;i<records.length;i++)if(records[i].members.indexOf(name)!==-1&&groups.indexOf(records[i].id)===-1)groups.push(records[i].id);
       var ids=new Uint32Array(groups),r=host.sys_setgroups(ids.length,ids);if(r<0)throw hostError('initgroups',-r)
     });
 `;

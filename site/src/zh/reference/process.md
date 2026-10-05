@@ -93,6 +93,22 @@ separately. Without an unhandled-rejection listener, the compiler's existing
 on first process access and observe rejections queued earlier in the same turn.
 Node's additional interpreter policy flags and V8 diagnostic stacks are absent.
 
+`version`, `versions.nona` and `release.name` identify the actual Nona compiler
+release embedded at build time. `config` is a frozen Nona object describing the
+runtime, version and native target; it is not a Node build configuration.
+`features.aot` reports native compilation, while Node-specific inspector,
+libuv, TLS and loader features report false. Nona does not advertise Node, V8,
+OpenSSL or libuv versions or fabricate Node release download URLs.
+`finalization.register(ref, callback)` runs the callback with `(ref, 'exit')` if
+its object or function reference remains reachable at exit.
+`registerBeforeExit(ref, callback)` uses the `beforeExit` lifecycle event;
+`unregister(ref)` cancels matching registrations in both lists. Registrations
+use native weak keys: collected references are skipped, and their callbacks are
+released. A callback closure that captures its reference keeps it alive.
+Listeners are installed lazily, preserving lifecycle registration order; callbacks
+registered during dispatch participate in that event. Finalization is a best-effort
+lifecycle notification, not a replacement for explicit resource cleanup. Fatal
+handler failures and abrupt OS termination do not run these callbacks.
 `cpuUsage(previous?)` reports actual OS CPU microseconds. `resourceUsage()` reads
 POSIX `getrusage` counters (peak RSS in KiB); Windows supplies CPU time, peak RSS
 and minor page faults from native process APIs. Unavailable Windows resource
@@ -124,8 +140,10 @@ libSystem account database and calls native `initgroups`, including the system's
 Directory Service integration. Linux/BSD use an original scanner for local
 `/etc/passwd` and `/etc/group` records. Their `initgroups` collects explicit local
 group memberships, includes the extra group once, and invokes native setgroups.
+Named initgroups users need not have passwd records; permission errors come from
+the real group setter. Numeric users still resolve their UID to a local name.
 Linux/BSD remote NSS, LDAP and NIS account resolution is unsupported; local files
-are not presented as equivalent to those services. Unknown local/system names
+are not presented as equivalent to those services. Unknown setter account/group names
 throw `ERR_UNKNOWN_CREDENTIAL`; invalid numeric IDs and NUL names fail before a
 credential syscall. Darwin copies OS-managed record prefixes and names before
 another lookup can invalidate their thread-local storage. Windows omits POSIX
@@ -185,8 +203,18 @@ not contribute to heapUsed. These are Nona allocator measurements,
 not V8 heap estimates. The private native snapshot allocates no objects and
 does not trigger GC.
 
+`process.title` reads and writes real OS title storage. Linux and macOS updates
+are limited to the original contiguous argument bytes and preserve startup
+environment storage; Linux also updates the kernel thread name. BSD updates use
+native ps_strings (2047 UTF-8 bytes maximum), and FreeBSD synchronizes its kernel
+argument cache. `argv`, `argv0`, and the owned native environment retain their
+original values. Values use ordinary string coercion, reject Symbols, and stop
+at NUL. Windows initializes its cached title from the executable path and
+updates the attached console title when available. The public value retains
+its most recent assignment when no console is attached, matching Node 26;
+external console-title changes do not replace this process-owned value.
 IPC/channel APIs, worker integration, V8 heap reports, remote Linux/BSD account resolution,
-title changes, Node.js/V8 version metadata, debugger/report APIs
+Node.js/V8 version metadata, debugger/report APIs
 and interpreter flag processing remain absent. Nona does not fabricate V8 or
 IPC behavior. Error messages and some OS error mappings differ from Node.js.
 

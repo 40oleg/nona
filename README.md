@@ -17,7 +17,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
 - **A native runtime.** A precise non-moving mark-and-sweep garbage collector, UTF-16 strings, real exceptions, and a catchable `RangeError` on stack overflow.
 - **Host APIs** for real programs:
   - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
-  - a global `process` and `node:process` on all eight targets (`argv`, mutable native `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `setUncaughtExceptionCaptureCallback`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
+  - a global `process` and `node:process` on all eight targets (`version`, `versions.nona`, `argv`, mutable native `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).

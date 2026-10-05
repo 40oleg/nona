@@ -10,7 +10,7 @@ import {atomicsRoots,atomicsPropertyRoots} from './atomics.js';
 import {MapKind,MapLayout,MapEntryLayout,mapRoots,mapPropertyRoots} from './map.js';
 import {SetKind,setRoots,setPropertyRoots} from './set.js';
 import {SetIteratorKind,SetIteratorLayout,setIteratorRoots,setIteratorPropertyRoots} from './set-iterator.js';
-import {WeakMapKind,WeakSetKind,weakCollectionRoots,weakCollectionPropertyRoots} from './weak-collections.js';
+import {WeakMapKind,WeakSetKind,WeakFinalizationLayout,weakCollectionRoots,weakCollectionPropertyRoots} from './weak-collections.js';
 import {MapIteratorKind,MapIteratorLayout,mapIteratorRoots,mapIteratorPropertyRoots} from './map-iterator.js';
 import {DataViewKind,DataViewLayout,dataViewRoots,dataViewPropertyRoots} from './data-view.js';
 import {TypedArrayKind,TypedArrayLayout,typedArrayRoots,typedArrayPropertyRoots} from './typed-array.js';
@@ -137,7 +137,13 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:TypedArrayLayout.buffer});a.call('rt.gcMarkPointer');a.jmp(done);
   a.label(notTyped);const notProxy=a.unique('notProxy');a.cmp('rax',ProxyKind);a.jcc('ne',notProxy);
   for(const offset of [ProxyLayout.target,ProxyLayout.handler]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}a.jmp(done);
-  a.label(notProxy);const notMap=a.unique('notMap'),notMapIterator=a.unique('notMapIterator');a.cmp('rax',MapKind);const traceMapLike=a.unique('traceMapLike');a.jcc('e',traceMapLike);a.cmp('rax',SetKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakMapKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakSetKind);a.jcc('ne',notMap);a.label(traceMapLike);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:MapLayout.head});a.call('rt.gcMarkPointer');a.jmp(done);a.label(notMap);a.cmp('rax',MapIteratorKind);const traceMapIterator=a.unique('traceMapIterator');a.jcc('e',traceMapIterator);a.cmp('rax',SetIteratorKind);a.jcc('ne',notMapIterator);a.label(traceMapIterator);a.load('rcx',slot(40));a.add('rcx',MapIteratorLayout.map);a.call('rt.gcMarkValue');a.jmp(done);a.label(notMapIterator);a.cmp('rax',GeneratorKind);a.jcc('ne',done);
+  a.label(notProxy);
+  // Private finalization callbacks are strong during marking. A callback
+  // closure that captures its weak target therefore keeps that target live.
+  const noFinalization=a.unique('noFinalization');a.cmp('rax',WeakMapKind);a.jcc('ne',noFinalization);
+  a.load('rcx',slot(40));a.add('rcx',WeakFinalizationLayout.callback);a.call('rt.gcMarkValue');
+  a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.label(noFinalization);
+  const notMap=a.unique('notMap'),notMapIterator=a.unique('notMapIterator');a.cmp('rax',MapKind);const traceMapLike=a.unique('traceMapLike');a.jcc('e',traceMapLike);a.cmp('rax',SetKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakMapKind);a.jcc('e',traceMapLike);a.cmp('rax',WeakSetKind);a.jcc('ne',notMap);a.label(traceMapLike);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:MapLayout.head});a.call('rt.gcMarkPointer');a.jmp(done);a.label(notMap);a.cmp('rax',MapIteratorKind);const traceMapIterator=a.unique('traceMapIterator');a.jcc('e',traceMapIterator);a.cmp('rax',SetIteratorKind);a.jcc('ne',notMapIterator);a.label(traceMapIterator);a.load('rcx',slot(40));a.add('rcx',MapIteratorLayout.map);a.call('rt.gcMarkValue');a.jmp(done);a.label(notMapIterator);a.cmp('rax',GeneratorKind);a.jcc('ne',done);
   for(const offset of [G.source,G.receiver,G.resumeValue,G.yieldValue,G.returnValue]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:G.arguments});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:G.context+ContextLayout.roots});a.call('rt.gcMarkRootChain');a.label(done);
@@ -235,6 +241,13 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(keep);a.load('rax',slot(56));a.store(slot(64),'rax');
   a.label(nextEntry);a.load('rax',slot(72));a.store(slot(56),'rax');a.jmp(entries);
   a.label(done);
+  // The mark pass is complete. Clearing a dead target's callback here releases
+  // the registry reference; already marked callback objects may survive this
+  // sweep, but are no longer retained by this map at the next collection.
+  a.load('r9',slot(48));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',WeakMapKind);
+  const noCallbackClear=a.unique('noCallbackClear');a.jcc('ne',noCallbackClear);
+  a.load('rax',{base:'r9',disp:MapLayout.count});a.test('rax','rax');a.jcc('ne',noCallbackClear);
+  a.mov('rax',0);for(const offset of [WeakFinalizationLayout.callback,WeakFinalizationLayout.callback+8])a.store({base:'r9',disp:offset},'rax');a.label(noCallbackClear);
  });
  // Visits every live weak collection on rt.weakList (linked through
  // MapLayout.weakNext at construction) and unlinks the dead ones.

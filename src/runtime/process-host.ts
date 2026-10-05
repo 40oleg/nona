@@ -3,12 +3,16 @@ import type {Assembler} from '../backend/x64/assembler.js';
 import type {Target} from '../target.js';
 import {emitProcessMemory} from './process-memory.js';
 import {emitProcessEnvironment} from './process-environment.js';
+import {emitProcessTitle} from './process-title.js';
+import {emitProcessFinalization} from './process-finalization.js';
 
 /** Private, allocation-free native helpers for the process prelude. */
 export function processNativeHelpers():RuntimeBuilder {
  const b=new RuntimeBuilder();
  emitProcessMemory(b);
  emitProcessEnvironment(b);
+ emitProcessTitle(b);
+ emitProcessFinalization(b);
  b.data('process.startupArgv',new Uint8Array(8),'.data');
  b.data('process.startupEnv',new Uint8Array(8),'.data');
  for(const name of ['startupArgv','startupEnv'])b.fn('process.'+name+'.code',40,a=>a.load('rax',{rip:'process.'+name}));
@@ -36,7 +40,7 @@ export function captureProcessStartup(a:Assembler,target:Target):void {
   // RCX/RDX map to x1/x2; no native call has changed them yet.
   a.store({rip:'process.startupArgv'},'rcx');a.store({rip:'process.startupEnv'},'rdx');return;
  }
- if(target.startsWith('win32-')||target.startsWith('linux-'))return;
+ if(target.startsWith('win32-')){a.lea('rax',{base:'rsp',disp:8});a.store({rip:'process.startupArgv'},'rax');return}
  // FreeBSD passes the vector base in RDI; its aligned RSP can precede argc.
  // OpenBSD places argc directly at RSP.
  a.lea('rax',{base:target==='freebsd-x64'?'rdi':'rsp',disp:8});a.store({rip:'process.startupArgv'},'rax');
