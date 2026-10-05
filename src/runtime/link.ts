@@ -25,6 +25,7 @@ export const preludeTriggers={
   events:['Event','CustomEvent','EventTarget','AbortController','AbortSignal','DOMException','NodeEventTarget','nona.events.internal'],
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
+  buffer:['Buffer','Blob','File','URL','ReadableStream','ReadableStreamDefaultReader','ReadableStreamBYOBReader','WritableStream','WritableStreamDefaultWriter','node:buffer','nona:buffer','bufferModule'],
   process:['process'],
   // Timers installs enumerable globals, which a program can list through globalThis.
   timers:['setTimeout','setInterval','setImmediate','clearTimeout','clearInterval','clearImmediate','queueMicrotask','performance','globalThis'],
@@ -38,7 +39,12 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding'],events:['timers'],asyncHooks:['events','timers']};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding'],buffer:['encoding'],events:['timers'],asyncHooks:['events','timers']};
+/** Buffer's URL validation and Blob native line endings use internal regexes. */
+export function runtimeRegExpLink(link:RuntimeLink):{regexp:boolean;unicodeProperties:boolean} {
+  const regexp=link.regexp||link.preludes.buffer;
+  return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
+}
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
  * method, so it links every prelude.

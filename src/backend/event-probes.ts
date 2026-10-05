@@ -11,7 +11,18 @@ import {linkDarwin} from './darwin/index.js';
 import {linkBsd} from './bsd/index.js';
 
 /** The same programs run on every native target; expected output is checked against Node. */
+export const bufferCancellationProbeSource=String.raw`
+(async function(){
+ const controller=new AbortController(),reason={cancelled:true};
+ controller.signal.addEventListener('abort',event=>event.stopImmediatePropagation());
+ const source=new Blob(['payload']).stream(),destination=new WritableStream({abort(value){console.log('sink',value===reason)}});
+ const pending=source.pipeTo(destination,{signal:controller.signal});controller.abort(reason);
+ try{await pending;console.log('resolved')}catch(error){console.log('rejected',error===reason)}
+ console.log('locks',source.locked,destination.locked);
+})()
+`;
 export const eventProbeSources=[
+ {name:'event-buffer-cancellation',source:bufferCancellationProbeSource,expected:'sink true\nrejected true\nlocks false false\n'},
  {name:'event-abort-disposal',source:`import {addAbortListener,getEventListeners} from 'node:events';
 console.log('symbol',typeof Symbol.dispose,Symbol.dispose.description,Symbol.keyFor(Symbol.dispose),Symbol.dispose===Symbol.for('nodejs.dispose'));
 const controller=new AbortController(),calls=[];

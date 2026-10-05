@@ -3,6 +3,7 @@ import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleForTarget} from './events-module.js';
 import {asyncHooksModuleSource} from './async-hooks-module.js';
+import {bufferModuleSource} from './buffer-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -78,6 +79,9 @@ export function cwd() { return process.cwd(); }
 
 import type {Target} from '../target.js';
 const sources=new Map<string,(target:Target)=>string>([
+  ['node:buffer',()=>bufferModuleSource],
+  ['buffer',()=>bufferModuleSource],
+  ['nona:buffer',()=>bufferModuleSource],
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],
@@ -96,7 +100,7 @@ export function isBuiltinModule(specifier:string):boolean {return sources.has(sp
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
 export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
   return {
-    resolve:(specifier,referrer)=>specifier==='events'||specifier==='nona:events'?'node:events':sources.has(specifier)?specifier:host.resolve(specifier,referrer),
+    resolve:(specifier,referrer)=>specifier==='events'||specifier==='nona:events'?'node:events':sources.has(specifier)?(specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':specifier):host.resolve(specifier,referrer),
     read:path=>sources.get(path)?.(target)??host.read(path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };

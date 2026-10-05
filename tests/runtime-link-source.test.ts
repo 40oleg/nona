@@ -46,6 +46,7 @@ test('source usage: optional preludes follow the names a program uses',()=>{
  const linked=(...sources:string[])=>Object.entries(usage(...sources).preludes).filter(([,on])=>on).map(([name])=>name).sort().join(',');
  assert.equal(linked('console.log("hi")'),'');
  assert.equal(linked('new Proxy({}, {})'),'proxy');
+ assert.equal(linked('Buffer.alloc(1)'),'buffer');
  assert.equal(linked('self["TextEncoder"]'),'encoding');
  assert.equal(linked('process.exitCode = 1'),'process');
  assert.equal(linked('new EventTarget()'),'events');
@@ -64,8 +65,8 @@ test('source usage: optional preludes follow the names a program uses',()=>{
  assert.equal(linked('const word = "data format"'),'');
  assert.equal(linked('const key = "at"'),'es2021');
  // Enumerating built-ins could observe a missing method: everything is linked.
- assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,asyncHooks,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
- assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,asyncHooks,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
 });
 
 test('unrelated programs omit event and async-context preludes',()=>{

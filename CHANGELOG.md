@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers ([#137](https://github.com/40oleg/nona/issues/137)).
+- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers, including protected Blob piping cancellation ([#137](https://github.com/40oleg/nona/issues/137)).
 
+
+- Added global `Buffer`, `Blob` and `File` and the `node:buffer`, `buffer` and `nona:buffer` modules: typed-array byte storage, standard encodings, numeric access, shared slices, copies, search bounds, aligned allocation and immutable Blob/File data APIs. Blob byte/text streams, BYOB readers and object URL registration/resolution are included ([#136](https://github.com/40oleg/nona/issues/136)).
 - Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
 - Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).
 - Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
