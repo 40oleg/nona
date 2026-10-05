@@ -131,6 +131,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   else{
     const runtime=emitRuntime({operations:new Set(),realms,unicodeNormalization:link.unicodeNormalization});
     fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
+    // Program literals equal to a runtime string record use that record:
+    // property keys then match by identity (`x.length`, global names).
+    for(const fragment of runtime.fragments)if(fragment.stringText!==undefined&&!literals.has(fragment.stringText))literals.set(fragment.stringText,fragment.name);
     if(hasPrelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }
   const runtime={imports};

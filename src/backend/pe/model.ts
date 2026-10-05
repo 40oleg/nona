@@ -13,6 +13,8 @@ export type NamedFragment = CodeFragment & {
   name: string;
   section: ".text" | ".rdata" | ".data";
   alignment?: number;
+  /** A string record (runtime/value.ts stringLiteral): the text it holds. */
+  stringText?: string;
 };
 export interface ImportSymbol {
   dll: string;
