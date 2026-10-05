@@ -60,3 +60,5 @@ Execução completa do Test262 fixado no Windows x64 (recursos do ES2020 e anter
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Falhas do tipo "`eval`" usam código-fonte calculado em tempo de execução, `$262.evalScript` ou outros realms; os testes de "semântica mais nova" verificam comportamento de edições posteriores sob uma tag de recurso antiga ou ausente. A [página de status](/pt/guide/status) lista as falhas restantes.
+
+Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.

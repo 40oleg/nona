@@ -60,3 +60,5 @@ Windows x64-এ পিন করা Test262-এর পূর্ণ রান (ES
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 «`eval`» ব্যর্থতাগুলো রানটাইমে গণনা করা সোর্স টেক্সট, `$262.evalScript` বা অন্য realm ব্যবহার করে; «নতুন সিমান্টিক্স» টেস্টগুলো পুরোনো বা অনুপস্থিত ফিচার ট্যাগের অধীনে পরবর্তী সংস্করণের আচরণ যাচাই করে। [অবস্থা পৃষ্ঠায়](/bn/guide/status) বাকি ব্যর্থতাগুলোর তালিকা আছে।
+
+Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.

@@ -60,3 +60,5 @@ Windows x64 上固定版本 Test262 的完整运行结果（ES2020 及更早的�
 | `annexB/` | 996 / 1016 | 20 个 `eval` |
 
 “`eval`”类失败使用运行时计算出的源码、`$262.evalScript` 或其他 realm；“新语义”类测试在旧的或缺失的特性标签下检查更新版本中的行为。[状态页面](/zh/guide/status)列出了剩余的失败。
+
+Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.
