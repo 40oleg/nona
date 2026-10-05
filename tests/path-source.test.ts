@@ -7,6 +7,19 @@ import {pathParitySources} from './helpers/path-cases.js';
 // Exercise the actual built-in source independently of native linking. Native
 // module/GC parity is covered by path.test.ts on Windows and Linux in CI.
 const implementation:typeof oracle=new Function(pathModuleSource.replace(/^export .*$/gm,'')+'\nreturn path;')();
+test('path source: Windows flavor resolves from a POSIX host cwd',()=>{
+ const host={platform:'linux',env:{},cwd:()=>'/tmp/nona/path-tests'};
+ const source=pathModuleSource.replace('const pathHost=globalThis.process;','').replace(/^export .*$/gm,'');
+ const simulated:typeof oracle=new Function('pathHost',source+'\nreturn path;')(host);
+ const originalCwd=process.cwd;
+ try{
+  process.cwd=host.cwd;
+  for(const value of ['..','../..','a','a/./b/../c/','/','//','/a','/a/b','C:','C:foo','C:D:\\.']){
+   assert.equal(simulated.win32.resolve(value),oracle.win32.resolve(value),'resolve '+value);
+   assert.equal(simulated.win32.toNamespacedPath(value),oracle.win32.toNamespacedPath(value),'namespace '+value);
+  }
+ }finally{process.cwd=originalCwd;}
+});
 for(const [name,body] of Object.entries(pathParitySources))test('path source: '+name,()=>{
  const evaluate=(path:typeof oracle)=>{
   const lines:string[]=[];

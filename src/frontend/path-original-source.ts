@@ -78,7 +78,7 @@ function pathFlavor(windows){
    if(i>=0){text=args[i];pathString(text,'paths['+i+']');if(!text)continue;}
    else{
     text=cwd();
-    if(windows&&device){text=pathHost.env['='+device]||text;const current=pathRoot(text,true);if(current.device.toLowerCase()!==device.toLowerCase())text=device+'\\';}
+    if(windows&&device){text=pathHost.env['='+device]||text;const current=pathRoot(text,true);if(current.device&&current.device.toLowerCase()!==device.toLowerCase())text=device+'\\';}
    }
    const root=pathNavigationRoot(text,windows);
    if(windows&&root.device){if(device&&root.device.toLowerCase()!==device.toLowerCase())continue;device=root.device;}
@@ -116,7 +116,8 @@ function pathFlavor(windows){
  function extname(text){pathString(text,'path');return pathExtension(pathTail(text,windows,windows&&pathDrive(text)?2:0).base);}
  function parse(text){
   pathString(text,'path');const root=pathRoot(text,windows),tail=pathTail(text,windows,root.end);
-  const ext=!windows&&root.absolute&&tail.begin===1&&tail.base==='..'?'.':pathExtension(tail.base);
+  let ext=pathExtension(tail.base);
+  if(!windows){if(root.absolute){if(tail.begin===1){if(tail.base==='..')ext='.';}}}
   let dir=tail.begin>root.end?text.slice(0,tail.begin-1):root.root;
   return {root:root.root,dir:dir,base:tail.base,ext:ext,name:tail.base.slice(0,tail.base.length-ext.length)};
  }
@@ -138,9 +139,10 @@ function pathFlavor(windows){
  function toNamespacedPath(text){
   if(!windows||typeof text!=='string'||!text)return text;
   const resolved=resolve(text);
+  if(resolved.length<=2)return text;
   if(resolved.startsWith('\\\\')&&resolved[2]!=='?'&&resolved[2]!=='.')return '\\\\?\\UNC\\'+resolved.slice(2);
   if(pathDrive(resolved)&&resolved[2]==='\\')return '\\\\?\\'+resolved;
-  return text;
+  return resolved;
  }
  function matchesGlob(text,pattern){pathString(text,'path');pathString(pattern,'pattern');return pathGlobMatch(text,pattern,windows);}
  return {resolve:resolve,normalize:normalize,isAbsolute:isAbsolute,join:join,relative:relative,toNamespacedPath:toNamespacedPath,dirname:dirname,basename:basename,extname:extname,format:format,parse:parse,matchesGlob:matchesGlob,sep:sep,delimiter:windows?';':':',win32:null,posix:null,_makeLong:toNamespacedPath};

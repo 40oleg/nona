@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {compile} from '../src/compiler.js';
-import {runtimeProbes} from '../src/backend/platform-probes.js';
+import {runtimeProbes,runtimeProbeSources} from '../src/backend/platform-probes.js';
 
 test('Linux ARM64 compiles the language runtime into an AArch64 ELF image',()=>{
   const result=compile('console.log(6*7,"a"+"b",Math.sin(.5))',{fileName:'probe.js',target:'linux-arm64'});
@@ -10,7 +10,7 @@ test('Linux ARM64 compiles the language runtime into an AArch64 ELF image',()=>{
 });
 test('Linux ARM64 builds runtime, forced GC and concurrent agent probes',()=>{
   const probes=runtimeProbes('linux-arm64');
-  assert.equal(probes.length,14);
+  assert.equal(probes.length,runtimeProbeSources.length+6);
   assert.ok(probes.some(p=>p.name==='gc-stress'));
   assert.ok(probes.some(p=>p.name==='agents'));
   for(const p of probes)assert.equal(new DataView(p.image.buffer).getUint16(18,true),183,p.name);

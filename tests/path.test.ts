@@ -8,8 +8,10 @@ import {supportedNativeTargets} from '../src/target.js';
 import {withBuiltinModules} from '../src/frontend/builtin-modules.js';
 
 
-for(const [name,body] of Object.entries(pathParitySources))test('node:path '+name,()=>{
- const {native,oracle}=runModulesOnHost({'main.mjs':`import path from 'node:path';\n${body}`},'main.mjs');
+for(const [name,body] of Object.entries(pathParitySources))for(const flavor of ['posix','win32'])test('node:path '+name+' '+flavor,()=>{
+ // Keep each GC-stress run bounded while exercising both explicit flavors.
+ const focused=body.replaceAll('[path.posix,path.win32]','[path.'+flavor+']').replaceAll('[path,path.posix,path.win32]','[path.'+flavor+']');
+ const {native,oracle}=runModulesOnHost({'main.mjs':`import path from 'node:path';\n${focused}`},'main.mjs');
  assert.equal(native.error,undefined);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,oracle);
 });
 
