@@ -42,7 +42,8 @@ export const FreeKind=255;
 /** Chunk header: next chunk, cell size, first cell, end of the carved cells,
  * and ceil(2^40 / cell size), which turns the division of rt.blockOf into a
  * multiplication (exact for every offset inside a chunk). */
-export const ChunkLayout={next:0,cellSize:8,cells:16,carved:24,magic:32,size:64} as const;
+/** sweepNext links the chunks of a class that are still to be swept (rt.unswept). */
+export const ChunkLayout={next:0,cellSize:8,cells:16,carved:24,magic:32,sweepNext:40,size:64} as const;
 /** Large mapping header, followed by the block header. */
 export const LargeLayout={next:0,bytes:8,size:64} as const;
 export const chunkBytes=1<<16;
@@ -71,6 +72,11 @@ export function emitMemory(b:RuntimeBuilder):void {
  for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
  b.data('rt.classState',new Uint8Array(4*8*classCount),'.data');
+ // Per class: the first chunk not yet swept since the last collection.
+ b.data('rt.unswept',new Uint8Array(8*classCount),'.data');
+ // Mark value of the current collection; blocks are allocated with it.
+ b.data('rt.gcEpoch',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
+ for(const name of ['rt.markedBytes','rt.markedBlocks'])b.data(name,new Uint8Array(8),'.data');
  for(const name of ['GetProcessHeap','HeapAlloc','HeapFree','GetStdHandle','GetConsoleMode','WriteConsoleW','WriteFile','WideCharToMultiByte','ExitProcess','VirtualAlloc','VirtualFree'])if(!b.bundle.imports.some(i=>i.symbol===name))b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
  // Per-process seed of the string and number hashes (property index, Map/Set
  // index), so colliding keys cannot be precomputed (hash flooding).
@@ -209,7 +215,8 @@ export function emitMemory(b:RuntimeBuilder):void {
    a.call('rt.classOf');a.store(slot(56),'rax');a.mov('rcx','rax');a.call('rt.classSize');a.store(slot(64),'rax');a.jmp(classified);
    a.label(small);a.store(slot(64),'rcx');a.mov('rax','rcx');a.sub('rax',48);a.shr('rax',4);a.store(slot(56),'rax');a.mov('rcx','rax');
    a.label(classified);}
-  a.load('rcx',slot(56));a.shl('rcx',3);a.lea('r9',{rip:'rt.classState'});a.add('r9','rcx');a.load('rax',{base:'r9'});a.test('rax','rax');a.jcc('e',carve);
+  const pop=a.unique('pop'),lazy=a.unique('lazy');
+  a.label(pop);a.load('rcx',slot(56));a.shl('rcx',3);a.lea('r9',{rip:'rt.classState'});a.add('r9','rcx');a.load('rax',{base:'r9'});a.test('rax','rax');a.jcc('e',lazy);
   // The next free cell is the next allocation of this class: start loading
   // its line now (a cold free-list head was most of rt.alloc's time).
   a.load('r10',{base:'rax',disp:H.next});a.store({base:'r9'},'r10');{const none=a.unique('noNext');a.test('r10','r10');a.jcc('e',none);a.prefetch({base:'r10'});a.label(none);}
@@ -223,11 +230,15 @@ export function emitMemory(b:RuntimeBuilder):void {
    a.store(slot(72),'rax');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.zeroBytes');a.load('rax',slot(72));a.jmp(zeroed);
    a.label(loop);}
   a.label(zero);a.cmp('r10','r11');a.jcc('ae',zeroed);a.store({base:'r10'},'r8');a.add('r10',8);a.jmp(zero);a.label(zeroed);a.jmp(ready);
+  // An empty free list: sweep this class's next unswept chunks first.
+  a.label(lazy);a.load('rcx',slot(56));a.call('rt.sweepClass');a.test('rax','rax');a.jcc('ne',pop);a.load('rcx',slot(56));a.shl('rcx',3);
   a.label(carve);a.lea('r9',{rip:'rt.classState',addend:8*classCount});a.add('r9','rcx');a.load('rax',{base:'r9'});a.load('r10',slot(64));a.add('r10','rax');
   a.lea('r11',{rip:'rt.classState',addend:16*classCount});a.add('r11','rcx');a.load('r11',{base:'r11'});a.cmp('r10','r11');const fits=a.unique('fits');a.jcc('be',fits);
   a.load('rcx',slot(56));a.call('rt.newChunk');a.load('rcx',slot(56));a.shl('rcx',3);a.lea('r9',{rip:'rt.classState',addend:8*classCount});a.add('r9','rcx');a.load('rax',{base:'r9'});a.load('r10',slot(64));a.add('r10','rax');
   a.label(fits);a.store({base:'r9'},'r10');a.lea('r11',{rip:'rt.classState',addend:24*classCount});a.add('r11','rcx');a.load('r11',{base:'r11'});a.store({base:'r11',disp:C.carved},'r10');
-  a.label(ready);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.marked,H.greyNext])a.store({base:'rax',disp:offset},'r10');
+  a.label(ready);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.greyNext])a.store({base:'rax',disp:offset},'r10');
+  // Allocated marked: an unswept chunk keeps it (only the next collection decides).
+  a.load('r10',{rip:'rt.gcEpoch'});a.store({base:'rax',disp:H.marked},'r10');
   a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);const done=a.unique('done');a.jmp(done);
@@ -251,7 +262,7 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('r10',slot(64));a.store({base:'rax',disp:L.bytes},'r10');a.load('r10',{rip:'rt.largeList'});a.store({base:'rax',disp:L.next},'r10');a.store({rip:'rt.largeList'},'rax');
   a.store(slot(56),'rax');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.largeMapPages');
   // The block header is written in full: a reused mapping still carries the old one.
-  a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.marked,H.greyNext])a.store({base:'rax',disp:offset},'r10');
+  a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.greyNext])a.store({base:'rax',disp:offset},'r10');a.load('r10',{rip:'rt.gcEpoch'});a.store({base:'rax',disp:H.marked},'r10');
   a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);a.label(done);
