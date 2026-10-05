@@ -43,3 +43,19 @@ server.listen(0, '127.0.0.1', () => {
   });
 });
 `,false));
+
+test('node:net forgets addresses that were not read before the socket closed',()=>expectNode(String.raw`import net from 'node:net';
+const server = net.createServer(socket => {
+  const remembered = socket.remoteAddress;
+  socket.on('close', () => {
+    console.log('server after close', socket.remoteAddress === remembered, socket.remotePort !== undefined, socket.localAddress, socket.localPort, JSON.stringify(socket.address()));
+    server.close();
+  });
+  socket.end('x');
+});
+server.listen(0, '127.0.0.1', () => {
+  const client = net.connect(server.address().port, '127.0.0.1');
+  client.on('data', () => {});
+  client.on('close', () => console.log('client after close', client.remoteAddress, client.localAddress, client.remotePort, client.localPort));
+});
+`,false));

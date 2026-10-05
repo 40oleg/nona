@@ -460,7 +460,6 @@ export class Socket extends Readable {
     this.connecting = false;
     this._deadline = 0;
     if (this._fd >= 0) {
-      this._local(); if (!this.connecting) this._peer();
       unwatch(this);
       sys.close(this._fd);
       this._fd = -1;
