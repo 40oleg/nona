@@ -135,8 +135,14 @@ test('uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI',()=
  checkFfiNames('SYSCALL','Example');
  const bundle=withNativeTarget('win32-arm64',()=>emitFfi([{dll:'SYSCALL',name:'Example',signature:'u64(u64,u64,u64)'}]).bundle);
  const fragment=bundle.fragments.find(item=>item.name==='ffi.0.code')!;assert.ok(fragment);
- const instructions=Array.from({length:fragment.bytes.length/4},(_,i)=>new DataView(fragment.bytes.buffer,fragment.bytes.byteOffset,fragment.bytes.byteLength).getUint32(i*4,true));
- assert.ok(instructions.includes(0xd63f0200),'external DLL thunk uses native BLR');assert.ok(fragment.fixups.some(item=>item.target==='ffi.syscall!Example'));assert.ok(bundle.imports.some(item=>item.dll==='SYSCALL'&&item.name==='Example'));
+ const assertExampleCall=(code:Pick<typeof fragment,'bytes'|'fixups'>)=>{
+  const address=code.fixups.find(item=>item.kind==='arm64-page21'&&item.target==='ffi.syscall!Example');assert.ok(address);
+  const bytes=new DataView(code.bytes.buffer,code.bytes.byteOffset,code.bytes.byteLength);
+  assert.equal(bytes.getUint32(address.offset+8,true),0xf9400210,'Example import cell loads native x16');
+  assert.equal(bytes.getUint32(address.offset+12,true),0xd63f0200,'Example call itself uses native BLR x16');
+ };
+ assertExampleCall(fragment);assert.ok(bundle.imports.some(item=>item.dll==='SYSCALL'&&item.name==='Example'));
+ const oldLogical=new Arm64Assembler('old','win32');oldLogical.load('r11',{rip:'ffi.syscall!Example'});oldLogical.callRegister('r11');assert.throws(()=>assertExampleCall(oldLogical.finish()),{name:'AssertionError'});
  const result=compile('import {define} from "nona:ffi";const example=define("SYSCALL","Example","u64(u64,u64,u64)");console.log(example(1,2,3))',{target:'win32-arm64',module:true,fileName:'syscall-dll.mjs'});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
 });
 test('Windows ARM process startup compiles with enforced public getter output',()=>{
