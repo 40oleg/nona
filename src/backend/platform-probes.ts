@@ -7,6 +7,8 @@ import {getTarget,type Target} from '../target.js';
 import type {CodeFragment,NativeProgram} from './pe/model.js';
 import {compile} from '../compiler.js';
 import {compileToIR} from '../compiler.js';
+import {compileModuleToIR} from '../compiler.js';
+import {linkPe} from './pe/writer.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
 import {linkDarwin} from './darwin/index.js';
@@ -33,6 +35,10 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
+  const {result:pathIR,usage:pathUsage}=collectSourceUsage(()=>compileModuleToIR('import path from "node:path";console.log("path",path.normalize("a/../b"),path.isAbsolute(path.resolve()),typeof Object.getOwnPropertyDescriptor(globalThis,"pro"+"cess"));','path-lazy-startup.mjs',undefined,'',target));
+  const pathProgram=withNativeTarget(target,()=>generate(pathIR,{gcStress:true,link:pathUsage})),descriptor=getTarget(target)!;
+  const pathImage=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(pathProgram):linkPe(pathProgram)):descriptor.os==='linux'?linkLinux(pathProgram,descriptor.arch):descriptor.os==='darwin'?linkDarwin(pathProgram,descriptor.arch):linkBsd(pathProgram,descriptor.os);
+  probes.push({name:'path-lazy-startup',image:pathImage,expected:'path b true undefined\n'});
   if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||getTarget(target)!.os==='darwin'||target==='win32-arm64'||target==='linux-x64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));

@@ -14,7 +14,8 @@ Use `posix`, `win32`, or explicit flavor modules (`node:path/posix`,
 `resolve`, `relative`, `parse`, `format`, `basename`, `dirname`, `extname`,
 `isAbsolute`, `toNamespacedPath`, `matchesGlob`; properties: `sep`, `delimiter`.
 The target selects the default flavor; resolution reads the executable's runtime
-current directory. [Full reference](https://github.com/40oleg/nona/blob/main/docs/path.md).
+current directory. Working-directory information is read on demand; importing
+Path does not initialize the full process object. [Full reference](https://github.com/40oleg/nona/blob/main/docs/path.md).
 
 ## Minuteurs et boucle d’événements
 

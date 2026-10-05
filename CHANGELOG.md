@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Read Path working directories and Windows drive environment entries on demand through original target adapters; avoid full process startup for path-only programs under GC stress ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added `node:path` and `path` ES modules, including explicit POSIX/Windows variants, path component and resolution APIs, Windows relative paths on POSIX hosts, namespace conversion and Node.js 26 glob matching ([#135](https://github.com/40oleg/nona/issues/135)).
 - Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
 - Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).

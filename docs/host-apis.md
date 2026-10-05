@@ -18,6 +18,8 @@ The API includes `normalize`, `join`, `resolve`, `relative`, `parse`, `format`,
 `basename`, `dirname`, `extname`, `isAbsolute`, `toNamespacedPath`, `matchesGlob`,
 `sep` and `delimiter`. The target operating system selects the default flavor.
 `resolve` and `relative` read the executable's current directory at runtime.
+Path reads only the requested working-directory information and does not
+initialize the full process object when imported.
 See [paths](path.md) for examples and compatibility boundaries.
 
 ## Timers and the event loop

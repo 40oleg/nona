@@ -41,8 +41,11 @@ CommonJS `require` is not supported by that loader.
 
 Windows algorithms handle UNC shares, drive-relative paths, namespace/device
 roots, case insensitive device comparison and reserved device names.
-Drive-relative resolution consults `process.env['=C:']` (for example) and
-`process.cwd()` using Node's fallback rules. POSIX resolution on Windows
+Drive-relative resolution reads the requested Windows drive directory and
+the current working directory using Node's fallback rules. Target adapters
+read these values on demand; importing Path does not enumerate the environment
+or initialize `process`. Explicitly initialized `process.cwd()` and per-drive
+environment overrides are honored. POSIX resolution on Windows
 converts the current directory to forward slashes and removes its drive prefix.
 Neither flavor resolves symlinks or checks whether paths exist.
 
@@ -87,8 +90,12 @@ while empty/dot inputs are checked against Node on the actual CI host.
 The native platform probe matrix exercises runtime cwd resolution, relative
 paths, both flavors and glob matching on all eight OS/CPU targets.
 
-On Windows/Linux, the module uses the existing native `process` adapter.
-On FreeBSD/OpenBSD it uses `__getcwd` directly. Darwin opens the current
+Windows reads cwd with `GetCurrentDirectoryW` and looks up only the requested
+drive's directory with `GetEnvironmentVariableW`. Linux uses `getcwd` directly;
+FreeBSD/OpenBSD use `__getcwd`. Darwin opens the current
 directory, reads its path with `fcntl(F_GETPATH)`, and closes the descriptor
-in a `finally` block. These helpers use raw kernel calls via `nona:ffi` and
+in a `finally` block. These helpers use the target's OS API via `nona:ffi` and
 do not require the full `process` adapter, libc, or an additional library.
+Compile source for the intended OS and CPU. Linking Windows-target Path source
+as ELF is supported, but its foreign Windows cwd and drive APIs are unavailable
+on Linux; Linux execution uses the Linux-target adapter.

@@ -78,7 +78,7 @@ function pathFlavor(windows){
    if(i>=0){text=args[i];pathString(text,'paths['+i+']');if(!text)continue;}
    else{
     text=cwd();
-    if(windows&&device){text=pathHost.env['='+device]||text;const current=pathRoot(text,true);if(current.device&&current.device.toLowerCase()!==device.toLowerCase())text=device+'\\';}
+    if(windows&&device){const directory=typeof pathHost.driveDirectory==='function'?pathHost.driveDirectory(device):pathHost.env['='+device];text=directory||text;const current=pathRoot(text,true);if(current.device&&current.device.toLowerCase()!==device.toLowerCase())text=device+'\\';}
    }
    const root=pathNavigationRoot(text,windows);
    if(windows&&root.device){if(device&&root.device.toLowerCase()!==device.toLowerCase())continue;device=root.device;}
