@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `node:http` runs on Nona's own HTTP/1.1 server and client: request heads are parsed and responses encoded by native code, per-request work Node.js defers is batched, and the runtime got general speedups the server exposed (inline caches for `.length`, `super.name` and global names, cheaper `Object.keys`, `push`/`pop`, `%`, default derived constructors and `JSON.stringify`, size classes that fit 16 KiB buffers, a cheaper mark phase and lazy sweeping). On the HTTP benchmark Nona is level with Node.js on small requests, 1.8 times faster on 64 KiB responses, 10–20% behind on request bodies and uses a fifth of the memory ([#115](https://github.com/40oleg/nona/issues/115)). See [PERFORMANCE.md](PERFORMANCE.md#http-server).
 - Own property lookups compare key records by identity and length before their characters, and `object.name` reads keep the key's hash in their inline cache instead of rehashing it: acorn parses 11% and marked renders 8% faster ([#112](https://github.com/40oleg/nona/issues/112)).
 - Added `node:http` (HTTP/1.1 servers, clients and keep-alive agents) and `node:net` (TCP sockets and servers) on Linux and Windows, with `node:events`, `node:buffer` (and the global `Buffer`) and `node:string_decoder`; the event loop waits for socket readiness while sockets are open ([#70](https://github.com/40oleg/nona/issues/70)). See [networking](docs/network.md).
 - Added marked to the real-world benchmark corpus (`bench/real/marked.mjs`): it renders a 200-section Markdown document ([#110](https://github.com/40oleg/nona/issues/110)).
