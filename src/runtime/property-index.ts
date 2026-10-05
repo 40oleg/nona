@@ -50,6 +50,12 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   {const stored=a.unique('stored');a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',stored);keyHashEntry(a);a.store({base:'r10'},'rcx');a.store({base:'r10',disp:8},'rax');a.label(stored);}
   a.label(hit);
  });
+ // RCX key record -> RAX its bit in an object's key filter: one of bits
+ // 0-62 chosen by the key's hash (bit 63 is keyFilterValid). Clobbers R8-R11.
+ b.fn('rt.keyFilterBit',40,a=>{
+  a.call('rt.propKeyHash');a.shr('rax',8);a.and('rax',63);{const fine=a.unique('fine');a.cmp('rax',63);a.jcc('ne',fine);a.mov('rax',62);a.label(fine);}
+  a.mov('rcx','rax');a.mov('rax',1);a.shl('rax','cl');
+ });
  // Called by the collector after a sweep: freed records may be reused.
  b.fn('rt.keyHashCacheClear',40,a=>{
   a.push('rdi');a.lea('rdi',{rip:'rt.keyHashCache'});a.mov('rcx',keyHashCacheEntries*2);a.mov('rax',0);a.repStosq();a.pop('rdi');
@@ -111,6 +117,9 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  // an own key before). Keeps an existing table in sync; returns the node.
  b.fn('rt.propIndexAdd',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done'),room=a.unique('room');
+  // The key's bit joins the object's key filter (named-properties.ts).
+  a.load('rcx',{base:'rdx',disp:P.key});a.call('rt.keyFilterBit');a.load('rcx',slot(40));a.load('r10',{base:'rcx',disp:O.keys});a.or('r10','rax');a.store({base:'rcx',disp:O.keys},'r10');
+  a.load('rdx',slot(48));
   a.call('rt.elementsNoteNode');a.load('rcx',slot(40));a.load('rdx',slot(48));
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',done);
   a.load('rdx',{base:'r10',disp:T.used});a.add('rdx',1);a.shl('rdx',1);a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rdx','r11');a.jcc('be',room);

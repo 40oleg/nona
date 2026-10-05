@@ -3,7 +3,7 @@ import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {propertyIndexThreshold} from './property-index.js';
 import {stringLiteral} from './value.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,keyFilterValid} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import {BoxLayout} from './boxing.js';
@@ -34,6 +34,8 @@ export function emitObjects(b:RuntimeBuilder):void {
     for(const offset of [O.properties,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
     a.load('r10',slot(48));a.store({base:'rax',disp:O.kind},'r10');
     a.load('r11',slot(56));a.store({base:'rax',disp:O.length},'r11');
+    // An empty object: its key filter is complete from the start.
+    a.mov('r11',keyFilterValid);a.store({base:'rax',disp:O.keys},'r11');
     const ordinary=a.unique('ordinary'),save=a.unique('save');a.test('r10','r10');a.jcc('e',ordinary);
     a.lea('r11',{rip:'rt.arrayPrototype'});a.jmp(save);a.label(ordinary);a.lea('r11',{rip:'rt.objectPrototype'});
     a.label(save);a.store({base:'rax',disp:O.prototype},'r11');a.load('rcx',slot(40));

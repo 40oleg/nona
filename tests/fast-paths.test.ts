@@ -278,6 +278,30 @@ Object.defineProperty(String.prototype, 'gs', { get() { return typeof this; }, c
 const so = { get onlySet() { return undefined; }, set onlySet2(v) {} }; out.push(so.onlySet, so.onlySet2);
 console.log(out.join(','));
 `,
+ 'own key filters across every way a key is added':`
+const out=[];const sym=Symbol('s');
+class P{m(){return 'proto';}}
+const objs=[];
+for(let i=0;i<40;i++){const o=new P();for(let j=0;j<i;j++)o['k'+j]=j;objs.push(o);}
+for(const o of objs){out.push(o.m(),o.k0,o.k5,o.k38,o.missing,o.m===P.prototype.m);}
+const lit={a:1,b:2};Object.defineProperty(lit,'m',{value:()=>'own',configurable:true});out.push(lit.m(),lit.a);
+const viaAssign=Object.assign(new P(),{m(){return 'assigned';},x:1});out.push(viaAssign.m(),viaAssign.x);
+const spread={...{m(){return 'spread';}}};out.push(spread.m());
+const parsed=JSON.parse('{"m":5,"n":6}');out.push(parsed.m,parsed.n,parsed.o);
+const arr=[1,2,3];arr.m=function(){return 'array';};out.push(arr.m(),arr.length);arr[10]=4;out.push(arr[10],Object.keys(arr).join());
+const withSym=new P();withSym[sym]='sym';out.push(withSym[sym],withSym.m());
+const del=new P();del.m=function(){return 'shadow';};out.push(del.m());delete del.m;out.push(del.m());del.m=()=>'again';out.push(del.m());
+const many={};for(let i=0;i<300;i++)many['p'+i]=i;let s=0;for(let i=0;i<300;i++)s+=many['p'+i];out.push(s,many.p299,many.q1,'p150' in many,'q1' in many);
+function F(){this.a=1;}F.prototype.b=2;const f=new F();out.push(f.a,f.b,f.c);f.b=3;out.push(f.b,F.prototype.b);
+const proto=Object.create(null);proto.z='z';const child=Object.create(proto);out.push(child.z);child.z='own z';out.push(child.z,proto.z);
+const args=(function(){return arguments;})(1,2);out.push(args.length,args[1]);
+const re=/x/g;re.exec('xx');out.push(re.lastIndex);
+function g(){}g.extra=1;out.push(g.extra,g.name,g.length);
+class Q extends P{constructor(){super();this.q=1;}}const q=new Q();out.push(q.q,q.m());
+const frozen=Object.freeze({fz:1});out.push(frozen.fz);
+const getter={};Object.defineProperty(getter,'gv',{get(){return 'got';}});out.push(getter.gv);
+console.log(out.join());
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];
