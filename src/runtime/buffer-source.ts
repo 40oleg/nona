@@ -7,6 +7,10 @@ export const bufferPreludeSource=String.raw`
  var encode=TextEncoder.prototype.encode,decode=TextDecoder.prototype.decode;
  var nativeHex=typeof __nonaHexEncode==='function'?__nonaHexEncode:null;
  delete globalThis.__nonaHexEncode;
+ var nativeCopy=typeof __nonaByteCopy==='function'?__nonaByteCopy:null,originalSet=u8set;
+ delete globalThis.__nonaByteCopy;
+ u8set=function(source,offset){if(offset===undefined)offset=0;if(nativeCopy!==null&&nativeCopy(this,source,offset)===true)return;return apply(originalSet,this,[source,offset])};
+ function cloneBytes(source){var out=new U8(source.length);apply(u8set,out,[source,0]);return out}
  var maxLength=2147483647,hex='0123456789abcdef',alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
  function error(kind,code,message){var e=new kind(message);e.code=code;throw e}
  function type(message){error(TypeError,'ERR_INVALID_ARG_TYPE',message)}
@@ -67,7 +71,7 @@ export const bufferPreludeSource=String.raw`
   if(typeof value==='object'||typeof value==='function'){
    if(typeof value.valueOf==='function'){var primitive=value.valueOf();if(primitive!==value&&primitive!==null&&primitive!==undefined)return bufferFrom(primitive,enc,length)}
    if(value.type==='Buffer'&&Array.isArray(value.data))return wrap(new U8(value.data));
-   if(AB.isView(value)||'length' in value){var n=typeof value.length==='number'?Math.max(0,Math.trunc(value.length)||0):0;size(n);var out=new U8(n);for(var i=0;i<n;i++)out[i]=value[i];return wrap(out)}
+   if(AB.isView(value)||'length' in value){var n=typeof value.length==='number'?Math.max(0,Math.trunc(value.length)||0):0;size(n);var out=new U8(n);if(value instanceof U8)apply(u8set,out,[value,0]);else for(var i=0;i<n;i++)out[i]=value[i];return wrap(out)}
    if(typeof value[Symbol.toPrimitive]==='function')return bufferFrom(value[Symbol.toPrimitive]('string'),enc,length)
   }
   type('The first argument must be a string, Buffer, ArrayBuffer, Array, or array-like object')
@@ -202,7 +206,7 @@ export const bufferPreludeSource=String.raw`
  function transferBytes(view){var old=view.buffer,copy=new U8(old.byteLength);apply(u8set,copy,[new U8(old)]);if(typeof __nonaRegexpVm.arrayBufferDetach==='function')__nonaRegexpVm.arrayBufferDetach(old);else old.transfer();return copy.buffer}
  function readStream(reader,view,options){try{var r=readerState(reader);if(r.released)throw streamError('Reader has been released');var s=streamState(r.stream);s.disturbed=true;var value,n;
   if(r.byob){if(!AB.isView(view))type('view must be an ArrayBuffer view');if(view.byteLength===0)throw streamError('view must be nonempty');if(!(view.buffer instanceof AB))error(TypeError,'ERR_INVALID_ARG_VALUE','view must have transferable storage');var ctor=view.constructor,offset=view.byteOffset,length=view.byteLength,unit=view instanceof DV?1:view.BYTES_PER_ELEMENT,min=options===undefined||options.min===undefined?1:Number(options.min);if(!Number.isInteger(min)||min<1||min>length/unit)range('min is out of range');var backing=transferBytes(view);n=s.closed?0:Math.min(length,s.data.length-s.position);if(!s.closed)for(var edge of s.ends){var available=Math.min(length,edge-s.position);available-=available%unit;if(available>=min*unit){n=available;break}}n-=n%unit;if(!s.closed&&n===0&&s.position<s.data.length)throw streamError('The remaining bytes cannot fill an element');var out=new U8(backing,offset,n);apply(u8set,out,[apply(u8sub,s.data,[s.position,s.position+n])]);s.position+=n;value=view instanceof DV?new DV(backing,offset,n):new ctor(backing,offset,n/unit);
-  }else{if(s.closed||s.position===s.data.length){finishStream(s);finishTee(s);return Promise.resolve({value:undefined,done:true})}var end=s.data.length;for(var edge of s.ends)if(edge>s.position){end=edge;break}if(s.text){var complete=completeUtf8End(s.data,s.position,end);while(complete===s.position&&end<s.data.length){for(var edge of s.ends)if(edge>end){end=edge;break}complete=completeUtf8End(s.data,s.position,end)}end=complete;value=decodeBytes(apply(u8sub,s.data,[s.position,end]),'utf8');if(!s.bom){s.bom=true;if(value.charCodeAt(0)===65279)value=value.slice(1)}n=end-s.position;s.position=end;if(value==='')return readStream(reader)}else{n=end-s.position;value=new U8(apply(u8sub,s.data,[s.position,end]));s.position=end}}
+  }else{if(s.closed||s.position===s.data.length){finishStream(s);finishTee(s);return Promise.resolve({value:undefined,done:true})}var end=s.data.length;for(var edge of s.ends)if(edge>s.position){end=edge;break}if(s.text){var complete=completeUtf8End(s.data,s.position,end);while(complete===s.position&&end<s.data.length){for(var edge of s.ends)if(edge>end){end=edge;break}complete=completeUtf8End(s.data,s.position,end)}end=complete;value=decodeBytes(apply(u8sub,s.data,[s.position,end]),'utf8');if(!s.bom){s.bom=true;if(value.charCodeAt(0)===65279)value=value.slice(1)}n=end-s.position;s.position=end;if(value==='')return readStream(reader)}else{n=end-s.position;value=cloneBytes(apply(u8sub,s.data,[s.position,end]));s.position=end}}
   if(n===0){finishStream(s);finishTee(s);return Promise.resolve({value:value,done:true})}if(s.position===s.data.length)finishStream(s);return Promise.resolve({value:value,done:false})
  }catch(e){return Promise.reject(e)}}
  function cancelReader(reason){try{var r=readerState(this);if(r.released)throw streamError('Reader has been released');return cancelStream(streamState(r.stream),reason)}catch(e){return Promise.reject(e)}}

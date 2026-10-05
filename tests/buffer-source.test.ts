@@ -12,6 +12,14 @@ import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {runtimeRegExpLink} from '../src/runtime/link.js';
 import {collectSourceUsage,lex} from '../src/frontend/lexer.js';
 
+test('Buffer captures the private checked byte-copy adapter',()=>{
+ let calls=0;
+ const context={__nonaRegexpVm:{},__nonaByteCopy:(target:Uint8Array,source:Uint8Array,offset:number)=>{calls++;if(!ArrayBuffer.isView(target)||!ArrayBuffer.isView(source)||target.BYTES_PER_ELEMENT!==1||source.BYTES_PER_ELEMENT!==1||!Number.isInteger(offset)||offset<0||offset+source.length>target.length)return undefined;target.set(source,offset);return true}};
+ const body=`var b=Buffer.from([1,2,3,4]);b.copy(b,1,0,3);var c=Buffer.from(b);c[0]=9;JSON.stringify([Array.from(b),Array.from(c)]);`;
+ assert.equal(runInNewContext(encodingPreludeSource+bufferPreludeSource+body,context),'[[1,1,2,3],[9,1,2,3]]');
+ assert.ok(calls>=2);assert.equal('__nonaByteCopy' in context,false);
+});
+
 test('Buffer captures and removes the private native hex helper',()=>{
  let calls=0;
  const context={__nonaRegexpVm:{},__nonaHexEncode:(bytes:Uint8Array)=>{calls++;return Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('')}};
