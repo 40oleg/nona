@@ -97,7 +97,9 @@ oracle suites on their native runners. Process/filesystem suites run where
 those APIs exist: Linux x64/ARM64 and Windows ARM64 here, Windows x64 in
 `check`. FreeBSD and OpenBSD execute loader and runtime probes inside VMs;
 their portable Node.js oracle suite is not yet run there. The Linux
-distribution containers share the Ubuntu runner's kernel.
+distribution containers share the Ubuntu runner's kernel. BSD VM jobs use an
+Ubuntu runner to build the images and host the VM; the probe commands verify
+the guest's `uname -s` and `uname -m` before executing binaries.
 
 The exact evidence and development failures are recorded in the
 [implementation ledger](superpowers/plans/2026-10-04-native-platforms-ledger.md).

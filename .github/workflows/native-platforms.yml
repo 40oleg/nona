@@ -137,7 +137,7 @@ jobs:
             cmp "$expected" "work/distro-results/${binary##*/}.actual"
           done
   bsd-loaders:
-    name: ${{ matrix.os }} x64 native VM probes
+    name: ${{ matrix.os }} x64 guest VM on Ubuntu host
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -159,6 +159,8 @@ jobs:
           usesh: true
           run: |
             set -eu
+            uname -a
+            test "$(uname -s)" = FreeBSD
             test "$(uname -m)" = amd64
             chmod 755 work/platform-probes/freebsd-x64
             work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
@@ -186,6 +188,8 @@ jobs:
           usesh: true
           run: |
             set -eu
+            uname -a
+            test "$(uname -s)" = OpenBSD
             test "$(uname -m)" = amd64
             chmod 755 work/platform-probes/openbsd-x64
             work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
