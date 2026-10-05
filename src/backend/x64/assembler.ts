@@ -109,7 +109,16 @@ export class Assembler {
     const d = regCode(dst);
     if (typeof src === "string") this.instruction([0x89], regCode(src), dst);
     else {
-      this.emit([0x48 | (d >> 3), 0xb8 + (d & 7), ...little(src, 8)]);
+      // The shortest form that leaves the flags alone: a 32-bit move
+      // (zero-extended) for 0..2^32-1, a sign-extended 32-bit immediate for
+      // small negatives, the 10-byte movabs otherwise.
+      const value = BigInt.asIntN(64, BigInt(src));
+      if (value >= 0n && value <= 0xffffffffn) {
+        if (d >= 8) this.emit([0x41]);
+        this.emit([0xb8 + (d & 7), ...little(Number(value), 4)]);
+      } else if (value >= -0x80000000n && value < 0n) {
+        this.emit([0x48 | (d >> 3), 0xc7, 0xc0 | (d & 7), ...little(Number(value), 4)]);
+      } else this.emit([0x48 | (d >> 3), 0xb8 + (d & 7), ...little(src, 8)]);
     }
   }
   load(dst: Reg, src: Mem, width: 8 | 16 | 32 | 64 = 64): void {
