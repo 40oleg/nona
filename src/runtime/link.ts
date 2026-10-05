@@ -38,6 +38,11 @@ export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
 export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding'],buffer:['encoding']};
+/** Buffer's URL validation and Blob native line endings use internal regexes. */
+export function runtimeRegExpLink(link:RuntimeLink):{regexp:boolean;unicodeProperties:boolean} {
+  const regexp=link.regexp||link.preludes.buffer;
+  return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
+}
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
  * method, so it links every prelude.

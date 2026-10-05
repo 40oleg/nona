@@ -15,7 +15,7 @@ import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
-import {fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
+import {fullRuntimeLink,optionalPreludes,preludeDependencies,runtimeRegExpLink,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
@@ -91,7 +91,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
-  const regexpLink={regexp:link.regexp,unicodeProperties:link.regexp&&link.unicodeProperties};
+  const regexpLink=runtimeRegExpLink(link);
   const linked=linkedPreludes(link);
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;

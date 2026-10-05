@@ -8,6 +8,22 @@ import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {nativeTargets} from '../src/target.js';
 import {runtimeProbeSources} from '../src/backend/platform-probes.js';
 import {cases,blobStreamCases,streamOracle} from './helpers/buffer-cases.js';
+import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
+import {runtimeRegExpLink} from '../src/runtime/link.js';
+import {collectSourceUsage,lex} from '../src/frontend/lexer.js';
+
+test('Buffer source links its internal RegExp dependency',()=>{
+ const unused=collectSourceUsage(()=>lex('console.log("hello")')).usage;
+ assert.deepEqual(runtimeRegExpLink(unused),{regexp:false,unicodeProperties:false});
+ const linked=collectSourceUsage(()=>lex('URL.revokeObjectURL("blob:nodedata:missing")')).usage;
+ assert.equal(linked.regexp,false);assert.equal(linked.preludes.buffer,true);
+ assert.deepEqual(runtimeRegExpLink(linked),{regexp:true,unicodeProperties:false});
+ // Model the native exec-to-VM bridge instead of delegating to Node's engine.
+ const bridge=`Function.prototype.__nonaMarkNativeInternal=function(){};RegExp.prototype.exec=function(s){return __nonaRegexpVm(this,String(s),this.lastIndex,false,this.source,this.flags)};`;
+ const body=`__nonaRegexpVm.bufferModule.resolveObjectURL('blob:nodedata:missing?query#hash');URL.revokeObjectURL('blob:nodedata:missing?query#hash');var u=new URL('blob:nodedata:missing?query#hash');if(u.search!=='?query'||u.hash!=='#hash')throw Error('URL parsing');`;
+ const run=(regexp:boolean)=>runInNewContext(bridge+regexpVmPrelude({regexp,unicodeProperties:false})+encodingPreludeSource+bufferPreludeSource+body);
+ assert.throws(()=>run(false),/compiled without the RegExp engine/);assert.doesNotThrow(()=>run(runtimeRegExpLink(linked).regexp));
+});
 
 test('node:buffer resolves as a built-in module',()=>{
  const result=compile(`import {Buffer} from 'node:buffer';console.log(Buffer.from('ok').toString());`,{fileName:'buffer.mjs',target:'win32-x64',module:true});
