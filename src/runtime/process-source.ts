@@ -6,6 +6,7 @@ import {processExtensionsSource} from './process-extensions-source.js';
 import {processMetadataSource} from './process-metadata-source.js';
 export const processPreludeSource=String.raw`
 __nonaPromiseDrainJobs=(function(drain){
+  var nativeUnits=globalThis.__nonaProcessUnits;delete globalThis.__nonaProcessUnits;
   var finalizationNative=globalThis.__nonaProcessFinalization;delete globalThis.__nonaProcessFinalization;
   var names=__NONA_PROCESS_HOST_NAMES__;
   var host={},found=false;
@@ -25,11 +26,13 @@ __nonaPromiseDrainJobs=(function(drain){
   var platform=windows?'win32':'__NONA_PROCESS_PLATFORM__';
   function wide(pointer,length){
     var units=new Uint16Array(length);host.RtlMoveMemory(units,pointer,length*2);
+    if(typeof nativeUnits==='function')return nativeUnits(units,length);
     var out='',chunk=[],k=0;
     for(var i=0;i<length;i++){chunk[k++]=units[i];if(k===4096){out+=apply(fromCharCode,undefined,chunk);chunk=[];k=0}}
     return out+apply(fromCharCode,undefined,chunk)
   }
   function fromUnits(units,length){
+    if(typeof nativeUnits==='function')return nativeUnits(units,length);
     var out='';for(var i=0;i<length;i++)out+=fromCharCode(units[i]);return out
   }
   // CommandLineToArgvW rules: the program name ends at the next quote or
@@ -148,6 +151,7 @@ __nonaPromiseDrainJobs=(function(drain){
       if(windows){var upper=key.toUpperCase(),known=false;for(var existing in env)if(existing.toUpperCase()===upper){known=true;break}if(known)continue}
       defineProperty(env,key,{value:entry.slice(eq+1),writable:true,enumerable:true,configurable:true})
     }
+    startupPhase("environment parsed");
     function exitStatus(code){
       if(code===undefined||code===null)return undefined;
       if(typeof code==='string'&&code!==''&&!Number.isNaN(Number(code)))code=Number(code);
@@ -205,10 +209,13 @@ __nonaPromiseDrainJobs=(function(drain){
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
+    startupPhase("core object");
 ${processMetadataSource(undefined,true)}
+    startupPhase("metadata");
     value('getBuiltinModule',function getBuiltinModule(id){return __nonaRegexpVm.getBuiltinModule(id)});
     value('abort',function abort(){if(windows)host.ExitProcess(134);else host.abort()});
     value('pid',windows?host.GetCurrentProcessId():host.sys_getpid());
+    startupPhase("parent pid");
     value('ppid',parentPid());value('argv0',commandLine[0]);value('execArgv',[]);
     var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
     value('exit',function exit(code){return exitNow(code)});

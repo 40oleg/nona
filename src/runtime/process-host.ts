@@ -1,6 +1,7 @@
 import {RuntimeBuilder} from './abi.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import type {Target} from '../target.js';
+import {emitProcessUnits} from './process-units.js';
 import {emitProcessMemory} from './process-memory.js';
 import {emitProcessEnvironment} from './process-environment.js';
 import {emitProcessTitle} from './process-title.js';
@@ -11,7 +12,7 @@ import {currentNativeTarget} from '../backend/machine/context.js';
 /** Private, allocation-free native helpers for the process prelude. */
 export function processNativeHelpers():RuntimeBuilder {
  const b=new RuntimeBuilder();
- emitProcessMemory(b);
+ emitProcessMemory(b);emitProcessUnits(b);
  emitProcessEnvironment(b);
  emitProcessTitle(b);
  emitProcessFinalization(b);
