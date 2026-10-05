@@ -314,48 +314,6 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(largeLive);a.load('r10',slot(48));a.lea('rax',{base:'r10',disp:L.next});a.store(slot(56),'rax');a.jmp(largeNext);
   a.label(done);
  });
- // RCX chunk: pushes its free and dead cells on its class's free list
- // (running rt.gcFreeBlock for dead objects with side tables) and returns
- // their number. Cells marked in the current epoch are live: anything
- // allocated since the collection was allocated marked. Registers: R10
- // cell, R11 end, R9 cell size, RDX free list head address, R8 count.
- b.fn('rt.sweepChunk',104,a=>{
-  const cells=a.unique('cells'),next=a.unique('next'),push=a.unique('push'),done=a.unique('done');
-  a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:C.cellSize});a.call('rt.classOf');a.shl('rax',3);a.lea('rdx',{rip:'rt.classState'});a.add('rdx','rax');
-  a.load('rax',slot(40));a.load('r10',{base:'rax',disp:C.cells});a.load('r11',{base:'rax',disp:C.carved});a.load('r9',{base:'rax',disp:C.cellSize});a.mov('r8',0);
-  a.label(cells);a.cmp('r10','r11');a.jcc('ae',done);
-  a.load('rcx',{base:'r10',disp:H.marked});a.load('rax',{rip:'rt.gcEpoch'});a.cmp('rcx','rax');a.jcc('e',next);
-  a.load('rax',{base:'r10',disp:H.kind});a.cmp('rax',FreeKind);a.jcc('e',push);
-  {const free=a.unique('free'),call=a.unique('call');a.cmp('rax',HeapKind.object);a.jcc('ne',free);
-   // Ordinary objects, arrays and functions without a property index or an
-   // element table own no side table.
-   a.load('rax',{base:'r10',disp:H.size+O.kind});a.cmp('rax',2);a.jcc('a',call);
-   a.load('rax',{base:'r10',disp:H.size+O.index});a.load('rcx',{base:'r10',disp:H.size+O.elements});a.or('rax','rcx');a.jcc('e',free);
-   a.label(call);for(const [r,o] of [['r10',48],['r11',56],['r9',64],['rdx',72],['r8',80]] as const)a.store(slot(o),r);
-   a.mov('rcx','r10');a.call('rt.gcFreeBlock');
-   for(const [r,o] of [['r10',48],['r11',56],['r9',64],['rdx',72],['r8',80]] as const)a.load(r,slot(o));
-   a.label(free);
-   // Under GC stress the payload is filled with 0xDD: a Value read through a
-   // missing root then has an invalid tag and a pointer that faults, instead
-   // of looking valid until the cell is reused. rt.alloc clears it again.
-   {const clean=a.unique('clean'),fill=a.unique('fill');a.load('rax',{rip:'rt.gcPoison'});a.test('rax','rax');a.jcc('e',clean);
-    a.load('rcx',{base:'r10',disp:H.bytes});a.add('rcx','r10');a.add('rcx',H.size);a.lea('rax',{base:'r10',disp:H.size});a.store(slot(88),'r11');a.mov('r11',0xddddddddddddddddn);
-    a.label(fill);a.cmp('rax','rcx');a.jcc('ae',fill+'.done');a.store({base:'rax'},'r11');a.add('rax',8);a.jmp(fill);a.label(fill+'.done');a.load('r11',slot(88));
-    a.label(clean);}
-   a.mov('rax',FreeKind);a.store({base:'r10',disp:H.kind},'rax');}
-  a.label(push);a.load('rax',{base:'rdx'});a.store({base:'r10',disp:H.next},'rax');a.store({base:'rdx'},'r10');a.add('r8',1);
-  a.label(next);a.add('r10','r9');a.jmp(cells);
-  a.label(done);a.mov('rax','r8');
- });
- // RCX class index: sweeps that class's unswept chunks until one yields a
- // free cell. RAX 1 when the free list has cells, 0 when none is left to sweep.
- b.fn('rt.sweepClass',56,a=>{
-  const loop=a.unique('loop'),none=a.unique('none'),done=a.unique('done');
-  a.store(slot(40),'rcx');
-  a.label(loop);a.load('rax',slot(40));a.shl('rax',3);a.lea('r10',{rip:'rt.unswept'});a.add('rax','r10');a.load('rcx',{base:'rax'});a.test('rcx','rcx');a.jcc('e',none);
-  a.load('r10',{base:'rcx',disp:C.sweepNext});a.store({base:'rax'},'r10');a.call('rt.sweepChunk');a.test('rax','rax');a.jcc('e',loop);
-  a.mov('rax',1);a.jmp(done);a.label(none);a.mov('rax',0);a.label(done);
- });
  // After marking: every chunk is listed as unswept under its class and the
  // free lists start empty (sweeping a chunk lists its free cells again).
  // Under GC stress everything is swept at once, so freed payloads are
@@ -425,7 +383,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(ephemerons);a.call('rt.gcPendingFree');a.call('rt.gcPruneWeakEntries');
   // Chunk cells are swept lazily (rt.sweepClass, when an allocation finds
   // its class's free list empty): the pause only marks.
-  a.label(sweep);a.call('rt.gcSweepLarge');a.call('rt.gcPrepareSweep');
+  a.label(sweep);a.call('rt.gcSweepLarge');a.lea('rax',{rip:'rt.gcFreeBlock'});a.store({rip:'rt.freeBlockHook'},'rax');a.call('rt.gcPrepareSweep');
   a.load('rax',{rip:'rt.markedBytes'});a.store({rip:'rt.liveBytes'},'rax');a.load('rax',{rip:'rt.markedBlocks'});a.store({rip:'rt.blocks'},'rax');
   a.call('rt.keyHashCacheClear');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
