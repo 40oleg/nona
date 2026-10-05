@@ -44,12 +44,12 @@ test('Darwin x64 keeps kernel startup without system imports and uses dyld for p
 
 test('process loads dotenv syntax with the Node 26 oracle and preserves existing values',()=>{
  const directory=mkdtempSync(join(tmpdir(),'nona-env-oracle-')),path=join(directory,'fixture.env');
- const text="# comment\nexport NONA_ENV_A = first # trailing\nNONA_ENV_B='  spaced # value  '\nNONA_ENV_C=\"line\\nnext\"\nNONA_ENV_D='multi\nline'\nNONA_ENV_A=last\nNONA_ENV_KEEP=replaced\n";
+ const text="# comment\nexport NONA_ENV_A = first # trailing\nNONA_ENV_B='  spaced # value  '\nNONA_ENV_C=\"line\\nnext\"\nNONA_ENV_D='multi\nline'\nNONA_ENV_A=last\nNONA_ENV_KEEP=replaced\nNONA_ENV_CRLF='a\r\nb'\r\nNONA_ENV_LITERAL=\"a\\rb\"\r\n";
  try{
   writeFileSync(path,text);let read=false;
   const context=mockProcess({__nonaHost_sys_open:(_path:Uint8Array,flags:number)=>flags===0?10:-2,
    __nonaHost_sys_read:(_fd:number,buffer:Uint8Array)=>{if(read)return 0;read=true;const bytes=new TextEncoder().encode(text);buffer.set(bytes);return bytes.length},__nonaHost_sys_close:()=>0});
-  const source='process.env.NONA_ENV_KEEP="original";process.loadEnvFile('+JSON.stringify(path)+');JSON.stringify([process.env.NONA_ENV_A,process.env.NONA_ENV_B,process.env.NONA_ENV_C,process.env.NONA_ENV_D,process.env.NONA_ENV_KEEP])';
+  const source='process.env.NONA_ENV_KEEP="original";process.loadEnvFile('+JSON.stringify(path)+');JSON.stringify([process.env.NONA_ENV_A,process.env.NONA_ENV_B,process.env.NONA_ENV_C,process.env.NONA_ENV_D,process.env.NONA_ENV_KEEP,process.env.NONA_ENV_CRLF,process.env.NONA_ENV_LITERAL])';
   const actual=runInContext(source,context);
   // Keep evaluation separate from printing so the fixture is shared exactly.
   const expected=spawnSync(process.execPath,['-e',source.replace(';JSON.stringify',';console.log(JSON.stringify')+')'],{encoding:'utf8',windowsHide:true});

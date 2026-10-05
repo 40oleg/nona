@@ -40,6 +40,7 @@ export const processSystemSource=String.raw`
       var all=new Uint8Array(total),offset=0;for(var i=0;i<chunks.length;i++){all.set(chunks[i],offset);offset+=chunks[i].length}return decoder.decode(all)
     }
     function parseEnvironment(text){
+      text=text.replace(/\r\n?/g,'\n');
       var result={},i=0,n=text.length;
       function space(c){return c===' '||c==='\t'||c==='\r'}
       function lineEnd(){while(i<n&&text[i]!=='\n')i++;if(i<n)i++}
@@ -53,7 +54,7 @@ export const processSystemSource=String.raw`
         while(space(text[i]))i++;var quote=text[i],entry='';
         if(quote==='"'||quote==="'"||quote==='\x60'){
           i++;start=i;while(i<n&&text[i]!==quote)i++;entry=text.slice(start,i);if(i<n)i++;
-          if(quote==='"')entry=entry.replace(/\\n/g,'\n').replace(/\\r/g,'\r');lineEnd()
+          if(quote==='"')entry=entry.replace(/\\n/g,'\n');lineEnd()
         }else{start=i;while(i<n&&text[i]!=='\n'&&text[i]!=='#')i++;entry=text.slice(start,i).trim();lineEnd()}
         defineProperty(result,key,{value:entry,writable:true,enumerable:true,configurable:true})
       }return result
