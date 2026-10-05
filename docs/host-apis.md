@@ -1,5 +1,10 @@
 # Host APIs
 
+Process memory reporting queries current native resident memory on every target.
+Its allocation-free private adapter walks Nona's actual allocator mappings and
+buffer owners; the public Node-compatible fields describe Nona allocation
+semantics as detailed in [process](process.md), without inventing V8 counters.
+
 Nona programs run without Node.js. The host APIs below are implemented by the
 native runtime and small JavaScript preludes compiled into every executable.
 

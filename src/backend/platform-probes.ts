@@ -33,6 +33,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const processMemory=compile('let buffer=new ArrayBuffer(262144),shared=new SharedArrayBuffer(1024),memory=process.memoryUsage();console.log(Object.keys(memory).join(","),memory.rss>0,memory.heapTotal>=memory.heapUsed,memory.external>=memory.arrayBuffers,memory.arrayBuffers>=buffer.byteLength+shared.byteLength,process.memoryUsage.rss()>0)',{fileName:'process-memory.js',target});
+  if(!processMemory.ok)throw new Error(`${target}/process-memory: ${JSON.stringify(processMemory.diagnostics)}`);
+  probes.push({name:'process-memory',image:processMemory.image,expected:'rss,heapTotal,heapUsed,external,arrayBuffers true true true true true\n'});
   const processSystem=compile('console.log(process.availableMemory()>0,process.constrainedMemory()>=0,process.platform==="win32"?process.getgroups===undefined:process.getgroups().includes(process.getegid()));let timer=setTimeout(()=>{},50);console.log(process.getActiveResourcesInfo().filter(name=>name==="Timeout").length);clearTimeout(timer);let slash=process.platform==="win32"?"\\\\":"/";let path=process.execPath.slice(0,process.execPath.lastIndexOf(slash)+1)+"process.env";process.env.NONA_PLATFORM_ENV_KEEP="original";process.loadEnvFile(path);console.log(JSON.stringify([process.env.NONA_PLATFORM_ENV_QUOTED,process.env.NONA_PLATFORM_ENV_MULTILINE==="first\\nsecond",process.env.NONA_PLATFORM_ENV_KEEP]))',{fileName:'process-system.js',target});
   if(!processSystem.ok)throw new Error(`${target}/process-system: ${JSON.stringify(processSystem.diagnostics)}`);
   probes.push({name:'process-system',image:processSystem.image,expected:'true true true\n1\n[" value # bytes ",true,"original"]\n'});

@@ -1,10 +1,12 @@
 import {RuntimeBuilder} from './abi.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import type {Target} from '../target.js';
+import {emitProcessMemory} from './process-memory.js';
 
 /** Private, allocation-free native helpers for the process prelude. */
 export function processNativeHelpers():RuntimeBuilder {
  const b=new RuntimeBuilder();
+ emitProcessMemory(b);
  b.data('process.startupArgv',new Uint8Array(8),'.data');
  b.data('process.startupEnv',new Uint8Array(8),'.data');
  for(const name of ['startupArgv','startupEnv'])b.fn('process.'+name+'.code',40,a=>a.load('rax',{rip:'process.'+name}));

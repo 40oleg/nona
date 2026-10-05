@@ -10,6 +10,8 @@ process.on('beforeExit',code=>console.log('beforeExit',code));process.on('exit',
 let inventory=setTimeout(()=>{},10);console.log(process.getActiveResourcesInfo().filter(name=>name==='Timeout').length);clearTimeout(inventory);
 if(typeof process.getgroups==='function'){console.log(process.getgroups().includes(process.getegid()));if(process.getuid()===process.geteuid()&&process.getgid()===process.getegid()){process.setuid(process.getuid());process.seteuid(process.geteuid());process.setgid(process.getgid());process.setegid(process.getegid());console.log('same identities')}}
 console.log(typeof process.loadEnvFile,typeof process.constrainedMemory,typeof process.availableMemory);
+let memoryBuffer=new ArrayBuffer(262144),sharedMemoryBuffer=new SharedArrayBuffer(1024),memory=process.memoryUsage();
+console.log(Object.keys(memory).join(','),memory.rss>0,memory.heapTotal>=memory.heapUsed,memory.external>=memory.arrayBuffers,memory.arrayBuffers>=memoryBuffer.byteLength+sharedMemoryBuffer.byteLength,process.memoryUsage.rss()>0);
 `;
 
 export const processReviewOracle=String.raw`

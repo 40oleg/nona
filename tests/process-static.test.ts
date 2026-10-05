@@ -6,6 +6,7 @@ import {runtimeRegExpLink} from '../src/runtime/link.js';
 import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {captureProcessStartup} from '../src/runtime/process-host.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
+import {processNativeHelpers} from '../src/runtime/process-host.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
@@ -23,6 +24,14 @@ test('FreeBSD startup captures the RDI vector independently of aligned RSP',()=>
  // https://github.com/freebsd/freebsd-src/blob/releng/14.3/lib/csu/amd64/crt1_s.S
  const a=new Assembler('process.startup.test');captureProcessStartup(a,'freebsd-x64');
  assert.deepEqual(Array.from(a.finish().bytes.slice(0,4)),[0x48,0x8d,0x47,0x08]);
+});
+test('native process heap snapshot reads actual allocator state without calls',()=>{
+ const fragment=processNativeHelpers().bundle.fragments.find(item=>item.name==='process.heapSnapshot.code')!;
+ assert.ok(fragment.fixups.some(item=>item.target==='rt.liveBytes'));
+ assert.ok(fragment.fixups.some(item=>item.target==='rt.chunks'));
+ assert.ok(fragment.fixups.some(item=>item.target==='rt.largeList'));
+ assert.ok(fragment.fixups.some(item=>item.target==='rt.largeCache'));
+ assert.ok(!fragment.fixups.some(item=>item.target==='rt.alloc'||item.target.startsWith('rt.gc')));
 });
 
 test('trimmed process programs link the original RegExp engine for internal OS text parsing',()=>{
@@ -90,6 +99,24 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64'){
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,...extra});
  runInContext(processPreludeForTarget(target),context);return context;
 }
+test('process memoryUsage returns actual allocator counters and current RSS with Node shape',()=>{
+ let read=false;const context=mockProcess({
+  __nonaHost_heapSnapshot:(words:Uint32Array)=>words.set([65536,0,4096,0,1024,0,12,0]),
+  __nonaHost_sys_open:()=>{read=false;return 10},__nonaHost_sys_read:(_fd:number,bytes:Uint8Array)=>{if(read)return 0;read=true;const status=new TextEncoder().encode('VmRSS: 12 kB\n');bytes.set(status);return status.length},__nonaHost_sys_close:()=>0});
+ // Initialize lazy metadata before the mock file read used for RSS.
+ runInContext('process.pid',context);read=false;
+ assert.equal(runInContext('JSON.stringify(process.memoryUsage())',context),'{"rss":12288,"heapTotal":65536,"heapUsed":4096,"external":1024,"arrayBuffers":1024}');
+ const source='console.log(Object.keys(process.memoryUsage()).join(","));console.log(typeof process.memoryUsage.rss)';
+ assert.equal(runInContext('Object.keys(process.memoryUsage()).join(",")',context)+'\nfunction\n',runOracle(source).stdout);
+});
+for(const target of ['freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64'])test(`process RSS uses current release ABI counters for ${target}`,()=>{
+ const context=mockProcess({__nonaHost_sys_procinfo:(_call:number,_pid:number,flavor:number,_arg:number,words:Uint32Array)=>{if(flavor===11)return 0;assert.equal(flavor,4);words[2]=8192;return 96},
+  __nonaHost_sys_sysctl:(mib:Int32Array,_n:number,output:Uint8Array|Uint32Array,length:Uint32Array)=>{
+   const words=new Uint32Array(output.buffer);if(mib[0]===1&&mib[2]===12){new Uint8Array(output.buffer).set(new TextEncoder().encode('/image\0'));length[0]=7}
+   else if(mib[0]===1){if(target==='openbsd-x64'){assert.deepEqual(Array.from(mib),[1,66,1,123,388,1]);words[96]=2;length[0]=388}else{assert.deepEqual(Array.from(mib),[1,14,1,123]);words[66]=2;length[0]=1088}}
+   else if(mib[0]===0){words.set([6,7]);length[0]=8}else{words[0]=4096;length[0]=4}return 0}},target);
+ assert.equal(runInContext('process.memoryUsage.rss()',context),8192);
+});
 test('process Linux memory queries account for real cgroup usage and native limits',()=>{
  const files:Record<string,string>={'/proc/meminfo':'MemAvailable: 4 kB\n','/proc/self/cgroup':'0::/group\n','/sys/fs/cgroup/group/memory.max':'2048','/sys/fs/cgroup/group/memory.current':'1024','/sys/fs/cgroup/memory.max':'4096','/sys/fs/cgroup/memory.current':'1024'};
  let next=10;const handles=new Map<number,{bytes:Uint8Array;done:boolean}>();
@@ -106,9 +133,11 @@ test('process OpenBSD memory uses release uvmexp page/free counters',()=>{
 test('process Windows memory queries honor actual process Job Object limits',()=>{
  const context=mockProcess({__nonaHost_GetCommandLineW:()=>100,__nonaHost_lstrlenW:()=>0,__nonaHost_RtlMoveMemory:()=>{},__nonaHost_GetModuleFileNameW:()=>0,
   __nonaHost_GetEnvironmentStringsW:()=>0,__nonaHost_GetCurrentProcessId:()=>123,__nonaHost_NtQueryInformationProcess:()=>-1,
+  __nonaHost_K32GetProcessMemoryInfo:(_process:number,words:Uint32Array,size:number)=>{assert.equal(size,72);assert.equal(words[0],72);words[2]=16384;words[4]=8192;return true},
   __nonaHost_GlobalMemoryStatusEx:(words:Uint32Array)=>{words[4]=8192;return true},__nonaHost_IsProcessInJob:(_process:number,_job:number,yes:Uint32Array)=>{yes[0]=1;return true},
   __nonaHost_QueryInformationJobObject:(_job:number,_class:number,words:Uint32Array)=>{words[4]=0x100;words[28]=4096;return true}});
  assert.equal(runInContext('process.constrainedMemory()',context),4096);assert.equal(runInContext('process.availableMemory()',context),4096);
+ assert.equal(runInContext('process.memoryUsage.rss()',context),8192);
 });
 test('process Darwin memory queries use native Mach page statistics and cache the host right',()=>{
  let hosts=0;const context=mockProcess({__nonaHost_mach_host_self:()=>{hosts++;return 77},

@@ -1,5 +1,21 @@
 /** Original OS process helpers, inserted inside the lazy process build. */
 export const processSystemSource=String.raw`
+    function residentMemory(){
+      if(windows){var memory=new Uint32Array(18);memory[0]=72;if(!host.K32GetProcessMemoryInfo(-1,memory,72))throw hostError('memoryUsage',5);return unsigned64(memory,4)}
+      if(platform==='linux'){var status=readProcessFile('/proc/self/status'),rss=/^VmRSS:\s*(\d+)\s+kB/m.exec(status);if(!rss)throw hostError('memoryUsage',5);return Number(rss[1])*1024}
+      if(platform==='darwin'){var task=new Uint32Array(24),r=host.sys_procinfo(2,host.sys_getpid(),4,0,task,96);if(r<0)throw hostError('memoryUsage',-r);if(r!==96)throw hostError('memoryUsage',5);return unsigned64(task,2)}
+      var openbsd=platform==='openbsd',info=new Uint32Array(openbsd?97:1024),length=new Uint32Array([info.byteLength,0]);
+      // OpenBSD 7.8 allows a prefix-sized kinfo_proc; RSS is int32 at byte384.
+      // FreeBSD 14.3 amd64 RSS is segsz_t at byte264 after the 16 group IDs.
+      var mib=openbsd?new Int32Array([1,66,1,host.sys_getpid(),388,1]):new Int32Array([1,14,1,host.sys_getpid()]);
+      var r=host.sys_sysctl(mib,mib.length,info,length,null,0);if(r<0)throw hostError('memoryUsage',-r);
+      if(length[0]<(openbsd?388:272))throw hostError('memoryUsage',5);
+      var pages=openbsd?info[96]:unsigned64(info,66),pageSize;
+      if(openbsd){var page=new Uint32Array(1),size=new Uint32Array([4,0]);r=host.sys_sysctl(new Int32Array([6,7]),2,page,size,null,0);if(r<0)throw hostError('memoryUsage',-r);pageSize=page[0]}
+      else pageSize=freebsdNumber('hw.pagesize');return pages*pageSize
+    }
+    function memoryUsage(){var snapshot=new Uint32Array(8);host.heapSnapshot(snapshot);var backing=unsigned64(snapshot,4);return {rss:residentMemory(),heapTotal:unsigned64(snapshot,0),heapUsed:unsigned64(snapshot,2),external:backing,arrayBuffers:backing}}
+    memoryUsage.rss=residentMemory;value('memoryUsage',memoryUsage);
     value('getActiveResourcesInfo',function(){
       var list=typeof __nonaRegexpVm.activeTimerResources==='function'?__nonaRegexpVm.activeTimerResources():[];
       if(__nonaRegexpVm.hasPendingIO())list.push('NonaStdin');return list

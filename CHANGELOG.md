@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add current native RSS and original allocator-backed process.memoryUsage on all eight targets, including real ArrayBuffer backing accounting ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Added original process dotenv loading, numeric POSIX credentials/groups, active resource/ref APIs and native available/constrained memory queries on all eight targets. Darwin process images use native libSystem Mach bindings; FreeBSD startup vectors use the kernel's RDI entry ABI ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Fixed reentrant process once listeners, final exit-listener status updates, polling of unreferenced stdin while timers keep the process alive, and the OpenBSD 7.8 `kill` syscall mapping ([#141](https://github.com/40oleg/nona/issues/141)).

@@ -93,6 +93,21 @@ guarantees; unavailable counters fail explicitly. Linux supports conventional
 cgroup mounts. Windows queries the current job. BSD/Darwin page counts exclude
 potentially reclaimable inactive pages.
 
+`memoryUsage()` returns the Node-compatible five-field shape, with real Nona
+allocation accounting. `rss` and `memoryUsage.rss()` query current OS residency:
+Windows working set, Linux VmRSS, Darwin task resident size, or BSD process
+resident pages. This is not the high-water mark from `resourceUsage()`.
+`heapTotal` counts reserved allocator chunk and large mappings, including the
+large mapping reuse cache. `heapUsed` counts allocated cell/mapping bytes,
+including allocator overhead and buffer backing storage. `external` and
+`arrayBuffers` count requested backing allocation bytes of ArrayBuffer and
+SharedArrayBuffer owners; views do not count the same storage again. Nona stores
+these bytes in its managed heap, so they also contribute to heapUsed. Detached
+owners retain their allocated backing storage until collected. Dead allocations
+remain counted until GC sweeps them. These are Nona allocator measurements,
+not V8 heap estimates. The private native snapshot allocates no objects and
+does not trigger GC.
+
 IPC/channel APIs, worker integration, V8 heap reports, account-name resolution,
 title changes, Node.js/V8 version metadata, debugger/report APIs
 and interpreter flag processing remain absent. Nona does not fabricate V8 or

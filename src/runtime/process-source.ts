@@ -305,6 +305,7 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
   const list:[string,string,string,string][]=[...windows,...posix,
     ['startupArgv','nona.internal','startupArgv','ptr()'],['startupEnv','nona.internal','startupEnv','ptr()'],
     ['copy','nona.internal','copy','void(buf,ptr,u64)'],['length','nona.internal','length','u64(ptr)'],
+    ['heapSnapshot','nona.internal','heapSnapshot','void(buf)'],
   ];
   if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)']);
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));

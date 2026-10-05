@@ -66,6 +66,6 @@ test('process exitCode waits for next ticks, Promise jobs and timers',()=>{
  const native=runOnHost(source);assert.equal(native.status,7,native.stderr);assert.equal(native.stdout,'tick\npromise\ntimer\n');
 });
 test('unsupported process members remain absent',()=>{
- const source='console.log(["memoryUsage","send","versions","report","channel"].every(key=>process[key]===undefined))';
+ const source='console.log(["send","versions","report","channel"].every(key=>process[key]===undefined))';
  const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true\n');
 });
