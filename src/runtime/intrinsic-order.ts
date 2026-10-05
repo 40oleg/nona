@@ -11,7 +11,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.functionPrototype':['length','name','constructor','apply','bind','call','toString','arguments','caller','@@hasInstance','__nonaMarkNativeInternal','__nonaMarkPromiseInternal','__nonaSharedQueueInternal','__nonaReflectConstructInternal','__nonaProxyCreateInternal','__nonaProxyRevokeInternal','__nonaProxyPreventInternal','__nonaProxySetPrototypeInternal','__nonaReflectGetInternal','__nonaReflectSetInternal','__nonaReflectDefineInternal','__nonaReflectOwnKeysInternal','__nonaRegExpCopyInternal'],
   'rt.objectPrototype':['constructor','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toString','valueOf','__proto__','toLocaleString'],
   'rt.arrayPrototype':['constructor','join','toString','toLocaleString','concat','flat','flatMap','sort','pop','push','shift','unshift','splice','slice','includes','indexOf','lastIndexOf','forEach','map','filter','some','every','find','findIndex','reduce','reduceRight','fill','copyWithin','reverse','keys','entries','values','@@iterator','@@unscopables'],
-  'rt.Array':['length','name','prototype','from','isArray','of','@@species'],
+  'rt.Array':['length','name','prototype','from','isArray','of','@@species','__nonaAppendInternal'],
   'rt.Number':['length','name','prototype','isFinite','isInteger','isNaN','isSafeInteger','parseFloat','parseInt','MAX_VALUE','MIN_VALUE','NaN','NEGATIVE_INFINITY','POSITIVE_INFINITY','EPSILON','MAX_SAFE_INTEGER','MIN_SAFE_INTEGER'],
   'rt.BigInt':['length','name','prototype','asIntN','asUintN'],
   'rt.Date':['length','name','prototype','now','parse','UTC'],
