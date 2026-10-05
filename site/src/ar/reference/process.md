@@ -16,7 +16,7 @@ the metadata, control, timing, streams, events and OS helpers described below.
 | `argv` | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules. |
 | `argv0` | The original executable argument before replacement with `execPath`. |
 | `execArgv` | An empty array: generated programs have no Node.js interpreter flags. |
-| `env` | Captured on first access; assignment coerces values to strings and deletion removes entries. Windows keys are case-insensitive and mutation updates the native environment. POSIX keeps the authoritative environment in Nona memory; there is no kernel `setenv` operation. Windows hides `=C:` entries. |
+| `env` | Captured on first access; assignment coerces values to strings and deletion removes entries. Windows keys are case-insensitive. Windows and Darwin mutations update OS environment services; all targets also publish an owned native UTF-8 envp vector. Windows hides `=C:` entries. |
 | `execPath` | Absolute executable path. OpenBSD derives it from the startup executable argument and current directory; it does not resolve symlinks or a bare command through `PATH`. |
 | `platform`, `arch` | `win32`, `linux`, `darwin`, `freebsd` or `openbsd`; `x64` or `arm64`. |
 | `pid`, `ppid` | Native process and parent process identifiers. |
@@ -77,6 +77,19 @@ quoted/multiline values, double-quoted newline escapes, and duplicate keys.
 Existing environment entries take precedence. Paths may be strings or byte
 arrays; URL paths await the URL dependency. `NODE_OPTIONS` is environment data
 and does not enable an interpreter option in compiled Nona programs.
+
+Environment assignments and data descriptors share the native update path.
+Descriptors must explicitly be writable, enumerable and configurable; accessor
+and partial descriptors throw `ERR_INVALID_OBJECT_DEFINE_PROPERTY` like Node.
+Native names and values terminate at the first NUL, and the JavaScript view uses
+the same truncation. Empty names and names containing `=` are ignored. Each
+mutation replaces a private page-backed UTF-8 envp vector and releases its old
+mapping; kernel startup storage remains untouched. The vector supports future
+native exec/FFI integration, and is valid until the next mutation. Linux/BSD
+have no kernel getenv/setenv service and do not link libc: this private Nona
+vector is authoritative, not a claim that an arbitrary external library's
+environment was changed. Darwin also calls OS libSystem setenv/unsetenv and
+queries its real getenv in native regression probes.
 
 `getActiveResourcesInfo()` lists actual pending timers as `Timeout` and referenced
 flowing input as `NonaStdin`. Resource names describe Nona's event loop; there are

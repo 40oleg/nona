@@ -5,6 +5,11 @@ Its allocation-free private adapter walks Nona's actual allocator mappings and
 buffer owners; the public Node-compatible fields describe Nona allocation
 semantics as detailed in [process](process.md), without inventing V8 counters.
 
+Process environment mutation publishes an original owned native UTF-8 envp
+vector for native execution adapters. Windows also updates kernel32 environment
+state; Darwin updates the authorized OS libSystem environment. Linux/BSD do not
+pretend to offer a kernel setenv operation or modify unrelated library state.
+
 Nona programs run without Node.js. The host APIs below are implemented by the
 native runtime and small JavaScript preludes compiled into every executable.
 

@@ -20,4 +20,12 @@ process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>console.log('da
 setTimeout(()=>console.log('timer'),50);
 process.on('exit',code=>{console.log('exit',code);process.exitCode=7});
 `;
+export const processEnvironmentOracle=String.raw`
+Object.assign(process.env,{NONA_ASSIGN:42});
+Object.defineProperty(process.env,'NONA_DEFINE',{value:73,writable:true,enumerable:true,configurable:true});
+try{Object.defineProperty(process.env,'NONA_INVALID',{value:1})}catch(error){console.log(error.code)}
+process.env['NONA_NUL\0suffix']='a\0b';process.env['NONA=INVALID']='ignored';process.env['']='ignored';
+console.log(JSON.stringify([process.env.NONA_ASSIGN,process.env.NONA_DEFINE,process.env.NONA_NUL,process.env['NONA_NUL\0suffix'],process.env['NONA=INVALID'],process.env[''],'NONA_NUL\0suffix' in process.env,Object.getOwnPropertyDescriptor(process.env,'NONA_NUL\0suffix').value]));
+delete process.env['NONA_NUL\0suffix'];console.log(process.env.NONA_NUL===undefined);
+`;
 

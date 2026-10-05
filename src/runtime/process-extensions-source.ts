@@ -35,16 +35,27 @@ export const processExtensionsSource=String.raw`
       return object
     }
     function wideString(text){var bytes=new Uint16Array(text.length+1);for(var i=0;i<text.length;i++)bytes[i]=text.charCodeAt(i);return bytes}
-    function normalizedKey(target,key){if(windows&&typeof key==='string'){var upper=key.toUpperCase();for(var name in target)if(name.toUpperCase()===upper)return name}return key}
+    function environmentString(text){var nul=text.indexOf('\0');return nul<0?text:text.slice(0,nul)}
+    function normalizedKey(target,key){if(typeof key==='string'){key=environmentString(key);if(windows){var upper=key.toUpperCase();for(var name in target)if(name.toUpperCase()===upper)return name}}return key}
+    function syncEnvironment(target){var entries=[];for(var key in target)entries.push(key+'='+target[key]);var bytes=encoder.encode(entries.length?entries.join('\0')+'\0':'');host.replaceEnvironment(bytes,bytes.length,entries.length)}
+    syncEnvironment(env);__nonaRegexpVm.processEnvironmentVector=function(){return host.environmentVector()};
+    __nonaRegexpVm.processEnvironmentHas=function(key,value){return host.environmentContains(cstring(key+'='+value))};
+    function darwinEnvironmentError(operation,key){var number=new Uint32Array(1);host.copy(number,host.__error(),4);return hostError(operation,number[0],key)}
+    if(platform==='darwin')__nonaRegexpVm.processOSGetenv=function(key){var pointer=host.getenv(cstring(key));if(!pointer)return undefined;var bytes=new Uint8Array(host.length(pointer));host.copy(bytes,pointer,bytes.length);return decoder.decode(bytes)};
+    function setEnvironment(target,key,value){
+      if(typeof key!=='string'||typeof value==='symbol')throw argumentError('ERR_INVALID_ARG_TYPE','Environment names and values must be strings');
+      key=environmentString(key);value=environmentString(String(value));if(!key||key.indexOf('=')!==-1)return true;
+      if(windows&&!host.SetEnvironmentVariableW(wideString(key),wideString(value)))throw hostError('setenv',22,key);
+      if(platform==='darwin'&&host.setenv(cstring(key),cstring(value),1)!==0)throw darwinEnvironmentError('setenv',key);
+      defineProperty(target,normalizedKey(target,key),{value:value,writable:true,enumerable:true,configurable:true});syncEnvironment(target);return true
+    }
     env=new Proxy(env,{
       get:function(target,key){return Reflect.get(target,normalizedKey(target,key))},
-      set:function(target,key,value){
-        if(typeof key!=='string'||typeof value==='symbol')throw argumentError('ERR_INVALID_ARG_TYPE','Environment names and values must be strings');
-        value=String(value);if(key.indexOf('\0')!==-1||value.indexOf('\0')!==-1||key.indexOf('=')!==-1)throw argumentError('ERR_INVALID_ARG_VALUE','Invalid environment entry');
-        if(windows&&!host.SetEnvironmentVariableW(wideString(key),wideString(value)))throw hostError('setenv',22,key);
-        defineProperty(target,normalizedKey(target,key),{value:value,writable:true,enumerable:true,configurable:true});return true
-      },
-      deleteProperty:function(target,key){if(windows&&typeof key==='string'&&!host.SetEnvironmentVariableW(wideString(key),null)&&host.GetLastError()!==203)throw hostError('unsetenv',22,key);return Reflect.deleteProperty(target,normalizedKey(target,key))}
+      has:function(target,key){return Reflect.has(target,normalizedKey(target,key))},
+      getOwnPropertyDescriptor:function(target,key){return Reflect.getOwnPropertyDescriptor(target,normalizedKey(target,key))},
+      set:setEnvironment,
+      defineProperty:function(target,key,descriptor){if(!descriptor.writable||!descriptor.enumerable||!descriptor.configurable||!('value' in descriptor)||'get' in descriptor||'set' in descriptor)throw argumentError('ERR_INVALID_OBJECT_DEFINE_PROPERTY','Environment descriptors must be configurable, writable and enumerable data properties');return setEnvironment(target,key,descriptor.value)},
+      deleteProperty:function(target,key){key=normalizedKey(target,key);if(typeof key==='string'&&(!key||key.indexOf('=')!==-1))return true;if(windows&&typeof key==='string'&&!host.SetEnvironmentVariableW(wideString(key),null)&&host.GetLastError()!==203)throw hostError('unsetenv',22,key);if(platform==='darwin'&&typeof key==='string'&&host.unsetenv(cstring(key))!==0)throw darwinEnvironmentError('unsetenv',key);var deleted=Reflect.deleteProperty(target,key);syncEnvironment(target);return deleted}
     });
     process.env=env;emitter(process);
     function ioError(operation,number){return hostError(operation,number===109?0:number===5?13:number===6?9:number)}

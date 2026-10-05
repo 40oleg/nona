@@ -33,6 +33,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const processEnvironment=compile('process.env.NONA_NATIVE_VECTOR="ü=value";console.log(__nonaRegexpVm.processEnvironmentVector()>0,__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","ü=value"),process.platform!=="darwin"||__nonaRegexpVm.processOSGetenv("NONA_NATIVE_VECTOR")==="ü=value");process.env.NONA_NATIVE_VECTOR=42;console.log(__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","42"),__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","ü=value"));delete process.env.NONA_NATIVE_VECTOR;console.log(__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","42"))',{fileName:'process-environment.js',target});
+  if(!processEnvironment.ok)throw new Error(`${target}/process-environment: ${JSON.stringify(processEnvironment.diagnostics)}`);
+  probes.push({name:'process-environment',image:processEnvironment.image,expected:'true true true\ntrue false\nfalse\n'});
   const processMemory=compile('let buffer=new ArrayBuffer(262144),shared=new SharedArrayBuffer(1024),memory=process.memoryUsage();console.log(Object.keys(memory).join(","),memory.rss>0,memory.heapTotal>=memory.heapUsed,memory.external>=memory.arrayBuffers,memory.arrayBuffers>=buffer.byteLength+shared.byteLength,process.memoryUsage.rss()>0)',{fileName:'process-memory.js',target});
   if(!processMemory.ok)throw new Error(`${target}/process-memory: ${JSON.stringify(processMemory.diagnostics)}`);
   probes.push({name:'process-memory',image:processMemory.image,expected:'rss,heapTotal,heapUsed,external,arrayBuffers true true true true true\n'});

@@ -11,7 +11,7 @@ import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
 import {runtimeProbes} from '../src/backend/platform-probes.js';
-import {processExtendedOracle,processReviewOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
@@ -96,9 +96,33 @@ test('OpenBSD 7.8 process syscalls match the release ABI and compile its native 
 function mockProcess(extra:Record<string,unknown>={},target='linux-x64'){
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
-  __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,...extra});
+  __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
  runInContext(processPreludeForTarget(target),context);return context;
 }
+test('process environment mutations publish owned native UTF-8 vectors matching Node coercion',()=>{
+ let entries:string[]=[];const context=mockProcess({__nonaHost_replaceEnvironment:(bytes:Uint8Array,size:number,count:number)=>{assert.equal(size,bytes.length);entries=new TextDecoder().decode(bytes).split('\0').filter(Boolean);assert.equal(entries.length,count)},__nonaHost_environmentVector:()=>1234,
+  __nonaHost_environmentContains:(bytes:Uint8Array)=>entries.includes(new TextDecoder().decode(bytes).split('\0')[0]!)});
+ const source='process.env.NONA_VECTOR="ü=value";process.env.NONA_NUMBER=42;delete process.env.NONA_NUMBER;JSON.stringify([process.env.NONA_VECTOR,process.env.NONA_NUMBER])';
+ const actual=runInContext(source,context);assert.equal(actual+'\n',runOracle('console.log('+source.replace(';JSON.stringify',';return JSON.stringify').replace(/^/,'(()=>{')+'})())').stdout);
+ assert.deepEqual(entries,['NONA_VECTOR=ü=value']);
+ assert.equal(runInContext('__nonaRegexpVm.processEnvironmentVector()',context),1234);
+ assert.equal(runInContext('__nonaRegexpVm.processEnvironmentHas("NONA_VECTOR","ü=value")',context),true);
+ runInContext('delete process.env.NONA_VECTOR',context);assert.deepEqual(entries,[]);
+ runInContext('Object.defineProperty(process.env,"NONA_DESCRIPTOR",{value:42,writable:true,enumerable:true,configurable:true})',context);assert.deepEqual(entries,['NONA_DESCRIPTOR=42']);
+ assert.throws(()=>runInContext('Object.defineProperty(process.env,"NONA_INVALID",{value:42})',context),{code:'ERR_INVALID_OBJECT_DEFINE_PROPERTY'});
+});
+test('Darwin environment mutations also update the authorized OS libSystem state',()=>{
+ const calls:unknown[][]=[],decode=(bytes:Uint8Array)=>new TextDecoder().decode(bytes).split('\0')[0];
+ const context=mockProcess({__nonaHost_setenv:(key:Uint8Array,value:Uint8Array,overwrite:number)=>{calls.push(['set',decode(key),decode(value),overwrite]);return 0},__nonaHost_unsetenv:(key:Uint8Array)=>{calls.push(['delete',decode(key)]);return 0}},'darwin-x64');
+ runInContext('process.env.NONA_DARWIN="original";delete process.env.NONA_DARWIN',context);
+ assert.deepEqual(calls,[['set','NONA_DARWIN','original',1],['delete','NONA_DARWIN']]);
+});
+test('environment descriptors, assignment and native string boundaries match Node 26',()=>{
+ const output:string[]=[],snapshots:string[][]=[];const context=mockProcess({console:{log:(...args:unknown[])=>output.push(args.join(' '))},__nonaHost_replaceEnvironment:(bytes:Uint8Array)=>snapshots.push(new TextDecoder().decode(bytes).split('\0').filter(Boolean))});
+ runInContext(processEnvironmentOracle,context);assert.equal(output.join('\n')+'\n',runOracle(processEnvironmentOracle).stdout);
+ assert.ok(snapshots.some(entries=>entries.includes('NONA_NUL=a')));assert.ok(!snapshots.some(entries=>entries.includes('NONA_NUL=a\0b')));
+ assert.deepEqual(snapshots.at(-1),['NONA_ASSIGN=42','NONA_DEFINE=73']);
+});
 test('process memoryUsage returns actual allocator counters and current RSS with Node shape',()=>{
  let read=false;const context=mockProcess({
   __nonaHost_heapSnapshot:(words:Uint32Array)=>words.set([65536,0,4096,0,1024,0,12,0]),
@@ -181,6 +205,7 @@ test('process native standard output boundary writes exact bytes',()=>{
  const writes:{fd:number;bytes:number[]}[]=[];
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
+  __nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,
   __nonaHost_sys_write:(fd:number,b:Uint8Array,n:number)=>{writes.push({fd,bytes:Array.from(b.slice(0,n))});return n},
  });
@@ -190,6 +215,6 @@ test('process native standard output boundary writes exact bytes',()=>{
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
- const result=compile(processExtendedOracle+processReviewOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+ const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Synchronize process.env assignments, deletion and descriptors with an original owned native envp vector on every target; preserve Node CString boundaries and Darwin OS environment consistency ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Add current native RSS and original allocator-backed process.memoryUsage on all eight targets, including real ArrayBuffer backing accounting ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Added original process dotenv loading, numeric POSIX credentials/groups, active resource/ref APIs and native available/constrained memory queries on all eight targets. Darwin process images use native libSystem Mach bindings; FreeBSD startup vectors use the kernel's RDI entry ABI ([#141](https://github.com/40oleg/nona/issues/141)).

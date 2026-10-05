@@ -306,8 +306,11 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['startupArgv','nona.internal','startupArgv','ptr()'],['startupEnv','nona.internal','startupEnv','ptr()'],
     ['copy','nona.internal','copy','void(buf,ptr,u64)'],['length','nona.internal','length','u64(ptr)'],
     ['heapSnapshot','nona.internal','heapSnapshot','void(buf)'],
+    ['replaceEnvironment','nona.internal','replaceEnvironment','void(buf,u64,u64)'],['environmentVector','nona.internal','environmentVector','ptr()'],
+    ['environmentContains','nona.internal','environmentContains','bool(buf)'],
   ];
-  if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)']);
+  if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)'],['setenv','/usr/lib/libSystem.B.dylib','setenv','i32(buf,buf,i32)'],['unsetenv','/usr/lib/libSystem.B.dylib','unsetenv','i32(buf)']);
+  if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
 }
 
