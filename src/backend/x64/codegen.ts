@@ -34,7 +34,7 @@ import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
 import {emitFfi} from '../../runtime/ffi.js';
-import {PropertyCacheLayout,cacheableName} from '../../runtime/property-cache.js';
+import {PropertyCacheLayout,SetCacheLayout,cacheableName} from '../../runtime/property-cache.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -524,7 +524,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
           }
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
-        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
+        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
+          // `object.name = value` writes go through a per-site record that
+          // remembers the inline node holding the property (property-cache.ts).
+          if(!op.define&&op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r10',{rip:cache});a.call('rt.setPropertyCached');break;
+          }
+          a.call('rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;
         case 'privateSet':pointer('rcx',op.object);pointer('rdx',op.name);pointer('r8',op.source);a.call('rt.privateSet');break;
         case 'defineField':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.call('rt.defineField');break;

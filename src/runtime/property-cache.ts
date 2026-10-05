@@ -41,6 +41,9 @@ import type {Assembler} from '../backend/x64/assembler.js';
 /** Then 1 + the inline node index (ObjectLayout.slots) where the key was last found as an own property, or 0. */
 export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,slot:8+16*4+16,size:8+16*4+24} as const;
 
+/** Record of an `object.name = value` site (rt.setPropertyCached). */
+export const SetCacheLayout={slot:0,prototype:8,epoch:16,bit:24,failed:32,size:40} as const;
+
 /** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
 export function cacheableName(name:string):boolean {
  return name.length>0&&!(name.charCodeAt(0)>=48&&name.charCodeAt(0)<=57)&&name!=='length'&&name!=='__proto__';
@@ -76,6 +79,84 @@ export function emitNamedKindCheck(a:Assembler,reg:'r10'|'r11'|'rcx',miss:string
 }
 
 export function emitPropertyCache(b:RuntimeBuilder):void {
+ // `object.name = value`: RCX base Value*, RDX key Value* (a cacheable
+ // string literal), R8 source Value*, R9 flags as for rt.setProperty, R10 the
+ // site's record (SetCacheLayout).
+ //
+ // Writing an existing property: a node at the remembered inline index that
+ // still holds the key as a writable data property takes the value.
+ //
+ // Creating a property (constructors and per-request objects add the same
+ // fields in the same order): when the remembered index is the receiver's
+ // next free inline node, the receiver's key filter rules the key out, the
+ // receiver is extensible and its prototype is the one the record checked
+ // at the current shape epoch (no object on that chain has the key, and all
+ // of them are flagged so that adding it to one advances the epoch), the
+ // node is filled and linked without any lookup.
+ //
+ // Anything else is rt.setProperty, after which the inline node of the key
+ // (the newest first) is remembered and, if it is the newest, the chain is
+ // checked for the create path.
+ b.fn('rt.setPropertyCached',104,a=>{
+  const S=SetCacheLayout,slow=a.unique('slow'),done=a.unique('done'),scan=a.unique('scan'),found=a.unique('found'),create=a.unique('create'),chain=a.unique('chain'),chainDone=a.unique('chainDone');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');a.store(slot(72),'r10');
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',slow);a.load('r11',{base:'rcx',disp:8});
+  a.load('rax',{base:'r10',disp:S.slot});a.test('rax','rax');a.jcc('e',slow);a.sub('rax',1);
+  a.load('r9',{base:'r11',disp:O.slots});a.shr('r9',32);a.cmp('rax','r9');a.jcc('e',create);a.jcc('a',slow);
+  a.mov('r9',P.size);a.imul('rax','r9');a.add('rax','r11');a.add('rax',O.size);
+  a.load('r9',{base:'rax',disp:P.key});a.load('r10',{base:'rdx',disp:8});a.cmp('r9','r10');a.jcc('ne',slow);
+  a.load('r9',{base:'rax',disp:P.attributes});a.and('r9',A.accessor|A.writable);a.cmp('r9',A.writable);a.jcc('ne',slow);
+  a.load('r9',{base:'rax',disp:P.value});a.cmp('r9',CellTag);a.jcc('e',slow);
+  a.load('r9',{base:'r8'});a.store({base:'rax',disp:P.value},'r9');a.load('r9',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r9');a.jmp(done);
+  // RAX = the receiver's next inline node index, R11 the receiver.
+  a.label(create);
+  a.load('r9',{base:'r11',disp:O.slots});a.mov('r8','r9');a.shl('r8',32);a.shr('r8',32);a.cmp('rax','r8');a.jcc('ae',slow);
+  a.load('r9',{base:'r11',disp:O.kind});a.test('r9','r9');a.jcc('ne',slow);
+  a.load('r9',{base:'r11',disp:O.flags});a.and('r9',ObjectFlags.nonExtensible);a.test('r9','r9');a.jcc('ne',slow);
+  a.load('r9',{base:'r11',disp:O.keys});a.test('r9','r9');a.jcc('ns',slow);a.load('r8',{base:'r10',disp:S.bit});a.test('r8','r8');a.jcc('e',slow);a.and('r9','r8');a.jcc('ne',slow);
+  a.load('r9',{base:'r10',disp:S.epoch});a.load('r8',{rip:'rt.shapeEpoch'});a.cmp('r9','r8');a.jcc('ne',slow);
+  a.load('r9',{base:'r10',disp:S.prototype});a.load('r8',{base:'r11',disp:O.prototype});a.cmp('r9','r8');a.jcc('ne',slow);
+  a.lea('r9',{rip:'rt.globalObject'});a.cmp('r9','r11');a.jcc('e',slow);
+  a.store(slot(80),'rax');bumpEpochIfPrototype(a,'r11');a.load('rax',slot(80));
+  a.load('r9',{base:'r11',disp:O.slots});a.mov('r8',1);a.shl('r8',32);a.add('r9','r8');a.store({base:'r11',disp:O.slots},'r9');
+  a.mov('r9',P.size);a.imul('rax','r9');a.add('rax','r11');a.add('rax',O.size);
+  a.load('r9',{base:'rdx',disp:8});a.store({base:'rax',disp:P.key},'r9');a.mov('r9',A.ordinary);a.store({base:'rax',disp:P.attributes},'r9');
+  a.load('r8',slot(56));a.load('r9',{base:'r8'});a.store({base:'rax',disp:P.value},'r9');a.load('r9',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r9');
+  a.load('r9',{base:'r11',disp:O.properties});a.store({base:'rax',disp:P.next},'r9');a.store({base:'r11',disp:O.properties},'rax');
+  a.mov('rcx','r11');a.mov('rdx','rax');a.call('rt.propIndexAdd');a.jmp(done);
+  a.label(slow);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.setProperty');
+  // Remember the inline node now holding the key, if the base has one.
+  a.load('rcx',slot(40));a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',done);a.load('r11',{base:'rcx',disp:8});a.store(slot(80),'r11');
+  a.load('r9',{base:'r11',disp:O.slots});a.shr('r9',32);a.store(slot(88),'r9');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});
+  a.label(scan);a.test('r9','r9');a.jcc('e',done);a.sub('r9',1);
+  a.mov('rax','r9');a.mov('r8',P.size);a.imul('rax','r8');a.add('rax','r11');a.load('rax',{base:'rax',disp:O.size+P.key});a.cmp('rax','r10');a.jcc('ne',scan);
+  a.label(found);a.mov('rax','r9');a.add('rax',1);a.load('r10',slot(72));a.store({base:'r10',disp:S.slot},'rax');
+  // The newest node: the write created it. Check the prototype chain for
+  // the create path (every object ordinary and without the key), flagging
+  // each object, then record the prototype, the epoch and the key's bit.
+  a.load('r8',slot(88));a.cmp('rax','r8');a.jcc('ne',done);
+  // A chain that failed the check at this epoch is not walked again.
+  a.load('r10',slot(72));a.load('rax',{base:'r10',disp:S.failed});a.load('r8',{rip:'rt.shapeEpoch'});a.cmp('rax','r8');a.jcc('e',done);
+  a.load('rax',{base:'r10',disp:S.bit});a.test('rax','rax');{const hasBit=a.unique('hasBit');a.jcc('ne',hasBit);
+   a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.keyFilterBit');a.load('r10',slot(72));a.store({base:'r10',disp:S.bit},'rax');a.label(hasBit);}
+  a.load('r11',slot(80));a.load('r11',{base:'r11',disp:O.prototype});a.store(slot(88),'r11');
+  // A writable data property of the key on the chain still makes the
+  // write create an own property (instance fields with defaults on the
+  // prototype); the walk stops there. An accessor, a readonly property or
+  // an exotic object fails the check.
+  const failed=a.unique('failed');
+  a.label(chain);a.test('r11','r11');a.jcc('e',chainDone);
+  a.load('rax',{base:'r11',disp:O.kind});a.cmp('rax',2);a.jcc('a',failed);a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r11');a.jcc('e',failed);
+  a.store(slot(96),'r11');a.mov('rcx','r11');a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.ownNamedNode');
+  a.load('r11',slot(96));a.load('r10',{base:'r11',disp:O.flags});a.or('r10',ObjectFlags.cachedPrototype);a.store({base:'r11',disp:O.flags},'r10');
+  a.test('rax','rax');{const absent=a.unique('absent');a.jcc('e',absent);
+   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor|A.writable);a.cmp('r10',A.writable);a.jcc('ne',failed);
+   a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('e',failed);a.jmp(chainDone);a.label(absent);}
+  a.load('r11',{base:'r11',disp:O.prototype});a.jmp(chain);
+  a.label(failed);a.load('r10',slot(72));a.load('rax',{rip:'rt.shapeEpoch'});a.store({base:'r10',disp:S.failed},'rax');a.jmp(done);
+  a.label(chainDone);a.load('r10',slot(72));a.load('rax',slot(88));a.store({base:'r10',disp:S.prototype},'rax');a.load('rax',{rip:'rt.shapeEpoch'});a.store({base:'r10',disp:S.epoch},'rax');
+  a.label(done);
+ });
  {const table=new Uint8Array(32);for(const kind of namedPropertyKinds)table[kind]=1;b.data('rt.namedKinds',table,'.data');}
  b.data('rt.shapeEpoch',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
  // Last hit of rt.namedGetFast: the node and the object holding it (0 on a miss).

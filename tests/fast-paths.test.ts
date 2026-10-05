@@ -321,6 +321,44 @@ out.push(fs.map(f=>Object.keys(f).length).join(''));
 const nested={};let cur=nested;for(let i=0;i<50;i++){cur.next={depth:i};cur=cur.next;}let d=0;cur=nested;while(cur.next){cur=cur.next;d=cur.depth;}out.push(d);
 console.log(out.join(' '));
 `,
+ 'cached property writes':`
+'use strict';
+const out=[];
+class A{constructor(v){this.x=v;this.y=v+1;}}
+function make(v){return new A(v);}
+function setX(o,v){o.x=v;return o.x;}
+function setZ(o,v){o.z=v;return o.z;}
+for(let i=0;i<20;i++){const o=make(i);out.push(setX(o,i*2),setZ(o,i*3),Object.keys(o).join('|'));}
+// A setter appears on the prototype after the site created the property many times.
+let log=[];Object.defineProperty(A.prototype,'z',{set(v){log.push(v);},get(){return 'proto z';},configurable:true});
+for(let i=0;i<3;i++){const o=make(i);out.push(setZ(o,100+i),Object.keys(o).join('|'));}
+out.push(log.join(','));delete A.prototype.z;
+for(let i=0;i<3;i++){const o=make(i);out.push(setZ(o,200+i),Object.keys(o).join('|'));}
+// Readonly on a grand-prototype.
+const base={};Object.defineProperty(base,'w',{value:1,writable:false,configurable:true});
+function B(){}B.prototype=Object.create(base);
+function setW(o,v){try{o.w=v;return 'ok '+o.w;}catch(e){return e.constructor.name;}}
+for(let i=0;i<3;i++)out.push(setW({},i),setW(new B(),i));
+delete base.w;for(let i=0;i<3;i++)out.push(setW(new B(),i));
+// Frozen, sealed, non-extensible receivers.
+const f=Object.freeze(make(1));out.push((()=>{try{f.x=5;return 'no throw';}catch(e){return e.constructor.name;}})());
+const ne=Object.preventExtensions(make(2));out.push((()=>{try{ne.z=5;return 'no throw';}catch(e){return e.constructor.name;}})(),setX(ne,9));
+// Writability changed on an instance.
+const r=make(3);Object.defineProperty(r,'x',{writable:false});out.push((()=>{try{r.x=1;return 'no throw';}catch(e){return e.constructor.name;}})(),r.x);
+// Delete and re-add, prototype swap, other classes at the same site.
+const d=make(4);delete d.x;out.push(setX(d,44),Object.keys(d).join('|'));
+const p=make(5);Object.setPrototypeOf(p,{set z(v){out.push('swapped '+v);}});setZ(p,55);out.push(Object.keys(p).join('|'));
+class C{constructor(){this.a=1;this.x=2;}}
+for(let i=0;i<4;i++){out.push(setX(new C(),i),setX(make(i),-i),setX({x:0,q:1},i),setX([],i));}
+// Many fields, more than the first instances get.
+class Big{constructor(){for(let i=0;i<40;i++)this['f'+i]=i;}}
+function setF(o){o.f1=-1;o.f39=-39;return o.f1+o.f39;}
+for(let i=0;i<5;i++){const b=new Big();out.push(setF(b),Object.keys(b).length,b.f20);}
+// Getter-only accessor on the instance and Proxy receivers.
+const g=make(6);Object.defineProperty(g,'x',{get(){return 'gx';},configurable:true});out.push((()=>{try{g.x=1;return 'no throw';}catch(e){return e.constructor.name;}})());
+const px=new Proxy({},{set(t,k,v){out.push('trap '+k+'='+v);t[k]=v;return true;}});setX(px,7);setZ(px,8);
+console.log(out.join(' '));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];

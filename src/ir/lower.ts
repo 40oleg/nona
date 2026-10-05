@@ -478,7 +478,7 @@ class Lowerer {
     else if(ref.privateName&&ref.privateKind==='field')this.emit({kind:'privateSet',object:ref.object,name:ref.key,source});
     else if(ref.privateName)this.preludeCall('privateSet',[ref.object,ref.key,source]);
     else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
-    else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false});
+    else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false,...(ref.keyName!==undefined?{keyName:ref.keyName}:{})});
   }
   private bindPattern(pattern:A.BindingPattern,value:number,initializing:boolean,assignment=false):void {
     if(pattern.kind==='Identifier'){
