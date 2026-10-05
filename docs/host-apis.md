@@ -77,6 +77,9 @@ Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
 capture matching, once listeners, signal removal, cancellation and dispatch
 mutation. `AbortSignal.abort`, `timeout`, `any` and `throwIfAborted` are supported.
 `addAbortListener` subscriptions on Nona signals survive `stopImmediatePropagation`.
+The cancellation subscriptions used by `once` and `on` have the same protection.
+`AbortSignal.any` follows actual source cancellation; synthetic `abort` events do
+not cancel composed signals. Replacing `onabort` retains its original listener slot.
 `NodeEventTarget` additionally supplies emitter-style registration, single-argument
 `emit`, event names, listener counts, removal and limits. Target listeners are
 unique by callback and capture flag. Introspection and max-listener module helpers

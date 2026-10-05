@@ -12,6 +12,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |
 | `nona:process`, `node:process` | मॉड्यूल | दोनों | [process](/hi/reference/process) |
 | `nona:fs`, `node:fs` | मॉड्यूल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/hi/reference/host-apis#events) |
 | `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
 | `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |

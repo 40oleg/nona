@@ -12,6 +12,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `console.log` | global | ambos | escreve UTF-8 na saída padrão |
 | `nona:process`, `node:process` | módulos | ambos | [process](/pt/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/pt/reference/host-apis#events) |
 | `nona:ffi` | módulo | Windows (DLLs), Linux (chamadas de sistema) | [Funções nativas (FFI)](/pt/reference/ffi) |
 | `nona:win32` | módulo | Windows | abaixo e em [FFI](/pt/reference/ffi#nona-win32) |

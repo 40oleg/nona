@@ -12,6 +12,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
 | `nona:process`、`node:process` | 模块 | 两者 | [process](/zh/reference/process) |
 | `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/zh/reference/host-apis#events) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
 | `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |

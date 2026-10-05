@@ -125,22 +125,29 @@ export function setMaxListeners(n = defaultMaxListeners, ...targets) { checkMax(
 function abortError(signal) { const e = new Error('The operation was aborted'); e.name = 'AbortError'; e.code = 'ABORT_ERR'; e.cause = signal.reason; return e; }
 function subscribe(target, name, listener) { if (typeof target.on === 'function') target.on(name, listener); else target.addEventListener(name, listener); }
 function unsubscribe(target, name, listener) { if (typeof target.removeListener === 'function') target.removeListener(name, listener); else target.removeEventListener(name, listener); }
+function subscribeAbort(signal, listener) {
+  if(targetApi && signal instanceof AbortSignal)return targetApi.protect(signal,listener);
+  signal.addEventListener('abort',listener,{once:true});
+  return () => signal.removeEventListener('abort',listener);
+}
 export function once(emitter, name, options) {
   const signal = options && options.signal;
+  let abortCleanup;
   return new Promise((resolve, reject) => {
     if (signal && signal.aborted) { reject(abortError(signal)); return; }
-    function cleanup() { unsubscribe(emitter, name, event); if (name !== 'error' && typeof emitter.on === 'function') unsubscribe(emitter, 'error', error); if (signal) signal.removeEventListener('abort', aborted); }
+    function cleanup() { unsubscribe(emitter, name, event); if (name !== 'error' && typeof emitter.on === 'function') unsubscribe(emitter, 'error', error); if (abortCleanup) abortCleanup(); }
     function event(...args) { cleanup(); resolve(args); }
     function error(value) { cleanup(); reject(value); }
     function aborted() { cleanup(); reject(abortError(signal)); }
     subscribe(emitter, name, event);
     if (name !== 'error' && typeof emitter.on === 'function') subscribe(emitter, 'error', error);
-    if (signal) signal.addEventListener('abort', aborted, {once:true});
+    if (signal) abortCleanup=subscribeAbort(signal,aborted);
   });
 }
 export function on(emitter, name, options) {
   options = options || {};
   const signal = options.signal, close = options.close || [];
+  let abortCleanup;
   const values = [], waiting = [];
   let ended = false, failure, paused = false;
   const high = options.highWaterMark === undefined ? (options.highWatermark === undefined ? Number.MAX_SAFE_INTEGER : options.highWatermark) : options.highWaterMark;
@@ -149,7 +156,7 @@ export function on(emitter, name, options) {
     if (typeof mark !== 'number') throw invalid('watermark');
     if (!Number.isSafeInteger(mark) || mark < 1) { const e = new RangeError('The watermark is out of range'); e.code = 'ERR_OUT_OF_RANGE'; throw e; }
   }
-  function cleanup() { unsubscribe(emitter, name, event); if (name !== 'error' && typeof emitter.on === 'function') unsubscribe(emitter, 'error', error); for (const key of close) unsubscribe(emitter, key, finish); if (signal) signal.removeEventListener('abort', aborted); }
+  function cleanup() { unsubscribe(emitter, name, event); if (name !== 'error' && typeof emitter.on === 'function') unsubscribe(emitter, 'error', error); for (const key of close) unsubscribe(emitter, key, finish); if (abortCleanup) abortCleanup(); }
   function finish() { if (ended) return; ended = true; cleanup(); while (waiting.length) waiting.shift().resolve({value:undefined,done:true}); }
   function error(value) { if (ended) return; failure = value; ended = true; cleanup(); if (waiting.length) { waiting.shift().reject(value); failure = undefined; while (waiting.length) waiting.shift().resolve({value:undefined,done:true}); } }
   function aborted() { error(abortError(signal)); }
@@ -164,7 +171,7 @@ export function on(emitter, name, options) {
   subscribe(emitter, name, event);
   if (name !== 'error' && typeof emitter.on === 'function') subscribe(emitter, 'error', error);
   for (const key of close) subscribe(emitter, key, finish);
-  if (signal) signal.addEventListener('abort', aborted, {once:true});
+  if (signal) abortCleanup=subscribeAbort(signal,aborted);
   return iterator;
 }
 export function addAbortListener(signal, listener) {

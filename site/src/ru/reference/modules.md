@@ -12,6 +12,7 @@
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |
 | `nona:process`, `node:process` | модули | обе | [process](/ru/reference/process) |
 | `nona:fs`, `node:fs` | модули | обе | [Файловая система и кодировка текста](/ru/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/ru/reference/host-apis#events) |
 | `nona:ffi` | модуль | Windows (DLL), Linux (системные вызовы) | [Нативные функции (FFI)](/ru/reference/ffi) |
 | `nona:win32` | модуль | Windows | ниже и в [FFI](/ru/reference/ffi#nona-win32) |

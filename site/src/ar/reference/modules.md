@@ -12,6 +12,7 @@
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
 | `nona:process` و`node:process` | وحدات | كلتاهما | [process](/ar/reference/process) |
 | `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/ar/reference/host-apis#events) |
 | `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
 | `nona:win32` | وحدة | Windows | أدناه وفي [FFI](/ar/reference/ffi#nona-win32) |
