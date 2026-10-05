@@ -160,6 +160,10 @@ export class Assembler {
   lea(dst: Reg, src: Mem): void {
     this.instruction([0x8d], regCode(dst), src);
   }
+  /** prefetcht0: asks for the cache line at SRC without waiting for it. */
+  prefetch(src: Mem): void {
+    this.instruction([0x0f, 0x18], 1, src, false);
+  }
   private binary(
     dst: Reg,
     src: Reg | number,

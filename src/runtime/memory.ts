@@ -189,9 +189,13 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.cmp('rcx',largestClass);a.jcc('a',large);
   a.call('rt.classOf');a.store(slot(56),'rax');a.mov('rcx','rax');a.call('rt.classSize');a.store(slot(64),'rax');
   a.load('rcx',slot(56));a.shl('rcx',3);a.lea('r9',{rip:'rt.classState'});a.add('r9','rcx');a.load('rax',{base:'r9'});a.test('rax','rax');a.jcc('e',carve);
-  a.load('r10',{base:'rax',disp:H.next});a.store({base:'r9'},'r10');
-  // A recycled cell: clear its payload (the header is rewritten below).
-  a.lea('r10',{base:'rax',disp:H.size});a.load('r11',slot(64));a.add('r11','rax');a.mov('r8',0);
+  // The next free cell is the next allocation of this class: start loading
+  // its line now (a cold free-list head was most of rt.alloc's time).
+  a.load('r10',{base:'rax',disp:H.next});a.store({base:'r9'},'r10');{const none=a.unique('noNext');a.test('r10','r10');a.jcc('e',none);a.prefetch({base:'r10'});a.label(none);}
+  // A recycled cell: clear the requested payload (the header is rewritten
+  // below). The rest of the cell is never read: a block's bytes are its
+  // requested size, and the collector only scans those.
+  a.lea('r10',{base:'rax',disp:H.size});a.load('r11',slot(40));a.add('r11',7);a.and('r11',-8);a.add('r11','r10');a.mov('r8',0);
   {a.load('r8',{rip:'rt.allocNoZero'});a.test('r8','r8');a.jcc('ne',zeroed);a.mov('r8',0);}
   // Cells of 256 bytes and more are cleared with `rep stosq`.
   {const loop=a.unique('zeroLoop');a.mov('r9','r11');a.sub('r9','r10');a.cmp('r9',256);a.jcc('b',loop);
