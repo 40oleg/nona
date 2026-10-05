@@ -1,6 +1,6 @@
 # Small program corpus
 
-These ten deterministic applications exercise combinations of JavaScript features.
+These 1,000 individually authored deterministic applications exercise combinations of JavaScript features.
 They are independent of Test262 and need no network, external files, timers or
 third-party packages. Keep the programs here and the test runner in `tests/`.
 
@@ -25,9 +25,11 @@ With Node.js 26 or newer and dependencies installed at the repository root:
 npm run check:programs
 ```
 
-`tests/program-corpus.test.ts` gives each program an individual test name and
-specifies its expected stdout. The test first verifies that result with the
-Node.js oracle, then compiles and executes the source through `runOnHost` both
+The original ten keep independently specified expected stdout in
+`tests/program-corpus.test.ts`. The other 990 are divided among ten test shards.
+`manifest.json` records each purpose, interacting features, source SHA-256 and
+Node.js reference output. Every run verifies the current Node.js result against
+that snapshot, then compiles and executes the source through `runOnHost` both
 normally and with GC stress. A launch error, timeout, nonzero exit, unexpected
 stderr or mismatched stdout fails the test. Windows CRLF output is normalized
 to LF; no other output differences are ignored. Existing helpers limit the
@@ -62,5 +64,46 @@ same way with the appropriate host target and executable extension. These
 programs intentionally avoid depending on script-versus-module global semantics
 so direct Node.js execution and the script-mode oracle have the same behavior.
 
-To expand the corpus, add another numbered `.js` file here and register its
-independently determined expected output in `tests/program-corpus.test.ts`.
+## Authored scenarios
+
+The original ten above are preserved. The other programs are organized into
+six directories, each containing 165 independent sources and a `cases.json`
+catalog with the purpose and feature combination of each case:
+
+| Directory | IDs | Focus |
+| --- | --- | --- |
+| `algorithms/` | 11–175 | Graphs, dynamic programming, numerical methods, geometry, search and simulations |
+| `collections/` | 176–340 | Record processing, indexes, joins, reconciliation, histories and collection protocols |
+| `text/` | 341–505 | Parsers, codecs, tokenizers, formatting and text transformations |
+| `async/` | 506–670 | Promise workflows, async iteration, scheduling, recovery and cleanup |
+| `objects/` | 671–835 | Classes, accessors, descriptors, proxies and object protocols |
+| `language/` | 836–1000 | Composed applications involving scope, destructuring, generators and exceptions |
+
+The sources are checked in directly. There is no source generator, seed
+expansion or template multiplication. Review both the source and its purpose;
+counting files or detecting byte duplicates alone does not establish diversity.
+The inventory tests enforce contiguous IDs, exact file registration, source
+hashes, category catalogs matching the manifest, and distinct bodies after removing whole-line comments and empty lines.
+
+The reference-data tool only executes existing sources and updates the manifest:
+
+```sh
+npm run snapshot:programs
+```
+
+Review snapshot changes rather than accepting an unexpected result automatically.
+A snapshot is a differential oracle, not an independent specification of the
+application's correctness. Programs also include domain invariants where useful.
+A compiler mismatch must fail the test; do not change the Node.js reference to
+match Nona.
+
+After building, run one shard or select an individual program:
+
+```sh
+node --test dist/tests/program-corpus-00.test.js
+node --test --test-name-pattern=0011- dist/tests/program-corpus-00.test.js
+```
+
+All 1,000 sources are executed in each dedicated Linux/Windows pipeline run,
+with 2,000 native executions per platform. The original test and ten shards
+run with at most four concurrent test processes in `check:programs`.

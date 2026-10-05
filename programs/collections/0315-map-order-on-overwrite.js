@@ -1,0 +1,10 @@
+const records = new Map([["a",1],["b",2],["c",3]]);
+records.set("a",8);
+const overwritten = Array.from(records.keys());
+records.delete("b");
+records.set("b",9);
+const reinserted = Array.from(records.keys());
+const total = Array.from(records.values()).reduce((a,b)=>a+b,0);
+const report = {overwritten,reinserted,total};
+const changedOrder = overwritten.join("")!==reinserted.join("");
+console.log(JSON.stringify([report,changedOrder]));
