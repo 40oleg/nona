@@ -43,3 +43,40 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - Known limits: property, element and Map storage is linear (#36), so programs
   with hundreds of live timers or large objects slow down; on Linux every heap
   block is a separate memory mapping (#37).
+
+## Events
+
+`node:events`, `events` and `nona:events` resolve to the same built-in module.
+The default export and named `EventEmitter` export are the same constructor.
+
+- Listener registration: `on`/`addListener`, `once`, `prependListener` and
+  `prependOnceListener`. Dispatch is synchronous, preserves registration order,
+  binds `this` to the emitter and snapshots listeners before calling them.
+- Listener removal: `off`/`removeListener` removes the most recently registered
+  matching listener; `removeAllListeners` supports one event or every event.
+  `newListener` and `removeListener` notifications expose original once listeners.
+- Introspection: `listeners`, `rawListeners`, `listenerCount` (including its
+  optional listener filter), `eventNames`, `getMaxListeners`, `setMaxListeners`.
+  Event names support strings, symbols and other property keys.
+- Error dispatch: unhandled `error` events throw; `errorMonitor` observers run
+  first. `captureRejections`, constructor options and `captureRejectionSymbol`
+  support rejected listener promises and custom rejection handlers.
+- Module helpers: `listenerCount`, `getEventListeners`, `getMaxListeners`,
+  `setMaxListeners`, Promise-based `once`, and async-iterator `on`. The iterator
+  supports buffered events, pending requests, error cleanup, `close` events,
+  cancellation, and high/low watermarks for emitters with `pause`/`resume`.
+- `EventEmitter.defaultMaxListeners` and `EventEmitter.captureRejections` are
+  writable; named exports track their current values.
+
+`once` and `on` accept externally supplied signals with `aborted`, `reason`,
+`addEventListener` and `removeEventListener`. `addAbortListener` returns a
+subscription disposable under `Symbol.dispose` or `Symbol.for('nodejs.dispose')`.
+
+Limitations: Nona has no built-in `EventTarget`, `AbortController` or async-hooks
+runtime. `EventEmitterAsyncResource`, `NodeEventTarget` and EventTarget
+introspection/max-listener helpers are not exported. Abort subscriptions use
+ordinary event listeners and cannot bypass a target's `stopImmediatePropagation`.
+Listener-limit warnings are delivered through `process.emitWarning` when that
+hook exists; Nona's current process object does not provide it. Error names and
+codes are compatible; diagnostic message wording and internal `_events` storage
+are not intended to match Node. See the [Node events reference](https://nodejs.org/api/events.html).

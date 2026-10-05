@@ -12,6 +12,7 @@ Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous
 | `console.log` | global | les deux | écrit de l’UTF-8 sur la sortie standard |
 | `nona:process`, `node:process` | modules | les deux | [process](/fr/reference/process) |
 | `nona:fs`, `node:fs` | modules | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs) |
+| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/fr/reference/host-apis#events) |
 | `nona:ffi` | module | Windows (DLL), Linux (appels système) | [Fonctions natives (FFI)](/fr/reference/ffi) |
 | `nona:win32` | module | Windows | ci-dessous et [FFI](/fr/reference/ffi#nona-win32) |
 
@@ -85,3 +86,5 @@ Pour les fonctions absentes de cette liste, déclarez-les vous-même avec `defin
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+`node:events` is also supported. It provides EventEmitter and asynchronous event helpers; see the linked host API reference for supported operations and limitations.

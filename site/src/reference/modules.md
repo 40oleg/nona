@@ -12,6 +12,7 @@ Nona programs run without Node.js. The host APIs below are part of the compiler:
 | `console.log` | global | both | writes UTF-8 to standard output |
 | `nona:process`, `node:process` | modules | both | [process](/reference/process) |
 | `nona:fs`, `node:fs` | modules | both | [File system and text encoding](/reference/fs) |
+| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/reference/host-apis#events) |
 | `nona:ffi` | module | Windows (DLLs), Linux (system calls) | [Native functions (FFI)](/reference/ffi) |
 | `nona:win32` | module | Windows | below and [FFI](/reference/ffi#nona-win32) |
 
@@ -19,7 +20,7 @@ Nona programs run without Node.js. The host APIs below are part of the compiler:
 
 - Globals are available in scripts and modules.
 - Built-in modules can be imported from module code (`.mjs` or `--module`) and with literal `import()` from scripts. FFI declarations (`define`) must be in module code.
-- Only `node:fs` and `node:process` exist among the `node:` modules; they are aliases of the Nona subsets, not the Node.js implementations. `node:path`, `Buffer` and `require` are not available.
+- `node:fs`, `node:process` and `node:events` are supported; they are aliases of the Nona subsets, not the Node.js implementations. `node:path`, `Buffer` and `require` are not available.
 - `nona:win32` and DLL declarations require Windows x64 or ARM64; system call declarations use the selected Linux, Darwin or BSD kernel.
 
 ## `nona:win32`
@@ -85,3 +86,6 @@ For functions that are not listed, declare them yourself with `define` from [`no
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+`node:events` is also supported. It provides EventEmitter and asynchronous event helpers; see the linked host API reference for supported operations and limitations.
+
