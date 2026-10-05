@@ -187,7 +187,12 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.add('rcx',H.size+15);failIf(a,'b');a.and('rcx',-16);a.store(slot(48),'rcx');
   const large=a.unique('large'),recycled=a.unique('recycled'),carve=a.unique('carve'),ready=a.unique('ready'),zero=a.unique('zero'),zeroed=a.unique('zeroed');
   a.cmp('rcx',largestClass);a.jcc('a',large);
-  a.call('rt.classOf');a.store(slot(56),'rax');a.mov('rcx','rax');a.call('rt.classSize');a.store(slot(64),'rax');
+  // Up to 1024 bytes the class is the 16-byte step and its size the
+  // rounded size itself; only larger blocks search the doublings.
+  {const small=a.unique('smallClass'),classified=a.unique('classified');a.cmp('rcx',1024);a.jcc('be',small);
+   a.call('rt.classOf');a.store(slot(56),'rax');a.mov('rcx','rax');a.call('rt.classSize');a.store(slot(64),'rax');a.jmp(classified);
+   a.label(small);a.store(slot(64),'rcx');a.mov('rax','rcx');a.sub('rax',48);a.shr('rax',4);a.store(slot(56),'rax');a.mov('rcx','rax');
+   a.label(classified);}
   a.load('rcx',slot(56));a.shl('rcx',3);a.lea('r9',{rip:'rt.classState'});a.add('r9','rcx');a.load('rax',{base:'r9'});a.test('rax','rax');a.jcc('e',carve);
   // The next free cell is the next allocation of this class: start loading
   // its line now (a cold free-list head was most of rt.alloc's time).
