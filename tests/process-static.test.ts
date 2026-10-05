@@ -11,7 +11,7 @@ import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
 import {runtimeProbes} from '../src/backend/platform-probes.js';
-import {processExtendedOracle,processReviewOracle,processEnvironmentOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
@@ -75,6 +75,27 @@ test('process numeric credential operations validate and use native group/identi
  runInContext('process.setuid(11);process.setgid(12);process.seteuid(13);process.setegid(14);process.setgroups([2,5])',context);
  assert.deepEqual(calls,[['uid',11],['gid',12],['euid',4294967295,13,4294967295],['egid',4294967295,14,4294967295],['groups',2,2,5]]);
  assert.throws(()=>runInContext('process.setuid(-1)',context));assert.throws(()=>runInContext('process.setgroups([1,"root"])',context));
+});
+test('original local account parser resolves names and collects supplementary groups',()=>{
+ const files:Record<string,string>={'/etc/passwd':'# comment\n+remote::::::\nbroken:x:no:20::/:/bin/sh\nalice:x:501:20:Alice:/home/alice:/bin/sh\n', '/etc/group':'staff:x:20:alice,bob\nwheel:x:0:root\nproject:x:40:alice\nproject-alias:x:40:alice\ninvalid:x:-1:alice\n'};
+ const calls:unknown[][]=[];let bytes=new Uint8Array(),read=false;
+ const context=mockProcess({__nonaHost_sys_open:(path:Uint8Array)=>{const name=new TextDecoder().decode(path).split('\0')[0]!;if(!(name in files))return -2;bytes=new TextEncoder().encode(files[name]);read=false;return 10},__nonaHost_sys_read:(_fd:number,out:Uint8Array)=>{if(read)return 0;read=true;out.set(bytes);return bytes.length},__nonaHost_sys_close:()=>0,
+  __nonaHost_sys_setuid:(id:number)=>{calls.push(['uid',id]);return 0},__nonaHost_sys_setgid:(id:number)=>{calls.push(['gid',id]);return 0},__nonaHost_sys_setgroups:(n:number,ids:Uint32Array)=>{calls.push(['groups',n,...ids]);return 0}});
+ runInContext('process.setuid("alice");process.setgid("staff");process.setgroups(["staff",40]);process.initgroups("alice","wheel");process.initgroups(501,0)',context);
+ assert.deepEqual(calls,[['uid',501],['gid',20],['groups',2,20,40],['groups',3,0,20,40],['groups',3,0,20,40]]);
+ assert.throws(()=>runInContext('process.setuid("unknown")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
+ assert.throws(()=>runInContext('process.setgid("invalid")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
+ assert.throws(()=>runInContext('process.initgroups("unknown",0)',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
+ assert.throws(()=>runInContext('process.setuid("alice\\0suffix")',context),{code:'ERR_INVALID_ARG_VALUE'});
+});
+test('Darwin account adapters copy OS TLS records and use native initgroups',()=>{
+ const calls:unknown[][]=[],decode=(bytes:Uint8Array)=>new TextDecoder().decode(bytes).split('\0')[0];
+ const context=mockProcess({__nonaHost_getpwnam:(name:Uint8Array)=>decode(name)==='alice'?2000:0,__nonaHost_getpwuid:(id:number)=>id===501?2000:0,__nonaHost_getgrnam:(name:Uint8Array)=>decode(name)==='staff'?4000:0,__nonaHost_getgrgid:(id:number)=>id===20?4000:0,
+  __nonaHost_copy:(out:Uint8Array|Uint32Array,pointer:number)=>{if(pointer===2000)new Uint32Array(out.buffer).set([3000,0,0,0,501,20]);else if(pointer===4000)new Uint32Array(out.buffer).set([5000,0,0,0,20,0]);else new Uint8Array(out.buffer).set(new TextEncoder().encode(pointer===3000?'alice':'staff'))},__nonaHost_length:(pointer:number)=>pointer===3000?5:5,
+  __nonaHost_sys_seteuid:(id:number)=>{calls.push(['euid',id]);return 0},__nonaHost_sys_setegid:(id:number)=>{calls.push(['egid',id]);return 0},__nonaHost_initgroups:(name:Uint8Array,gid:number)=>{calls.push(['init',decode(name),gid]);return 0}},'darwin-arm64');
+ runInContext('process.seteuid("alice");process.setegid("staff");process.initgroups(501,"staff")',context);
+ assert.deepEqual(calls,[['euid',501],['egid',20],['init','alice',20]]);
+ assert.throws(()=>runInContext('process.setuid("unknown")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
 });
 test('process active resource inventory follows real timer and stdin lifecycle',()=>{
  let clock=0;const context=mockProcess({__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms}});runInContext(timersPreludeSource,context);
@@ -215,6 +236,6 @@ test('process native standard output boundary writes exact bytes',()=>{
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
- const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+ const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 

@@ -8,13 +8,17 @@ test('process initialization completes with the host environment without GC stre
  assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,process.platform+' object\n');
 });
 
-import {processExtendedOracle,processReviewOracle,processEnvironmentOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle} from './helpers/process-fixture.js';
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 test('process native environment property paths match the Node 26 oracle',()=>{
  const oracle=runOracle(processEnvironmentOracle),actual=runProcess(processEnvironmentOracle);
+ assert.equal(actual.status,oracle.status,actual.stderr);assert.equal(actual.stdout,oracle.stdout);
+});
+test('process invalid account names match Node 26 without changing credentials',()=>{
+ const oracle=runOracle(processAccountOracle),actual=runProcess(processAccountOracle);
  assert.equal(actual.status,oracle.status,actual.stderr);assert.equal(actual.stdout,oracle.stdout);
 });
 test('process native dotenv loading matches Node 26 and reads real memory counters',()=>{

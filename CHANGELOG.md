@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Resolve process credential names through original Linux/BSD local account scanners and Darwin OS account services; implement native/local supplementary initgroups ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Synchronize process.env assignments, deletion and descriptors with an original owned native envp vector on every target; preserve Node CString boundaries and Darwin OS environment consistency ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Add current native RSS and original allocator-backed process.memoryUsage on all eight targets, including real ArrayBuffer backing accounting ([#141](https://github.com/40oleg/nona/issues/141)).

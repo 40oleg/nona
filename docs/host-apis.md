@@ -1,5 +1,10 @@
 # Host APIs
 
+POSIX process credentials accept numeric IDs and names. Darwin resolves names
+through OS libSystem account services and uses native initgroups. Linux/BSD
+resolve local /etc/passwd and /etc/group using original scanners and pass actual
+IDs to native credential syscalls; remote NSS/LDAP/NIS resolution is absent.
+
 Process memory reporting queries current native resident memory on every target.
 Its allocation-free private adapter walks Nona's actual allocator mappings and
 buffer owners; the public Node-compatible fields describe Nona allocation

@@ -33,6 +33,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const processAccounts=compile('if(process.platform==="win32")console.log(true,true,true);else{let uid=process.geteuid(),gid=process.getegid(),user=__nonaRegexpVm.processAccountName(uid,false),group=__nonaRegexpVm.processAccountName(gid,true);let sameUser=__nonaRegexpVm.processAccountId(user,false)===uid,sameGroup=__nonaRegexpVm.processAccountId(group,true)===gid;if(!sameUser||!sameGroup)throw new Error("Account identity mismatch");process.seteuid(user);process.setegid(group);console.log(process.geteuid()===uid,process.getegid()===gid,typeof process.initgroups==="function")}',{fileName:'process-accounts.js',target});
+  if(!processAccounts.ok)throw new Error(`${target}/process-accounts: ${JSON.stringify(processAccounts.diagnostics)}`);
+  probes.push({name:'process-accounts',image:processAccounts.image,expected:'true true true\n'});
   const processEnvironment=compile('process.env.NONA_NATIVE_VECTOR="ü=value";console.log(__nonaRegexpVm.processEnvironmentVector()>0,__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","ü=value"),process.platform!=="darwin"||__nonaRegexpVm.processOSGetenv("NONA_NATIVE_VECTOR")==="ü=value");process.env.NONA_NATIVE_VECTOR=42;console.log(__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","42"),__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","ü=value"));delete process.env.NONA_NATIVE_VECTOR;console.log(__nonaRegexpVm.processEnvironmentHas("NONA_NATIVE_VECTOR","42"))',{fileName:'process-environment.js',target});
   if(!processEnvironment.ok)throw new Error(`${target}/process-environment: ${JSON.stringify(processEnvironment.diagnostics)}`);
   probes.push({name:'process-environment',image:processEnvironment.image,expected:'true true true\ntrue false\nfalse\n'});

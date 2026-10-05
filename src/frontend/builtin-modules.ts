@@ -76,7 +76,7 @@ export const argv0 = process.argv0, execArgv = process.execArgv, ppid = process.
 export const stdin = process.stdin, stdout = process.stdout, stderr = process.stderr, openStdin = process.openStdin, emitWarning = process.emitWarning, kill = process.kill, cpuUsage = process.cpuUsage, resourceUsage = process.resourceUsage;
 export const on = process.on, once = process.once, off = process.off, emit = process.emit, addListener = process.addListener, removeListener = process.removeListener, removeAllListeners = process.removeAllListeners, listeners = process.listeners, listenerCount = process.listenerCount, eventNames = process.eventNames, getMaxListeners = process.getMaxListeners, setMaxListeners = process.setMaxListeners;
 export const getuid = process.getuid, geteuid = process.geteuid, getgid = process.getgid, getegid = process.getegid, umask = process.umask;
-export const getgroups = process.getgroups, setgroups = process.setgroups, setuid = process.setuid, seteuid = process.seteuid, setgid = process.setgid, setegid = process.setegid;
+  export const getgroups = process.getgroups, setgroups = process.setgroups, setuid = process.setuid, seteuid = process.seteuid, setgid = process.setgid, setegid = process.setegid, initgroups = process.initgroups;
 export const getActiveResourcesInfo = process.getActiveResourcesInfo, ref = process.ref, unref = process.unref, loadEnvFile = process.loadEnvFile, availableMemory = process.availableMemory, constrainedMemory = process.constrainedMemory, memoryUsage = process.memoryUsage;
 `;
 

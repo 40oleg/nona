@@ -59,10 +59,20 @@ counters are omitted. `kill(pid, signal?)` delivers native POSIX signals, or
 checks process existence with signal 0; Windows supports existence checks and
 termination signals. Installing JavaScript signal handlers is unsupported.
 POSIX also exposes `getuid`, `geteuid`, `getgid`, `getegid`, `getgroups`, `umask`,
-and numeric `setuid`, `seteuid`, `setgid`, `setegid`, `setgroups`. Group queries
-include the effective group. Setters validate unsigned 32-bit IDs and report
-native permission errors; account-name resolution and `initgroups` still require
-a native account-database adapter. Windows omits POSIX credential APIs.
+and `setuid`, `seteuid`, `setgid`, `setegid`, `setgroups`, `initgroups`. Group
+queries include the effective group. Setters accept unsigned 32-bit IDs or account
+names and report native permission errors. Darwin resolves names through the OS
+libSystem account database and calls native `initgroups`, including the system's
+Directory Service integration. Linux/BSD use an original scanner for local
+`/etc/passwd` and `/etc/group` records. Their `initgroups` collects explicit local
+group memberships, includes the extra group once, and invokes native setgroups.
+Linux/BSD remote NSS, LDAP and NIS account resolution is unsupported; local files
+are not presented as equivalent to those services. Unknown local/system names
+throw `ERR_UNKNOWN_CREDENTIAL`; invalid numeric IDs and NUL names fail before a
+credential syscall. Darwin copies OS-managed record prefixes and names before
+another lookup can invalidate their thread-local storage. Windows omits POSIX
+credential APIs. Native probes resolve the current owner and only reapply the
+same effective IDs; group-changing operations are verified with source mocks.
 
 `loadEnvFile(path = './.env')` reads a real UTF-8 file through OS services on all
 targets. An original parser handles whitespace, comments, export prefixes,
@@ -114,7 +124,7 @@ remain counted until GC sweeps them. These are Nona allocator measurements,
 not V8 heap estimates. The private native snapshot allocates no objects and
 does not trigger GC.
 
-IPC/channel APIs, worker integration, V8 heap reports, account-name resolution,
+IPC/channel APIs, worker integration, V8 heap reports, remote Linux/BSD account resolution,
 title changes, Node.js/V8 version metadata, debugger/report APIs
 and interpreter flag processing remain absent. Nona does not fabricate V8 or
 IPC behavior. Error messages and some OS error mappings differ from Node.js.

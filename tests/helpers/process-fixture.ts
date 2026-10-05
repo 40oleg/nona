@@ -28,4 +28,10 @@ process.env['NONA_NUL\0suffix']='a\0b';process.env['NONA=INVALID']='ignored';pro
 console.log(JSON.stringify([process.env.NONA_ASSIGN,process.env.NONA_DEFINE,process.env.NONA_NUL,process.env['NONA_NUL\0suffix'],process.env['NONA=INVALID'],process.env[''],'NONA_NUL\0suffix' in process.env,Object.getOwnPropertyDescriptor(process.env,'NONA_NUL\0suffix').value]));
 delete process.env['NONA_NUL\0suffix'];console.log(process.env.NONA_NUL===undefined);
 `;
+export const processAccountOracle=String.raw`
+if(typeof process.getuid==='function'){
+console.log(typeof process.initgroups);
+for(let call of [()=>process.setuid('nona_account_missing_981763'),()=>process.setgid('nona_group_missing_981763'),()=>process.setgroups(['nona_group_missing_981763']),()=>process.initgroups('nona_account_missing_981763',process.getgid())])try{call()}catch(error){console.log(error.code)}
+}else console.log('no POSIX credentials');
+`;
 

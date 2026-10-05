@@ -1,4 +1,5 @@
 /** Original OS process helpers, inserted inside the lazy process build. */
+import {processAccountsSource} from './process-accounts-source.js';
 export const processSystemSource=String.raw`
     function residentMemory(){
       if(windows){var memory=new Uint32Array(18);memory[0]=72;if(!host.K32GetProcessMemoryInfo(-1,memory,72))throw hostError('memoryUsage',5);return unsigned64(memory,4)}
@@ -26,6 +27,7 @@ export const processSystemSource=String.raw`
     })})(action)}
     input[Symbol.for('nodejs.ref')]=input.ref;input[Symbol.for('nodejs.unref')]=input.unref;
     function numericId(id){if(typeof id!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','The id must be a number');if(!Number.isInteger(id)||id<0||id>4294967295)throw argumentError('ERR_OUT_OF_RANGE','The id must be an unsigned 32-bit integer',true);return id}
+${processAccountsSource}
     if(!windows){
       value('getgroups',function(){
         for(var attempt=0;attempt<3;attempt++){
@@ -35,12 +37,12 @@ export const processSystemSource=String.raw`
         }throw hostError('getgroups',22)
       });
       for(var setter of ['setuid','setgid','seteuid','setegid']){(function(name){value(name,function(id){
-        id=numericId(id);var r;if(platform==='linux'&&(name==='seteuid'||name==='setegid'))r=host[name==='seteuid'?'sys_setresuid':'sys_setresgid'](4294967295,id,4294967295);
+        id=credentialId(id,name==='setgid'||name==='setegid');var r;if(platform==='linux'&&(name==='seteuid'||name==='setegid'))r=host[name==='seteuid'?'sys_setresuid':'sys_setresgid'](4294967295,id,4294967295);
         else r=host['sys_'+name](id);if(r<0)throw hostError(name,-r)
       })})(setter)}
       value('setgroups',function(groups){
         if(!Array.isArray(groups))throw argumentError('ERR_INVALID_ARG_TYPE','Groups must be an array');
-        var ids=new Uint32Array(groups.length);for(var i=0;i<groups.length;i++)ids[i]=numericId(groups[i]);
+        var ids=new Uint32Array(groups.length);for(var i=0;i<groups.length;i++)ids[i]=credentialId(groups[i],true);
         var r=host.sys_setgroups(ids.length,ids);if(r<0)throw hostError('setgroups',-r)
       });
     }
