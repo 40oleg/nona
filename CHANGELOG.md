@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a separate corpus of ten small programs combining algorithms, closures, classes, generators, collections, typed arrays, JSON and async exception cleanup, with fixed expected results and Node.js comparisons in normal and GC-stress execution ([#123](https://github.com/40oleg/nona/issues/123)).
+
 - Added native Linux/Windows/macOS ARM64, Intel macOS and FreeBSD/OpenBSD x64 backends, architecture-specific math/call bridges and native CI probes. Apple Silicon uses system dyld/libSystem; see [native platforms](docs/native-platforms.md) ([#117](https://github.com/40oleg/nona/issues/117)).
 
 ## v0.8.0 — 2026-10-05

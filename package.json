@@ -23,6 +23,7 @@
     "build": "node scripts/build.mjs",
     "test": "node --test dist/tests/*.test.js",
     "check": "npm run build && npm test",
+    "check:programs": "npm run build && node --test dist/tests/program-corpus.test.js",
     "compare": "npm run build && node scripts/compare-examples.mjs",
     "compare:linux": "npm run build && node scripts/compare-linux.mjs",
     "test262:smoke": "npm run build && node scripts/test262-smoke.mjs",
