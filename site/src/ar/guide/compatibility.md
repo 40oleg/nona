@@ -27,9 +27,9 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `process` | `argv` و`env` و`exit` و`exitCode` و`execPath` و`cwd` و`platform` و`arch` و`pid` | ‏EventEmitter مع تدفقات و`nextTick` و`hrtime` وغيرها |
 | معرّفات المؤقتات | أعداد | كائنات `Timeout` |
 | `readFileSync(path)` | يعيد `Uint8Array` | يعيد `Buffer` |
-| الترميزات | `utf8` فقط | كثيرة |
+| الترميزات | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) فقط | كثيرة |
 | رسائل الخطأ على Windows | تحتوي على المسار كما مُرِّر | تحتوي على المسار المطلق |
-| الوحدات | `nona:*` و`node:fs`, `node:path` و`node:process` والملفات النسبية | كل ما في `node:*` وحزم npm |
+| الوحدات | `nona:*` و`node:fs`, `node:path` و`node:process`, `node:buffer` والملفات النسبية | كل ما في `node:*` وحزم npm |
 | `require` و`Buffer` | غير متاحة | متاحة |
 | `console.log` دون مخرج قياسي | يُتجاهَل الناتج | يُتجاهَل الناتج أو يُرمى خطأ |
 
@@ -55,3 +55,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

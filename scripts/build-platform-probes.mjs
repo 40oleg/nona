@@ -27,7 +27,7 @@ for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','dar
   runtime[target]=[...(runtime[target]??[]),...runtimeProbes(target).map(probe=>{
     const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);
-    return {file,expected:probe.expected};
+    return {file,expected:probe.expected,...('timeoutMs' in probe?{timeoutMs:probe.timeoutMs}:{})};
   })];
 }
 writeFileSync(join(directory,'manifest.json'),JSON.stringify({kind:'loader',targets,expected:loaderProbeOutput,runtime},null,2)+'\n');

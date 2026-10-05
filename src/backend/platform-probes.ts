@@ -1,5 +1,6 @@
 import {Arm64Assembler} from './arm64/assembler.js';
 import {linkWindowsArm64} from './arm64/windows.js';
+import {linkPe} from './pe/writer.js';
 import {Assembler} from './x64/assembler.js';
 import {linkElf} from './elf/writer.js';
 import {linkMachO} from './macho/writer.js';
@@ -8,7 +9,6 @@ import type {CodeFragment,NativeProgram} from './pe/model.js';
 import {compile} from '../compiler.js';
 import {compileToIR} from '../compiler.js';
 import {compileModuleToIR} from '../compiler.js';
-import {linkPe} from './pe/writer.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
 import {linkDarwin} from './darwin/index.js';
@@ -25,12 +25,21 @@ export const runtimeProbeSources=[
   {name:'math',source:'console.log(Math.sqrt(81),Math.abs(-17),Math.pow(2,10),Math.round(Math.sin(0.5)*1000000),Math.round(Math.log(2)*1000000))',expected:'9 17 1024 479426 693147\n'},
   {name:'generator',source:'function* f(){for(let i=0;i<20;i++)yield i*i}let sum=0;for(let x of f())sum+=x;console.log(sum)',expected:'2470\n'},
   {name:'async',source:'async function f(x){return (await Promise.resolve(x))+1}f(41).then(x=>console.log(x))',expected:'42\n'},
+  {name:'buffer',source:'let b=Buffer.from("hé😀"),s=b.subarray(0,1);s[0]=72;console.log(b.toString(),b.toString("hex"),s instanceof Buffer,s.buffer===b.buffer);let n=Buffer.allocUnsafe(32,64);n.writeUIntLE(0x123456,0,3);n.writeDoubleBE(1.5,4);n.writeBigInt64LE(-123n,16);console.log(n.readUIntLE(0,3),n.readDoubleBE(4),n.readBigInt64LE(16));let a=Buffer.from("abcabc");console.log(a.indexOf("bc",0,5),a.lastIndexOf("bc",undefined,5),Buffer.from([1,2,3,4]).swap16().toString("hex"));let blob=new Blob([b]),file=new File([blob],"x",{lastModified:12});console.log(file.name,file.size,file.lastModified);let hex=Buffer.alloc(4096,65).toString("hex");console.log(hex.length,hex.slice(0,4),hex.slice(-4));blob.text().then(x=>{console.log(x);let id=URL.createObjectURL(blob);console.log(id.startsWith("blob:nodedata:"));URL.revokeObjectURL(id);let r;try{r=blob.stream().getReader({mode:"byob"})}catch(e){console.log("BYOB reader setup failed",e.name,e.code,e.message);throw e}let v=new Uint8Array(16),p=r.read(v);console.log(v.byteLength);p.then(q=>{console.log(q.done,Buffer.from(q.value).toString());r.releaseLock();blob.textStream().getReader().read().then(t=>console.log(t.done,t.value))})});',expected:'Hé😀 48c3a9f09f9880 true true\n1193046 1.5 -123\n1 1 02010403\nx 7 12\n8192 4141 4141\nHé😀\ntrue\n0\nfalse Hé😀\nfalse Hé😀\n'},
+  {name:'buffer-stream-state',source:'(async function(){let s=new Blob(["abc"]).stream();await s.cancel();let [a]=s.tee(),r=await a.getReader().read();console.log(r.done,r.value);let [x,y]=new Blob(["x"]).stream().tee(),done=false,p=x.cancel("left").then(()=>{done=true});await Promise.resolve();await Promise.resolve();console.log(done);let reader=y.getReader();await reader.read();await Promise.resolve();console.log(done);await reader.cancel("right");await p;console.log(done);reader.releaseLock();let w=new WritableStream({start(){return Promise.reject("start failure")}}).getWriter();try{await w.closed}catch(e){console.log(e)}w.releaseLock();let c,t=new WritableStream({start(controller){c=controller}}),v=t.getWriter();await Promise.resolve();c.error("controller failure");try{await v.closed}catch(e){console.log(e)}v.releaseLock()})()',expected:'true undefined\nfalse\nfalse\ntrue\nstart failure\ncontroller failure\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
   {name:'path',source:String.raw`import path from 'node:path';console.log(path.isAbsolute(path.resolve()),path.relative(path.resolve('x'),path.resolve('y'))==='..'+path.sep+'y',path.posix.normalize('/a/../b/'),path.win32.normalize('C:/a/../b'),path.matchesGlob('a.js','*.js'));`,expected:'true true /b/ C:\\b true\n'},
 ] as const;
-export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
-  const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
+export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs?:number}[] {
+  const probes:{name:string;image:Uint8Array;expected:string;timeoutMs?:number}[]=runtimeProbeSources.map(probe=>{
+    if(probe.name.startsWith('buffer')){
+      const {result:ir,usage}=collectSourceUsage(()=>compileToIR(probe.source,undefined,undefined,target));
+      const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
+      const descriptor=getTarget(target)!;
+      const image=descriptor.os==='win32'?(descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
+      return {name:probe.name,image,expected:probe.expected,timeoutMs:60000};
+    }
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {}),...(probe.name==='path'?{module:true}:{})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};

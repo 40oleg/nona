@@ -18,6 +18,7 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **API хоста** для настоящих программ:
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
   - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
+  - глобальные `Buffer`, `Blob` и `File`, импорты `node:buffer`/`buffer`/`nona:buffer`, кодировки и числовые операции ([двоичные данные, англ.](docs/host-apis.md#buffer-and-binary-data));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - `node:path` / `path`: варианты POSIX и Windows, разбор, разрешение путей и glob-шаблоны; рабочие каталоги читаются по требованию ([пути](docs/path.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
@@ -100,7 +101,7 @@ nona --help | --version
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходного текста, известного при компиляции; вычисленные строки бросают `EvalError` ([контракт](docs/es2020-contract.md)).
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
-- Модули Node.js, кроме встроенных `fs` и `process`, пакеты npm и браузерные API недоступны.
+- Модули Node.js, кроме встроенных подмножеств `fs`, `path`, `process` и `buffer`, пакеты npm и браузерные API недоступны. Доступны потоки Blob и регистрация объектных URL; разбор произвольных URL пока не поддерживается.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
 - API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 

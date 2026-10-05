@@ -102,6 +102,7 @@ test('source usage: optional preludes follow the names a program uses',()=>{
  const linked=(...sources:string[])=>Object.entries(usage(...sources).preludes).filter(([,on])=>on).map(([name])=>name).sort().join(',');
  assert.equal(linked('console.log("hi")'),'');
  assert.equal(linked('new Proxy({}, {})'),'proxy');
+ assert.equal(linked('Buffer.alloc(1)'),'buffer');
  assert.equal(linked('self["TextEncoder"]'),'encoding');
  assert.equal(linked('process.exitCode = 1'),'process');
  assert.equal(linked('setTimeout(f, 1)','clearInterval(id)'),'timers');
@@ -118,8 +119,8 @@ test('source usage: optional preludes follow the names a program uses',()=>{
  assert.equal(linked('const word = "data format"'),'');
  assert.equal(linked('const key = "at"'),'es2021');
  // Enumerating built-ins could observe a missing method: everything is linked.
- assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,encoding,es2021,objectAnnexB,objectIntegrity,process,proxy,timers');
- assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,encoding,es2021,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,buffer,encoding,es2021,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,buffer,encoding,es2021,objectAnnexB,objectIntegrity,process,proxy,timers');
 });
 
 test('a program links only the preludes it names',()=>{

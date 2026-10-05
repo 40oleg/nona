@@ -20,7 +20,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 - ग्लोबल स्क्रिप्ट और मॉड्यूल दोनों में उपलब्ध हैं।
 - बिल्ट-इन मॉड्यूल मॉड्यूल कोड (`.mjs` या `--module`) से इम्पोर्ट किए जा सकते हैं, और स्क्रिप्ट से लिटरल `import()` के साथ। FFI डिक्लेरेशन (`define`) मॉड्यूल कोड में होने चाहिए।
-- Supported Node modules: `node:fs`, `node:process`, and `node:path` (`path` alias). `Buffer` and CommonJS `require` are not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
 - `nona:win32` और DLL डिक्लेरेशन केवल `win32-x64` के लिए कंपाइल होते हैं; सिस्टम कॉल डिक्लेरेशन केवल `linux-x64` के लिए।
 
 ## `nona:win32` {#nona-win32}
@@ -86,3 +86,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## `node:buffer`, `buffer`, `nona:buffer`
+
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

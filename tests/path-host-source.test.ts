@@ -8,7 +8,15 @@ import {withNativeTarget} from '../src/backend/machine/context.js';
 import {linkLinux} from '../src/backend/linux/index.js';
 import type {Target} from '../src/target.js';
 import {supportedNativeTargets} from '../src/target.js';
+import {withBuiltinModules} from '../src/frontend/builtin-modules.js';
 import type path from 'node:path';
+
+test('Path and Buffer aliases resolve to their canonical built-in providers',()=>{
+ const host=withBuiltinModules({resolve:specifier=>specifier,read:()=>{throw new Error('Unexpected external module')}},'linux-x64');
+ for(const [canonical,aliases] of [['node:path',['path']],['node:path/posix',['path/posix']],['node:path/win32',['path/win32']],['node:buffer',['buffer','nona:buffer']]] as const){
+  for(const alias of aliases){assert.equal(host.resolve(alias,'entry.mjs'),canonical);assert.equal(host.read(alias),host.read(canonical))}
+ }
+});
 
 function adapter(target:Target,cwd:string,drives:Record<string,string>={}) {
  const global={};let processReads=0,cwdCalls=0;const driveReads:string[]=[];

@@ -27,10 +27,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | स्ट्रीम, `nextTick`, `hrtime` आदि वाला EventEmitter |
 | टाइमर id | नंबर | `Timeout` ऑब्जेक्ट |
 | `readFileSync(path)` | `Uint8Array` लौटाता है | `Buffer` लौटाता है |
-| एन्कोडिंग | केवल `utf8` | कई |
+| एन्कोडिंग | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | कई |
 | Windows पर एरर मैसेज | पाथ वैसा ही, जैसा दिया गया | एब्सोल्यूट पाथ |
-| मॉड्यूल | `nona:*`, `node:fs`, `node:path`, `node:process` और रिलेटिव फ़ाइलें | `node:*` का सब कुछ और npm पैकेज |
-| `require`, `Buffer` | उपलब्ध नहीं | उपलब्ध |
+| मॉड्यूल | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` और रिलेटिव फ़ाइलें | `node:*` का सब कुछ और npm पैकेज |
+| `require` | उपलब्ध नहीं | उपलब्ध |
 | स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है | आउटपुट छोड़ दिया जाता है या एरर आता है |
 
 ## प्रदर्शन
@@ -55,3 +55,7 @@ Test262 के लिए `$262.createRealm` समर्थित है। Java
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

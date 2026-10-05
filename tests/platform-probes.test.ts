@@ -35,6 +35,7 @@ test('BSD cross-compilation under an ARM64 emission scope also scopes OS service
   assert.deepEqual(images.map((probe:{name:string})=>probe.name),expected);
   assert.ok(images.some((probe:{name:string})=>probe.name==='path'));
   for(const probe of images){
+    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')?60000:undefined,probe.name);
     const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
     assert.equal(v.getUint16(18,true),62,probe.name);
   }

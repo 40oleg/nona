@@ -2,6 +2,7 @@ import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {pathModuleSourceForTarget} from './path-module.js';
+import {bufferModuleSource} from './buffer-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -77,6 +78,9 @@ export function cwd() { return process.cwd(); }
 
 import type {Target} from '../target.js';
 const sources=new Map<string,(target:Target)=>string>([
+  ['node:buffer',()=>bufferModuleSource],
+  ['buffer',()=>bufferModuleSource],
+  ['nona:buffer',()=>bufferModuleSource],
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],
@@ -88,7 +92,7 @@ const sources=new Map<string,(target:Target)=>string>([
 ]);
 
 const aliases=new Map(['','/posix','/win32'].map(flavor=>['path'+flavor,'node:path'+flavor]));
-const canonicalBuiltin=(specifier:string)=>aliases.get(specifier)??specifier;
+const canonicalBuiltin=(specifier:string)=>specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':aliases.get(specifier)??specifier;
 export function isBuiltinModule(specifier:string):boolean {return sources.has(canonicalBuiltin(specifier));}
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
