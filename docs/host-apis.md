@@ -1,5 +1,10 @@
 # Host APIs
 
+Process thread CPU accounting uses real Windows thread times, Linux/BSD
+RUSAGE_THREAD or Darwin Mach thread_info. POSIX process.execve replaces the
+current image through the native kernel syscall using original owned argv/envp
+vectors; Windows omits it. Native probes verify self-reexecution and PID identity.
+
 POSIX process credentials accept numeric IDs and names. Darwin resolves names
 through OS libSystem account services and uses native initgroups. Linux/BSD
 resolve local /etc/passwd and /etc/group using original scanners and pass actual

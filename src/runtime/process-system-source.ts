@@ -1,6 +1,8 @@
 /** Original OS process helpers, inserted inside the lazy process build. */
 import {processAccountsSource} from './process-accounts-source.js';
+import {processExecSource} from './process-exec-source.js';
 export const processSystemSource=String.raw`
+${processExecSource}
     var machThread;
     value('threadCpuUsage',function(previous){
       var user,system;

@@ -33,6 +33,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
   const descriptor=getTarget(target)!;
+  const processExec=compile('if(typeof process.execve!=="function")console.log("no execve");else if(process.argv[1]==="child"){console.log(process.argv[1],process.argv[2],process.env.NONA_EXEC_VALUE,process.pid===Number(process.env.NONA_EXEC_PARENT))}else{process.on("exit",()=>console.log("unexpected exit"));setTimeout(()=>console.log("unexpected timer"),1);process.execve(process.execPath,[process.execPath,"child","ü=arg"],{NONA_EXEC_VALUE:"ü=env",NONA_EXEC_PARENT:String(process.pid)})}',{fileName:'process-exec.js',target});
+  if(!processExec.ok)throw new Error(`${target}/process-exec: ${JSON.stringify(processExec.diagnostics)}`);
+  probes.push({name:'process-exec',image:processExec.image,expected:target.startsWith('win32-')?'no execve\n':'child ü=arg ü=env true\n'});
   const processThread=compile('let usage=process.threadCpuUsage(),delta=process.threadCpuUsage(usage);console.log(Object.keys(usage).join(","),usage.user>=0,usage.system>=0,delta.user>=0,delta.system>=0)',{fileName:'process-thread.js',target});
   if(!processThread.ok)throw new Error(`${target}/process-thread: ${JSON.stringify(processThread.diagnostics)}`);
   probes.push({name:'process-thread',image:processThread.image,expected:'user,system true true true true\n'});

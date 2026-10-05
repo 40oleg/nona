@@ -11,7 +11,7 @@ import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
 import {runtimeProbes} from '../src/backend/platform-probes.js';
-import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
@@ -120,6 +120,19 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64'){
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
  runInContext(processPreludeForTarget(target),context);return context;
 }
+test('POSIX execve packs actual UTF-8 argv/envp without mutating the current environment',()=>{
+ let args:string[]=[],environment:string[]=[];const calls:unknown[][]=[];const decode=(bytes:Uint8Array)=>new TextDecoder().decode(bytes).split('\0').filter(Boolean);
+ const context=mockProcess({__nonaHost_replaceArguments:(bytes:Uint8Array)=>{args=decode(bytes)},__nonaHost_replaceExecEnvironment:(bytes:Uint8Array)=>{environment=decode(bytes)},__nonaHost_argumentVector:()=>1234,__nonaHost_execEnvironmentVector:()=>5678,
+  __nonaHost_sys_execve:(path:Uint8Array,argv:number,envp:number)=>{calls.push([decode(path)[0],argv,envp]);return -2}});
+ runInContext('process.env.NONA_CURRENT="preserved"',context);
+ assert.throws(()=>runInContext('process.execve("/missing",["program","ü=arg"],{VALUE:"ü=env"})',context),{code:'ENOENT',syscall:'execve',path:'/missing'});
+ assert.deepEqual(args,['program','ü=arg']);assert.deepEqual(environment,['VALUE=ü=env']);assert.deepEqual(calls,[['/missing',1234,5678]]);
+ assert.equal(runInContext('process.env.NONA_CURRENT',context),'preserved');
+ for(const source of ['process.execve(1,[])','process.execve("/missing",[1])','process.execve("/missing",[],null)','process.execve("/missing\\0suffix",[])','process.execve("/missing",["a\\0b"])','process.execve("/missing",[],{A:"a\\0b"})'])assert.throws(()=>runInContext(source,context));
+ assert.equal(calls.length,1);
+ assert.equal(processHostDeclarations('linux-arm64').find(item=>item.name==='sys_execve')!.declaration.name,'221');
+ for(const target of ['darwin-x64','darwin-arm64','freebsd-x64','openbsd-x64'])assert.equal(processHostDeclarations(target as typeof supportedNativeTargets[number]).find(item=>item.name==='sys_execve')!.declaration.name,'59');
+});
 test('thread CPU reports RUSAGE_THREAD counters with Node 26 previous-value validation',()=>{
  const output:string[]=[],context=mockProcess({console:{log:(...args:unknown[])=>output.push(args.join(' '))},__nonaHost_sys_getrusage:(who:number,words:Uint32Array)=>{assert.equal(who,1);words.set([2,0,3,0,4,0,5,0]);return 0}});
  assert.equal(runInContext('JSON.stringify(process.threadCpuUsage())',context),'{"user":2000003,"system":4000005}');
@@ -247,6 +260,6 @@ test('process native standard output boundary writes exact bytes',()=>{
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
- const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle+processThreadOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+ const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle+processThreadOracle+processExecErrorOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 

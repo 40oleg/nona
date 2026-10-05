@@ -95,7 +95,8 @@ __nonaPromiseDrainJobs=(function(drain){
     function textBuffer(bytes){var end=0;while(end<bytes.length&&bytes[end]!==0)end++;return decoder.decode(bytes.subarray(0,end))}
     function sysctlString(mib){var bytes=new Uint8Array(65536),length=new Uint32Array([bytes.length,0]);var r=host.sys_sysctl(new Int32Array(mib),mib.length,bytes,length,null,0);if(r<0)throw hostError('sysctl',-r);return textBuffer(bytes)}
     function hostError(syscall,number,path){
-      var codes={1:'EPERM',2:'ENOENT',3:'ESRCH',4:'EINTR',5:'EIO',9:'EBADF',13:'EACCES',20:'ENOTDIR',22:'EINVAL',32:'EPIPE',34:'ERANGE',36:'ENAMETOOLONG'};
+      var codes={1:'EPERM',2:'ENOENT',3:'ESRCH',4:'EINTR',5:'EIO',7:'E2BIG',8:'ENOEXEC',9:'EBADF',12:'ENOMEM',13:'EACCES',14:'EFAULT',20:'ENOTDIR',22:'EINVAL',24:'EMFILE',26:'ETXTBSY',30:'EROFS',32:'EPIPE',34:'ERANGE'};
+      if(platform==='linux'){codes[36]='ENAMETOOLONG';codes[38]='ENOSYS';codes[40]='ELOOP'}else{codes[62]='ELOOP';codes[63]='ENAMETOOLONG';codes[78]='ENOSYS'}
       var code=codes[number]||'UNKNOWN',error=new Error(code+': '+syscall+(path===undefined?'':" '"+path+"'"));error.code=code;error.errno=-number;error.syscall=syscall;if(path!==undefined)error.path=path;return error
     }
     function argumentError(code,message,range){var error=range?new RangeError(message):new TypeError(message);error.code=code;return error}
@@ -288,14 +289,17 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['sys_setuid','syscall','105','i32(u32)'],['sys_setgid','syscall','106','i32(u32)'],
     ['sys_setresuid','syscall','117','i32(u32,u32,u32)'],['sys_setresgid','syscall','119','i32(u32,u32,u32)'],
     ['sys_getrlimit','syscall','97','i32(i32,buf)'],
+    ['sys_execve','syscall','59','i64(buf,ptr,ptr)'],
   ];
   if(target==='linux-arm64'){
     const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getppid:'173',sys_chdir:'49',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94',sys_write:'64',sys_poll:'73',sys_getrusage:'165',sys_kill:'129',sys_getuid:'174',sys_geteuid:'175',sys_getgid:'176',sys_getegid:'177',sys_umask:'166'};
     Object.assign(numbers,{sys_getgroups:'158',sys_setgroups:'159',sys_setuid:'146',sys_setgid:'144',sys_setresuid:'147',sys_setresgid:'149',sys_getrlimit:'163'});
+    numbers.sys_execve='221';
     for(const entry of posix){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';if(entry[0]==='sys_poll')entry[3]='i32(buf,u64,buf,ptr,u64)';}
   }else if(target.startsWith('darwin-')||target.startsWith('freebsd-')||target.startsWith('openbsd-')){
     const numbers:Record<string,string>={sys_read:'3',sys_open:'5',sys_close:'6',sys_getpid:'20',sys_getppid:'39',sys_chdir:'12',sys_readlink:'58',sys_exit:'1',sys_getcwd:'326',sys_write:'4',sys_poll:target.startsWith('darwin-')?'230':target.startsWith('freebsd-')?'209':'252',sys_getrusage:target.startsWith('openbsd-')?'19':'117',sys_kill:target.startsWith('openbsd-')?'122':'37',sys_getuid:'24',sys_geteuid:'25',sys_getgid:'47',sys_getegid:'43',sys_umask:'60'};
     Object.assign(numbers,{sys_getgroups:'79',sys_setgroups:'80',sys_setuid:'23',sys_setgid:'181',sys_setresuid:'0',sys_setresgid:'0',sys_getrlimit:'194'});
+    numbers.sys_execve='59';
     for(const entry of posix)entry[2]=numbers[entry[0]]!;
     for(const name of ['sys_setresuid','sys_setresgid'])posix.splice(posix.findIndex(e=>e[0]===name),1);
     posix.push(['sys_seteuid','syscall','183','i32(u32)'],['sys_setegid','syscall','182','i32(u32)']);
@@ -309,6 +313,8 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['heapSnapshot','nona.internal','heapSnapshot','void(buf)'],
     ['replaceEnvironment','nona.internal','replaceEnvironment','void(buf,u64,u64)'],['environmentVector','nona.internal','environmentVector','ptr()'],
     ['environmentContains','nona.internal','environmentContains','bool(buf)'],
+    ['replaceArguments','nona.internal','replaceArguments','void(buf,u64,u64)'],['argumentVector','nona.internal','argumentVector','ptr()'],
+    ['replaceExecEnvironment','nona.internal','replaceExecEnvironment','void(buf,u64,u64)'],['execEnvironmentVector','nona.internal','execEnvironmentVector','ptr()'],
   ];
   if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)'],['setenv','/usr/lib/libSystem.B.dylib','setenv','i32(buf,buf,i32)'],['unsetenv','/usr/lib/libSystem.B.dylib','unsetenv','i32(buf)']);
   if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);

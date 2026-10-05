@@ -12,3 +12,4 @@ Promise.resolve().then(() => console.log('promise'));
 console.log(process.memoryUsage());
 if (typeof process.getgroups === 'function') console.log(typeof process.initgroups);
 console.log(process.threadCpuUsage());
+console.log(typeof process.execve);

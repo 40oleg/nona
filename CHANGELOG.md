@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add real POSIX process.execve with original UTF-8 argv/envp ownership, coded nonfatal syscall errors and safe native self-reexecution probes ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Add actual Windows, Linux/BSD and Darwin current-thread CPU reporting with Node26 previous-value validation ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Resolve process credential names through original Linux/BSD local account scanners and Darwin OS account services; implement native/local supplementary initgroups ([#141](https://github.com/40oleg/nona/issues/141)).

@@ -38,4 +38,7 @@ export const processThreadOracle=String.raw`
 let threadUsage=process.threadCpuUsage(),threadDelta=process.threadCpuUsage(threadUsage);console.log(Object.keys(threadUsage).join(','),threadUsage.user>=0,threadUsage.system>=0,threadDelta.user>=0,threadDelta.system>=0);
 for(let previous of [null,false,0,{},{user:-1,system:0},{user:NaN,system:0},{user:Infinity,system:0},{user:1.5,system:0},{user:Number.MAX_SAFE_INTEGER+1,system:0}])try{console.log(Number.isFinite(process.threadCpuUsage(previous).user))}catch(error){console.log(error.code)}
 `;
+export const processExecErrorOracle=String.raw`
+if(typeof process.execve==='function'){process.env.NONA_EXEC_ERROR='preserved';try{process.execve('/nona_missing_exec_971683',[],{VALUE:'replacement'})}catch(error){console.log(error.code,error.syscall,error.path,process.env.NONA_EXEC_ERROR)}}else console.log('no execve');
+`;
 
