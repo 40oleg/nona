@@ -1,4 +1,4 @@
-import {Buffer, Blob, File, isUtf8} from 'node:buffer';
+import {Buffer, Blob, File, isUtf8, resolveObjectURL} from 'node:buffer';
 
 const packet = Buffer.alloc(8);
 packet.writeUInt32BE(0x12345678, 0);
@@ -15,3 +15,12 @@ const blob = new Blob([text], {type: 'text/plain'});
 const file = new File([blob], 'hello.txt', {lastModified: 123});
 console.log(file.name, file.size, file.type);
 file.text().then(text => console.log(text));
+
+const objectUrl = URL.createObjectURL(blob);
+const resolved = resolveObjectURL(objectUrl);
+URL.revokeObjectURL(objectUrl);
+const reader = resolved.textStream().getReader();
+reader.read().then(chunk => {
+  console.log(chunk.value);
+  reader.releaseLock();
+});

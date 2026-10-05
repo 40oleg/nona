@@ -23,7 +23,7 @@ export interface RuntimeLink {
 export const preludeTriggers={
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
-  buffer:['Buffer','Blob','File','node:buffer','nona:buffer','bufferModule'],
+  buffer:['Buffer','Blob','File','URL','ReadableStream','ReadableStreamDefaultReader','ReadableStreamBYOBReader','WritableStream','WritableStreamDefaultWriter','node:buffer','nona:buffer','bufferModule'],
   process:['process'],
   // Timers installs enumerable globals, which a program can list through globalThis.
   timers:['setTimeout','setInterval','setImmediate','clearTimeout','clearInterval','clearImmediate','queueMicrotask','performance','globalThis'],

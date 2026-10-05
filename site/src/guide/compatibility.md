@@ -88,4 +88,4 @@ Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 ## Buffer
 
-Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob streams and object URL creation are unavailable; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

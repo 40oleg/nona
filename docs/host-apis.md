@@ -58,11 +58,17 @@ The module also exports `isAscii`, `isUtf8`, `atob`, `btoa`, `transcode` (UTF-8,
 
 Global and module `Blob` and `File` constructors provide immutable copied data, `size`, `type`, `slice`, Promise-returning `text`/`arrayBuffer`/`bytes`, and File `name`/`lastModified` metadata. Blob string parts normalize unpaired surrogates; `endings: 'native'` uses CRLF on Windows and LF elsewhere. Returned bytes and ArrayBuffers are independent copies.
 
+`Blob.stream()` returns a byte `ReadableStream`; `Blob.textStream()` returns a UTF-8 text stream with BOM removal, replacement decoding, and characters retained across part boundaries. Streams support default readers, byte BYOB readers with buffer transfer and minimum reads, `read`, `closed`, reader cancellation/release, locking, stream cancellation, async iteration (`values`), `tee`, `pipeTo` and `pipeThrough`. Each byte chunk is independent of Blob storage. The WritableStream dependency accepts asynchronous underlying sink callbacks, queues writes, and provides writers, close and abort. Piping honors `preventClose`, `preventCancel`, `preventAbort` and an AbortSignal-compatible `signal` (initial or mid-transfer cancellation). Until EventTarget/AbortController support is integrated, signals can be supplied through the `aborted`/`reason`/`addEventListener`/`removeEventListener` protocol.
+
+`URL.createObjectURL(blob)` registers immutable Blob data under a unique process-local `blob:nodedata:` URL. `resolveObjectURL(url)` returns a fresh Blob wrapper or undefined for an unknown/revoked URL. Query strings and fragments do not change the registry lookup. `URL.revokeObjectURL(url)` releases the registry entry; previously resolved Blobs remain valid. Registered data stays reachable until revocation or process exit.
+
+### URL and Web Streams dependency boundaries
+
+The global URL constructor currently parses and serializes `blob:nodedata:` object URLs only; unsupported general URLs throw `ERR_INVALID_URL`. Full WHATWG URL parsing belongs to future URL-module support. The global ReadableStream and reader prototypes support streams returned by Blob; arbitrary underlying-source construction, configurable queuing strategies and TransformStream construction are not yet provided. These dependency APIs are independently authored and use no external runtime library.
+
 ### Buffer module limitations
 
 - Allocations are independent and zero-filled, including unsafe allocations. `poolSize` is present but no shared slab pool is used. Nona's backing-store and reported maximum lengths are 2 ** 31 - 1 bytes, smaller than Node's platform-specific maxima.
-- `Blob.stream()` and `Blob.textStream()` throw `ERR_NOT_IMPLEMENTED` because Web Streams are not yet implemented.
-- `URL.createObjectURL` and `URL.revokeObjectURL` are unavailable. `resolveObjectURL` returns undefined for unregistered URLs; there is no object URL registry.
 - CommonJS `require('buffer')` is unavailable; use ES imports. Buffer error classes and codes are covered by oracle tests, but diagnostic wording and base64 DOMException prototypes may differ from Node.
 - `node:fs` continues to return Uint8Array data. Convert it with `Buffer.from(bytes)` when Buffer methods are needed.
 

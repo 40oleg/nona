@@ -100,7 +100,7 @@ nona --help | --version
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходного текста, известного при компиляции; вычисленные строки бросают `EvalError` ([контракт](docs/es2020-contract.md)).
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
-- Модули Node.js, кроме встроенных подмножеств `fs`, `process` и `buffer`, пакеты npm и браузерные API недоступны. Потоки Blob и создание объектных URL требуют ещё не реализованных API.
+- Модули Node.js, кроме встроенных подмножеств `fs`, `process` и `buffer`, пакеты npm и браузерные API недоступны. Доступны потоки Blob и регистрация объектных URL; разбор произвольных URL пока не поддерживается.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
 - API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 
