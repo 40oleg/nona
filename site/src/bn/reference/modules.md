@@ -7,10 +7,10 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 | API | ধরন | টার্গেট | রেফারেন্স |
 | --- | --- | --- | --- |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | গ্লোবাল | উভয় | [টাইমার ও ইভেন্ট লুপ](/bn/reference/host-apis) |
-| `process` | গ্লোবাল | উভয় | [process](/bn/reference/process) |
+| `process` | গ্লোবাল | all eight native targets | [process](/bn/reference/process) |
 | `TextEncoder`, `TextDecoder` | গ্লোবাল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে |
-| `nona:process`, `node:process` | মডিউল | উভয় | [process](/bn/reference/process) |
+| `nona:process`, `node:process` | মডিউল | all eight native targets | [process](/bn/reference/process) |
 | `nona:fs`, `node:fs` | মডিউল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs) |
 | `nona:ffi` | মডিউল | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi) |
 | `nona:win32` | মডিউল | Windows | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ |

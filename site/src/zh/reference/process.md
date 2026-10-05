@@ -4,18 +4,50 @@
 本页译自英文页面 [Process API](/reference/process)，其内容来自 [`docs/process.md`](https://github.com/40oleg/nona/blob/main/docs/process.md)。英文版为准，且可能更新。
 :::
 
-`process` 是一个全局对象（与 Node.js 相同），也可以作为 `node:process` 和 `nona:process` 的默认导出使用；这两个模块还额外导出 `argv`、`env`、`platform`、`arch`、`pid`、`execPath`、`exit` 和 `cwd`。
 
-| 成员 | 说明 |
+## Current API (English)
+`process` is a lazy global object on all eight native targets. It is also the
+default export of `node:process` and `nona:process`. Their named exports are
+`argv`, `argv0`, `execArgv`, `env`, `platform`, `arch`, `pid`, `ppid`,
+`execPath`, `exit`, `cwd`, `chdir`, `hrtime`, `uptime` and `nextTick`.
+
+| Member | Behavior |
 | --- | --- |
-| `argv` | `[execPath, ...arguments]`。没有脚本路径：`argv[1]` 是第一个参数（Node.js 在这里放的是脚本路径）。在 Windows 上，命令行按 `CommandLineToArgvW` 的规则拆分。 |
-| `env` | 一个普通对象，保存首次访问时环境变量的快照。修改不会传递给操作系统。在 Windows 上，会跳过隐藏的 `=C:` 形式的条目。 |
-| `exit(code?)` | 立即以 `code` 终止，或以 `process.exitCode`（默认 0）终止。 |
-| `exitCode` | 程序正常结束时用作退出状态。 |
-| `execPath` | 正在运行的可执行文件的绝对路径。 |
-| `cwd()` | 当前工作目录。 |
-| `platform`、`arch`、`pid` | `'win32'` 或 `'linux'`、`'x64'`、进程 id。 |
+| `argv` | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules. |
+| `argv0` | The original executable argument before replacement with `execPath`. |
+| `execArgv` | An empty array: generated programs have no Node.js interpreter flags. |
+| `env` | A plain snapshot captured on first access. Mutations do not update the OS environment. Windows hides `=C:` entries and merges initially duplicate case-insensitive keys. |
+| `execPath` | Absolute executable path. OpenBSD derives it from the startup executable argument and current directory; it does not resolve symlinks or a bare command through `PATH`. |
+| `platform`, `arch` | `win32`, `linux`, `darwin`, `freebsd` or `openbsd`; `x64` or `arm64`. |
+| `pid`, `ppid` | Native process and parent process identifiers. |
+| `cwd()` | Reads the current working directory from the OS. |
+| `chdir(directory)` | Changes the OS working directory. Requires a string without NUL bytes; OS failures carry `code`, `errno`, `syscall` and `path`. |
+| `exitCode` | Optional integer exit status. Accepts numbers or numeric integer strings; `null`/`undefined` clear it. Non-integers and invalid types throw coded errors. Stored as a signed 32-bit integer. |
+| `exit(code?)` | Immediately terminates with the supplied status or `exitCode` (default 0). POSIX statuses retain the low eight bits. |
+| `hrtime(previous?)` | Monotonic `[seconds, nanoseconds]`; passing a previous two-element array returns a duration. The origin is arbitrary. |
+| `hrtime.bigint()` | Monotonic nanoseconds as a BigInt. Precision is limited by the existing native clock's millisecond floating-point representation. |
+| `uptime()` | Seconds elapsed since process prelude initialization. |
+| `nextTick(callback, ...args)` | Runs callbacks before Promise jobs at the next drain. Nested ticks run in the same tick batch. Ticks added by Promise jobs run after that microtask batch and before timers. |
 
-`process` 在首次访问时才惰性构建，因此不使用它的程序在启动时没有任何开销。与 Node.js 不同，它不是 EventEmitter，也没有 `stdout`/`stdin` 流、`nextTick`、`hrtime` 或 `memoryUsage`。
+The implementation is original Nona code. Native FFI thunks and private
+allocation-free memory helpers are compiled into the executable. Windows uses
+OS APIs; Linux uses procfs and direct syscalls. Darwin/BSD capture kernel-owned
+startup vectors before runtime initialization and use their native syscall
+numbers for process control. Apple Silicon retains its existing OS libSystem
+boundary. No external JavaScript runtime or polyfill is bundled.
 
-实现：每个映像都包含两个目标平台的宿主函数，因此同一个生成的程序既可以链接为 PE，也可以链接为 ELF；每个链接器都把另一目标平台的导入绑定到一个返回 0 的桩函数上。Windows 通过编译器为自身前导代码安装的 FFI 转换桩读取 `GetCommandLineW`、`GetEnvironmentStringsW`、`GetModuleFileNameW` 和 `GetCurrentDirectoryW`；Linux 读取 `/proc/self/cmdline`、`/proc/self/environ` 和 `/proc/self/exe`，并直接调用 `getcwd`/`exit_group`。
+## Compatibility boundaries
+
+This is a process subset. It does not provide EventEmitter methods or lifecycle
+events, `stdin`/`stdout`/`stderr` streams, signal handlers or `kill`, IPC/channel
+APIs, worker integration, resource/memory/CPU reports, credentials/groups/umask
+operations, title changes, Node.js/V8 version metadata, warning/debug/report
+APIs or command-line flag processing. Those members are absent. Environment
+mutation is local to the snapshot, including case-sensitive property writes
+on Windows. Error messages and some OS error mappings differ from Node.js.
+
+Programs that never link the process prelude have no process startup work.
+Once linked, monotonic uptime starts during prelude initialization; metadata
+and environment decoding remain lazy. Node.js 26 black-box oracles check the
+shared API and native CI probes exercise all eight targets.
+

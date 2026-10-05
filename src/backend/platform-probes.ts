@@ -32,6 +32,10 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
+  const descriptor=getTarget(target)!;
+  const processProbe=compile('let original=process.cwd();process.chdir(".");let t=process.hrtime(),n=process.hrtime.bigint();console.log(process.platform,process.arch,process.pid>0,process.ppid>0,process.execPath.length>0,process.argv[0]===process.execPath,process.argv.length>0,process.cwd()===original,typeof (process.env.PATH||process.env.Path));console.log(t.length,t[1]>=0&&t[1]<1000000000,process.hrtime.bigint()>=n,process.uptime()>=0);Promise.resolve().then(()=>{console.log("promise");process.nextTick(()=>console.log("after promise"))});process.nextTick((n)=>{console.log("tick",n);process.nextTick(()=>console.log("nested"))},42);console.log("sync")',{fileName:'process-core.js',target});
+  if(!processProbe.ok)throw new Error(`${target}/process-core: ${JSON.stringify(processProbe.diagnostics)}`);
+  probes.push({name:'process-core',image:processProbe.image,expected:`${descriptor.os} ${descriptor.arch} true true true true true true string\n2 true true true\nsync\ntick 42\nnested\npromise\nafter promise\n`});
   if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||getTarget(target)!.os==='darwin'||target==='win32-arm64'||target==='linux-x64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));

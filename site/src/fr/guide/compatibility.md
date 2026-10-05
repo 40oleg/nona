@@ -24,7 +24,7 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 | Domaine | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]` : `argv[1]` est le premier argument | `[node, script, ...arguments]` |
-| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | Un EventEmitter avec des flux, `nextTick`, `hrtime`, … |
+| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
 | Identifiants de minuteurs | Nombres | Objets `Timeout` |
 | `readFileSync(path)` | Renvoie un `Uint8Array` | Renvoie un `Buffer` |
 | Encodages | `utf8` uniquement | Nombreux |

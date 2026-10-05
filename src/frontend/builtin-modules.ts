@@ -72,6 +72,7 @@ export default process;
 export const argv = process.argv, env = process.env, platform = process.platform, arch = process.arch, pid = process.pid, execPath = process.execPath;
 export function exit(code) { return process.exit(code); }
 export function cwd() { return process.cwd(); }
+export const argv0 = process.argv0, execArgv = process.execArgv, ppid = process.ppid, chdir = process.chdir, hrtime = process.hrtime, uptime = process.uptime, nextTick = process.nextTick;
 `;
 
 import type {Target} from '../target.js';

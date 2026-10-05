@@ -1,11 +1,11 @@
-// The global `process` object (argv, env, exit, exitCode, execPath, platform,
-// pid, cwd). Host functions are FFI thunks installed per target by the code
+// The global `process` object and common process control/timing APIs.
+// Host functions are FFI thunks installed per target by the code
 // generator as __nonaHost_* globals; the prelude captures and removes them.
 // It wraps the Promise drain (or event loop) so a set exitCode is used at exit.
 export const processPreludeSource=String.raw`
 __nonaPromiseDrainJobs=(function(drain){
   var names=['lstrlenW','RtlMoveMemory','GetCommandLineW','GetEnvironmentStringsW','FreeEnvironmentStringsW','GetModuleFileNameW','ExitProcess','GetCurrentProcessId','GetCurrentDirectoryW',
-    'sys_open','sys_read','sys_close','sys_readlink','sys_exit','sys_getpid','sys_getcwd'];
+    'SetCurrentDirectoryW','GetLastError','NtQueryInformationProcess','sys_open','sys_read','sys_close','sys_readlink','sys_exit','sys_getpid','sys_getppid','sys_getcwd','sys_chdir','sys_fcntl','sys_sysctl','sys_procinfo','startupArgv','startupEnv','copy','length'];
   var host={},found=false;
   for(var i=0;i<names.length;i++){
     var name='__nonaHost_'+names[i];
@@ -13,9 +13,12 @@ __nonaPromiseDrainJobs=(function(drain){
   }
   // Cloned realms (Test262) have no host functions.
   if(!found)return drain;
+  var hostNow=__nonaProcessNow,origin=hostNow();delete globalThis.__nonaProcessNow;
+  var ticks=[],tickHead=0;
   var defineProperty=Object.defineProperty,fromCharCode=String.fromCharCode,apply=Reflect.apply;
-  // Both targets' host functions exist; the other target's ones return 0.
+  // The foreign OS boundary returns 0; native helpers are bound in the image.
   var windows=host.GetCommandLineW()!==0;
+  var platform=windows?'win32':'__NONA_PROCESS_PLATFORM__';
   function wide(pointer,length){
     var units=new Uint16Array(length);host.RtlMoveMemory(units,pointer,length*2);
     var out='',chunk=[],k=0;
@@ -81,6 +84,20 @@ __nonaPromiseDrainJobs=(function(drain){
       if(start<bytes.length)list[list.length]=decoder.decode(bytes.subarray(start));
       return list
     }
+    function nativeString(pointer){var bytes=new Uint8Array(host.length(pointer));host.copy(bytes,pointer,bytes.length);return decoder.decode(bytes)}
+    function nativeVector(pointer){
+      var list=[],word=new Uint32Array(2);
+      if(!pointer)return list;
+      for(;;){host.copy(word,pointer,8);var address=word[0]+word[1]*4294967296;if(!address)break;list[list.length]=nativeString(address);pointer+=8}
+      return list
+    }
+    function textBuffer(bytes){var end=0;while(end<bytes.length&&bytes[end]!==0)end++;return decoder.decode(bytes.subarray(0,end))}
+    function sysctlString(mib){var bytes=new Uint8Array(65536),length=new Uint32Array([bytes.length,0]);var r=host.sys_sysctl(new Int32Array(mib),mib.length,bytes,length,null,0);if(r<0)throw hostError('sysctl',-r);return textBuffer(bytes)}
+    function hostError(syscall,number,path){
+      var codes={1:'EPERM',2:'ENOENT',5:'EIO',9:'EBADF',13:'EACCES',20:'ENOTDIR',22:'EINVAL',34:'ERANGE',36:'ENAMETOOLONG'};
+      var code=codes[number]||'UNKNOWN',error=new Error(code+': '+syscall+(path===undefined?'':" '"+path+"'"));error.code=code;error.errno=-number;error.syscall=syscall;if(path!==undefined)error.path=path;return error
+    }
+    function argumentError(code,message,range){var error=range?new RangeError(message):new TypeError(message);error.code=code;return error}
     var execPath,commandLine,environment;
     if(windows){
       var path=new Uint16Array(32768),length=host.GetModuleFileNameW(null,path,32768);
@@ -96,11 +113,19 @@ __nonaPromiseDrainJobs=(function(drain){
         }
         host.FreeEnvironmentStringsW(block)
       }
-    }else{
+    }else if(platform==='linux'){
       var link=new Uint8Array(4096),linkLength=host.sys_readlink(cstring('/proc/self/exe'),link,link.length);
       execPath=linkLength>0?decoder.decode(link.subarray(0,linkLength)):'';
       commandLine=splitNul(readProc('/proc/self/cmdline'));
       environment=splitNul(readProc('/proc/self/environ'));
+    }else{
+      commandLine=nativeVector(host.startupArgv());environment=nativeVector(host.startupEnv());
+      if(platform==='darwin'){
+        var executable=new Uint8Array(4096),result=host.sys_procinfo(2,host.sys_getpid(),11,0,executable,executable.length);
+        execPath=result>0?textBuffer(executable):commandLine[0];
+      }else if(platform==='freebsd')execPath=sysctlString([1,14,12,-1]);
+      else execPath=commandLine[0];
+      if(execPath&&execPath[0]!=='/')execPath=cwd()+'/'+execPath;
     }
     var argv=[execPath];
     for(var a=1;a<commandLine.length;a++)argv[argv.length]=commandLine[a];
@@ -111,11 +136,18 @@ __nonaPromiseDrainJobs=(function(drain){
       if(eq<=0)continue;
       var key=entry.slice(0,eq);
       if(windows){var upper=key.toUpperCase(),known=false;for(var existing in env)if(existing.toUpperCase()===upper){known=true;break}if(known)continue}
-      env[key]=entry.slice(eq+1)
+      defineProperty(env,key,{value:entry.slice(eq+1),writable:true,enumerable:true,configurable:true})
+    }
+    function exitStatus(code){
+      if(code===undefined||code===null)return undefined;
+      if(typeof code==='string'&&code.trim()!==''&&Number.isInteger(Number(code)))code=Number(code);
+      if(typeof code!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','The code argument must be a number or an integer string');
+      if(!Number.isInteger(code))throw argumentError('ERR_OUT_OF_RANGE','The code argument must be an integer',true);
+      return code|0
     }
     function exitNow(code){
       code=code===undefined?(created.exitCode===undefined?0:created.exitCode):code;
-      code=(Number(code)|0)>>>0;
+      code=(exitStatus(code)||0)>>>0;
       if(windows)host.ExitProcess(code);else host.sys_exit(code&255);
       throw new Error('exit failed')
     }
@@ -123,19 +155,51 @@ __nonaPromiseDrainJobs=(function(drain){
       if(windows){
         var buffer=new Uint16Array(32768),n=host.GetCurrentDirectoryW(32768,buffer);return fromUnits(buffer,n)
       }
-      var bytes=new Uint8Array(4096),r=host.sys_getcwd(bytes,bytes.length);
-      if(r<0)throw new Error('ENOENT: process.cwd failed');
-      var end=0;while(bytes[end]!==0)end++;
-      return decoder.decode(bytes.subarray(0,end))
+      if(platform==='openbsd')return sysctlString([1,78,host.sys_getpid()]);
+      var bytes=new Uint8Array(65536),r;
+      if(platform==='darwin'){
+        var fd=host.sys_open(cstring('.'),0,0);if(fd<0)throw hostError('cwd',-fd);
+        r=host.sys_fcntl(fd,50,bytes);host.sys_close(fd);
+      }else r=host.sys_getcwd(bytes,bytes.length);
+      if(r<0)throw hostError('cwd',-r);
+      return textBuffer(bytes)
+    }
+    function chdir(directory){
+      if(typeof directory!=='string')throw argumentError('ERR_INVALID_ARG_TYPE','The directory argument must be a string');
+      if(directory.indexOf('\0')!==-1)throw argumentError('ERR_INVALID_ARG_VALUE','The directory argument must not contain null bytes');
+      if(windows){
+        var widePath=new Uint16Array(directory.length+1);for(var i=0;i<directory.length;i++)widePath[i]=directory.charCodeAt(i);
+        if(!host.SetCurrentDirectoryW(widePath)){var status=host.GetLastError(),errno=status===5?13:status===267?20:status===206?36:2;throw hostError('chdir',errno,directory)}
+      }else{var r=host.sys_chdir(cstring(directory));if(r<0)throw hostError('chdir',-r,directory)}
+    }
+    function parentPid(){
+      if(!windows)return host.sys_getppid();
+      var info=new Uint32Array(12);if(host.NtQueryInformationProcess(-1,0,info,48,null)<0)return 0;return info[10]
+    }
+    function hrtime(previous){
+      var ns=Math.floor(hostNow()*1000000),seconds=Math.floor(ns/1000000000),nanos=ns-seconds*1000000000;
+      if(previous!==undefined){
+        if(!Array.isArray(previous))throw argumentError('ERR_INVALID_ARG_TYPE','The time argument must be an array');
+        if(previous.length!==2)throw argumentError('ERR_OUT_OF_RANGE','The time array must contain two entries',true);
+        seconds-=previous[0];nanos-=previous[1];if(nanos<0){seconds--;nanos+=1000000000}
+      }
+      return [seconds,nanos]
+    }
+    hrtime.bigint=function(){return BigInt(Math.floor(hostNow()*1000000))};
+    function nextTick(callback){
+      if(typeof callback!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The callback argument must be a function');
+      var args=[];for(var i=1;i<arguments.length;i++)args[args.length]=arguments[i];ticks[ticks.length]={callback:callback,args:args}
     }
     var process={};
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
-    value('platform',windows?'win32':'linux');value('arch','x64');
+    value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
     value('pid',windows?host.GetCurrentProcessId():host.sys_getpid());
-    value('exitCode',undefined);
+    value('ppid',parentPid());value('argv0',commandLine[0]);value('execArgv',[]);
+    var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});
+    value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}
@@ -143,8 +207,12 @@ __nonaPromiseDrainJobs=(function(drain){
     get:function(){if(created===null)created=build();install(created);return created},
     set:function(v){install(v)}});
   return function(){
-    drain();
+    do{
+      while(tickHead<ticks.length){var job=ticks[tickHead++];apply(job.callback,undefined,job.args)}
+      ticks=[];tickHead=0;drain();
+    }while(ticks.length);
     if(created===null)return;
+    if(typeof __nonaRegexpVm.hasPendingTimers==='function'&&__nonaRegexpVm.hasPendingTimers())return;
     var code=created.exitCode;
     if(code!==undefined&&code!==0)created.exit(code)
   }
@@ -152,9 +220,10 @@ __nonaPromiseDrainJobs=(function(drain){
 `;
 
 import type {FfiDeclaration} from '../ffi.js';
+import type {Target} from '../target.js';
 /** Host functions used by the process prelude, per target. */
-export function processHostDeclarations(target:'win32-x64'|'linux-x64'|'linux-arm64'):{name:string;declaration:FfiDeclaration}[] {
-  const list:[string,string,string,string][]=target==='win32-x64'?[
+export function processHostDeclarations(target:Target):{name:string;declaration:FfiDeclaration}[] {
+  const windows:[string,string,string,string][]=[
     ['lstrlenW','KERNEL32.dll','lstrlenW','i32(ptr)'],
     ['RtlMoveMemory','KERNEL32.dll','RtlMoveMemory','void(buf,ptr,u64)'],
     ['GetCommandLineW','KERNEL32.dll','GetCommandLineW','ptr()'],
@@ -164,7 +233,11 @@ export function processHostDeclarations(target:'win32-x64'|'linux-x64'|'linux-ar
     ['ExitProcess','KERNEL32.dll','ExitProcess','void(u32)'],
     ['GetCurrentProcessId','KERNEL32.dll','GetCurrentProcessId','u32()'],
     ['GetCurrentDirectoryW','KERNEL32.dll','GetCurrentDirectoryW','u32(u32,buf)'],
-  ]:[
+    ['SetCurrentDirectoryW','KERNEL32.dll','SetCurrentDirectoryW','bool(buf)'],
+    ['GetLastError','KERNEL32.dll','GetLastError','u32()'],
+    ['NtQueryInformationProcess','ntdll.dll','NtQueryInformationProcess','i32(ptr,u32,buf,u32,ptr)'],
+  ];
+  const posix:[string,string,string,string][]=[
     ['sys_read','syscall','0','i64(i64,buf,i64)'],
     ['sys_open','syscall','2','i64(buf,i64,i64)'],
     ['sys_close','syscall','3','i64(i64)'],
@@ -172,18 +245,30 @@ export function processHostDeclarations(target:'win32-x64'|'linux-x64'|'linux-ar
     ['sys_getcwd','syscall','79','i64(buf,i64)'],
     ['sys_readlink','syscall','89','i64(buf,buf,i64)'],
     ['sys_exit','syscall','231','i64(i64)'],
+    ['sys_getppid','syscall','110','i64()'],
+    ['sys_chdir','syscall','80','i64(buf)'],
   ];
   if(target==='linux-arm64'){
-    const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94'};
-    for(const entry of list){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';}
+    const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getppid:'173',sys_chdir:'49',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94'};
+    for(const entry of posix){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';}
+  }else if(target.startsWith('darwin-')||target.startsWith('freebsd-')||target.startsWith('openbsd-')){
+    const numbers:Record<string,string>={sys_read:'3',sys_open:'5',sys_close:'6',sys_getpid:'20',sys_getppid:'39',sys_chdir:'12',sys_readlink:'58',sys_exit:'1',sys_getcwd:'326'};
+    for(const entry of posix)entry[2]=numbers[entry[0]]!;
+    if(!target.startsWith('freebsd-'))posix.splice(posix.findIndex(e=>e[0]==='sys_getcwd'),1);
+    if(target.startsWith('darwin-'))posix.push(['sys_fcntl','syscall','92','i64(i64,i64,buf)'],['sys_procinfo','syscall','336','i64(i32,i32,u32,u64,buf,i32)']);
+    else posix.push(['sys_sysctl','syscall','202','i64(buf,u32,buf,buf,ptr,u64)']);
   }
+  const list:[string,string,string,string][]=[...windows,...posix,
+    ['startupArgv','nona.internal','startupArgv','ptr()'],['startupEnv','nona.internal','startupEnv','ptr()'],
+    ['copy','nona.internal','copy','void(buf,ptr,u64)'],['length','nona.internal','length','u64(ptr)'],
+  ];
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
 }
 
 /** Target-specific host boundary without introducing prelude global bindings. */
 export function processPreludeForTarget(target:string|undefined):string {
- if(target==='win32-arm64')return processPreludeSource.replace("value('arch','x64')","value('arch','arm64')");
- if(target!=='linux-arm64')return processPreludeSource;
- return processPreludeSource.replace("value('arch','x64')","value('arch','arm64')").replace('var windows=host.GetCommandLineW()!==0;',
+ const source=processPreludeSource.replace('__NONA_PROCESS_PLATFORM__',target?.startsWith('win32-')?'linux':target?.split('-')[0]??'linux').replace('__NONA_PROCESS_ARCH__',target?.endsWith('-arm64')?'arm64':'x64');
+ if(target!=='linux-arm64')return source;
+ return source.replace('var windows=host.GetCommandLineW()!==0;',
   'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};');
 }

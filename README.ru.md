@@ -17,7 +17,7 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **Нативный runtime.** Точный немещающий mark-and-sweep сборщик мусора, строки UTF-16, настоящие исключения, перехватываемый `RangeError` при переполнении стека.
 - **API хоста** для настоящих программ:
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
-  - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
+  - глобальный `process` и `node:process` на всех восьми платформах (`argv`, `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, …; [process](docs/process.md));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
 - **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
@@ -101,7 +101,7 @@ nona --help | --version
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
 - Модули Node.js, кроме встроенных `fs` и `process`, пакеты npm и браузерные API недоступны.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
-- API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
+- API fs недоступно на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 
 Неподдерживаемый синтаксис отклоняется при компиляции. Точное поведение и покрытие тестами — в [матрице поддержки](docs/language-support.md).
 

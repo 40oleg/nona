@@ -21,6 +21,8 @@ import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-sourc
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
 import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
+import {processNativeHelpers,captureProcessStartup} from '../../runtime/process-host.js';
+import {ffiImportSymbol} from '../../ffi.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -624,18 +626,25 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
     hostGlobals.push(base);
   };
-  // Host functions for the process prelude are FFI thunks for the target:
-  // KERNEL32 exports on Windows, system calls on Linux.
-  // Both targets' declarations are compiled into every image, so one program
-  // can be linked as PE and ELF; each linker binds the other target's imports
-  // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations(currentNativeTarget()==='linux-arm64'?'linux-arm64':'linux-x64')]:[];
+  // Windows APIs and the selected POSIX syscalls share the prelude boundary.
+  // On x64, Windows/Linux declarations retain dual PE/ELF linking. Private
+  // memory/vector helpers bind directly to original code in the image.
+  const hostFfi=hasPrelude&&linked.includes('process')?processHostDeclarations(currentNativeTarget()??'win32-x64'):[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
     if(module.ffi?.length)hostGlobal('__nonaFfiLastError','rt.ffiLastError.code',0);
     const host=emitFfi(hostFfi.map(h=>h.declaration),{prefix:'hostffi',support:false}).bundle;
-    fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
+    const internal=hostFfi.filter(h=>h.declaration.dll==='nona.internal');
+    const internalSymbols=new Set(internal.map(h=>'hostffi'+ffiImportSymbol(h.declaration).slice(3)));
+    const externalFragment=(name:string)=>!internalSymbols.has(name.replace(/^linux\./,'').replace(/\.code$/,''));
+    fragments.push(...host.fragments.filter(f=>externalFragment(f.name)));functions.push(...host.functions.filter(f=>externalFragment(f.begin)));
+    runtime.imports.push(...host.imports.filter(i=>!internalSymbols.has(i.symbol)));
+    if(internal.length){
+      const helpers=processNativeHelpers().bundle;fragments.push(...helpers.fragments);functions.push(...helpers.functions);
+      for(const h of internal)fragments.push({name:'hostffi'+ffiImportSymbol(h.declaration).slice(3),section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[{offset:0,kind:'va64',target:'process.'+h.declaration.name+'.code',addend:0}]});
+      hostGlobal('__nonaProcessNow','rt.hostNow.code',0);
+    }
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
   }
   if(hasPrelude&&linked.includes('timers')){
@@ -691,7 +700,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
-  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();entry.sub('rsp',72);const p=entry.offset;
+  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();
+  if(!options.agent&&hostFfi.length)captureProcessStartup(entry,currentNativeTarget()??'win32-x64');
+  entry.sub('rsp',72);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
   // GC stress: freed cells are poisoned so a missing root fails at once.

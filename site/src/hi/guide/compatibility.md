@@ -24,7 +24,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | क्षेत्र | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` पहला आर्ग्युमेंट है | `[node, script, ...arguments]` |
-| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | स्ट्रीम, `nextTick`, `hrtime` आदि वाला EventEmitter |
+| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
 | टाइमर id | नंबर | `Timeout` ऑब्जेक्ट |
 | `readFileSync(path)` | `Uint8Array` लौटाता है | `Buffer` लौटाता है |
 | एन्कोडिंग | केवल `utf8` | कई |

@@ -7,10 +7,10 @@ Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describe
 | API | Tipo | Destinos | Referencia |
 | --- | --- | --- | --- |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | globales | ambos | [Temporizadores y bucle de eventos](/es/reference/host-apis) |
-| `process` | global | ambos | [process](/es/reference/process) |
+| `process` | global | all eight native targets | [process](/es/reference/process) |
 | `TextEncoder`, `TextDecoder` | globales | ambos | [Sistema de archivos y codificación de texto](/es/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | global | ambos | escribe UTF-8 en la salida estándar |
-| `nona:process`, `node:process` | módulos | ambos | [process](/es/reference/process) |
+| `nona:process`, `node:process` | módulos | all eight native targets | [process](/es/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de archivos y codificación de texto](/es/reference/fs) |
 | `nona:ffi` | módulo | Windows (DLL), Linux (llamadas al sistema) | [Funciones nativas (FFI)](/es/reference/ffi) |
 | `nona:win32` | módulo | Windows | más abajo y en [FFI](/es/reference/ffi#nona-win32) |

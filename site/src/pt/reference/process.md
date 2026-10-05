@@ -4,18 +4,50 @@
 Esta página é uma tradução da página em inglês [Process API](/reference/process), gerada a partir de [`docs/process.md`](https://github.com/40oleg/nona/blob/main/docs/process.md). A versão em inglês é a de referência e pode ser mais recente.
 :::
 
-`process` é um objeto global (como no Node.js), também disponível como exportação padrão de `node:process` e `nona:process`, que além disso exportam `argv`, `env`, `platform`, `arch`, `pid`, `execPath`, `exit` e `cwd`.
 
-| Membro | Observações |
+## Current API (English)
+`process` is a lazy global object on all eight native targets. It is also the
+default export of `node:process` and `nona:process`. Their named exports are
+`argv`, `argv0`, `execArgv`, `env`, `platform`, `arch`, `pid`, `ppid`,
+`execPath`, `exit`, `cwd`, `chdir`, `hrtime`, `uptime` and `nextTick`.
+
+| Member | Behavior |
 | --- | --- |
-| `argv` | `[execPath, ...arguments]`. Não há caminho de script: `argv[1]` é o primeiro argumento (o Node.js coloca ali o caminho do script). No Windows, a linha de comando é dividida pelas regras de `CommandLineToArgvW`. |
-| `env` | Um objeto simples com um retrato do ambiente no primeiro acesso. As alterações não são repassadas ao sistema operacional. No Windows, as entradas ocultas do tipo `=C:` são ignoradas. |
-| `exit(code?)` | Encerra imediatamente com `code`, ou com `process.exitCode` (padrão 0). |
-| `exitCode` | Usado como status de saída quando o programa termina normalmente. |
-| `execPath` | Caminho absoluto do executável em execução. |
-| `cwd()` | Diretório de trabalho atual. |
-| `platform`, `arch`, `pid` | `'win32'` ou `'linux'`, `'x64'`, o id do processo. |
+| `argv` | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules. |
+| `argv0` | The original executable argument before replacement with `execPath`. |
+| `execArgv` | An empty array: generated programs have no Node.js interpreter flags. |
+| `env` | A plain snapshot captured on first access. Mutations do not update the OS environment. Windows hides `=C:` entries and merges initially duplicate case-insensitive keys. |
+| `execPath` | Absolute executable path. OpenBSD derives it from the startup executable argument and current directory; it does not resolve symlinks or a bare command through `PATH`. |
+| `platform`, `arch` | `win32`, `linux`, `darwin`, `freebsd` or `openbsd`; `x64` or `arm64`. |
+| `pid`, `ppid` | Native process and parent process identifiers. |
+| `cwd()` | Reads the current working directory from the OS. |
+| `chdir(directory)` | Changes the OS working directory. Requires a string without NUL bytes; OS failures carry `code`, `errno`, `syscall` and `path`. |
+| `exitCode` | Optional integer exit status. Accepts numbers or numeric integer strings; `null`/`undefined` clear it. Non-integers and invalid types throw coded errors. Stored as a signed 32-bit integer. |
+| `exit(code?)` | Immediately terminates with the supplied status or `exitCode` (default 0). POSIX statuses retain the low eight bits. |
+| `hrtime(previous?)` | Monotonic `[seconds, nanoseconds]`; passing a previous two-element array returns a duration. The origin is arbitrary. |
+| `hrtime.bigint()` | Monotonic nanoseconds as a BigInt. Precision is limited by the existing native clock's millisecond floating-point representation. |
+| `uptime()` | Seconds elapsed since process prelude initialization. |
+| `nextTick(callback, ...args)` | Runs callbacks before Promise jobs at the next drain. Nested ticks run in the same tick batch. Ticks added by Promise jobs run after that microtask batch and before timers. |
 
-`process` é construído sob demanda no primeiro acesso, então programas que não o usam não pagam nada na inicialização. Diferentemente do Node.js, ele não é um EventEmitter e não tem os streams `stdout`/`stdin`, `nextTick`, `hrtime` nem `memoryUsage`.
+The implementation is original Nona code. Native FFI thunks and private
+allocation-free memory helpers are compiled into the executable. Windows uses
+OS APIs; Linux uses procfs and direct syscalls. Darwin/BSD capture kernel-owned
+startup vectors before runtime initialization and use their native syscall
+numbers for process control. Apple Silicon retains its existing OS libSystem
+boundary. No external JavaScript runtime or polyfill is bundled.
 
-Implementação: cada imagem contém as funções do host dos dois alvos, de modo que o mesmo programa gerado pode ser ligado como PE e como ELF; cada linker associa as importações do outro alvo a um stub que retorna 0. No Windows, `GetCommandLineW`, `GetEnvironmentStringsW`, `GetModuleFileNameW` e `GetCurrentDirectoryW` são lidos por thunks FFI que o compilador instala para o seu próprio prelúdio; no Linux, são lidos `/proc/self/cmdline`, `/proc/self/environ` e `/proc/self/exe`, e `getcwd`/`exit_group` são chamados diretamente.
+## Compatibility boundaries
+
+This is a process subset. It does not provide EventEmitter methods or lifecycle
+events, `stdin`/`stdout`/`stderr` streams, signal handlers or `kill`, IPC/channel
+APIs, worker integration, resource/memory/CPU reports, credentials/groups/umask
+operations, title changes, Node.js/V8 version metadata, warning/debug/report
+APIs or command-line flag processing. Those members are absent. Environment
+mutation is local to the snapshot, including case-sensitive property writes
+on Windows. Error messages and some OS error mappings differ from Node.js.
+
+Programs that never link the process prelude have no process startup work.
+Once linked, monotonic uptime starts during prelude initialization; metadata
+and environment decoding remain lazy. Node.js 26 black-box oracles check the
+shared API and native CI probes exercise all eight targets.
+

@@ -10,6 +10,7 @@ __nonaPromiseDrainJobs=(function(drain){
   var defineProperty=Object.defineProperty,reflectApply=Reflect.apply,floor=Math.floor,ceil=Math.ceil,toNumber=Number;
   var enqueueJob=__nonaRegexpVm.enqueueJob;
   var heap=[],active=new Map(),count=0,nextId=1,seq=0,origin=hostNow();
+  __nonaRegexpVm.hasPendingTimers=function(){return count!==0};
   var getTimer=Map.prototype.get.bind(active),setTimer=Map.prototype.set.bind(active),deleteTimer=Map.prototype['delete'].bind(active);
   function append(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
   function less(x,y){return x.when<y.when||(x.when===y.when&&x.seq<y.seq)}

@@ -7,10 +7,10 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | API | 类型 | 目标平台 | 参考 |
 | --- | --- | --- | --- |
 | `setTimeout`、`setInterval`、`clearTimeout`、`clearInterval`、`queueMicrotask`、`performance.now()` | 全局 | 两者 | [定时器与事件循环](/zh/reference/host-apis) |
-| `process` | 全局 | 两者 | [process](/zh/reference/process) |
+| `process` | 全局 | all eight native targets | [process](/zh/reference/process) |
 | `TextEncoder`、`TextDecoder` | 全局 | 两者 | [文件系统与文本编码](/zh/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
-| `nona:process`、`node:process` | 模块 | 两者 | [process](/zh/reference/process) |
+| `nona:process`、`node:process` | 模块 | all eight native targets | [process](/zh/reference/process) |
 | `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
 | `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |

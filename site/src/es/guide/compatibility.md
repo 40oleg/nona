@@ -24,7 +24,7 @@ El código en tiempo de ejecución se sigue en [#11](https://github.com/40oleg/n
 | Área | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` es el primer argumento | `[node, script, ...arguments]` |
-| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | Un EventEmitter con streams, `nextTick`, `hrtime`, … |
+| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
 | Ids de temporizador | Números | Objetos `Timeout` |
 | `readFileSync(path)` | Devuelve un `Uint8Array` | Devuelve un `Buffer` |
 | Codificaciones | Solo `utf8` | Muchas |

@@ -17,7 +17,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
 - **A native runtime.** A precise non-moving mark-and-sweep garbage collector, UTF-16 strings, real exceptions, and a catchable `RangeError` on stack overflow.
 - **Host APIs** for real programs:
   - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
-  - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
+  - a global `process` and `node:process` on all eight targets (`argv`, `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, …; [process](docs/process.md));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
@@ -101,7 +101,7 @@ nona --help | --version
 - Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 - Node.js modules other than the built-in `fs` and `process` subsets, npm packages, and browser APIs are not available.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
-- Optional process/filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
+- Optional filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
 

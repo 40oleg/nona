@@ -24,7 +24,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | Area | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` is the first argument | `[node, script, ...arguments]` |
-| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | An EventEmitter with streams, `nextTick`, `hrtime`, … |
+| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
 | Timer ids | Numbers | `Timeout` objects |
 | `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
 | Encodings | `utf8` only | Many |
@@ -76,9 +76,9 @@ A program can still reach an omitted part through a name computed at run time, f
 
 ## Platforms
 
-- macOS ARM64 is not yet enabled; optional process/filesystem APIs remain unavailable on Darwin/BSD.
-- Windows executables import only `KERNEL32.dll`, `KERNELBASE.dll` and DLLs declared through FFI; Linux executables are static and use system calls directly.
-- FFI to DLLs is Windows-only; raw system calls are Linux-only.
+- Process APIs are available on all eight targets; filesystem APIs require Windows or Linux.
+- Windows executables use OS DLLs (including NTDLL for parent process metadata) and declared FFI imports; POSIX executables use native OS services.
+- FFI DLL calls require Windows; raw system calls use the selected Linux, Darwin or BSD kernel.
 
 ## Native platforms
 

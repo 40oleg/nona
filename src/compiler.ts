@@ -93,7 +93,6 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
   try {
     if(options.target===undefined||!getTarget(options.target)||!supportedNativeTargets.includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     const descriptor=getTarget(options.target)!;
-    const unavailableProcess=descriptor.os==='freebsd'||descriptor.os==='openbsd'||descriptor.os==='darwin';
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     // Every source lexed by the frontend (the program, its modules, agents and
@@ -102,9 +101,8 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     const {result:{ir,agentIRs},usage}=collectSourceUsage(()=>({
       agentIRs:(options.agents??[]).map(agent=>compileToIR(agentHarness+agent,undefined,undefined,options.target)),
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
-    }),{unavailableReflectivePreludes:unavailableProcess?['process']:[]});
+    }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    if(unavailableProcess&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist in Windows images; other OS targets use raw kernel calls.

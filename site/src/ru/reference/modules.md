@@ -7,10 +7,10 @@
 | API | Вид | Цели | Справка |
 | --- | --- | --- | --- |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | глобальные | обе | [Таймеры и цикл событий](/ru/reference/host-apis) |
-| `process` | глобальный | обе | [process](/ru/reference/process) |
+| `process` | глобальный | all eight native targets | [process](/ru/reference/process) |
 | `TextEncoder`, `TextDecoder` | глобальные | обе | [Файловая система и кодировка текста](/ru/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |
-| `nona:process`, `node:process` | модули | обе | [process](/ru/reference/process) |
+| `nona:process`, `node:process` | модули | all eight native targets | [process](/ru/reference/process) |
 | `nona:fs`, `node:fs` | модули | обе | [Файловая система и кодировка текста](/ru/reference/fs) |
 | `nona:ffi` | модуль | Windows (DLL), Linux (системные вызовы) | [Нативные функции (FFI)](/ru/reference/ffi) |
 | `nona:win32` | модуль | Windows | ниже и в [FFI](/ru/reference/ffi#nona-win32) |

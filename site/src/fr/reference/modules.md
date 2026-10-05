@@ -7,10 +7,10 @@ Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous
 | API | Nature | Cibles | Référence |
 | --- | --- | --- | --- |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | globaux | les deux | [Minuteurs et boucle d’événements](/fr/reference/host-apis) |
-| `process` | global | les deux | [process](/fr/reference/process) |
+| `process` | global | all eight native targets | [process](/fr/reference/process) |
 | `TextEncoder`, `TextDecoder` | globaux | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | global | les deux | écrit de l’UTF-8 sur la sortie standard |
-| `nona:process`, `node:process` | modules | les deux | [process](/fr/reference/process) |
+| `nona:process`, `node:process` | modules | all eight native targets | [process](/fr/reference/process) |
 | `nona:fs`, `node:fs` | modules | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs) |
 | `nona:ffi` | module | Windows (DLL), Linux (appels système) | [Fonctions natives (FFI)](/fr/reference/ffi) |
 | `nona:win32` | module | Windows | ci-dessous et [FFI](/fr/reference/ffi#nona-win32) |

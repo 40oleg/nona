@@ -7,10 +7,10 @@
 | الواجهة | النوع | المنصات | المرجع |
 | --- | --- | --- | --- |
 | `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`queueMicrotask` و`performance.now()` | عامة | كلتاهما | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
-| `process` | عام | كلتاهما | [process](/ar/reference/process) |
+| `process` | عام | all eight native targets | [process](/ar/reference/process) |
 | `TextEncoder` و`TextDecoder` | عامة | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
-| `nona:process` و`node:process` | وحدات | كلتاهما | [process](/ar/reference/process) |
+| `nona:process` و`node:process` | وحدات | all eight native targets | [process](/ar/reference/process) |
 | `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
 | `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
 | `nona:win32` | وحدة | Windows | أدناه وفي [FFI](/ar/reference/ffi#nona-win32) |

@@ -7,10 +7,10 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | API | प्रकार | टार्गेट | संदर्भ |
 | --- | --- | --- | --- |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | ग्लोबल | दोनों | [टाइमर और इवेंट लूप](/hi/reference/host-apis) |
-| `process` | ग्लोबल | दोनों | [process](/hi/reference/process) |
+| `process` | ग्लोबल | all eight native targets | [process](/hi/reference/process) |
 | `TextEncoder`, `TextDecoder` | ग्लोबल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |
-| `nona:process`, `node:process` | मॉड्यूल | दोनों | [process](/hi/reference/process) |
+| `nona:process`, `node:process` | मॉड्यूल | all eight native targets | [process](/hi/reference/process) |
 | `nona:fs`, `node:fs` | मॉड्यूल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs) |
 | `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
 | `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |
