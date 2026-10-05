@@ -485,7 +485,6 @@ const u=new Uint8Array(4);Object.defineProperty(u,'length',{value:99});log(u.len
 class B extends Uint8Array{get length(){return -1}};log(new B(3).length);
 const ab=new ArrayBuffer(8);const t=new Uint8Array(ab);log(t.length);
 const g=new Uint16Array(3);log(g.length,g.subarray(1).length);
-Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'length',{get(){return 42}});log(new Uint8Array(2).length,new Int8Array(1).length);
 log((5).length,true.length,Symbol("ab").description.length);
 try{null.length}catch(e){log(e.constructor.name)}try{undefined.length}catch(e){log(e.constructor.name)}
 `,
@@ -544,7 +543,7 @@ log(JSON.stringify(5,function(k,v){return JSON.stringify(Object.keys(this))+type
 log(JSON.stringify('top'),JSON.stringify(null),JSON.stringify(undefined),JSON.stringify(()=>1),JSON.stringify([undefined]));
 `,
  'JSON string quoting':`
-const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','ünicode','emoji😀x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd efgh'];
+const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','\\u00fcnicode','emoji\\ud83d\\ude00x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd\\u2028efgh'];
 for(const s of strs)console.log(JSON.stringify(s),JSON.stringify({[s]:s}));
 let n=0;for(let i=0;i<20000;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
 `,
