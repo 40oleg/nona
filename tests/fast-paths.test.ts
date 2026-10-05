@@ -428,6 +428,22 @@ const big={};for(let i=0;i<40;i++)big["k"+i]=i;const ks=Object.keys(big);ks.push
 const keys=Object.keys({a:1});keys[5]=1;keys.pop();log(keys,keys.length);
 let n=0;for(let i=0;i<2000;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
 `,
+ 'array push and pop':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+const a=[];log(a.push(1,2,3),a,a.pop(),a,a.length,a.push(),a.length);
+const b=[1,,3];log(b.pop(),b.pop(),b.length,b.pop(),b.pop(),b.length);
+const f=Object.freeze([1,2]);try{f.push(3)}catch(e){log(e.constructor.name,f)}try{f.pop()}catch(e){log(e.constructor.name,f)}
+const c=[1,2];Object.defineProperty(c,"length",{writable:false});try{c.push(1)}catch(e){log(e.constructor.name,c)}try{c.pop()}catch(e){log(e.constructor.name,c)}
+const o={length:2,0:"a",1:"b"};log(Array.prototype.push.call(o,"c"),o,Array.prototype.pop.call(o),o);
+const s=Object.seal([1,2]);try{s.pop()}catch(e){log(e.constructor.name,s)}try{s.push(3)}catch(e){log(e.constructor.name,s)}
+const x=Object.preventExtensions([1]);try{x.push(2)}catch(e){log(e.constructor.name,x)}log(x.pop(),x);
+class X extends Array{};const xs=new X();xs.push(5,6);log(xs.pop(),xs.length,xs instanceof X);
+const big=[];for(let i=0;i<5000;i++)big.push(i,{i});let sum=0;while(big.length){big.pop();sum+=big.pop();}log(sum);
+const sp=[];sp[1000]=1;log(sp.push(2),sp.length,sp.pop(),sp.pop(),sp.length);
+Array.prototype[3]="p";const q=[0,1,2];q.push(9);log(q[3],q.length,q.pop(),q.pop(),q.length,q[3]);delete Array.prototype[3];
+const r=[1,2,3];r.length=1;log(r.pop(),r.length,r.pop(),r.length,r.pop());
+const g=[1,2];Object.defineProperty(g,"1",{get(){return "g"},configurable:true});log(g.pop(),g.length);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
