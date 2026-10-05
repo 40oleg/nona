@@ -7,6 +7,16 @@ import {pathParitySources} from './helpers/path-cases.js';
 // Exercise the actual built-in source independently of native linking. Native
 // module/GC parity is covered by path.test.ts on Windows and Linux in CI.
 const implementation:typeof oracle=new Function(pathModuleSource.replace(/^export .*$/gm,'')+'\nreturn path;')();
+test('path source: nested group oracle matrix',()=>{
+ const groups=['@(a|b)','?(a|b)','*(a|b)','+(a|b)','!(a|b)'];
+ const texts=['','a','b','c','aa','ab','a.js','b.js','aa.js','ax.js','xa.js','.','..','.a'];
+ const differences:string[]=[];
+ for(const flavor of ['posix','win32'] as const)for(const group of groups)for(const pattern of ['!('+group+')','!('+group+').js','@('+group+')','+('+group+')','@('+group+'*)'])for(const text of texts){
+  const actual=implementation[flavor].matchesGlob(text,pattern),expected=oracle[flavor].matchesGlob(text,pattern);
+  if(actual!==expected)differences.push(JSON.stringify([flavor,text,pattern,actual,expected]));
+ }
+ assert.deepEqual(differences,[]);
+});
 test('path source: concatenated extglob oracle matrix',()=>{
  const atoms=['a','b','?','*','[ab]','[!a]','@(a|b)','!(a|b)','!(a)','+(a|b)','?(a|b)','*(a|b)'];
  const texts=['a','b','ab','aa','abc','foo','bar','.a','a.js','abc.js','é','😀','a/b','a/b/c'];

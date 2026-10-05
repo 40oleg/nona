@@ -59,9 +59,12 @@ function globSegmentMatch(text,pattern,nocase){
  // A nullable leading group can expose an unguarded following token.
  function allowsDot(sequence){for(let i=0;i<sequence.length;i++){const token=sequence[i];if(token.kind==='literal')return token.value==='.';if(token.kind!=='group'||token.operator==='!')return false;if(token.branches.some(branch=>allowsDot(branch)))return true;if(token.operator!=='?'&&token.operator!=='*')return false;if(i+1<sequence.length)return true;}return false;}
  if(text[0]==='.'&&!allowsDot(tokens))return false;
- const nullablePrefix=tokens.length>1&&tokens[0].kind==='group'&&(tokens[0].operator==='?'||tokens[0].operator==='*');
+ function exposesTail(sequence){if(!sequence.length||sequence[0].kind!=='group')return false;const group=sequence[0];if(group.operator==='!')return false;if(sequence.length>1&&(group.operator==='?'||group.operator==='*'))return true;return group.branches.some(branch=>exposesTail(branch));}
+ const nullablePrefix=exposesTail(tokens);
  if((text==='.'||text==='..')&&!nullablePrefix&&pattern!==text&&/[?*\[]/.test(pattern))return false;
- if(!text&&tokens.length===1&&tokens[0].kind==='many')return false;
+ function negativeTail(sequence){if(!sequence.length)return false;const token=sequence[sequence.length-1];return token.kind==='group'&&(token.operator==='!'||token.branches.some(branch=>negativeTail(branch)));}
+ function allowsEmpty(sequence,selected){if(!sequence.length)return !selected;if(sequence.length!==1)return true;const token=sequence[0];if(token.kind==='many')return false;if(token.kind!=='group')return true;if(token.operator==='+')return token.branches.some(branch=>negativeTail(branch));if(token.operator==='?')return !selected;if(token.operator==='@')return token.branches.some(branch=>allowsEmpty(branch,true));return true;}
+ if(!text&&!allowsEmpty(tokens,false))return false;
  function ends(sequence,start){
   let positions=[start];
   for(let tokenIndex=0;tokenIndex<sequence.length;tokenIndex++){
@@ -73,17 +76,21 @@ function globSegmentMatch(text,pattern,nocase){
     else if(token.kind==='class'){if(position<text.length){const char=token.unicode?String.fromCodePoint(text.codePointAt(position)):text[position];if(token.regex.test(char))next.push(position+char.length);}}
     else if(token.kind==='many'){for(let end=position;end<=text.length;end++)next.push(end);}
     else{
-     const matches=[];for(const branch of token.branches)matches.push(...ends(branch,position));
+     // A positive group at the end of an exclusion leaves a nonempty wildcard.
+     const finalBranch=token.branches[token.branches.length-1],finalToken=finalBranch[finalBranch.length-1];
+     const openNegation=token.operator==='!'&&finalToken&&finalToken.kind==='group'&&finalToken.operator!=='!';
+     const matches=[];if(openNegation)matches.push(position);else for(const branch of token.branches)matches.push(...ends(branch,position));
      if(token.operator==='@')next.push(...matches);
      else if(token.operator==='?')next.push(position,...matches);
      else if(token.operator==='!'){
       const suffix=sequence.slice(tokenIndex+1);let blocked=false;
-      for(const branch of token.branches)for(const end of ends(branch,position)){
+      for(const branch of openNegation?[[]]:token.branches)for(const end of ends(branch,position)){
        // The exclusion suffix consisting solely of * requires a character.
        if(suffix.length===1&&suffix[0].kind==='many'&&end===text.length)continue;
        if(ends(suffix,end).includes(text.length))blocked=true;
       }
-      if(!blocked)for(let end=position;end<=text.length;end++)if(!matches.includes(end))next.push(end);
+      // Exclusion applies to the remaining text; nested callers need all ends.
+      if(!blocked)for(let end=openNegation?position+1:position;end<=text.length;end++)next.push(end);
      }
      else{const queue=token.operator==='*'?[position]:matches.slice(),seen=[];while(queue.length){const end=queue.shift();if(seen.includes(end))continue;seen.push(end);next.push(end);for(const branch of token.branches)for(const further of ends(branch,end))if(further>end)queue.push(further);}}
     }
