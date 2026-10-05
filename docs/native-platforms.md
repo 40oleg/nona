@@ -6,14 +6,14 @@ Choose an output target with `--target`. The default is the host OS and CPU.
 
 | Target | CPU | Format | Native verification |
 | --- | --- | --- | --- |
-| `win32-x64` | x86-64 | PE32+ | Windows full regression and example comparisons |
-| `linux-x64` | x86-64 | ELF64 | Ubuntu runner; distribution containers |
-| `linux-arm64` | AArch64 | ELF64 | Native Ubuntu ARM runner, CPU/math/GC/agent probes |
-| `win32-arm64` | AArch64 | PE32+ | Native Windows 11 ARM runner, GC/agent probes |
-| `darwin-x64` | x86-64 | Mach-O64 | Intel macOS 15 runner, clocks/GC/agent probes |
-| `freebsd-x64` | x86-64 | ELF64 | FreeBSD 14.3 VM, clocks/GC/agent probes |
-| `openbsd-x64` | x86-64 | ELF64 | OpenBSD 7.8 VM, clocks/GC/agent probes |
-| `darwin-arm64` | AArch64 | Mach-O64 | Native macOS 15 ARM runner, dyld/libSystem, clocks/GC/agent probes |
+| `win32-x64` | x86-64 | PE32+ | Full Windows regression, examples and selected Test262 suites in `check`; also full regression on manual platform runs |
+| `linux-x64` | x86-64 | ELF64 | Ubuntu native loader/runtime probes, portable and host API suites, example comparison; distribution containers |
+| `linux-arm64` | AArch64 | ELF64 | Native Ubuntu ARM loader/runtime and CPU probes, portable and host API suites, example comparison |
+| `win32-arm64` | AArch64 | PE32+ | Native Windows 11 ARM loader/runtime probes, portable and host API suites |
+| `darwin-x64` | x86-64 | Mach-O64 | Intel macOS 15 loader/runtime probes and portable suites |
+| `freebsd-x64` | x86-64 | ELF64 | FreeBSD 14.3 VM loader and runtime/GC/agent probes |
+| `openbsd-x64` | x86-64 | ELF64 | OpenBSD 7.8 VM loader and runtime/GC/agent probes |
+| `darwin-arm64` | AArch64 | Mach-O64 | Native macOS 15 ARM loader/runtime probes, dyld/libSystem signature check and portable suites |
 
 Apple Silicon executables load the operating system's `/usr/lib/libSystem.B.dylib` through dyld. This macOS exception was authorized by the owner; it adds no bundled runtime, interpreter or C toolchain. PIE data pointers are rebased by dyld, imports are eagerly bound, and an embedded ad-hoc signature covers the final image. Intel macOS retains direct kernel startup.
 
@@ -85,6 +85,21 @@ existing oracle suites, distribution checks and BSD VM execution. The runner
 checks both host OS and CPU before executing: Rosetta or accidental cross-CPU
 execution is not counted as native verification. The ARM bridge probe also
 exercises mixed integer/FP register banks and overflowing stack arguments.
+
+The platform workflow runs on every pull request and `main` push, including
+runtime, compiler and test-only changes. A manual dispatch runs the same
+platform matrix plus the full Windows x64 regression. The separate `check`
+workflow runs the full Windows x64 suite and Test262 selections on PRs and
+`main`; the platform workflow also checks the browser compiler, samples and
+internal site links. `pages` builds and deploys the documentation site.
+Linux x64/ARM64, Windows ARM64 and macOS x64/ARM64 run the shared portable
+oracle suites on their native runners. Process/filesystem suites run where
+those APIs exist: Linux x64/ARM64 and Windows ARM64 here, Windows x64 in
+`check`. FreeBSD and OpenBSD execute loader and runtime probes inside VMs;
+their portable Node.js oracle suite is not yet run there. The Linux
+distribution containers share the Ubuntu runner's kernel. BSD VM jobs use an
+Ubuntu runner to build the images and host the VM; the probe commands verify
+the guest's `uname -s` and `uname -m` before executing binaries.
 
 The exact evidence and development failures are recorded in the
 [implementation ledger](superpowers/plans/2026-10-04-native-platforms-ledger.md).
