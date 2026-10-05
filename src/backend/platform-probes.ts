@@ -34,9 +34,9 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
   });
   const descriptor=getTarget(target)!;
   if(target.startsWith('win32-')){
-    const startup=compile('globalThis.__nonaProcessStartupTrace=true;console.log("process getter");let p=process;delete globalThis.__nonaProcessStartupTrace;console.log("process built",p.platform,typeof p.execve)',{fileName:'process-startup.js',target});
+    const startup=compile('console.log("process getter");let p=process;console.log("process built",p.platform,typeof p.execve)',{fileName:'process-startup.js',target});
     if(!startup.ok)throw new Error(`${target}/process-startup: ${JSON.stringify(startup.diagnostics)}`);
-    probes.push({name:'process-startup',image:startup.image,expected:'process getter\nprocess init begin\nprocess init executable\nprocess init arguments\nprocess init environment read\nprocess init environment parsed\nprocess init core properties\nprocess init native environment\nprocess init extensions\nprocess built win32 undefined\n'});
+    probes.push({name:'process-startup',image:startup.image,expected:'process getter\nprocess built win32 undefined\n'});
   }
   const processExec=compile('if(typeof process.execve!=="function")console.log("no execve");else if(process.argv[1]==="child"){console.log(process.argv[1],process.argv[2],process.env.NONA_EXEC_VALUE,process.pid===Number(process.env.NONA_EXEC_PARENT))}else if(process.argv[1]==="environment"){console.log(process.env.NONA_NATIVE_VECTOR==="ü=value",process.env.NONA_NATIVE_NUMBER==="42",process.env.NONA_NATIVE_DELETED===undefined);process.execve(process.execPath,[process.execPath,"child","ü=arg"],{NONA_EXEC_VALUE:"ü=env",NONA_EXEC_PARENT:String(process.pid)})}else{process.on("exit",()=>console.log("unexpected exit"));setTimeout(()=>console.log("unexpected timer"),1);process.env.NONA_NATIVE_VECTOR="ü=value";process.env.NONA_NATIVE_NUMBER=42;process.env.NONA_NATIVE_DELETED="removed";delete process.env.NONA_NATIVE_DELETED;process.execve(process.execPath,[process.execPath,"environment"])}',{fileName:'process-exec.js',target});
   if(!processExec.ok)throw new Error(`${target}/process-exec: ${JSON.stringify(processExec.diagnostics)}`);

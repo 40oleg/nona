@@ -38,7 +38,7 @@ export const processExtensionsSource=String.raw`
     function environmentString(text){var nul=text.indexOf('\0');return nul<0?text:text.slice(0,nul)}
     function normalizedKey(target,key){if(typeof key==='string'){key=environmentString(key);if(windows){var upper=key.toUpperCase();for(var name in target)if(name.toUpperCase()===upper)return name}}return key}
     function syncEnvironment(target){var entries=[];for(var key in target)entries.push(key+'='+target[key]);var bytes=encoder.encode(entries.length?entries.join('\0')+'\0':'');host.replaceEnvironment(bytes,bytes.length,entries.length)}
-    syncEnvironment(env);startupPhase('native environment');__nonaRegexpVm.processEnvironmentVector=function(){return host.environmentVector()};
+    syncEnvironment(env);__nonaRegexpVm.processEnvironmentVector=function(){return host.environmentVector()};
     __nonaRegexpVm.processEnvironmentHas=function(key,value){return host.environmentContains(cstring(key+'='+value))};
     function darwinEnvironmentError(operation,key){var number=new Uint32Array(1);host.copy(number,host.__error(),4);return hostError(operation,number[0],key)}
     if(platform==='darwin')__nonaRegexpVm.processOSGetenv=function(key){var pointer=host.getenv(cstring(key));if(!pointer)return undefined;var bytes=new Uint8Array(host.length(pointer));host.copy(bytes,pointer,bytes.length);return decoder.decode(bytes)};

@@ -136,8 +136,8 @@ test('uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI',()=
  assert.ok(instructions.includes(0xd63f0200),'external DLL thunk uses native BLR');assert.ok(fragment.fixups.some(item=>item.target==='ffi.syscall!Example'));assert.ok(bundle.imports.some(item=>item.dll==='SYSCALL'&&item.name==='Example'));
  const result=compile('import {define} from "nona:ffi";const example=define("SYSCALL","Example","u64(u64,u64,u64)");console.log(example(1,2,3))',{target:'win32-arm64',module:true,fileName:'syscall-dll.mjs'});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
 });
-test('Windows ARM process startup diagnostic compiles with enforced phase output',()=>{
- const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.ok(probe.expected.includes('process init native environment\nprocess init extensions\nprocess built win32 undefined\n'));
+test('Windows ARM process startup compiles with enforced public getter output',()=>{
+ const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.equal(probe.expected,'process getter\nprocess built win32 undefined\n');
 });
 test('process active resource inventory follows real timer and stdin lifecycle',()=>{
  let clock=0;const context=mockProcess({__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms}});runInContext(timersPreludeSource,context);
