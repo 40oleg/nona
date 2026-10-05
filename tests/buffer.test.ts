@@ -7,6 +7,7 @@ import {runOnHost,runModulesOnHost} from './helpers/host.js';
 import {bufferPreludeSource} from '../src/runtime/buffer-source.js';
 import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {nativeTargets} from '../src/target.js';
+import {runtimeProbeSources} from '../src/backend/platform-probes.js';
 
 const cases=[
   `var b=Buffer.from('hé😀');console.log(b instanceof Uint8Array,Buffer.isBuffer(b),b.toString(),b.toString('hex'),Buffer.byteLength('hé😀'));var s=b.slice(1,3);s[0]=65;console.log(b[1],s.buffer===b.buffer,s instanceof Buffer);console.log(Buffer.from({type:'Buffer',data:[257,-1]}).toString('hex'));`,
@@ -30,6 +31,11 @@ test('node:buffer resolves as a built-in module',()=>{
 test('Buffer compile only: every native target links the full module',()=>{
  const source=`import buffer,{Buffer,Blob,File,isUtf8,transcode} from 'node:buffer';var b=Buffer.allocUnsafe(64,64);b.writeBigInt64BE(-1n);console.log(b.readBigInt64BE(),b.slice(1).length,isUtf8(b),transcode(Buffer.from('é'),'utf8','latin1').toString('hex'),new File(['ok'],'x').size);new Blob([b]).text().then(console.log);`;
  for(const {target} of nativeTargets){const result=compile(source,{fileName:'buffer.mjs',target,module:true});assert.equal(result.ok,true,target+': '+JSON.stringify(result));}
+});
+
+test('Buffer native platform probe matches the Node oracle',()=>{
+ const probe=runtimeProbeSources.find(probe=>probe.name==='buffer')!;
+ assert.equal(runOracle(probe.source).stdout,probe.expected);
 });
 
 test('Buffer module utilities prelude oracle',()=>{

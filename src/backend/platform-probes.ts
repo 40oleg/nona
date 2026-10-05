@@ -23,11 +23,19 @@ export const runtimeProbeSources=[
   {name:'math',source:'console.log(Math.sqrt(81),Math.abs(-17),Math.pow(2,10),Math.round(Math.sin(0.5)*1000000),Math.round(Math.log(2)*1000000))',expected:'9 17 1024 479426 693147\n'},
   {name:'generator',source:'function* f(){for(let i=0;i<20;i++)yield i*i}let sum=0;for(let x of f())sum+=x;console.log(sum)',expected:'2470\n'},
   {name:'async',source:'async function f(x){return (await Promise.resolve(x))+1}f(41).then(x=>console.log(x))',expected:'42\n'},
+  {name:'buffer',source:'let b=Buffer.from("hé😀"),s=b.subarray(0,1);s[0]=72;console.log(b.toString(),b.toString("hex"),s instanceof Buffer,s.buffer===b.buffer);let n=Buffer.allocUnsafe(32,64);n.writeUIntLE(0x123456,0,3);n.writeDoubleBE(1.5,4);n.writeBigInt64LE(-123n,16);console.log(n.readUIntLE(0,3),n.readDoubleBE(4),n.readBigInt64LE(16));let a=Buffer.from("abcabc");console.log(a.indexOf("bc",0,5),a.lastIndexOf("bc",undefined,5),Buffer.from([1,2,3,4]).swap16().toString("hex"));let blob=new Blob([b]),file=new File([blob],"x",{lastModified:12});console.log(file.name,file.size,file.lastModified);blob.text().then(x=>console.log(x));',expected:'Hé😀 48c3a9f09f9880 true true\n1193046 1.5 -123\n1 1 02010403\nx 7 12\nHé😀\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
 ] as const;
 export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
   const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
+    if(probe.name==='buffer'){
+      const {result:ir,usage}=collectSourceUsage(()=>compileToIR(probe.source,undefined,undefined,target));
+      const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
+      const descriptor=getTarget(target)!;
+      const image=descriptor.os==='win32'?linkWindowsArm64(program):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
+      return {name:probe.name,image,expected:probe.expected};
+    }
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
