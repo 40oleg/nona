@@ -22,7 +22,7 @@ export function emitDateYearSetters(b:RuntimeBuilder):void {
   a.cvtsi2sd('xmm0','rax');a.storesd(slot(184),'xmm0');a.label(suppliedMonth);
   a.load('r10',slot(48));a.cmp('r10',3);const suppliedDay=a.unique('suppliedDay');a.jcc('ae',suppliedDay);
   a.load('rax',slot(120));a.cvtsi2sd('xmm0','rax');a.storesd(slot(200),'xmm0');a.label(suppliedDay);
-  a.movsd('xmm0',slot(64));a.cvttsd2si('rax','xmm0');a.emit([0x48,0x99]);a.mov('r10',86400000);a.idiv('r10');
+  a.movsd('xmm0',slot(64));a.cvttsd2si('rax','xmm0');a.signExtendRax();a.mov('r10',86400000);a.idiv('r10');
   a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',86400000);a.label(positive);a.store(slot(72),'rdx');
   for(const [offset,scale] of [[216,3600000],[232,60000],[248,1000]] as const){
    a.load('rax',slot(72));a.xor('rdx','rdx');a.mov('r10',scale);a.div('r10');a.cvtsi2sd('xmm0','rax');a.storesd(slot(offset),'xmm0');a.store(slot(72),'rdx');

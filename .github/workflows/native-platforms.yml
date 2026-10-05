@@ -1,0 +1,209 @@
+name: native-platforms
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: native-platforms-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+jobs:
+  browser-compiler:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - run: npm run check:playground
+        working-directory: site
+      - run: npm run check:samples
+        working-directory: site
+      - run: npm run check:links
+        working-directory: site
+  windows-regression:
+    name: Windows x64 full regression (manual)
+    # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
+    # for manually dispatched full-platform runs as well.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run compare
+  linux-regression:
+    name: Linux x64 compiler and example regression
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test dist/tests/elf.test.js dist/tests/x64.test.js dist/tests/base-cache.test.js dist/tests/native-targets.test.js dist/tests/machine-context.test.js dist/tests/machine-operations.test.js dist/tests/macho.test.js dist/tests/elf-platform-layout.test.js dist/tests/platform-probes.test.js dist/tests/bsd.test.js dist/tests/arm64-assembler.test.js dist/tests/arm64-relocations.test.js dist/tests/arm64-image-relocations.test.js dist/tests/arm64-math.test.js dist/tests/arm64-runtime-emission.test.js dist/tests/linux-arm64.test.js dist/tests/linux-arm64-host.test.js dist/tests/darwin-runtime.test.js dist/tests/arm64-windows-bridge.test.js dist/tests/arm64-page-geometry.test.js dist/tests/sha256.test.js dist/tests/native-ffi-targets.test.js
+      - run: npm run compare:linux
+  loaders:
+    name: ${{ matrix.target }} native and portable suites
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, target: linux-x64}
+          - {runner: ubuntu-24.04-arm, target: linux-arm64}
+          - {runner: macos-15-intel, target: darwin-x64}
+          - {runner: macos-15, target: darwin-arm64}
+          - {runner: windows-11-arm, target: win32-arm64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build native probes
+        run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
+      - name: Execute native loader and runtime probes
+        run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Core runtime oracle suites
+        run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
+      # These exercise byte memory/FP conversions and the large Unicode/RegExp
+      # preludes in addition to the CPU, math, GC and coroutine probes.
+      - name: Portable language and built-in oracle suites
+        run: node --test dist/tests/date.test.js dist/tests/array-builtins.test.js dist/tests/array-buffer.test.js dist/tests/typed-array-fast-path.test.js dist/tests/string-builtins.test.js dist/tests/string-search.test.js dist/tests/string-split.test.js dist/tests/string-replace.test.js dist/tests/string-replace-all.test.js dist/tests/string-match.test.js dist/tests/regexp-vm.test.js dist/tests/regexp-construction.test.js dist/tests/regexp-split.test.js dist/tests/regexp-replace.test.js dist/tests/regexp-match-all.test.js dist/tests/map.test.js dist/tests/set.test.js dist/tests/weak-collections.test.js dist/tests/proxy.test.js dist/tests/reflect.test.js dist/tests/symbols.test.js dist/tests/json.test.js dist/tests/uri.test.js dist/tests/classes.test.js dist/tests/class-fields.test.js dist/tests/exceptions.test.js dist/tests/objects.test.js dist/tests/object-integrity.test.js dist/tests/object-introspection.test.js dist/tests/property-descriptors.test.js dist/tests/property-index-elements.test.js
+      - name: Process and filesystem oracle suites
+        run: node --test dist/tests/process.test.js dist/tests/fs.test.js
+        if: matrix.target == 'linux-x64' || matrix.target == 'linux-arm64' || matrix.target == 'win32-arm64'
+      - name: Compare Linux examples with Node.js
+        run: npm run compare:linux
+        if: matrix.target == 'linux-arm64'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loader-${{ matrix.target }}
+          path: work/platform-probes
+  linux-distributions:
+    name: Linux userspace ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:43', 'alpine:3.22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-platform-probes.mjs work/platform-probes linux-x64
+      # Reuse exactly the same compiler output inside glibc and musl systems.
+      - run: |
+          mkdir -p work/distro-results
+          docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
+            set -eu
+            /probes/linux-x64 > /results/loader.actual
+            for expected in /probes/linux-x64-*.expected; do
+              binary=${expected%.expected}
+              echo "Running $binary"
+              "$binary" > "/results/${binary##*/}.actual"
+            done
+            cat /etc/os-release
+          '
+          cmp work/platform-probes/expected.txt work/distro-results/loader.actual
+          for expected in work/platform-probes/linux-x64-*.expected; do
+            binary=${expected%.expected}
+            cmp "$expected" "work/distro-results/${binary##*/}.actual"
+          done
+  bsd-loaders:
+    name: ${{ matrix.os }} x64 guest VM on Ubuntu host
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.os }}-x64
+      - uses: vmactions/freebsd-vm@v1
+        if: matrix.os == 'freebsd'
+        with:
+          release: '14.3'
+          usesh: true
+          run: |
+            set -eu
+            uname -a
+            test "$(uname -s)" = FreeBSD
+            test "$(uname -m)" = amd64
+            chmod 755 work/platform-probes/freebsd-x64
+            work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
+            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            for probe in work/platform-probes/freebsd-x64-*.expected; do
+              binary=${probe%.expected}
+              echo "Running $binary"
+              chmod 755 "$binary"
+              if "$binary" > "$binary.actual"; then
+                :
+              else
+                status=$?
+                if command -v lldb >/dev/null 2>&1; then
+                  lldb --batch -o run -o 'thread backtrace all' -o 'register read' -o 'disassemble --frame --count 12' "$binary" || true
+                fi
+                exit "$status"
+              fi
+              cmp "$probe" "$binary.actual"
+            done
+            uname -a
+      - uses: vmactions/openbsd-vm@v1
+        if: matrix.os == 'openbsd'
+        with:
+          release: '7.8'
+          usesh: true
+          run: |
+            set -eu
+            uname -a
+            test "$(uname -s)" = OpenBSD
+            test "$(uname -m)" = amd64
+            chmod 755 work/platform-probes/openbsd-x64
+            work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
+            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+            for probe in work/platform-probes/openbsd-x64-*.expected; do
+              binary=${probe%.expected}
+              echo "Running $binary"
+              chmod 755 "$binary"
+              "$binary" > "$binary.actual"
+              cmp "$probe" "$binary.actual"
+            done
+            uname -a
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loader-${{ matrix.os }}-x64
+          path: work/platform-probes

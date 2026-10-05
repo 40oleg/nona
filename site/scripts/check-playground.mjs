@@ -13,8 +13,8 @@ await import(pathToFileURL(join(site, 'src', 'public', 'playground-worker.js')).
 if (!messages.shift()?.ready) throw new Error('The worker did not report ready');
 
 const cases = [
-  {file: 'hello.js', options: {fileName: '/app.js', target: 'linux-x64'}},
-  {file: 'hello.js', options: {fileName: '/app.js', target: 'win32-x64'}},
+  ...['win32-x64', 'win32-arm64', 'linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'freebsd-x64', 'openbsd-x64']
+    .map(target => ({file: 'hello.js', options: {fileName: '/app.js', target}})),
   {file: 'playground-async.mjs', options: {fileName: '/app.mjs', target: 'linux-x64', module: true}},
   {file: 'playground-messagebox.win32.mjs', options: {fileName: '/app.mjs', target: 'win32-x64', module: true, subsystem: 'windows'}},
 ];

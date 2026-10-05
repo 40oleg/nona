@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: De JavaScript para executáveis nativos
-  tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em executáveis independentes para Windows e Linux x64. Sem interpretador embutido e sem toolchain de C.
+  tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em executáveis independentes para Windows e Linux x64. Sem interpretador embutido e sem toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: Começar
@@ -71,4 +71,4 @@ O executável contém o código de máquina do programa e o runtime do Nona. Ele
 
 ## Status
 
-A versão atual é a **v0.7.0**. A suíte Test262 fixada (recursos do ES2020) passa em 17298/17337 testes de language, 15491/15559 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64; cada falha restante está classificada na [página de status](/pt/guide/status). Inicialização, tamanho do executável e memória são os pontos fortes do Nona; a computação dentro de um programa é de 20 a 100 vezes mais lenta que no V8, e algumas operações (`Map`, `sort`, construção de strings, cadeias longas de Promise) ainda são superlineares; veja [Desempenho](/pt/guide/performance). O Nona é experimental: não é um substituto direto do Node.js e não passou por auditoria de segurança.
+A versão atual é a **v0.8.0**. A suíte Test262 fixada (recursos do ES2020) passa em 22436/22492 testes de language, 15868/15933 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64; cada falha restante está classificada na [página de status](/pt/guide/status). Inicialização, tamanho do executável e memória são os pontos fortes do Nona; a computação dentro de um programa é de 20 a 100 vezes mais lenta que no V8, e algumas operações (`Map`, `sort`, construção de strings, cadeias longas de Promise) ainda são superlineares; veja [Desempenho](/pt/guide/performance). O Nona é experimental: não é um substituto direto do Node.js e não passou por auditoria de segurança.

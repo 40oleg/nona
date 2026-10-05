@@ -1,6 +1,6 @@
 # دعم اللغة
 
-يستهدف Nona الإصدار الحادي عشر من ECMA-262 ‏(ES2020) مع استثناءات موثّقة. تلخّص هذه الصفحة ما هو مدعوم في **v0.7.0**؛ والأرقام مأخوذة من مراجعة Test262 المثبَّتة الموصوفة في صفحة [Test262](/ar/reference/test262).
+يستهدف Nona الإصدار الحادي عشر من ECMA-262 ‏(ES2020) مع استثناءات موثّقة. تلخّص هذه الصفحة ما هو مدعوم في **v0.8.0**؛ والأرقام مأخوذة من مراجعة Test262 المثبَّتة الموصوفة في صفحة [Test262](/ar/reference/test262).
 
 **مدعوم** يعني أن الميزة منفَّذة ومغطّاة باختبارات الوحدة وبـ Test262 ضمن الحدود المذكورة في عمود الملاحظات. أما المصفوفة التفصيلية لكل ميزة مع أسماء الاختبارات فموجودة في [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (بالروسية).
 
@@ -54,9 +54,11 @@
 
 | المجلد | الناجحة / القابلة للتطبيق | الإخفاقات المتبقية |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`، و6 دلالات أحدث، و3 أخرى |
-| `built-ins/` | 15491 / 15559 | 16 `eval`، و14 دلالات أحدث، و38 أخرى |
+| `language/` | 22436 / 22492 | 44 `eval`، و1 دلالات أحدث، و11 أخرى |
+| `built-ins/` | 15868 / 15933 | 16 `eval`، و12 دلالات أحدث، و37 أخرى |
 | `built-ins/Atomics` (الوكلاء) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 إخفاقات «`eval`» تستخدم نصًا مصدريًا محسوبًا وقت التشغيل أو `$262.evalScript` أو عوالم (realms) أخرى؛ أما اختبارات «الدلالات الأحدث» فتتحقق من سلوك من إصدارات لاحقة تحت وسم ميزة قديم أو مفقود. وتسرد [صفحة الحالة](/ar/guide/status) الإخفاقات المتبقية.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

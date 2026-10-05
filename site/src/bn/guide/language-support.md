@@ -1,6 +1,6 @@
 # ভাষা সমর্থন
 
-Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.7.0** অনুযায়ী কী সমর্থিত তার সারসংক্ষেপ আছে; সংখ্যাগুলো এসেছে [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা Test262 রিভিশন থেকে।
+Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.8.0** অনুযায়ী কী সমর্থিত তার সারসংক্ষেপ আছে; সংখ্যাগুলো এসেছে [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা Test262 রিভিশন থেকে।
 
 **সমর্থিত** মানে বাস্তবায়িত এবং «টীকা» কলামের সীমার মধ্যে ইউনিট টেস্ট ও Test262 দিয়ে যাচাই করা। টেস্টের নামসহ প্রতিটি ফিচারের বিস্তারিত ম্যাট্রিক্স রাখা আছে [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)-এ (রুশ ভাষায়)।
 
@@ -54,9 +54,11 @@ Windows x64-এ পিন করা Test262-এর পূর্ণ রান (ES
 
 | ডিরেক্টরি | পাস / প্রযোজ্য | বাকি ব্যর্থতা |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 নতুন সিমান্টিক্স, 3 অন্যান্য |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 নতুন সিমান্টিক্স, 38 অন্যান্য |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 নতুন সিমান্টিক্স, 11 অন্যান্য |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 নতুন সিমান্টিক্স, 37 অন্যান্য |
 | `built-ins/Atomics` (agents) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 «`eval`» ব্যর্থতাগুলো রানটাইমে গণনা করা সোর্স টেক্সট, `$262.evalScript` বা অন্য realm ব্যবহার করে; «নতুন সিমান্টিক্স» টেস্টগুলো পুরোনো বা অনুপস্থিত ফিচার ট্যাগের অধীনে পরবর্তী সংস্করণের আচরণ যাচাই করে। [অবস্থা পৃষ্ঠায়](/bn/guide/status) বাকি ব্যর্থতাগুলোর তালিকা আছে।
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

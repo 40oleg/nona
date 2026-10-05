@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | विकल्प | टाइप | विवरण |
 | --- | --- | --- |
 | `fileName` | `string` | डायग्नोस्टिक्स में उपयोग होने वाला नाम; मॉड्यूल के लिए यह वह पाथ भी है जिसके सापेक्ष रिलेटिव इम्पोर्ट रिज़ॉल्व होते हैं। अनिवार्य। |
-| `target` | `'win32-x64' \| 'linux-x64'` | आउटपुट फ़ॉर्मैट। अनिवार्य। |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | ES मॉड्यूल के रूप में कंपाइल करें। |
 | `subsystem` | `'console' \| 'windows'` | PE सबसिस्टम (केवल `win32-x64`)। |
 | `icon` | `Uint8Array` | `.ico` फ़ाइल की सामग्री (केवल `win32-x64`)। |
@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 पाथ होस्ट द्वारा चुनी गई कैनोनिकल, `/` से अलग की गई स्ट्रिंग होते हैं। डिफ़ॉल्ट होस्ट रिलेटिव स्पेसिफ़ायर को संदर्भित करने वाली फ़ाइल के पास रिज़ॉल्व करता है और फ़ाइलें डिस्क से पढ़ता है। `candidates` उन मॉड्यूलों की सूची देता है जिनका नाम कोई computed `import()` ले सकता है, ताकि वे कंपाइल में शामिल हो जाएँ। बिल्ट-इन `nona:*` और `node:*` मॉड्यूल होस्ट से पूछने से पहले ही रिज़ॉल्व हो जाते हैं।
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

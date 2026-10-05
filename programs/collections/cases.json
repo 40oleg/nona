@@ -1,0 +1,1655 @@
+[
+  {
+    "id": 176,
+    "file": "collections/0176-warehouse-reservations.js",
+    "purpose": "Reserve available warehouse stock in request order.",
+    "features": [
+      "Map",
+      "array records",
+      "conditional iteration"
+    ]
+  },
+  {
+    "id": 177,
+    "file": "collections/0177-latest-address-index.js",
+    "purpose": "Select each customer address from the highest revision.",
+    "features": [
+      "Map",
+      "object records",
+      "numeric comparison"
+    ]
+  },
+  {
+    "id": 178,
+    "file": "collections/0178-invoice-payment-match.js",
+    "purpose": "Match invoices to payments and report open balances.",
+    "features": [
+      "Map",
+      "reduce",
+      "record projection"
+    ]
+  },
+  {
+    "id": 179,
+    "file": "collections/0179-catalog-category-union.js",
+    "purpose": "Merge category memberships without repeating product names.",
+    "features": [
+      "Map",
+      "Set",
+      "nested iteration"
+    ]
+  },
+  {
+    "id": 180,
+    "file": "collections/0180-employee-manager-join.js",
+    "purpose": "Attach manager names and preserve unassigned employees.",
+    "features": [
+      "Map",
+      "nullish coalescing",
+      "array map"
+    ]
+  },
+  {
+    "id": 181,
+    "file": "collections/0181-stock-transfer-ledger.js",
+    "purpose": "Move stock between bins while preserving the total.",
+    "features": [
+      "object mutation",
+      "destructuring",
+      "reduce"
+    ]
+  },
+  {
+    "id": 182,
+    "file": "collections/0182-reconcile-snapshot-keys.js",
+    "purpose": "Report added removed and changed snapshot entries.",
+    "features": [
+      "Set",
+      "Object.keys",
+      "filter"
+    ]
+  },
+  {
+    "id": 183,
+    "file": "collections/0183-rolling-account-balance.js",
+    "purpose": "Calculate running balances and the lowest account balance.",
+    "features": [
+      "reduce",
+      "array push",
+      "numeric arithmetic"
+    ]
+  },
+  {
+    "id": 184,
+    "file": "collections/0184-ticket-state-history.js",
+    "purpose": "Track ticket transitions and count reopenings.",
+    "features": [
+      "Map",
+      "array destructuring",
+      "state transitions"
+    ]
+  },
+  {
+    "id": 185,
+    "file": "collections/0185-sparse-seat-occupancy.js",
+    "purpose": "Identify empty seats while distinguishing holes from explicit undefined.",
+    "features": [
+      "sparse arrays",
+      "in operator",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 186,
+    "file": "collections/0186-merge-ranked-results.js",
+    "purpose": "Merge ranked searches by retaining each result best score.",
+    "features": [
+      "Map",
+      "Math.max",
+      "sort comparator"
+    ]
+  },
+  {
+    "id": 187,
+    "file": "collections/0187-dispatch-round-robin.js",
+    "purpose": "Distribute queued tasks among workers in round robin order.",
+    "features": [
+      "Map",
+      "modulo",
+      "array mutation"
+    ]
+  },
+  {
+    "id": 188,
+    "file": "collections/0188-compress-status-runs.js",
+    "purpose": "Compress adjacent equal statuses into counted runs.",
+    "features": [
+      "array records",
+      "loop",
+      "conditional mutation"
+    ]
+  },
+  {
+    "id": 189,
+    "file": "collections/0189-deduplicate-casefolded-names.js",
+    "purpose": "Keep the first spelling of each case insensitive name.",
+    "features": [
+      "Set",
+      "string normalization",
+      "filter"
+    ]
+  },
+  {
+    "id": 190,
+    "file": "collections/0190-weighted-grade-summary.js",
+    "purpose": "Calculate weighted grades and detect incomplete coursework.",
+    "features": [
+      "Map",
+      "weighted iteration",
+      "record projection"
+    ]
+  },
+  {
+    "id": 191,
+    "file": "collections/0191-route-stop-deduction.js",
+    "purpose": "Remove closed stops while preserving the route order.",
+    "features": [
+      "Set",
+      "filter",
+      "map index"
+    ]
+  },
+  {
+    "id": 192,
+    "file": "collections/0192-cart-discount-brackets.js",
+    "purpose": "Apply quantity discounts and aggregate a shopping cart.",
+    "features": [
+      "array map",
+      "ternary expression",
+      "reduce"
+    ]
+  },
+  {
+    "id": 193,
+    "file": "collections/0193-membership-exclusive-groups.js",
+    "purpose": "Find members belonging to exactly one of three teams.",
+    "features": [
+      "Map",
+      "Set",
+      "nested loops"
+    ]
+  },
+  {
+    "id": 194,
+    "file": "collections/0194-reverse-event-undo.js",
+    "purpose": "Undo reversible ledger events in reverse order.",
+    "features": [
+      "array reverse",
+      "object mutation",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 195,
+    "file": "collections/0195-chunk-batched-deliveries.js",
+    "purpose": "Pack orders into batches with a maximum total weight.",
+    "features": [
+      "array reduce",
+      "object accumulation",
+      "branching"
+    ]
+  },
+  {
+    "id": 196,
+    "file": "collections/0196-inventory-low-stock-alerts.js",
+    "purpose": "Rank inventory items by distance below reorder thresholds.",
+    "features": [
+      "filter",
+      "sort",
+      "record projection"
+    ]
+  },
+  {
+    "id": 197,
+    "file": "collections/0197-zip-unequal-data-streams.js",
+    "purpose": "Pair unequal streams with explicit missing markers.",
+    "features": [
+      "Math.max",
+      "indexed loop",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 198,
+    "file": "collections/0198-product-component-expansion.js",
+    "purpose": "Expand kit orders into component quantities.",
+    "features": [
+      "Map",
+      "nested iteration",
+      "multiplication"
+    ]
+  },
+  {
+    "id": 199,
+    "file": "collections/0199-shared-document-permissions.js",
+    "purpose": "Intersect user permissions with document requirements.",
+    "features": [
+      "Set",
+      "every",
+      "filter"
+    ]
+  },
+  {
+    "id": 200,
+    "file": "collections/0200-poll-ranked-votes.js",
+    "purpose": "Count first choices and resolve ties by candidate order.",
+    "features": [
+      "Map",
+      "sort comparator",
+      "array indexing"
+    ]
+  },
+  {
+    "id": 201,
+    "file": "collections/0201-nested-folder-file-count.js",
+    "purpose": "Count files recursively across a bounded folder tree.",
+    "features": [
+      "recursion",
+      "Array.isArray",
+      "reduce"
+    ]
+  },
+  {
+    "id": 202,
+    "file": "collections/0202-bidirectional-alias-index.js",
+    "purpose": "Build a canonical alias index and group resolved queries.",
+    "features": [
+      "Map",
+      "nested arrays",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 203,
+    "file": "collections/0203-windowed-sales-peaks.js",
+    "purpose": "Find the highest revenue over any three consecutive sales days.",
+    "features": [
+      "slice",
+      "reduce",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 204,
+    "file": "collections/0204-stable-priority-queue.js",
+    "purpose": "Serve urgent jobs first while preserving order within priority.",
+    "features": [
+      "array records",
+      "sort",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 205,
+    "file": "collections/0205-sparse-map-versus-values.js",
+    "purpose": "Compare mapping sparse slots with iterating sparse values.",
+    "features": [
+      "sparse arrays",
+      "map",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 206,
+    "file": "collections/0206-allocate-proportional-budget.js",
+    "purpose": "Allocate integer budgets by largest fractional remainder.",
+    "features": [
+      "map",
+      "sort",
+      "object mutation"
+    ]
+  },
+  {
+    "id": 207,
+    "file": "collections/0207-cancel-paired-transactions.js",
+    "purpose": "Remove equal opposite transactions matched by reference.",
+    "features": [
+      "Map",
+      "array filtering",
+      "signed arithmetic"
+    ]
+  },
+  {
+    "id": 208,
+    "file": "collections/0208-detect-duplicate-serials.js",
+    "purpose": "Identify repeated serial numbers and their occurrence positions.",
+    "features": [
+      "Map",
+      "indexed iteration",
+      "filter"
+    ]
+  },
+  {
+    "id": 209,
+    "file": "collections/0209-topological-course-plan.js",
+    "purpose": "Order prerequisite courses using a deterministic ready queue.",
+    "features": [
+      "Map",
+      "Set",
+      "while loop"
+    ]
+  },
+  {
+    "id": 210,
+    "file": "collections/0210-breadth-first-contact-network.js",
+    "purpose": "Find contact layers without revisiting people.",
+    "features": [
+      "Map",
+      "Set",
+      "breadth first traversal"
+    ]
+  },
+  {
+    "id": 211,
+    "file": "collections/0211-interval-room-conflicts.js",
+    "purpose": "Find overlapping room bookings using half open intervals.",
+    "features": [
+      "nested loops",
+      "record comparisons",
+      "array push"
+    ]
+  },
+  {
+    "id": 212,
+    "file": "collections/0212-coalesce-adjacent-ranges.js",
+    "purpose": "Merge overlapping and adjacent integer ranges.",
+    "features": [
+      "sort",
+      "array mutation",
+      "Math.max"
+    ]
+  },
+  {
+    "id": 213,
+    "file": "collections/0213-binpack-largest-first.js",
+    "purpose": "Assign largest packages first to bins with bounded capacity.",
+    "features": [
+      "sort",
+      "find",
+      "object mutation"
+    ]
+  },
+  {
+    "id": 214,
+    "file": "collections/0214-most-recent-customer-touch.js",
+    "purpose": "Retain customer contact order as repeated contacts move to the end.",
+    "features": [
+      "Map",
+      "delete",
+      "iteration order"
+    ]
+  },
+  {
+    "id": 215,
+    "file": "collections/0215-coupon-use-limits.js",
+    "purpose": "Apply each coupon only until its redemption limit is reached.",
+    "features": [
+      "Map",
+      "object records",
+      "branching"
+    ]
+  },
+  {
+    "id": 216,
+    "file": "collections/0216-normalize-record-columns.js",
+    "purpose": "Project heterogeneous rows onto a common ordered schema.",
+    "features": [
+      "Set",
+      "Object.keys",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 217,
+    "file": "collections/0217-pivot-quarter-revenues.js",
+    "purpose": "Pivot flat revenues into region rows with quarter columns.",
+    "features": [
+      "Map",
+      "nested object assignment",
+      "reduce"
+    ]
+  },
+  {
+    "id": 218,
+    "file": "collections/0218-unpivot-survey-responses.js",
+    "purpose": "Convert wide survey responses into answered question records.",
+    "features": [
+      "Object.entries",
+      "flatMap",
+      "filter"
+    ]
+  },
+  {
+    "id": 219,
+    "file": "collections/0219-aggregate-word-neighbors.js",
+    "purpose": "Count directed adjacent word pairs across sentences.",
+    "features": [
+      "Map",
+      "string split",
+      "nested loop"
+    ]
+  },
+  {
+    "id": 220,
+    "file": "collections/0220-set-based-jaccard.js",
+    "purpose": "Compare tag collections using intersection and union sizes.",
+    "features": [
+      "Set",
+      "filter",
+      "division"
+    ]
+  },
+  {
+    "id": 221,
+    "file": "collections/0221-cumulative-frequency-buckets.js",
+    "purpose": "Build cumulative histogram counts from bounded scores.",
+    "features": [
+      "Map",
+      "sort",
+      "running accumulation"
+    ]
+  },
+  {
+    "id": 222,
+    "file": "collections/0222-median-of-grouped-observations.js",
+    "purpose": "Compute the median observation within each sensor group.",
+    "features": [
+      "Map",
+      "sort",
+      "conditional indexing"
+    ]
+  },
+  {
+    "id": 223,
+    "file": "collections/0223-reorder-by-reference-list.js",
+    "purpose": "Order known records by reference order and append unknown records.",
+    "features": [
+      "Map",
+      "sort",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 224,
+    "file": "collections/0224-nested-field-fallbacks.js",
+    "purpose": "Resolve contact labels from nested data and explicit fallbacks.",
+    "features": [
+      "optional chaining",
+      "nullish coalescing",
+      "map"
+    ]
+  },
+  {
+    "id": 225,
+    "file": "collections/0225-group-contiguous-delivery-days.js",
+    "purpose": "Group consecutive available delivery day numbers.",
+    "features": [
+      "sort",
+      "Set",
+      "array mutation"
+    ]
+  },
+  {
+    "id": 226,
+    "file": "collections/0226-difference-between-ledger-revisions.js",
+    "purpose": "Calculate signed account changes across ledger revisions.",
+    "features": [
+      "Set",
+      "Object.keys",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 227,
+    "file": "collections/0227-retain-last-duplicate-record.js",
+    "purpose": "Retain each final occurrence while preserving final occurrence order.",
+    "features": [
+      "Set",
+      "reverse",
+      "filter"
+    ]
+  },
+  {
+    "id": 228,
+    "file": "collections/0228-join-multiple-course-enrollments.js",
+    "purpose": "Join student names to every course enrollment.",
+    "features": [
+      "Map",
+      "flatMap",
+      "array records"
+    ]
+  },
+  {
+    "id": 229,
+    "file": "collections/0229-record-patch-delete-fields.js",
+    "purpose": "Apply patches that replace values or delete null marked fields.",
+    "features": [
+      "Object.entries",
+      "delete operator",
+      "object spread"
+    ]
+  },
+  {
+    "id": 230,
+    "file": "collections/0230-ordered-set-toggle-history.js",
+    "purpose": "Toggle subscriptions and record ordered active memberships.",
+    "features": [
+      "Set",
+      "delete",
+      "array snapshots"
+    ]
+  },
+  {
+    "id": 231,
+    "file": "collections/0231-transpose-ragged-row-table.js",
+    "purpose": "Transpose ragged rows with explicit null padding.",
+    "features": [
+      "Math.max",
+      "nested map",
+      "nullish coalescing"
+    ]
+  },
+  {
+    "id": 232,
+    "file": "collections/0232-bounded-inventory-backorders.js",
+    "purpose": "Fill backorders from restock events in arrival order.",
+    "features": [
+      "array queue",
+      "while loop",
+      "object mutation"
+    ]
+  },
+  {
+    "id": 233,
+    "file": "collections/0233-bucket-sort-ticket-age.js",
+    "purpose": "Classify ticket ages into bounded urgency buckets.",
+    "features": [
+      "Map",
+      "ternary expression",
+      "for of"
+    ]
+  },
+  {
+    "id": 234,
+    "file": "collections/0234-sum-subtree-budget.js",
+    "purpose": "Compute totals for every department in a budget tree.",
+    "features": [
+      "recursion",
+      "reduce",
+      "object records"
+    ]
+  },
+  {
+    "id": 235,
+    "file": "collections/0235-reverse-index-document-tags.js",
+    "purpose": "Index tags to document IDs and find all matching documents.",
+    "features": [
+      "Map",
+      "Set",
+      "every"
+    ]
+  },
+  {
+    "id": 236,
+    "file": "collections/0236-intersection-of-ranked-shortlists.js",
+    "purpose": "Find shared shortlist entries in the first list ranking order.",
+    "features": [
+      "Set",
+      "filter",
+      "indexOf"
+    ]
+  },
+  {
+    "id": 237,
+    "file": "collections/0237-refund-line-quantities.js",
+    "purpose": "Apply partial product returns and compute retained order cost.",
+    "features": [
+      "Map",
+      "Math.min",
+      "array projection"
+    ]
+  },
+  {
+    "id": 238,
+    "file": "collections/0238-group-average-outlier-detection.js",
+    "purpose": "Identify readings deviating more than a threshold from group means.",
+    "features": [
+      "Map",
+      "reduce",
+      "filter"
+    ]
+  },
+  {
+    "id": 239,
+    "file": "collections/0239-partition-ordered-ledger.js",
+    "purpose": "Partition credits debits and zero movements without reordering.",
+    "features": [
+      "reduce",
+      "computed property",
+      "array push"
+    ]
+  },
+  {
+    "id": 240,
+    "file": "collections/0240-merge-default-settings.js",
+    "purpose": "Merge defaults and overrides while retaining explicit false values.",
+    "features": [
+      "object spread",
+      "Object.entries",
+      "Set"
+    ]
+  },
+  {
+    "id": 241,
+    "file": "collections/0241-extract-longest-consecutive-streak.js",
+    "purpose": "Find the earliest longest streak of successful daily checks.",
+    "features": [
+      "for of",
+      "record mutation",
+      "array slice"
+    ]
+  },
+  {
+    "id": 242,
+    "file": "collections/0242-flatten-path-valued-settings.js",
+    "purpose": "Flatten nested setting records into dot separated paths.",
+    "features": [
+      "recursion",
+      "Object.entries",
+      "typeof"
+    ]
+  },
+  {
+    "id": 243,
+    "file": "collections/0243-rebuild-dot-path-records.js",
+    "purpose": "Reconstruct nested records from dot separated setting paths.",
+    "features": [
+      "string split",
+      "object mutation",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 244,
+    "file": "collections/0244-track-minimum-product-prices.js",
+    "purpose": "Track price decreases and final minima per product.",
+    "features": [
+      "Map",
+      "conditional updates",
+      "array audit"
+    ]
+  },
+  {
+    "id": 245,
+    "file": "collections/0245-split-shared-expenses.js",
+    "purpose": "Calculate participant balances after splitting each expense equally.",
+    "features": [
+      "Map",
+      "division",
+      "nested iteration"
+    ]
+  },
+  {
+    "id": 246,
+    "file": "collections/0246-settle-debt-greedily.js",
+    "purpose": "Settle fixed creditor and debtor balances with bounded transfers.",
+    "features": [
+      "array records",
+      "while loop",
+      "Math.min"
+    ]
+  },
+  {
+    "id": 247,
+    "file": "collections/0247-repeated-key-query-parsing.js",
+    "purpose": "Parse repeated query keys into ordered value lists.",
+    "features": [
+      "Map",
+      "string split",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 248,
+    "file": "collections/0248-display-column-widths.js",
+    "purpose": "Align a small text table by measured column widths.",
+    "features": [
+      "reduce",
+      "padEnd",
+      "map"
+    ]
+  },
+  {
+    "id": 249,
+    "file": "collections/0249-filter-stale-record-versions.js",
+    "purpose": "Reject incoming updates whose sequence is not newer.",
+    "features": [
+      "Map",
+      "object mutation",
+      "conditional iteration"
+    ]
+  },
+  {
+    "id": 250,
+    "file": "collections/0250-compact-tombstone-array.js",
+    "purpose": "Remove tombstones in place using read and write cursors.",
+    "features": [
+      "array length mutation",
+      "indexed loop",
+      "null comparison"
+    ]
+  },
+  {
+    "id": 251,
+    "file": "collections/0251-select-distinct-recent-categories.js",
+    "purpose": "Select the most recent event for each category.",
+    "features": [
+      "reverse",
+      "Set",
+      "slice"
+    ]
+  },
+  {
+    "id": 252,
+    "file": "collections/0252-weighted-moving-average.js",
+    "purpose": "Smooth measurements with a fixed three point weight kernel.",
+    "features": [
+      "slice",
+      "reduce",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 253,
+    "file": "collections/0253-rotate-array-view.js",
+    "purpose": "Create wrapped pages from a circular list without modifying it.",
+    "features": [
+      "modulo",
+      "Array.from",
+      "map"
+    ]
+  },
+  {
+    "id": 254,
+    "file": "collections/0254-interleave-unequal-queues.js",
+    "purpose": "Interleave two unequal queues while retaining all leftovers.",
+    "features": [
+      "while loop",
+      "array indexing",
+      "array push"
+    ]
+  },
+  {
+    "id": 255,
+    "file": "collections/0255-multiset-subtraction.js",
+    "purpose": "Subtract consumed ingredient counts from a multiset inventory.",
+    "features": [
+      "Map",
+      "Math.max",
+      "iteration"
+    ]
+  },
+  {
+    "id": 256,
+    "file": "collections/0256-multiset-cart-comparison.js",
+    "purpose": "Compare carts by quantities rather than only item presence.",
+    "features": [
+      "Map",
+      "Set",
+      "signed differences"
+    ]
+  },
+  {
+    "id": 257,
+    "file": "collections/0257-group-records-by-composite-key.js",
+    "purpose": "Aggregate quantities by both warehouse and item.",
+    "features": [
+      "Map",
+      "template literals",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 258,
+    "file": "collections/0258-detect-ledger-sequence-gaps.js",
+    "purpose": "Detect missing sequence numbers separately for each account.",
+    "features": [
+      "Map",
+      "sort",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 259,
+    "file": "collections/0259-summarize-signed-zero-data.js",
+    "purpose": "Count numeric edge categories including negative zero.",
+    "features": [
+      "Object.is",
+      "Number.isNaN",
+      "reduce"
+    ]
+  },
+  {
+    "id": 260,
+    "file": "collections/0260-samevaluezero-map-keys.js",
+    "purpose": "Demonstrate map aggregation of NaN and signed zero keys.",
+    "features": [
+      "Map",
+      "NaN",
+      "iteration"
+    ]
+  },
+  {
+    "id": 261,
+    "file": "collections/0261-object-identity-collection-keys.js",
+    "purpose": "Keep equal shaped objects separate as map keys.",
+    "features": [
+      "Map",
+      "Set",
+      "object identity"
+    ]
+  },
+  {
+    "id": 262,
+    "file": "collections/0262-iterator-manual-pagination.js",
+    "purpose": "Consume a map iterator in fixed size pages with a partial final page.",
+    "features": [
+      "Map iterator",
+      "for loop",
+      "iterator next"
+    ]
+  },
+  {
+    "id": 263,
+    "file": "collections/0263-custom-iterable-order-lines.js",
+    "purpose": "Expose order line totals through a custom iterable.",
+    "features": [
+      "Symbol.iterator",
+      "iterator protocol",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 264,
+    "file": "collections/0264-generator-depth-first-labels.js",
+    "purpose": "Yield tree labels in depth first order using generator delegation.",
+    "features": [
+      "generator",
+      "yield delegation",
+      "recursion"
+    ]
+  },
+  {
+    "id": 265,
+    "file": "collections/0265-lazy-filtered-reading-stream.js",
+    "purpose": "Yield only readings above threshold while recording inspected count.",
+    "features": [
+      "generator",
+      "closure state",
+      "for of"
+    ]
+  },
+  {
+    "id": 266,
+    "file": "collections/0266-generator-take-until-capacity.js",
+    "purpose": "Consume generated deliveries until the next item exceeds remaining capacity.",
+    "features": [
+      "generator",
+      "for of break",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 267,
+    "file": "collections/0267-generator-return-audit.js",
+    "purpose": "Capture a generator return summary separately from yielded records.",
+    "features": [
+      "generator return",
+      "iterator next",
+      "object records"
+    ]
+  },
+  {
+    "id": 268,
+    "file": "collections/0268-zip-iterators-with-termination.js",
+    "purpose": "Zip independent iterators until either source is exhausted.",
+    "features": [
+      "iterator protocol",
+      "while loop",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 269,
+    "file": "collections/0269-rolling-distinct-window.js",
+    "purpose": "Count distinct categories in a moving window of fixed length.",
+    "features": [
+      "Map",
+      "indexed loop",
+      "delete"
+    ]
+  },
+  {
+    "id": 270,
+    "file": "collections/0270-bounded-lru-cache.js",
+    "purpose": "Evict the least recently accessed entry in a fixed capacity cache.",
+    "features": [
+      "Map",
+      "delete and reinsertion",
+      "iterator next"
+    ]
+  },
+  {
+    "id": 271,
+    "file": "collections/0271-stack-based-path-normalization.js",
+    "purpose": "Normalize path segments using a stack and parent references.",
+    "features": [
+      "string split",
+      "array pop",
+      "conditional loop"
+    ]
+  },
+  {
+    "id": 272,
+    "file": "collections/0272-validate-bracket-stack.js",
+    "purpose": "Validate nested delimiters and report the first mismatch position.",
+    "features": [
+      "Map",
+      "stack",
+      "indexed string access"
+    ]
+  },
+  {
+    "id": 273,
+    "file": "collections/0273-evaluate-postfix-accounting.js",
+    "purpose": "Evaluate a bounded postfix expression using operator dispatch.",
+    "features": [
+      "Map functions",
+      "stack",
+      "Number conversion"
+    ]
+  },
+  {
+    "id": 274,
+    "file": "collections/0274-undo-redo-note-edits.js",
+    "purpose": "Implement a bounded edit history with undo and redo stacks.",
+    "features": [
+      "array stacks",
+      "destructuring",
+      "string concatenation"
+    ]
+  },
+  {
+    "id": 275,
+    "file": "collections/0275-breadth-first-shortest-route.js",
+    "purpose": "Recover the shortest route in a bounded unweighted station graph.",
+    "features": [
+      "Map",
+      "queue",
+      "path reconstruction"
+    ]
+  },
+  {
+    "id": 276,
+    "file": "collections/0276-union-find-customer-clusters.js",
+    "purpose": "Group linked customer accounts using disjoint set representatives.",
+    "features": [
+      "Map",
+      "functions",
+      "path compression"
+    ]
+  },
+  {
+    "id": 277,
+    "file": "collections/0277-detect-directed-dependency-cycle.js",
+    "purpose": "Detect a dependency cycle with visiting and completed node sets.",
+    "features": [
+      "recursion",
+      "Set",
+      "Map"
+    ]
+  },
+  {
+    "id": 278,
+    "file": "collections/0278-longest-task-chain.js",
+    "purpose": "Compute the longest prerequisite chain in a small task graph.",
+    "features": [
+      "Map memoization",
+      "recursion",
+      "Math.max"
+    ]
+  },
+  {
+    "id": 279,
+    "file": "collections/0279-symmetric-matrix-friendships.js",
+    "purpose": "Build a symmetric adjacency matrix from undirected friendships.",
+    "features": [
+      "Map",
+      "Array.from",
+      "nested assignment"
+    ]
+  },
+  {
+    "id": 280,
+    "file": "collections/0280-two-pointer-common-sorted-values.js",
+    "purpose": "Intersect sorted lists while advancing independent cursors.",
+    "features": [
+      "while loop",
+      "array indexing",
+      "comparison branches"
+    ]
+  },
+  {
+    "id": 281,
+    "file": "collections/0281-two-pointer-target-pairs.js",
+    "purpose": "Find disjoint pairs in sorted prices summing to a target.",
+    "features": [
+      "while loop",
+      "two pointers",
+      "array push"
+    ]
+  },
+  {
+    "id": 282,
+    "file": "collections/0282-binary-search-insertion-positions.js",
+    "purpose": "Find ordered insertion positions for new catalog numbers.",
+    "features": [
+      "function",
+      "while loop",
+      "array map"
+    ]
+  },
+  {
+    "id": 283,
+    "file": "collections/0283-prefix-sum-range-accounting.js",
+    "purpose": "Answer bounded ledger range totals using cumulative sums.",
+    "features": [
+      "reduce",
+      "array records",
+      "indexed subtraction"
+    ]
+  },
+  {
+    "id": 284,
+    "file": "collections/0284-difference-array-capacity-adjustment.js",
+    "purpose": "Apply interval capacity adjustments through a difference array.",
+    "features": [
+      "Array.fill",
+      "destructuring",
+      "prefix accumulation"
+    ]
+  },
+  {
+    "id": 285,
+    "file": "collections/0285-stock-span-stack.js",
+    "purpose": "Calculate consecutive preceding days with no higher stock price.",
+    "features": [
+      "stack",
+      "while loop",
+      "indexed loop"
+    ]
+  },
+  {
+    "id": 286,
+    "file": "collections/0286-next-greater-demand.js",
+    "purpose": "Find each day next strictly higher demand with a monotonic stack.",
+    "features": [
+      "Array.fill",
+      "stack",
+      "nested while"
+    ]
+  },
+  {
+    "id": 287,
+    "file": "collections/0287-credit-carryforward-billing.js",
+    "purpose": "Apply prepaid customer credits to chronological invoices and carry unused credit forward.",
+    "features": [
+      "Map",
+      "event records",
+      "Math.min",
+      "nested ledger history"
+    ]
+  },
+  {
+    "id": 288,
+    "file": "collections/0288-quality-gated-lot-dispatch.js",
+    "purpose": "Gate shipment requests on lot inspection results and available accepted units.",
+    "features": [
+      "Map",
+      "state transitions",
+      "Math.floor",
+      "array audit"
+    ]
+  },
+  {
+    "id": 289,
+    "file": "collections/0289-minimum-edit-distance-labels.js",
+    "purpose": "Compute edit distance for two bounded product labels.",
+    "features": [
+      "nested arrays",
+      "Math.min",
+      "string indexing"
+    ]
+  },
+  {
+    "id": 290,
+    "file": "collections/0290-library-hold-circulation.js",
+    "purpose": "Circulate books through checkout return and queued hold events with borrower validation.",
+    "features": [
+      "Map",
+      "object state",
+      "array queue",
+      "conditional transitions"
+    ]
+  },
+  {
+    "id": 291,
+    "file": "collections/0291-stable-counting-priority-sort.js",
+    "purpose": "Sort bounded priority values using stable counting placement.",
+    "features": [
+      "Array.fill",
+      "prefix sums",
+      "reverse loop"
+    ]
+  },
+  {
+    "id": 292,
+    "file": "collections/0292-sparse-delete-and-truncate.js",
+    "purpose": "Observe holes created by delete and slots removed by truncation.",
+    "features": [
+      "delete operator",
+      "array length",
+      "Object.keys"
+    ]
+  },
+  {
+    "id": 293,
+    "file": "collections/0293-sparse-reduce-hole-skipping.js",
+    "purpose": "Accumulate sparse values while recording reducer visitation indices.",
+    "features": [
+      "sparse arrays",
+      "reduce",
+      "array audit"
+    ]
+  },
+  {
+    "id": 294,
+    "file": "collections/0294-copywithin-inventory-slots.js",
+    "purpose": "Shift shelf positions in place and identify overwritten labels.",
+    "features": [
+      "copyWithin",
+      "slice",
+      "Set"
+    ]
+  },
+  {
+    "id": 295,
+    "file": "collections/0295-splice-waitlist-promotion.js",
+    "purpose": "Promote waitlisted customers into vacated queue positions.",
+    "features": [
+      "splice",
+      "shift",
+      "indexOf"
+    ]
+  },
+  {
+    "id": 296,
+    "file": "collections/0296-find-last-valid-approval.js",
+    "purpose": "Select the last valid approval and report its record position.",
+    "features": [
+      "backward indexed scan",
+      "predicate function",
+      "filter"
+    ]
+  },
+  {
+    "id": 297,
+    "file": "collections/0297-immutable-record-array-edits.js",
+    "purpose": "Apply immutable array edits and verify original records remain ordered.",
+    "features": [
+      "slice",
+      "splice",
+      "reverse"
+    ]
+  },
+  {
+    "id": 298,
+    "file": "collections/0298-immutable-price-ranking.js",
+    "purpose": "Create descending price rankings without mutating source order.",
+    "features": [
+      "slice and sort",
+      "map",
+      "reduce"
+    ]
+  },
+  {
+    "id": 299,
+    "file": "collections/0299-flat-depth-reporting.js",
+    "purpose": "Compare flattening depths for nested inventory groups.",
+    "features": [
+      "flat",
+      "filter",
+      "Array.isArray"
+    ]
+  },
+  {
+    "id": 300,
+    "file": "collections/0300-array-from-map-projection.js",
+    "purpose": "Construct a numeric report directly from map entries.",
+    "features": [
+      "Map",
+      "Array.from mapping",
+      "reduce"
+    ]
+  },
+  {
+    "id": 301,
+    "file": "collections/0301-frequency-weighted-choice-index.js",
+    "purpose": "Resolve deterministic choice offsets through cumulative weights.",
+    "features": [
+      "Map",
+      "for of",
+      "conditional return"
+    ]
+  },
+  {
+    "id": 302,
+    "file": "collections/0302-bounded-token-bucket.js",
+    "purpose": "Simulate integer rate limits against explicitly supplied event ticks.",
+    "features": [
+      "record events",
+      "Math.min",
+      "stateful loop"
+    ]
+  },
+  {
+    "id": 303,
+    "file": "collections/0303-lease-expiry-snapshot.js",
+    "purpose": "Expire session leases using explicit integer ticks and renewal events.",
+    "features": [
+      "Map",
+      "delete during iteration",
+      "object events"
+    ]
+  },
+  {
+    "id": 304,
+    "file": "collections/0304-streaming-top-three-values.js",
+    "purpose": "Retain the three largest observations without keeping the full stream.",
+    "features": [
+      "sort",
+      "array pop",
+      "for of"
+    ]
+  },
+  {
+    "id": 305,
+    "file": "collections/0305-running-median-bounded-stream.js",
+    "purpose": "Compute each prefix median from a sorted insertion list.",
+    "features": [
+      "findIndex",
+      "splice",
+      "numeric comparison"
+    ]
+  },
+  {
+    "id": 306,
+    "file": "collections/0306-sample-weighted-centroid.js",
+    "purpose": "Calculate a weighted centroid from bounded coordinate records.",
+    "features": [
+      "reduce",
+      "object accumulation",
+      "division"
+    ]
+  },
+  {
+    "id": 307,
+    "file": "collections/0307-bounding-box-record-summary.js",
+    "purpose": "Calculate a coordinate bounding box and count interior points.",
+    "features": [
+      "reduce",
+      "Math.min",
+      "filter"
+    ]
+  },
+  {
+    "id": 308,
+    "file": "collections/0308-grid-flood-fill-regions.js",
+    "purpose": "Measure connected occupied regions in a bounded binary grid.",
+    "features": [
+      "Set",
+      "queue",
+      "nested loops"
+    ]
+  },
+  {
+    "id": 309,
+    "file": "collections/0309-grid-neighbor-counts.js",
+    "purpose": "Count adjacent active cells without changing the original grid.",
+    "features": [
+      "nested map",
+      "reduce",
+      "optional chaining"
+    ]
+  },
+  {
+    "id": 310,
+    "file": "collections/0310-diagonal-matrix-accounting.js",
+    "purpose": "Sum matrix diagonals without double counting the shared center.",
+    "features": [
+      "indexed loop",
+      "Set",
+      "reduce"
+    ]
+  },
+  {
+    "id": 311,
+    "file": "collections/0311-spiral-matrix-label-order.js",
+    "purpose": "Visit a bounded label matrix in clockwise spiral order.",
+    "features": [
+      "while loop",
+      "indexed loops",
+      "array push"
+    ]
+  },
+  {
+    "id": 312,
+    "file": "collections/0312-rectangular-matrix-rotation.js",
+    "purpose": "Rotate a rectangular matrix clockwise into a new shape.",
+    "features": [
+      "Array.from",
+      "map",
+      "indexed access"
+    ]
+  },
+  {
+    "id": 313,
+    "file": "collections/0313-map-mutation-live-iterator.js",
+    "purpose": "Observe map iterator deletion and append behavior during consumption.",
+    "features": [
+      "Map",
+      "live iterator",
+      "delete"
+    ]
+  },
+  {
+    "id": 314,
+    "file": "collections/0314-set-mutation-for-each.js",
+    "purpose": "Observe set traversal when an unseen value is deleted and a new value is added.",
+    "features": [
+      "Set",
+      "forEach",
+      "mutation during iteration"
+    ]
+  },
+  {
+    "id": 315,
+    "file": "collections/0315-map-order-on-overwrite.js",
+    "purpose": "Compare overwriting an existing map entry with deleting and reinserting it.",
+    "features": [
+      "Map",
+      "set overwrite",
+      "delete reinsert"
+    ]
+  },
+  {
+    "id": 316,
+    "file": "collections/0316-map-key-value-swapping-collisions.js",
+    "purpose": "Invert a mapping while retaining all keys that share a value.",
+    "features": [
+      "Map",
+      "nested arrays",
+      "array push"
+    ]
+  },
+  {
+    "id": 317,
+    "file": "collections/0317-cross-tab-two-survey-axes.js",
+    "purpose": "Count survey records jointly by color and size.",
+    "features": [
+      "Set",
+      "nested map",
+      "filter"
+    ]
+  },
+  {
+    "id": 318,
+    "file": "collections/0318-record-checksum-polynomial.js",
+    "purpose": "Calculate a deterministic rolling checksum over normalized record text.",
+    "features": [
+      "map",
+      "string iteration",
+      "modulo"
+    ]
+  },
+  {
+    "id": 319,
+    "file": "collections/0319-delta-encode-monotonic-readings.js",
+    "purpose": "Encode ordered readings as differences and decode them back.",
+    "features": [
+      "map closure",
+      "reduce",
+      "array push"
+    ]
+  },
+  {
+    "id": 320,
+    "file": "collections/0320-run-length-decode-shipments.js",
+    "purpose": "Expand encoded item runs and validate their declared total.",
+    "features": [
+      "flatMap",
+      "Array.from",
+      "reduce"
+    ]
+  },
+  {
+    "id": 321,
+    "file": "collections/0321-piecewise-shipping-cost.js",
+    "purpose": "Compute shipping charges with base fees and tiered extra units.",
+    "features": [
+      "function",
+      "Math.min",
+      "map"
+    ]
+  },
+  {
+    "id": 322,
+    "file": "collections/0322-tiered-commission-ledger.js",
+    "purpose": "Compute commission by marginal sales tiers for each representative.",
+    "features": [
+      "array records",
+      "Math.max",
+      "reduce"
+    ]
+  },
+  {
+    "id": 323,
+    "file": "collections/0323-allocate-physical-seats.js",
+    "purpose": "Assign each party consecutive seats only when the row has room.",
+    "features": [
+      "Array.fill",
+      "indexed loop",
+      "conditional mutation"
+    ]
+  },
+  {
+    "id": 324,
+    "file": "collections/0324-unique-pair-collaborations.js",
+    "purpose": "Enumerate undirected collaborator pairs without duplicate meetings.",
+    "features": [
+      "Set",
+      "sort",
+      "nested loops"
+    ]
+  },
+  {
+    "id": 325,
+    "file": "collections/0325-customer-retention-cohorts.js",
+    "purpose": "Calculate customer cohort retention across bounded monthly activity.",
+    "features": [
+      "Set",
+      "filter",
+      "map"
+    ]
+  },
+  {
+    "id": 326,
+    "file": "collections/0326-overtime-payroll-rounding.js",
+    "purpose": "Calculate payroll in integer cents with overtime after forty hours.",
+    "features": [
+      "array map",
+      "Math.min",
+      "reduce"
+    ]
+  },
+  {
+    "id": 327,
+    "file": "collections/0327-fifo-inventory-cost-layers.js",
+    "purpose": "Value outgoing inventory using earliest purchased cost layers.",
+    "features": [
+      "queue",
+      "while loop",
+      "object mutation"
+    ]
+  },
+  {
+    "id": 328,
+    "file": "collections/0328-moving-average-inventory-cost.js",
+    "purpose": "Revalue stock using moving average cost across purchases and sales.",
+    "features": [
+      "record events",
+      "stateful arithmetic",
+      "array history"
+    ]
+  },
+  {
+    "id": 329,
+    "file": "collections/0329-nearest-common-folder-ancestor.js",
+    "purpose": "Find the nearest shared ancestor of two folder records.",
+    "features": [
+      "Map",
+      "Set",
+      "while loop"
+    ]
+  },
+  {
+    "id": 330,
+    "file": "collections/0330-record-grouping-package-status.js",
+    "purpose": "Group packages by delivery status and summarize each group.",
+    "features": [
+      "reduce grouping",
+      "Object.entries",
+      "array projection"
+    ]
+  },
+  {
+    "id": 331,
+    "file": "collections/0331-identity-grouping-shared-owner.js",
+    "purpose": "Group documents by owner object identity and summarize sizes.",
+    "features": [
+      "Map",
+      "object identity",
+      "reduce"
+    ]
+  },
+  {
+    "id": 332,
+    "file": "collections/0332-permission-set-algebra.js",
+    "purpose": "Combine permission grants and constraints using standard set operations.",
+    "features": [
+      "Set spread",
+      "filter intersection",
+      "every disjointness"
+    ]
+  },
+  {
+    "id": 333,
+    "file": "collections/0333-parse-ledger-memo-allocations.js",
+    "purpose": "Parse memo allocations into account totals and reject malformed entries.",
+    "features": [
+      "string split",
+      "Number.isFinite",
+      "Map"
+    ]
+  },
+  {
+    "id": 334,
+    "file": "collections/0334-json-redact-private-fields.js",
+    "purpose": "Serialize records while redacting private fields and transforming tags.",
+    "features": [
+      "JSON replacer",
+      "Array.isArray",
+      "string join"
+    ]
+  },
+  {
+    "id": 335,
+    "file": "collections/0335-json-revive-ledger-numbers.js",
+    "purpose": "Convert amount strings during JSON parsing and discard internal fields.",
+    "features": [
+      "JSON reviver",
+      "Number conversion",
+      "reduce"
+    ]
+  },
+  {
+    "id": 336,
+    "file": "collections/0336-frozen-record-functional-update.js",
+    "purpose": "Update frozen records through copied records and report frozen state.",
+    "features": [
+      "Object.freeze",
+      "object spread",
+      "map"
+    ]
+  },
+  {
+    "id": 337,
+    "file": "collections/0337-enumerability-record-projection.js",
+    "purpose": "Project enumerable fields while inspecting hidden field descriptors.",
+    "features": [
+      "Object.defineProperty",
+      "Object.keys",
+      "property descriptors"
+    ]
+  },
+  {
+    "id": 338,
+    "file": "collections/0338-weakmap-private-record-metadata.js",
+    "purpose": "Attach private review metadata to record identities without visible fields.",
+    "features": [
+      "WeakMap",
+      "object identity",
+      "filter"
+    ]
+  },
+  {
+    "id": 339,
+    "file": "collections/0339-heap-priority-dispatch.js",
+    "purpose": "Maintain a min heap of task priorities and dispatch in ascending order.",
+    "features": [
+      "heap array",
+      "while loops",
+      "destructuring swap"
+    ]
+  },
+  {
+    "id": 340,
+    "file": "collections/0340-convolve-delivery-distributions.js",
+    "purpose": "Combine bounded delivery delay distributions by polynomial convolution.",
+    "features": [
+      "Array.fill",
+      "nested loops",
+      "reduce"
+    ]
+  }
+]

@@ -15,6 +15,7 @@ const github = 'https://github.com/40oleg/nona/blob/main/';
 /** Repository file → generated file name. */
 const sources = {
   'docs/host-apis.md': 'host-apis.md',
+  'docs/native-platforms.md': 'native-platforms.md',
   'docs/process.md': 'process.md',
   'docs/fs.md': 'fs.md',
   'docs/network.md': 'network.md',
@@ -28,6 +29,7 @@ const sources = {
 /** Repository file → site page (without base and .html). */
 const pages = {
   'docs/host-apis.md': '/reference/host-apis',
+  'docs/native-platforms.md': '/reference/native-platforms',
   'docs/process.md': '/reference/process',
   'docs/fs.md': '/reference/fs',
   'docs/network.md': '/reference/network',

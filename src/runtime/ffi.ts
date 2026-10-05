@@ -1,3 +1,4 @@
+import {currentNativeTarget} from '../backend/machine/context.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
@@ -44,7 +45,7 @@ export function emitFfi(declarations:FfiDeclaration[],options:{prefix?:string;su
       imported.add(symbol);b.bundle.imports.push({dll:declaration.dll,name:declaration.name,symbol});
       if(declaration.dll==='syscall'){
         if(signature.parameters.length>6)throw new Error('System calls take at most six arguments');
-        syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
+        if(currentNativeTarget()==='win32-arm64')b.fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));else syscallStub(b,'linux.'+symbol+'.code',Number(declaration.name));
       }else if(prefix!=='ffi')b.fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));
     }
     const base=prefix+'.'+index;
@@ -57,14 +58,16 @@ export function emitFfi(declarations:FfiDeclaration[],options:{prefix?:string;su
   return b;
 }
 
-/** Linux system call with Win64 arguments (the ELF linker binds the import cell to it). */
+/** Target kernel call with logical Win64 arguments and negative errno results. */
 function syscallStub(b:RuntimeBuilder,name:string,number:number):void {
+  const target=currentNativeTarget(),darwin=target?.startsWith('darwin-'),carryError=darwin||target?.startsWith('freebsd-')||target?.startsWith('openbsd-');
   b.fn(name,56,a=>{
     a.store(slot(40),'rsi');a.store(slot(48),'rdi');
     a.mov('rdi','rcx');a.mov('rsi','rdx');a.mov('rdx','r8');a.mov('r10','r9');
     // Arguments 5 and 6 above the return address and the caller's shadow space.
     a.load('r8',slot(56+40));a.load('r9',slot(56+48));
-    a.mov('rax',number);a.emit([0x0f,0x05]);
+    a.syscall(darwin?0x2000000+number:number);
+    if(carryError){const done=a.unique('syscallDone');a.jcc('ae',done);a.neg('rax');a.label(done);}
     a.load('rsi',slot(40));a.load('rdi',slot(48));
   });
 }
@@ -144,7 +147,7 @@ function thunk(b:RuntimeBuilder,name:string,symbol:string,parameters:FfiType[],r
       const type=parameters[i]!;
       if(type==='f32'||type==='f64')a.movsd(xmm[i]!,slot(ARGS+8*i));else a.load(gp[i]!,slot(ARGS+8*i));
     }
-    a.callImport(symbol);
+    a.callImport(symbol,parameters.map(type=>type==='f32'||type==='f64'?type:'gp'));
     a.store(slot(RESULT),'rax');a.storesd(slot(RESULT_XMM),'xmm0');
     a.callImport('GetLastError');a.store({rip:'rt.ffiLastError'},'rax',32);
     parameters.forEach((type,i)=>{

@@ -17,6 +17,19 @@ const examples = [
   {id: 'message-box', title: 'Message box (Windows GUI)', source: messageBox, module: true, target: 'win32-x64', gui: true},
 ];
 
+const targets = [
+  {id: 'win32-x64', label: 'Windows x64 (.exe)'},
+  {id: 'win32-arm64', label: 'Windows ARM64 (.exe)'},
+  {id: 'linux-x64', label: 'Linux x64'},
+  {id: 'linux-arm64', label: 'Linux ARM64'},
+  {id: 'darwin-x64', label: 'macOS x64'},
+  {id: 'darwin-arm64', label: 'macOS ARM64'},
+  {id: 'freebsd-x64', label: 'FreeBSD x64'},
+  {id: 'openbsd-x64', label: 'OpenBSD x64'},
+];
+const targetIds = new Set(targets.map(({id}) => id));
+const validTarget = value => targetIds.has(value) ? value : 'win32-x64';
+
 const storageKey = 'nona-playground';
 const {isDark} = useData();
 const editorElement = ref();
@@ -30,8 +43,8 @@ const state = ref('loading'); // loading | ready | compiling
 const result = ref(null);     // {ok, ms, size, url, file} | {ok: false, diagnostics | error}
 const copied = ref(false);
 
-let worker, themeCompartment, oneDark, nextId = 0;
-const fileName = computed(() => (name.value.trim() || 'app') + (target.value === 'win32-x64' ? '.exe' : ''));
+let worker, themeCompartment, oneDark, nextId = 0, pendingBuild;
+const fileName = computed(() => (name.value.trim() || 'app') + (target.value.startsWith('win32-') ? '.exe' : ''));
 
 function source() {
   return view.value?.state.doc.toString() ?? '';
@@ -84,7 +97,7 @@ async function initialState() {
   const params = new URLSearchParams(location.hash.slice(1));
   if (params.has('code')) {
     try {
-      return {source: await decode(params.get('code')), target: params.get('target') === 'linux-x64' ? 'linux-x64' : 'win32-x64', module: params.has('module'), gui: params.has('gui'), example: ''};
+      return {source: await decode(params.get('code')), target: validTarget(params.get('target')), module: params.has('module'), gui: params.has('gui'), example: ''};
     } catch {}
   }
   try {
@@ -122,12 +135,13 @@ function build() {
   result.value = null;
   state.value = 'compiling';
   const isModule = module.value;
+  pendingBuild = {target: target.value, file: fileName.value};
   worker.postMessage({
     id: ++nextId,
     source: source(),
     options: {
       fileName: isModule ? '/app.mjs' : '/app.js',
-      target: target.value,
+      target: pendingBuild.target,
       module: isModule,
       ...(target.value === 'win32-x64' && gui.value ? {subsystem: 'windows'} : {}),
     },
@@ -140,7 +154,7 @@ function onMessage({data}) {
   state.value = 'ready';
   if (data.ok) {
     const blob = new Blob([data.image], {type: 'application/octet-stream'});
-    result.value = {ok: true, ms: data.ms, size: data.image.byteLength, url: URL.createObjectURL(blob), file: fileName.value, target: target.value};
+    result.value = {ok: true, ms: data.ms, size: data.image.byteLength, url: URL.createObjectURL(blob), ...pendingBuild};
     download();
   } else {
     result.value = {ok: false, diagnostics: (data.diagnostics ?? []).map(d => ({...d, ...lineColumn(d.start)})), error: data.error};
@@ -165,7 +179,7 @@ onMounted(async () => {
   oneDark = theme.oneDark;
   themeCompartment = new Compartment();
   const initial = await initialState();
-  target.value = initial.target ?? 'win32-x64';
+  target.value = validTarget(initial.target);
   module.value = !!initial.module;
   gui.value = !!initial.gui;
   name.value = initial.name || 'app';
@@ -210,8 +224,7 @@ const seconds = ms => ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1
       <label>
         <span>Target</span>
         <select v-model="target">
-          <option value="win32-x64">Windows x64 (.exe)</option>
-          <option value="linux-x64">Linux x64</option>
+          <option v-for="item in targets" :key="item.id" :value="item.id">{{ item.label }}</option>
         </select>
       </label>
       <label>
@@ -246,8 +259,8 @@ const seconds = ms => ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1
     <div v-if="result?.ok" class="result ok">
       Compiled in {{ seconds(result.ms) }} · {{ result.file }}, {{ megabytes(result.size) }} ·
       <a href="#" @click.prevent="download">download again</a>
-      <div v-if="result.target === 'linux-x64'" class="note">Run it with <code>chmod +x {{ result.file }} &amp;&amp; ./{{ result.file }}</code>.</div>
-      <div v-else class="note">Windows SmartScreen may warn about an unsigned program downloaded from the internet: choose <b>More info → Run anyway</b>. Run console programs from a terminal to see their output.</div>
+      <div v-if="result.target.startsWith('win32-')" class="note">Run console programs from a terminal to see their output. Windows may block unsigned downloads; follow your device's security policy.</div>
+      <div v-else class="note">On the matching OS and CPU, run <code>chmod +x {{ result.file }} &amp;&amp; ./{{ result.file }}</code>.</div>
     </div>
     <div v-else-if="result" class="result error">
       <template v-if="result.diagnostics?.length">

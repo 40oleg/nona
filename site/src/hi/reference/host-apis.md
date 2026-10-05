@@ -23,3 +23,8 @@ Nona प्रोग्राम Node.js के बिना चलते है
 - कलेक्टर कमिट किए गए coroutine स्टैक (हर चल रहे async फ़ंक्शन या जनरेटर के लिए 1 MiB, `rt.generatorStackBytes`) को अपनी सीमा में गिनता है, इसलिए छोड़े गए coroutine, जिनके स्टैक केवल sweep ही मुक्त करता है, सामान्य कचरे की तरह कलेक्शन शुरू करते हैं।
 - `tests/stability.test.ts` जाँचता है कि दस गुना अधिक टाइमर फ़ायरिंग (हर टिक में promise जॉब और कचरे के साथ) पीक मेमोरी नहीं बढ़ाती, कि हज़ारों छोड़े गए coroutine मुक्त हो जाते हैं, और कि दो सेकंड के टाइमर का इंतज़ार करने वाला प्रोग्राम लगभग कोई CPU उपयोग नहीं करता।
 - ज्ञात सीमाएँ: प्रॉपर्टी, एलिमेंट और Map स्टोरेज रैखिक (linear) है (#36), इसलिए सैकड़ों जीवित टाइमर या बड़े ऑब्जेक्ट वाले प्रोग्राम धीमे हो जाते हैं; Linux पर हर हीप ब्लॉक एक अलग मेमोरी मैपिंग है (#37)।
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

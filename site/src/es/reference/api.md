@@ -27,7 +27,7 @@ Compila un texto fuente y devuelve `CompileResult`. No escribe archivos.
 | Opción | Tipo | Descripción |
 | --- | --- | --- |
 | `fileName` | `string` | Nombre usado en los diagnósticos; en los módulos, también la ruta respecto a la cual se resuelven las importaciones relativas. Obligatoria. |
-| `target` | `'win32-x64' \| 'linux-x64'` | Formato de salida. Obligatoria. |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | Compilar como módulo ES. |
 | `subsystem` | `'console' \| 'windows'` | Subsistema PE (solo `win32-x64`). |
 | `icon` | `Uint8Array` | Contenido de un archivo `.ico` (solo `win32-x64`). |
@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 Las rutas son cadenas canónicas separadas por `/` que elige el host. El host predeterminado resuelve los especificadores relativos junto al archivo que los referencia y lee los archivos del disco. `candidates` enumera los módulos que puede nombrar un `import()` calculado, para que se compilen dentro del programa. Los módulos integrados `nona:*` y `node:*` se resuelven antes de consultar al host.
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

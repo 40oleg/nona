@@ -80,7 +80,7 @@ export function exit(code) { return process.exit(code); }
 export function cwd() { return process.cwd(); }
 `;
 
-type Target='win32-x64'|'linux-x64';
+import type {Target} from '../target.js';
 /** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
 function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
 const sources=new Map<string,(target:Target)=>string>([

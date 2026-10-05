@@ -1,3 +1,4 @@
+import {requireHostTarget} from '../src/target.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chmodSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
@@ -11,7 +12,7 @@ import {preludeSet} from '../src/runtime/link.js';
 // The compiler links the RegExp engine, its Unicode property tables and the
 // normalization tables only when the program's sources can reach them (#62).
 
-function image(source:string,options:Partial<CompileOptions>={},target:Target=hostTarget):Uint8Array {
+function image(source:string,options:Partial<CompileOptions>={},target:Target=hostTarget??requireHostTarget()):Uint8Array {
  const result=compile(source,{fileName:options.module?'/app.mjs':'/app.js',target,...options});
  assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
  return result.image;

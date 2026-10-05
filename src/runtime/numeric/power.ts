@@ -1,5 +1,7 @@
 import type {RuntimeBundle} from '../abi.js';
 import {Native} from './native.js';
+import {currentNativeTarget} from '../../backend/machine/context.js';
+import {getTarget} from '../../target.js';
 
 const SIGN=0x8000000000000000n;
 const ABS=0x7fffffffffffffffn;
@@ -82,12 +84,24 @@ export function emitPower(bundle:RuntimeBundle):void {
  a.label('pow.core');
  // Store |x| and y in the low scratch slots used by the x87 sequence.
  a.store({base:'rsp',disp:96},'r14');a.store({base:'rsp',disp:104},'r13');
+ if(getTarget(currentNativeTarget()??'')?.arch==='arm64'){
+   const logarithmic=a.unique('powLogarithmic'),integer=a.unique('powInteger'),positive=a.unique('powPositive'),skip=a.unique('powSkipMultiply'),finish=a.unique('powComputed');
+   a.test('rbx','rbx');a.jcc('e',logarithmic);a.movqToXmm('xmm1','r15');a.cvttsd2si('r10','xmm1');
+   a.cmp('r10',65536);a.jcc('ae',logarithmic);a.test('r10','r10');a.jcc('le',logarithmic);
+   a.movqToXmm('xmm1','r14');a.mov('rax',ONE);a.movqToXmm('xmm0','rax');
+   a.test('r13','r13');a.jcc('ns',positive);a.divsd('xmm0','xmm1');a.movsd('xmm1','xmm0');a.movqToXmm('xmm0','rax');
+   a.label(positive);a.label(integer);a.mov('r11','r10');a.and('r11',1);a.test('r11','r11');a.jcc('e',skip);a.mulsd('xmm0','xmm1');
+   a.label(skip);a.shr('r10',1);a.test('r10','r10');a.jcc('e',finish);a.mulsd('xmm1','xmm1');a.jmp(integer);
+   a.label(logarithmic);a.movsd('xmm0',{base:'rsp',disp:96});a.call('rt.armMath.log');a.mulsd('xmm0',{base:'rsp',disp:104});a.call('rt.armMath.exp');a.label(finish);a.movqFromXmm('rax','xmm0');
+ }else {
  // fld y; fld |x|; fyl2x => y*log2(|x|)
  a.emit([0xdd,0x44,0x24,104,0xdd,0x44,0x24,96,0xd9,0xf1]);
  // Split at the nearest integer, calculate 2^fraction, then scale by 2^integer.
  a.emit([0xd9,0xc0,0xd9,0xfc,0xd9,0xc9,0xd8,0xe1,0xd9,0xf0,0xd9,0xe8,0xde,0xc1,0xd9,0xfd,0xdd,0xd9]);
  // fstp qword [rsp+112]
- a.emit([0xdd,0x5c,0x24,112]);a.load('rax',{base:'rsp',disp:112});a.xor('rax','rsi');a.movqToXmm('xmm0','rax');a.jmp(done);
+ a.emit([0xdd,0x5c,0x24,112]);a.load('rax',{base:'rsp',disp:112});
+ }
+ a.xor('rax','rsi');a.movqToXmm('xmm0','rax');a.jmp(done);
 
  a.label('pow.original');from('r12');
  a.label('pow.one');answer(ONE);

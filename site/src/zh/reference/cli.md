@@ -3,8 +3,8 @@
 ## 概要
 
 ```text
-Nona 0.7.0 — JavaScript subset to native Windows/Linux x64
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+Nona 0.8.0 — JavaScript subset to native executables
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -18,7 +18,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--modul
 | 选项 | 值 | 说明 |
 | --- | --- | --- |
 | `-o` | 路径 | 输出文件。必填。缺失的目录会被创建。 |
-| `--target` | `win32-x64`（默认）、`linux-x64` | 输出格式：Windows 的 PE32+ 或 Linux 的 ELF64。 |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。 |
 | `--subsystem` | `console`（默认）、`windows` | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。 |
 | `--icon` | `.ico` 文件 | 嵌入图标文件中的所有图像。仅限 `win32-x64`。 |
@@ -82,3 +82,8 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

@@ -1,0 +1,10 @@
+const a = {id:1};
+const b = {id:1};
+const visits = new Map([[a,2],[b,5]]);
+visits.set(a,visits.get(a)+1);
+const unique = new Set([a,b,a]);
+const totals = Array.from(visits.values());
+const byId = Array.from(unique).map(object => object.id);
+const sameShape = a.id===b.id;
+const sameIdentity = a===b;
+console.log(JSON.stringify({totals,byId,sameShape,sameIdentity}));

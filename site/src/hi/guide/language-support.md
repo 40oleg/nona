@@ -1,6 +1,6 @@
 # भाषा समर्थन
 
-Nona दस्तावेज़ित अपवादों के साथ ECMA-262 के 11वें संस्करण (ES2020) को लक्ष्य करता है। यह पेज बताता है कि **v0.7.0** में क्या समर्थित है; आँकड़े [Test262](/hi/reference/test262) पेज पर बताए गए पिन किए गए Test262 रिविज़न से आते हैं।
+Nona दस्तावेज़ित अपवादों के साथ ECMA-262 के 11वें संस्करण (ES2020) को लक्ष्य करता है। यह पेज बताता है कि **v0.8.0** में क्या समर्थित है; आँकड़े [Test262](/hi/reference/test262) पेज पर बताए गए पिन किए गए Test262 रिविज़न से आते हैं।
 
 **समर्थित** का अर्थ है: लागू है और "टिप्पणियाँ" कॉलम में बताई गई सीमाओं के भीतर यूनिट टेस्ट और Test262 से कवर है। टेस्ट के नामों के साथ हर फ़ीचर की विस्तृत तालिका [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (रूसी में) में रखी गई है।
 
@@ -54,9 +54,11 @@ Windows x64 पर पिन किए गए Test262 का पूरा रन
 
 | डायरेक्टरी | पास / लागू | बचे फ़ेल्योर |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 नई सिमैंटिक्स, 3 अन्य |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 नई सिमैंटिक्स, 38 अन्य |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 नई सिमैंटिक्स, 11 अन्य |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 नई सिमैंटिक्स, 37 अन्य |
 | `built-ins/Atomics` (एजेंट) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 "`eval`" फ़ेल्योर रनटाइम पर बना सोर्स टेक्स्ट, `$262.evalScript` या दूसरे realm इस्तेमाल करते हैं; "नई सिमैंटिक्स" वाले टेस्ट पुराने या ग़ायब फ़ीचर टैग के तहत बाद के संस्करणों का व्यवहार जाँचते हैं। [स्थिति पेज](/hi/guide/status) पर बचे फ़ेल्योर की सूची है।
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

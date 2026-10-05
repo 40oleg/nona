@@ -49,3 +49,9 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 - Цели: только Windows 10/11 x64 и Linux x86-64.
 - Исполняемые файлы Windows импортируют только `KERNEL32.dll`, `KERNELBASE.dll` и DLL, объявленные через FFI; исполняемые файлы Linux статические и используют системные вызовы напрямую.
 - FFI к DLL есть только на Windows; прямые системные вызовы — только на Linux.
+
+## Нативные платформы
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.

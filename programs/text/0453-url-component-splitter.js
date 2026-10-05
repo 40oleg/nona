@@ -1,0 +1,10 @@
+const url = 'https://user@example.test:8443/a/b?q=1#part';
+const schemeEnd = url.indexOf('://');
+const rest = url.slice(schemeEnd + 3);
+const pathStart = rest.indexOf('/');
+const authority = rest.slice(0, pathStart);
+const tail = rest.slice(pathStart);
+const hash = tail.indexOf('#'), question = tail.indexOf('?');
+const hostPort = authority.slice(authority.lastIndexOf('@') + 1).split(':');
+const result = { scheme: url.slice(0, schemeEnd), user: authority.slice(0, authority.indexOf('@')), host: hostPort[0], port: Number(hostPort[1]), path: tail.slice(0, question), query: tail.slice(question + 1, hash), fragment: tail.slice(hash + 1) };
+console.log(JSON.stringify(result));

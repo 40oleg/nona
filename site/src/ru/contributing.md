@@ -62,3 +62,5 @@ npm run check:samples      # compiles every program in site/samples
 ## Автоматические участники
 
 Правила для агентов — захват issues меткой `blocked`, авторство коммитов и чек-лист pull request — описаны в [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md).
+
+The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.

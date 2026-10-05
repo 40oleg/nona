@@ -22,7 +22,7 @@ Nona programs run without Node.js. The host APIs below are part of the compiler:
 - Globals are available in scripts and modules.
 - Built-in modules can be imported from module code (`.mjs` or `--module`) and with literal `import()` from scripts. FFI declarations (`define`) must be in module code.
 - Among the `node:` modules there are `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` and `node:string_decoder`; they are Nona implementations of Node.js subsets, not the Node.js code. `node:path` and `require` are not available; the global `Buffer` exists once `node:buffer`, `node:net` or `node:http` is imported.
-- `nona:win32` and DLL declarations compile only for `win32-x64`; system call declarations only for `linux-x64`.
+- `nona:win32` and DLL declarations require Windows x64 or ARM64; system call declarations use the selected Linux, Darwin or BSD kernel.
 
 ## `nona:win32`
 
@@ -82,3 +82,8 @@ Ready-made declarations built on [`nona:ffi`](/reference/ffi). Every function is
 | `readHandle(buffer)` | Reads a handle (for example an `HKEY`) that a function wrote into an 8-byte buffer. |
 
 For functions that are not listed, declare them yourself with `define` from [`nona:ffi`](/reference/ffi).
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

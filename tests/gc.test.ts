@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {createAssembler} from '../src/backend/machine/context.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 import {linkHost} from './helpers/program.js';
 import {emitRuntime} from '../src/runtime/index.js';
@@ -13,7 +14,7 @@ import {runOracle} from './helpers/oracle.js';
 import {expectProgram} from './helpers/program.js';
 
 function native(body:(a:Assembler)=>void):void {
- const r=emitRuntime(),a=new Assembler('entry');
+ const r=emitRuntime(),a=createAssembler('entry');a.initializeStack();
  a.sub('rsp',104);const prologSize=a.offset;a.call('rt.init');
  a.lea('rax',{rip:'test.roots'});a.store({rip:'rt.gcGlobals'},'rax');
  a.mov('rax',2);a.store({rip:'rt.gcGlobalCount'},'rax');
@@ -88,7 +89,7 @@ for(const [name,source,requireCollection] of [
  const program=generate(lower(bind(parse(lex(source)))));
  // Observe native counters after js.main, before the ordinary shutdown path.
  // This test-only wrapper does not add a JavaScript-visible GC builtin.
- const a=new Assembler('test.afterMain');a.sub('rsp',40);const prologSize=a.offset;
+ const a=createAssembler('test.afterMain');a.sub('rsp',40);const prologSize=a.offset;
  if(requireCollection){a.load('rax',{rip:'rt.gcCount'});a.test('rax','rax');a.jcc('e','test.afterMain.fail');}
  a.load('rax',{rip:'rt.gcRoots'});a.test('rax','rax');a.jcc('ne','test.afterMain.fail');
  // The pressure program now legitimately retains its declared function in the

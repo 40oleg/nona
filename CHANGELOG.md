@@ -3,36 +3,81 @@
 ## Unreleased
 
 - `node:http` runs on Nona's own HTTP/1.1 server and client: request heads are parsed and responses encoded by native code, per-request work Node.js defers is batched, and the runtime got general speedups the server exposed (inline caches for `.length`, `super.name` and global names, cheaper `Object.keys`, `push`/`pop`, `%`, default derived constructors and `JSON.stringify`, size classes that fit 16 KiB buffers, a cheaper mark phase and lazy sweeping). On the HTTP benchmark Nona is level with Node.js on small requests, 1.8 times faster on 64 KiB responses, 10–20% behind on request bodies and uses a fifth of the memory ([#115](https://github.com/40oleg/nona/issues/115)). See [PERFORMANCE.md](PERFORMANCE.md#http-server).
-- Own property lookups compare key records by identity and length before their characters, and `object.name` reads keep the key's hash in their inline cache instead of rehashing it: acorn parses 11% and marked renders 8% faster ([#112](https://github.com/40oleg/nona/issues/112)).
 - Added `node:http` (HTTP/1.1 servers, clients and keep-alive agents) and `node:net` (TCP sockets and servers) on Linux and Windows, with `node:events`, `node:buffer` (and the global `Buffer`) and `node:string_decoder`; the event loop waits for socket readiness while sockets are open ([#70](https://github.com/40oleg/nona/issues/70)). See [networking](docs/network.md).
-- Added marked to the real-world benchmark corpus (`bench/real/marked.mjs`): it renders a 200-section Markdown document ([#110](https://github.com/40oleg/nona/issues/110)).
-- A regular expression whose every alternative starts with `^` (without the `m` flag) is only tried at the start of the input, so a failing search no longer scans the whole string; marked, whose lexer runs such patterns against the rest of the document, renders 20 times faster ([#107](https://github.com/40oleg/nona/issues/107)).
-- Added the ES2022 class elements: public and private instance and static fields, private methods and accessors, static initialization blocks and `#x in obj`. Fields are defined (not assigned) when the instance is initialized, at the start of a base constructor or when `super()` returns; private names are checked at compile time and create new names each time the class is evaluated ([#106](https://github.com/40oleg/nona/issues/106)).
-- Added a real-world benchmark corpus: `node bench/real/fetch.mjs` downloads pinned libraries from npm and `node bench/run.mjs --real` runs them on Nona and the installed runtimes; it starts with acorn parsing its own source, 14 times slower than Node.js on the first parse ([#104](https://github.com/40oleg/nona/issues/104)). See [PERFORMANCE.md](PERFORMANCE.md#real-world-code).
-- The collector marks strings and other reference-free blocks without queueing them for tracing, and in GC stress mode fills freed cells with a poison pattern so a missing root fails at once instead of when the cell is reused ([#67](https://github.com/40oleg/nona/issues/67)).
-- Added call-statistics builds: `--call-stats` (`compile({callStats: true})`) counts every call the program and its runtime make and prints the counts to stderr when the program ends, most frequent first ([#90](https://github.com/40oleg/nona/issues/90)).
-- Added coverage builds: `--coverage <dir>` (`compile({coverage: {directory, url}})`) makes the program write per-function call counts in the `NODE_V8_COVERAGE` format when it ends, for `c8 report` ([#100](https://github.com/40oleg/nona/issues/100)).
-- Added the [roadmap](docs/roadmap.md) from a review of the V8 blog, with the planned target architectures ([#64](https://github.com/40oleg/nona/issues/64)).
-- Native test runs retry removing their temporary directory and no longer fail when Windows keeps a just-exited executable locked ([#78](https://github.com/40oleg/nona/issues/78)).
-- Made spread, array destructuring and array rest step built-in array iterators directly and append elements to the dense element store: `[...a]` and `const [x, ...rest] = a` are 5–8 times faster ([#65](https://github.com/40oleg/nona/issues/65)).
-- Fixed RegExp literals whose group names contain non-ASCII characters or escapes (`/(?<𝒜>b)/u`): such a program now links the identifier tables the name check needs instead of failing at run time ([#80](https://github.com/40oleg/nona/issues/80)).
-- Fixed errors in imported modules being reported against the entry file, which could also crash the command line with "Source offset … is outside the source text" ([#102](https://github.com/40oleg/nona/issues/102)).
-- Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
-- Seeded the string and number hashes of the property index and of Map, Set, WeakMap and WeakSet per process, so colliding keys cannot be prepared in advance (hash flooding) ([#66](https://github.com/40oleg/nona/issues/66)).
-- Made `JSON.stringify` 3.2 times and `JSON.parse` 2.7 times faster on a 30 MB document: strings are quoted and integers written straight into the output, array elements are read and written with number keys, and `JSON.parse` shares repeated keys and converts short decimals exactly without going through their text ([#88](https://github.com/40oleg/nona/issues/88)).
-- Published the performance comparison with Node.js, Deno and Bun on the documentation site, with startup time, executable size and memory on the home page ([#55](https://github.com/40oleg/nona/issues/55)).
-- Replaced the recursive continuation-passing RegExp matcher with a backtracking interpreter: a pattern is translated once into a small instruction program that runs on explicit stacks, so long inputs no longer exhaust the stack and the 500 000-step backtracking limit (which made `/abc(\d{3})-/g` fail on a 1.6 MB string) is gone. A match call is 3–9 times cheaper ([#14](https://github.com/40oleg/nona/issues/14)).
-- A regular expression without backreferences or lookarounds that backtracks excessively is finished by a linear-time engine (a Pike VM) with the same result: `/(a+)+b/` on 28 `a`s takes milliseconds instead of minutes ([#98](https://github.com/40oleg/nona/issues/98)).
-- Reused released coroutine stacks instead of mapping a fresh megabyte for every async call and generator, and created an async function's continuations only when it awaits: a loop of awaited async calls is 1.6 times faster ([#68](https://github.com/40oleg/nona/issues/68)).
-- Fixed `super.x` and `super.x = v` with a Proxy in the prototype chain: they go through its `get` and `set` traps with the original receiver, as `base.[[Get]]`/`[[Set]]` require, instead of its `getOwnPropertyDescriptor` trap ([#91](https://github.com/40oleg/nona/issues/91)).
-- Added a playground to the documentation site: the compiler runs in the browser and produces a Windows or Linux executable to download ([#56](https://github.com/40oleg/nona/issues/56)).
-- The command line keeps the compiled runtime and preludes in a cache directory (`NONA_CACHE_DIR`, `NONA_CACHE=0` to disable), so builds after the first are about three times faster with identical output ([#86](https://github.com/40oleg/nona/issues/86)). See [Runtime cache](https://40oleg.github.io/nona/reference/cli#runtime-cache).
+- Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
+- Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).
+- Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
+
+- Fixed script functions such as `escape` and `unescape` shadowing optional built-in globals: runtime preludes initialize before script global aliases become visible ([#126](https://github.com/40oleg/nona/issues/126)).
+- Expanded the separate program corpus to 1,000 individually authored combination programs, with per-case purpose catalogs, source hashes, Node.js reference snapshots, ten native test shards and Linux/Windows CI on every push and pull request ([#125](https://github.com/40oleg/nona/issues/125)).
+
+- Added a separate corpus of ten small programs combining algorithms, closures, classes, generators, collections, typed arrays, JSON and async exception cleanup, with fixed expected results and Node.js comparisons in normal and GC-stress execution. A dedicated Linux/Windows workflow runs the corpus on every branch push and pull request ([#123](https://github.com/40oleg/nona/issues/123)).
+
+- Added native Linux/Windows/macOS ARM64, Intel macOS and FreeBSD/OpenBSD x64 backends, architecture-specific math/call bridges and native CI probes. Apple Silicon uses system dyld/libSystem; see [native platforms](docs/native-platforms.md) ([#117](https://github.com/40oleg/nona/issues/117)).
+
+## v0.8.0 — 2026-10-05
+
+Highlights since v0.7.0:
+
+- **ES2022 classes**: public and private fields, private methods and accessors, static blocks and `#x in obj`, plus a first set of ES2021–ES2023 additions (numeric separators, logical assignment, `Promise.any`, `.at()`, `Object.hasOwn`, Error `cause`, `findLast`).
+- **Faster generated code**: inline Number arithmetic, direct calls to known functions, a non-recursive RegExp engine with a linear-time fallback, and faster JSON, spread, await and property lookup.
+- **Smaller and faster builds**: preludes and the RegExp engine are linked only when used (a hello world executable is 2.2 MB instead of 7 MB), and the command line caches the compiled runtime (builds after the first are about three times faster).
+- **Tooling**: V8-format coverage (`--coverage`), call statistics (`--call-stats`), and diagnostics positioned in the imported module that caused them.
+- **Documentation site** with a browser playground, eight translations, the performance comparison and the V8-inspired roadmap; a real-world benchmark corpus (acorn, marked).
+
+### Language
+
 - Added features newer than ES2020: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `.at()` on arrays, strings and typed arrays, `findLast`/`findLastIndex`, `Object.hasOwn` and the `cause` option of error constructors ([#69](https://github.com/40oleg/nona/issues/69)).
+- Added the ES2022 class elements: public and private instance and static fields, private methods and accessors, static initialization blocks and `#x in obj`. Fields are defined (not assigned) when the instance is initialized, at the start of a base constructor or when `super()` returns; private names are checked at compile time and create new names each time the class is evaluated ([#106](https://github.com/40oleg/nona/issues/106)).
+
+### Performance
+
 - Hot loops over numbers are several times faster: the compiler drops dead-zone checks of initialized `let`/`const` bindings, forwards copies, infers which values are Numbers and emits their arithmetic, comparisons and updates inline without type checks, fuses a comparison into the branch that uses it, and skips the GC poll in blocks that cannot allocate; the smaller code also makes a hello world 2.2 MB instead of 2.4 MB ([#94](https://github.com/40oleg/nona/issues/94)).
 - Calls to function declarations known at compile time check that the callee still runs that code and call it directly instead of going through the general dispatch: a loop of calls is 1.5 times faster ([#96](https://github.com/40oleg/nona/issues/96)).
-- Translated the documentation site into Chinese, Hindi, Spanish, French, Arabic, Bengali, Portuguese and Russian ([#58](https://github.com/40oleg/nona/issues/58)).
-- Built-in libraries written in JavaScript (`Proxy`, `TextEncoder`/`TextDecoder`, `process`, timers, the ES2021 additions, Annex B `escape`/`substr`/…, the stable `sort`, `Object.freeze`/`seal` and the legacy accessor methods) are linked only when a source names them: a hello world is 2.4 MB instead of 3.2 MB ([#84](https://github.com/40oleg/nona/issues/84)).
+- Own property lookups compare key records by identity and length before their characters, and `object.name` reads keep the key's hash in their inline cache instead of rehashing it: acorn parses 11% and marked renders 8% faster ([#112](https://github.com/40oleg/nona/issues/112)).
+- A regular expression whose every alternative starts with `^` (without the `m` flag) is only tried at the start of the input, so a failing search no longer scans the whole string; marked, whose lexer runs such patterns against the rest of the document, renders 20 times faster ([#107](https://github.com/40oleg/nona/issues/107)).
+- A regular expression without backreferences or lookarounds that backtracks excessively is finished by a linear-time engine (a Pike VM) with the same result: `/(a+)+b/` on 28 `a`s takes milliseconds instead of minutes ([#98](https://github.com/40oleg/nona/issues/98)).
+- Replaced the recursive continuation-passing RegExp matcher with a backtracking interpreter: a pattern is translated once into a small instruction program that runs on explicit stacks, so long inputs no longer exhaust the stack and the 500 000-step backtracking limit (which made `/abc(\d{3})-/g` fail on a 1.6 MB string) is gone. A match call is 3–9 times cheaper ([#14](https://github.com/40oleg/nona/issues/14)).
+- Made `JSON.stringify` 3.2 times and `JSON.parse` 2.7 times faster on a 30 MB document: strings are quoted and integers written straight into the output, array elements are read and written with number keys, and `JSON.parse` shares repeated keys and converts short decimals exactly without going through their text ([#88](https://github.com/40oleg/nona/issues/88)).
+- Made spread, array destructuring and array rest step built-in array iterators directly and append elements to the dense element store: `[...a]` and `const [x, ...rest] = a` are 5–8 times faster ([#65](https://github.com/40oleg/nona/issues/65)).
+- Reused released coroutine stacks instead of mapping a fresh megabyte for every async call and generator, and created an async function's continuations only when it awaits: a loop of awaited async calls is 1.6 times faster ([#68](https://github.com/40oleg/nona/issues/68)).
+- Seeded the string and number hashes of the property index and of Map, Set, WeakMap and WeakSet per process, so colliding keys cannot be prepared in advance (hash flooding) ([#66](https://github.com/40oleg/nona/issues/66)).
+- The collector marks strings and other reference-free blocks without queueing them for tracing, and in GC stress mode fills freed cells with a poison pattern so a missing root fails at once instead of when the cell is reused ([#67](https://github.com/40oleg/nona/issues/67)).
+
+### Executable size and build time
+
 - The RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them: a hello world is 3 MB instead of 7 MB. `--full-runtime` (`compile({fullRuntime: true})`) links everything ([#62](https://github.com/40oleg/nona/issues/62)). See [linked runtime parts](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts).
+- Built-in libraries written in JavaScript (`Proxy`, `TextEncoder`/`TextDecoder`, `process`, timers, the ES2021 additions, Annex B `escape`/`substr`/…, the stable `sort`, `Object.freeze`/`seal` and the legacy accessor methods) are linked only when a source names them: a hello world is 2.4 MB instead of 3.2 MB ([#84](https://github.com/40oleg/nona/issues/84)).
+- The command line keeps the compiled runtime and preludes in a cache directory (`NONA_CACHE_DIR`, `NONA_CACHE=0` to disable), so builds after the first are about three times faster with identical output ([#86](https://github.com/40oleg/nona/issues/86)). See [Runtime cache](https://40oleg.github.io/nona/reference/cli#runtime-cache).
+
+### Fixes
+
+- Fixed `super.x` and `super.x = v` with a Proxy in the prototype chain: they go through its `get` and `set` traps with the original receiver, as `base.[[Get]]`/`[[Set]]` require, instead of its `getOwnPropertyDescriptor` trap ([#91](https://github.com/40oleg/nona/issues/91)).
+- Fixed RegExp literals whose group names contain non-ASCII characters or escapes (`/(?<𝒜>b)/u`): such a program now links the identifier tables the name check needs instead of failing at run time ([#80](https://github.com/40oleg/nona/issues/80)).
+- Fixed errors in imported modules being reported against the entry file, which could also crash the command line with "Source offset … is outside the source text" ([#102](https://github.com/40oleg/nona/issues/102)).
+- Fixed a crash when a property was looked up on an object with more than 32 own properties that also had indexed elements, such as `Math[1] = true; Array.prototype.indexOf.call(Math, true)` ([#119](https://github.com/40oleg/nona/issues/119)).
+
+### Tooling
+
+- Added coverage builds: `--coverage <dir>` (`compile({coverage: {directory, url}})`) makes the program write per-function call counts in the `NODE_V8_COVERAGE` format when it ends, for `c8 report` ([#100](https://github.com/40oleg/nona/issues/100)).
+- Added call-statistics builds: `--call-stats` (`compile({callStats: true})`) counts every call the program and its runtime make and prints the counts to stderr when the program ends, most frequent first ([#90](https://github.com/40oleg/nona/issues/90)).
+
+### Benchmarks
+
+- Added a real-world benchmark corpus: `node bench/real/fetch.mjs` downloads pinned libraries from npm and `node bench/run.mjs --real` runs them on Nona and the installed runtimes; it starts with acorn parsing its own source, 14 times slower than Node.js on the first parse ([#104](https://github.com/40oleg/nona/issues/104)). See [PERFORMANCE.md](PERFORMANCE.md#real-world-code).
+- Added marked to the real-world benchmark corpus (`bench/real/marked.mjs`): it renders a 200-section Markdown document ([#110](https://github.com/40oleg/nona/issues/110)).
+
+### Documentation
+
+- Added the documentation site on GitHub Pages: https://40oleg.github.io/nona/ ([#49](https://github.com/40oleg/nona/issues/49)).
+- Translated the documentation site into Chinese, Hindi, Spanish, French, Arabic, Bengali, Portuguese and Russian ([#58](https://github.com/40oleg/nona/issues/58)).
+- Added a playground to the documentation site: the compiler runs in the browser and produces a Windows or Linux executable to download ([#56](https://github.com/40oleg/nona/issues/56)).
+- Published the performance comparison with Node.js, Deno and Bun on the documentation site, with startup time, executable size and memory on the home page ([#55](https://github.com/40oleg/nona/issues/55)).
+- Added the [roadmap](docs/roadmap.md) from a review of the V8 blog, with the planned target architectures ([#64](https://github.com/40oleg/nona/issues/64)).
+
+### Development
+
+- Native test runs retry removing their temporary directory and no longer fail when Windows keeps a just-exited executable locked ([#78](https://github.com/40oleg/nona/issues/78)).
 
 ## v0.7.0 — 2026-10-01
 

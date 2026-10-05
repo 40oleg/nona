@@ -901,6 +901,9 @@ const sys = {
 };
 `;
 
-export function netModuleSource(target:'win32-x64'|'linux-x64'):string {
+export function netModuleSource(target:string):string {
+  // The platform layers exist for Linux x64 (system calls) and Windows x64
+  // (Winsock); other targets get a module that reports it when imported.
+  if(target!=='linux-x64'&&target!=='win32-x64')return `throw new Error(${JSON.stringify(`node:net and node:http are not available for ${target} yet`)});\nexport default undefined;\n`;
   return (target==='linux-x64'?linux:win32)+common;
 }

@@ -32,3 +32,9 @@ O Nona não passou por auditoria de segurança. Não compile código-fonte não 
 - [Primeiros passos](/pt/guide/getting-started) — compile o compilador e seu primeiro programa.
 - [Como funciona](/pt/guide/how-it-works) — o pipeline, o runtime e os linkers.
 - [Exemplos](/pt/examples/) — de um hello world a um trocador de papel de parede.
+
+## Plataformas nativas
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

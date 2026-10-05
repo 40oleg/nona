@@ -37,9 +37,10 @@ export function runNative(
   try {
     // A PE image runs on Windows; a Linux image (ELF magic) runs on Linux.
     const elf = image.length > 4 && image[0] === 0x7f && image[1] === 0x45 && image[2] === 0x4c && image[3] === 0x46;
-    const executable = join(directory, elf ? 'image' : 'image.exe');
+    const macho=image.length>4&&new DataView(image.buffer,image.byteOffset,image.byteLength).getUint32(0,true)===0xfeedfacf;
+    const executable = join(directory, elf||macho ? 'image' : 'image.exe');
     writeFileSync(executable, image);
-    if (elf) chmodSync(executable, 0o755);
+    if (elf||macho) chmodSync(executable, 0o755);
 
     const outputPath = join(directory, 'stdout.bin');
     const outputFd = redirectStdout ? openSync(outputPath, 'w') : undefined;

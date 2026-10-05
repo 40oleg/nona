@@ -25,13 +25,19 @@ const unicodePropertyEscape=/\\[pP]\{/;
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName=/(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage:SourceUsage|undefined;
+// Enumeration links every available prelude. Explicit names still request
+// unavailable host adapters, allowing the compiler to diagnose that request.
+let unavailableReflectivePreludes:readonly OptionalPrelude[]=[];
 /** Runs `run` and reports what every source lexed during it can use. */
-export function collectSourceUsage<T>(run:()=>T):{result:T;usage:SourceUsage} {
+export function collectSourceUsage<T>(run:()=>T,options:{unavailableReflectivePreludes?:readonly OptionalPrelude[]}={}):{result:T;usage:SourceUsage} {
   const outer=usage,current:SourceUsage={regexp:false,unicodeProperties:false,unicodeNormalization:false,preludes:preludeSet(false)};
+  const outerUnavailable=unavailableReflectivePreludes;
+  unavailableReflectivePreludes=options.unavailableReflectivePreludes??outerUnavailable;
   usage=current;
   try{return {result:run(),usage:current};}
   finally{
     usage=outer;
+    unavailableReflectivePreludes=outerUnavailable;
     if(outer){
       outer.regexp||=current.regexp;outer.unicodeProperties||=current.unicodeProperties;outer.unicodeNormalization||=current.unicodeNormalization;
       for(const name of optionalPreludes)outer.preludes[name]||=current.preludes[name];
@@ -49,8 +55,7 @@ const longTriggers=[...preludeByName.keys()].filter(name=>name.length>=6);
 function recordPreludeName(name:string,inString:boolean):void {
   if(!usage)return;
   if(reflectiveNames.includes(name)||inString&&reflectiveNames.some(reflective=>name.includes(reflective))){
-    for(const prelude of optionalPreludes)usage.preludes[prelude]=true;
-    return;
+    for(const prelude of optionalPreludes)if(!unavailableReflectivePreludes.includes(prelude))usage.preludes[prelude]=true;
   }
   for(const prelude of preludeByName.get(name)??[])usage.preludes[prelude]=true;
   if(inString)for(const trigger of longTriggers)if(name.includes(trigger))for(const prelude of preludeByName.get(trigger)!)usage.preludes[prelude]=true;

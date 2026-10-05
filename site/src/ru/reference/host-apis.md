@@ -23,3 +23,8 @@
 - Сборщик учитывает выделенные стеки сопрограмм (1 МиБ на каждую работающую async-функцию или генератор, `rt.generatorStackBytes`) в своём пороге, поэтому брошенные сопрограммы, стеки которых освобождает только sweep, запускают сборку так же, как обычный мусор.
 - `tests/stability.test.ts` проверяет, что в десять раз большее число срабатываний таймеров (с заданиями Promise и мусором на каждом тике) не увеличивает пиковое потребление памяти, что тысячи брошенных сопрограмм освобождаются и что программа, ждущая двухсекундного таймера, почти не тратит CPU.
 - Известные ограничения: хранилище свойств, элементов и Map линейное (#36), поэтому программы с сотнями живых таймеров или большими объектами замедляются; на Linux каждый блок кучи — отдельное отображение памяти (#37).
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

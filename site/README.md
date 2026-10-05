@@ -37,6 +37,7 @@ These pages include a document from the repository; edit the source, not the pag
 | Page | Source |
 | --- | --- |
 | `/reference/host-apis` | `docs/host-apis.md` |
+| `/reference/native-platforms` | `docs/native-platforms.md` |
 | `/reference/process` | `docs/process.md` |
 | `/reference/fs` | `docs/fs.md` |
 | `/reference/ffi` | `docs/ffi.md` |

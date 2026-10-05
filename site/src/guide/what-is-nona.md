@@ -1,6 +1,6 @@
 # What is Nona
 
-Nona is an ahead-of-time compiler for JavaScript. It reads a script or a graph of ES modules, checks it, lowers it to its own intermediate representation, generates x86-64 machine code and links a standalone executable: a PE32+ image for Windows or an ELF64 image for Linux.
+Nona is an ahead-of-time compiler for JavaScript. It reads a script or a graph of ES modules, checks it, lowers it to its own intermediate representation, generates x86-64 or AArch64 machine code and links PE32+, ELF64 or Mach-O64 output.
 
 The compiler is written in TypeScript and runs on Node.js. The programs it produces do not: they contain no interpreter, no V8 and no bytecode. A Windows executable imports only `KERNEL32.dll` (plus the DLLs a program calls through [FFI](/reference/ffi)); a Linux executable makes system calls directly and does not use libc.
 
@@ -21,7 +21,7 @@ The compiler is written in TypeScript and runs on Node.js. The programs it produ
 - **Not a full ES2020 implementation.** Nona implements ES2020 with documented exceptions; see [Language support](/guide/language-support) and [Compatibility and limitations](/guide/compatibility).
 - **No run-time code generation.** `eval` and `Function` need source text known at compile time; strings computed at run time throw `EvalError`.
 - **Not fast at computation yet.** Without a JIT, calls, property access and allocation run 20–100× slower than in V8, and `Map`/`Set`, `sort`, string building and long Promise chains are still super-linear in the data size ([Performance](/guide/performance)).
-- **Not portable beyond x86-64.** The targets are Windows 10/11 x64 and Linux x86-64.
+- **Platform limits.** See the native platform matrix below for CPU and host API availability.
 
 ## Security
 
@@ -32,3 +32,9 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 - [Getting started](/guide/getting-started) — build the compiler and your first program.
 - [How it works](/guide/how-it-works) — the pipeline, the runtime and the linkers.
 - [Examples](/examples/) — from a hello world to a wallpaper changer.
+
+## Native platforms
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

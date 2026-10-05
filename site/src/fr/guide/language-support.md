@@ -1,6 +1,6 @@
 # Prise en charge du langage
 
-Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.7.0** ; les chiffres proviennent de la révision figée de Test262 décrite sur la page [Test262](/fr/reference/test262).
+Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.8.0** ; les chiffres proviennent de la révision figée de Test262 décrite sur la page [Test262](/fr/reference/test262).
 
 **Pris en charge** signifie implémenté et couvert par des tests unitaires et par Test262, dans les limites indiquées dans la colonne Remarques. La matrice détaillée par fonctionnalité, avec les noms des tests, se trouve dans [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (en russe).
 
@@ -54,9 +54,11 @@ Exécution complète de Test262 figé sous Windows x64 (fonctionnalités d’ES2
 
 | Répertoire | Réussis / applicables | Échecs restants |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 sémantique plus récente, 3 autres |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 sémantique plus récente, 38 autres |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 sémantique plus récente, 11 autres |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 sémantique plus récente, 37 autres |
 | `built-ins/Atomics` (agents) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Les échecs « `eval` » utilisent un texte source calculé à l’exécution, `$262.evalScript` ou d’autres realms ; les tests de « sémantique plus récente » vérifient un comportement issu d’éditions ultérieures sous une étiquette de fonctionnalité ancienne ou absente. La [page d’état](/fr/guide/status) liste les échecs restants.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

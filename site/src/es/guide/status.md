@@ -2,7 +2,7 @@
 
 ## Versión actual
 
-**v0.7.0**: consulta el [registro de cambios](/changelog) (en inglés). Nona es experimental: no ha pasado una auditoría de seguridad y no sustituye directamente a Node.js.
+**v0.8.0**: consulta el [registro de cambios](/changelog) (en inglés). Nona es experimental: no ha pasado una auditoría de seguridad y no sustituye directamente a Node.js.
 
 ## Auditoría de Test262
 
@@ -10,8 +10,8 @@ Test262 fijado completo en Windows x64 (`scripts/test262-audit.ps1 -Unit`, carac
 
 | Directorio | Superadas / aplicables | Fallos restantes |
 | --- | --- | --- |
-| `language/` | **17298 / 17337** (26 omitidas) | 30 `eval`, 6 semántica más reciente, 3 otros |
-| `built-ins/` | **15491 / 15559** | 16 `eval`, 14 semántica más reciente, 38 otros |
+| `language/` | **22436 / 22492** (26 omitidas) | 44 `eval`, 1 semántica más reciente, 11 otros |
+| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 semántica más reciente, 37 otros |
 | `built-ins/Atomics` (agentes) | **268 / 268** | — |
 | `annexB/` | **996 / 1016** (8 omitidas) | 20 `eval` |
 

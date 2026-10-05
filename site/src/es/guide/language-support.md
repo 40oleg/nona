@@ -1,6 +1,6 @@
 # Soporte del lenguaje
 
-Nona apunta a la 11.ª edición de ECMA-262 (ES2020) con excepciones documentadas. Esta página resume qué está soportado en **v0.7.0**; las cifras provienen de la revisión fijada de Test262 descrita en la página de [Test262](/es/reference/test262).
+Nona apunta a la 11.ª edición de ECMA-262 (ES2020) con excepciones documentadas. Esta página resume qué está soportado en **v0.8.0**; las cifras provienen de la revisión fijada de Test262 descrita en la página de [Test262](/es/reference/test262).
 
 **Soportado** significa implementado y cubierto por pruebas unitarias y Test262 dentro de los límites indicados en la columna Notas. La matriz detallada por característica, con los nombres de las pruebas, se mantiene en [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (en ruso).
 
@@ -54,9 +54,11 @@ Ejecución completa de Test262 fijado en Windows x64 (características de ES2020
 
 | Directorio | Superadas / aplicables | Fallos restantes |
 | --- | --- | --- |
-| `language/` | 17298 / 17337 | 30 `eval`, 6 semántica más reciente, 3 otros |
-| `built-ins/` | 15491 / 15559 | 16 `eval`, 14 semántica más reciente, 38 otros |
+| `language/` | 22436 / 22492 | 44 `eval`, 1 semántica más reciente, 11 otros |
+| `built-ins/` | 15868 / 15933 | 16 `eval`, 12 semántica más reciente, 37 otros |
 | `built-ins/Atomics` (agentes) | 268 / 268 | — |
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Los fallos de tipo «`eval`» usan código fuente calculado en tiempo de ejecución, `$262.evalScript` u otros realms; las pruebas de «semántica más reciente» comprueban comportamiento de ediciones posteriores bajo una etiqueta de característica antigua o ausente. La [página de estado](/es/guide/status) enumera los fallos restantes.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

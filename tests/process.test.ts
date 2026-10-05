@@ -4,6 +4,7 @@ import {chmodSync,mkdtempSync,realpathSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {withNativeTarget} from '../src/backend/machine/context.js';
 import {compile,hostTarget} from '../src/compiler.js';
 
 /** Compile for the host target and run with arguments and environment in a temp directory. */
@@ -31,7 +32,7 @@ console.log(Object.getOwnPropertyDescriptor(globalThis, 'process').enumerable, t
  const lines=r.stdout.split('\n');
  assert.deepEqual(JSON.parse(lines[0]!),args);
  assert.equal(lines[1],'värde=1 true undefined object');
- assert.equal(lines[2],`true true ${process.platform==='win32'?'win32':'linux'} x64 true`);
+ assert.equal(lines[2],`true true ${process.platform==='win32'?'win32':'linux'} ${process.arch} true`);
  assert.equal(lines[3]!.toLowerCase(),r.directory.toLowerCase());
  assert.equal(lines[4],'false function');
 });
@@ -64,7 +65,7 @@ test('one generated program links as both PE and ELF',async()=>{
  const {linkLinux}=await import('../src/backend/linux/index.js');
  const {compileToIR}=await import('../src/compiler.js');
  const {readPe}=await import('./helpers/pe-reader.js');
- const program=generate(compileToIR('console.log(process.platform);'));
+ const program=withNativeTarget('linux-x64',()=>generate(compileToIR('console.log(process.platform);',undefined,undefined,'linux-x64')));
  const pe=readPe(linkPe(program)).imports();
  assert.ok(pe.every(name=>!name.startsWith('syscall!')));
  assert.ok(pe.some(name=>/!GetCommandLineW$/i.test(name)));

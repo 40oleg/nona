@@ -32,3 +32,9 @@ Nona 没有经过安全审计。不要编译不可信的源代码，也不要把
 - [快速开始](/zh/guide/getting-started)——构建编译器和你的第一个程序。
 - [工作原理](/zh/guide/how-it-works)——编译流水线、运行时和链接器。
 - [示例](/zh/examples/)——从 hello world 到壁纸切换器。
+
+## 原生平台
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

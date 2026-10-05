@@ -1,3 +1,4 @@
+import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,maxInlineSlots} from '../../runtime/object-layout.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
@@ -19,7 +20,7 @@ import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
-import {processPreludeSource,processHostDeclarations} from '../../runtime/process-source.js';
+import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -93,7 +94,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const linked=linkedPreludes(link);
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;
-  const baseKey=JSON.stringify({prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
+  const baseKey=JSON.stringify({target:currentNativeTarget(),prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
   // A call-statistics build counts the runtime's calls too: it is generated afresh.
   let base=options.callStats?undefined:baseImages.get(baseKey);
   if(!base&&options.baseCache&&!options.callStats){
@@ -102,14 +103,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   }
   // The prelude is lowered only when its code has to be generated.
   const lowerPrelude=():ModuleIR=>{
-    const preludeKey=JSON.stringify({rejectionPolicy,regexpLink,linked});
+    const preludeKey=JSON.stringify({target:currentNativeTarget(),rejectionPolicy,regexpLink,linked});
     let prelude=cachedRuntimePreludes.get(preludeKey);
     if(!prelude){
       const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['process',processPreludeSource],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -162,11 +163,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
     if(!options.callStats){baseImages.set(baseKey,image);options.baseCache?.set(baseKey,image);}
   }
-  for(const name of module.globalFunctionProperties??[]){
-    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
-    if(!property)throw new Error('Missing intrinsic global property '+name);
-    property.bytes[P.attributes]=A.writable|A.enumerable;
-  }
   fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
   const globalProperties=module.globalProperties??[];
   const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
@@ -184,7 +180,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const cold:(()=>void)[]=[];
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
-    const a=new Assembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
+    const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
     let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
       if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
@@ -640,7 +636,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'unary':
           if(op.operator==='isReturnMarker'){
             // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
-            a.load('rax',value(op.argument));a.cmp('rax',254);a.emit([0x0f,0x94,0xc0]);a.emit([0x48,0x0f,0xb6,0xc0]);// sete al; movzx rax,al
+            a.load('rax',value(op.argument));a.cmp('rax',254);a.setCondition('e');// sete al; movzx rax,al
             a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
           if(op.numeric&&emitKnownNumberUnary(op.dest,op.operator,op.argument))break;
@@ -731,7 +727,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   // Both targets' declarations are compiled into every image, so one program
   // can be linked as PE and ELF; each linker binds the other target's imports
   // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations('linux-x64')]:[];
+  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations(currentNativeTarget()==='linux-arm64'?'linux-arm64':'linux-x64')]:[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
@@ -774,7 +770,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // realm.createRealm(): initialize the next cloned realm and return its global.
     hostGlobal('__nonaCreateRealm','realm.createRealm.code',0);
     fragments.push({name:'realm.count',section:'.data',alignment:8,bytes:new Uint8Array(8),fixups:[],symbols:{}});
-    const a=new Assembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
+    const a=createAssembler('realm.createRealm.code'),size=88;a.sub('rsp',size);const prolog=a.offset;
     a.store(stack(72),'rcx');
     a.load('rax',{rip:'realm.count'});a.add('rax',1);a.cmp('rax',realms);failIf(a,'a','rt.throwRangeError');a.store({rip:'realm.count'},'rax');
     const done=a.unique('done');
@@ -801,7 +797,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
-  const entry=new Assembler('entry');entry.sub('rsp',72);const p=entry.offset;
+  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();entry.sub('rsp',72);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
   // GC stress: freed cells are poisoned so a missing root fails at once.
@@ -809,7 +805,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
-  entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
+  // Preludes install built-ins before script declaration aliases become visible.
+  entry.mov('rax',0);entry.store({rip:'rt.globalBindingCount'},'rax');
   for(const base of hostGlobals){
     entry.lea('rcx',{rip:'rt.globalValue'});entry.lea('rdx',{rip:base+'.keyValue'});entry.lea('r8',{rip:base+'.fnValue'});
     entry.mov('r9',A.writable|A.configurable);entry.call('rt.setProperty');
@@ -824,6 +821,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   };
   callArguments();
   if(hasPrelude){entry.call('js.regexpVm.main');callArguments();}
+  entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
   entry.call('js.main');
   if(hasPrelude)drain();
   if(options.agent){

@@ -19,13 +19,13 @@ export function emitDateComponents(b:RuntimeBuilder):void {
   a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',DateKind);failIf(a,'ne','rt.throwTypeError');
   a.movsd('xmm0',{base:'r10',disp:DateLayout.time});a.ucomisd('xmm0','xmm0');
   const invalid=a.unique('invalid'),done=a.unique('done');a.jcc('p',invalid);
-  a.cvttsd2si('rax','xmm0');a.emit([0x48,0x99]);a.mov('r10',86400000);a.idiv('r10');
+  a.cvttsd2si('rax','xmm0');a.signExtendRax();a.mov('r10',86400000);a.idiv('r10');
   const nonnegative=a.unique('nonnegative');a.test('rdx','rdx');a.jcc('ge',nonnegative);a.sub('rax',1);a.label(nonnegative);a.store(slot(48),'rax');
   // 1970-01-01 was Thursday.
-  a.add('rax',4);a.emit([0x48,0x99]);a.mov('r10',7);a.idiv('r10');a.test('rdx','rdx');const weekdayPositive=a.unique('weekdayPositive');a.jcc('ge',weekdayPositive);a.add('rdx',7);a.label(weekdayPositive);a.store(slot(128),'rdx');
+  a.add('rax',4);a.signExtendRax();a.mov('r10',7);a.idiv('r10');a.test('rdx','rdx');const weekdayPositive=a.unique('weekdayPositive');a.jcc('ge',weekdayPositive);a.add('rdx',7);a.label(weekdayPositive);a.store(slot(128),'rdx');
   // civil_from_days, inverse of days_from_civil used by Date.UTC.
   a.load('rax',slot(48));a.add('rax',719468);a.store(slot(56),'rax');
-  a.emit([0x48,0x99]);a.mov('r10',146097);a.idiv('r10');
+  a.signExtendRax();a.mov('r10',146097);a.idiv('r10');
   const eraPositive=a.unique('eraPositive');a.test('rdx','rdx');a.jcc('ge',eraPositive);a.sub('rax',1);a.add('rdx',146097);a.label(eraPositive);
   a.store(slot(64),'rax');a.store(slot(72),'rdx');
   // yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365.

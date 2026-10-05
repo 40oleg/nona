@@ -59,10 +59,6 @@ export function lower(bound:BoundProgram):ModuleIR {
     globalCount:templateCaches.next,
     functions:functions.map(optimizeFunction),
     globalProperties:bound.globals.filter(b=>!b.lexical&&!b.module).map(({name,index})=>({name,index})),
-    globalFunctionProperties:bound.declarations.flatMap(fn=>{
-      const binding=bound.bindings.get(fn.declaration.id!);
-      return binding?.kind==='globalProperty'?[binding.name]:[];
-    }),
   });
 }
 class Lowerer {
@@ -1270,7 +1266,11 @@ class Lowerer {
     const moduleBody=this.moduleIndex!==undefined&&this.moduleIndex>=0;
     if(!moduleBody)this.enterScope(this.fn?.declaration.body??this.bound.ast);
     for(const fn of moduleBody?[]:this.fn?.declarations??this.bound.declarations){
-      this.store(this.binding(fn.declaration.id!),this.closure(fn));
+      const binding=this.binding(fn.declaration.id!),source=this.closure(fn);
+      // Script declarations replace configurable host globals after the
+      // runtime prelude, with writable, enumerable, nonconfigurable data properties.
+      if(binding.kind==='globalProperty')this.emit({kind:'defineDataProperty',object:this.globalObject(),key:this.constant(binding.name),source,attributes:3});
+      else this.store(binding,source);
     }
     if(this.fn?.declaration.generator)this.emit({kind:'generatorInitialSuspend'});
     if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor){

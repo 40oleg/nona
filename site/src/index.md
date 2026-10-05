@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: JavaScript to native executables
-  tagline: An ahead-of-time compiler that turns ES2020 JavaScript into standalone Windows and Linux x64 executables. No embedded interpreter, no C toolchain.
+  tagline: An ahead-of-time compiler that turns ES2020 JavaScript into standalone Windows and Linux x64 executables. No embedded interpreter, no C toolchain. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: Get started
@@ -74,4 +74,4 @@ The executable contains the program's machine code and Nona's runtime. It does n
 
 ## Status
 
-The current release is **v0.7.0**. The pinned Test262 suite (ES2020 features) passes 17298/17337 language, 15491/15559 built-in, 268/268 Atomics and 996/1016 Annex B tests on Windows x64; every remaining failure is classified on the [status page](/guide/status). Startup, executable size and memory are Nona's strengths; computation inside a program is 20–100× slower than V8 and some operations (`Map`, `sort`, string building, long Promise chains) are still super-linear, see [Performance](/guide/performance). Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
+The current release is **v0.8.0**. The pinned Test262 suite (ES2020 features and the supported later ones) passes 22436/22492 language, 15868/15933 built-in, 268/268 Atomics and 996/1016 Annex B tests on Windows x64; every remaining failure is classified on the [status page](/guide/status). Startup, executable size and memory are Nona's strengths; computation inside a program is 20–100× slower than V8 and some operations (`Map`, `sort`, string building, long Promise chains) are still super-linear, see [Performance](/guide/performance). Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.

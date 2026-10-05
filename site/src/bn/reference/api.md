@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | অপশন | টাইপ | বিবরণ |
 | --- | --- | --- |
 | `fileName` | `string` | ডায়াগনস্টিকে ব্যবহৃত নাম; মডিউলের ক্ষেত্রে এটি সেই পাথও, যার সাপেক্ষে আপেক্ষিক ইমপোর্ট রিজলভ হয়। আবশ্যক। |
-| `target` | `'win32-x64' \| 'linux-x64'` | আউটপুট ফরম্যাট। আবশ্যক। |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | ES মডিউল হিসেবে কম্পাইল করে। |
 | `subsystem` | `'console' \| 'windows'` | PE সাবসিস্টেম (কেবল `win32-x64`)। |
 | `icon` | `Uint8Array` | একটি `.ico` ফাইলের বিষয়বস্তু (কেবল `win32-x64`)। |
@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 পাথগুলো হোস্টের বেছে নেওয়া ক্যানোনিক্যাল, `/` দিয়ে আলাদা করা স্ট্রিং। ডিফল্ট হোস্ট আপেক্ষিক স্পেসিফায়ারকে রেফারকারী ফাইলের পাশে রিজলভ করে এবং ডিস্ক থেকে ফাইল পড়ে। `candidates` সেই মডিউলগুলোর তালিকা দেয়, যাদের নাম একটি computed `import()` নিতে পারে, যাতে সেগুলো কম্পাইলে অন্তর্ভুক্ত হয়। বিল্ট-ইন `nona:*` ও `node:*` মডিউল হোস্টকে জিজ্ঞাসা করার আগেই রিজলভ হয়।
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

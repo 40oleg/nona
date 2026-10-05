@@ -62,3 +62,5 @@ npm run check:samples      # compiles every program in site/samples
 ## المساهمون الآليون
 
 قواعد الوكلاء، أي حجز الـ issues بالوسم `blocked` وتأليف الإيداعات وقائمة التحقق لطلبات السحب، موجودة في [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md).
+
+The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.

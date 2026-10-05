@@ -48,6 +48,7 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
         {text: s.api, link: `${p}/reference/api`},
         {text: s.modules, link: `${p}/reference/modules`},
         {text: s.hostApis, link: `${p}/reference/host-apis`},
+        {text: d.key === 'ru' ? 'Платформы (EN)' : 'Native platforms (EN)', link: '/reference/native-platforms'},
         {text: s.process, link: `${p}/reference/process`},
         {text: s.fs, link: `${p}/reference/fs`},
         // Not translated yet: every locale links to the English page.

@@ -15,13 +15,15 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 - FFI is available in module code (`.mjs` or `--module`). `define` must be
   called directly, with three string literals: the DLL name, the export name
   and the signature. Anything else is a compile error (`E_FFI_STATIC`).
-- DLL declarations are rejected for `--target linux-x64` (`E_FFI_TARGET`).
-- On Linux, `define('syscall', '<number>', signature)` declares a raw system
+- DLL declarations require a Windows x64 or ARM64 target (`E_FFI_TARGET`).
+- On Linux, Darwin and BSD, `define('syscall', '<number>', signature)` declares a raw system
   call (at most six integer or `buf` arguments; the result is the raw kernel
   return value, negative `errno` on failure). System call declarations are
-  rejected for `win32-x64`.
+  rejected for Windows targets. Numbers belong to the selected kernel and CPU;
+  Darwin uses the BSD syscall number without the `0x2000000` class prefix.
+  BSD/Darwin carry errors are normalized to negative `errno`.
 - `lastError()` returns `GetLastError()` captured immediately after the most
-  recent FFI call.
+  recent Windows FFI call. On other targets, inspect the syscall result.
 - A missing DLL or export makes the Windows loader refuse to start the program.
 
 ## Signatures
