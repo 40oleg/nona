@@ -12,6 +12,13 @@ import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {runtimeRegExpLink} from '../src/runtime/link.js';
 import {collectSourceUsage,lex} from '../src/frontend/lexer.js';
 
+test('Buffer captures and removes the private native hex helper',()=>{
+ let calls=0;
+ const context={__nonaRegexpVm:{},__nonaHexEncode:(bytes:Uint8Array)=>{calls++;return Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('')}};
+ assert.equal(runInNewContext(encodingPreludeSource+bufferPreludeSource+`Buffer.from([0,15,16,255]).toString('hex')`,context),'000f10ff');
+ assert.equal(calls,1);assert.equal('__nonaHexEncode' in context,false);
+});
+
 test('Buffer source links its internal RegExp dependency',()=>{
  const unused=collectSourceUsage(()=>lex('console.log("hello")')).usage;
  assert.deepEqual(runtimeRegExpLink(unused),{regexp:false,unicodeProperties:false});

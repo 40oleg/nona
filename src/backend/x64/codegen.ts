@@ -649,6 +649,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
     hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);
   }
+  if(hasPrelude&&linked.includes('buffer'))hostGlobal('__nonaHexEncode','rt.hexEncode.code',1);
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){
     hostGlobal('__nonaAgentReceiveBroadcast','rt.agentReceiveBroadcast.code',1);

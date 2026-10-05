@@ -41,6 +41,22 @@ export function emitUtf8(b:RuntimeBuilder):void {
  };
  const undefinedResult=(a:Assembler)=>{a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');};
 
+ // Private Buffer hexadecimal conversion. One allocation, then a leaf scan;
+ // no safepoint runs while raw input/output addresses are held.
+ b.fn('rt.hexEncode.code',88,a=>{
+  a.store(slot(40),'rcx');const bad=a.unique('bad'),done=a.unique('done'),loop=a.unique('loop'),end=a.unique('end');
+  a.cmp('rdx',1);a.jcc('b',bad);a.mov('rdx','r8');bytesOf(a,bad);
+  a.mov('rax',2147483647);a.cmp('r10','rax');a.jcc('a',bad);
+  a.store(slot(48),'r9');a.store(slot(56),'r10');
+  a.mov('rcx','r10');a.shl('rcx',2);a.add('rcx',8);a.call('rt.allocRaw');a.store(slot(64),'rax');
+  a.load('r10',slot(56));a.mov('rdx','r10');a.shl('rdx',1);a.store({base:'rax'},'rdx');
+  a.lea('r9',{base:'rax',disp:8});a.load('r8',slot(48));a.mov('rcx',0);
+  const digit=(reg:'rax'|'rdx')=>{const letter=a.unique('letter'),ready=a.unique('ready');a.cmp(reg,10);a.jcc('ae',letter);a.add(reg,48);a.jmp(ready);a.label(letter);a.add(reg,87);a.label(ready);};
+  a.label(loop);a.cmp('rcx','r10');a.jcc('ae',end);a.load('rax',{base:'r8'},8);a.mov('rdx','rax');a.shr('rax',4);a.and('rdx',15);digit('rax');digit('rdx');a.store({base:'r9'},'rax',16);a.store({base:'r9',disp:2},'rdx',16);a.add('r8',1);a.add('r9',4);a.add('rcx',1);a.jmp(loop);
+  a.label(end);a.load('rcx',slot(40));a.mov('rax',4);a.store({base:'rcx'},'rax');a.load('rax',slot(64));a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+  a.label(bad);undefinedResult(a);a.label(done);
+ });
+
  b.fn('rt.utf8Encode.code',120,a=>{
   // slot 48 units pointer, 56 unit count, 64 destination or 0, 72 byte count.
   a.store(slot(40),'rcx');const bad=a.unique('bad'),done=a.unique('done'),count=a.unique('countOnly');

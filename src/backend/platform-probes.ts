@@ -16,9 +16,6 @@ import {linkBsd} from './bsd/index.js';
 import {withNativeTarget} from './machine/context.js';
 
 export const loaderProbeOutput='hello\n';
-// Temporary enforced phase probe: isolate bulk byte construction from decoding.
-const bufferBulkSource='console.log("bulk start");let b=Buffer.alloc(4096,65);console.log("buffer allocation",b.length,b[4095]);let out=new Uint8Array(8192),digits=[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102];console.log("byte allocation",out.length);let count=b.length;for(let i=0;i<count;i++){let c=b[i];out[i*2]=digits[c>>4];out[i*2+1]=digits[c&15];if((i+1)%1024===0)console.log("byte writes",i+1)}console.log("decode start");let text=new TextDecoder().decode(out);console.log("decode end",text.length,text.slice(0,4),text.slice(-4));console.log("buffer hex start");let hex=b.toString("hex");console.log("buffer hex end",hex.length,hex.slice(0,4),hex.slice(-4))';
-const bufferBulkExpected='bulk start\nbuffer allocation 4096 65\nbyte allocation 8192\nbyte writes 1024\nbyte writes 2048\nbyte writes 3072\nbyte writes 4096\ndecode start\ndecode end 8192 4141 4141\nbuffer hex start\nbuffer hex end 8192 4141 4141\n';
 /** Small language/runtime probes with hand-derived observable results. */
 export const runtimeProbeSources=[
   {name:'arithmetic',source:'let a=3;for(let i=0;i<100;i++)a=(a*7+i)%997;console.log(6*7,"a"+"b",10/4,17%5,a)',expected:'42 ab 2.5 2 693\n'},
@@ -27,8 +24,6 @@ export const runtimeProbeSources=[
   {name:'math',source:'console.log(Math.sqrt(81),Math.abs(-17),Math.pow(2,10),Math.round(Math.sin(0.5)*1000000),Math.round(Math.log(2)*1000000))',expected:'9 17 1024 479426 693147\n'},
   {name:'generator',source:'function* f(){for(let i=0;i<20;i++)yield i*i}let sum=0;for(let x of f())sum+=x;console.log(sum)',expected:'2470\n'},
   {name:'async',source:'async function f(x){return (await Promise.resolve(x))+1}f(41).then(x=>console.log(x))',expected:'42\n'},
-  {name:'buffer-bulk-normal',source:bufferBulkSource,expected:bufferBulkExpected},
-  {name:'buffer-bulk-stress',source:bufferBulkSource,expected:bufferBulkExpected},
   {name:'buffer',source:'let b=Buffer.from("hé😀"),s=b.subarray(0,1);s[0]=72;console.log(b.toString(),b.toString("hex"),s instanceof Buffer,s.buffer===b.buffer);let n=Buffer.allocUnsafe(32,64);n.writeUIntLE(0x123456,0,3);n.writeDoubleBE(1.5,4);n.writeBigInt64LE(-123n,16);console.log(n.readUIntLE(0,3),n.readDoubleBE(4),n.readBigInt64LE(16));let a=Buffer.from("abcabc");console.log(a.indexOf("bc",0,5),a.lastIndexOf("bc",undefined,5),Buffer.from([1,2,3,4]).swap16().toString("hex"));let blob=new Blob([b]),file=new File([blob],"x",{lastModified:12});console.log(file.name,file.size,file.lastModified);let hex=Buffer.alloc(4096,65).toString("hex");console.log(hex.length,hex.slice(0,4),hex.slice(-4));blob.text().then(x=>{console.log(x);let id=URL.createObjectURL(blob);console.log(id.startsWith("blob:nodedata:"));URL.revokeObjectURL(id);let r;try{r=blob.stream().getReader({mode:"byob"})}catch(e){console.log("BYOB reader setup failed",e.name,e.code,e.message);throw e}let v=new Uint8Array(16),p=r.read(v);console.log(v.byteLength);p.then(q=>{console.log(q.done,Buffer.from(q.value).toString());r.releaseLock();blob.textStream().getReader().read().then(t=>console.log(t.done,t.value))})});',expected:'Hé😀 48c3a9f09f9880 true true\n1193046 1.5 -123\n1 1 02010403\nx 7 12\n8192 4141 4141\nHé😀\ntrue\n0\nfalse Hé😀\nfalse Hé😀\n'},
   {name:'buffer-stream-state',source:'(async function(){let s=new Blob(["abc"]).stream();await s.cancel();let [a]=s.tee(),r=await a.getReader().read();console.log(r.done,r.value);let [x,y]=new Blob(["x"]).stream().tee(),done=false,p=x.cancel("left").then(()=>{done=true});await Promise.resolve();await Promise.resolve();console.log(done);let reader=y.getReader();await reader.read();await Promise.resolve();console.log(done);await reader.cancel("right");await p;console.log(done);reader.releaseLock();let w=new WritableStream({start(){return Promise.reject("start failure")}}).getWriter();try{await w.closed}catch(e){console.log(e)}w.releaseLock();let c,t=new WritableStream({start(controller){c=controller}}),v=t.getWriter();await Promise.resolve();c.error("controller failure");try{await v.closed}catch(e){console.log(e)}v.releaseLock()})()',expected:'true undefined\nfalse\nfalse\ntrue\nstart failure\ncontroller failure\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
@@ -38,7 +33,7 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
   const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
     if(probe.name.startsWith('buffer')){
       const {result:ir,usage}=collectSourceUsage(()=>compileToIR(probe.source,undefined,undefined,target));
-      const program=withNativeTarget(target,()=>generate(ir,{gcStress:probe.name!=='buffer-bulk-normal',link:usage}));
+      const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
       const descriptor=getTarget(target)!;
       const image=descriptor.os==='win32'?(descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
       return {name:probe.name,image,expected:probe.expected};
