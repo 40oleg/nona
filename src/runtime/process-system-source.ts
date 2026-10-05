@@ -101,7 +101,7 @@ ${processAccountsSource}
     // The kernel emits one decimal kB field per line. Native string searches
     // keep the OS text scan bounded without invoking the JavaScript RegExp VM.
     function procKilobytes(text,key,operation){
-      var start=text.indexOf(key);if(start<0||(start>0&&text[start-1]!=='\n'))throw hostError(operation,5);
+      var start=0;if(text.slice(0,key.length)!==key){start=text.indexOf('\n'+key);if(start<0)throw hostError(operation,5);start++}
       var end=text.indexOf('\n',start);if(end<0)end=text.length;var line=text.slice(start+key.length,end).trim();
       if(line.slice(-2)!=='kB')throw hostError(operation,5);var digits=line.slice(0,-2).trim(),number=decimalNumber(digits,Math.floor(Number.MAX_SAFE_INTEGER/1024));
       if(number===undefined)throw hostError(operation,5);return number*1024

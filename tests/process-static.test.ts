@@ -205,6 +205,12 @@ test('process Linux memory queries account for real cgroup usage and native limi
  runInContext('RegExp.prototype.exec=function(){throw Error("OS scanner must not invoke RegExp")}',context);
  assert.equal(runInContext('process.constrainedMemory()',context),2048);assert.equal(runInContext('process.availableMemory()',context),1024);
  assert.equal(runInContext('process.memoryUsage.rss()',context),4294967296*1024);
+ files['/proc/self/status']='Name:\tVmRSS:\nOther: VmRSS: 1 kB\nVmRSS:\t4096 kB\n';
+ assert.equal(runInContext('process.memoryUsage.rss()',context),4194304);
+ files['/proc/self/status']='\nVmRSS: 4 kB\n';assert.equal(runInContext('process.memoryUsage.rss()',context),4096);
+ files['/proc/meminfo']='Other: MemAvailable: 0 kB\nMemAvailable: 4 kB\n';
+ assert.equal(runInContext('process.availableMemory()',context),1024);
+ files['/proc/meminfo']='Other: MemAvailable: 4 kB\n';assert.throws(()=>runInContext('process.availableMemory()',context),{code:'EIO'});
  files['/proc/self/status']='VmRSS: 12.5 kB\n';assert.throws(()=>runInContext('process.memoryUsage.rss()',context),{code:'EIO'});
 });
 test('process OpenBSD memory uses release uvmexp page/free counters',()=>{
