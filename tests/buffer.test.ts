@@ -22,6 +22,7 @@ const cases=[
   `var b=Buffer.alloc(8);for(var f of [function(){b.readUIntLE(undefined,2)},function(){b.readUInt8('0')},function(){b.writeIntLE(128,0,1)},function(){b.fill('zz','hex')},function(){Buffer.alloc(NaN)},function(){Buffer.allocUnsafe(4,3)},function(){Buffer.from('x').swap16()},function(){Buffer.from('x').toString(null)}])try{f()}catch(e){console.log(e.name,e.code)}console.log(Buffer.from('ab').compare(Buffer.from('abcd'),0,2),b.copy(Buffer.alloc(0)),Buffer.from([128,255]).toString('ascii'));`,
   `var b=new Blob(['a',new Uint8Array([98,99]),new Blob(['dé'])],{type:'TEXT/PLAIN'});console.log(b.size,b.type,b instanceof Blob,Object.prototype.toString.call(b));console.log(b.slice(-3).size,b.slice(1,3,'ABC').type);var f=new File(['a'],'hé😀',{type:'TEXT/PLAIN',lastModified:123});console.log(f.name,f.lastModified,f.size,f.type,f instanceof Blob,f instanceof File,Object.prototype.toString.call(f));var a=new Uint8Array([1,2]),q=new Blob([a]);a[0]=9;console.log(q.size);`,
   `var b=Buffer.from('abc');console.log(Buffer.concat([],NaN).length,b.fill(1,99).toString(),b.compare(Buffer.alloc(1),99),Buffer.from(new DataView(new ArrayBuffer(2))).length);console.log(b.write('x',0,1,{toString:function(){return 'utf8'}}),b.toString());for(var f of [function(){b.write('x',0,1,{})},function(){new File(undefined,'x')}])try{f()}catch(e){console.log(e.name,e.code)}`,
+  `var b=Buffer.from([1,2]),from=Buffer.from,alloc=Buffer.alloc,compare=Buffer.compare;Buffer.from=Buffer.alloc=Buffer.compare=function(){throw Error('changed')};var equal=b.equals(b),size=new Blob([new Uint8Array([65])]).size,message='';try{Buffer('hi')}catch(e){message=e.message}Buffer.from=from;Buffer.alloc=alloc;Buffer.compare=compare;console.log(equal,size,message);`,
 ];
 
 test('node:buffer resolves as a built-in module',()=>{
@@ -56,9 +57,9 @@ test('Blob prelude: stream dependency is explicit',()=>{
 });
 
 test('Buffer module aliases share global constructors and helpers',()=>{
- const body=`console.log(Buffer===globalThis.Buffer,Buffer===bare.Buffer,Buffer===nona.Buffer,buffer.Buffer===Buffer,Blob===globalThis.Blob,File===globalThis.File);console.log(isAscii(Buffer.from('abc')),isAscii(Buffer.from('é')),isUtf8(Buffer.from([0xff])),isUtf8(Buffer.from('é')),btoa('é'),atob('6Q=='));console.log(transcode(Buffer.from('é😀'),'utf8','ascii').toString(),resolveObjectURL('blob:nodedata:missing'));`;
- const {native}=runModulesOnHost({'main.mjs':`import buffer,{Buffer,Blob,File,isAscii,isUtf8,btoa,atob,transcode,resolveObjectURL} from 'node:buffer';import * as bare from 'buffer';import * as nona from 'nona:buffer';`+body},'main.mjs');
- const oracle=runOracle(`var buffer=require('node:buffer'),bare=buffer,nona=buffer;var {Buffer,Blob,File,isAscii,isUtf8,btoa,atob,transcode,resolveObjectURL}=buffer;`+body);
+ const body=`console.log(Buffer===globalThis.Buffer,Buffer===bare.Buffer,Buffer===nona.Buffer,buffer.Buffer===Buffer,Blob===globalThis.Blob,File===globalThis.File);console.log(bare===node,nona===node);console.log(isAscii(Buffer.from('abc')),isAscii(Buffer.from('é')),isUtf8(Buffer.from([0xff])),isUtf8(Buffer.from('é')),btoa('é'),atob('6Q=='));console.log(transcode(Buffer.from('é😀'),'utf8','ascii').toString(),resolveObjectURL('blob:nodedata:missing'));`;
+ const {native}=runModulesOnHost({'main.mjs':`import buffer,{Buffer,Blob,File,isAscii,isUtf8,btoa,atob,transcode,resolveObjectURL} from 'node:buffer';import * as node from 'node:buffer';import * as bare from 'buffer';import * as nona from 'nona:buffer';`+body},'main.mjs');
+ const oracle=runOracle(`var buffer=require('node:buffer'),bare=buffer,nona=buffer,node=buffer;var {Buffer,Blob,File,isAscii,isUtf8,btoa,atob,transcode,resolveObjectURL}=buffer;`+body);
  assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,oracle.stdout);
 });
 

@@ -48,22 +48,24 @@ export const bufferPreludeSource=String.raw`
   for(i=0;i<view.length;i++)text+=String.fromCharCode(view[i]&(enc==='ascii'?127:255));return text
  }
  function Buffer(value,enc,length){
-  if(typeof value==='number'){if(typeof enc==='string')type('The string argument must be of type string');return Buffer.alloc(value)}
+  if(typeof value==='number'){if(typeof enc==='string')type('The string argument must be of type string');return Buffer.allocUnsafe(value)}
   return Buffer.from(value,enc,length)
  }
  setProto(Buffer,U8);Buffer.prototype=Object.create(U8.prototype);
  define(Buffer.prototype,'constructor',{value:Buffer,writable:true,configurable:true});
- define(Buffer,Symbol.species,{get:function(){return Buffer},configurable:true});
+ function FastBuffer(value,offset,length){return wrap(length===undefined?(offset===undefined?new U8(value):new U8(value,offset)):new U8(value,offset,length))}
+ setProto(FastBuffer,U8);FastBuffer.prototype=Buffer.prototype;
+ define(Buffer,Symbol.species,{get:function(){return FastBuffer},configurable:true});
  function method(target,name,fn){if(fn.name==='')define(fn,'name',{value:String(name),configurable:true});define(target,name,{value:fn,writable:true,enumerable:true,configurable:true})}
  method(Buffer,'from',function from(value,enc,length){
   if(typeof value==='string')return wrap(encodeString(value,encoding(enc,false)));
   if(value instanceof AB||value instanceof SAB){var offset=enc===undefined?0:Number(enc);if(offset!==offset)offset=0;offset=Math.trunc(offset);if(offset<0||offset>value.byteLength)error(RangeError,'ERR_BUFFER_OUT_OF_BOUNDS','offset is outside buffer bounds');if(length!==undefined){length=Math.trunc(Number(length));if(length!==length)length=0;if(length<0||offset+length>value.byteLength)error(RangeError,'ERR_BUFFER_OUT_OF_BOUNDS','length is outside buffer bounds')}return wrap(length===undefined?new U8(value,offset):new U8(value,offset,length))}
   if(value===null||value===undefined||typeof value==='number')type('The first argument must be a string, Buffer, ArrayBuffer, Array, or array-like object');
   if(typeof value==='object'||typeof value==='function'){
-   if(typeof value.valueOf==='function'){var primitive=value.valueOf();if(primitive!==value&&primitive!==null&&primitive!==undefined)return Buffer.from(primitive,enc,length)}
+   if(typeof value.valueOf==='function'){var primitive=value.valueOf();if(primitive!==value&&primitive!==null&&primitive!==undefined)return bufferFrom(primitive,enc,length)}
    if(value.type==='Buffer'&&Array.isArray(value.data))return wrap(new U8(value.data));
    if(AB.isView(value)||'length' in value){var n=typeof value.length==='number'?Math.max(0,Math.trunc(value.length)||0):0;size(n);var out=new U8(n);for(var i=0;i<n;i++)out[i]=value[i];return wrap(out)}
-   if(typeof value[Symbol.toPrimitive]==='function')return Buffer.from(value[Symbol.toPrimitive]('string'),enc,length)
+   if(typeof value[Symbol.toPrimitive]==='function')return bufferFrom(value[Symbol.toPrimitive]('string'),enc,length)
   }
   type('The first argument must be a string, Buffer, ArrayBuffer, Array, or array-like object')
  });
@@ -74,8 +76,9 @@ export const bufferPreludeSource=String.raw`
  method(Buffer,'isEncoding',function isEncoding(enc){if(typeof enc!=='string'||enc==='')return false;try{encoding(enc,true);return true}catch(e){return false}});
  method(Buffer,'byteLength',function byteLength(value,enc){if(value instanceof AB||value instanceof SAB||AB.isView(value))return value.byteLength;if(typeof value!=='string')type('string must be a string, Buffer or ArrayBuffer');try{enc=encoding(enc,false)}catch(e){enc='utf8'}if(enc==='hex')return value.length>>>1;if(enc==='latin1'||enc==='ascii')return value.length;if(enc==='utf16le')return value.length*2;if(enc==='base64'||enc==='base64url'){var n=value.length;if(n>0&&value[n-1]==='=')n--;if(n>0&&value[n-1]==='=')n--;return Math.floor(n*3/4)}return encodeString(value,enc).length});
  method(Buffer,'compare',function compare(a,b){bytes(a);bytes(b);var n=Math.min(a.length,b.length);for(var i=0;i<n;i++){if(a[i]<b[i])return -1;if(a[i]>b[i])return 1}return a.length<b.length?-1:a.length>b.length?1:0});
- method(Buffer,'concat',function concat(list,totalLength){if(!Array.isArray(list))type('list must be an Array');if(list.length===0)return Buffer.alloc(0);var n=0;for(var i=0;i<list.length;i++){bytes(list[i]);n+=list[i].length}if(totalLength!==undefined)n=size(totalLength);var out=Buffer.alloc(n),p=0;for(i=0;i<list.length&&p<n;i++){var item=list[i],count=Math.min(n-p,item.length);apply(u8set,out,[apply(u8sub,item,[0,count]),p]);p+=count}return out});
- method(Buffer,'copyBytesFrom',function copyBytesFrom(view,offset,length){if(!AB.isView(view)||view instanceof DV)type('view must be a TypedArray');var count=view.length;if(offset===undefined)offset=0;else integer(offset,'offset',0,Number.MAX_SAFE_INTEGER);if(length===undefined)length=Math.max(0,count-offset);else integer(length,'length',0,Number.MAX_SAFE_INTEGER);length=Math.min(length,Math.max(0,count-offset));if(length===0)return Buffer.alloc(0);var width=view.BYTES_PER_ELEMENT,raw=new U8(view.buffer,view.byteOffset+offset*width,length*width);return Buffer.from(raw)});
+ method(Buffer,'concat',function concat(list,totalLength){if(!Array.isArray(list))type('list must be an Array');if(list.length===0)return bufferAlloc(0);var n=0;for(var i=0;i<list.length;i++){bytes(list[i]);n+=list[i].length}if(totalLength!==undefined)n=size(totalLength);var out=bufferAlloc(n),p=0;for(i=0;i<list.length&&p<n;i++){var item=list[i],count=Math.min(n-p,item.length);apply(u8set,out,[apply(u8sub,item,[0,count]),p]);p+=count}return out});
+ method(Buffer,'copyBytesFrom',function copyBytesFrom(view,offset,length){if(!AB.isView(view)||view instanceof DV)type('view must be a TypedArray');var count=view.length;if(offset===undefined)offset=0;else integer(offset,'offset',0,Number.MAX_SAFE_INTEGER);if(length===undefined)length=Math.max(0,count-offset);else integer(length,'length',0,Number.MAX_SAFE_INTEGER);length=Math.min(length,Math.max(0,count-offset));if(length===0)return bufferAlloc(0);var width=view.BYTES_PER_ELEMENT,raw=new U8(view.buffer,view.byteOffset+offset*width,length*width);return bufferFrom(raw)});
+ var bufferAlloc=Buffer.alloc,bufferFrom=Buffer.from,bufferConcat=Buffer.concat,bufferCompare=Buffer.compare;
  Buffer.poolSize=65536;
  function bound(value,length){value=Number(value);if(value!==value)value=0;value=Math.trunc(value);return value<0?Math.max(length+value,0):Math.min(value,length)}
  function stringBound(value,length,fallback){if(value===undefined)return fallback;value=Number(value);if(value!==value||value<0)return 0;return Math.min(Math.trunc(value),length)}
@@ -84,8 +87,8 @@ export const bufferPreludeSource=String.raw`
  method(Buffer.prototype,'toString',function toString(enc,start,end){bytes(this);if(this.length===0)return '';var first=stringBound(start,this.length,0),last=stringBound(end,this.length,this.length);if(last<=first)return '';if(enc!==undefined&&enc!=='')enc=String(enc);if(enc==='null'||enc==='false'||enc==='0')error(TypeError,'ERR_UNKNOWN_ENCODING','Unknown encoding: '+enc);return decodeBytes(apply(u8sub,this,[first,last]),encoding(enc,true))});
  method(Buffer.prototype,'toLocaleString',Buffer.prototype.toString);
  method(Buffer.prototype,'toJSON',function toJSON(){bytes(this);return {type:'Buffer',data:Array.from(this)}});
- method(Buffer.prototype,'equals',function equals(other){return Buffer.compare(this,other)===0});
- method(Buffer.prototype,'compare',function compare(target,targetStart,targetEnd,sourceStart,sourceEnd){bytes(this);bytes(target);targetStart=targetStart===undefined?0:integer(targetStart,'targetStart',0,Number.MAX_SAFE_INTEGER);targetEnd=targetEnd===undefined?target.length:integer(targetEnd,'targetEnd',0,target.length);sourceStart=sourceStart===undefined?0:integer(sourceStart,'sourceStart',0,Number.MAX_SAFE_INTEGER);sourceEnd=sourceEnd===undefined?this.length:integer(sourceEnd,'sourceEnd',0,this.length);return Buffer.compare(apply(u8sub,this,[sourceStart,sourceEnd]),apply(u8sub,target,[targetStart,targetEnd]))});
+ method(Buffer.prototype,'equals',function equals(other){return bufferCompare(this,other)===0});
+ method(Buffer.prototype,'compare',function compare(target,targetStart,targetEnd,sourceStart,sourceEnd){bytes(this);bytes(target);targetStart=targetStart===undefined?0:integer(targetStart,'targetStart',0,Number.MAX_SAFE_INTEGER);targetEnd=targetEnd===undefined?target.length:integer(targetEnd,'targetEnd',0,target.length);sourceStart=sourceStart===undefined?0:integer(sourceStart,'sourceStart',0,Number.MAX_SAFE_INTEGER);sourceEnd=sourceEnd===undefined?this.length:integer(sourceEnd,'sourceEnd',0,this.length);return bufferCompare(apply(u8sub,this,[sourceStart,sourceEnd]),apply(u8sub,target,[targetStart,targetEnd]))});
  method(Buffer.prototype,'copy',function copy(target,targetStart,sourceStart,sourceEnd){bytes(this);bytes(target);targetStart=targetStart===undefined?0:Math.trunc(Number(targetStart))||0;sourceStart=sourceStart===undefined?0:Math.trunc(Number(sourceStart))||0;sourceEnd=sourceEnd===undefined?this.length:Math.trunc(Number(sourceEnd))||0;if(targetStart<0||sourceStart<0||sourceStart>this.length||sourceEnd<0)range('copy index is out of range');var n=Math.max(0,Math.min(sourceEnd,this.length)-sourceStart);n=Math.min(n,Math.max(0,target.length-targetStart));if(n===0)return 0;apply(u8set,target,[apply(u8sub,this,[sourceStart,sourceStart+n]),targetStart]);return n});
  method(Buffer.prototype,'fill',function fill(value,start,end,enc){bytes(this);if(typeof start==='string'){enc=start;start=0;end=this.length}else if(typeof end==='string'){enc=end;end=this.length}start=start===undefined?0:integer(start,'offset',0,Number.MAX_SAFE_INTEGER);end=end===undefined?this.length:integer(end,'end',0,this.length);if(typeof value==='string'){enc=encoding(enc,true);if(value==='')value=0;else value=encodeString(value,enc)}else if(!(value instanceof U8))value=Number(value)&255;if(end<=start)return this;if(value instanceof U8){if(value.length===0)error(TypeError,'ERR_INVALID_ARG_VALUE','value is invalid for fill');var pattern=new U8(value);for(var i=start;i<end;i++)this[i]=pattern[(i-start)%pattern.length]}else for(var j=start;j<end;j++)this[j]=value;return this});
  method(Buffer.prototype,'write',function write(text,offset,length,enc){bytes(this);if(typeof text!=='string')type('string must be a string');if(offset===undefined){offset=0;length=this.length;enc='utf8'}else if(typeof offset==='string'){enc=offset;offset=0;length=this.length}else{integer(offset,'offset',0,this.length);if(typeof length==='string'){enc=length;length=this.length-offset}else if(length===undefined)length=this.length-offset;else integer(length,'length',0,maxLength)}enc=encoding(enc?String(enc):undefined,true);var raw=encodeString(text,enc),n=Math.min(length,this.length-offset,raw.length);if(enc==='utf8'&&n<raw.length){while(n>0&&(raw[n]&192)===128)n--}if(enc==='utf16le')n-=n%2;apply(u8set,this,[apply(u8sub,raw,[0,n]),offset]);return n});
@@ -131,7 +134,7 @@ export const bufferPreludeSource=String.raw`
  define(Buffer.prototype,'offset',{get:function(){return this instanceof Buffer?this.byteOffset:undefined},enumerable:true,configurable:true});
  method(Buffer.prototype,'inspect',function inspect(){var n=Math.min(this.length,__nonaRegexpVm.bufferModule.INSPECT_MAX_BYTES),parts=[];for(var i=0;i<n;i++)parts.push(hex[this[i]>>4]+hex[this[i]&15]);var text=parts.join(' ');if(this.length>n)text+=' ... '+(this.length-n)+' more byte'+(this.length-n===1?'':'s');return '<Buffer '+text+'>'});
  method(Buffer.prototype,Symbol.for('nodejs.util.inspect.custom'),Buffer.prototype.inspect);
- function SlowBuffer(length){length=+length;if(length!==length)length=0;return Buffer.alloc(length)}
+ function SlowBuffer(length){length=+length;if(length!==length)length=0;return bufferAlloc(length)}
  function rawInput(value){if(value instanceof AB||value instanceof SAB)return new U8(value);if(AB.isView(value))return new U8(value.buffer,value.byteOffset,value.byteLength);type('input must be an ArrayBuffer or ArrayBufferView')}
  function isAscii(value){var raw=rawInput(value);for(var i=0;i<raw.length;i++)if(raw[i]>127)return false;return true}
  var fatalDecoder=new TextDecoder('utf8',{fatal:true,ignoreBOM:true});
@@ -141,7 +144,7 @@ export const bufferPreludeSource=String.raw`
  function transcode(source,from,to){
   bytes(source);try{from=encoding(from,true);to=encoding(to,true)}catch(e){error(Error,'U_ILLEGAL_ARGUMENT_ERROR','Unable to transcode Buffer')}
   if((from!=='utf8'&&from!=='utf16le'&&from!=='ascii'&&from!=='latin1')||(to!=='utf8'&&to!=='utf16le'&&to!=='ascii'&&to!=='latin1'))error(Error,'U_ILLEGAL_ARGUMENT_ERROR','Unable to transcode Buffer');
-  if(source.length===0)return Buffer.alloc(0);
+  if(source.length===0)return bufferAlloc(0);
   // Node's direct UTF-8/UTF-16 conversion paths reject malformed input.
   if(from==='utf8'&&to==='utf16le'&&!isUtf8(source))error(Error,'U_INVALID_CHAR_FOUND','Unable to transcode Buffer');
   var text=decodeBytes(source,from);
@@ -152,8 +155,8 @@ export const bufferPreludeSource=String.raw`
     for(var j=0;j<text.length;j++){var c=text.charCodeAt(j);if(c>=0xd800&&c<0xdc00){if(j+1>=text.length||text.charCodeAt(j+1)<0xdc00||text.charCodeAt(j+1)>=0xe000)error(Error,'U_INVALID_CHAR_FOUND','Unable to transcode Buffer');j++}else if(c>=0xdc00&&c<0xe000)error(Error,'U_INVALID_CHAR_FOUND','Unable to transcode Buffer')}
    }else{if(to==='utf16le'&&source.length%2!==0)text+='\ufffd';text=decodeBytes(encodeString(text,'utf8'),'utf8')}
   }
-  if(to==='ascii'||to==='latin1'){var result=[];for(var i=0;i<text.length;i++){var c=text.charCodeAt(i);if(c>=0xd800&&c<0xdc00&&i+1<text.length&&text.charCodeAt(i+1)>=0xdc00&&text.charCodeAt(i+1)<0xe000)i++;result.push(c>(to==='ascii'?127:255)?63:c)}return Buffer.from(result)}
-  return Buffer.from(text,to)
+  if(to==='ascii'||to==='latin1'){var result=[];for(var i=0;i<text.length;i++){var c=text.charCodeAt(i);if(c>=0xd800&&c<0xdc00&&i+1<text.length&&text.charCodeAt(i+1)>=0xdc00&&text.charCodeAt(i+1)<0xe000)i++;result.push(c>(to==='ascii'?127:255)?63:c)}return bufferFrom(result)}
+  return bufferFrom(text,to)
  }
  var blobBrand=new WeakMap(),fileBrand=new WeakMap(),nativeNewline='\n';
  function blobState(value){var state=blobBrand.get(value);if(state===undefined)error(TypeError,'ERR_INVALID_THIS','Value of this must be of type Blob');return state}
@@ -165,18 +168,18 @@ export const bufferPreludeSource=String.raw`
   var list=[];
   for(var source of sources){
    if(blobBrand.has(source))list.push(blobState(source).bytes);
-   else if(source instanceof AB||source instanceof SAB||AB.isView(source))list.push(Buffer.from(rawInput(source)));
-   else{var text=String(source);if(ending==='native')text=text.replace(/\r\n|\r|\n/g,nativeNewline);list.push(Buffer.from(text))}
+   else if(source instanceof AB||source instanceof SAB||AB.isView(source))list.push(bufferFrom(rawInput(source)));
+   else{var text=String(source);if(ending==='native')text=text.replace(/\r\n|\r|\n/g,nativeNewline);list.push(bufferFrom(text))}
   }
-  blobBrand.set(value,{bytes:Buffer.concat(list),type:mime(options.type)})
+  blobBrand.set(value,{bytes:bufferConcat(list),type:mime(options.type)})
  }
  function Blob(sources,options){if(new.target===undefined)throw new TypeError("Class constructor Blob cannot be invoked without 'new'");initializeBlob(this,sources,options)}
  function getter(target,name,get){define(target,name,{get:get,enumerable:true,configurable:true})}
  getter(Blob.prototype,'size',function(){return blobState(this).bytes.length});getter(Blob.prototype,'type',function(){return blobState(this).type});
- method(Blob.prototype,'slice',function slice(start,end,type){var state=blobState(this),first=bound(start===undefined?0:start,state.bytes.length),last=bound(end===undefined?state.bytes.length:end,state.bytes.length);var result=Object.create(Blob.prototype);blobBrand.set(result,{bytes:Buffer.from(state.bytes.subarray(first,Math.max(first,last))),type:mime(type)});return result});
- method(Blob.prototype,'arrayBuffer',function arrayBuffer(){try{var raw=Buffer.from(blobState(this).bytes);return Promise.resolve(raw.buffer)}catch(e){return Promise.reject(e)}});
+ method(Blob.prototype,'slice',function slice(start,end,type){var state=blobState(this),first=bound(start===undefined?0:start,state.bytes.length),last=bound(end===undefined?state.bytes.length:end,state.bytes.length);var result=Object.create(Blob.prototype);blobBrand.set(result,{bytes:bufferFrom(apply(u8sub,state.bytes,[first,Math.max(first,last)])),type:mime(type)});return result});
+ method(Blob.prototype,'arrayBuffer',function arrayBuffer(){try{var raw=bufferFrom(blobState(this).bytes);return Promise.resolve(raw.buffer)}catch(e){return Promise.reject(e)}});
  method(Blob.prototype,'bytes',function bytes_(){try{return Promise.resolve(new U8(blobState(this).bytes))}catch(e){return Promise.reject(e)}});
- method(Blob.prototype,'text',function text(){try{return Promise.resolve(blobState(this).bytes.toString())}catch(e){return Promise.reject(e)}});
+ method(Blob.prototype,'text',function text(){try{return Promise.resolve(decodeBytes(blobState(this).bytes,'utf8'))}catch(e){return Promise.reject(e)}});
  function unavailableStream(){blobState(this);error(Error,'ERR_NOT_IMPLEMENTED','Blob streams require Web Streams, which Nona does not yet implement')}
  method(Blob.prototype,'stream',unavailableStream);method(Blob.prototype,'textStream',unavailableStream);
  define(Blob.prototype,Symbol.toStringTag,{value:'Blob',configurable:true});

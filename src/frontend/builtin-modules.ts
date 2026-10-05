@@ -93,7 +93,7 @@ export function isBuiltinModule(specifier:string):boolean {return sources.has(sp
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
 export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
   return {
-    resolve:(specifier,referrer)=>sources.has(specifier)?specifier:host.resolve(specifier,referrer),
+    resolve:(specifier,referrer)=>sources.has(specifier)?(specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':specifier):host.resolve(specifier,referrer),
     read:path=>sources.get(path)?.(target)??host.read(path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };
