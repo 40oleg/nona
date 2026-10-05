@@ -518,6 +518,36 @@ delete globalThis.Math;try{log(readAll())}catch(e){log(e.constructor.name)}globa
 function bar(){return baz}try{bar()}catch(e){log(e.constructor.name)}globalThis.baz=7;log(bar());delete globalThis.baz;try{bar()}catch(e){log(e.constructor.name)}
 let s=0;for(let i=0;i<10000;i++)s+=Math.abs(-1);log(s);
 `,
+ 'JSON.stringify members, toJSON and replacers':`
+const log=console.log;
+const user={id:42,name:'Ada',roles:['a','b'],nested:{x:[1,{y:2}]},d:new Date(0),n:null,u:undefined,f(){},s:Symbol('q')};
+for(let i=0;i<3;i++)log(JSON.stringify(user));
+log(JSON.stringify([1,'a',{toJSON(k){return 'tj:'+k+':'+typeof k}},[{toJSON(k){return k+typeof k}}]]));
+log(JSON.stringify({a:{toJSON(k){return 'key '+k}}}));
+Object.prototype.toJSON=function(k){return 'P:'+k};log(JSON.stringify({a:1,b:[1]}));delete Object.prototype.toJSON;log(JSON.stringify({a:1,b:[1]}));
+Array.prototype.toJSON=function(k){return 'A:'+k};log(JSON.stringify({a:[1,2]}));delete Array.prototype.toJSON;log(JSON.stringify({a:[1,2]}));
+const o={a:1};o.toJSON=()=>'own';log(JSON.stringify([o]));delete o.toJSON;log(JSON.stringify([o]));
+class C{constructor(){this.v=1}toJSON(){return 'class'}};log(JSON.stringify([new C()]));
+log(JSON.stringify({a:[1,2]},(k,v)=>typeof k+':'+k+(typeof v==='object'?'':v)));
+log(JSON.stringify([[0,1]],function(k,v){return Array.isArray(v)?v:typeof k+k}));
+log(JSON.stringify(Object.create(null,{x:{value:1,enumerable:true}})));
+log(JSON.stringify({big:10n<0?1:2,m:new Map([[1,2]])}));
+try{JSON.stringify({b:1n})}catch(e){log(e.constructor.name)}
+BigInt.prototype.toJSON=function(){return this.toString()};log(JSON.stringify({b:1n}));delete BigInt.prototype.toJSON;
+log(JSON.stringify({a:1,b:'x'},null,2));
+const proto={toJSON(){return 'proto'}};log(JSON.stringify([Object.create(proto)]));
+const m={a:1,get b(){delete this.c;this.a=5;return 2},c:3,d:{toJSON(){m.e='late';return 'D'}},e:'early',0:'zero',1.5:'f'};log(JSON.stringify(m));
+const inh=Object.create({p:1});inh.own=2;log(JSON.stringify(inh));
+const big={};for(let i=0;i<30;i++)big['k'+i]=i;log(JSON.stringify(big));
+const arrHole=[1,,3];arrHole.x=1;log(JSON.stringify(arrHole));
+log(JSON.stringify(5,function(k,v){return JSON.stringify(Object.keys(this))+typeof this+k+v}));
+log(JSON.stringify('top'),JSON.stringify(null),JSON.stringify(undefined),JSON.stringify(()=>1),JSON.stringify([undefined]));
+`,
+ 'JSON string quoting':`
+const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','ünicode','emoji😀x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd efgh'];
+for(const s of strs)console.log(JSON.stringify(s),JSON.stringify({[s]:s}));
+let n=0;for(let i=0;i<20000;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to

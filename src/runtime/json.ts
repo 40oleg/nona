@@ -21,6 +21,18 @@ function emitQuoteUnits(a:Assembler):void {
   const emitHex=(shifts:number[])=>{for(const shift of shifts){a.mov('rax','r11');if(shift)a.shr('rax',shift);a.and('rax',15);const digit=a.unique('digit'),ready=a.unique('ready');a.cmp('rax',10);a.jcc('b',digit);a.add('rax',87);a.jmp(ready);a.label(digit);a.add('rax',48);a.label(ready);a.store({base:'r9'},'rax',16);a.add('r9',2);}};
   const loop=a.unique('loop'),end=a.unique('end'),plain=a.unique('plain'),escape=a.unique('escape'),control=a.unique('control'),surrogate=a.unique('surrogate'),next=a.unique('next');
   a.label(loop);a.load('rax',slot(104));a.load('r10',slot(96));a.cmp('rax','r10');a.jcc('ae',end);
+  // Four units at a time while none of them needs an escape: no unit below
+  // 0x20, no quote or backslash, none at 0x8000 or above (surrogates are
+  // among them; such text takes the unit loop).
+  {const single=a.unique('single'),lanes=(v:bigint)=>v|(v<<16n)|(v<<32n)|(v<<48n);
+   const haszero=(src:'rdx')=>{a.mov('r10',src);a.mov('r8',lanes(1n));a.sub('r10','r8');a.not(src);a.and('r10',src);a.or('rcx','r10');};
+   a.sub('r10','rax');a.cmp('r10',4);a.jcc('b',single);
+   a.mov('r8','rax');a.shl('r8',1);a.load('r10',slot(72));a.add('r8','r10');a.load('r11',{base:'r8',disp:8});
+   a.mov('rcx','r11');a.mov('rdx',lanes(0x20n));a.sub('rcx','rdx');a.mov('rdx','r11');a.not('rdx');a.and('rcx','rdx');a.or('rcx','r11');
+   for(const code of [0x22n,0x5cn]){a.mov('rdx',lanes(code));a.xor('rdx','r11');haszero('rdx');}
+   a.mov('rdx',lanes(0x8000n));a.and('rcx','rdx');a.jcc('ne',single);
+   a.store({base:'r9'},'r11');a.add('r9',8);a.add('rax',4);a.store(slot(104),'rax');a.jmp(loop);
+   a.label(single);}
   a.shl('rax',1);a.load('r8',slot(72));a.add('r8','rax');a.load('r11',{base:'r8',disp:8},16);
   a.cmp('r11',34);a.jcc('e',escape);a.cmp('r11',92);a.jcc('e',escape);
   a.cmp('r11',32);a.jcc('b',control);a.cmp('r11',0xd800);a.jcc('b',plain);a.cmp('r11',0xdfff);a.jcc('be',surrogate);a.jmp(plain);
@@ -110,7 +122,12 @@ export function emitJson(b:RuntimeBuilder):void {
   a.load('rax',slot(48));a.cmp('rax',3);const noSpace=a.unique('noSpace'),spaceReady=a.unique('spaceReady');a.jcc('b',noSpace);a.load('r10',slot(56));a.lea('rdx',{base:'r10',disp:32});a.jmp(spaceReady);a.label(noSpace);a.lea('rdx',{rip:'rt.undefinedValue'});a.label(spaceReady);a.lea('rcx',slot(128));a.call('rt.jsonNormalizeGap');
   a.mov('rax',4);a.store(slot(144),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(152),'rax');
   a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.str.empty'});a.store(slot(104),'rax');
-  a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.lea('r8',slot(64));a.mov('r9',1);a.call('rt.setProperty');
+  // The wrapper {"": value} is only observable as a replacer function's
+  // `this`; without one the holder stays undefined.
+  {const noWrapper=a.unique('noWrapper');a.mov('rax',0);a.store(slot(80),'rax');a.store(slot(88),'rax');
+   a.load('rax',slot(112));a.cmp('rax',5);a.jcc('ne',noWrapper);a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',noWrapper);
+   a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.lea('r8',slot(64));a.mov('r9',1);a.call('rt.setProperty');
+   a.label(noWrapper);}
   a.lea('rax',slot(112));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.lea('r9',slot(80));a.call('rt.jsonStringifyValue');
   const omitted=a.unique('omitted');a.load('rcx',slot(40));a.load('rax',{base:'rcx'});a.test('rax','rax');a.jcc('e',omitted);a.lea('rcx',slot(160));a.load('rdx',slot(40));a.call('rt.builderFinish');a.label(omitted);
  });
