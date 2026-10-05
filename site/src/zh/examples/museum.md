@@ -25,7 +25,7 @@ function fail(message) {
 
 ## 第 2 步：图片
 
-`node:fs` 中的 `readdirSync` 列出文件夹内容。没有 `node:path`，所以用 `\` 手动拼接路径。
+`readdirSync` from `node:fs` lists the folder. This sample joins paths with `\\`; `node:path` is also available.
 
 ```js
 const pictures = readdirSync(folder)

@@ -25,10 +25,11 @@ export const runtimeProbeSources=[
   {name:'async',source:'async function f(x){return (await Promise.resolve(x))+1}f(41).then(x=>console.log(x))',expected:'42\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
+  {name:'path',source:String.raw`import path from 'node:path';console.log(path.isAbsolute(path.resolve()),path.relative(path.resolve('x'),path.resolve('y'))==='..'+path.sep+'y',path.posix.normalize('/a/../b/'),path.win32.normalize('C:/a/../b'),path.matchesGlob('a.js','*.js'));`,expected:'true true /b/ C:\\b true\n'},
 ] as const;
 export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
   const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
-    const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
+    const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {}),...(probe.name==='path'?{module:true}:{})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });

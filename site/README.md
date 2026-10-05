@@ -62,7 +62,7 @@ Every runnable example is a file in `samples/` included with `<<< ../../samples/
 - `name.linux.mjs` — Linux only;
 - anything else — both targets.
 
-Samples use only documented features: no `node:path`, `Buffer`, `require`, class fields or top-level `await`, and `process.argv[1]` is the first argument.
+Samples use only documented features: no `Buffer`, `require`, class fields or top-level `await`, and `process.argv[1]` is the first argument.
 
 ## Writing style
 

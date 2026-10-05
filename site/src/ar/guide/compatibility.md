@@ -29,8 +29,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `readFileSync(path)` | يعيد `Uint8Array` | يعيد `Buffer` |
 | الترميزات | `utf8` فقط | كثيرة |
 | رسائل الخطأ على Windows | تحتوي على المسار كما مُرِّر | تحتوي على المسار المطلق |
-| الوحدات | `nona:*` و`node:fs` و`node:process` والملفات النسبية | كل ما في `node:*` وحزم npm |
-| `require` و`Buffer` و`node:path` | غير متاحة | متاحة |
+| الوحدات | `nona:*` و`node:fs`, `node:path` و`node:process` والملفات النسبية | كل ما في `node:*` وحزم npm |
+| `require` و`Buffer` | غير متاحة | متاحة |
 | `console.log` دون مخرج قياسي | يُتجاهَل الناتج | يُتجاهَل الناتج أو يُرمى خطأ |
 
 ## الأداء

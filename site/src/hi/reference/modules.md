@@ -12,6 +12,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |
 | `nona:process`, `node:process` | मॉड्यूल | दोनों | [process](/hi/reference/process) |
 | `nona:fs`, `node:fs` | मॉड्यूल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/hi/reference/host-apis#paths-nodepath) |
 | `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
 | `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |
 
@@ -19,7 +20,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 - ग्लोबल स्क्रिप्ट और मॉड्यूल दोनों में उपलब्ध हैं।
 - बिल्ट-इन मॉड्यूल मॉड्यूल कोड (`.mjs` या `--module`) से इम्पोर्ट किए जा सकते हैं, और स्क्रिप्ट से लिटरल `import()` के साथ। FFI डिक्लेरेशन (`define`) मॉड्यूल कोड में होने चाहिए।
-- `node:` मॉड्यूलों में से केवल `node:fs` और `node:process` मौजूद हैं; ये Nona के सबसेट के उपनाम हैं, Node.js के इम्प्लीमेंटेशन नहीं। `node:path`, `Buffer` और `require` उपलब्ध नहीं हैं।
+- Supported Node modules: `node:fs`, `node:process`, and `node:path` (`path` alias). `Buffer` and CommonJS `require` are not available.
 - `nona:win32` और DLL डिक्लेरेशन केवल `win32-x64` के लिए कंपाइल होते हैं; सिस्टम कॉल डिक्लेरेशन केवल `linux-x64` के लिए।
 
 ## `nona:win32` {#nona-win32}
