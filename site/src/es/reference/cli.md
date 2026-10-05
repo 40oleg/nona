@@ -3,8 +3,8 @@
 ## Sinopsis
 
 ```text
-Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+Nona 0.8.0 — JavaScript subset to native executables
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -18,7 +18,7 @@ Desde un clon del repositorio, ejecuta `node dist/cli.js …`; después de `npm 
 | Opción | Valor | Descripción |
 | --- | --- | --- |
 | `-o` | ruta | Archivo de salida. Obligatoria. Los directorios que falten se crean. |
-| `--target` | `win32-x64` (predeterminado), `linux-x64` | Formato de salida: PE32+ para Windows o ELF64 para Linux. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compila la entrada como un módulo ES. Las entradas que terminan en `.mjs` son módulos automáticamente. |
 | `--subsystem` | `console` (predeterminado), `windows` | Programa gráfico de Windows sin ventana de consola. Solo `win32-x64`. Un programa gráfico sin `--manifest` recibe un manifiesto predeterminado. |
 | `--icon` | archivo `.ico` | Incrusta todas las imágenes del archivo de icono. Solo `win32-x64`. |
@@ -82,3 +82,8 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

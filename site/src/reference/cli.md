@@ -3,8 +3,8 @@
 ## Synopsis
 
 ```text
-Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+Nona 0.8.0 — JavaScript subset to native executables
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
        [--full-runtime] [--call-stats] [--coverage dir]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
@@ -19,7 +19,7 @@ From a clone of the repository run `node dist/cli.js …`; after `npm link` the 
 | Option | Value | Description |
 | --- | --- | --- |
 | `-o` | path | Output file. Required. Missing directories are created. |
-| `--target` | `win32-x64` (default), `linux-x64` | Output format: PE32+ for Windows or ELF64 for Linux. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compile the input as an ES module. Inputs ending in `.mjs` are modules automatically. |
 | `--full-runtime` | — | Link the whole runtime. By default the RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them; see [Linked runtime parts](/guide/compatibility#linked-runtime-parts). |
 | `--call-stats` | — | Count every call the program and its runtime make, by target, and print the counts to stderr when the program ends or fails, most frequent first (`count  target` per line). Calls to function declarations known at compile time are counted under their code label (`js.fn.N`); other JavaScript calls go through `rt.invoke` and are counted there. The executable is larger and slower; use it to find the runtime functions a program spends its calls in. `process.exit()` skips the report. |
@@ -38,7 +38,7 @@ Each option may appear once. See [Windows executables](/reference/windows-execut
 - The input is one UTF-8 source file. A module input pulls in the modules it imports; built-in `nona:*` and `node:*` modules are part of the compiler.
 - The output is written to a temporary file next to it and renamed into place, so a failed build never leaves a half-written executable and keeps the previous one.
 - The compiler refuses to overwrite its input, including through a hard link or symbolic link.
-- Linux outputs get mode `0755`.
+- Linux, BSD and Darwin outputs get mode `0755`.
 
 ## Runtime cache
 
@@ -63,8 +63,8 @@ The exit status is `0` on success and `1` on any error. Source errors are printe
 | `E_BIND` | An early error found while resolving names (duplicate declarations, invalid assignment targets, …). |
 | `E_MODULE` | A module cannot be resolved, read or linked, or exports conflict. |
 | `E_FFI_STATIC` | A `define()` call from `nona:ffi` is not three string literals or has an invalid signature. |
-| `E_FFI_TARGET` | A DLL declaration compiled for `linux-x64`, or a system call declaration compiled for `win32-x64`. |
-| `E_RESOURCE` | An invalid icon or version information, or resources requested for `linux-x64`. |
+| `E_FFI_TARGET` | A DLL declaration for a non-Windows target, or a syscall declaration for Windows. |
+| `E_RESOURCE` | An invalid icon or version information, or resources requested for a target other than `win32-x64`. |
 | `E_TARGET` | An unsupported target or subsystem. |
 
 Argument errors are printed as `nona: <message>`, for example `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` or `--subsystem requires --target win32-x64`.
@@ -86,3 +86,8 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

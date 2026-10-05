@@ -3,8 +3,8 @@
 ## সারসংক্ষেপ
 
 ```text
-Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+Nona 0.8.0 — JavaScript subset to native executables
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -18,7 +18,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--modul
 | অপশন | মান | বিবরণ |
 | --- | --- | --- |
 | `-o` | পাথ | আউটপুট ফাইল। আবশ্যক। অনুপস্থিত ডিরেক্টরি তৈরি করা হয়। |
-| `--target` | `win32-x64` (ডিফল্ট), `linux-x64` | আউটপুট ফরম্যাট: Windows-এর জন্য PE32+ অথবা Linux-এর জন্য ELF64। |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ইনপুটকে ES মডিউল হিসেবে কম্পাইল করে। `.mjs`-এ শেষ হওয়া ইনপুট স্বয়ংক্রিয়ভাবে মডিউল। |
 | `--subsystem` | `console` (ডিফল্ট), `windows` | কনসোল উইন্ডো ছাড়া Windows GUI প্রোগ্রাম। কেবল `win32-x64`। `--manifest` ছাড়া একটি GUI প্রোগ্রাম একটি ডিফল্ট ম্যানিফেস্ট পায়। |
 | `--icon` | `.ico` ফাইল | আইকন ফাইলের প্রতিটি ছবি যুক্ত করে। কেবল `win32-x64`। |
@@ -82,3 +82,8 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

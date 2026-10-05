@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: JavaScript в нативные исполняемые файлы
-  tagline: Компилятор ahead-of-time, который превращает JavaScript ES2020 в самостоятельные исполняемые файлы Windows и Linux x64. Без встроенного интерпретатора и без C-тулчейна.
+  tagline: Компилятор ahead-of-time, который превращает JavaScript ES2020 в самостоятельные исполняемые файлы Windows и Linux x64. Без встроенного интерпретатора и без C-тулчейна. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: Начать

@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | Параметр | Тип | Описание |
 | --- | --- | --- |
 | `fileName` | `string` | Имя для диагностики; для модулей — также путь, относительно которого разрешаются относительные импорты. Обязателен. |
-| `target` | `'win32-x64' \| 'linux-x64'` | Формат результата. Обязателен. |
+| `target` | `Target` | ОС и CPU из [матрицы платформ](/reference/native-platforms). Обязательно. |
 | `module` | `boolean` | Компилировать как ES-модуль. |
 | `subsystem` | `'console' \| 'windows'` | Подсистема PE (только `win32-x64`). |
 | `icon` | `Uint8Array` | Содержимое файла `.ico` (только `win32-x64`). |
@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 Пути — канонические строки с разделителем `/`, которые выбирает хост. Хост по умолчанию разрешает относительные спецификаторы относительно импортирующего файла и читает файлы с диска. `candidates` перечисляет модули, которые может назвать вычисляемый `import()`, чтобы они были скомпилированы в программу. Встроенные модули `nona:*` и `node:*` разрешаются раньше, чем запрос попадает к хосту.
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

@@ -2,12 +2,14 @@ export type Fixup = {
   offset: number;
   target: string;
   addend: number;
-  kind: "rel32" | "rva32" | "va64";
+  kind: "rel32" | "rva32" | "va64" | "arm64-page21" | "arm64-pageoff12" | "arm64-branch26";
 };
 export interface CodeFragment {
   bytes: Uint8Array;
   fixups: Fixup[];
   symbols: Record<string, number>;
+  /** Native syscall instruction positions for OS loader registration. */
+  syscalls?: {offset:number;number:number}[];
 }
 export type NamedFragment = CodeFragment & {
   name: string;

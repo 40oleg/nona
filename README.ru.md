@@ -1,10 +1,10 @@
 # Nona
 
-**Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в самостоятельные исполняемые файлы Windows и Linux x64.**
+**Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в самостоятельные исполняемые файлы Windows, Linux, macOS на Intel и Apple Silicon, FreeBSD и OpenBSD.**
 
 [Документация](https://40oleg.github.io/nona/) (англ.) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Статус ES2020](docs/v0.17-v0.20-status.md) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
 
-Nona разбирает JavaScript, переводит его в собственное промежуточное представление, генерирует машинный код x86-64 и собирает исполняемый файл PE32+ (Windows) или ELF64 (Linux). Внутри нет Node.js, V8 или интерпретатора, не нужны C/C++-компилятор и LLVM: программы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI), программы для Linux работают через системные вызовы, без libc.
+Nona разбирает JavaScript, переводит его в собственное промежуточное представление, генерирует машинный код x86-64 или AArch64 и собирает файл PE32+ (Windows), ELF64 (Linux/BSD) или Mach-O64 (macOS). Внутри нет Node.js, V8 или интерпретатора, не нужны C/C++-компилятор и LLVM: программы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI), программы для Linux, BSD и macOS на Intel работают через системные вызовы, без libc. На Apple Silicon используются штатные dyld и libSystem для запуска, часов и нативных потоков.
 
 > **Статус:** `v0.8.0`. Полный закреплённый Test262 (возможности ES2020 и поддержанные более поздние, например элементы классов ES2022) на Windows x64: language **22436/22492**, built-ins **15868/15933**, Atomics **268/268**, Annex B **996/1016**. Каждый оставшийся отказ разобран на [странице статуса](https://40oleg.github.io/nona/ru/guide/status): `eval` строки, вычисленной во время исполнения, другие realms и семантика новее ES2020. Проект экспериментальный: он не заменяет Node.js и не проходил аудит безопасности.
 
@@ -20,7 +20,7 @@ Nona разбирает JavaScript, переводит его в собстве�
   - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
-- **Исполняемые файлы Windows.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
+- **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
 
 ## Как это устроено
 
@@ -31,18 +31,27 @@ Nona разбирает JavaScript, переводит его в собстве�
  лексер → парсер → ранние ошибки и области видимости → eval/Function времени компиляции
                                                               │
                                                               ▼
-                                       IR → генерация кода x86-64
+                                       IR → генерация кода x86-64/AArch64
                                                               │
                                                               ▼
-                     runtime (машинный код + JS-прелюдии) → линковщик PE32+ или ELF64
+                     runtime (машинный код + JS-прелюдии) → линковщик PE32+/ELF64/Mach-O64
 ```
 
 Компилятор написан на TypeScript и запускается в Node.js. Исполняемый файл содержит машинный код программы и runtime Nona: значения, объекты, сборщик мусора, встроенные объекты, очередь jobs и API хоста.
 
 ## Требования
 
-- Для компилятора: Node.js 26 или новее и npm, на Windows или Linux.
-- Цели: Windows 10/11 x64 (`win32-x64`, по умолчанию) и Linux x86-64 (`linux-x64`).
+- Для компилятора: Node.js 26 или новее и npm.
+- Цели: Windows/Linux/macOS x64 и ARM64, FreeBSD/OpenBSD x64. По умолчанию выбираются ОС и процессор хоста; проверки и ограничения описаны в [поддержке платформ](docs/native-platforms.md).
+
+| ОС | Цели | Формат |
+| --- | --- | --- |
+| Windows | `win32-x64`, `win32-arm64` | PE32+ |
+| Linux | `linux-x64`, `linux-arm64` | ELF64 |
+| macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
+| FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
+
+Один Linux-бинарник для выбранного процессора подходит для Mint, Ubuntu, Debian, Fedora и Alpine; отдельная сборка для каждого дистрибутива не нужна.
 
 ## Сборка
 
@@ -69,10 +78,11 @@ setTimeout(() => console.log(greet("from Nona")), 10);
 ```sh
 node dist/cli.js build hello.js -o build/hello.exe                     # Windows
 node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
+node dist/cli.js build hello.js -o build/hello --target darwin-arm64   # Apple Silicon
 ```
 
 ```text
-nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
            [--full-runtime] [--call-stats] [--coverage dir]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
@@ -87,7 +97,7 @@ nona --help | --version
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
 - Модули Node.js, кроме встроенных `fs` и `process`, пакеты npm и браузерные API недоступны.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
-- Цели — только Windows и Linux на x86-64.
+- API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 
 Неподдерживаемый синтаксис отклоняется при компиляции. Точное поведение и покрытие тестами — в [матрице поддержки](docs/language-support.md).
 
@@ -95,7 +105,7 @@ nona --help | --version
 
 Полный план по итогам разбора блога V8 — в [docs/roadmap.md](docs/roadmap.md). Кратко:
 
-- **Платформы:** сейчас `win32-x64` и `linux-x64`; дальше `linux-arm64`, `macos-arm64`, `windows-arm64`, `macos-x64`, `wasm32-wasi`, затем `linux-riscv64`. Сначала нужен переносимый язык для builtins, чтобы не переписывать runtime на ассемблере под каждую архитектуру.
+- **Платформы:** реализованы Windows/Linux/macOS x64 и ARM64 и BSD x64; Apple Silicon использует системные dyld и libSystem. Дальнейшие цели — `wasm32-wasi` и `linux-riscv64`.
 - **Быстрые улучшения:** inline-арифметика, safepoint раз на блок, кэш RegExp и форматирование чисел сделаны; хэши с зерном, правки сборщика, быстрая итерация массивов, дешёвый `await` и мелкие возможности после ES2020 — в работе.
 - **Средние:** RegExp на байткоде с линейным запасным движком, линковка только нужных прелюдий, нативный JSON, вывод типов, прямые вызовы, реальные бенчмарки, сборка с покрытием.
 - **Фундамент:** shapes со слотами в объекте, снимок кучи в исполняемом файле, страничная куча, SSA IR с распределением регистров, DSL для builtins, нативные RegExp.

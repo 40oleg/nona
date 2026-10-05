@@ -6,21 +6,22 @@ Status: **done** (merged), **in progress** (open issue or pull request), or noth
 
 ## Target architectures
 
-Today Nona emits **x86-64** code only, as **PE32+** for Windows and **ELF64** for Linux (direct system calls, no libc). The plan for further targets, in order:
+Nona emits x86-64 and AArch64 machine code. The native expansion in [#117](https://github.com/40oleg/nona/issues/117) adds the ports below; see the [native platform matrix](native-platforms.md) for execution evidence and API limits.
 
-| Target | Format | Why | Notes |
-| --- | --- | --- | --- |
-| `win32-x64` | PE32+ | done | Windows 10/11 |
-| `linux-x64` | ELF64 | done | static, no libc |
-| `linux-arm64` | ELF64 (AArch64) | servers (Graviton, Ampere), Raspberry Pi, Android-class devices | first non-x86 target; Linux system calls are the same set with other numbers |
-| `macos-arm64` | Mach-O 64 (AArch64) | Apple Silicon | needs a Mach-O linker, an ad-hoc code signature and `libSystem` calls (macOS has no stable system-call ABI) |
-| `windows-arm64` | PE32+ (ARM64) | Windows on Arm laptops | reuses the PE linker and the AArch64 code generator |
-| `macos-x64` | Mach-O 64 (x86-64) | Intel Macs | reuses the x86-64 code generator and the Mach-O linker |
-| `wasm32-wasi` | WebAssembly + WASI | browsers, edge runtimes, sandboxed plug-ins | needs a shadow stack for GC roots, structured control flow (stackifier) and stack switching (JSPI or the stack-switching proposal) for generators and async functions |
-| `linux-riscv64` | ELF64 (RV64GC) | RISC-V boards and servers | after AArch64, the second new instruction set |
-| `linux-x86` / `win32-x86` | ELF32 / PE32 | legacy only | low priority |
+| Target | Format | Status / notes |
+| --- | --- | --- |
+| `win32-x64` | PE32+ | Existing Windows target |
+| `linux-x64` | ELF64 | Existing direct-kernel target, no libc |
+| `linux-arm64` | ELF64 (AArch64) | Implemented, direct kernel calls |
+| `win32-arm64` | PE32+ (ARM64) | Implemented, native DLL ABI bridge |
+| `darwin-x64` | Mach-O64 (x86-64) | Implemented, direct kernel startup |
+| `darwin-arm64` | Mach-O64 (AArch64) | Implemented, system dyld/libSystem startup and embedded signing |
+| `freebsd-x64` / `openbsd-x64` | ELF64 | Implemented, native kernel adapters |
+| `wasm32-wasi` | WebAssembly + WASI | Planned; needs structured control flow and stack switching |
+| `linux-riscv64` | ELF64 (RV64GC) | Planned; needs another native instruction emitter |
+| `linux-x86` / `win32-x86` | ELF32 / PE32 | Planned, low priority |
 
-The enabling step for every new instruction set is to stop writing the runtime directly in x86-64 assembly: the runtime (`src/runtime/*.ts`, about 24 000 dense lines of `RuntimeBuilder` code) would have to be rewritten per architecture. A small typed builtins language (see *Builtins DSL* below) that compiles to each target removes that cost; the code generator itself (`src/backend/x64`) is far smaller to port.
+Runtime register and frame names are logical roles shared by the x64 and ARM64 emitters. OS adapters supply the native services. A future builtins DSL may improve maintainability, but it is not required for these native ports.
 
 ## Quick wins (S)
 

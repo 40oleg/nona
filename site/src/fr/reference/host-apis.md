@@ -23,3 +23,8 @@ Objets globaux : `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTi
 - Le ramasse-miettes compte les piles de coroutines engagées (1 Mio par fonction async ou générateur en cours, `rt.generatorStackBytes`) dans son seuil ; les coroutines abandonnées, dont seules les piles sont libérées par le balayage, déclenchent donc des collectes comme des déchets ordinaires.
 - `tests/stability.test.ts` vérifie que dix fois plus de déclenchements de minuteurs (avec des tâches de Promise et des déchets à chaque tick) n’augmentent pas le pic de mémoire, que des milliers de coroutines abandonnées sont libérées et qu’un programme qui attend un minuteur de deux secondes ne consomme presque pas de CPU.
 - Limites connues : le stockage des propriétés, des éléments et des Map est linéaire (#36), si bien que les programmes avec des centaines de minuteurs vivants ou de gros objets ralentissent ; sous Linux, chaque bloc du tas est un mappage mémoire distinct (#37).
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

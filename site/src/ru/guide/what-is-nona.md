@@ -32,3 +32,9 @@ Nona не проходил аудит безопасности. Не компи�
 - [Начало работы](/ru/guide/getting-started) — соберите компилятор и первую программу.
 - [Как это устроено](/ru/guide/how-it-works) — конвейер, runtime и линковщики.
 - [Примеры](/ru/examples/) — от hello world до программы смены обоев.
+
+## Нативные платформы
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.

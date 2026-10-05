@@ -49,3 +49,9 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 - المنصات المستهدفة: Windows 10/11 x64 وLinux x86-64 فقط.
 - لا تستورد الملفات التنفيذية لـ Windows إلا `KERNEL32.dll` و`KERNELBASE.dll` وملفات DLL المصرَّح عنها عبر FFI؛ أما الملفات التنفيذية لـ Linux فثابتة الربط وتستخدم استدعاءات النظام مباشرةً.
 - استدعاء ملفات DLL عبر FFI متاح على Windows فقط، واستدعاءات النظام الخام على Linux فقط.
+
+## الأنظمة الأصلية
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

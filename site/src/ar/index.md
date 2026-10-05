@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: من JavaScript إلى ملفات تنفيذية أصلية
-  tagline: مترجم مسبق (ahead-of-time) يحوّل JavaScript ES2020 إلى ملفات تنفيذية مستقلة لنظامي Windows وLinux x64، بلا مفسّر مضمَّن وبلا سلسلة أدوات C.
+  tagline: مترجم مسبق (ahead-of-time) يحوّل JavaScript ES2020 إلى ملفات تنفيذية مستقلة لنظامي Windows وLinux x64، بلا مفسّر مضمَّن وبلا سلسلة أدوات C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: ابدأ الآن

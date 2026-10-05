@@ -80,3 +80,8 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `readHandle(buffer)` | 读取函数写入 8 字节缓冲区的句柄（例如 `HKEY`）。 |
 
 未列出的函数，请用 [`nona:ffi`](/zh/reference/ffi) 中的 `define` 自行声明。
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

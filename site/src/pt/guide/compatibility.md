@@ -49,3 +49,9 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 - Alvos: apenas Windows 10/11 x64 e Linux x86-64.
 - Executáveis do Windows importam apenas `KERNEL32.dll`, `KERNELBASE.dll` e as DLLs declaradas via FFI; executáveis do Linux são estáticos e usam chamadas de sistema diretamente.
 - FFI para DLLs existe apenas no Windows; chamadas de sistema diretas, apenas no Linux.
+
+## Plataformas nativas
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

@@ -32,3 +32,9 @@ Nona مترجم مسبق (ahead-of-time) للغة JavaScript. يقرأ سكرب�
 - [البدء](/ar/guide/getting-started): ابنِ المترجم وبرنامجك الأول.
 - [كيف يعمل](/ar/guide/how-it-works): مراحل الترجمة وبيئة التشغيل والروابط.
 - [أمثلة](/ar/examples/): من hello world إلى مبدّل خلفيات سطح المكتب.
+
+## الأنظمة الأصلية
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

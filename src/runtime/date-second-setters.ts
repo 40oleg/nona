@@ -19,7 +19,7 @@ export function emitDateSecondSetters(b:RuntimeBuilder):void {
   a.label(defaultMs);a.mov('rax',0);a.store(slot(104),'rax');a.label(msDone);
   const invalid=a.unique('invalid'),invalidOriginal=a.unique('invalidOriginal'),ready=a.unique('ready'),done=a.unique('done');
   a.movsd('xmm0',slot(56));a.ucomisd('xmm0','xmm0');a.jcc('p',invalidOriginal);
-  a.cvttsd2si('rax','xmm0');a.store(slot(120),'rax');a.emit([0x48,0x99]);a.mov('r10',60000);a.idiv('r10');
+  a.cvttsd2si('rax','xmm0');a.store(slot(120),'rax');a.signExtendRax();a.mov('r10',60000);a.idiv('r10');
   a.test('rdx','rdx');const positive=a.unique('positive');a.jcc('ge',positive);a.add('rdx',60000);a.label(positive);
   a.store(slot(128),'rdx');a.load('rax',slot(120));a.sub('rax','rdx');a.cvtsi2sd('xmm0','rax');a.storesd(slot(120),'xmm0');
   a.load('rax',slot(128));a.xor('rdx','rdx');a.mov('r10',1000);a.div('r10');

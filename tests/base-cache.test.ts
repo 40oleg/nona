@@ -61,9 +61,9 @@ console.log(hits,writes,createHash('sha256').update(result.image).digest('hex'))
    assert.equal(firstImage,digest(plain.image),target);
    assert.equal(image,digest(plain.image),target);
    assert.equal(Number(hits),1,target);assert.equal(Number(writes),0,target);
-   if(target==='linux-x64'){assert.equal(Number(firstHits),0);assert.equal(Number(firstWrites),1);}
+   assert.equal(Number(firstHits),0);assert.equal(Number(firstWrites),1);
   }
-  assert.equal(readdirSync(join(directory,'store')).length,1,'one entry serves both targets');
+  assert.equal(readdirSync(join(directory,'store')).length,2,'native target identities isolate cached runtime images');
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
 

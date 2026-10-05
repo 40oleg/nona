@@ -12,7 +12,7 @@ JavaScript source (script or module graph)
                                      IR lowering → x86-64 code generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 সবকিছু কম্পাইলার প্রসেসের ভেতরেই চলে; কোনো বাহ্যিক অ্যাসেম্বলার, লিঙ্কার বা C কম্পাইলার নেই। ফলাফল একটি ফাইল, যাতে প্রোগ্রামের মেশিন কোড এবং Nona-র রানটাইম থাকে।
@@ -75,3 +75,9 @@ tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
+
+## নেটিভ প্ল্যাটফর্ম
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

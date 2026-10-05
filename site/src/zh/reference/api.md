@@ -27,7 +27,7 @@ writeFileSync('app', result.image, { mode: 0o755 });
 | 选项 | 类型 | 说明 |
 | --- | --- | --- |
 | `fileName` | `string` | 诊断信息中使用的名称；对模块而言，也是解析相对导入的基准路径。必填。 |
-| `target` | `'win32-x64' \| 'linux-x64'` | 输出格式。必填。 |
+| `target` | `Target` | OS and CPU from the [native platform matrix](/reference/native-platforms). Required. |
 | `module` | `boolean` | 按 ES 模块编译。 |
 | `subsystem` | `'console' \| 'windows'` | PE 子系统（仅限 `win32-x64`）。 |
 | `icon` | `Uint8Array` | `.ico` 文件的内容（仅限 `win32-x64`）。 |
@@ -58,3 +58,8 @@ interface ModuleHost {
 ```
 
 路径是由宿主选择的、以 `/` 分隔的规范字符串。默认宿主相对于引用文件解析相对说明符，并从磁盘读取文件。`candidates` 列出计算形式的 `import()` 可能引用的模块，以便把它们编译进程序。内置的 `nona:*` 和 `node:*` 模块会在询问宿主之前解析。
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

@@ -41,7 +41,7 @@ function compilerFingerprint():string {
   return fingerprint=hash.digest('hex');
 }
 
-interface StoredFragment {name:string;section:BaseImage['fragments'][number]['section'];alignment?:number;fixups:BaseImage['fragments'][number]['fixups'];symbols:Record<string,number>;offset:number;length:number}
+interface StoredFragment {name:string;section:BaseImage['fragments'][number]['section'];alignment?:number;fixups:BaseImage['fragments'][number]['fixups'];syscalls?:BaseImage['fragments'][number]['syscalls'];symbols:Record<string,number>;offset:number;length:number}
 interface StoredImage {fragments:StoredFragment[];functions:BaseImage['functions'];imports:BaseImage['imports'];literals:[string,string][];serial:number}
 
 export function encodeBaseImage(image:BaseImage):Uint8Array {
@@ -49,6 +49,7 @@ export function encodeBaseImage(image:BaseImage):Uint8Array {
   const fragments:StoredFragment[]=image.fragments.map(f=>{
     const stored:StoredFragment={name:f.name,section:f.section,fixups:f.fixups,symbols:f.symbols,offset,length:f.bytes.length};
     if(f.alignment!==undefined)stored.alignment=f.alignment;
+    if(f.syscalls!==undefined)stored.syscalls=f.syscalls;
     offset+=f.bytes.length;
     return stored;
   });
@@ -70,6 +71,7 @@ export function decodeBaseImage(data:Uint8Array):BaseImage|undefined {
     if(blob+f.offset+f.length>buffer.length)throw new Error('truncated');
     const fragment:BaseImage['fragments'][number]={name:f.name,section:f.section,fixups:f.fixups,symbols:f.symbols,bytes:Uint8Array.from(buffer.subarray(blob+f.offset,blob+f.offset+f.length))};
     if(f.alignment!==undefined)fragment.alignment=f.alignment;
+    if(f.syscalls!==undefined)fragment.syscalls=f.syscalls.map(call=>({...call}));
     return fragment;
   });
   return {fragments,functions:stored.functions,imports:stored.imports,literals:new Map(stored.literals),serial:stored.serial};

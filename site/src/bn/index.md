@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Nona
   text: JavaScript থেকে নেটিভ এক্সিকিউটেবল
-  tagline: একটি ahead-of-time কম্পাইলার, যা ES2020 JavaScript-কে Windows ও Linux x64-এর স্বতন্ত্র এক্সিকিউটেবলে রূপান্তর করে। কোনো এমবেডেড ইন্টারপ্রেটার নেই, কোনো C টুলচেইন নেই।
+  tagline: একটি ahead-of-time কম্পাইলার, যা ES2020 JavaScript-কে Windows ও Linux x64-এর স্বতন্ত্র এক্সিকিউটেবলে রূপান্তর করে। কোনো এমবেডেড ইন্টারপ্রেটার নেই, কোনো C টুলচেইন নেই। Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
   actions:
     - theme: brand
       text: শুরু করুন

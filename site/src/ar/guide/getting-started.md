@@ -74,3 +74,9 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 - يعني ظهور `EvalError` وقت التشغيل أن `eval` أو `Function` تلقّى نصًا مصدريًا لم يكن معروفًا وقت الترجمة.
 
 يسرد [مرجع سطر الأوامر](/ar/reference/cli) جميع الخيارات والأخطاء.
+
+## الأنظمة الأصلية
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

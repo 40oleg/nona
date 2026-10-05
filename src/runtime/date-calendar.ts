@@ -20,13 +20,13 @@ export function emitDateCalendar(b:RuntimeBuilder):void {
   // MakeFullYear: years 0..99 denote 1900..1999.
   a.load('rax',slot(64));const yearReady=a.unique('yearReady');a.load('r10',slot(184));a.cmp('r10',1);a.jcc('ne',yearReady);a.test('rax','rax');a.jcc('l',yearReady);a.cmp('rax',99);a.jcc('g',yearReady);a.add('rax',1900);a.store(slot(64),'rax');a.label(yearReady);
   // Normalize month to [0, 11] using floor division.
-  a.load('rax',slot(72));a.emit([0x48,0x99]);a.mov('r10',12);a.idiv('r10');
+  a.load('rax',slot(72));a.signExtendRax();a.mov('r10',12);a.idiv('r10');
   const monthPositive=a.unique('monthPositive');a.test('rdx','rdx');a.jcc('ge',monthPositive);a.add('rdx',12);a.sub('rax',1);a.label(monthPositive);
   a.store(slot(120),'rdx');a.load('r10',slot(64));a.add('r10','rax');a.store(slot(64),'r10');
   // days_from_civil: shift March to month zero, then split into 400-year eras.
   a.load('rax',slot(120));a.add('rax',1);a.store(slot(128),'rax');
   a.load('r10',slot(64));a.cmp('rax',2);const march=a.unique('march');a.jcc('a',march);a.sub('r10',1);a.label(march);a.store(slot(136),'r10');
-  a.mov('rax','r10');a.emit([0x48,0x99]);a.mov('r11',400);a.idiv('r11');
+  a.mov('rax','r10');a.signExtendRax();a.mov('r11',400);a.idiv('r11');
   const eraPositive=a.unique('eraPositive');a.test('rdx','rdx');a.jcc('ge',eraPositive);a.sub('rax',1);a.label(eraPositive);a.store(slot(144),'rax');
   a.mov('r11',400);a.imul('rax','r11');a.load('r10',slot(136));a.sub('r10','rax');a.store(slot(152),'r10');
   a.load('rax',slot(128));a.cmp('rax',2);const winter=a.unique('winter'),monthDone=a.unique('monthDone');a.jcc('be',winter);a.sub('rax',3);a.jmp(monthDone);a.label(winter);a.add('rax',9);a.label(monthDone);

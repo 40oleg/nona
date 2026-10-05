@@ -12,7 +12,7 @@ JavaScript source (script or module graph)
                                      IR lowering → x86-64 code generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 يجري كل شيء داخل عملية المترجم؛ فلا يوجد مجمِّع أو رابط أو مترجم C خارجي. والنتيجة ملف واحد يحتوي على شيفرة الآلة الخاصة بالبرنامج وعلى بيئة تشغيل Nona.
@@ -75,3 +75,9 @@ tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
+
+## الأنظمة الأصلية
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

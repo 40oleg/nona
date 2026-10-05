@@ -3,8 +3,8 @@
 ## الصيغة العامة
 
 ```text
-Nona 0.8.0 — JavaScript subset to native Windows/Linux x64
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--module]
+Nona 0.8.0 — JavaScript subset to native executables
+Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -18,7 +18,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64] [--modul
 | الخيار | القيمة | الوصف |
 | --- | --- | --- |
 | `-o` | مسار | ملف الناتج. إلزامي. تُنشأ المجلدات الناقصة. |
-| `--target` | `win32-x64` (الافتراضي)، `linux-x64` | صيغة الناتج: PE32+ لنظام Windows أو ELF64 لنظام Linux. |
+| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ترجمة المدخل كوحدة ES. المدخلات المنتهية بـ `.mjs` وحدات تلقائيًا. |
 | `--subsystem` | `console` (الافتراضي)، `windows` | برنامج Windows رسومي بلا نافذة طرفية. للمنصة `win32-x64` فقط. البرنامج الرسومي بلا `--manifest` يحصل على بيان افتراضي. |
 | `--icon` | ملف `.ico` | تضمين كل صور ملف الأيقونة. للمنصة `win32-x64` فقط. |
@@ -82,3 +82,8 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
+
+
+## Native target availability
+
+Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.

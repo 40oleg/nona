@@ -9,10 +9,10 @@ JavaScript source (script or module graph)
  lexer → parser → early errors and scope binding → compile-time eval/Function
                                                          │
                                                          ▼
-                                     IR lowering → x86-64 code generation
+                                     IR lowering → x86-64/AArch64 generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 Everything runs inside the compiler process; there is no external assembler, linker or C compiler. The result is one file that contains the program's machine code and Nona's runtime.
@@ -32,7 +32,7 @@ Everything runs inside the compiler process; there is no external assembler, lin
 
 ## Code generation
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contains an x86-64 instruction encoder and assembler and the code generator, which turns IR operations into calls into the runtime and inline fast paths. Generated code and the runtime follow the Win64 calling convention on both targets.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contains an x86-64 instruction encoder and assembler and the code generator, which turns IR operations into calls into the runtime and inline fast paths. Generated code uses a shared logical calling convention; OS bridges marshal it to each native ABI.
 
 ## Runtime
 
@@ -40,7 +40,7 @@ Every executable contains the runtime from [`src/runtime`](https://github.com/40
 
 - **Values** are 16-byte tagged pairs: undefined, null, booleans, binary64 numbers, UTF-16 strings, objects, symbols and BigInts.
 - **Objects** keep their properties in insertion order; objects with 32 or more properties get a hash index.
-- **Native code** for built-ins is emitted as x86-64 with a small builder (`RuntimeBuilder`).
+- **Native code** for built-ins is emitted as x86-64 or AArch64 with a small builder (`RuntimeBuilder`).
 - **JavaScript preludes** (`*-source.ts`) implement parts of the library in JavaScript and are compiled into every executable: the RegExp engine, Promise and async drivers, Proxy and Reflect helpers, timers and the event loop, `process`, `TextEncoder`/`TextDecoder` and Annex B built-ins.
 
 ### Garbage collector
@@ -75,3 +75,9 @@ tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
+
+## Native platforms
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

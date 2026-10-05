@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added native Linux/Windows/macOS ARM64, Intel macOS and FreeBSD/OpenBSD x64 backends, architecture-specific math/call bridges and native CI probes. Apple Silicon uses system dyld/libSystem; see [native platforms](docs/native-platforms.md) ([#117](https://github.com/40oleg/nona/issues/117)).
+
 ## v0.8.0 — 2026-10-05
 
 Highlights since v0.7.0:

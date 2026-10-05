@@ -49,3 +49,9 @@ Test262 के लिए `$262.createRealm` समर्थित है। Java
 - टार्गेट: केवल Windows 10/11 x64 और Linux x86-64।
 - Windows एक्ज़ीक्यूटेबल केवल `KERNEL32.dll`, `KERNELBASE.dll` और FFI से घोषित DLL इम्पोर्ट करते हैं; Linux एक्ज़ीक्यूटेबल स्टैटिक हैं और सीधे सिस्टम कॉल का उपयोग करते हैं।
 - DLL के लिए FFI केवल Windows पर है; रॉ सिस्टम कॉल केवल Linux पर।
+
+## नेटिव प्लेटफ़ॉर्म
+
+Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
+
+[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
