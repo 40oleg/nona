@@ -8,7 +8,13 @@ test('process initialization completes with the host environment without GC stre
  assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,process.platform+' object\n');
 });
 
-import {processExtendedOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle} from './helpers/process-fixture.js';
+import {spawnSync} from 'node:child_process';
+test('process reviewed lifecycle and unreferenced stdin match Node 26 natively',()=>{
+ const result=runProcess(processReviewOracle,'abc');
+ const oracle=spawnSync(process.execPath,['-e',processReviewOracle],{input:'abc',encoding:'utf8',windowsHide:true,timeout:5000});
+ assert.equal(oracle.status,7,oracle.stderr);assert.equal(result.status,oracle.status,result.stderr);assert.equal(result.stdout,oracle.stdout);
+});
 test('process extended API matches Node 26 under GC stress',()=>{
  const result=runProcess(processExtendedOracle);assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,runOracle(processExtendedOracle).stdout);
 });

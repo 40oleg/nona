@@ -38,12 +38,16 @@ synchronous; optional callbacks run on the next tick. `stdin` uses descriptor 0:
 `read(size?)` performs a blocking read; `setEncoding('utf8')`, `data`/`end` events,
 `pause`/`resume`, `pipe`, `destroy`, `ref`/`unref`, and `openStdin()` provide a
 small readable interface. The event loop polls flowing input between timers.
+`stdin.unref()` removes input from loop keepalive; ready data still runs while
+timers keep the loop alive.
 These are practical standard-stream interfaces, without Node's asynchronous
 write backpressure, general stream classes, terminal controls, or full encodings.
 
 Process and standard streams expose listener registration/removal, once and
 prepend listeners, `emit`, listener introspection and maximum-listener settings.
 Normal completion emits `beforeExit`; newly scheduled work delays `exit`.
+Once listeners remain single-use during nested emission; changes to `exitCode`
+from normal-completion `exit` listeners determine the final status.
 Explicit `exit()` emits `exit` once before terminating. `emitWarning()` queues a
 warning event and writes a diagnostic to stderr; warning details and deprecation
 flags are supported. Maximum-listener warning diagnostics and `rawListeners`

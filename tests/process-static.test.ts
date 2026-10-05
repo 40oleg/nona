@@ -4,7 +4,39 @@ import {compile} from '../src/compiler.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget} from '../src/runtime/process-source.js';
-import {processExtendedOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle} from './helpers/process-fixture.js';
+import {timersPreludeSource} from '../src/runtime/timers-source.js';
+import {runOracle} from './helpers/oracle.js';
+import {spawnSync} from 'node:child_process';
+
+function mockProcess(extra:Record<string,unknown>={}){
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
+  __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
+  __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,...extra});
+ runInContext(processPreludeForTarget('linux-x64'),context);return context;
+}
+test('process once listener fires once during reentrant emission, matching Node 26',()=>{
+ const output:string[]=[],source='let n=0;process.on("x",()=>{if(++n===1)process.emit("x")});process.once("x",()=>console.log("once"));process.emit("x")';
+ const context=mockProcess({console:{log:(s:string)=>output.push(s)}});runInContext(source,context);
+ assert.equal(output.join('\n')+'\n',runOracle(source).stdout);
+});
+test('process final exit status follows exit-listener changes, matching Node 26',()=>{
+ const source='process.on("exit",()=>{process.exitCode=7})',oracle=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true});
+ const statuses:number[]=[],stopped={};const context=mockProcess({__nonaHost_sys_exit:(code:number)=>{statuses.push(code);throw stopped}});
+ runInContext(source,context);assert.throws(()=>runInContext('__nonaPromiseDrainJobs()',context),error=>error===stopped);
+ assert.deepEqual(statuses,[oracle.status]);
+});
+test('unreferenced stdin still polls while a timer keeps the loop alive',()=>{
+ const output:string[]=[],bytes=new TextEncoder().encode('abc');let reads=0,clock=0;
+ const context=mockProcess({console:{log:(...args:unknown[])=>output.push(args.join(' '))},
+  __nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms},
+  __nonaHost_sys_poll:()=>1,__nonaHost_sys_read:(_fd:number,buffer:Uint8Array)=>{reads++;if(reads!==1)return 0;buffer.set(bytes);return bytes.length}});
+ runInContext(timersPreludeSource,context);
+ runInContext('process.stdin.setEncoding("utf8");process.stdin.on("data",chunk=>console.log("data",chunk));process.stdin.unref();setTimeout(()=>console.log("timer"),50);__nonaPromiseDrainJobs()',context);
+ assert.equal(reads,2);assert.deepEqual(output,['data abc','timer']);
+ const oracle=spawnSync(process.execPath,['-e','process.stdin.setEncoding("utf8");process.stdin.on("data",chunk=>console.log("data",chunk));process.stdin.unref();setTimeout(()=>console.log("timer"),50)'],{input:'abc',encoding:'utf8',windowsHide:true});
+ assert.equal(oracle.status,0,oracle.stderr);assert.equal(output.join('\n')+'\n',oracle.stdout);
+});
 test('process native standard output boundary writes exact bytes',()=>{
  const writes:{fd:number;bytes:number[]}[]=[];
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
@@ -18,6 +50,6 @@ test('process native standard output boundary writes exact bytes',()=>{
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
- const result=compile(processExtendedOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+ const result=compile(processExtendedOracle+processReviewOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 

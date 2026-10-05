@@ -25,7 +25,7 @@ export const processExtensionsSource=String.raw`
       object.emit=function(name){
         var list=records(name).slice(),args=[];for(var i=1;i<arguments.length;i++)args.push(arguments[i]);
         if(!list.length){if(name==='error')throw (args[0] instanceof Error?args[0]:new Error('Unhandled error event'));return false}
-        for(var i=0;i<list.length;i++){var record=list[i];if(record.once)removeRecord(name,record);apply(record.fn,object,args)}return true
+        for(var i=0;i<list.length;i++){var record=list[i];if(record.once){if(record.fired)continue;record.fired=true;removeRecord(name,record)}apply(record.fn,object,args)}return true
       };
       object.listeners=function(name){return records(name).map(function(record){return record.fn})};
       object.listenerCount=function(name,fn){var list=records(name);if(fn===undefined)return list.length;var count=0;for(var i=0;i<list.length;i++)if(list[i].fn===fn)count++;return count};
@@ -99,7 +99,8 @@ export const processExtensionsSource=String.raw`
     input.ref=function(){inputRef=true;return input};input.unref=function(){inputRef=false;return input};
     input.destroy=function(error){input.destroyed=true;input.readable=false;flowing=false;nextTick(function(){if(error)input.emit('error',error);input.emit('close')});return input};
     input.pipe=function(destination){input.on('data',function(chunk){destination.write(chunk)});input.on('end',function(){if(destination!==out&&destination!==err&&typeof destination.end==='function')destination.end()});return destination};
-    __nonaRegexpVm.hasPendingIO=function(){return flowing&&inputRef&&!input.readableEnded&&!input.destroyed};
+    __nonaRegexpVm.hasReadableIO=function(){return flowing&&!input.readableEnded&&!input.destroyed};
+    __nonaRegexpVm.hasPendingIO=function(){return inputRef&&__nonaRegexpVm.hasReadableIO()};
     __nonaRegexpVm.pumpIO=function(){
       if(!flowing||input.readableEnded||input.destroyed)return;
       try{if(!inputReady())return;var chunk=readInput();if(chunk===null){if(inputDecoder){var tail=inputDecoder.decode();if(tail)input.emit('data',tail)}input.emit('end')}else input.emit('data',chunk)}catch(error){flowing=false;input.emit('error',error)}

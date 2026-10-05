@@ -226,6 +226,7 @@ ${processExtensionsSource}
     }
     var code=created.exitCode;
     if(!exitEmitted){exitEmitted=true;if(exitCallback)exitCallback(code||0)}
+    code=created.exitCode;
     if(code!==undefined&&code!==0)created.exit(code)
   }
 })(__nonaPromiseDrainJobs);

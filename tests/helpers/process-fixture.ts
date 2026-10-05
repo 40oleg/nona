@@ -9,3 +9,10 @@ process.once('warning',w=>console.log(w.name,w.message,w.code,w.detail));process
 process.on('beforeExit',code=>console.log('beforeExit',code));process.on('exit',code=>console.log('exit',code));
 `;
 
+export const processReviewOracle=String.raw`
+let n=0;process.on('x',()=>{if(++n===1)process.emit('x')});process.once('x',()=>console.log('once'));process.emit('x');
+process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>console.log('data',chunk));process.stdin.unref();
+setTimeout(()=>console.log('timer'),50);
+process.on('exit',code=>{console.log('exit',code);process.exitCode=7});
+`;
+
