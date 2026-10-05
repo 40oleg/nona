@@ -5,6 +5,8 @@ native runtime and small JavaScript preludes compiled into every executable.
 
 See [native platforms](native-platforms.md) for the OS/CPU capability matrix. Optional `process` and filesystem adapters currently require Windows or Linux; timers, clocks and the shared runtime are available on every enabled target.
 
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
+
 ## Timers and the event loop
 
 Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,

@@ -61,4 +61,4 @@ Windows x64 पर पिन किए गए Test262 का पूरा रन
 
 "`eval`" फ़ेल्योर रनटाइम पर बना सोर्स टेक्स्ट, `$262.evalScript` या दूसरे realm इस्तेमाल करते हैं; "नई सिमैंटिक्स" वाले टेस्ट पुराने या ग़ायब फ़ीचर टैग के तहत बाद के संस्करणों का व्यवहार जाँचते हैं। [स्थिति पेज](/hi/guide/status) पर बचे फ़ेल्योर की सूची है।
 
-Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

@@ -61,4 +61,4 @@ Full pinned Test262 run on Windows x64 for v0.8.0 (features from ES2020 and earl
 
 "`eval`" failures use source text computed at run time, `$262.evalScript` or other realms; "newer semantics" tests check behaviour from later editions under an old or missing feature tag. The [status page](/guide/status) lists the remaining failures.
 
-Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

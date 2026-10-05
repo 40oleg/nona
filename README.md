@@ -22,7 +22,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
 
-Script functions may shadow optional built-in globals such as `escape` and `unescape`; runtime initialization completes before those declarations become visible.
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
 ## How it works
 
