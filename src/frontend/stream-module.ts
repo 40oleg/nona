@@ -13,6 +13,19 @@ export const streamModuleSource=String.raw`
 import { EventEmitter } from 'node:events';
 import { StringDecoder } from 'node:string_decoder';
 import { Buffer } from 'node:buffer';
+// Deferred calls of stream methods run in one microtask per batch, like the
+// process.nextTick queue Node.js uses for them: no closure per call.
+let tasks = [], tasksScheduled = false;
+function runTasks() {
+  tasksScheduled = false;
+  const list = tasks;
+  tasks = [];
+  for (let i = 0; i < list.length; i += 2) list[i][list[i + 1]]();
+}
+export function defer(target, method) {
+  tasks.push(target, method);
+  if (!tasksScheduled) { tasksScheduled = true; queueMicrotask(runTasks); }
+}
 export class Readable extends EventEmitter {
   constructor(options) {
     super();
@@ -46,8 +59,9 @@ export class Readable extends EventEmitter {
     // Without a consumer nothing is delivered; resume() or read() schedules again.
     if (this._flushScheduled || (this._flowing !== true && !this._readCalled)) return;
     this._flushScheduled = true;
-    queueMicrotask(() => { this._flushScheduled = false; this._flush(); });
+    defer(this, '_flushTask');
   }
+  _flushTask() { this._flushScheduled = false; this._flush(); }
   _flush() {
     const queue = this._queue;
     while (this._flowing === true && queue !== null && queue.length > 0 && !this._destroyed) {
@@ -129,14 +143,13 @@ export class Readable extends EventEmitter {
     if (this._destroyed) return this;
     this._destroyed = true;
     if (error) this._errored = error;
-    this._destroy(error || null, finalError => {
-      queueMicrotask(() => {
-        if (finalError) this.emit('error', finalError);
-        this._closed = true;
-        this.emit('close');
-      });
-    });
+    this._destroy(error || null, finalError => { this._finalError = finalError; defer(this, '_closeTask'); });
     return this;
+  }
+  _closeTask() {
+    if (this._finalError) this.emit('error', this._finalError);
+    this._closed = true;
+    this.emit('close');
   }
   _destroy(error, callback) { callback(error); }
   [Symbol.asyncIterator]() {
@@ -174,6 +187,6 @@ defaults(Readable.prototype, {
   _flowing: null,        // null: no consumer yet; true; false: paused
   _ended: false,         // push(null) seen
   _endEmitted: false, _decoder: null, _destroyed: false, _closed: false, _errored: null,
-  _flushScheduled: false, _readCalled: false, _hwm: 16384, _pipes: null
+  _flushScheduled: false, _readCalled: false, _hwm: 16384, _pipes: null, _finalError: null
 });
 `;

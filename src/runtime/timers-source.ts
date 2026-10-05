@@ -11,7 +11,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var enqueueJob=__nonaRegexpVm.enqueueJob;
   var heap=[],active=new Map(),count=0,nextId=1,seq=0,origin=hostNow();
   var getTimer=Map.prototype.get.bind(active),setTimer=Map.prototype.set.bind(active),deleteTimer=Map.prototype['delete'].bind(active);
-  function append(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
+  var nativeAppend=__nonaRegexpVm.append;
+  function append(array,value){nativeAppend(array,value)}
   function less(x,y){return x.when<y.when||(x.when===y.when&&x.seq<y.seq)}
   function siftUp(i){
     while(i>0){var p=floor((i-1)/2);if(!less(heap[i],heap[p]))return;var t=heap[i];heap[i]=heap[p];heap[p]=t;i=p}
@@ -61,7 +62,9 @@ __nonaPromiseDrainJobs=(function(drain){
   function clearInterval(id){cancel(id)}
   function queueMicrotask(callback){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
-    enqueueJob(function(){callback()})
+    // The callback is the job itself: jobs are called without arguments or
+    // a receiver, exactly how the callback must be called.
+    enqueueJob(callback)
   }
   function now(){return hostNow()-origin}
   var performance={};
