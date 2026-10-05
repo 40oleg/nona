@@ -19,8 +19,8 @@ console.log(`Native loader probe passed on ${process.platform}/${process.arch}: 
 for(const probe of manifest.runtime?.[target]??[]){
   if(typeof probe.file!=='string'||!/^[a-z0-9-]+(?:\.exe)?$/.test(probe.file)||typeof probe.expected!=='string')throw new Error('Invalid runtime probe manifest');
   const file=join(directory,probe.file);chmodSync(file,0o755);
-  // Buffer links RegExp and its GC-stress probes exceed 15 seconds on ARM.
-  const timeout=probe.file.includes('-buffer')?60000:15000;
+  const timeout=probe.timeoutMs??15000;
+  if(!Number.isInteger(timeout)||timeout<1||timeout>60000)throw new Error('Invalid runtime probe timeout');
   const result=spawnSync(file,[],{encoding:'utf8',timeout,windowsHide:true});
   if(result.error||result.status!==0||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);
   console.log(`Native execution probe passed: ${probe.file}`);

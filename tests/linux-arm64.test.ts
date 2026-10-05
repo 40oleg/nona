@@ -10,8 +10,9 @@ test('Linux ARM64 compiles the language runtime into an AArch64 ELF image',()=>{
 });
 test('Linux ARM64 builds runtime, forced GC and concurrent agent probes',()=>{
   const probes=runtimeProbes('linux-arm64');
-  assert.equal(probes.length,runtimeProbeSources.length+6);
-  assert.ok(probes.some(p=>p.name==='gc-stress'));
-  assert.ok(probes.some(p=>p.name==='agents'));
+  const expected=[...runtimeProbeSources.map(probe=>probe.name),'path-lazy-startup','gc-stress','agents','atomic-contention','process','filesystem','ffi-syscall'];
+  assert.equal(probes.length,expected.length);
+  assert.deepEqual(probes.map(probe=>probe.name),expected);
+  assert.ok(probes.some(probe=>probe.name==='path'));
   for(const p of probes)assert.equal(new DataView(p.image.buffer).getUint16(18,true),183,p.name);
 });

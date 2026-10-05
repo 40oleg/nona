@@ -19,6 +19,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
   - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
+  - `node:path` / `path` with POSIX and Windows variants, parsing, resolution and glob matching; working directories are read on demand ([paths](docs/path.md));
   - global `Buffer`, `Blob` and `File`, with `node:buffer`/`buffer`/`nona:buffer` imports, byte encodings and numeric access ([binary data](docs/host-apis.md#buffer-and-binary-data));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
@@ -100,7 +101,7 @@ nona --help | --version
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time. Computed strings throw `EvalError` ([contract](docs/es2020-contract.md)).
 - Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
-- Node.js modules other than the built-in `fs`, `process` and `buffer` subsets, npm packages, and browser APIs are not available. Blob byte/text streams and object URL registration/resolution are available; general URL parsing remains unsupported.
+- Node.js modules other than the built-in `fs`, `path`, `process` and `buffer` subsets, npm packages, and browser APIs are not available. Blob byte/text streams and object URL registration/resolution are available; general URL parsing remains unsupported.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
 - Optional process/filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
 

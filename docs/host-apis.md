@@ -7,6 +7,21 @@ See [native platforms](native-platforms.md) for the OS/CPU capability matrix. Op
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## Paths (`node:path`)
+
+`node:path` and `path` provide Node.js 26 path manipulation without filesystem
+access. Import the default object or named functions from ES modules. `posix`
+and `win32` expose both flavors on every native target; `node:path/posix`,
+`node:path/win32`, `path/posix` and `path/win32` expose a particular flavor.
+
+The API includes `normalize`, `join`, `resolve`, `relative`, `parse`, `format`,
+`basename`, `dirname`, `extname`, `isAbsolute`, `toNamespacedPath`, `matchesGlob`,
+`sep` and `delimiter`. The target operating system selects the default flavor.
+`resolve` and `relative` read the executable's current directory at runtime.
+Path reads only the requested working-directory information and does not
+initialize the full process object when imported.
+See [paths](path.md) for examples and compatibility boundaries.
+
 ## Timers and the event loop
 
 Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,

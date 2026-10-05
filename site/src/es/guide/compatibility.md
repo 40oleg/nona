@@ -29,8 +29,8 @@ El código en tiempo de ejecución se sigue en [#11](https://github.com/40oleg/n
 | `readFileSync(path)` | Devuelve un `Uint8Array` | Devuelve un `Buffer` |
 | Codificaciones | Solo `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Muchas |
 | Mensajes de error en Windows | Contienen la ruta tal como se pasó | Contienen la ruta absoluta |
-| Módulos | `nona:*`, `node:fs`, `node:process`, `node:buffer` y archivos relativos | Todo `node:*` y paquetes npm |
-| `require`, `node:path` | No disponibles | Disponibles |
+| Módulos | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` y archivos relativos | Todo `node:*` y paquetes npm |
+| `require` | No disponibles | Disponibles |
 | `console.log` sin salida estándar | La salida se descarta | La salida se descarta o se produce un error |
 
 ## Rendimiento

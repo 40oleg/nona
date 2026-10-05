@@ -25,7 +25,7 @@ function fail(message) {
 
 ## ধাপ 2: ছবিগুলো
 
-`node:fs`-এর `readdirSync` ফোল্ডারের তালিকা দেয়। `node:path` নেই, তাই পাথগুলো হাতে `\` দিয়ে জোড়া হয়।
+`readdirSync` from `node:fs` lists the folder. This sample joins paths with `\\`; `node:path` is also available.
 
 ```js
 const pictures = readdirSync(folder)

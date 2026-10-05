@@ -12,6 +12,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `console.log` | global | ambos | escreve UTF-8 na saída padrão |
 | `nona:process`, `node:process` | módulos | ambos | [process](/pt/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/pt/reference/host-apis#paths-nodepath) |
 | `nona:ffi` | módulo | Windows (DLLs), Linux (chamadas de sistema) | [Funções nativas (FFI)](/pt/reference/ffi) |
 | `nona:win32` | módulo | Windows | abaixo e em [FFI](/pt/reference/ffi#nona-win32) |
 
@@ -19,7 +20,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 
 - Os globais estão disponíveis em scripts e módulos.
 - Módulos embutidos podem ser importados em código de módulo (`.mjs` ou `--module`) e com `import()` literal em scripts. Declarações FFI (`define`) precisam estar em código de módulo.
-- Entre os módulos `node:` existem apenas `node:fs` e `node:process`; são aliases dos subconjuntos do Nona, não as implementações do Node.js. `node:path`, `Buffer` e `require` não estão disponíveis.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
 - `nona:win32` e declarações de DLL só compilam para `win32-x64`; declarações de chamadas de sistema, só para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}

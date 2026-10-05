@@ -25,7 +25,7 @@ function fail(message) {
 
 ## الخطوة 2: الصور
 
-تسرد `readdirSync` من `node:fs` محتوى المجلد. لا توجد `node:path`، لذا تُضمّ المسارات يدويًا بالمحرف `\`.
+`readdirSync` from `node:fs` lists the folder. This sample joins paths with `\\`; `node:path` is also available.
 
 ```js
 const pictures = readdirSync(folder)

@@ -8,6 +8,7 @@ import {getTarget,type Target} from '../target.js';
 import type {CodeFragment,NativeProgram} from './pe/model.js';
 import {compile} from '../compiler.js';
 import {compileToIR} from '../compiler.js';
+import {compileModuleToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
 import {linkDarwin} from './darwin/index.js';
@@ -28,20 +29,25 @@ export const runtimeProbeSources=[
   {name:'buffer-stream-state',source:'(async function(){let s=new Blob(["abc"]).stream();await s.cancel();let [a]=s.tee(),r=await a.getReader().read();console.log(r.done,r.value);let [x,y]=new Blob(["x"]).stream().tee(),done=false,p=x.cancel("left").then(()=>{done=true});await Promise.resolve();await Promise.resolve();console.log(done);let reader=y.getReader();await reader.read();await Promise.resolve();console.log(done);await reader.cancel("right");await p;console.log(done);reader.releaseLock();let w=new WritableStream({start(){return Promise.reject("start failure")}}).getWriter();try{await w.closed}catch(e){console.log(e)}w.releaseLock();let c,t=new WritableStream({start(controller){c=controller}}),v=t.getWriter();await Promise.resolve();c.error("controller failure");try{await v.closed}catch(e){console.log(e)}v.releaseLock()})()',expected:'true undefined\nfalse\nfalse\ntrue\nstart failure\ncontroller failure\n'},
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
+  {name:'path',source:String.raw`import path from 'node:path';console.log(path.isAbsolute(path.resolve()),path.relative(path.resolve('x'),path.resolve('y'))==='..'+path.sep+'y',path.posix.normalize('/a/../b/'),path.win32.normalize('C:/a/../b'),path.matchesGlob('a.js','*.js'));`,expected:'true true /b/ C:\\b true\n'},
 ] as const;
-export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
-  const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
+export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs?:number}[] {
+  const probes:{name:string;image:Uint8Array;expected:string;timeoutMs?:number}[]=runtimeProbeSources.map(probe=>{
     if(probe.name.startsWith('buffer')){
       const {result:ir,usage}=collectSourceUsage(()=>compileToIR(probe.source,undefined,undefined,target));
       const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
       const descriptor=getTarget(target)!;
       const image=descriptor.os==='win32'?(descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
-      return {name:probe.name,image,expected:probe.expected};
+      return {name:probe.name,image,expected:probe.expected,timeoutMs:60000};
     }
-    const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
+    const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {}),...(probe.name==='path'?{module:true}:{})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
   });
+  const {result:pathIR,usage:pathUsage}=collectSourceUsage(()=>compileModuleToIR('import path from "node:path";console.log("path",path.normalize("a/../b"),path.isAbsolute(path.resolve()),typeof Object.getOwnPropertyDescriptor(globalThis,"pro"+"cess"));','path-lazy-startup.mjs',undefined,'',target));
+  const pathProgram=withNativeTarget(target,()=>generate(pathIR,{gcStress:true,link:pathUsage})),descriptor=getTarget(target)!;
+  const pathImage=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(pathProgram):linkPe(pathProgram)):descriptor.os==='linux'?linkLinux(pathProgram,descriptor.arch):descriptor.os==='darwin'?linkDarwin(pathProgram,descriptor.arch):linkBsd(pathProgram,descriptor.os);
+  probes.push({name:'path-lazy-startup',image:pathImage,expected:'path b true undefined\n'});
   if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||getTarget(target)!.os==='darwin'||target==='win32-arm64'||target==='linux-x64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));
