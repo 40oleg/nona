@@ -10,7 +10,7 @@ ${processExecSource}
       else if(platform==='darwin'){if(machThread===undefined)machThread=host.mach_thread_self();var info=new Int32Array(10),count=new Uint32Array([10]);if(host.thread_info(machThread,3,info,count)!==0||count[0]<10)throw hostError('threadCpuUsage',5);user=info[0]*1000000+info[1];system=info[2]*1000000+info[3]}
       else{var usage=new Uint32Array(36),r=host.sys_getrusage(1,usage);if(r<0)throw hostError('threadCpuUsage',-r);user=unsigned64(usage,0)*1000000+unsigned64(usage,2);system=unsigned64(usage,4)*1000000+unsigned64(usage,6)}
       if(previous){if(typeof previous!=='object')throw argumentError('ERR_INVALID_ARG_TYPE','The previous CPU usage must be an object');
-        for(var name of ['user','system']){if(typeof previous[name]!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','CPU usage values must be numbers');if(!Number.isFinite(previous[name])||previous[name]<0||previous[name]>Number.MAX_SAFE_INTEGER)throw argumentError('ERR_INVALID_ARG_VALUE','CPU usage values must be nonnegative finite numbers')}
+        for(var name of ['user','system']){if(typeof previous[name]!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','CPU usage values must be numbers');if(!Number.isFinite(previous[name])||previous[name]<0||previous[name]>Number.MAX_SAFE_INTEGER)throw argumentError('ERR_INVALID_ARG_VALUE','CPU usage values must be nonnegative finite numbers',true)}
         user-=previous.user;system-=previous.system
       }return {user:user,system:system}
     });
