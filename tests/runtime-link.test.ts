@@ -125,7 +125,8 @@ test('a program links only the preludes it names',()=>{
  for(const target of ['win32-x64','linux-x64'] as const){
   const trimmed=image('console.log("hi");',{},target).length;
   const all=image('console.log(Reflect.ownKeys({}).length);',{},target).length;
-  assert.ok(all-trimmed>600_000,`${target}: ${trimmed} vs ${all} bytes`);
+  // The optional preludes are about half a megabyte of code.
+  assert.ok(all-trimmed>400_000,`${target}: ${trimmed} vs ${all} bytes`);
  }
  // Without the preludes the globals are absent and their host primitives are not installed.
  assert.equal(run('console.log(typeof globalThis[["Pro","xy"].join("")], ["__nonaHostNow", "__nonaUtf8Encode", "__nonaHost_GetCommandLineW"].map(k => typeof globalThis[k]).join());'),'undefined undefined,undefined,undefined\n');

@@ -161,9 +161,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       {offset:i*24,kind:'va64' as const,target:literal(property.name),addend:0},
       {offset:i*24+8,kind:'va64' as const,target:'js.globals',addend:property.index*16},
     ])});
-  function finish(a:Assembler,name:string,size:number,prologSize:number):void {
+  function finish(a:Assembler,name:string,size:number,prologSize:number,allocationCodeOffset=prologSize,savedRegisters:UnwindFunction['savedRegisters']=[]):void {
     a.label(name+'.end');fragments.push({...a.finish(),name,section:'.text'});
-    functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset:prologSize,stackAllocation:size,savedRegisters:[]});
+    functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset,stackAllocation:size,savedRegisters});
   }
   function emitFunction(fn:FunctionIR):void {
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
@@ -174,6 +174,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
     }
     const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
+    const savedFrameBase=rootBase+R.size,frameBias=valueBase+128;
+    const stack=(disp:number):Mem=>({base:'rbp',disp:disp-frameBias});
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
     if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
     // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
@@ -187,7 +189,15 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Touch the last partial page before moving RSP, as Windows guard pages require.
       if(allocation%4096){a.sub('r11',allocation%4096);a.load('r10',{base:'r11'});}
     }
-    a.sub('rsp',allocation);const prologSize=a.offset;
+    // RBP addresses the frame from the first value slot + 128, so that the
+    // first sixteen value slots (most of a function's traffic) are reached
+    // with 8-bit displacements; RSP-relative 32-bit ones made every load and
+    // store of the generated code three bytes longer. RBP is preserved: it is
+    // saved in the frame (stack+104, below the value slots) during the prolog
+    // and restored before returning; handlers and coroutines save it with the
+    // other preserved registers.
+    a.sub('rsp',allocation);const allocated=a.offset;a.store({base:'rsp',disp:savedFrameBase},'rbp');const prologSize=a.offset;
+    a.lea('rbp',{base:'rsp',disp:frameBias});
     a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
     const value=(n:number):Mem=>stack(valueBase+16*location(n));
@@ -276,7 +286,11 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
       a.jmp(done);a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.label(done);return true;
     };
-    a.mov('rax',0);for(let i=0;i<locations.count;i++){a.store(stack(valueBase+16*i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
+    // Every value location starts cleared (the GC scans them). Large frames
+    // use `rep stosq`: the argument registers are already saved and RDI is
+    // kept in R11 around it.
+    if(locations.count>=4){a.mov('r11','rdi');a.lea('rdi',stack(valueBase));a.mov('rcx',locations.count*2);a.mov('rax',0);a.repStosq();a.mov('rdi','r11');}
+    else{a.mov('rax',0);for(let i=0;i<locations.count;i++){a.store(stack(valueBase+16*i),'rax');a.store(stack(valueBase+16*i+8),'rax');}}
     a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
     copy(stack(superReceiverBase),stack(thisBase));
     if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
@@ -618,10 +632,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(term.value<0){a.mov('rax',0);a.store({base:'r10'},'rax');a.store({base:'r10',disp:8},'rax');}
           else copy({base:'r10'},value(term.value));
           a.load('rax',stack(rootBase+R.next));a.store({rip:'rt.gcRoots'},'rax');
-          a.add('rsp',allocation);a.ret();break;
+          a.load('rbp',{base:'rsp',disp:savedFrameBase});a.add('rsp',allocation);a.ret();break;
       }
     }
-    finish(a,fn.id,allocation,prologSize);
+    finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));
   // Host functions installed as properties of the global object before the prelude.
