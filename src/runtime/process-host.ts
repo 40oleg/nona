@@ -22,13 +22,20 @@ export function processNativeHelpers():RuntimeBuilder {
 
 /** Save kernel-owned startup vectors before the runtime changes its stack. */
 export function captureProcessStartup(a:Assembler,target:Target):void {
+ if(target==='darwin-x64'){
+  // The process adapter links native libSystem APIs and therefore uses LC_MAIN.
+  // The system C entry supplies RDI=argc, RSI=argv, RDX=envp.
+  a.store({rip:'process.startupArgv'},'rsi');a.store({rip:'process.startupEnv'},'rdx');return;
+ }
  if(target==='darwin-arm64'){
   // LC_MAIN is a native C entry: x0=argc, x1=argv, x2=envp. Logical
   // RCX/RDX map to x1/x2; no native call has changed them yet.
   a.store({rip:'process.startupArgv'},'rcx');a.store({rip:'process.startupEnv'},'rdx');return;
  }
  if(target.startsWith('win32-')||target.startsWith('linux-'))return;
- a.lea('rax',{base:'rsp',disp:8});a.store({rip:'process.startupArgv'},'rax');
+ // FreeBSD passes the vector base in RDI; its aligned RSP can precede argc.
+ // OpenBSD places argc directly at RSP.
+ a.lea('rax',{base:target==='freebsd-x64'?'rdi':'rsp',disp:8});a.store({rip:'process.startupArgv'},'rax');
  const scan=a.unique('startupEnv');a.label(scan);a.load('r10',{base:'rax'});a.add('rax',8);a.test('r10','r10');a.jcc('ne',scan);
  a.store({rip:'process.startupEnv'},'rax');
 }

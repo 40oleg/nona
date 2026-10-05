@@ -261,6 +261,10 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['CloseHandle','KERNEL32.dll','CloseHandle','bool(ptr)'],
     ['GetProcessTimes','KERNEL32.dll','GetProcessTimes','bool(ptr,buf,buf,buf,buf)'],
     ['K32GetProcessMemoryInfo','KERNEL32.dll','K32GetProcessMemoryInfo','bool(ptr,buf,u32)'],
+    ['CreateFileW','KERNEL32.dll','CreateFileW','ptr(buf,u32,u32,ptr,u32,u32,ptr)'],
+    ['GlobalMemoryStatusEx','KERNEL32.dll','GlobalMemoryStatusEx','bool(buf)'],
+    ['QueryInformationJobObject','KERNEL32.dll','QueryInformationJobObject','bool(ptr,i32,buf,u32,ptr)'],
+    ['IsProcessInJob','KERNEL32.dll','IsProcessInJob','bool(ptr,ptr,buf)'],
   ];
   const posix:[string,string,string,string][]=[
     ['sys_read','syscall','0','i64(i64,buf,i64)'],
@@ -279,21 +283,30 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['sys_getuid','syscall','102','u32()'],['sys_geteuid','syscall','107','u32()'],
     ['sys_getgid','syscall','104','u32()'],['sys_getegid','syscall','108','u32()'],
     ['sys_umask','syscall','95','u32(u32)'],
+    ['sys_getgroups','syscall','115','i32(u32,buf)'],['sys_setgroups','syscall','116','i32(u32,buf)'],
+    ['sys_setuid','syscall','105','i32(u32)'],['sys_setgid','syscall','106','i32(u32)'],
+    ['sys_setresuid','syscall','117','i32(u32,u32,u32)'],['sys_setresgid','syscall','119','i32(u32,u32,u32)'],
+    ['sys_getrlimit','syscall','97','i32(i32,buf)'],
   ];
   if(target==='linux-arm64'){
     const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getppid:'173',sys_chdir:'49',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94',sys_write:'64',sys_poll:'73',sys_getrusage:'165',sys_kill:'129',sys_getuid:'174',sys_geteuid:'175',sys_getgid:'176',sys_getegid:'177',sys_umask:'166'};
+    Object.assign(numbers,{sys_getgroups:'158',sys_setgroups:'159',sys_setuid:'146',sys_setgid:'144',sys_setresuid:'147',sys_setresgid:'149',sys_getrlimit:'163'});
     for(const entry of posix){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';if(entry[0]==='sys_poll')entry[3]='i32(buf,u64,buf,ptr,u64)';}
   }else if(target.startsWith('darwin-')||target.startsWith('freebsd-')||target.startsWith('openbsd-')){
     const numbers:Record<string,string>={sys_read:'3',sys_open:'5',sys_close:'6',sys_getpid:'20',sys_getppid:'39',sys_chdir:'12',sys_readlink:'58',sys_exit:'1',sys_getcwd:'326',sys_write:'4',sys_poll:target.startsWith('darwin-')?'230':target.startsWith('freebsd-')?'209':'252',sys_getrusage:target.startsWith('openbsd-')?'19':'117',sys_kill:target.startsWith('openbsd-')?'122':'37',sys_getuid:'24',sys_geteuid:'25',sys_getgid:'47',sys_getegid:'43',sys_umask:'60'};
+    Object.assign(numbers,{sys_getgroups:'79',sys_setgroups:'80',sys_setuid:'23',sys_setgid:'181',sys_setresuid:'0',sys_setresgid:'0',sys_getrlimit:'194'});
     for(const entry of posix)entry[2]=numbers[entry[0]]!;
+    for(const name of ['sys_setresuid','sys_setresgid'])posix.splice(posix.findIndex(e=>e[0]===name),1);
+    posix.push(['sys_seteuid','syscall','183','i32(u32)'],['sys_setegid','syscall','182','i32(u32)']);
     if(!target.startsWith('freebsd-'))posix.splice(posix.findIndex(e=>e[0]==='sys_getcwd'),1);
     if(target.startsWith('darwin-'))posix.push(['sys_fcntl','syscall','92','i64(i64,i64,buf)'],['sys_procinfo','syscall','336','i64(i32,i32,u32,u64,buf,i32)']);
-    else posix.push(['sys_sysctl','syscall','202','i64(buf,u32,buf,buf,ptr,u64)']);
+    else posix.push(['sys_sysctl','syscall','202','i64(buf,u32,buf,buf,buf,u64)']);
   }
   const list:[string,string,string,string][]=[...windows,...posix,
     ['startupArgv','nona.internal','startupArgv','ptr()'],['startupEnv','nona.internal','startupEnv','ptr()'],
     ['copy','nona.internal','copy','void(buf,ptr,u64)'],['length','nona.internal','length','u64(ptr)'],
   ];
+  if(target.startsWith('darwin-'))list.push(['mach_host_self','/usr/lib/libSystem.B.dylib','mach_host_self','u32()'],['host_page_size','/usr/lib/libSystem.B.dylib','host_page_size','i32(u32,buf)'],['host_statistics64','/usr/lib/libSystem.B.dylib','host_statistics64','i32(u32,i32,buf,buf)']);
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
 }
 

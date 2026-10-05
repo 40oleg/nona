@@ -9,6 +9,9 @@ Process standard streams use native descriptors without external libraries:
 UTF-8/byte writes are synchronous, and flowing stdin is polled by the event loop.
 The process adapter also provides lifecycle/warning events, OS CPU/resource
 queries and native process control; see its documented compatibility boundaries.
+Native process file reads support dotenv loading on every target independently
+of the optional filesystem module. POSIX numeric credential operations and
+native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 

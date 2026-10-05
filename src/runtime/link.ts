@@ -37,6 +37,10 @@ export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
 export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers']};
+/** Process parses dotenv/memory text and validates masks with original regexes. */
+export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]){
+ const regexp=link.regexp||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
+}
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
  * method, so it links every prelude.

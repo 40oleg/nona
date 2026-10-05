@@ -12,12 +12,11 @@ const u32=(value:number)=>{
   return value;
 };
 
-/** Intel uses direct kernel startup; Apple Silicon uses the system dyld/libSystem. */
+/** Preserve kernel startup for import-free Intel images; system imports use dyld. */
 export function linkMachO(program:NativeProgram,options:MachOOptions={}):Uint8Array {
   const arch=options.arch??'x64';
   if(arch!=='x64'&&arch!=='arm64')throw new Error('Unsupported Mach-O architecture');
-  const dynamic=arch==='arm64';
-  if(program.imports.length&&!dynamic)throw new Error('Mach-O requires resolved native imports');
+  const dynamic=arch==='arm64'||program.imports.length>0;
   if(program.imports.some(i=>i.dll!=='/usr/lib/libSystem.B.dylib'||!/^[_a-zA-Z][_a-zA-Z0-9]*$/.test(i.name)))throw new Error('Mach-O imports must name libSystem functions');
   const imported=program.imports.map(i=>({name:i.symbol,section:'.data' as const,alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[]}));
   program={...program,fragments:[...program.fragments,...imported]};

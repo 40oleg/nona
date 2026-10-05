@@ -7,6 +7,9 @@ let cpu=process.cpuUsage();let diff=process.cpuUsage(cpu);console.log(cpu.user>=
 console.log(process.kill(process.pid,0));
 process.once('warning',w=>console.log(w.name,w.message,w.code,w.detail));process.emitWarning('message',{type:'TestWarning',code:'NONA_TEST',detail:'detail'});
 process.on('beforeExit',code=>console.log('beforeExit',code));process.on('exit',code=>console.log('exit',code));
+let inventory=setTimeout(()=>{},10);console.log(process.getActiveResourcesInfo().filter(name=>name==='Timeout').length);clearTimeout(inventory);
+if(typeof process.getgroups==='function'){console.log(process.getgroups().includes(process.getegid()));if(process.getuid()===process.geteuid()&&process.getgid()===process.getegid()){process.setuid(process.getuid());process.seteuid(process.geteuid());process.setgid(process.getgid());process.setegid(process.getegid());console.log('same identities')}}
+console.log(typeof process.loadEnvFile,typeof process.constrainedMemory,typeof process.availableMemory);
 `;
 
 export const processReviewOracle=String.raw`

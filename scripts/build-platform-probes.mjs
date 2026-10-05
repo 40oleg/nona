@@ -14,6 +14,7 @@ for(const target of targets){
   writeFileSync(join(directory,target+(target.startsWith('win32-')?'.exe':'')),loaderProbe(target),{mode:0o755});
 }
 writeFileSync(join(directory,'expected.txt'),loaderProbeOutput);
+writeFileSync(join(directory,'process.env'),"export NONA_PLATFORM_ENV_QUOTED=' value # bytes '\nNONA_PLATFORM_ENV_MULTILINE='first\nsecond'\nNONA_PLATFORM_ENV_KEEP=changed\n");
 const runtime={};
 if(targets.includes('linux-arm64')){
   writeFileSync(join(directory,'linux-arm64-bridge'),arm64BridgeProbe(),{mode:0o755});

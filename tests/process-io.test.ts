@@ -10,6 +10,17 @@ test('process initialization completes with the host environment without GC stre
 
 import {processExtendedOracle,processReviewOracle} from './helpers/process-fixture.js';
 import {spawnSync} from 'node:child_process';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+test('process native dotenv loading matches Node 26 and reads real memory counters',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'nona-env-native-')),path=join(directory,'fixture.env');
+ try{
+  writeFileSync(path,"export NONA_ENV_A=' value # text '\nNONA_ENV_B=\"first\\nsecond\"\nNONA_ENV_KEEP=replaced\n");
+  const source='process.env.NONA_ENV_KEEP="original";process.loadEnvFile('+JSON.stringify(path)+');console.log(JSON.stringify([process.env.NONA_ENV_A,process.env.NONA_ENV_B,process.env.NONA_ENV_KEEP]));console.log(process.availableMemory()>0,process.constrainedMemory()>=0)';
+  const result=runProcess(source);assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,runOracle(source).stdout);
+ }finally{rmSync(directory,{recursive:true,force:true})}
+});
 test('process reviewed lifecycle and unreferenced stdin match Node 26 natively',()=>{
  const result=runProcess(processReviewOracle,'abc');
  const oracle=spawnSync(process.execPath,['-e',processReviewOracle],{input:'abc',encoding:'utf8',windowsHide:true,timeout:5000});

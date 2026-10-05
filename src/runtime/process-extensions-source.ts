@@ -1,4 +1,5 @@
 /** Original process I/O, events and OS controls; inserted inside build(). */
+import {processSystemSource} from './process-system-source.js';
 export const processExtensionsSource=String.raw`
     function emitter(object){
       var events=new Map(),maximum=10;
@@ -146,6 +147,7 @@ export const processExtensionsSource=String.raw`
       for(var pair of [['getuid','sys_getuid'],['geteuid','sys_geteuid'],['getgid','sys_getgid'],['getegid','sys_getegid']]){(function(name,hostName){value(name,function(){return host[hostName]()})})(pair[0],pair[1])}
       value('umask',function(mask){if(mask===undefined){var current=host.sys_umask(0);host.sys_umask(current);return current}if(typeof mask==='string'&&/^[0-7]+$/.test(mask))mask=parseInt(mask,8);if(!Number.isInteger(mask)||mask<0||mask>0xffffffff)throw argumentError('ERR_OUT_OF_RANGE','Invalid mask',true);return host.sys_umask(mask)});
     }
+${processSystemSource}
     beforeExitCallback=function(){process.emit('beforeExit',process.exitCode||0)};
     exitCallback=function(code){process.emit('exit',code)};
 `;

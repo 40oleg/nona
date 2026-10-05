@@ -5,6 +5,7 @@ import {linkMachO} from '../macho/writer.js';
 import {withNativeTarget} from '../machine/context.js';
 import type {Assembler} from '../x64/assembler.js';
 import type {NativeProgram} from '../pe/model.js';
+import {darwinProcessSystemAdapters} from './system.js';
 
 function syscall(a:Assembler,number:number):void {
   a.syscall(number);const done=a.unique('syscallDone');a.jcc('ae',done);a.neg('rax');a.label(done);
@@ -74,6 +75,7 @@ export function linkDarwinArm64(program:NativeProgram):Uint8Array {
   for(let i=19;i<=30;i++)a.nativeWord((0xf9400000|(((i-19)*8/8)<<10)|(31<<5)|i)>>>0);
   a.nativeWord(0x910383ff);a.nativeWord(0xd65f03c0);
   b.bundle.fragments.push({...a.finish(),name:'darwin.arm64.threadEntry',section:'.text'});
-  return linkMachO({...program,imports:names.map(name=>({dll:'/usr/lib/libSystem.B.dylib',name,symbol:'libSystem.'+name})),fragments:[...program.fragments,...fragments,...b.bundle.fragments]},{arch:'arm64'});
+  const systemImports=darwinProcessSystemAdapters(program,'arm64');
+  return linkMachO({...program,imports:[...names.map(name=>({dll:'/usr/lib/libSystem.B.dylib',name,symbol:'libSystem.'+name})),...systemImports.imports],fragments:[...systemImports.fragments,...fragments,...b.bundle.fragments]},{arch:'arm64'});
  });
 }

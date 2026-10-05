@@ -56,6 +56,9 @@ including `chdir`, `ppid`, `hrtime`, `uptime` and `nextTick`; see the
 [process API](process.md) for compatibility boundaries. `node:fs` and `nona:fs`
 require Windows or Linux x64/ARM64 and produce `E_HOST_MODULE` on Darwin/BSD.
 Syscall numbers, flags and structure layouts follow the selected target.
+Darwin process memory queries use the OS's libSystem Mach APIs. Intel images
+with those imports use dyld/LC_MAIN and preserve argv/env through the system C
+entry ABI; Intel images without imports retain direct kernel startup.
 `--full-runtime` is available on all eight targets.
 
 Raw `nona:ffi` syscall declarations use the **target kernel's actual syscall

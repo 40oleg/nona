@@ -8,9 +8,8 @@ Cette page est une traduction de la page anglaise [Process API](/reference/proce
 # Process API
 
 `process` is a lazy global object on all eight native targets. It is also the
-default export of `node:process` and `nona:process`. Their named exports are
-`argv`, `argv0`, `execArgv`, `env`, `platform`, `arch`, `pid`, `ppid`,
-`execPath`, `exit`, `cwd`, `chdir`, `hrtime`, `uptime` and `nextTick`.
+default export of `node:process` and `nona:process`. Named exports include
+the metadata, control, timing, streams, events and OS helpers described below.
 
 | Member | Behavior |
 | --- | --- |
@@ -66,10 +65,36 @@ and minor page faults from native process APIs. Unavailable Windows resource
 counters are omitted. `kill(pid, signal?)` delivers native POSIX signals, or
 checks process existence with signal 0; Windows supports existence checks and
 termination signals. Installing JavaScript signal handlers is unsupported.
-POSIX also exposes `getuid`, `geteuid`, `getgid`, `getegid` and `umask`.
+POSIX also exposes `getuid`, `geteuid`, `getgid`, `getegid`, `getgroups`, `umask`,
+and numeric `setuid`, `seteuid`, `setgid`, `setegid`, `setgroups`. Group queries
+include the effective group. Setters validate unsigned 32-bit IDs and report
+native permission errors; account-name resolution and `initgroups` still require
+a native account-database adapter. Windows omits POSIX credential APIs.
 
-IPC/channel APIs, worker integration, V8 heap reports, credential mutation and
-group queries, title changes, Node.js/V8 version metadata, debugger/report APIs
+`loadEnvFile(path = './.env')` reads a real UTF-8 file through OS services on all
+targets. An original parser handles whitespace, comments, export prefixes,
+quoted/multiline values, double-quoted newline escapes, and duplicate keys.
+Existing environment entries take precedence. Paths may be strings or byte
+arrays; URL paths await the URL dependency. `NODE_OPTIONS` is environment data
+and does not enable an interpreter option in compiled Nona programs.
+
+`getActiveResourcesInfo()` lists actual pending timers as `Timeout` and referenced
+flowing input as `NonaStdin`. Resource names describe Nona's event loop; there are
+no libuv handles. `ref`/`unref` support the `nodejs.ref`/`nodejs.unref` symbol
+protocol, plus legacy methods. stdin implements both forms.
+
+`availableMemory()` reads native free/available physical memory: Windows memory
+status, Linux `MemAvailable` and cgroup usage, FreeBSD free-page sysctls, OpenBSD
+UVM counters, or Darwin Mach host statistics. It caps the result by configured
+process limits. `constrainedMemory()` reads finite POSIX data/address-space
+limits, Linux cgroup memory ceilings, or Windows Job Object memory limits;
+zero means no finite limit was found. Queries are snapshots, not allocation
+guarantees; unavailable counters fail explicitly. Linux supports conventional
+cgroup mounts. Windows queries the current job. BSD/Darwin page counts exclude
+potentially reclaimable inactive pages.
+
+IPC/channel APIs, worker integration, V8 heap reports, account-name resolution,
+title changes, Node.js/V8 version metadata, debugger/report APIs
 and interpreter flag processing remain absent. Nona does not fabricate V8 or
 IPC behavior. Error messages and some OS error mappings differ from Node.js.
 
