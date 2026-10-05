@@ -3,11 +3,21 @@ import assert from 'node:assert/strict';
 import {compile} from '../src/compiler.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
-import {processPreludeForTarget} from '../src/runtime/process-source.js';
+import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
+import {runtimeProbes} from '../src/backend/platform-probes.js';
 import {processExtendedOracle,processReviewOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
+
+test('OpenBSD 7.8 process syscalls match the release ABI and compile its native I/O probe',()=>{
+ // Release syscall.h revision 1.283, OPENBSD_7_8; 37 is obsolete msyscall.
+ // https://cvsweb.openbsd.org/src/sys/sys/syscall.h?rev=OPENBSD_7_8&content-type=text/plain
+ const expected:Record<string,string>={sys_read:'3',sys_write:'4',sys_open:'5',sys_close:'6',sys_chdir:'12',sys_getrusage:'19',sys_getpid:'20',sys_getuid:'24',sys_geteuid:'25',sys_getppid:'39',sys_getegid:'43',sys_getgid:'47',sys_readlink:'58',sys_umask:'60',sys_kill:'122',sys_sysctl:'202',sys_poll:'252',sys_exit:'1'};
+ const declarations=processHostDeclarations('openbsd-x64');
+ for(const [name,number] of Object.entries(expected))assert.equal(declarations.find(item=>item.name===name)?.declaration.name,number,name);
+ const probe=runtimeProbes('openbsd-x64').find(item=>item.name==='process-io');assert.ok(probe);assert.ok(probe.image.length>0);assert.match(probe.expected,/true true true true/);
+});
 
 function mockProcess(extra:Record<string,unknown>={}){
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},

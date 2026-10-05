@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fixed reentrant process once listeners, final exit-listener status updates, and polling of unreferenced stdin while timers keep the process alive ([#141](https://github.com/40oleg/nona/issues/141)).
+- Fixed reentrant process once listeners, final exit-listener status updates, polling of unreferenced stdin while timers keep the process alive, and the OpenBSD 7.8 `kill` syscall mapping ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
 
