@@ -702,7 +702,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
   const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();
   if(!options.agent&&hostFfi.length)captureProcessStartup(entry,currentNativeTarget()??'win32-x64');
-  entry.sub('rsp',72);const p=entry.offset;
+  const processBoundary=hasPrelude&&linked.includes('process'),entryFrame=processBoundary?424:72;
+  if(processBoundary){const bytes=new Uint8Array(16);bytes[0]=4;fragments.push({name:'process.dispatchKey',section:'.rdata',alignment:8,bytes,symbols:{},fixups:[{offset:8,kind:'va64',target:literal('dispatchUncaught'),addend:0}]})}
+  entry.sub('rsp',entryFrame);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
   // GC stress: freed cells are poisoned so a missing root fails at once.
@@ -727,14 +729,42 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   callArguments();
   if(hasPrelude){entry.call('js.regexpVm.main');callArguments();}
   entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
+  // The outer boundary catches JS throws only, after rt.throw restores the
+  // stack, precise roots and cleanup chain. Runtime failures remain rt.fail.
+  const uncaught=entry.unique('uncaught'),drainStart=entry.unique('drainStart'),drained=entry.unique('drained');
+  const pushEntryHandler=()=>{
+    entry.load('rax',{rip:'rt.exceptionHandler'});entry.store(stack(96+H.next),'rax');entry.mov('rax','rsp');entry.store(stack(96+H.stack),'rax');
+    entry.lea('rax',{rip:uncaught});entry.store(stack(96+H.target),'rax');entry.load('rax',{rip:'rt.gcRoots'});entry.store(stack(96+H.roots),'rax');
+    entry.lea('rax',stack(80));entry.store(stack(96+H.value),'rax');entry.load('rax',{rip:'rt.cleanupHead'});entry.store(stack(96+H.cleanup),'rax');
+    preservedGp.forEach((reg,i)=>entry.store(stack(96+H.gp+8*i),reg));preservedXmm.forEach((reg,i)=>entry.storeXmm128(stack(96+H.xmm+16*i),reg));
+    entry.mov('rax',0);entry.store(stack(96+H.kind),'rax');entry.lea('rax',stack(96));entry.store({rip:'rt.exceptionHandler'},'rax');
+  };
+  const popEntryHandler=()=>{entry.load('rax',stack(96+H.next));entry.store({rip:'rt.exceptionHandler'},'rax')};
+  if(processBoundary){
+    entry.mov('rax',0);for(const offset of [64,72,80,88])entry.store(stack(offset),'rax');
+    entry.load('rax',{rip:'rt.gcRoots'});entry.store(stack(384+R.next),'rax');entry.lea('rax',stack(64));entry.store(stack(384+R.values),'rax');
+    entry.mov('rax',2);entry.store(stack(384+R.count),'rax');entry.lea('rax',stack(384));entry.store({rip:'rt.gcRoots'},'rax');pushEntryHandler();
+  }
   entry.call('js.main');
+  if(processBoundary)popEntryHandler();
+  entry.label(drainStart);
+  if(processBoundary)pushEntryHandler();
   if(hasPrelude)drain();
+  if(processBoundary){
+    popEntryHandler();entry.jmp(drained);entry.label(uncaught);
+    entry.lea('rcx',stack(64));entry.lea('rdx',{rip:'rt.preludeGlobals'});entry.lea('r8',{rip:'process.dispatchKey'});entry.call('rt.getProperty');
+    entry.load('rax',stack(64));entry.cmp('rax',5);failIf(entry,'ne');
+    entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(32),'rax');entry.store(stack(40),'rax');
+    entry.lea('rcx',stack(48));entry.lea('rdx',stack(64));entry.mov('r8',1);entry.lea('r9',stack(80));entry.call('rt.invoke');
+    entry.mov('rax',0);for(const offset of [64,72,80,88])entry.store(stack(offset),'rax');entry.jmp(drainStart);entry.label(drained);
+    entry.load('rax',stack(384+R.next));entry.store({rip:'rt.gcRoots'},'rax');
+  }
   if(options.agent){
     // An agent thread handles one broadcast, runs its jobs and returns.
     entry.call('rt.agentAwaitBroadcast');if(hasPrelude)drain();
-    entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    entry.mov('rax',0);entry.add('rsp',entryFrame);entry.ret();finish(entry,'entry',entryFrame,p);
   }else{
-    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',entryFrame);entry.ret();finish(entry,'entry',entryFrame,p);
   }
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }

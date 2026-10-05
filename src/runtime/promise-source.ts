@@ -2,7 +2,7 @@
 // This is compiled by the same frontend as user code.
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
-  var jobs=[],head=0,unhandled=[],states=new WeakMap(),defineProperty=Object.defineProperty;
+  var jobs=[],head=0,unhandled=[],handledLater=[],states=new WeakMap(),defineProperty=Object.defineProperty;
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
   // CreateDataProperty through one reused descriptor: a fresh descriptor
@@ -18,13 +18,18 @@ var __nonaPromiseDrainJobs=(function(){
   if(typeof hostEnqueue==='function')enqueue=function(job){hostEnqueue(job)};
   else sharedQueue(enqueue);
   function drain(){
-    while(head<jobs.length){var job=jobs[head++];job()}
+    while(head<jobs.length){var job=jobs[head++];try{job()}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}}
     jobs=[];head=0;
-    for(var i=0;i<unhandled.length;i++){
-      if(failOnUnhandled&&!unhandled[i].handled)throw unhandled[i].value
+    var handled=handledLater;handledLater=[];
+    var pending=unhandled;unhandled=[];
+    for(var i=0;i<pending.length;i++){
+      var state=pending[i];if(state.handled)continue;state.reported=true;
+      if(typeof __nonaRegexpVm.reportUnhandledRejection==='function')__nonaRegexpVm.reportUnhandledRejection(state.value,state.promise,failOnUnhandled);
+      else if(failOnUnhandled)throw state.value
     }
-    unhandled=[]
+    for(var i=0;i<handled.length;i++)if(typeof __nonaRegexpVm.reportRejectionHandled==='function')__nonaRegexpVm.reportRejectionHandled(handled[i].promise)
   }
+  function markHandled(state){if(state.handled)return;state.handled=true;if(state.reported)append(handledLater,state)}
   function record(value){
     var state=getState(value);
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');
@@ -81,7 +86,7 @@ var __nonaPromiseDrainJobs=(function(){
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
-    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false});
+    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false,reported:false,promise:this});
     var functions=resolving(this);
     try{executor(functions.resolve,functions.reject)}catch(error){functions.reject(error)}
   }
@@ -105,7 +110,7 @@ var __nonaPromiseDrainJobs=(function(){
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
-    state.handled=true;
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
     return next.promise
@@ -199,7 +204,7 @@ var __nonaPromiseDrainJobs=(function(){
   function performThen(promise,onFulfilled,onRejected){
     var state=record(promise);
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop};
-    state.handled=true;
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))
   }
@@ -342,7 +347,7 @@ var __nonaPromiseDrainJobs=(function(){
       var done=!!result.done,value=result.value,wrapper;
       try{wrapper=promiseResolve(Promise,value)}
       catch(error){if(!done&&closeOnRejection)closeSyncIterator(record,true,error);throw error}
-      var state=record_(wrapper);state.handled=true;
+      var state=record_(wrapper);markHandled(state);
       var onRejected=done||!closeOnRejection?undefined:function(error){closeSyncIterator(record,true,error)};
       var reaction={onFulfilled:function(unwrapped){return iterResult(unwrapped,done)},onRejected:onRejected,resolve:functions.resolve,reject:functions.reject};
       if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
@@ -637,6 +642,7 @@ var __nonaPromiseDrainJobs=(function(){
   if(!hasOwn.call(generatorFunctionPrototype,Symbol.toStringTag))define(generatorFunctionPrototype,Symbol.toStringTag,'GeneratorFunction',false);
   // The timer prelude queues microtasks (queueMicrotask) on the same queue.
   __nonaRegexpVm.enqueueJob=function(job){enqueue(job)};
+  __nonaRegexpVm.hasPendingPromiseJobs=function(){return head<jobs.length||handledLater.length>0||unhandled.length>0};
   return drain
 })();
 `;

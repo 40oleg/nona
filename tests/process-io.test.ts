@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {runOnHost} from './helpers/host.js';
 import {runProcess} from './helpers/process.js';
 import {runOracle} from './helpers/oracle.js';
+import {processExceptionProbes} from '../src/backend/platform-probes.js';
+for(const probe of processExceptionProbes)test(`process native ${probe.name} matches Node26`,()=>{
+ const result=runProcess(probe.source);assert.equal(result.status,probe.status,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,probe.expected);
+});
 test('process initialization completes with the host environment without GC stress',()=>{
  const result=runOnHost('console.log(process.platform,typeof process.env)',{gcStress:false});
  assert.equal(result.status,0,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,process.platform+' object\n');

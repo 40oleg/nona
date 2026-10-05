@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Preserve Nona's logical call ABI for Windows ARM64 process helpers and unavailable syscall stubs; retain native marshaling for actual Windows imports ([#141](https://github.com/40oleg/nona/issues/141)).
+- Dispatch process exception monitors/capture callbacks and promise rejection lifecycle events from original native entry and job boundaries; preserve Node fatal statuses and promise identities ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Use bounded original scanners for process account IDs and Linux memory fields under GC stress; keep source boundary fixtures current with native environment ownership ([#141](https://github.com/40oleg/nona/issues/141)).
 

@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {types} from 'node:util';
 import {compile,compileToIR} from '../src/compiler.js';
 import {collectSourceUsage} from '../src/frontend/lexer.js';
 import {runtimeRegExpLink} from '../src/runtime/link.js';
@@ -11,13 +12,15 @@ import {withNativeTarget} from '../src/backend/machine/context.js';
 import {emitFfi} from '../src/runtime/ffi.js';
 import {checkFfiNames} from '../src/ffi.js';
 import {processNativeHelpers} from '../src/runtime/process-host.js';
+import {generate} from '../src/backend/x64/codegen.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
-import {runtimeProbes} from '../src/backend/platform-probes.js';
+import {runtimeProbes,processExceptionProbes} from '../src/backend/platform-probes.js';
 import {emitRuntime} from '../src/runtime/index.js';
-import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle} from './helpers/process-fixture.js';
+import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle,processExceptionOracle,processRejectionOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
+import {promisePreludeSource} from '../src/runtime/promise-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync,rmSync,readFileSync} from 'node:fs';
@@ -156,10 +159,11 @@ test('OpenBSD 7.8 process syscalls match the release ABI and compile its native 
  const probe=runtimeProbes('openbsd-x64').find(item=>item.name==='process-io');assert.ok(probe);assert.ok(probe.image.length>0);assert.match(probe.expected,/true true true true/);
 });
 
-function mockProcess(extra:Record<string,unknown>={},target='linux-x64'){
- const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
+function mockProcess(extra:Record<string,unknown>={},target='linux-x64',before?:string){
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{isRejectionError:types.isNativeError},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
+ if(before)runInContext(before,context);
  runInContext(processPreludeForTarget(target),context);return context;
 }
 test('POSIX execve packs actual UTF-8 argv/envp without mutating the current environment',()=>{
@@ -344,4 +348,95 @@ test('nextTick boundary drains nested ticks before jobs and later ticks after th
  const context=portableBoundary();
  const result=runInContext('var order=[];scheduleJob(()=>{order.push("promise");process.nextTick(()=>order.push("later"))});process.nextTick((a,b)=>{order.push(a+b);process.nextTick(()=>order.push("nested"))},1,2);__nonaPromiseDrainJobs();order.join(",")',context);
  assert.equal(result,'3,nested,promise,later');
+});
+
+const promiseMockBootstrap='Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;'+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true');
+test('native process exception probes match Node26 stdout and fatal statuses',()=>{
+ for(const probe of processExceptionProbes){const oracle=spawnSync(process.execPath,['-e',probe.source],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,probe.status,probe.name);assert.equal(oracle.stdout,probe.expected,probe.name)}
+});
+test('native process entry retains thrown Values and restores the existing handler ABI',()=>{
+ const program=generate(compileToIR('process.on("uncaughtException",()=>{});throw Error("rooted")'));
+ assert.equal(program.functions.find(fn=>fn.begin==='entry')!.stackAllocation,424);
+ const entry=program.fragments.find(fragment=>fragment.name==='entry')!;
+ assert.ok(entry.fixups.some(fixup=>fixup.target==='rt.exceptionHandler'));
+ assert.ok(entry.fixups.filter(fixup=>fixup.target==='rt.gcRoots').length>=5);
+ const key=program.fragments.find(fragment=>fragment.name==='process.dispatchKey')!;assert.equal(key.bytes[0],4);assert.equal(key.fixups[0]!.offset,8);
+});
+test('promise propagation and immediate late handling preserve child identity and ordering',()=>{
+ const probe=processExceptionProbes.find(item=>item.name==='process-rejection')!,{context,output}=exceptionBoundary();
+ runInContext(probe.source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',probe.expected);
+});
+test('promise throw and ignore policies retain their behavior before lazy process access',()=>{
+ for(const fail of [true,false]){
+  const context=mockProcess({},'linux-x64',promiseMockBootstrap.replace('var failOnUnhandled=true','var failOnUnhandled='+fail));
+  assert.equal(runInContext('typeof __nonaRegexpVm.dispatchUncaught',context),'undefined');runInContext('Promise.reject(37)',context);
+  if(fail)assert.throws(()=>runInContext('__nonaPromiseDrainJobs()',context),error=>error===37);else assert.doesNotThrow(()=>runInContext('__nonaPromiseDrainJobs()',context));
+ }
+});
+function exceptionBoundary(){
+ const output:string[]=[],statuses:number[]=[],stopped={};let clock=0;
+ const context=mockProcess({console:{log:(...args:unknown[])=>output.push(args.join(' '))},__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms},__nonaHost_sys_exit:(code:number)=>{statuses.push(code);throw stopped},__nonaHost_sys_write:(_fd:number,_bytes:Uint8Array,n:number)=>n},'linux-x64',promiseMockBootstrap);
+ runInContext(timersPreludeSource,context);return {context,output,statuses,stopped};
+}
+test('process exception callbacks preserve monitor ordering and continue ticks/jobs',()=>{
+ const {context,output}=exceptionBoundary();runInContext(processExceptionOracle,context);runInContext('__nonaPromiseDrainJobs()',context);
+ assert.equal(output.join('\n')+'\n',runOracle(processExceptionOracle).stdout);
+});
+test('process timer exceptions preserve exact-once callback and monitor ordering',()=>{
+ const {context,output}=exceptionBoundary();const source='process.on("uncaughtExceptionMonitor",e=>console.log("monitor",e.message));process.on("uncaughtException",e=>console.log("caught",e.message));setTimeout(()=>{throw Error("timer")},1);setTimeout(()=>console.log("later timer"),2)';
+ runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',runOracle(source).stdout);
+});
+test('process reports real promise identity and late handlers after their reactions',()=>{
+ const {context,output}=exceptionBoundary();runInContext(processRejectionOracle,context);runInContext('__nonaPromiseDrainJobs()',context);
+ assert.equal(output.join('\n')+'\n',runOracle(processRejectionOracle).stdout);
+});
+test('process capture callback validates registration and suppresses the uncaught event',()=>{
+ const {context,output}=exceptionBoundary();const source='process.on("uncaughtExceptionMonitor",()=>console.log("monitor"));process.on("uncaughtException",()=>console.log("event"));process.setUncaughtExceptionCaptureCallback(e=>console.log("capture",e.message));console.log(process.hasUncaughtExceptionCaptureCallback());try{process.setUncaughtExceptionCaptureCallback(()=>{})}catch(e){console.log(e.name,e.code)}process.nextTick(()=>{throw Error("captured")});setTimeout(()=>{process.setUncaughtExceptionCaptureCallback(null);console.log(process.hasUncaughtExceptionCaptureCallback())},1)';
+ runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',runOracle(source).stdout);
+});
+test('additional capture callbacks run in reverse order with legacy precedence',()=>{
+ for(const legacy of [false,true]){
+  const {context,output}=exceptionBoundary();const source='process.on("uncaughtExceptionMonitor",()=>console.log("monitor"));process.on("uncaughtException",()=>console.log("event"));console.log(String(process.addUncaughtExceptionCaptureCallback(()=>{console.log("first");return true})));process.addUncaughtExceptionCaptureCallback(()=>{console.log("second");return false});console.log(process.hasUncaughtExceptionCaptureCallback());'+(legacy?'process.setUncaughtExceptionCaptureCallback(()=>console.log("legacy"));':'')+'process.nextTick(()=>{throw Error("captured")});';
+  runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',runOracle(source).stdout);
+ }
+});
+test('rejection promotion uses native error branding across prototypes and realms',()=>{
+ for(const expression of ['Object.create(Error.prototype)','Object.setPrototypeOf(Error("native"),null)','foreignError']){
+  const {context,output}=exceptionBoundary();context.foreignError=runInContext('Error("foreign")',createContext({}));
+  const source='process.on("uncaughtException",(e,o)=>console.log(e.code===undefined?"native":e.code,o));Promise.reject('+expression+')';
+  runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);
+  const oracleSource=expression==='foreignError'?'const foreignError=require("node:vm").runInNewContext("Error(\\"foreign\\")");'+source:source;
+  assert.equal(output.join('\n')+'\n',runOracle(oracleSource).stdout);
+ }
+});
+test('proxy rejection classification preserves identity without property traps',()=>{
+ for(const expression of ['Error("real")','Object.create(Error.prototype)','Object.setPrototypeOf(Error("real"),null)','new Proxy(Error("nested"),{})'])for(const revoked of [false,true]){
+  const {context,output}=exceptionBoundary();const setup='var gets=[];var target='+expression+';var pair=Proxy.revocable(target,{get(t,k,r){gets.push(String(k));return Reflect.get(t,k,r)}});var reason=pair.proxy;'+(revoked?'pair.revoke();':'');
+  runInContext(setup,context);
+  const target=runInContext('target',context),reason=runInContext('reason',context);
+  context.__nonaRegexpVm.isRejectionError=(value:unknown)=>{if(value===reason){if(revoked)throw new TypeError('Revoked proxy');return expression.startsWith('new Proxy')||types.isNativeError(target)}return types.isNativeError(value)};
+  const source='process.on("uncaughtException",(e,o)=>console.log(e===reason,e===reason?"original":String(e.code),o,JSON.stringify(gets)));Promise.reject(reason)';
+  runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',runOracle(setup+source).stdout);
+ }
+});
+test('process fatal exceptions retain Node exit1/7 and monitor-only behavior',()=>{
+ for(const handler of ['', 'process.setUncaughtExceptionCaptureCallback(()=>{throw Error("handler")});']){
+  const {context,output,statuses,stopped}=exceptionBoundary();const source='process.on("uncaughtExceptionMonitor",(e,o)=>console.log("monitor",e.message,o));'+handler+'process.nextTick(()=>{throw Error("fatal")})';
+  runInContext(source,context);assert.throws(()=>runInContext('__nonaPromiseDrainJobs()',context),e=>e===stopped);
+  const oracle=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true});assert.deepEqual(statuses,[oracle.status]);assert.equal(output.join('\n')+'\n',oracle.stdout);
+ }
+});
+test('process default primitive rejection escalates with Node origin and coded error',()=>{
+ const {context,output}=exceptionBoundary();const source='process.on("uncaughtExceptionMonitor",(e,o)=>console.log(e.name,e.code,o));process.on("uncaughtException",()=>{});Promise.reject("primitive")';
+ runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);assert.equal(output.join('\n')+'\n',runOracle(source).stdout);
+});
+test('fatal exit listeners can change status while handler failures skip exit listeners',()=>{
+ for(const setup of ['process.on("exit",()=>process.exitCode=7);','process.setUncaughtExceptionCaptureCallback(()=>{throw Error("handler")});process.on("exit",()=>console.log("unexpected exit"));']){
+  const {context,output,statuses,stopped}=exceptionBoundary(),source=setup+'process.nextTick(()=>{throw Error("fatal")})';
+  runInContext(source,context);assert.throws(()=>runInContext('__nonaPromiseDrainJobs()',context),e=>e===stopped);const oracle=spawnSync(process.execPath,['-e',source],{encoding:'utf8',windowsHide:true});assert.deepEqual(statuses,[oracle.status]);assert.equal(output.join('\n')+(output.length?'\n':''),oracle.stdout);
+ }
+});
+for(const target of supportedNativeTargets)test(`process exception/rejection boundary compiles for ${target}`,()=>{
+ const result=compile(processExceptionOracle+processRejectionOracle+'throw Error("top level")',{fileName:'process-exceptions.js',target});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
+ for(const probe of processExceptionProbes){const native=compile(probe.source,{fileName:probe.name+'.js',target});assert.ok(native.ok,native.ok?'':JSON.stringify(native.diagnostics))}
 });

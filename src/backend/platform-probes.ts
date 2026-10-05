@@ -26,8 +26,8 @@ export const runtimeProbeSources=[
   {name:'clock',source:'let a=Date.now(),b=Date.now(),t=performance.now();__nonaAgentSleep(30);console.log(a>1700000000000,b>=a,performance.now()-t>=20)',expected:'true true true\n'},
   {name:'timers',source:'setTimeout(()=>console.log("timer",performance.now()>0),2)',expected:'timer true\n'},
 ] as const;
-export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
-  const probes:{name:string;image:Uint8Array;expected:string}[]=runtimeProbeSources.map(probe=>{
+export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expected:string;status?:number}[] {
+  const probes:{name:string;image:Uint8Array;expected:string;status?:number}[]=runtimeProbeSources.map(probe=>{
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
     if(!result.ok)throw new Error(`${target}/${probe.name}: ${JSON.stringify(result.diagnostics)}`);
     return {name:probe.name,image:result.image,expected:probe.expected};
@@ -89,8 +89,23 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
     const result=compile(`import {define} from 'nona:ffi';const read=define('syscall','${read}','i64(i32,ptr,u32)'),pid=define('syscall','${pid}','i64()');console.log(pid()>0,read(-1,null,0))`,{fileName:'ffi-syscall.mjs',target,module:true});
     if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));probes.push({name:'ffi-syscall',image:result.image,expected:'true -9\n'});
   }
+  for(const probe of processExceptionProbes){
+    const result=compile(probe.source,{fileName:probe.name+'.js',target});if(!result.ok)throw new Error(JSON.stringify(result.diagnostics));
+    probes.push({name:probe.name,image:result.image,expected:probe.expected,status:probe.status});
+  }
   return probes;
 }
+/** Public API probes include real entry unwinding and fatal native statuses. */
+export const processExceptionProbes=[
+ {name:'process-rejection-proxy',source:'let gets=0;let real=new Proxy(Object.setPrototypeOf(Error("real"),null),{get(t,k,r){gets++;return Reflect.get(t,k,r)}}),fake=new Proxy(Object.create(Error.prototype),{get(t,k,r){gets++;return Reflect.get(t,k,r)}}),pair=Proxy.revocable(Error("revoked"),{});pair.revoke();process.on("uncaughtException",(e,o)=>console.log(e===real,e===real?"original":String(e.code),o,gets));Promise.reject(real);Promise.reject(fake);Promise.reject(pair.proxy)',expected:'true original unhandledRejection 0\nfalse ERR_UNHANDLED_REJECTION unhandledRejection 0\nfalse undefined uncaughtException 0\n',status:0},
+ {name:'process-rejection-brand',source:'process.on("uncaughtException",(e,o)=>console.log(e.code===undefined?"native":e.code,o));Promise.reject(Object.create(Error.prototype));Promise.reject(Object.setPrototypeOf(Error("native"),null))',expected:'ERR_UNHANDLED_REJECTION unhandledRejection\nnative unhandledRejection\n',status:0},
+ {name:'process-uncaught',source:'process.on("uncaughtExceptionMonitor",(e,o)=>console.log("monitor",e.message,o));process.on("uncaughtException",e=>{console.log("caught",e.message);if(e.message==="tick")setTimeout(()=>{throw Error("timer")},1);if(e.message==="timer")setTimeout(()=>console.log("later"),1)});process.nextTick(()=>{throw Error("tick")});throw Error("top")',expected:'monitor top uncaughtException\ncaught top\nmonitor tick uncaughtException\ncaught tick\nmonitor timer uncaughtException\ncaught timer\nlater\n',status:0},
+ {name:'process-rejection',source:'let parent=Promise.reject("reason"),child=parent.then();process.on("unhandledRejection",(r,p)=>{console.log(r,p===child,p===parent);p.catch(()=>console.log("catch"))});process.on("rejectionHandled",p=>console.log("handled",p===child));Promise.reject("same turn").catch(()=>console.log("same turn"))',expected:'same turn\nreason true false\ncatch\nhandled true\n',status:0},
+ {name:'process-capture',source:'process.on("uncaughtExceptionMonitor",()=>console.log("monitor"));process.on("uncaughtException",()=>console.log("unexpected event"));process.setUncaughtExceptionCaptureCallback(e=>console.log("capture",e.message));setTimeout(()=>{process.setUncaughtExceptionCaptureCallback(null);console.log(process.hasUncaughtExceptionCaptureCallback())},1);throw Error("top")',expected:'monitor\ncapture top\nfalse\n',status:0},
+ {name:'process-fatal',source:'process.on("uncaughtExceptionMonitor",(e,o)=>console.log(e.message,o));process.on("beforeExit",()=>console.log("unexpected beforeExit"));process.on("exit",code=>console.log("exit",code));throw Error("fatal")',expected:'fatal uncaughtException\nexit 1\n',status:1},
+ {name:'process-handler-fatal',source:'process.setUncaughtExceptionCaptureCallback(()=>{throw Error("handler")});process.on("exit",code=>console.log("unexpected exit",code));throw Error("fatal")',expected:'',status:7},
+ {name:'process-rejection-fatal',source:'process.on("uncaughtExceptionMonitor",(e,o)=>console.log(e.name,e.code,o));Promise.reject("primitive")',expected:'UnhandledPromiseRejection ERR_UNHANDLED_REJECTION unhandledRejection\n',status:1},
+] as const;
 /** Refuse accidental emulation (including Rosetta) in native verification. */
 export function assertNativeHost(target:string,platform:string=process.platform,arch:string=process.arch):void {
   const descriptor=getTarget(target);

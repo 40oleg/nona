@@ -129,7 +129,14 @@ jobs:
             for expected in /probes/linux-x64-*.expected; do
               binary=${expected%.expected}
               echo "Running $binary"
-              "$binary" > "/results/${binary##*/}.actual"
+              status=0
+              "$binary" > "/results/${binary##*/}.actual" || status=$?
+              expected_status=0
+              if [ -f "$binary.status" ]; then expected_status=$(cat "$binary.status"); fi
+              if [ "$status" -ne "$expected_status" ]; then
+                echo "Unexpected exit status $status (expected $expected_status)"
+                exit 1
+              fi
             done
             cat /etc/os-release
           '
@@ -172,13 +179,16 @@ jobs:
               echo "Running $binary"
               chmod 755 "$binary"
               if "$binary" > "$binary.actual"; then
-                :
+                status=0
               else
                 status=$?
+              fi
+              expected_status=$(cat "$binary.status")
+              if [ "$status" -ne "$expected_status" ]; then
                 if command -v lldb >/dev/null 2>&1; then
                   lldb --batch -o run -o 'thread backtrace all' -o 'register read' -o 'disassemble --frame --count 12' "$binary" || true
                 fi
-                exit "$status"
+                exit 1
               fi
               cmp "$probe" "$binary.actual"
             done
@@ -200,7 +210,9 @@ jobs:
               binary=${probe%.expected}
               echo "Running $binary"
               chmod 755 "$binary"
-              "$binary" > "$binary.actual"
+              if "$binary" > "$binary.actual"; then status=0; else status=$?; fi
+              expected_status=$(cat "$binary.status")
+              if [ "$status" -ne "$expected_status" ]; then exit 1; fi
               cmp "$probe" "$binary.actual"
             done
             uname -a

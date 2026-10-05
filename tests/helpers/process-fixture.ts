@@ -42,3 +42,16 @@ export const processExecErrorOracle=String.raw`
 if(typeof process.execve==='function'){process.env.NONA_EXEC_ERROR='preserved';try{process.execve('/nona_missing_exec_971683',[],{VALUE:'replacement'})}catch(error){console.log(error.code,error.syscall,error.path,process.env.NONA_EXEC_ERROR)}}else console.log('no execve');
 `;
 
+export const processExceptionOracle=String.raw`
+process.on('uncaughtExceptionMonitor',(error,origin)=>console.log('monitor',error.message,origin));
+process.on('uncaughtException',(error,origin)=>console.log('caught',error.message,origin));
+process.nextTick(()=>{throw Error('tick')});process.nextTick(()=>console.log('next tick'));
+queueMicrotask(()=>{throw Error('microtask')});
+`;
+export const processRejectionOracle=String.raw`
+let rejected=Promise.reject('reason');
+process.on('unhandledRejection',(reason,promise)=>{console.log('unhandled',reason,promise===rejected);setTimeout(()=>promise.catch(()=>console.log('catch')),1)});
+process.on('rejectionHandled',promise=>console.log('handled',promise===rejected));
+Promise.reject('same turn').catch(()=>console.log('same turn caught'));
+`;
+

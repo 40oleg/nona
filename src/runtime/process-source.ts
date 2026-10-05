@@ -212,9 +212,9 @@ ${processExtensionsSource}
     set:function(v){install(v)}});
   function flush(){
     do{
-      while(tickHead<ticks.length){var job=ticks[tickHead++];apply(job.callback,undefined,job.args)}
+      while(tickHead<ticks.length){var job=ticks[tickHead++];try{apply(job.callback,undefined,job.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}}
       ticks=[];tickHead=0;drain();
-    }while(ticks.length);
+    }while(ticks.length||(typeof __nonaRegexpVm.hasPendingPromiseJobs==='function'&&__nonaRegexpVm.hasPendingPromiseJobs()));
   }
   return function(){
     flush();

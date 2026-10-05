@@ -75,7 +75,7 @@ __nonaPromiseDrainJobs=(function(drain){
   function run(timer){
     if(timer.repeat){timer.when=hostNow()+timer.delay;timer.seq=++seq;push(timer)}
     else{deleteTimer(timer.id);count--}
-    reflectApply(timer.callback,undefined,timer.args)
+    try{reflectApply(timer.callback,undefined,timer.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}
   }
   return function eventLoop(){
     drain();

@@ -59,6 +59,40 @@ warning event and writes a diagnostic to stderr; warning details and deprecation
 flags are supported. Maximum-listener warning diagnostics and `rawListeners`
 are not yet available.
 
+### Runtime exceptions and promise rejections
+
+Unhandled JavaScript throws from program entry, next ticks, queued microtasks
+and timer callbacks dispatch `uncaughtExceptionMonitor(error, origin)` before
+`uncaughtException(error, origin)`. The origin is `uncaughtException` or
+`unhandledRejection`. An exception listener or capture callback allows remaining
+jobs and timers to continue. Monitor listeners alone do not suppress a fatal
+exit. Allocator failures and other unrecoverable native failures retain their
+native failure path.
+
+`setUncaughtExceptionCaptureCallback(functionOrNull)` installs or clears one
+callback; `hasUncaughtExceptionCaptureCallback()` reports its presence. Capture
+suppresses the uncaught event while monitors still run. Invalid callbacks and
+duplicate registration have Node-compatible error codes. The additional
+`addUncaughtExceptionCaptureCallback(callback)` callbacks run in reverse registration
+order; returning true handles the exception. The legacy capture callback takes
+precedence, and the presence query reports only that legacy callback. A fatal unhandled
+exception exits with status 1 and emits `exit` without `beforeExit`; a failure
+inside an exception/monitor/capture handler exits with status 7 and skips further
+JavaScript lifecycle callbacks.
+
+`unhandledRejection(reason, promise)` runs after pending promise jobs. A handler
+attached within that batch prevents reporting. After a reported promise gains a
+handler, `rejectionHandled(promise)` runs after queued reactions. Classification recognizes native Error objects through live proxy targets without
+calling property traps; revoked proxies dispatch an uncaught TypeError. Diagnostic
+formatting for other object reasons is intentionally generic and does not inspect
+user properties. Events receive
+the actual originating promise; propagation through `.then()` tracks the child
+separately. Without an unhandled-rejection listener, the compiler's existing
+`throw` or `ignore` policy applies. `throw` escalates with origin
+`unhandledRejection`; non-Error reasons use `ERR_UNHANDLED_REJECTION`. Hooks install
+on first process access and observe rejections queued earlier in the same turn.
+Node's additional interpreter policy flags and V8 diagnostic stacks are absent.
+
 `cpuUsage(previous?)` reports actual OS CPU microseconds. `resourceUsage()` reads
 POSIX `getrusage` counters (peak RSS in KiB); Windows supplies CPU time, peak RSS
 and minor page faults from native process APIs. Unavailable Windows resource
