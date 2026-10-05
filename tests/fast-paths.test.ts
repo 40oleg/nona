@@ -416,6 +416,18 @@ try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constr
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
+ 'Object.keys of ordinary objects':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+log(Object.keys({b:1,a:2,c:3}));
+const p={};Object.defineProperty(p,"h",{value:1,enumerable:false});p.x=1;p[Symbol("s")]=2;p.y=3;log(Object.keys(p));
+log(Object.keys({z:1,2:2,1:3,"":4,"01":5}));
+const r={get g(){return 1},v:2};delete r.v;r.w=5;log(Object.keys(r),JSON.stringify(r));
+log(Object.keys({}),Object.keys([1,2]),Object.keys("ab"),Object.keys(new Map()),Object.keys(Object.create({inherited:1})));
+class C{constructor(){this.m=1;this.n=2}};const c=new C();c.k=3;log(Object.keys(c));
+const big={};for(let i=0;i<40;i++)big["k"+i]=i;const ks=Object.keys(big);ks.push("zz");log(ks.length,ks[0],ks[39],ks[40]);
+const keys=Object.keys({a:1});keys[5]=1;keys.pop();log(keys,keys.length);
+let n=0;for(let i=0;i<2000;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
