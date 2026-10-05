@@ -107,7 +107,7 @@ for(const [name,body] of cases){
   }finally{removeTemporaryDirectory(directory);}
  });
  test('events native oracle: '+name,{skip:name.startsWith('listener limit warnings')&&process.platform!=='win32'&&process.platform!=='linux'},()=>{
-  const {native,oracle}=runModulesOnHost({'main.mjs':imports+body},'main.mjs');
+  const {native,oracle}=runModulesOnHost({'main.mjs':imports+body},'main.mjs',{gcStress:!name.startsWith('listener limit warnings')});
   assert.equal(native.error,undefined);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,oracle);
  });
 }
