@@ -141,8 +141,8 @@ export function on(emitter, name, options) {
   const signal = options.signal, close = options.close || [];
   const values = [], waiting = [];
   let ended = false, failure, paused = false;
-  const high = options.highWaterMark === undefined ? Number.MAX_SAFE_INTEGER : options.highWaterMark;
-  const low = options.lowWaterMark === undefined ? 1 : options.lowWaterMark;
+  const high = options.highWaterMark === undefined ? (options.highWatermark === undefined ? Number.MAX_SAFE_INTEGER : options.highWatermark) : options.highWaterMark;
+  const low = options.lowWaterMark === undefined ? (options.lowWatermark === undefined ? 1 : options.lowWatermark) : options.lowWaterMark;
   for (const mark of [high, low]) {
     if (typeof mark !== 'number') throw invalid('watermark');
     if (!Number.isSafeInteger(mark) || mark < 1) { const e = new RangeError('The watermark is out of range'); e.code = 'ERR_OUT_OF_RANGE'; throw e; }
@@ -169,7 +169,7 @@ export function addAbortListener(signal, listener) {
   checkListener(listener);
   let active = true;
   function aborted(...args) { if (!active) return; active = false; signal.removeEventListener('abort', aborted); listener.apply(this, args); }
-  if (signal.aborted) queueMicrotask(aborted); else signal.addEventListener('abort', aborted, {once:true});
+  if (signal.aborted) { active = false; queueMicrotask(() => listener()); } else signal.addEventListener('abort', aborted, {once:true});
   return {[Symbol.dispose || Symbol.for('nodejs.dispose')]() { active = false; signal.removeEventListener('abort', aborted); }};
 }
 Object.defineProperty(EventEmitter, 'defaultMaxListeners', {enumerable:true,get() { return defaultMaxListeners; },set(n) { checkMax(n); defaultMaxListeners = n; }});

@@ -86,6 +86,7 @@ for(const options of [undefined,null,false,1,'x',{}])console.log(new EventEmitte
 console.log(setMaxListeners());
 for(const n of [0,-1,NaN,'x',1.1]){try{on(new EventEmitter(),'x',{highWaterMark:n})}catch(e){console.log(e.name,e.code)}}
 for(const n of [0,-1,NaN,'x',1.1]){try{on(new EventEmitter(),'x',{lowWaterMark:n})}catch(e){console.log(e.name,e.code)}}
+for(const key of ['highWatermark','lowWatermark']){try{on(new EventEmitter(),'x',{[key]:0})}catch(e){console.log(key,e.code)}}
 `],
  ['iterator pending requests, return and errors', `
 async function run(){const e=new EventEmitter(),it=on(e,'x');const p=it.next();e.emit('x',9);console.log((await p).value.join());await it.return();console.log((await it.next()).done,e.eventNames().length);
@@ -121,7 +122,7 @@ test('events source oracle: addAbortListener disposal and late subscription',()=
  const directory=mkdtempSync(join(tmpdir(),'nona-events-abort-'));
  try{
   writeFileSync(join(directory,'events.mjs'),eventsModuleSource);
-  const body=`const c=new AbortController();const a=addAbortListener(c.signal,()=>console.log('removed'));a[Symbol.dispose]();addAbortListener(c.signal,function(event){console.log('abort',this===c.signal,event.type)});c.abort();addAbortListener(c.signal,()=>console.log('late'));console.log('sync');`;
+  const body=`const c=new AbortController();const a=addAbortListener(c.signal,()=>console.log('removed'));a[Symbol.dispose]();addAbortListener(c.signal,function(event){console.log('abort',this===c.signal,event.type)});c.abort();addAbortListener(c.signal,()=>console.log('late'));const late=addAbortListener(c.signal,()=>console.log('late-disposed'));late[Symbol.dispose]();console.log('sync');`;
   for(const [file,module] of [['source.mjs','./events.mjs'],['oracle.mjs','node:events']])writeFileSync(join(directory,file!),`import {addAbortListener} from '${module}';\n`+body);
   const source=spawnSync(process.execPath,[join(directory,'source.mjs')],{encoding:'utf8'});
   const oracle=spawnSync(process.execPath,[join(directory,'oracle.mjs')],{encoding:'utf8'});
