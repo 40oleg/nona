@@ -7,6 +7,12 @@ import {pathParitySources} from './helpers/path-cases.js';
 // Exercise the actual built-in source independently of native linking. Native
 // module/GC parity is covered by path.test.ts on Windows and Linux in CI.
 const implementation:typeof oracle=new Function(pathModuleSource.replace(/^export .*$/gm,'')+'\nreturn path;')();
+function seededRootPaths(){
+ let seed=9135;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed>>>8;};
+ const prefixes=['','/','//','///','C:','C:/','D:\\','\\\\server\\share','\\\\server\\share\\','\\\\?\\C:\\','\\\\.\\pipe\\'];
+ const chunks=['a','..','.','','C:','D:','CON:','x:y','.x','😀','server','share','...','foo.txt','é'];
+ return ()=>{let result=prefixes[random()%prefixes.length]!;for(let j=0,n=random()%6;j<n;j++)result+=chunks[random()%chunks.length]!+(['/','\\',''][random()%3]!);return result;};
+}
 test('path source: nested group oracle matrix',()=>{
  const groups=['@(a|b)','?(a|b)','*(a|b)','+(a|b)','!(a|b)'];
  const texts=['','a','b','c','aa','ab','a.js','b.js','aa.js','ax.js','xa.js','.','..','.a'];
@@ -40,6 +46,27 @@ test('path source: Windows flavor resolves from a POSIX host cwd',()=>{
   }
  }finally{process.cwd=originalCwd;}
 });
+test('path source: Windows relative handles device-less roots on POSIX hosts',()=>{
+ const host={platform:'linux',env:{},cwd:()=>'/tmp/nona/path-tests'};
+ const source=pathModuleSource.replace('const pathHost=globalThis.process;','').replace(/^export .*$/gm,'');
+ const simulated:typeof oracle=new Function('pathHost',source+'\nreturn path;')(host);
+ const originalCwd=process.cwd;
+ const values=['/','//','/a','/ab','/abc','/abcd','/abc/x','/abcd/x','/foo.txt','/foo.txt.','/se','/serv','/server','/server/x','/server/share','/tmp/nona','C:/','C:/a','D:/','D:/a','//server/share','//server/share/a','//other/share/a','\\\\?\\C:\\','\\\\?\\C:\\a./server\\CON:\\foo.txt','\\\\.\\pipe\\','\\\\.\\pipe\\a'];
+ try{
+  process.cwd=host.cwd;
+  assert.equal(simulated.win32.relative('//','\\\\?\\C:\\a./server\\CON:\\foo.txt'),'?\\C:\\a.\\server\\CON:\\foo.txt');
+  for(const from of values)for(const to of values)
+   assert.equal(simulated.win32.relative(from,to),oracle.win32.relative(from,to),JSON.stringify([from,to]));
+  const path=seededRootPaths();
+  for(let i=0;i<2500;i++){
+   const from=path(),to=path();
+   // Empty/dot resolution retains Node's real-host assumptions on Windows;
+   // the ordinary seeded test covers these cases on each actual CI host.
+   if(!from||from==='.'||!to||to==='.')continue;
+   assert.equal(simulated.win32.relative(from,to),oracle.win32.relative(from,to),JSON.stringify([from,to]));
+  }
+ }finally{process.cwd=originalCwd;}
+});
 for(const [name,body] of Object.entries(pathParitySources))test('path source: '+name,()=>{
  const evaluate=(path:typeof oracle)=>{
   const lines:string[]=[];
@@ -67,10 +94,7 @@ for(const flavor of ['posix','win32'] as const)for(const pattern of patterns)for
 });
 
 test('path source: seeded root, suffix and path-pair oracle parity',()=>{
- let seed=9135;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed>>>8;};
- const prefixes=['','/','//','///','C:','C:/','D:\\','\\\\server\\share','\\\\server\\share\\','\\\\?\\C:\\','\\\\.\\pipe\\'];
- const chunks=['a','..','.','','C:','D:','CON:','x:y','.x','😀','server','share','...','foo.txt','é'];
- const path=()=>{let result=prefixes[random()%prefixes.length]!;for(let j=0,n=random()%6;j<n;j++)result+=chunks[random()%chunks.length]!+(['/','\\',''][random()%3]!);return result;};
+ const path=seededRootPaths();
  for(const flavor of ['posix','win32'] as const)for(let i=0;i<2500;i++){
   const from=path(),to=path();
   for(const method of ['normalize','dirname','basename','extname','isAbsolute','parse'] as const)

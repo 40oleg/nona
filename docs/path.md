@@ -80,6 +80,10 @@ module source against Node, including 91,000 seeded component/root/path-pair
 comparisons, 5,888 glob token/traversal cases and 4,032 concatenated extglob
 cases and 700 nested-group cases. Compact native regressions also cover
 nullable/negated groups, nested dot guards and empty-input repetition.
+Windows relative-path regressions also exercise device-less roots and UNC
+prefix boundaries using a simulated POSIX working directory. The source suite
+checks a 729-pair root matrix and 2,500 generated pairs in that environment,
+while empty/dot inputs are checked against Node on the actual CI host.
 The native platform probe matrix exercises runtime cwd resolution, relative
 paths, both flavors and glob matching on all eight OS/CPU targets.
 

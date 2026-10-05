@@ -131,8 +131,30 @@ function pathFlavor(windows){
   pathString(from,'from');pathString(to,'to');if(from===to)return '';
   const a=resolve(from),b=resolve(to),ra=pathRoot(a,windows),rb=pathRoot(b,windows);
   const left=pathSegments(windows?a:a.slice(ra.end),windows).filter(x=>x),right=pathSegments(windows?b:b.slice(rb.end),windows).filter(x=>x);
-  let common=0;while(common<left.length&&common<right.length&&(windows?left[common].toLowerCase()===right[common].toLowerCase():left[common]===right[common]))common++;
-  if(windows&&common===0)return b;
+  if(windows){
+   if(a.toLowerCase()===b.toLowerCase())return '';
+   const leftText=left.join(sep),rightText=right.join(sep),lowerLeft=leftText.toLowerCase(),lowerRight=rightText.toLowerCase();
+   if(!left.length)return rightText;
+   if(!right.length)return Array(left.length).fill('..').join(sep);
+   let prefix=0,boundary=-1;
+   while(prefix<lowerLeft.length&&prefix<lowerRight.length&&lowerLeft[prefix]===lowerRight[prefix]){if(lowerLeft[prefix]===sep)boundary=prefix;prefix++;}
+   if(prefix<lowerLeft.length&&prefix<lowerRight.length&&boundary<0)return b;
+   let rightStart=0;while(b[rightStart]===sep)rightStart++;
+   if(prefix===lowerLeft.length&&lowerLeft.length<lowerRight.length){
+    if(rightText[prefix]===sep)return b.slice(rightStart+prefix+1);
+    // A complete two-character prefix is treated as a Windows drive root,
+    // including device-less paths resolved from a POSIX working directory.
+    if(prefix===2)return b.slice(rightStart+prefix);
+   }
+   if(prefix===lowerRight.length&&lowerRight.length<lowerLeft.length){
+    if(leftText[prefix]===sep)boundary=prefix;
+    else if(prefix===2)boundary=3;
+   }
+   const remaining=boundary+1<=leftText.length?pathSegments(leftText.slice(boundary+1),true).length:0;
+   const upward=Array(remaining).fill('..').join(sep),suffix=rightText.slice(Math.max(boundary,0));
+   return upward?upward+suffix:suffix[0]===sep?suffix.slice(1):suffix;
+  }
+  let common=0;while(common<left.length&&common<right.length&&left[common]===right[common])common++;
   return Array(left.length-common).fill('..').concat(right.slice(common)).join(sep);
  }
  function isAbsolute(text){pathString(text,'path');return pathRoot(text,windows).absolute;}

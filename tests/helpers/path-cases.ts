@@ -15,7 +15,7 @@ for(const p of [path.posix,path.win32]) for(const s of paths) {
 }
 for(const p of [path.posix,path.win32]) {
  for(const parts of [[],[''],['a','b','..','c/'],['/a','/b'],['//server','share','x'],['C:','foo'],['C:/x','../y']])console.log(p.join(...parts),p.resolve(...parts));
- for(const pair of [['/a/b','/a/c'],['/a','/a'],['','x'],['C:/a','c:/B'],['C:/a','D:/b'],['//server/share/a','//server/share/b']])console.log(p.relative(...pair));
+ for(const pair of [['/a/b','/a/c'],['/a','/a'],['','x'],['C:/a','c:/B'],['C:/a','D:/b'],['//server/share/a','//server/share/b'],['/','//'],['//','/a'],['/a','//'],['//','\\\\?\\C:\\a./server\\CON:\\foo.txt'],['\\\\?\\C:\\a./server\\CON:\\foo.txt','//'],['C:/a','//'],['//','C:/a'],['/a','/ab'],['/ab','/abc'],['/abc','/ab'],['/server','//server/share'],['/server/share','//server/share']])console.log(p.relative(...pair));
  for(const obj of [{},{root:'/',name:'a',ext:'txt'},{dir:'/tmp',root:'/',name:'a',base:'b',ext:'.txt'},{root:'C:\\',name:'x',ext:'.js'}])console.log(p.format(obj));
 }
 console.log(path===path.win32, path===path.posix,path.sep,path.delimiter,path.posix.win32===path.win32,path.win32.posix===path.posix);
