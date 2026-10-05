@@ -186,20 +186,23 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   // of a string, number or boolean.
   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('e',ready);a.cmp('rax',3);a.jcc('e',ready);a.cmp('rax',2);a.jcc('ne',generic);
   a.label(ready);a.mov('rcx','rdx');a.call('rt.propertyBase');a.mov('r10','rax');a.jmp(scan);
-  a.label(object);a.load('r10',{base:'rdx',disp:8});emitNamedKindCheck(a,'r10',generic);
-  {const plain=a.unique('plain');a.cmp('rax',namedTypedArrayKind);a.jcc('ne',plain);a.load('r11',{base:'r8',disp:8});a.load('r11',{base:'r11',disp:8},16);for(const c of '-IN'){a.cmp('r11',c.charCodeAt(0));a.jcc('e',generic);}a.label(plain);}
-  a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
-  // An own property answers by itself. A receiver with a property index is
-  // probed with the key's hash, kept in the record (no rehash per read).
-  a.label(scan);a.store(slot(72),'r10');
+  a.label(object);a.load('r10',{base:'rdx',disp:8});
   // Objects built the same way keep a property in the same inline node: the
-  // node this site found last time answers if it still holds the key.
+  // node this site found last time answers if it still holds the key. Only
+  // ordinary objects have inline nodes, so this comes before the kind checks
+  // (and primitives' prototypes and exotic objects, which have none, skip it).
   {const noSlot=a.unique('noSlot');
    a.load('rax',{base:'r9',disp:L.slot});a.test('rax','rax');a.jcc('e',noSlot);a.sub('rax',1);
    a.load('r11',{base:'r10',disp:O.slots});a.shr('r11',32);a.cmp('rax','r11');a.jcc('ae',noSlot);
    a.mov('r11',P.size);a.imul('rax','r11');a.add('rax','r10');a.add('rax',O.size);
    a.load('r11',{base:'rax',disp:P.key});a.load('rcx',{base:'r8',disp:8});a.cmp('r11','rcx');a.jcc('e',read);
    a.label(noSlot);}
+  emitNamedKindCheck(a,'r10',generic);
+  {const plain=a.unique('plain');a.cmp('rax',namedTypedArrayKind);a.jcc('ne',plain);a.load('r11',{base:'r8',disp:8});a.load('r11',{base:'r11',disp:8},16);for(const c of '-IN'){a.cmp('r11',c.charCodeAt(0));a.jcc('e',generic);}a.label(plain);}
+  a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
+  // An own property answers by itself. A receiver with a property index is
+  // probed with the key's hash, kept in the record (no rehash per read).
+  a.label(scan);a.store(slot(72),'r10');
   {const listScan=a.unique('listScan'),hashed=a.unique('hashed'),probed=a.unique('probed');
    // A complete key filter of the receiver without the key's bit (kept in
    // the record) rules out an own property without touching the key.
