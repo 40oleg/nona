@@ -314,11 +314,17 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
       a.jmp(done);cold.push(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
-    // Every value location starts cleared (the GC scans them). Large frames
-    // use `rep stosq`: the argument registers are already saved and RDI is
-    // kept in R11 around it.
-    if(locations.count>=4){a.mov('r11','rdi');a.lea('rdi',stack(valueBase));a.mov('rcx',locations.count*2);a.mov('rax',0);a.repStosq();a.mov('rdi','r11');}
-    else{a.mov('rax',0);for(let i=0;i<locations.count;i++){a.store(stack(valueBase+16*i),'rax');a.store(stack(valueBase+16*i+8),'rax');}}
+    // Every value location starts cleared (the GC scans them), one 16-byte
+    // store each: unrolled for small frames, a loop of two stores per turn
+    // for larger ones (`rep stosq` cost a microcode start-up of tens of
+    // cycles on every call). The argument registers are already saved.
+    if(locations.count>0){a.mov('rax',0);a.movqToXmm('xmm0','rax');}
+    if(locations.count<=8){for(let i=0;i<locations.count;i++)a.storeXmm128(stack(valueBase+16*i),'xmm0');}
+    else{
+     const odd=locations.count%2;if(odd)a.storeXmm128(stack(valueBase),'xmm0');
+     const clear=a.unique('clear');a.lea('r10',stack(valueBase+16*odd));a.mov('rcx',locations.count>>1);
+     a.label(clear);a.storeXmm128({base:'r10'},'xmm0');a.storeXmm128({base:'r10',disp:16},'xmm0');a.add('r10',32);a.sub('rcx',1);a.jcc('ne',clear);
+    }
     a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
     copy(stack(superReceiverBase),stack(thisBase));
     if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
