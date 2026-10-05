@@ -91,11 +91,11 @@ jobs:
       # preludes in addition to the CPU, math, GC and coroutine probes.
       - name: Portable language and built-in oracle suites
         run: node --test dist/tests/date.test.js dist/tests/array-builtins.test.js dist/tests/array-buffer.test.js dist/tests/typed-array-fast-path.test.js dist/tests/string-builtins.test.js dist/tests/string-search.test.js dist/tests/string-split.test.js dist/tests/string-replace.test.js dist/tests/string-replace-all.test.js dist/tests/string-match.test.js dist/tests/regexp-vm.test.js dist/tests/regexp-construction.test.js dist/tests/regexp-split.test.js dist/tests/regexp-replace.test.js dist/tests/regexp-match-all.test.js dist/tests/map.test.js dist/tests/set.test.js dist/tests/weak-collections.test.js dist/tests/proxy.test.js dist/tests/reflect.test.js dist/tests/symbols.test.js dist/tests/json.test.js dist/tests/uri.test.js dist/tests/classes.test.js dist/tests/class-fields.test.js dist/tests/exceptions.test.js dist/tests/objects.test.js dist/tests/object-integrity.test.js dist/tests/object-introspection.test.js dist/tests/property-descriptors.test.js dist/tests/property-index-elements.test.js
-      - name: Process and filesystem oracle suites
-        run: node --test dist/tests/process.test.js dist/tests/fs.test.js
+      - name: Filesystem oracle suite
+        run: node --test dist/tests/fs.test.js
         if: matrix.target == 'linux-x64' || matrix.target == 'linux-arm64' || matrix.target == 'win32-arm64'
       - name: Portable process oracle suite
-        run: node --test dist/tests/process-portable.test.js
+        run: node --test dist/tests/process.test.js dist/tests/process-portable.test.js
       - name: Compare Linux examples with Node.js
         run: npm run compare:linux
         if: matrix.target == 'linux-arm64'
