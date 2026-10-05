@@ -566,6 +566,23 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!liveness.get(block.id)!.liveOut.has(op.dest)){fused=op;break;}
           if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
           const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
+          // Strict equality of non-Numbers decides inline unless both sides
+          // are strings with different records or BigInts: different types
+          // are unequal, undefined and null equal themselves, booleans
+          // compare by truth, objects and symbols by identity.
+          if((op.operator==='==='||op.operator==='!==')&&done){
+            const generic=a.unique('strictGeneric'),yes=a.unique('strictYes'),no=a.unique('strictNo'),store=a.unique('strictStore'),bool=a.unique('strictBool'),identity=a.unique('strictIdentity');
+            a.load('rax',value(op.left));a.load('r10',value(op.right));a.cmp('rax','r10');a.jcc('ne',no);
+            a.cmp('rax',1);a.jcc('be',yes);a.cmp('rax',2);a.jcc('e',bool);a.cmp('rax',5);a.jcc('e',identity);a.cmp('rax',6);a.jcc('e',identity);
+            a.cmp('rax',4);a.jcc('ne',generic);a.load('rax',payload(op.left));a.load('r10',payload(op.right));a.cmp('rax','r10');a.jcc('e',yes);a.jmp(generic);
+            a.label(identity);a.load('rax',payload(op.left));a.load('r10',payload(op.right));a.cmp('rax','r10');a.jcc('e',yes);a.jmp(no);
+            a.label(bool);a.load('rax',payload(op.left));a.load('r10',payload(op.right));a.test('rax','rax');a.jcc('e','strictLeftFalse'+bool);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);
+            a.label('strictLeftFalse'+bool);a.test('r10','r10');a.jcc('e',yes);
+            a.label(no);a.mov('rax',op.operator==='!=='?1:0);a.jmp(store);
+            a.label(yes);a.mov('rax',op.operator==='!=='?0:1);
+            a.label(store);setBoolean(op.dest);a.jmp(done);
+            a.label(generic);
+          }
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
           if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
           if(done)a.label(done);break;
