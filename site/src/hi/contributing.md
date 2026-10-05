@@ -62,3 +62,5 @@ npm run check:samples      # compiles every program in site/samples
 ## स्वचालित योगदानकर्ता
 
 एजेंटों के नियम — `blocked` लेबल से issue लेना, कमिट का लेखकत्व और pull request की चेकलिस्ट — [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md) में हैं।
+
+The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.

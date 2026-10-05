@@ -1,0 +1,1798 @@
+[
+  {
+    "id": 11,
+    "file": "algorithms/0011-dependency-order.js",
+    "purpose": "Order build tasks and reject cyclic dependencies.",
+    "features": [
+      "Map",
+      "Set",
+      "closures",
+      "recursion"
+    ]
+  },
+  {
+    "id": 12,
+    "file": "algorithms/0012-weighted-route.js",
+    "purpose": "Find the cheapest courier route using unsettled distances.",
+    "features": [
+      "Map",
+      "Set",
+      "destructuring",
+      "spread"
+    ]
+  },
+  {
+    "id": 13,
+    "file": "algorithms/0013-negative-edge-relaxation.js",
+    "purpose": "Relax currency credits and detect an unreachable account.",
+    "features": [
+      "destructuring",
+      "typed-array",
+      "loops"
+    ]
+  },
+  {
+    "id": 14,
+    "file": "algorithms/0014-all-pairs-tolls.js",
+    "purpose": "Compute indirect toll savings with an all-pairs recurrence.",
+    "features": [
+      "arrays",
+      "closures",
+      "loops",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 15,
+    "file": "algorithms/0015-spanning-cables.js",
+    "purpose": "Connect stations at minimum cost with disjoint-set merging.",
+    "features": [
+      "class",
+      "destructuring",
+      "sort",
+      "methods"
+    ]
+  },
+  {
+    "id": 16,
+    "file": "algorithms/0016-bridge-inspection.js",
+    "purpose": "Identify graph edges whose removal disconnects a district.",
+    "features": [
+      "recursion",
+      "Map",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 17,
+    "file": "algorithms/0017-strongly-connected-services.js",
+    "purpose": "Group mutually reachable services using two depth-first passes.",
+    "features": [
+      "Set",
+      "recursion",
+      "closures",
+      "reverse"
+    ]
+  },
+  {
+    "id": 18,
+    "file": "algorithms/0018-bipartite-shifts.js",
+    "purpose": "Assign alternating shifts and report an odd-cycle conflict.",
+    "features": [
+      "Map",
+      "destructuring",
+      "short-circuit",
+      "arrays"
+    ]
+  },
+  {
+    "id": 19,
+    "file": "algorithms/0019-augmenting-matching.js",
+    "purpose": "Match volunteers to eligible stations with reassignment.",
+    "features": [
+      "Set",
+      "recursion",
+      "closures",
+      "arrays"
+    ]
+  },
+  {
+    "id": 20,
+    "file": "algorithms/0020-residual-water-flow.js",
+    "purpose": "Push water through residual capacities until no augmenting route exists.",
+    "features": [
+      "typed-array",
+      "arrays",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 21,
+    "file": "algorithms/0021-maze-a-star.js",
+    "purpose": "Search a blocked grid with Manhattan priorities and stale-entry filtering.",
+    "features": [
+      "Map",
+      "Set",
+      "sort",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 22,
+    "file": "algorithms/0022-euler-delivery.js",
+    "purpose": "Consume every directed delivery leg and reconstruct an Euler trail.",
+    "features": [
+      "Map",
+      "arrays",
+      "while",
+      "reverse"
+    ]
+  },
+  {
+    "id": 23,
+    "file": "algorithms/0023-critical-path-build.js",
+    "purpose": "Calculate project finish times and identify the longest dependency chain.",
+    "features": [
+      "Map",
+      "destructuring",
+      "arrays",
+      "while"
+    ]
+  },
+  {
+    "id": 24,
+    "file": "algorithms/0024-flood-region-perimeter.js",
+    "purpose": "Measure the area and exposed boundary of a grid region.",
+    "features": [
+      "Set",
+      "recursion",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 25,
+    "file": "algorithms/0025-dag-route-counts.js",
+    "purpose": "Count distinct acyclic routes including a shared downstream node.",
+    "features": [
+      "Map",
+      "recursion",
+      "closures",
+      "reduce"
+    ]
+  },
+  {
+    "id": 26,
+    "file": "algorithms/0026-knapsack-rescue.js",
+    "purpose": "Choose indivisible supplies by value under a mass limit.",
+    "features": [
+      "typed-array",
+      "destructuring",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 27,
+    "file": "algorithms/0027-coin-minimum-witness.js",
+    "purpose": "Find a minimum coin payment and reconstruct its denominations.",
+    "features": [
+      "arrays",
+      "for-of",
+      "while",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 28,
+    "file": "algorithms/0028-coin-combination-count.js",
+    "purpose": "Count unordered ways to make change while keeping zero-payment identity.",
+    "features": [
+      "typed-array",
+      "for-of",
+      "loops",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 29,
+    "file": "algorithms/0029-edit-distance.js",
+    "purpose": "Measure document changes with rolling dynamic-programming rows.",
+    "features": [
+      "strings",
+      "arrays",
+      "destructuring",
+      "loops"
+    ]
+  },
+  {
+    "id": 30,
+    "file": "algorithms/0030-common-subsequence.js",
+    "purpose": "Recover a longest shared ordered sequence from two traces.",
+    "features": [
+      "arrays",
+      "strings",
+      "while",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 31,
+    "file": "algorithms/0031-increasing-subsequence.js",
+    "purpose": "Track strictly increasing tails while duplicate readings replace a tail.",
+    "features": [
+      "arrays",
+      "for-of",
+      "while",
+      "Math"
+    ]
+  },
+  {
+    "id": 32,
+    "file": "algorithms/0032-matrix-chain-cost.js",
+    "purpose": "Choose parenthesization that minimizes scalar matrix multiplications.",
+    "features": [
+      "arrays",
+      "loops",
+      "Math",
+      "closures"
+    ]
+  },
+  {
+    "id": 33,
+    "file": "algorithms/0033-weighted-appointments.js",
+    "purpose": "Select compatible appointments by total reward instead of greedy count.",
+    "features": [
+      "destructuring",
+      "sort",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 34,
+    "file": "algorithms/0034-subset-target-witness.js",
+    "purpose": "Recover a subset of signed transactions that balances to a target.",
+    "features": [
+      "Map",
+      "spread",
+      "destructuring",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 35,
+    "file": "algorithms/0035-palindrome-partition.js",
+    "purpose": "Minimize cuts separating a message into palindromic fragments.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 36,
+    "file": "algorithms/0036-word-segmentation.js",
+    "purpose": "Segment a compact phrase using a dictionary and predecessor offsets.",
+    "features": [
+      "Set",
+      "arrays",
+      "strings",
+      "while"
+    ]
+  },
+  {
+    "id": 37,
+    "file": "algorithms/0037-obstacle-path-count.js",
+    "purpose": "Count monotone robot paths while obstacles reset accumulated counts.",
+    "features": [
+      "typed-array",
+      "strings",
+      "for-of",
+      "loops"
+    ]
+  },
+  {
+    "id": 38,
+    "file": "algorithms/0038-egg-drop-coverage.js",
+    "purpose": "Determine trial count from how many floors each egg budget can cover.",
+    "features": [
+      "typed-array",
+      "while",
+      "loops",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 39,
+    "file": "algorithms/0039-optimal-rod-cuts.js",
+    "purpose": "Recover revenue-maximizing cuts and verify material conservation.",
+    "features": [
+      "arrays",
+      "loops",
+      "while",
+      "reduce"
+    ]
+  },
+  {
+    "id": 40,
+    "file": "algorithms/0040-minimum-travel-passes.js",
+    "purpose": "Choose day, three-day, or weekly tickets for sparse travel dates.",
+    "features": [
+      "Set",
+      "arrays",
+      "destructuring",
+      "Math"
+    ]
+  },
+  {
+    "id": 41,
+    "file": "algorithms/0041-stock-cooldown.js",
+    "purpose": "Optimize trading profit while a sold position enforces a cooldown.",
+    "features": [
+      "destructuring",
+      "Math",
+      "for-of",
+      "arrays"
+    ]
+  },
+  {
+    "id": 42,
+    "file": "algorithms/0042-circular-house-selection.js",
+    "purpose": "Find the best nonadjacent payout when the first and last houses touch.",
+    "features": [
+      "closures",
+      "arrays",
+      "destructuring",
+      "spread"
+    ]
+  },
+  {
+    "id": 43,
+    "file": "algorithms/0043-digit-sum-budget.js",
+    "purpose": "Count bounded decimal codes with a fixed digit sum using tight-state memoization.",
+    "features": [
+      "Map",
+      "recursion",
+      "strings",
+      "closures"
+    ]
+  },
+  {
+    "id": 44,
+    "file": "algorithms/0044-boolean-parenthesizations.js",
+    "purpose": "Count expression groupings by truth value without evaluating generated code.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 45,
+    "file": "algorithms/0045-tour-subset-dp.js",
+    "purpose": "Find a minimum closed inspection tour with bitmask subset states.",
+    "features": [
+      "Map",
+      "bitwise",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 46,
+    "file": "algorithms/0046-queens-placement.js",
+    "purpose": "Enumerate safe four-queen placements with rollback sets.",
+    "features": [
+      "Set",
+      "recursion",
+      "spread",
+      "try-finally"
+    ]
+  },
+  {
+    "id": 47,
+    "file": "algorithms/0047-latin-grid-solver.js",
+    "purpose": "Fill a constrained three-by-three Latin grid with row and column checks.",
+    "features": [
+      "recursion",
+      "arrays",
+      "closures",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 48,
+    "file": "algorithms/0048-unique-multiset-permutations.js",
+    "purpose": "Yield each permutation of repeated tokens exactly once.",
+    "features": [
+      "generator",
+      "Map",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 49,
+    "file": "algorithms/0049-balanced-parentheses.js",
+    "purpose": "Generate only valid bracket prefixes and count completed arrangements.",
+    "features": [
+      "generator",
+      "recursion",
+      "strings",
+      "spread"
+    ]
+  },
+  {
+    "id": 50,
+    "file": "algorithms/0050-bounded-combination-search.js",
+    "purpose": "Enumerate supply combinations without exceeding per-item availability.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "arrays",
+      "spread"
+    ]
+  },
+  {
+    "id": 51,
+    "file": "algorithms/0051-graph-color-search.js",
+    "purpose": "Choose the smallest feasible color budget for a conflicting triangle.",
+    "features": [
+      "recursion",
+      "arrays",
+      "closures",
+      "loops"
+    ]
+  },
+  {
+    "id": 52,
+    "file": "algorithms/0052-hamiltonian-witness.js",
+    "purpose": "Find a route visiting every vertex exactly once with backtracking.",
+    "features": [
+      "Set",
+      "recursion",
+      "arrays",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 53,
+    "file": "algorithms/0053-exact-cover-tiles.js",
+    "purpose": "Cover a small universe using disjoint candidate sets.",
+    "features": [
+      "Set",
+      "recursion",
+      "spread",
+      "arrays"
+    ]
+  },
+  {
+    "id": 54,
+    "file": "algorithms/0054-alphametic-carry.js",
+    "purpose": "Solve a two-digit repeated-letter addition with distinct digits and a carry.",
+    "features": [
+      "Set",
+      "loops",
+      "short-circuit",
+      "arrays"
+    ]
+  },
+  {
+    "id": 55,
+    "file": "algorithms/0055-knight-reachability.js",
+    "purpose": "Count squares reachable in exactly two knight moves with set deduplication.",
+    "features": [
+      "Set",
+      "destructuring",
+      "spread",
+      "loops"
+    ]
+  },
+  {
+    "id": 56,
+    "file": "algorithms/0056-meet-in-middle-sums.js",
+    "purpose": "Count target subsets by combining independently enumerated half sums.",
+    "features": [
+      "Map",
+      "bitwise",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 57,
+    "file": "algorithms/0057-branch-bound-packing.js",
+    "purpose": "Prune cargo searches with a remaining-value upper bound.",
+    "features": [
+      "recursion",
+      "closures",
+      "arrays",
+      "Math"
+    ]
+  },
+  {
+    "id": 58,
+    "file": "algorithms/0058-integer-square-root.js",
+    "purpose": "Compute a floor square root with overflow-safe integer comparisons.",
+    "features": [
+      "BigInt",
+      "while",
+      "strings"
+    ]
+  },
+  {
+    "id": 59,
+    "file": "algorithms/0059-peak-with-plateau.js",
+    "purpose": "Locate a maximum plateau and expand to both equal boundaries.",
+    "features": [
+      "arrays",
+      "while",
+      "Math"
+    ]
+  },
+  {
+    "id": 60,
+    "file": "algorithms/0060-capacity-feasibility-search.js",
+    "purpose": "Find the least daily shipping capacity satisfying a deadline.",
+    "features": [
+      "closures",
+      "loops",
+      "while",
+      "reduce"
+    ]
+  },
+  {
+    "id": 61,
+    "file": "algorithms/0061-bezout-coefficients.js",
+    "purpose": "Find integer coefficients certifying the greatest common divisor.",
+    "features": [
+      "destructuring",
+      "while",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 62,
+    "file": "algorithms/0062-modular-power.js",
+    "purpose": "Raise a large integer modulo a prime with repeated squaring.",
+    "features": [
+      "BigInt",
+      "bitwise",
+      "while",
+      "strings"
+    ]
+  },
+  {
+    "id": 63,
+    "file": "algorithms/0063-chinese-remainders.js",
+    "purpose": "Combine coprime clock residues into the earliest synchronized timestamp.",
+    "features": [
+      "destructuring",
+      "for-of",
+      "while",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 64,
+    "file": "algorithms/0064-rational-arithmetic.js",
+    "purpose": "Normalize signed fractions and add them without decimal rounding.",
+    "features": [
+      "class",
+      "methods",
+      "destructuring",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 65,
+    "file": "algorithms/0065-prime-factorization.js",
+    "purpose": "Extract prime factors and reconstruct the original composite.",
+    "features": [
+      "Map",
+      "while",
+      "loops",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 66,
+    "file": "algorithms/0066-totient-coprime-count.js",
+    "purpose": "Apply distinct prime factors to count reduced modular residues.",
+    "features": [
+      "Set",
+      "while",
+      "for-of",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 67,
+    "file": "algorithms/0067-binomial-exact.js",
+    "purpose": "Compute an exact combination count with divisibility at each step.",
+    "features": [
+      "BigInt",
+      "loops",
+      "Math",
+      "strings"
+    ]
+  },
+  {
+    "id": 68,
+    "file": "algorithms/0068-signed-base-conversion.js",
+    "purpose": "Convert a negative integer to a balanced ternary representation.",
+    "features": [
+      "arrays",
+      "while",
+      "conditional-expression",
+      "Math"
+    ]
+  },
+  {
+    "id": 69,
+    "file": "algorithms/0069-decimal-long-division.js",
+    "purpose": "Detect a recurring decimal cycle by remembering remainder positions.",
+    "features": [
+      "Map",
+      "arrays",
+      "while",
+      "strings"
+    ]
+  },
+  {
+    "id": 70,
+    "file": "algorithms/0070-karatsuba-integers.js",
+    "purpose": "Multiply moderately large integers by recursive three-product splitting.",
+    "features": [
+      "recursion",
+      "BigInt",
+      "strings",
+      "closures"
+    ]
+  },
+  {
+    "id": 71,
+    "file": "algorithms/0071-polynomial-convolution.js",
+    "purpose": "Multiply polynomial coefficient lists and check evaluation conservation.",
+    "features": [
+      "arrays",
+      "loops",
+      "reduce",
+      "closures"
+    ]
+  },
+  {
+    "id": 72,
+    "file": "algorithms/0072-polynomial-synthetic-division.js",
+    "purpose": "Divide a polynomial by a linear factor while retaining its remainder.",
+    "features": [
+      "arrays",
+      "loops",
+      "destructuring",
+      "reduce"
+    ]
+  },
+  {
+    "id": 73,
+    "file": "algorithms/0073-continued-fraction-convergents.js",
+    "purpose": "Recover rational convergents from Euclidean quotients.",
+    "features": [
+      "generator",
+      "destructuring",
+      "BigInt"
+    ]
+  },
+  {
+    "id": 74,
+    "file": "algorithms/0074-signed-popcount.js",
+    "purpose": "Count set bits in a signed word with unsigned clearing.",
+    "features": [
+      "bitwise",
+      "while",
+      "typed-array"
+    ]
+  },
+  {
+    "id": 75,
+    "file": "algorithms/0075-gray-code-walk.js",
+    "purpose": "Generate a Gray-code sequence and verify single-bit adjacency.",
+    "features": [
+      "generator",
+      "bitwise",
+      "spread",
+      "loops"
+    ]
+  },
+  {
+    "id": 76,
+    "file": "algorithms/0076-convex-hull-boundary.js",
+    "purpose": "Discard interior and collinear points with a monotone-chain hull.",
+    "features": [
+      "sort",
+      "arrays",
+      "closures"
+    ]
+  },
+  {
+    "id": 77,
+    "file": "algorithms/0077-polygon-area-centroid.js",
+    "purpose": "Calculate signed doubled area and an exact centroid numerator.",
+    "features": [
+      "destructuring",
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 78,
+    "file": "algorithms/0078-segment-intersection.js",
+    "purpose": "Classify proper crossings, touching endpoints, and disjoint collinear segments.",
+    "features": [
+      "closures",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 79,
+    "file": "algorithms/0079-point-in-polygon.js",
+    "purpose": "Classify points using winding number with explicit boundary detection.",
+    "features": [
+      "destructuring",
+      "closures",
+      "arrays",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 80,
+    "file": "algorithms/0080-closest-pair-squared.js",
+    "purpose": "Find the nearest point pair while pruning by sorted horizontal separation.",
+    "features": [
+      "sort",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 81,
+    "file": "algorithms/0081-rectangle-union-area.js",
+    "purpose": "Measure overlapping axis-aligned rectangles through vertical slab unions.",
+    "features": [
+      "Set",
+      "sort",
+      "destructuring",
+      "arrays"
+    ]
+  },
+  {
+    "id": 82,
+    "file": "algorithms/0082-lattice-polygon-interior.js",
+    "purpose": "Use boundary gcd counts and Pick's theorem for an integer triangle.",
+    "features": [
+      "closures",
+      "destructuring",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 83,
+    "file": "algorithms/0083-bresenham-raster.js",
+    "purpose": "Rasterize an integer line while preserving both endpoints.",
+    "features": [
+      "destructuring",
+      "while",
+      "arrays",
+      "Math"
+    ]
+  },
+  {
+    "id": 84,
+    "file": "algorithms/0084-integer-circle-raster.js",
+    "purpose": "Generate eightfold symmetric circle pixels without floating-point trigonometry.",
+    "features": [
+      "Set",
+      "destructuring",
+      "while",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 85,
+    "file": "algorithms/0085-rectangle-clipping.js",
+    "purpose": "Clip an integer polyline against a half-plane with exact crossing interpolation.",
+    "features": [
+      "arrays",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 86,
+    "file": "algorithms/0086-minimum-priority-heap.js",
+    "purpose": "Maintain a binary priority queue and extract jobs in cost order.",
+    "features": [
+      "class",
+      "methods",
+      "destructuring",
+      "while"
+    ]
+  },
+  {
+    "id": 87,
+    "file": "algorithms/0087-fenwick-ledger.js",
+    "purpose": "Update point balances and query prefix totals with a Fenwick tree.",
+    "features": [
+      "class",
+      "typed-array",
+      "bitwise",
+      "methods"
+    ]
+  },
+  {
+    "id": 88,
+    "file": "algorithms/0088-segment-range-minimum.js",
+    "purpose": "Answer interval minima after replacing a leaf in a segment tree.",
+    "features": [
+      "typed-array",
+      "loops",
+      "bitwise",
+      "Math"
+    ]
+  },
+  {
+    "id": 89,
+    "file": "algorithms/0089-lazy-range-add.js",
+    "purpose": "Accumulate interval additions in a tree and propagate only on point reads.",
+    "features": [
+      "class",
+      "recursion",
+      "methods",
+      "Math"
+    ]
+  },
+  {
+    "id": 90,
+    "file": "algorithms/0090-prefix-trie-counts.js",
+    "purpose": "Count dictionary prefixes while distinguishing words from intermediate nodes.",
+    "features": [
+      "Map",
+      "for-of",
+      "closures",
+      "objects"
+    ]
+  },
+  {
+    "id": 91,
+    "file": "algorithms/0091-lru-page-cache.js",
+    "purpose": "Evict the least recently touched cache entry using Map insertion order.",
+    "features": [
+      "class",
+      "Map",
+      "methods",
+      "spread"
+    ]
+  },
+  {
+    "id": 92,
+    "file": "algorithms/0092-ring-buffer-overwrite.js",
+    "purpose": "Retain the newest sensor readings with wraparound and overwrite accounting.",
+    "features": [
+      "class",
+      "methods",
+      "arrays",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 93,
+    "file": "algorithms/0093-two-stack-queue.js",
+    "purpose": "Transfer queued messages lazily while preserving FIFO order across interleaving.",
+    "features": [
+      "closures",
+      "arrays",
+      "while"
+    ]
+  },
+  {
+    "id": 94,
+    "file": "algorithms/0094-monotone-sliding-maximum.js",
+    "purpose": "Maintain candidate maxima as window boundaries advance.",
+    "features": [
+      "arrays",
+      "while",
+      "loops",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 95,
+    "file": "algorithms/0095-histogram-largest-area.js",
+    "purpose": "Find the largest rectangle under bars using a monotone stack and sentinel.",
+    "features": [
+      "arrays",
+      "while",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 96,
+    "file": "algorithms/0096-rollback-union-history.js",
+    "purpose": "Undo connectivity changes without path compression to restore an earlier state.",
+    "features": [
+      "class",
+      "methods",
+      "destructuring",
+      "arrays"
+    ]
+  },
+  {
+    "id": 97,
+    "file": "algorithms/0097-persistent-stack-branches.js",
+    "purpose": "Create immutable stack branches that share their unchanged tail.",
+    "features": [
+      "closures",
+      "objects",
+      "while",
+      "arrays"
+    ]
+  },
+  {
+    "id": 98,
+    "file": "algorithms/0098-sparse-range-table.js",
+    "purpose": "Answer static interval minima by overlapping power-of-two blocks.",
+    "features": [
+      "arrays",
+      "loops",
+      "Math",
+      "closures"
+    ]
+  },
+  {
+    "id": 99,
+    "file": "algorithms/0099-order-statistic-tree.js",
+    "purpose": "Select ranked multiset elements using subtree sizes and duplicate counts.",
+    "features": [
+      "recursion",
+      "objects",
+      "closures",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 100,
+    "file": "algorithms/0100-indexed-skip-links.js",
+    "purpose": "Build express links over an ordered chain and trace a lookup.",
+    "features": [
+      "objects",
+      "arrays",
+      "while",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 101,
+    "file": "algorithms/0101-bloom-filter-membership.js",
+    "purpose": "Build a small deterministic Bloom filter and distinguish possible from absent membership.",
+    "features": [
+      "typed-array",
+      "closures",
+      "strings",
+      "for-of"
+    ]
+  },
+  {
+    "id": 102,
+    "file": "algorithms/0102-open-addressing-tombstones.js",
+    "purpose": "Preserve probe chains after deleting a colliding hash-table entry.",
+    "features": [
+      "arrays",
+      "closures",
+      "while",
+      "strings"
+    ]
+  },
+  {
+    "id": 103,
+    "file": "algorithms/0103-interval-insertion.js",
+    "purpose": "Insert and merge a reservation interval without mutating prior reservations.",
+    "features": [
+      "destructuring",
+      "arrays",
+      "for-of",
+      "Math"
+    ]
+  },
+  {
+    "id": 104,
+    "file": "algorithms/0104-difference-array-bookings.js",
+    "purpose": "Apply many inclusive seat bookings with boundary cancellation.",
+    "features": [
+      "typed-array",
+      "destructuring",
+      "loops",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 105,
+    "file": "algorithms/0105-two-dimensional-prefix-sum.js",
+    "purpose": "Answer rectangular inventory sums through inclusion and exclusion.",
+    "features": [
+      "arrays",
+      "loops",
+      "closures",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 106,
+    "file": "algorithms/0106-inversion-merge-count.js",
+    "purpose": "Count out-of-order pairs during stable recursive merge sorting.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "arrays",
+      "while"
+    ]
+  },
+  {
+    "id": 107,
+    "file": "algorithms/0107-quickselect-median.js",
+    "purpose": "Partition around pivots to select a rank without fully sorting.",
+    "features": [
+      "destructuring",
+      "while",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 108,
+    "file": "algorithms/0108-radix-byte-sort.js",
+    "purpose": "Stably sort unsigned identifiers by successive byte buckets.",
+    "features": [
+      "typed-array",
+      "bitwise",
+      "loops",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 109,
+    "file": "algorithms/0109-stable-record-buckets.js",
+    "purpose": "Preserve arrival order while grouping records by bounded priority.",
+    "features": [
+      "destructuring",
+      "arrays",
+      "for-of",
+      "flatMap"
+    ]
+  },
+  {
+    "id": 110,
+    "file": "algorithms/0110-minimal-covering-window.js",
+    "purpose": "Shrink a text window while maintaining repeated required-character counts.",
+    "features": [
+      "Map",
+      "strings",
+      "while",
+      "loops"
+    ]
+  },
+  {
+    "id": 111,
+    "file": "algorithms/0111-round-robin-service.js",
+    "purpose": "Simulate quantum-limited jobs and record completion times in queue order.",
+    "features": [
+      "destructuring",
+      "arrays",
+      "while",
+      "Math"
+    ]
+  },
+  {
+    "id": 112,
+    "file": "algorithms/0112-shortest-remaining-preemption.js",
+    "purpose": "Preempt jobs at integer ticks and complete the smallest remaining work first.",
+    "features": [
+      "objects",
+      "sort",
+      "filter",
+      "loops"
+    ]
+  },
+  {
+    "id": 113,
+    "file": "algorithms/0113-deadline-feasibility.js",
+    "purpose": "Schedule earliest deadlines and report the first violated completion promise.",
+    "features": [
+      "sort",
+      "destructuring",
+      "for-of",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 114,
+    "file": "algorithms/0114-parallel-worker-assignment.js",
+    "purpose": "Assign incoming tasks to the earliest free worker with deterministic tie breaks.",
+    "features": [
+      "arrays",
+      "sort",
+      "destructuring",
+      "Math"
+    ]
+  },
+  {
+    "id": 115,
+    "file": "algorithms/0115-token-bucket-admission.js",
+    "purpose": "Admit rate-limited requests using discrete refill intervals and a burst cap.",
+    "features": [
+      "destructuring",
+      "for-of",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 116,
+    "file": "algorithms/0116-meeting-room-count.js",
+    "purpose": "Release rooms before same-time arrivals and measure maximum concurrency.",
+    "features": [
+      "sort",
+      "destructuring",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 117,
+    "file": "algorithms/0117-dependency-worker-scheduler.js",
+    "purpose": "Launch ready tasks on two workers and advance directly to completion events.",
+    "features": [
+      "Set",
+      "objects",
+      "sort"
+    ]
+  },
+  {
+    "id": 118,
+    "file": "algorithms/0118-fair-weighted-service.js",
+    "purpose": "Choose the least normalized served count for deterministic weighted fairness.",
+    "features": [
+      "objects",
+      "sort",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 119,
+    "file": "algorithms/0119-disk-elevator-route.js",
+    "purpose": "Service disk requests in one direction before reversing at the final request.",
+    "features": [
+      "filter",
+      "sort",
+      "spread"
+    ]
+  },
+  {
+    "id": 120,
+    "file": "algorithms/0120-banker-safe-sequence.js",
+    "purpose": "Find a resource allocation completion sequence or detect a blocked state.",
+    "features": [
+      "arrays",
+      "loops",
+      "every"
+    ]
+  },
+  {
+    "id": 121,
+    "file": "algorithms/0121-cache-belady-optimal.js",
+    "purpose": "Evict the cached item whose next use is furthest away in a known trace.",
+    "features": [
+      "Set",
+      "arrays",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 122,
+    "file": "algorithms/0122-clock-page-replacement.js",
+    "purpose": "Give referenced pages a second chance while advancing a circular eviction hand.",
+    "features": [
+      "arrays",
+      "while",
+      "for-of",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 123,
+    "file": "algorithms/0123-parking-event-ledger.js",
+    "purpose": "Process arrivals and departures with duplicate-ticket and capacity rejection.",
+    "features": [
+      "Map",
+      "destructuring",
+      "for-of",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 124,
+    "file": "algorithms/0124-task-cancellation-cleanup.js",
+    "purpose": "Drive cancellable cooperative tasks while ensuring generator cleanup runs.",
+    "features": [
+      "generator",
+      "try-finally",
+      "arrays",
+      "methods"
+    ]
+  },
+  {
+    "id": 125,
+    "file": "algorithms/0125-retry-budget-ledger.js",
+    "purpose": "Retry only transient failures and stop immediately on permanent rejection.",
+    "features": [
+      "Map",
+      "destructuring",
+      "loops",
+      "short-circuit"
+    ]
+  },
+  {
+    "id": 126,
+    "file": "algorithms/0126-gaussian-elimination.js",
+    "purpose": "Solve a linear system with pivot selection and back substitution.",
+    "features": [
+      "arrays",
+      "destructuring",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 127,
+    "file": "algorithms/0127-bareiss-determinant.js",
+    "purpose": "Compute an integer determinant using fraction-free elimination.",
+    "features": [
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 128,
+    "file": "algorithms/0128-matrix-inverse.js",
+    "purpose": "Invert a small nonsingular matrix by reducing an augmented identity.",
+    "features": [
+      "arrays",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 129,
+    "file": "algorithms/0129-gram-schmidt-basis.js",
+    "purpose": "Orthogonalize vectors and validate dot products before normalization.",
+    "features": [
+      "closures",
+      "arrays",
+      "reduce",
+      "Math"
+    ]
+  },
+  {
+    "id": 130,
+    "file": "algorithms/0130-linear-regression-fit.js",
+    "purpose": "Fit an affine trend from sufficient statistics and measure squared residuals.",
+    "features": [
+      "destructuring",
+      "reduce",
+      "arrays",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 131,
+    "file": "algorithms/0131-welford-stream-variance.js",
+    "purpose": "Accumulate stable streaming variance from large nearby measurements.",
+    "features": [
+      "generator",
+      "for-of",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 132,
+    "file": "algorithms/0132-covariance-merge.js",
+    "purpose": "Combine independently summarized measurement batches with between-group correction.",
+    "features": [
+      "objects",
+      "destructuring",
+      "closures",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 133,
+    "file": "algorithms/0133-power-eigenvector.js",
+    "purpose": "Approximate a dominant eigenvector with normalization at every iteration.",
+    "features": [
+      "arrays",
+      "loops",
+      "reduce",
+      "Math"
+    ]
+  },
+  {
+    "id": 134,
+    "file": "algorithms/0134-markov-state-propagation.js",
+    "purpose": "Propagate a probability distribution and check total mass after each step.",
+    "features": [
+      "arrays",
+      "loops",
+      "reduce",
+      "Math"
+    ]
+  },
+  {
+    "id": 135,
+    "file": "algorithms/0135-pagerank-dangling-node.js",
+    "purpose": "Redistribute dangling-link mass while iterating a damped page ranking.",
+    "features": [
+      "arrays",
+      "loops",
+      "closures",
+      "Math"
+    ]
+  },
+  {
+    "id": 136,
+    "file": "algorithms/0136-newton-integer-residual.js",
+    "purpose": "Refine a square root with Newton steps and stop by a residual tolerance.",
+    "features": [
+      "closures",
+      "while",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 137,
+    "file": "algorithms/0137-bisection-root-bracket.js",
+    "purpose": "Keep a sign-changing interval while locating a cubic root.",
+    "features": [
+      "closures",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 138,
+    "file": "algorithms/0138-simpson-quadrature.js",
+    "purpose": "Integrate a cubic exactly with composite Simpson weights.",
+    "features": [
+      "closures",
+      "loops",
+      "arithmetic",
+      "Math"
+    ]
+  },
+  {
+    "id": 139,
+    "file": "algorithms/0139-adaptive-trapezoid.js",
+    "purpose": "Refine trapezoid estimates by evaluating only newly introduced midpoints.",
+    "features": [
+      "closures",
+      "loops",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 140,
+    "file": "algorithms/0140-lagrange-interpolation.js",
+    "purpose": "Interpolate a quadratic from irregularly spaced exact samples.",
+    "features": [
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 141,
+    "file": "algorithms/0141-finite-difference-extrapolation.js",
+    "purpose": "Extend a polynomial sequence by rebuilding successive difference rows.",
+    "features": [
+      "arrays",
+      "while",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 142,
+    "file": "algorithms/0142-rk4-decay-step.js",
+    "purpose": "Integrate exponential decay with a fourth-order Runge-Kutta step.",
+    "features": [
+      "closures",
+      "loops",
+      "arithmetic",
+      "Math"
+    ]
+  },
+  {
+    "id": 143,
+    "file": "algorithms/0143-heat-diffusion.js",
+    "purpose": "Diffuse a one-dimensional heat pulse while reflecting insulated boundaries.",
+    "features": [
+      "typed-array",
+      "loops",
+      "Math",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 144,
+    "file": "algorithms/0144-life-blinker.js",
+    "purpose": "Advance a cellular automaton with simultaneous neighbor-based updates.",
+    "features": [
+      "Set",
+      "destructuring",
+      "loops",
+      "closures"
+    ]
+  },
+  {
+    "id": 145,
+    "file": "algorithms/0145-sandpile-stabilization.js",
+    "purpose": "Topple overloaded cells and count grains lost at open boundaries.",
+    "features": [
+      "typed-array",
+      "while",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 146,
+    "file": "algorithms/0146-traffic-rule-ring.js",
+    "purpose": "Move cars simultaneously on a circular single-lane road.",
+    "features": [
+      "arrays",
+      "loops",
+      "conditional-expression",
+      "reduce"
+    ]
+  },
+  {
+    "id": 147,
+    "file": "algorithms/0147-chip-routing-network.js",
+    "purpose": "Route integer chip batches according to alternating rotor directions.",
+    "features": [
+      "objects",
+      "while",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 148,
+    "file": "algorithms/0148-infection-frontier.js",
+    "purpose": "Spread infection through contacts exactly once per synchronous generation.",
+    "features": [
+      "Set",
+      "Map",
+      "spread",
+      "loops"
+    ]
+  },
+  {
+    "id": 149,
+    "file": "algorithms/0149-predator-prey-step.js",
+    "purpose": "Simulate bounded predator-prey dynamics while retaining positive populations.",
+    "features": [
+      "objects",
+      "loops",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 150,
+    "file": "algorithms/0150-elastic-collision-ledger.js",
+    "purpose": "Exchange velocities at equal-mass collisions and verify kinetic energy.",
+    "features": [
+      "objects",
+      "loops",
+      "destructuring",
+      "reduce"
+    ]
+  },
+  {
+    "id": 151,
+    "file": "algorithms/0151-deterministic-dice-distribution.js",
+    "purpose": "Convolve dice outcome counts and verify total possible rolls.",
+    "features": [
+      "Map",
+      "destructuring",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 152,
+    "file": "algorithms/0152-absorbing-walk-probability.js",
+    "purpose": "Accumulate absorption probabilities from a finite-state random walk exactly.",
+    "features": [
+      "Map",
+      "destructuring",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 153,
+    "file": "algorithms/0153-josephus-elimination.js",
+    "purpose": "Track circular eliminations and validate the survivor with a recurrence.",
+    "features": [
+      "arrays",
+      "while",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 154,
+    "file": "algorithms/0154-auction-clearing-price.js",
+    "purpose": "Compute a uniform price maximizing traded quantity among bid and ask limits.",
+    "features": [
+      "Set",
+      "sort",
+      "arrays",
+      "closures"
+    ]
+  },
+  {
+    "id": 155,
+    "file": "algorithms/0155-water-reservoir-events.js",
+    "purpose": "Apply bounded reservoir inflows and demands while tracking overflow and unmet need.",
+    "features": [
+      "destructuring",
+      "for-of",
+      "Math",
+      "arrays"
+    ]
+  },
+  {
+    "id": 156,
+    "file": "algorithms/0156-kmp-overlapping-matches.js",
+    "purpose": "Find overlapping pattern matches using failure links instead of restarting scans.",
+    "features": [
+      "typed-array",
+      "strings",
+      "loops",
+      "while"
+    ]
+  },
+  {
+    "id": 157,
+    "file": "algorithms/0157-z-prefix-periods.js",
+    "purpose": "Find prefix repetitions through a bounded Z-box and derive valid periods.",
+    "features": [
+      "typed-array",
+      "strings",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 158,
+    "file": "algorithms/0158-palindrome-radius.js",
+    "purpose": "Compute odd palindrome radii with mirror reuse and count palindromic substrings.",
+    "features": [
+      "typed-array",
+      "strings",
+      "loops",
+      "Math"
+    ]
+  },
+  {
+    "id": 159,
+    "file": "algorithms/0159-huffman-prefix-codes.js",
+    "purpose": "Build optimal prefix codes by repeatedly combining the least frequent symbols.",
+    "features": [
+      "objects",
+      "sort",
+      "recursion",
+      "Map"
+    ]
+  },
+  {
+    "id": 160,
+    "file": "algorithms/0160-arithmetic-coding-interval.js",
+    "purpose": "Narrow a rational interval according to symbol frequencies and decode its midpoint.",
+    "features": [
+      "Map",
+      "destructuring",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 161,
+    "file": "algorithms/0161-stable-marriage-proposals.js",
+    "purpose": "Resolve preferences by deferred acceptance and check blocking pairs.",
+    "features": [
+      "arrays",
+      "while",
+      "loops",
+      "indexOf"
+    ]
+  },
+  {
+    "id": 162,
+    "file": "algorithms/0162-subset-zeta-transform.js",
+    "purpose": "Compute sums over every mask's submasks and invert the transform.",
+    "features": [
+      "typed-array",
+      "bitwise",
+      "loops",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 163,
+    "file": "algorithms/0163-integer-partition-generator.js",
+    "purpose": "Yield nonincreasing integer partitions without duplicate orderings.",
+    "features": [
+      "generator",
+      "recursion",
+      "spread",
+      "arrays"
+    ]
+  },
+  {
+    "id": 164,
+    "file": "algorithms/0164-subtraction-game-grundy.js",
+    "purpose": "Compute impartial-game nimbers and select a winning move for two piles.",
+    "features": [
+      "Set",
+      "typed-array",
+      "bitwise",
+      "loops"
+    ]
+  },
+  {
+    "id": 165,
+    "file": "algorithms/0165-misere-nim-boundary.js",
+    "purpose": "Apply the all-singleton exception when taking the last object loses.",
+    "features": [
+      "closures",
+      "arrays",
+      "reduce",
+      "bitwise"
+    ]
+  },
+  {
+    "id": 166,
+    "file": "algorithms/0166-empty-stream-merge.js",
+    "purpose": "Merge sorted generator streams while safely ignoring empty iterators.",
+    "features": [
+      "generator",
+      "objects",
+      "arrays",
+      "while"
+    ]
+  },
+  {
+    "id": 167,
+    "file": "algorithms/0167-sparse-zero-dot-product.js",
+    "purpose": "Intersect sparse vector indices and preserve the empty-vector additive identity.",
+    "features": [
+      "Map",
+      "destructuring",
+      "closures",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 168,
+    "file": "algorithms/0168-zero-sum-subarray-count.js",
+    "purpose": "Count all balanced transaction intervals including repeated prefix balances.",
+    "features": [
+      "Map",
+      "for-of",
+      "arrays",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 169,
+    "file": "algorithms/0169-duplicate-pair-multiplicity.js",
+    "purpose": "Count target pairs by grouped multiplicities rather than unique value pairs.",
+    "features": [
+      "sort",
+      "while",
+      "arrays",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 170,
+    "file": "algorithms/0170-pascal-parity-pattern.js",
+    "purpose": "Build binomial parity rows with XOR and verify Lucas's bit criterion.",
+    "features": [
+      "typed-array",
+      "bitwise",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 171,
+    "file": "algorithms/0171-permutation-ranking.js",
+    "purpose": "Rank a distinct-token permutation by counting smaller unused tokens.",
+    "features": [
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 172,
+    "file": "algorithms/0172-combination-unranking.js",
+    "purpose": "Recover a lexicographically ranked fixed-size subset using binomial block sizes.",
+    "features": [
+      "closures",
+      "loops",
+      "arrays",
+      "Math"
+    ]
+  },
+  {
+    "id": 173,
+    "file": "algorithms/0173-tournament-elimination-tree.js",
+    "purpose": "Find the runner-up only among opponents defeated by the champion.",
+    "features": [
+      "objects",
+      "arrays",
+      "while",
+      "Math"
+    ]
+  },
+  {
+    "id": 174,
+    "file": "algorithms/0174-majority-candidate-validation.js",
+    "purpose": "Separate cancellation-based candidate discovery from frequency validation.",
+    "features": [
+      "closures",
+      "for-of",
+      "arrays",
+      "conditional-expression"
+    ]
+  },
+  {
+    "id": 175,
+    "file": "algorithms/0175-stream-reservoir-priority.js",
+    "purpose": "Select the lowest deterministic priorities from a stream without retaining all entries.",
+    "features": [
+      "generator",
+      "objects",
+      "sort",
+      "arrays"
+    ]
+  }
+]

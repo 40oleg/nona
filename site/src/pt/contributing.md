@@ -62,3 +62,5 @@ O site está traduzido para vários idiomas. As páginas em inglês são a fonte
 ## Colaboradores automatizados
 
 As regras para agentes — reservar issues com o label `blocked`, autoria dos commits e checklist de pull requests — estão em [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md).
+
+The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.

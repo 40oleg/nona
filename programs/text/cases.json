@@ -1,0 +1,1819 @@
+[
+  {
+    "id": 341,
+    "file": "text/0341-csv-quoted-fields.js",
+    "purpose": "Parse CSV fields including escaped quotes and embedded commas.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "arrays"
+    ]
+  },
+  {
+    "id": 342,
+    "file": "text/0342-tsv-backslash-reader.js",
+    "purpose": "Decode backslash escapes in tab separated cells.",
+    "features": [
+      "strings",
+      "switch",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 343,
+    "file": "text/0343-ini-section-reader.js",
+    "purpose": "Read sectioned configuration with duplicate key replacement.",
+    "features": [
+      "objects",
+      "strings",
+      "loops",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 344,
+    "file": "text/0344-query-multimap.js",
+    "purpose": "Collect repeated query parameters without discarding empty values.",
+    "features": [
+      "maps",
+      "arrays",
+      "strings",
+      "iteration"
+    ]
+  },
+  {
+    "id": 345,
+    "file": "text/0345-cookie-attributes.js",
+    "purpose": "Separate cookie data from case insensitive attributes.",
+    "features": [
+      "objects",
+      "strings",
+      "loops",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 346,
+    "file": "text/0346-http-folded-header.js",
+    "purpose": "Unfold continuation lines and combine repeated HTTP headers.",
+    "features": [
+      "maps",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 347,
+    "file": "text/0347-shell-word-scanner.js",
+    "purpose": "Split shell style words while respecting quotes and escapes.",
+    "features": [
+      "state-machine",
+      "strings",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 348,
+    "file": "text/0348-json-pointer-walk.js",
+    "purpose": "Resolve escaped JSON pointer segments through arrays and objects.",
+    "features": [
+      "functions",
+      "objects",
+      "arrays",
+      "strings"
+    ]
+  },
+  {
+    "id": 349,
+    "file": "text/0349-nested-bracket-tree.js",
+    "purpose": "Build a nested tree from balanced bracket notation.",
+    "features": [
+      "recursion",
+      "closures",
+      "arrays",
+      "strings"
+    ]
+  },
+  {
+    "id": 350,
+    "file": "text/0350-rpn-expression.js",
+    "purpose": "Evaluate reverse Polish notation with a checked value stack.",
+    "features": [
+      "functions",
+      "arrays",
+      "objects",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 351,
+    "file": "text/0351-arithmetic-precedence.js",
+    "purpose": "Parse arithmetic with multiplication precedence and parentheses.",
+    "features": [
+      "recursion",
+      "closures",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 352,
+    "file": "text/0352-roman-numeral-decoder.js",
+    "purpose": "Decode Roman numerals by comparing adjacent subtractive values.",
+    "features": [
+      "objects",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 353,
+    "file": "text/0353-roman-numeral-encoder.js",
+    "purpose": "Encode integers using ordered subtractive numeral denominations.",
+    "features": [
+      "arrays",
+      "loops",
+      "arithmetic",
+      "strings"
+    ]
+  },
+  {
+    "id": 354,
+    "file": "text/0354-duration-unit-parser.js",
+    "purpose": "Accumulate compact duration units into seconds.",
+    "features": [
+      "strings",
+      "objects",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 355,
+    "file": "text/0355-coordinate-path-parser.js",
+    "purpose": "Parse relative pen movements into an absolute coordinate trail.",
+    "features": [
+      "arrays",
+      "objects",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 356,
+    "file": "text/0356-markdown-heading-index.js",
+    "purpose": "Index headings outside fenced Markdown code blocks.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "arrays"
+    ]
+  },
+  {
+    "id": 357,
+    "file": "text/0357-html-entity-decoder.js",
+    "purpose": "Decode named and numeric HTML character references.",
+    "features": [
+      "objects",
+      "functions",
+      "strings",
+      "unicode"
+    ]
+  },
+  {
+    "id": 358,
+    "file": "text/0358-percent-byte-decoder.js",
+    "purpose": "Decode percent bytes while preserving malformed sequences.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 359,
+    "file": "text/0359-base64-manual-encoder.js",
+    "purpose": "Encode byte triples into Base64 with explicit padding.",
+    "features": [
+      "bitwise",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 360,
+    "file": "text/0360-base64-manual-decoder.js",
+    "purpose": "Decode Base64 sextets using a streaming bit reservoir.",
+    "features": [
+      "strings",
+      "bitwise",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 361,
+    "file": "text/0361-hex-dump-formatter.js",
+    "purpose": "Format binary bytes into aligned hexadecimal and printable columns.",
+    "features": [
+      "arrays",
+      "strings",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 362,
+    "file": "text/0362-utf8-manual-encoder.js",
+    "purpose": "Encode Unicode code points into UTF8 byte sequences.",
+    "features": [
+      "unicode",
+      "bitwise",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 363,
+    "file": "text/0363-utf8-manual-decoder.js",
+    "purpose": "Decode variable width UTF8 byte sequences into code points.",
+    "features": [
+      "bitwise",
+      "unicode",
+      "loops",
+      "strings"
+    ]
+  },
+  {
+    "id": 364,
+    "file": "text/0364-run-length-packets.js",
+    "purpose": "Compress repeated characters into count and symbol packets.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 365,
+    "file": "text/0365-dictionary-word-compression.js",
+    "purpose": "Replace repeated words with dictionary indices and reconstruct the text.",
+    "features": [
+      "maps",
+      "arrays",
+      "functions",
+      "strings"
+    ]
+  },
+  {
+    "id": 366,
+    "file": "text/0366-lzw-string-codes.js",
+    "purpose": "Compress text with an incrementally extended LZW dictionary.",
+    "features": [
+      "maps",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 367,
+    "file": "text/0367-burrows-wheeler-transform.js",
+    "purpose": "Sort cyclic rotations and compute the Burrows Wheeler last column.",
+    "features": [
+      "arrays",
+      "strings",
+      "sorting",
+      "functions"
+    ]
+  },
+  {
+    "id": 368,
+    "file": "text/0368-move-to-front-coding.js",
+    "purpose": "Encode symbols by moving their alphabet positions to the front.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "mutation"
+    ]
+  },
+  {
+    "id": 369,
+    "file": "text/0369-canonical-prefix-bitstream-reader.js",
+    "purpose": "Decode canonical prefix coded bitstreams and detect incomplete terminal codes.",
+    "features": [
+      "maps",
+      "sets",
+      "bitwise",
+      "strings",
+      "functions"
+    ]
+  },
+  {
+    "id": 370,
+    "file": "text/0370-lz77-sliding-matches.js",
+    "purpose": "Find bounded back references in a sliding text window.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 371,
+    "file": "text/0371-delta-codepoint-stream.js",
+    "purpose": "Represent code points as signed deltas and reconstruct them.",
+    "features": [
+      "unicode",
+      "arrays",
+      "arithmetic",
+      "functions"
+    ]
+  },
+  {
+    "id": 372,
+    "file": "text/0372-byte-pair-merging.js",
+    "purpose": "Merge the most frequent adjacent token pair for three rounds.",
+    "features": [
+      "maps",
+      "arrays",
+      "loops",
+      "strings"
+    ]
+  },
+  {
+    "id": 373,
+    "file": "text/0373-front-coded-vocabulary.js",
+    "purpose": "Compress sorted vocabulary entries by common prefix length.",
+    "features": [
+      "sorting",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 374,
+    "file": "text/0374-varint-byte-packing.js",
+    "purpose": "Pack unsigned integers into continuation flagged variable length bytes.",
+    "features": [
+      "bitwise",
+      "arrays",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 375,
+    "file": "text/0375-zigzag-signed-packing.js",
+    "purpose": "Map signed values to unsigned ZigZag codes and recover them.",
+    "features": [
+      "bitwise",
+      "arrays",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 376,
+    "file": "text/0376-escape-json-string.js",
+    "purpose": "Escape JSON control characters without serializing the source directly.",
+    "features": [
+      "strings",
+      "objects",
+      "unicode",
+      "loops"
+    ]
+  },
+  {
+    "id": 377,
+    "file": "text/0377-unescape-c-literal.js",
+    "purpose": "Read octal and hexadecimal escapes in a C style string literal.",
+    "features": [
+      "strings",
+      "loops",
+      "number-conversion",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 378,
+    "file": "text/0378-xml-tag-stack.js",
+    "purpose": "Check XML tag nesting and record leaf text spans.",
+    "features": [
+      "strings",
+      "arrays",
+      "regexp",
+      "loops"
+    ]
+  },
+  {
+    "id": 379,
+    "file": "text/0379-s-expression-reader.js",
+    "purpose": "Parse nested Lisp lists with numeric and symbolic atoms.",
+    "features": [
+      "recursion",
+      "arrays",
+      "closures",
+      "strings"
+    ]
+  },
+  {
+    "id": 380,
+    "file": "text/0380-mime-quoted-printable.js",
+    "purpose": "Decode MIME quoted printable bytes and remove soft line breaks.",
+    "features": [
+      "strings",
+      "loops",
+      "arrays",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 381,
+    "file": "text/0381-dotenv-expansion.js",
+    "purpose": "Parse environment assignments and expand previously defined variables.",
+    "features": [
+      "objects",
+      "regexp",
+      "functions",
+      "strings"
+    ]
+  },
+  {
+    "id": 382,
+    "file": "text/0382-ansi-style-stripper.js",
+    "purpose": "Remove ANSI control sequences while retaining printable content.",
+    "features": [
+      "state-machine",
+      "loops",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 383,
+    "file": "text/0383-terminal-overwrite-line.js",
+    "purpose": "Simulate carriage returns and backspaces in terminal text.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "state-machine"
+    ]
+  },
+  {
+    "id": 384,
+    "file": "text/0384-common-indent-removal.js",
+    "purpose": "Remove the minimum indentation from nonempty multiline text.",
+    "features": [
+      "arrays",
+      "strings",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 385,
+    "file": "text/0385-tab-stop-expansion.js",
+    "purpose": "Expand tabs according to the current column and fixed tab stops.",
+    "features": [
+      "strings",
+      "loops",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 386,
+    "file": "text/0386-paragraph-word-wrapper.js",
+    "purpose": "Wrap paragraphs greedily without breaking words.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 387,
+    "file": "text/0387-justify-text-lines.js",
+    "purpose": "Distribute extra spaces across gaps to justify a line.",
+    "features": [
+      "arrays",
+      "strings",
+      "arithmetic",
+      "loops"
+    ]
+  },
+  {
+    "id": 388,
+    "file": "text/0388-aligned-table-renderer.js",
+    "purpose": "Render a two column table using measured cell widths.",
+    "features": [
+      "arrays",
+      "functions",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 389,
+    "file": "text/0389-english-list-format.js",
+    "purpose": "Format zero through four item lists with conjunction punctuation.",
+    "features": [
+      "functions",
+      "arrays",
+      "strings",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 390,
+    "file": "text/0390-ordinal-number-format.js",
+    "purpose": "Apply English ordinal suffix exceptions to integers.",
+    "features": [
+      "functions",
+      "arrays",
+      "arithmetic",
+      "strings"
+    ]
+  },
+  {
+    "id": 391,
+    "file": "text/0391-integer-words.js",
+    "purpose": "Spell integers below one thousand with recursive decomposition.",
+    "features": [
+      "recursion",
+      "arrays",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 392,
+    "file": "text/0392-accounting-decimals.js",
+    "purpose": "Format signed cents with grouping and accounting parentheses.",
+    "features": [
+      "functions",
+      "strings",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 393,
+    "file": "text/0393-engineering-notation.js",
+    "purpose": "Choose powers of one thousand for engineering notation.",
+    "features": [
+      "arrays",
+      "functions",
+      "arithmetic",
+      "strings"
+    ]
+  },
+  {
+    "id": 394,
+    "file": "text/0394-elapsed-time-format.js",
+    "purpose": "Render elapsed seconds with optional day and hour components.",
+    "features": [
+      "arithmetic",
+      "strings",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 395,
+    "file": "text/0395-binary-size-format.js",
+    "purpose": "Format byte counts with binary unit thresholds.",
+    "features": [
+      "arrays",
+      "arithmetic",
+      "strings",
+      "functions"
+    ]
+  },
+  {
+    "id": 396,
+    "file": "text/0396-positional-template.js",
+    "purpose": "Expand indexed placeholders with escaped braces.",
+    "features": [
+      "strings",
+      "loops",
+      "arrays",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 397,
+    "file": "text/0397-named-template-paths.js",
+    "purpose": "Resolve dotted object paths inside a named text template.",
+    "features": [
+      "objects",
+      "functions",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 398,
+    "file": "text/0398-plural-rule-template.js",
+    "purpose": "Select singular and plural message branches by count.",
+    "features": [
+      "objects",
+      "functions",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 399,
+    "file": "text/0399-slug-collision-index.js",
+    "purpose": "Assign unique slugs to titles by counting collisions.",
+    "features": [
+      "maps",
+      "strings",
+      "functions",
+      "arrays"
+    ]
+  },
+  {
+    "id": 400,
+    "file": "text/0400-identifier-case-boundaries.js",
+    "purpose": "Split identifiers at acronym and lowercase uppercase boundaries.",
+    "features": [
+      "strings",
+      "loops",
+      "arrays",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 401,
+    "file": "text/0401-unicode-codepoint-offsets.js",
+    "purpose": "Record UTF16 offsets for each Unicode code point.",
+    "features": [
+      "unicode",
+      "iteration",
+      "arrays",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 402,
+    "file": "text/0402-surrogate-pair-validation.js",
+    "purpose": "Find valid surrogate pairs and isolated UTF16 code units.",
+    "features": [
+      "unicode",
+      "loops",
+      "arrays",
+      "bitwise"
+    ]
+  },
+  {
+    "id": 403,
+    "file": "text/0403-combining-mark-clusters.js",
+    "purpose": "Group combining marks with the preceding base character.",
+    "features": [
+      "unicode",
+      "regexp",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 404,
+    "file": "text/0404-unicode-normalization-equivalence.js",
+    "purpose": "Compare canonical and compatibility normalization groups.",
+    "features": [
+      "unicode",
+      "maps",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 405,
+    "file": "text/0405-unicode-script-runs.js",
+    "purpose": "Partition text into consecutive Latin Greek and numeric runs.",
+    "features": [
+      "unicode",
+      "regexp",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 406,
+    "file": "text/0406-display-column-estimate.js",
+    "purpose": "Estimate display columns for combining and wide Unicode symbols.",
+    "features": [
+      "unicode",
+      "regexp",
+      "arithmetic",
+      "loops"
+    ]
+  },
+  {
+    "id": 407,
+    "file": "text/0407-grapheme-safe-truncate.js",
+    "purpose": "Truncate simple base and combining clusters to a visible budget.",
+    "features": [
+      "unicode",
+      "arrays",
+      "loops",
+      "strings"
+    ]
+  },
+  {
+    "id": 408,
+    "file": "text/0408-fullwidth-ascii-fold.js",
+    "purpose": "Fold fullwidth ASCII code points and ideographic spaces.",
+    "features": [
+      "unicode",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 409,
+    "file": "text/0409-unicode-escape-notation.js",
+    "purpose": "Render astral symbols with code point escapes and BMP symbols with unit escapes.",
+    "features": [
+      "unicode",
+      "functions",
+      "arrays",
+      "strings"
+    ]
+  },
+  {
+    "id": 410,
+    "file": "text/0410-unicode-category-counts.js",
+    "purpose": "Count Unicode letters numbers marks punctuation and other symbols.",
+    "features": [
+      "unicode",
+      "regexp",
+      "objects",
+      "loops"
+    ]
+  },
+  {
+    "id": 411,
+    "file": "text/0411-rtf-scoped-style-reader.js",
+    "purpose": "Read RTF control words with group scoped bold and italic formatting.",
+    "features": [
+      "objects",
+      "arrays",
+      "strings",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 412,
+    "file": "text/0412-z-function-borders.js",
+    "purpose": "Compute Z match lengths and discover suffix prefix borders.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 413,
+    "file": "text/0413-rabin-karp-rolling-hash.js",
+    "purpose": "Search substrings with a rolling hash and verify collisions.",
+    "features": [
+      "arithmetic",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 414,
+    "file": "text/0414-boyer-moore-bad-character.js",
+    "purpose": "Skip mismatched text windows using last occurrence positions.",
+    "features": [
+      "maps",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 415,
+    "file": "text/0415-subsequence-window.js",
+    "purpose": "Find the shortest text window containing a target subsequence.",
+    "features": [
+      "strings",
+      "loops",
+      "conditionals",
+      "substring"
+    ]
+  },
+  {
+    "id": 416,
+    "file": "text/0416-liang-pattern-hyphenation.js",
+    "purpose": "Overlay weighted Liang patterns to locate legal hyphenation boundaries.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 417,
+    "file": "text/0417-damerau-adjacent-transposition.js",
+    "purpose": "Include adjacent transposition in a dynamic edit distance matrix.",
+    "features": [
+      "arrays",
+      "loops",
+      "arithmetic",
+      "strings"
+    ]
+  },
+  {
+    "id": 418,
+    "file": "text/0418-tex-argument-macro-expansion.js",
+    "purpose": "Expand TeX style macros by reading balanced braced arguments.",
+    "features": [
+      "objects",
+      "functions",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 419,
+    "file": "text/0419-longest-common-substring.js",
+    "purpose": "Find the longest contiguous shared substring using rolling rows.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 420,
+    "file": "text/0420-palindrome-center-expansion.js",
+    "purpose": "Find the longest palindrome by expanding odd and even centers.",
+    "features": [
+      "functions",
+      "strings",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 421,
+    "file": "text/0421-palindrome-partition-count.js",
+    "purpose": "Count palindromic partitions with suffix dynamic programming.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 422,
+    "file": "text/0422-bibliography-citation-disambiguation.js",
+    "purpose": "Assign alphabetical suffixes to citations sharing an author and year.",
+    "features": [
+      "maps",
+      "sorting",
+      "objects",
+      "arrays"
+    ]
+  },
+  {
+    "id": 423,
+    "file": "text/0423-unique-character-window.js",
+    "purpose": "Track the longest window containing no repeated characters.",
+    "features": [
+      "maps",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 424,
+    "file": "text/0424-anagram-window-locations.js",
+    "purpose": "Find fixed width anagram windows using character balances.",
+    "features": [
+      "maps",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 425,
+    "file": "text/0425-markdown-footnote-numbering.js",
+    "purpose": "Number Markdown footnote references and collect repeated reference backlinks.",
+    "features": [
+      "maps",
+      "strings",
+      "functions",
+      "arrays"
+    ]
+  },
+  {
+    "id": 426,
+    "file": "text/0426-word-ladder-breadth-search.js",
+    "purpose": "Find a shortest dictionary word ladder by changing one letter.",
+    "features": [
+      "sets",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 427,
+    "file": "text/0427-suffix-array-ranking.js",
+    "purpose": "Sort suffix positions and calculate adjacent common prefixes.",
+    "features": [
+      "sorting",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 428,
+    "file": "text/0428-trie-prefix-completion.js",
+    "purpose": "Build a character trie and enumerate prefix completions.",
+    "features": [
+      "objects",
+      "recursion",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 429,
+    "file": "text/0429-multi-pattern-automaton.js",
+    "purpose": "Use trie failure links to find several patterns in one pass.",
+    "features": [
+      "objects",
+      "arrays",
+      "loops",
+      "strings"
+    ]
+  },
+  {
+    "id": 430,
+    "file": "text/0430-glob-dynamic-matcher.js",
+    "purpose": "Match wildcard patterns with question marks and stars.",
+    "features": [
+      "arrays",
+      "functions",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 431,
+    "file": "text/0431-phonetic-soundex-code.js",
+    "purpose": "Generate Soundex codes while handling repeated consonant groups.",
+    "features": [
+      "objects",
+      "strings",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 432,
+    "file": "text/0432-natural-number-sort.js",
+    "purpose": "Sort labels by alternating textual and numerical segments.",
+    "features": [
+      "sorting",
+      "regexp",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 433,
+    "file": "text/0433-version-component-compare.js",
+    "purpose": "Compare dotted versions after removing redundant zero components.",
+    "features": [
+      "functions",
+      "arrays",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 434,
+    "file": "text/0434-semver-prerelease-order.js",
+    "purpose": "Order semantic prerelease identifiers using numeric precedence.",
+    "features": [
+      "functions",
+      "arrays",
+      "strings",
+      "sorting"
+    ]
+  },
+  {
+    "id": 435,
+    "file": "text/0435-inverted-document-index.js",
+    "purpose": "Build word postings and answer an intersected text query.",
+    "features": [
+      "maps",
+      "sets",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 436,
+    "file": "text/0436-phrase-posting-query.js",
+    "purpose": "Use positional postings to locate exact multiword phrases.",
+    "features": [
+      "maps",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 437,
+    "file": "text/0437-tfidf-document-ranking.js",
+    "purpose": "Rank documents with term frequency and inverse document frequency.",
+    "features": [
+      "maps",
+      "arrays",
+      "arithmetic",
+      "sorting"
+    ]
+  },
+  {
+    "id": 438,
+    "file": "text/0438-boolean-query-parser.js",
+    "purpose": "Evaluate parenthesized boolean text queries over term sets.",
+    "features": [
+      "recursion",
+      "sets",
+      "strings",
+      "closures"
+    ]
+  },
+  {
+    "id": 439,
+    "file": "text/0439-jaccard-token-similarity.js",
+    "purpose": "Compare texts using the intersection and union of word sets.",
+    "features": [
+      "sets",
+      "arrays",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 440,
+    "file": "text/0440-cosine-word-vectors.js",
+    "purpose": "Compute cosine similarity from sparse word frequency vectors.",
+    "features": [
+      "maps",
+      "arrays",
+      "arithmetic",
+      "functions"
+    ]
+  },
+  {
+    "id": 441,
+    "file": "text/0441-line-diff-edit-script.js",
+    "purpose": "Recover an insertion and deletion script between line sequences.",
+    "features": [
+      "arrays",
+      "loops",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 442,
+    "file": "text/0442-patch-hunk-application.js",
+    "purpose": "Apply ordered line replacement hunks while validating removed text.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "objects"
+    ]
+  },
+  {
+    "id": 443,
+    "file": "text/0443-edit-cursor-buffer.js",
+    "purpose": "Execute a bounded text editor command stream around a cursor.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "switch"
+    ]
+  },
+  {
+    "id": 444,
+    "file": "text/0444-undo-redo-text-history.js",
+    "purpose": "Maintain text snapshots through edits undo and redo operations.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "state-machine"
+    ]
+  },
+  {
+    "id": 445,
+    "file": "text/0445-balanced-delimiter-diagnostics.js",
+    "purpose": "Report mismatched and unclosed delimiters with character offsets.",
+    "features": [
+      "objects",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 446,
+    "file": "text/0446-comment-aware-source-mask.js",
+    "purpose": "Mask line and block comments while preserving quoted strings.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 447,
+    "file": "text/0447-indentation-token-stream.js",
+    "purpose": "Emit indent and dedent tokens for a block structured text.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 448,
+    "file": "text/0448-number-literal-scanner.js",
+    "purpose": "Recognize decimal fractions and exponent parts in numeric literals.",
+    "features": [
+      "strings",
+      "loops",
+      "functions",
+      "arrays"
+    ]
+  },
+  {
+    "id": 449,
+    "file": "text/0449-operator-maximal-munch.js",
+    "purpose": "Tokenize operators by selecting the longest matching candidate.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "sorting"
+    ]
+  },
+  {
+    "id": 450,
+    "file": "text/0450-quoted-attribute-reader.js",
+    "purpose": "Parse markup attributes with quoted bare and boolean values.",
+    "features": [
+      "strings",
+      "loops",
+      "objects",
+      "state-machine"
+    ]
+  },
+  {
+    "id": 451,
+    "file": "text/0451-path-dot-segment-normalizer.js",
+    "purpose": "Normalize absolute path segments while preventing traversal above root.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 452,
+    "file": "text/0452-relative-path-builder.js",
+    "purpose": "Build relative paths by removing a common segment prefix.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 453,
+    "file": "text/0453-url-component-splitter.js",
+    "purpose": "Separate URL authority path query and fragment components.",
+    "features": [
+      "strings",
+      "objects",
+      "loops",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 454,
+    "file": "text/0454-ipv4-bit-packing.js",
+    "purpose": "Validate dotted IPv4 octets and pack them into unsigned words.",
+    "features": [
+      "functions",
+      "arrays",
+      "bitwise",
+      "strings"
+    ]
+  },
+  {
+    "id": 455,
+    "file": "text/0455-ipv6-zero-expansion.js",
+    "purpose": "Expand compressed IPv6 groups into eight padded hexadecimal groups.",
+    "features": [
+      "strings",
+      "arrays",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 456,
+    "file": "text/0456-email-mailbox-list.js",
+    "purpose": "Split mailbox lists while respecting quoted display names.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "arrays"
+    ]
+  },
+  {
+    "id": 457,
+    "file": "text/0457-http-content-range.js",
+    "purpose": "Parse byte range requests and clamp them to a known resource length.",
+    "features": [
+      "strings",
+      "arrays",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 458,
+    "file": "text/0458-accept-weighted-negotiation.js",
+    "purpose": "Select a supported media type using quality and specificity.",
+    "features": [
+      "arrays",
+      "strings",
+      "sorting",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 459,
+    "file": "text/0459-link-header-relations.js",
+    "purpose": "Parse link header target URLs and relation parameters.",
+    "features": [
+      "strings",
+      "arrays",
+      "objects",
+      "loops"
+    ]
+  },
+  {
+    "id": 460,
+    "file": "text/0460-multipart-boundary-reader.js",
+    "purpose": "Separate multipart bodies into headers and text payloads.",
+    "features": [
+      "strings",
+      "arrays",
+      "objects",
+      "loops"
+    ]
+  },
+  {
+    "id": 461,
+    "file": "text/0461-chunked-transfer-reader.js",
+    "purpose": "Decode hexadecimal length framed HTTP body chunks.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 462,
+    "file": "text/0462-netstring-framing.js",
+    "purpose": "Decode length prefixed netstrings with embedded punctuation.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "number-conversion"
+    ]
+  },
+  {
+    "id": 463,
+    "file": "text/0463-length-prefixed-string-table.js",
+    "purpose": "Encode a string table with explicit lengths then decode it.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "functions"
+    ]
+  },
+  {
+    "id": 464,
+    "file": "text/0464-backslash-delimited-records.js",
+    "purpose": "Read pipe separated records with escaped pipes and slashes.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "arrays"
+    ]
+  },
+  {
+    "id": 465,
+    "file": "text/0465-folded-whitespace-canonicalizer.js",
+    "purpose": "Collapse whitespace outside quoted regions while preserving quoted content.",
+    "features": [
+      "strings",
+      "loops",
+      "state-machine",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 466,
+    "file": "text/0466-character-entropy.js",
+    "purpose": "Calculate character probabilities and Shannon entropy.",
+    "features": [
+      "maps",
+      "arrays",
+      "arithmetic",
+      "loops"
+    ]
+  },
+  {
+    "id": 467,
+    "file": "text/0467-bigram-transition-model.js",
+    "purpose": "Build normalized next word transition probabilities.",
+    "features": [
+      "maps",
+      "arrays",
+      "strings",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 468,
+    "file": "text/0468-longest-repeated-run.js",
+    "purpose": "Locate all maximal symbol runs and identify the longest.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "sorting"
+    ]
+  },
+  {
+    "id": 469,
+    "file": "text/0469-word-frequency-tie-ranking.js",
+    "purpose": "Rank normalized words by frequency then lexical order.",
+    "features": [
+      "maps",
+      "sorting",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 470,
+    "file": "text/0470-concordance-context-windows.js",
+    "purpose": "Produce bounded left and right word contexts for a query term.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 471,
+    "file": "text/0471-sentence-boundary-state.js",
+    "purpose": "Split sentences while suppressing boundaries inside quotes and abbreviations.",
+    "features": [
+      "sets",
+      "strings",
+      "loops",
+      "state-machine"
+    ]
+  },
+  {
+    "id": 472,
+    "file": "text/0472-readability-syllable-estimate.js",
+    "purpose": "Estimate syllables by vowel groups and compute a reading score.",
+    "features": [
+      "strings",
+      "arrays",
+      "arithmetic",
+      "functions"
+    ]
+  },
+  {
+    "id": 473,
+    "file": "text/0473-text-shingle-fingerprints.js",
+    "purpose": "Hash overlapping word shingles into stable unsigned fingerprints.",
+    "features": [
+      "strings",
+      "arrays",
+      "bitwise",
+      "loops"
+    ]
+  },
+  {
+    "id": 474,
+    "file": "text/0474-adler-checksum-stream.js",
+    "purpose": "Compute an Adler checksum incrementally across text fragments.",
+    "features": [
+      "arrays",
+      "strings",
+      "arithmetic",
+      "bitwise"
+    ]
+  },
+  {
+    "id": 475,
+    "file": "text/0475-crc32-bitwise-checksum.js",
+    "purpose": "Compute CRC32 with a reflected bitwise polynomial.",
+    "features": [
+      "bitwise",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 476,
+    "file": "text/0476-luhn-check-digit.js",
+    "purpose": "Generate and verify Luhn check digits for decimal identifiers.",
+    "features": [
+      "functions",
+      "strings",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 477,
+    "file": "text/0477-isbn13-check-digit.js",
+    "purpose": "Compute weighted ISBN13 checks and report invalid examples.",
+    "features": [
+      "strings",
+      "arithmetic",
+      "functions",
+      "arrays"
+    ]
+  },
+  {
+    "id": 478,
+    "file": "text/0478-iban-mod97-validation.js",
+    "purpose": "Validate an IBAN by streaming expanded digits modulo ninety seven.",
+    "features": [
+      "strings",
+      "loops",
+      "arithmetic",
+      "functions"
+    ]
+  },
+  {
+    "id": 479,
+    "file": "text/0479-caesar-frequency-recovery.js",
+    "purpose": "Choose a Caesar decoding by scoring common English characters.",
+    "features": [
+      "strings",
+      "arrays",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 480,
+    "file": "text/0480-vigenere-roundtrip.js",
+    "purpose": "Encrypt and decrypt letters with a repeating Vigenere key.",
+    "features": [
+      "functions",
+      "strings",
+      "arithmetic",
+      "loops"
+    ]
+  },
+  {
+    "id": 481,
+    "file": "text/0481-rail-fence-transposition.js",
+    "purpose": "Encode a message by alternating across three rail rows.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 482,
+    "file": "text/0482-columnar-transposition.js",
+    "purpose": "Transpose padded text through columns ranked by a keyword.",
+    "features": [
+      "strings",
+      "arrays",
+      "sorting",
+      "loops"
+    ]
+  },
+  {
+    "id": 483,
+    "file": "text/0483-morse-timing-encoder.js",
+    "purpose": "Encode Morse symbols into one unit and three unit pulses.",
+    "features": [
+      "objects",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 484,
+    "file": "text/0484-polybius-square-code.js",
+    "purpose": "Encode letters as row and column positions in a Polybius square.",
+    "features": [
+      "strings",
+      "arrays",
+      "arithmetic",
+      "functions"
+    ]
+  },
+  {
+    "id": 485,
+    "file": "text/0485-rotating-alphabet-wheel.js",
+    "purpose": "Apply a position dependent rotating substitution wheel.",
+    "features": [
+      "strings",
+      "loops",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 486,
+    "file": "text/0486-base36-word-identifiers.js",
+    "purpose": "Encode word lengths and positions into reversible Base36 identifiers.",
+    "features": [
+      "strings",
+      "arrays",
+      "functions",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 487,
+    "file": "text/0487-bacon-binary-alphabet.js",
+    "purpose": "Encode letters using five binary A and B symbols.",
+    "features": [
+      "strings",
+      "arrays",
+      "bitwise",
+      "loops"
+    ]
+  },
+  {
+    "id": 488,
+    "file": "text/0488-text-bit-parity.js",
+    "purpose": "Attach even parity bits to seven bit text characters.",
+    "features": [
+      "bitwise",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 489,
+    "file": "text/0489-nato-spelling-words.js",
+    "purpose": "Spell alphabetic characters and digit names while retaining word boundaries.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "character-codes"
+    ]
+  },
+  {
+    "id": 490,
+    "file": "text/0490-wordle-feedback.js",
+    "purpose": "Score exact and misplaced letters with duplicate letter accounting.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "objects"
+    ]
+  },
+  {
+    "id": 491,
+    "file": "text/0491-hangman-reveal-state.js",
+    "purpose": "Track unique guesses and reveal matching hidden word positions.",
+    "features": [
+      "sets",
+      "strings",
+      "arrays",
+      "loops"
+    ]
+  },
+  {
+    "id": 492,
+    "file": "text/0492-anagram-group-index.js",
+    "purpose": "Group normalized words by sorted letter signatures.",
+    "features": [
+      "maps",
+      "sorting",
+      "strings",
+      "arrays"
+    ]
+  },
+  {
+    "id": 493,
+    "file": "text/0493-scrabble-rack-search.js",
+    "purpose": "Find words constructible from letter tiles and wildcard blanks.",
+    "features": [
+      "objects",
+      "arrays",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 494,
+    "file": "text/0494-crossword-pattern-filter.js",
+    "purpose": "Filter crossword candidates by fixed letters and crossing exclusions.",
+    "features": [
+      "arrays",
+      "sets",
+      "strings",
+      "functions"
+    ]
+  },
+  {
+    "id": 495,
+    "file": "text/0495-boggle-grid-word-search.js",
+    "purpose": "Find dictionary words on adjacent grid cells without reusing cells.",
+    "features": [
+      "recursion",
+      "sets",
+      "arrays",
+      "strings"
+    ]
+  },
+  {
+    "id": 496,
+    "file": "text/0496-finite-language-recognizer.js",
+    "purpose": "Recognize words with an even number of a letters and a final b.",
+    "features": [
+      "objects",
+      "strings",
+      "loops",
+      "arrays"
+    ]
+  },
+  {
+    "id": 497,
+    "file": "text/0497-regex-thompson-simulation.js",
+    "purpose": "Simulate an epsilon NFA for a repeated optional branch language.",
+    "features": [
+      "sets",
+      "objects",
+      "arrays",
+      "functions"
+    ]
+  },
+  {
+    "id": 498,
+    "file": "text/0498-bracketed-repeat-decoder.js",
+    "purpose": "Expand nested count and bracket repetition syntax.",
+    "features": [
+      "arrays",
+      "strings",
+      "loops",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 499,
+    "file": "text/0499-brace-alternative-expansion.js",
+    "purpose": "Expand comma alternatives and concatenate nested brace expressions.",
+    "features": [
+      "recursion",
+      "arrays",
+      "closures",
+      "strings"
+    ]
+  },
+  {
+    "id": 500,
+    "file": "text/0500-mini-json-reader.js",
+    "purpose": "Parse bounded JSON arrays objects strings booleans and integers.",
+    "features": [
+      "recursion",
+      "closures",
+      "objects",
+      "arrays"
+    ]
+  },
+  {
+    "id": 501,
+    "file": "text/0501-json-event-flattener.js",
+    "purpose": "Emit path and value events for a nested JSON document.",
+    "features": [
+      "recursion",
+      "objects",
+      "arrays",
+      "strings"
+    ]
+  },
+  {
+    "id": 502,
+    "file": "text/0502-json-path-wildcards.js",
+    "purpose": "Evaluate dot paths with array wildcards over a JSON tree.",
+    "features": [
+      "arrays",
+      "objects",
+      "strings",
+      "loops"
+    ]
+  },
+  {
+    "id": 503,
+    "file": "text/0503-json-merge-patch.js",
+    "purpose": "Apply recursive merge patches with null property deletion.",
+    "features": [
+      "recursion",
+      "objects",
+      "arrays",
+      "conditionals"
+    ]
+  },
+  {
+    "id": 504,
+    "file": "text/0504-json-canonical-key-order.js",
+    "purpose": "Serialize JSON recursively with sorted object keys and preserved arrays.",
+    "features": [
+      "recursion",
+      "sorting",
+      "arrays",
+      "objects"
+    ]
+  },
+  {
+    "id": 505,
+    "file": "text/0505-json-structural-difference.js",
+    "purpose": "Report added removed and changed paths between JSON objects.",
+    "features": [
+      "recursion",
+      "sets",
+      "objects",
+      "arrays"
+    ]
+  }
+]

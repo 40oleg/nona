@@ -1,0 +1,1818 @@
+[
+  {
+    "id": 671,
+    "file": "objects/0671-credit-ledger.js",
+    "purpose": "Maintain a credit ledger that rejects overdrafts and records accepted entries.",
+    "features": [
+      "class",
+      "private-fields",
+      "getter",
+      "array-push"
+    ]
+  },
+  {
+    "id": 672,
+    "file": "objects/0672-temperature-scale.js",
+    "purpose": "Convert a temperature between Celsius and Fahrenheit and expose numeric and textual values.",
+    "features": [
+      "class",
+      "getter",
+      "setter",
+      "Symbol.toPrimitive"
+    ]
+  },
+  {
+    "id": 673,
+    "file": "objects/0673-metered-inheritance.js",
+    "purpose": "Count doubled increments through an inherited metering counter.",
+    "features": [
+      "class-inheritance",
+      "super-method",
+      "private-field",
+      "getter"
+    ]
+  },
+  {
+    "id": 674,
+    "file": "objects/0674-lazy-property.js",
+    "purpose": "Calculate and cache the total of report rows on the first property access.",
+    "features": [
+      "property-descriptor",
+      "getter",
+      "Array.reduce",
+      "defineProperty"
+    ]
+  },
+  {
+    "id": 675,
+    "file": "objects/0675-validated-proxy.js",
+    "purpose": "Reject invalid age changes through a validating profile view.",
+    "features": [
+      "Proxy-set",
+      "Reflect.set",
+      "Number.isInteger",
+      "array-push"
+    ]
+  },
+  {
+    "id": 676,
+    "file": "objects/0676-range-iterator.js",
+    "purpose": "Enumerate a stepped numeric range and test membership.",
+    "features": [
+      "class",
+      "generator",
+      "Symbol.iterator",
+      "array-spread"
+    ]
+  },
+  {
+    "id": 677,
+    "file": "objects/0677-resource-close.js",
+    "purpose": "Close a buffer lease after reading and reject subsequent reads.",
+    "features": [
+      "class",
+      "private-field",
+      "try-finally",
+      "Error"
+    ]
+  },
+  {
+    "id": 678,
+    "file": "objects/0678-traffic-state.js",
+    "purpose": "Advance a traffic signal through its legal cycle and derive driving permission.",
+    "features": [
+      "class",
+      "static-field",
+      "private-field",
+      "getter"
+    ]
+  },
+  {
+    "id": 679,
+    "file": "objects/0679-cycle-serialization.js",
+    "purpose": "Serialize a cyclic pair of linked records without recursive overflow.",
+    "features": [
+      "object-cycle",
+      "WeakSet",
+      "JSON-replacer",
+      "function-receiver"
+    ]
+  },
+  {
+    "id": 680,
+    "file": "objects/0680-command-history.js",
+    "purpose": "Append text and restore the previous editor state with undo.",
+    "features": [
+      "class",
+      "array-stack",
+      "getter",
+      "JSON.stringify"
+    ]
+  },
+  {
+    "id": 681,
+    "file": "objects/0681-null-dictionary.js",
+    "purpose": "Count words safely when dictionary keys include prototype names.",
+    "features": [
+      "null-prototype",
+      "Object.hasOwn",
+      "Object.keys",
+      "array-map"
+    ]
+  },
+  {
+    "id": 682,
+    "file": "objects/0682-sealed-settings.js",
+    "purpose": "Update sealed settings while testing forbidden structural changes.",
+    "features": [
+      "Object.seal",
+      "Reflect.set",
+      "Reflect.deleteProperty",
+      "JSON.stringify"
+    ]
+  },
+  {
+    "id": 683,
+    "file": "objects/0683-frozen-vector.js",
+    "purpose": "Add immutable vectors and calculate their squared length.",
+    "features": [
+      "class",
+      "Object.freeze",
+      "getter",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 684,
+    "file": "objects/0684-symbol-vault.js",
+    "purpose": "Keep symbol-keyed vault content through a public spread copy.",
+    "features": [
+      "Symbol",
+      "nonenumerable-descriptor",
+      "Reflect.ownKeys",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 685,
+    "file": "objects/0685-prototype-shadowing.js",
+    "purpose": "Plan import batches through inherited policy defaults and removable local overrides.",
+    "features": [
+      "class",
+      "Object.create",
+      "prototype-shadowing",
+      "delete"
+    ]
+  },
+  {
+    "id": 686,
+    "file": "objects/0686-access-audit.js",
+    "purpose": "Audit property reads from a sensor view including destructuring accesses.",
+    "features": [
+      "Proxy-get",
+      "Reflect.get",
+      "destructuring",
+      "array-push"
+    ]
+  },
+  {
+    "id": 687,
+    "file": "objects/0687-virtual-membership.js",
+    "purpose": "Expose catalog membership according to a price threshold.",
+    "features": [
+      "Proxy-has",
+      "Proxy-get",
+      "Object.hasOwn",
+      "Array.filter"
+    ]
+  },
+  {
+    "id": 688,
+    "file": "objects/0688-revocable-view.js",
+    "purpose": "Revoke a document review session and reject previews after the session ends.",
+    "features": [
+      "class",
+      "Proxy.revocable",
+      "Reflect.get",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 689,
+    "file": "objects/0689-custom-instance.js",
+    "purpose": "Accept positive even packing quantities and accumulate complete pairs.",
+    "features": [
+      "class",
+      "Symbol.hasInstance",
+      "Number.isInteger",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 690,
+    "file": "objects/0690-object-tag.js",
+    "purpose": "Serialize a ticket with a normalized code and custom object tag.",
+    "features": [
+      "class",
+      "Symbol.toStringTag",
+      "toJSON",
+      "Object.keys"
+    ]
+  },
+  {
+    "id": 691,
+    "file": "objects/0691-tree-composite.js",
+    "purpose": "Traverse a composite branch tree and compute its total size.",
+    "features": [
+      "class",
+      "recursive-generator",
+      "yield-star",
+      "getter"
+    ]
+  },
+  {
+    "id": 692,
+    "file": "objects/0692-observer-unsubscribe.js",
+    "purpose": "Publish topic updates and remove a subscriber through its unsubscribe closure.",
+    "features": [
+      "class",
+      "private-field",
+      "Set",
+      "closure"
+    ]
+  },
+  {
+    "id": 693,
+    "file": "objects/0693-strategy-cart.js",
+    "purpose": "Switch a cart discount strategy while preserving its subtotal.",
+    "features": [
+      "class",
+      "callback-strategy",
+      "getter",
+      "Array.reduce"
+    ]
+  },
+  {
+    "id": 694,
+    "file": "objects/0694-weak-cache.js",
+    "purpose": "Cache rectangle areas by object identity rather than structural equality.",
+    "features": [
+      "WeakMap",
+      "object-spread",
+      "closure",
+      "identity"
+    ]
+  },
+  {
+    "id": 695,
+    "file": "objects/0695-flyweight-colors.js",
+    "purpose": "Intern normalized color values in an immutable shared pool.",
+    "features": [
+      "class",
+      "static-field",
+      "Map",
+      "Object.freeze"
+    ]
+  },
+  {
+    "id": 696,
+    "file": "objects/0696-visitor-shapes.js",
+    "purpose": "Dispatch area calculations through shape-specific visitor methods.",
+    "features": [
+      "classes",
+      "visitor-dispatch",
+      "callback-object",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 697,
+    "file": "objects/0697-object-pool.js",
+    "purpose": "Reuse released pool objects and count actual allocations.",
+    "features": [
+      "class",
+      "private-fields",
+      "nullish-coalescing",
+      "array-stack"
+    ]
+  },
+  {
+    "id": 698,
+    "file": "objects/0698-priority-mailbox.js",
+    "purpose": "Deliver mailbox messages in priority order with an empty fallback.",
+    "features": [
+      "class",
+      "private-field",
+      "Array.sort",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 699,
+    "file": "objects/0699-descriptor-clone.js",
+    "purpose": "Clone a report while preserving its getter and hidden label descriptors.",
+    "features": [
+      "Object.create",
+      "getOwnPropertyDescriptors",
+      "getter",
+      "descriptor-clone"
+    ]
+  },
+  {
+    "id": 700,
+    "file": "objects/0700-private-brand.js",
+    "purpose": "Authorize archive writes only for genuine credentials with write permission.",
+    "features": [
+      "private-brand",
+      "private-fields",
+      "Set",
+      "Object.create"
+    ]
+  },
+  {
+    "id": 701,
+    "file": "objects/0701-draft-transaction.js",
+    "purpose": "Apply document edits transactionally and reject empty drafts.",
+    "features": [
+      "class",
+      "callback",
+      "object-copy",
+      "Object.assign"
+    ]
+  },
+  {
+    "id": 702,
+    "file": "objects/0702-undo-memento.js",
+    "purpose": "Save and restore a canvas without sharing mutable snapshot points.",
+    "features": [
+      "class",
+      "private-field",
+      "object-spread",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 703,
+    "file": "objects/0703-linked-list.js",
+    "purpose": "Prepend and remove linked nodes while exposing an iterable chain.",
+    "features": [
+      "class",
+      "linked-objects",
+      "Symbol.iterator",
+      "generator"
+    ]
+  },
+  {
+    "id": 704,
+    "file": "objects/0704-ring-buffer.js",
+    "purpose": "Retain the most recent values in a fixed-capacity circular buffer.",
+    "features": [
+      "class",
+      "private-fields",
+      "Symbol.iterator",
+      "generator"
+    ]
+  },
+  {
+    "id": 705,
+    "file": "objects/0705-cursor-bookmark.js",
+    "purpose": "Bookmark a cursor and restore its position through a closure.",
+    "features": [
+      "class",
+      "private-field",
+      "closure",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 706,
+    "file": "objects/0706-own-key-filter.js",
+    "purpose": "Hide internal catalog fields from enumeration while allowing direct access.",
+    "features": [
+      "Proxy-ownKeys",
+      "Reflect.ownKeys",
+      "property-descriptor",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 707,
+    "file": "objects/0707-negative-index-view.js",
+    "purpose": "Read array items through a view supporting negative indices.",
+    "features": [
+      "Proxy-get",
+      "Reflect.get",
+      "Number.isInteger",
+      "array"
+    ]
+  },
+  {
+    "id": 708,
+    "file": "objects/0708-function-apply-proxy.js",
+    "purpose": "Clamp negative multiplication arguments and audit function invocations.",
+    "features": [
+      "Proxy-apply",
+      "Reflect.apply",
+      "function-receiver",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 709,
+    "file": "objects/0709-constructor-interception.js",
+    "purpose": "Track point construction while preserving constructor inheritance.",
+    "features": [
+      "Proxy-construct",
+      "Reflect.construct",
+      "class",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 710,
+    "file": "objects/0710-delete-archive.js",
+    "purpose": "Archive removed record properties and ignore missing deletions.",
+    "features": [
+      "Proxy-deleteProperty",
+      "Reflect.deleteProperty",
+      "Object.hasOwn",
+      "array-push"
+    ]
+  },
+  {
+    "id": 711,
+    "file": "objects/0711-bounded-setter.js",
+    "purpose": "Clamp gauge assignments to a bounded range through an accessor.",
+    "features": [
+      "getter",
+      "setter",
+      "Math.min",
+      "for-of"
+    ]
+  },
+  {
+    "id": 712,
+    "file": "objects/0712-property-migration.js",
+    "purpose": "Migrate legacy field names and normalize a numeric activation flag.",
+    "features": [
+      "Object.entries",
+      "Object.fromEntries",
+      "destructuring",
+      "property-descriptor"
+    ]
+  },
+  {
+    "id": 713,
+    "file": "objects/0713-inherited-enumeration.js",
+    "purpose": "List inherited and local fields while identifying shadowed properties.",
+    "features": [
+      "Object.create",
+      "for-in",
+      "Object.hasOwn",
+      "Object.entries"
+    ]
+  },
+  {
+    "id": 714,
+    "file": "objects/0714-nonenumerable-method.js",
+    "purpose": "Add a protected nonenumerable receipt method and call a bound reference.",
+    "features": [
+      "defineProperty",
+      "function-bind",
+      "function-receiver",
+      "Reflect.set"
+    ]
+  },
+  {
+    "id": 715,
+    "file": "objects/0715-receiver-getter.js",
+    "purpose": "Resolve inherited greetings using the actual property receiver.",
+    "features": [
+      "Object.create",
+      "getter",
+      "Reflect.get",
+      "property-descriptor"
+    ]
+  },
+  {
+    "id": 716,
+    "file": "objects/0716-receiver-setter.js",
+    "purpose": "Route inherited setter assignments into separate recipient objects.",
+    "features": [
+      "setter",
+      "getter",
+      "Reflect.set",
+      "Object.create"
+    ]
+  },
+  {
+    "id": 717,
+    "file": "objects/0717-immutable-enum.js",
+    "purpose": "Advance a job through a frozen status enumeration with reverse lookup.",
+    "features": [
+      "Object.freeze",
+      "Object.fromEntries",
+      "Object.entries",
+      "Reflect.deleteProperty"
+    ]
+  },
+  {
+    "id": 718,
+    "file": "objects/0718-getter-assignment-order.js",
+    "purpose": "Calculate order values and post subtotal and tax through invoice setters in assignment order.",
+    "features": [
+      "getters",
+      "setters",
+      "Object.assign",
+      "Array.reduce"
+    ]
+  },
+  {
+    "id": 719,
+    "file": "objects/0719-builder-validation.js",
+    "purpose": "Build an encoded route through a fluent segment builder.",
+    "features": [
+      "class",
+      "method-chaining",
+      "encodeURIComponent",
+      "array-join"
+    ]
+  },
+  {
+    "id": 720,
+    "file": "objects/0720-polymorphic-payroll.js",
+    "purpose": "Compute polymorphic payroll summaries for hourly and salaried workers.",
+    "features": [
+      "class-inheritance",
+      "super-constructor",
+      "method-dispatch",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 721,
+    "file": "objects/0721-static-inheritance.js",
+    "purpose": "Generate inherited static sequences with subclass-specific starting values.",
+    "features": [
+      "static-field",
+      "static-method",
+      "super-method",
+      "Array.from"
+    ]
+  },
+  {
+    "id": 722,
+    "file": "objects/0722-static-private-registry.js",
+    "purpose": "Allocate credential-independent identifiers through a private static registry.",
+    "features": [
+      "static-private-field",
+      "private-field",
+      "getter",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 723,
+    "file": "objects/0723-static-block-index.js",
+    "purpose": "Initialize a frozen alphabet lookup table in a static class block.",
+    "features": [
+      "static-block",
+      "static-field",
+      "null-prototype",
+      "Object.freeze"
+    ]
+  },
+  {
+    "id": 724,
+    "file": "objects/0724-private-method-normalization.js",
+    "purpose": "Normalize and deduplicate tags behind private class methods.",
+    "features": [
+      "private-method",
+      "private-field",
+      "Set",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 725,
+    "file": "objects/0725-accessor-inheritance.js",
+    "purpose": "Compute a square area from an inherited size accessor.",
+    "features": [
+      "class-inheritance",
+      "getter",
+      "setter",
+      "super-access"
+    ]
+  },
+  {
+    "id": 726,
+    "file": "objects/0726-bound-instance-field.js",
+    "purpose": "Accumulate detached callbacks through a bound instance arrow field.",
+    "features": [
+      "class-field",
+      "arrow-function",
+      "private-field",
+      "Array.forEach"
+    ]
+  },
+  {
+    "id": 727,
+    "file": "objects/0727-error-subclass.js",
+    "purpose": "Report a structured capacity error while preserving Error inheritance.",
+    "features": [
+      "class-inheritance",
+      "Error",
+      "toJSON",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 728,
+    "file": "objects/0728-array-species.js",
+    "purpose": "Convert a shipment subclass into ordinary invoice lines and calculate shipping charges.",
+    "features": [
+      "Array-subclass",
+      "Symbol.species",
+      "Array.map",
+      "Array.reduce"
+    ]
+  },
+  {
+    "id": 729,
+    "file": "objects/0729-map-subclass.js",
+    "purpose": "Reserve inventory quantities atomically from a Map subclass.",
+    "features": [
+      "Map-subclass",
+      "super-constructor",
+      "nullish-coalescing",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 730,
+    "file": "objects/0730-set-subclass.js",
+    "purpose": "Normalize unique words and find overlap through a Set subclass.",
+    "features": [
+      "Set-subclass",
+      "super-method",
+      "RegExp",
+      "Array.filter"
+    ]
+  },
+  {
+    "id": 731,
+    "file": "objects/0731-seat-reservation.js",
+    "purpose": "Book theater seats and prevent cancellation by a different guest.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 732,
+    "file": "objects/0732-bid-auction.js",
+    "purpose": "Accept increasing auction bids and reject bidding after closure.",
+    "features": [
+      "class",
+      "private-fields",
+      "state-transition",
+      "object-return"
+    ]
+  },
+  {
+    "id": 733,
+    "file": "objects/0733-compartment-transfer.js",
+    "purpose": "Transfer liquid between tanks subject to source and destination limits.",
+    "features": [
+      "class",
+      "private-field",
+      "getter",
+      "Math.min"
+    ]
+  },
+  {
+    "id": 734,
+    "file": "objects/0734-warehouse-batches.js",
+    "purpose": "Fulfill warehouse requests across FIFO batches and report shortages.",
+    "features": [
+      "class",
+      "private-field",
+      "object-array",
+      "while-loop"
+    ]
+  },
+  {
+    "id": 735,
+    "file": "objects/0735-invoice-adjustment.js",
+    "purpose": "Calculate an invoice total after line quantities and reasoned credits.",
+    "features": [
+      "class",
+      "getter",
+      "Array.reduce",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 736,
+    "file": "objects/0736-workflow-approval.js",
+    "purpose": "Approve a request when enough distinct reviewers have signed it.",
+    "features": [
+      "class",
+      "private-fields",
+      "Set",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 737,
+    "file": "objects/0737-package-tracking.js",
+    "purpose": "Enforce parcel shipping transitions and retain their history.",
+    "features": [
+      "class",
+      "private-fields",
+      "transition-table",
+      "Array.includes"
+    ]
+  },
+  {
+    "id": 738,
+    "file": "objects/0738-library-loans.js",
+    "purpose": "Track book loans and allow one renewal by the actual borrower.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 739,
+    "file": "objects/0739-voting-quorum.js",
+    "purpose": "Count unique member votes and enforce a minimum voting quorum.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "Set",
+      "getter"
+    ]
+  },
+  {
+    "id": 740,
+    "file": "objects/0740-permission-inheritance.js",
+    "purpose": "Resolve permissions through a hierarchy of named roles.",
+    "features": [
+      "class",
+      "recursive-method",
+      "Set",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 741,
+    "file": "objects/0741-task-dependencies.js",
+    "purpose": "Schedule dependency-linked tasks only when all prerequisites finish.",
+    "features": [
+      "class",
+      "object-graph",
+      "getter",
+      "Array.every"
+    ]
+  },
+  {
+    "id": 742,
+    "file": "objects/0742-document-sections.js",
+    "purpose": "Aggregate word counts across manuscript sections.",
+    "features": [
+      "classes",
+      "getter",
+      "Array.reduce",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 743,
+    "file": "objects/0743-folder-move.js",
+    "purpose": "Move folder items while updating both ownership and membership.",
+    "features": [
+      "class",
+      "object-graph",
+      "Array.splice",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 744,
+    "file": "objects/0744-org-chart.js",
+    "purpose": "Follow employee manager paths and recursively enumerate a team.",
+    "features": [
+      "class",
+      "parent-links",
+      "generator",
+      "yield-star"
+    ]
+  },
+  {
+    "id": 745,
+    "file": "objects/0745-graph-reachability.js",
+    "purpose": "Find stations reachable in a cyclic object graph.",
+    "features": [
+      "class",
+      "Set",
+      "object-graph",
+      "breadth-first-search"
+    ]
+  },
+  {
+    "id": 746,
+    "file": "objects/0746-conversation-thread.js",
+    "purpose": "Build message ancestry paths and quote the immediate parent.",
+    "features": [
+      "class",
+      "parent-links",
+      "recursive-method",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 747,
+    "file": "objects/0747-budget-envelope.js",
+    "purpose": "Allocate an expense budget and report accepted spending categories.",
+    "features": [
+      "class",
+      "private-fields",
+      "getter",
+      "Object.fromEntries"
+    ]
+  },
+  {
+    "id": 748,
+    "file": "objects/0748-loyalty-tiers.js",
+    "purpose": "Award purchase points and derive loyalty tiers after redemption.",
+    "features": [
+      "class",
+      "private-field",
+      "getter",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 749,
+    "file": "objects/0749-service-chain.js",
+    "purpose": "Route authorized requests through a chain of specialized handlers.",
+    "features": [
+      "class",
+      "callback-dispatch",
+      "optional-chaining",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 750,
+    "file": "objects/0750-shopping-coupon.js",
+    "purpose": "Price a basket and conditionally apply a minimum-spend coupon.",
+    "features": [
+      "classes",
+      "Map",
+      "Array.reduce",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 751,
+    "file": "objects/0751-room-allocation.js",
+    "purpose": "Allocate groups to the first room with sufficient remaining space.",
+    "features": [
+      "class",
+      "getter",
+      "Array.find",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 752,
+    "file": "objects/0752-rating-aggregate.js",
+    "purpose": "Replace user ratings and calculate an average for a product.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "getter"
+    ]
+  },
+  {
+    "id": 753,
+    "file": "objects/0753-deduplicated-delivery.js",
+    "purpose": "Deduplicate delivered messages by identifier while retaining their text.",
+    "features": [
+      "class",
+      "private-fields",
+      "Set",
+      "getter"
+    ]
+  },
+  {
+    "id": 754,
+    "file": "objects/0754-versioned-record.js",
+    "purpose": "Reject stale updates through a versioned compare-and-set record.",
+    "features": [
+      "class",
+      "private-fields",
+      "object-snapshot",
+      "state-transition"
+    ]
+  },
+  {
+    "id": 755,
+    "file": "objects/0755-session-expiration.js",
+    "purpose": "Expire a session after a fixed number of accesses and renew its allowance.",
+    "features": [
+      "class",
+      "private-fields",
+      "getter",
+      "Math.max"
+    ]
+  },
+  {
+    "id": 756,
+    "file": "objects/0756-upload-chunks.js",
+    "purpose": "Assemble upload chunks in sequence after receiving them out of order.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "getter"
+    ]
+  },
+  {
+    "id": 757,
+    "file": "objects/0757-round-robin-workers.js",
+    "purpose": "Assign jobs to workers in deterministic round-robin order.",
+    "features": [
+      "class",
+      "private-field",
+      "object-array",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 758,
+    "file": "objects/0758-retry-policy.js",
+    "purpose": "Retry only selected operation failures within an attempt limit.",
+    "features": [
+      "class",
+      "Set",
+      "callback",
+      "for-loop"
+    ]
+  },
+  {
+    "id": 759,
+    "file": "objects/0759-token-budget.js",
+    "purpose": "Consume and refill a bounded token quota.",
+    "features": [
+      "class",
+      "private-field",
+      "getter",
+      "Math.min"
+    ]
+  },
+  {
+    "id": 760,
+    "file": "objects/0760-object-lease-count.js",
+    "purpose": "Dispose a shared resource only after every idempotent lease releases.",
+    "features": [
+      "class",
+      "private-fields",
+      "closure",
+      "reference-counting"
+    ]
+  },
+  {
+    "id": 761,
+    "file": "objects/0761-rational-value.js",
+    "purpose": "Normalize rational values and add fractions exactly before coercion.",
+    "features": [
+      "class",
+      "destructuring",
+      "Symbol.toPrimitive",
+      "Euclidean-algorithm"
+    ]
+  },
+  {
+    "id": 762,
+    "file": "objects/0762-currency-coercion.js",
+    "purpose": "Add monetary amounts in integer cents and format their values.",
+    "features": [
+      "class",
+      "private-field",
+      "Symbol.toPrimitive",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 763,
+    "file": "objects/0763-card-deck-iterator.js",
+    "purpose": "Deal a bounded set of cards from a reusable deck iterator.",
+    "features": [
+      "class",
+      "generator",
+      "Symbol.iterator",
+      "for-of"
+    ]
+  },
+  {
+    "id": 764,
+    "file": "objects/0764-grid-coordinate-iterator.js",
+    "purpose": "Enumerate grid coordinates and find all cells with a target value.",
+    "features": [
+      "class",
+      "generator",
+      "destructuring",
+      "getter"
+    ]
+  },
+  {
+    "id": 765,
+    "file": "objects/0765-paged-collection.js",
+    "purpose": "Partition a collection into numbered page summaries.",
+    "features": [
+      "class",
+      "generator",
+      "Symbol.iterator",
+      "Array.slice"
+    ]
+  },
+  {
+    "id": 766,
+    "file": "objects/0766-zip-object-stream.js",
+    "purpose": "Zip keys and values until the shorter iterable is exhausted.",
+    "features": [
+      "class",
+      "generator",
+      "Symbol.iterator",
+      "Object.fromEntries"
+    ]
+  },
+  {
+    "id": 767,
+    "file": "objects/0767-iterator-cleanup.js",
+    "purpose": "Close a scanning resource when a consumer breaks iteration early.",
+    "features": [
+      "class",
+      "generator",
+      "Symbol.iterator",
+      "try-finally"
+    ]
+  },
+  {
+    "id": 768,
+    "file": "objects/0768-countdown-protocol.js",
+    "purpose": "Consume a countdown through its explicit next protocol and remaining iterable.",
+    "features": [
+      "class",
+      "iterator-protocol",
+      "Symbol.iterator",
+      "array-spread"
+    ]
+  },
+  {
+    "id": 769,
+    "file": "objects/0769-ordered-record.js",
+    "purpose": "Preserve record insertion order even for integer-like property keys.",
+    "features": [
+      "class",
+      "private-field",
+      "Symbol.iterator",
+      "Object.fromEntries"
+    ]
+  },
+  {
+    "id": 770,
+    "file": "objects/0770-symbol-match-rule.js",
+    "purpose": "Interpret an identifier prefix through custom match and search protocols.",
+    "features": [
+      "class",
+      "Symbol.match",
+      "Symbol.search",
+      "string-protocol"
+    ]
+  },
+  {
+    "id": 771,
+    "file": "objects/0771-symbol-replacement.js",
+    "purpose": "Redact selected words through the string replacement protocol.",
+    "features": [
+      "class",
+      "Set",
+      "Symbol.replace",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 772,
+    "file": "objects/0772-symbol-split-fields.js",
+    "purpose": "Split comma-separated fields while preserving quoted commas.",
+    "features": [
+      "class",
+      "Symbol.split",
+      "state-machine",
+      "string-iteration"
+    ]
+  },
+  {
+    "id": 773,
+    "file": "objects/0773-spreadable-bundle.js",
+    "purpose": "Flatten a custom bundle into an order through the concat spread protocol.",
+    "features": [
+      "class",
+      "Symbol.isConcatSpreadable",
+      "Object.assign",
+      "Array.concat"
+    ]
+  },
+  {
+    "id": 774,
+    "file": "objects/0774-computed-form-fields.js",
+    "purpose": "Populate computed form fields and derive a display name accessor.",
+    "features": [
+      "Object.fromEntries",
+      "Reflect.set",
+      "getter",
+      "Array.filter"
+    ]
+  },
+  {
+    "id": 775,
+    "file": "objects/0775-configuration-overlay.js",
+    "purpose": "Resolve layered configuration with explicit override precedence.",
+    "features": [
+      "class",
+      "Object.hasOwn",
+      "Object.assign",
+      "reverse-loop"
+    ]
+  },
+  {
+    "id": 776,
+    "file": "objects/0776-readonly-facade.js",
+    "purpose": "Expose live state through a facade that records denied mutations.",
+    "features": [
+      "Proxy-set",
+      "Proxy-deleteProperty",
+      "array-push",
+      "shared-object"
+    ]
+  },
+  {
+    "id": 777,
+    "file": "objects/0777-alias-proxy.js",
+    "purpose": "Support legacy property aliases while updating canonical product fields.",
+    "features": [
+      "Proxy-get",
+      "Proxy-set",
+      "Reflect.get",
+      "Reflect.set"
+    ]
+  },
+  {
+    "id": 778,
+    "file": "objects/0778-default-map-view.js",
+    "purpose": "Count arbitrary category names through a zero-default dictionary view.",
+    "features": [
+      "null-prototype",
+      "Proxy-get",
+      "Proxy-set",
+      "Object.hasOwn"
+    ]
+  },
+  {
+    "id": 779,
+    "file": "objects/0779-unit-converting-proxy.js",
+    "purpose": "Read and write alternate distance units through a converting proxy.",
+    "features": [
+      "Proxy-get",
+      "Proxy-set",
+      "Reflect.get",
+      "Reflect.set"
+    ]
+  },
+  {
+    "id": 780,
+    "file": "objects/0780-observable-mutation.js",
+    "purpose": "Record actual model changes while suppressing unchanged assignments.",
+    "features": [
+      "Proxy-set",
+      "Reflect.set",
+      "object-events",
+      "array-push"
+    ]
+  },
+  {
+    "id": 781,
+    "file": "objects/0781-protected-deletion.js",
+    "purpose": "Protect an account identifier from deletion while removing temporary fields.",
+    "features": [
+      "Proxy-deleteProperty",
+      "Reflect.deleteProperty",
+      "array-push",
+      "JSON.stringify"
+    ]
+  },
+  {
+    "id": 782,
+    "file": "objects/0782-descriptor-access-log.js",
+    "purpose": "Inspect ordinary report fields without calculating forecasts before publishing a full snapshot.",
+    "features": [
+      "getOwnPropertyDescriptors",
+      "getter",
+      "Object.fromEntries",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 783,
+    "file": "objects/0783-lock-after-submit.js",
+    "purpose": "Freeze submitted form fields after checking required content.",
+    "features": [
+      "class",
+      "Object.freeze",
+      "Reflect.set",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 784,
+    "file": "objects/0784-descriptor-validation.js",
+    "purpose": "Validate salary assignments and preserve an immutable employee name.",
+    "features": [
+      "defineProperties",
+      "getter",
+      "setter",
+      "RangeError"
+    ]
+  },
+  {
+    "id": 785,
+    "file": "objects/0785-schema-projection.js",
+    "purpose": "Project a record onto a schema and report absent fields.",
+    "features": [
+      "class",
+      "Object.entries",
+      "Object.fromEntries",
+      "Object.hasOwn"
+    ]
+  },
+  {
+    "id": 786,
+    "file": "objects/0786-object-diff.js",
+    "purpose": "Compare record snapshots and report additions changes and removals.",
+    "features": [
+      "class",
+      "object-spread",
+      "Set",
+      "Object.is"
+    ]
+  },
+  {
+    "id": 787,
+    "file": "objects/0787-identity-deduplication.js",
+    "purpose": "Register structurally equal objects separately while rejecting repeated identities.",
+    "features": [
+      "class",
+      "private-fields",
+      "WeakSet",
+      "identity"
+    ]
+  },
+  {
+    "id": 788,
+    "file": "objects/0788-external-metadata.js",
+    "purpose": "Attach external annotations to a frozen object without changing its keys.",
+    "features": [
+      "class",
+      "private-field",
+      "WeakMap",
+      "Set"
+    ]
+  },
+  {
+    "id": 789,
+    "file": "objects/0789-object-graph-clone.js",
+    "purpose": "Clone a cyclic object graph while preserving shared references.",
+    "features": [
+      "recursive-function",
+      "Map",
+      "object-cycle",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 790,
+    "file": "objects/0790-parent-path-lookup.js",
+    "purpose": "Resolve and update bindings through nested scope objects.",
+    "features": [
+      "class",
+      "parent-links",
+      "Object.hasOwn",
+      "recursive-method"
+    ]
+  },
+  {
+    "id": 791,
+    "file": "objects/0791-polynomial-object.js",
+    "purpose": "Evaluate a polynomial and construct its derivative.",
+    "features": [
+      "class",
+      "Array.reduceRight",
+      "Array.map",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 792,
+    "file": "objects/0792-interval-intersection.js",
+    "purpose": "Intersect numeric intervals and test contained values.",
+    "features": [
+      "class",
+      "Math.min",
+      "Math.max",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 793,
+    "file": "objects/0793-coordinate-transform.js",
+    "purpose": "Compose coordinate transforms and compare sequential application.",
+    "features": [
+      "class",
+      "Object.assign",
+      "object-return",
+      "method-composition"
+    ]
+  },
+  {
+    "id": 794,
+    "file": "objects/0794-sparse-matrix.js",
+    "purpose": "Store only nonzero matrix cells and multiply by a vector.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "Array.reduce"
+    ]
+  },
+  {
+    "id": 795,
+    "file": "objects/0795-disjoint-set.js",
+    "purpose": "Merge disjoint name sets with path compression and enumerate groups.",
+    "features": [
+      "class",
+      "Map",
+      "recursive-method",
+      "for-of"
+    ]
+  },
+  {
+    "id": 796,
+    "file": "objects/0796-trie-prefix-index.js",
+    "purpose": "Index words in a trie and retrieve sorted prefix matches.",
+    "features": [
+      "class",
+      "Map",
+      "object-tree",
+      "recursive-function"
+    ]
+  },
+  {
+    "id": 797,
+    "file": "objects/0797-binary-search-tree.js",
+    "purpose": "Insert unique values into a search tree and iterate them in sorted order.",
+    "features": [
+      "class",
+      "recursive-method",
+      "Symbol.iterator",
+      "getter"
+    ]
+  },
+  {
+    "id": 798,
+    "file": "objects/0798-lru-object-cache.js",
+    "purpose": "Evict the least recently used cache entry after refreshing accesses.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "iterator-next"
+    ]
+  },
+  {
+    "id": 799,
+    "file": "objects/0799-query-predicate.js",
+    "purpose": "Compose predicates to select active adult records.",
+    "features": [
+      "class",
+      "closure",
+      "callback-composition",
+      "Array.filter"
+    ]
+  },
+  {
+    "id": 800,
+    "file": "objects/0800-expression-composite.js",
+    "purpose": "Evaluate and format an expression tree through polymorphic nodes.",
+    "features": [
+      "classes",
+      "object-tree",
+      "method-dispatch",
+      "string-coercion"
+    ]
+  },
+  {
+    "id": 801,
+    "file": "objects/0801-adapter-sensor.js",
+    "purpose": "Adapt a legacy sensor payload into normalized temperature readings.",
+    "features": [
+      "classes",
+      "composition",
+      "object-return",
+      "method-dispatch"
+    ]
+  },
+  {
+    "id": 802,
+    "file": "objects/0802-decorator-notification.js",
+    "purpose": "Decorate notification rendering with capitalization and a prefix.",
+    "features": [
+      "classes",
+      "composition",
+      "method-dispatch",
+      "string-methods"
+    ]
+  },
+  {
+    "id": 803,
+    "file": "objects/0803-template-report.js",
+    "purpose": "Render a score report through overridden template hooks.",
+    "features": [
+      "class-inheritance",
+      "method-overrides",
+      "Array.map",
+      "string-join"
+    ]
+  },
+  {
+    "id": 804,
+    "file": "objects/0804-bridge-renderer.js",
+    "purpose": "Change diagram rendering strategy without altering its nodes.",
+    "features": [
+      "class",
+      "callback-object",
+      "composition",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 805,
+    "file": "objects/0805-mediator-chat.js",
+    "purpose": "Broadcast chat messages to every participant except their sender.",
+    "features": [
+      "classes",
+      "object-graph",
+      "identity",
+      "array-push"
+    ]
+  },
+  {
+    "id": 806,
+    "file": "objects/0806-command-macro.js",
+    "purpose": "Execute a switch command macro and undo it in reverse order.",
+    "features": [
+      "classes",
+      "closures",
+      "array-reverse",
+      "command-objects"
+    ]
+  },
+  {
+    "id": 807,
+    "file": "objects/0807-null-object-logger.js",
+    "purpose": "Process values with either a memory logger or a null logger.",
+    "features": [
+      "classes",
+      "default-parameter",
+      "polymorphism",
+      "Array.reduce"
+    ]
+  },
+  {
+    "id": 808,
+    "file": "objects/0808-stateful-door.js",
+    "purpose": "Enforce door opening and locking constraints around a matching key.",
+    "features": [
+      "class",
+      "private-fields",
+      "state-machine",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 809,
+    "file": "objects/0809-vending-machine.js",
+    "purpose": "Vend in-stock goods against credit and refund the remainder.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "state-machine"
+    ]
+  },
+  {
+    "id": 810,
+    "file": "objects/0810-elevator-stops.js",
+    "purpose": "Deduplicate elevator requests and serve stops ordered from its current floor.",
+    "features": [
+      "class",
+      "private-field",
+      "Set",
+      "Array.sort"
+    ]
+  },
+  {
+    "id": 811,
+    "file": "objects/0811-course-enrollment.js",
+    "purpose": "Maintain enrollment capacity and promote waiting students after a drop.",
+    "features": [
+      "class",
+      "private-fields",
+      "Set",
+      "array-queue"
+    ]
+  },
+  {
+    "id": 812,
+    "file": "objects/0812-gradebook-weighting.js",
+    "purpose": "Rank students by weighted quiz and examination results.",
+    "features": [
+      "class",
+      "Map",
+      "Object.entries",
+      "Array.sort"
+    ]
+  },
+  {
+    "id": 813,
+    "file": "objects/0813-tournament-bracket.js",
+    "purpose": "Resolve deterministic tournament rounds through player match methods.",
+    "features": [
+      "classes",
+      "object-array",
+      "while-loop",
+      "Array.map"
+    ]
+  },
+  {
+    "id": 814,
+    "file": "objects/0814-game-health-effects.js",
+    "purpose": "Apply shields damage and healing to a bounded character health model.",
+    "features": [
+      "class",
+      "private-field",
+      "getter",
+      "Math.max"
+    ]
+  },
+  {
+    "id": 815,
+    "file": "objects/0815-crafting-recipes.js",
+    "purpose": "Craft products only when every recipe ingredient is available.",
+    "features": [
+      "class",
+      "Map",
+      "Object.entries",
+      "Array.every"
+    ]
+  },
+  {
+    "id": 816,
+    "file": "objects/0816-recipe-scaling.js",
+    "purpose": "Scale an immutable ingredient list to a new serving count.",
+    "features": [
+      "class",
+      "Object.freeze",
+      "Object.fromEntries",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 817,
+    "file": "objects/0817-unit-registry.js",
+    "purpose": "Convert compatible units and reject conversions across dimensions.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 818,
+    "file": "objects/0818-connection-lifecycle.js",
+    "purpose": "Enforce a connection lifecycle and reject packets outside its open state.",
+    "features": [
+      "class",
+      "private-fields",
+      "state-machine",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 819,
+    "file": "objects/0819-checksum-packet.js",
+    "purpose": "Detect payload corruption by recalculating a packet checksum.",
+    "features": [
+      "class",
+      "Array.reduce",
+      "getter",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 820,
+    "file": "objects/0820-tree-pruning.js",
+    "purpose": "Prune disabled menu branches and collect visible leaf labels.",
+    "features": [
+      "class",
+      "recursive-method",
+      "Array.flatMap",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 821,
+    "file": "objects/0821-field-validator.js",
+    "purpose": "Validate form fields with multiple checks and produce explicit error messages.",
+    "features": [
+      "class",
+      "Object.entries",
+      "callback-rules",
+      "Array.flatMap"
+    ]
+  },
+  {
+    "id": 822,
+    "file": "objects/0822-selector-store.js",
+    "purpose": "Notify selected state subscribers only when their derived value changes.",
+    "features": [
+      "class",
+      "private-fields",
+      "object-spread",
+      "Object.is"
+    ]
+  },
+  {
+    "id": 823,
+    "file": "objects/0823-entity-repository.js",
+    "purpose": "Store immutable entities and preserve primary identifiers during updates.",
+    "features": [
+      "class",
+      "private-field",
+      "Map",
+      "Object.freeze"
+    ]
+  },
+  {
+    "id": 824,
+    "file": "objects/0824-unique-index.js",
+    "purpose": "Maintain mutually consistent unique identifier and name indexes.",
+    "features": [
+      "class",
+      "private-fields",
+      "Map",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 825,
+    "file": "objects/0825-soft-delete-model.js",
+    "purpose": "Hide and restore catalog entries without physically removing records.",
+    "features": [
+      "class",
+      "object-spread",
+      "getter",
+      "rest-destructuring"
+    ]
+  },
+  {
+    "id": 826,
+    "file": "objects/0826-event-sourced-counter.js",
+    "purpose": "Replay counter events and branch an independent projection history.",
+    "features": [
+      "class",
+      "Array.reduce",
+      "Array.slice",
+      "event-log"
+    ]
+  },
+  {
+    "id": 827,
+    "file": "objects/0827-saga-compensation.js",
+    "purpose": "Compensate completed saga steps when a later operation fails.",
+    "features": [
+      "class",
+      "callback-objects",
+      "array-reverse",
+      "transaction-state"
+    ]
+  },
+  {
+    "id": 828,
+    "file": "objects/0828-searchable-addressbook.js",
+    "purpose": "Search immutable address book contacts and group them by city.",
+    "features": [
+      "class",
+      "private-field",
+      "Object.freeze",
+      "nullish-assignment"
+    ]
+  },
+  {
+    "id": 829,
+    "file": "objects/0829-pipeline-object.js",
+    "purpose": "Build immutable processing pipelines and report each intermediate value.",
+    "features": [
+      "class",
+      "array-spread",
+      "callback-stages",
+      "method-chaining"
+    ]
+  },
+  {
+    "id": 830,
+    "file": "objects/0830-circuit-breaker.js",
+    "purpose": "Open a circuit after repeated failures and recover through explicit reset.",
+    "features": [
+      "class",
+      "private-fields",
+      "try-catch",
+      "callback"
+    ]
+  },
+  {
+    "id": 831,
+    "file": "objects/0831-semantic-version.js",
+    "purpose": "Compare semantic versions numerically and construct a minor-version bump.",
+    "features": [
+      "class",
+      "Array.map",
+      "Math.sign",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 832,
+    "file": "objects/0832-path-value.js",
+    "purpose": "Build path values and calculate parent names and relative traversal.",
+    "features": [
+      "class",
+      "getter",
+      "Array.at",
+      "Array.fill"
+    ]
+  },
+  {
+    "id": 833,
+    "file": "objects/0833-mask-value-object.js",
+    "purpose": "Create immutable permission masks with additive and subtractive operations.",
+    "features": [
+      "class",
+      "Object.freeze",
+      "bitwise-operations",
+      "toJSON"
+    ]
+  },
+  {
+    "id": 834,
+    "file": "objects/0834-transactional-object-proxy.js",
+    "purpose": "Stage object changes in a proxy and explicitly commit or roll them back.",
+    "features": [
+      "class",
+      "Proxy-get",
+      "Proxy-set",
+      "Object.assign"
+    ]
+  },
+  {
+    "id": 835,
+    "file": "objects/0835-resource-stack.js",
+    "purpose": "Close owned resources once in reverse acquisition order after work completes.",
+    "features": [
+      "class",
+      "private-fields",
+      "closure",
+      "try-finally"
+    ]
+  }
+]

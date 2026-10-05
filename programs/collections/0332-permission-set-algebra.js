@@ -1,0 +1,10 @@
+const direct = new Set(["read","edit"]);
+const group = new Set(["read","export"]);
+const allowed = new Set(["read","export","comment"]);
+const blocked = new Set(["export"]);
+const granted = new Set([...direct,...group]);
+const effective = Array.from(granted).filter(permission=>allowed.has(permission)&&!blocked.has(permission));
+const missing = Array.from(allowed).filter(permission=>!granted.has(permission));
+const disjoint = effective.every(permission=>!blocked.has(permission));
+const report = {granted:Array.from(granted),effective,missing,disjoint};
+console.log(JSON.stringify(report));

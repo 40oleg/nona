@@ -5,6 +5,7 @@
 - Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
 
 - Fixed script functions such as `escape` and `unescape` shadowing optional built-in globals: runtime preludes initialize before script global aliases become visible ([#126](https://github.com/40oleg/nona/issues/126)).
+- Expanded the separate program corpus to 1,000 individually authored combination programs, with per-case purpose catalogs, source hashes, Node.js reference snapshots, ten native test shards and Linux/Windows CI on every push and pull request ([#125](https://github.com/40oleg/nona/issues/125)).
 
 - Added a separate corpus of ten small programs combining algorithms, closures, classes, generators, collections, typed arrays, JSON and async exception cleanup, with fixed expected results and Node.js comparisons in normal and GC-stress execution. A dedicated Linux/Windows workflow runs the corpus on every branch push and pull request ([#123](https://github.com/40oleg/nona/issues/123)).
 
