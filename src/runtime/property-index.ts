@@ -51,9 +51,19 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.label(hit);
  });
  // RCX key record -> RAX its bit in an object's key filter: one of bits
- // 0-62 chosen by the key's hash (bit 63 is keyFilterValid). Clobbers R8-R11.
+ // 0-62 (bit 63 is keyFilterValid), chosen from the length and the first,
+ // middle and last code units of a string (a symbol: from its address), so
+ // equal keys always get the same bit without hashing the whole name.
+ // Clobbers RCX, R8-R10.
  b.fn('rt.keyFilterBit',40,a=>{
-  a.call('rt.propKeyHash');a.shr('rax',8);a.and('rax',63);{const fine=a.unique('fine');a.cmp('rax',63);a.jcc('ne',fine);a.mov('rax',62);a.label(fine);}
+  const symbol=a.unique('symbol'),mixed=a.unique('mixed'),fine=a.unique('fine');
+  a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',symbol);a.mov('rax','r8');a.test('r8','r8');a.jcc('e',mixed);
+  a.mov('r9',0x9E3779B1);a.imul('rax','r9');
+  a.load('r10',{base:'rcx',disp:8},16);a.xor('rax','r10');a.imul('rax','r9');
+  a.mov('r10','r8');a.add('r10','r10');a.add('r10','rcx');a.load('r10',{base:'r10',disp:6},16);a.xor('rax','r10');a.imul('rax','r9');
+  a.mov('r10','r8');a.and('r10',-2);a.add('r10','rcx');a.load('r10',{base:'r10',disp:8},16);a.xor('rax','r10');a.imul('rax','r9');a.jmp(mixed);
+  a.label(symbol);a.mov('rax','rcx');a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');
+  a.label(mixed);a.shr('rax',20);a.and('rax',63);a.cmp('rax',63);a.jcc('ne',fine);a.mov('rax',62);a.label(fine);
   a.mov('rcx','rax');a.mov('rax',1);a.shl('rax','cl');
  });
  // Called by the collector after a sweep: freed records may be reused.
