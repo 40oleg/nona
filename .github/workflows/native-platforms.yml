@@ -83,6 +83,9 @@ jobs:
       - run: npm run build
       - name: Build native probes
         run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
+      - name: Isolated Buffer native diagnostics
+        continue-on-error: true
+        run: node scripts/diagnose-buffer-native.mjs ${{ matrix.target }}
       - name: Execute native loader and runtime probes
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
       - name: Core runtime oracle suites
