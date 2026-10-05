@@ -104,6 +104,8 @@ var __nonaPromiseDrainJobs=(function(){
   }
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
+    var context=__nonaRegexpVm.asyncContext;
+    if(context){if(typeof onFulfilled==='function')onFulfilled=context.capture(onFulfilled);if(typeof onRejected==='function')onRejected=context.capture(onRejected)}
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
     state.handled=true;
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
@@ -198,6 +200,8 @@ var __nonaPromiseDrainJobs=(function(){
   function noop(){}
   function performThen(promise,onFulfilled,onRejected){
     var state=record(promise);
+    var context=__nonaRegexpVm.asyncContext;
+    if(context){if(typeof onFulfilled==='function')onFulfilled=context.capture(onFulfilled);if(typeof onRejected==='function')onRejected=context.capture(onRejected)}
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop};
     state.handled=true;
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}

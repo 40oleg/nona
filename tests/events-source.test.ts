@@ -6,7 +6,6 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {eventsModuleSource} from '../src/frontend/events-module.js';
 import {compile} from '../src/compiler.js';
-import {runModulesOnHost} from './helpers/host.js';
 import {removeTemporaryDirectory} from './helpers/cleanup.js';
 
 const cases:[string,string][]=[
@@ -96,8 +95,41 @@ run();
 ];
 const imports=`import Default,{EventEmitter,errorMonitor,captureRejectionSymbol,defaultMaxListeners,once,on,getEventListeners,getMaxListeners,setMaxListeners,listenerCount} from 'node:events';\n`;
 for(const [name,body] of cases){
- test('events native oracle: '+name,{skip:name.startsWith('listener limit warnings')&&process.platform!=='win32'&&process.platform!=='linux'},()=>{
-  const {native,oracle}=runModulesOnHost({'main.mjs':imports+body},'main.mjs',{gcStress:!name.startsWith('listener limit warnings')});
-  assert.equal(native.error,undefined);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,oracle);
+ test('events source oracle: '+name,()=>{
+  const directory=mkdtempSync(join(tmpdir(),'nona-events-source-'));
+  try{
+   writeFileSync(join(directory,'events.mjs'),eventsModuleSource);
+   writeFileSync(join(directory,'source.mjs'),imports.replace("'node:events'","'./events.mjs'")+body);
+   writeFileSync(join(directory,'oracle.mjs'),imports+body);
+   const source=spawnSync(process.execPath,[join(directory,'source.mjs')],{encoding:'utf8'});
+   const oracle=spawnSync(process.execPath,[join(directory,'oracle.mjs')],{encoding:'utf8'});
+   assert.equal(source.status,0,source.stderr);assert.equal(oracle.status,0,oracle.stderr);assert.equal(source.stdout,oracle.stdout);
+  }finally{removeTemporaryDirectory(directory);}
  });
 }
+for(const target of ['win32-x64','linux-x64'] as const)test('events compile: '+target,()=>{
+ const result=compile(imports+cases.map(([,body])=>'{'+body+'}').join('\n'),{fileName:'events-main.mjs',target,module:true});
+ assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+});
+
+
+test('events source oracle: addAbortListener disposal and late subscription',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'nona-events-abort-'));
+ try{
+  writeFileSync(join(directory,'events.mjs'),eventsModuleSource);
+  const body=`const c=new AbortController();const a=addAbortListener(c.signal,()=>console.log('removed'));a[Symbol.dispose]();addAbortListener(c.signal,function(event){console.log('abort',this===c.signal,event.type)});c.abort();addAbortListener(c.signal,()=>console.log('late'));const late=addAbortListener(c.signal,()=>console.log('late-disposed'));late[Symbol.dispose]();console.log('sync');`;
+  for(const [file,module] of [['source.mjs','./events.mjs'],['oracle.mjs','node:events']])writeFileSync(join(directory,file!),`import {addAbortListener} from '${module}';\n`+body);
+  const source=spawnSync(process.execPath,[join(directory,'source.mjs')],{encoding:'utf8'});
+  const oracle=spawnSync(process.execPath,[join(directory,'oracle.mjs')],{encoding:'utf8'});
+  assert.equal(source.status,0,source.stderr);assert.equal(oracle.status,0,oracle.stderr);assert.equal(source.stdout,oracle.stdout);
+ }finally{removeTemporaryDirectory(directory);}
+});
+test('events compile: aliases share one module instance',()=>{
+ const result=compile("import A from 'events';import B from 'node:events';import C from 'nona:events';console.log(A===B,B===C);",{fileName:'events-aliases.mjs',target:'linux-x64',module:true});
+ assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+});
+
+for(const target of ['darwin-x64','darwin-arm64','linux-arm64','win32-arm64','freebsd-x64','openbsd-x64'] as const)test('events compile portable: '+target,()=>{
+ const result=compile("import E from 'node:events';new E().on('x',()=>console.log(1)).emit('x');",{fileName:'events-portable.mjs',target,module:true});
+ assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+});

@@ -18,7 +18,7 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **API хоста** для настоящих программ:
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
   - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
-  - `node:events` / `events` / `nona:events`: EventEmitter и асинхронные помощники событий ([API хоста](docs/host-apis.md#events));
+  - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, отмена и асинхронный контекст ([API хоста](docs/host-apis.md#events));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
 - **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).

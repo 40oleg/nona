@@ -38,6 +38,13 @@ Promise `once` and async-iterator `on` include cleanup, close events, externally
 supplied abort signals and emitter watermarks. Listener/max-listener helpers and
 disposable `addAbortListener` subscriptions are also available.
 
-Nona does not supply EventTarget, AbortController, async hooks or process warning
-reporting. See the [English events reference](/reference/host-apis#events) for the
+See the [English events reference](/reference/host-apis#events) for the
 complete supported API and limitations.
+
+Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
+`AbortSignal`) and `NodeEventTarget` are supported, including cancellation,
+protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
+and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
+local context storage. Promise, await, timer and microtask callbacks preserve
+captured context. Native resource hooks and automatic GC destruction are outside
+this API; see the English reference for the precise boundaries.

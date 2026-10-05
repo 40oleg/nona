@@ -43,6 +43,7 @@ __nonaPromiseDrainJobs=(function(drain){
   function delayOf(delay){delay=toNumber(delay);return delay>=1&&delay<=2147483647?delay:1}
   function schedule(callback,delay,args,repeat){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
+    if(__nonaRegexpVm.asyncContext)callback=__nonaRegexpVm.asyncContext.capture(callback);
     var d=delayOf(delay),id=nextId++;
     var timer={id:id,when:hostNow()+d,seq:++seq,delay:d,callback:callback,args:args,repeat:repeat,cancelled:false};
     setTimer(id,timer);count++;push(timer);
@@ -61,6 +62,7 @@ __nonaPromiseDrainJobs=(function(drain){
   function clearInterval(id){cancel(id)}
   function queueMicrotask(callback){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
+    if(__nonaRegexpVm.asyncContext)callback=__nonaRegexpVm.asyncContext.capture(callback);
     enqueueJob(function(){callback()})
   }
   function now(){return hostNow()-origin}

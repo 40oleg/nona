@@ -21,6 +21,8 @@ export interface RuntimeLink {
  * are always linked.
  */
 export const preludeTriggers={
+  asyncHooks:['AsyncResource','AsyncLocalStorage','executionAsyncId','triggerAsyncId','nona.async_hooks.internal'],
+  events:['Event','CustomEvent','EventTarget','AbortController','AbortSignal','DOMException','NodeEventTarget','nona.events.internal'],
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
   process:['process'],
@@ -36,7 +38,7 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding']};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding'],events:['timers'],asyncHooks:['events','timers']};
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
  * method, so it links every prelude.

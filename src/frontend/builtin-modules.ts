@@ -2,6 +2,7 @@ import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleForTarget} from './events-module.js';
+import {asyncHooksModuleSource} from './async-hooks-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -82,6 +83,8 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:fs',fsModuleSource],
   ['node:fs',fsModuleSource],
   ['node:events',eventsModuleForTarget],
+  ['node:async_hooks',()=>asyncHooksModuleSource],
+  ['nona:async_hooks',()=>asyncHooksModuleSource],
   ['events',eventsModuleForTarget],
   ['nona:events',eventsModuleForTarget],
   ['nona:process',()=>processModuleSource],

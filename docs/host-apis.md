@@ -72,11 +72,33 @@ The default export and named `EventEmitter` export are the same constructor.
 `addEventListener` and `removeEventListener`. `addAbortListener` returns a
 subscription disposable under `Symbol.dispose` or `Symbol.for('nodejs.dispose')`.
 
-Limitations: Nona has no built-in `EventTarget`, `AbortController` or async-hooks
-runtime. `EventEmitterAsyncResource`, `NodeEventTarget` and EventTarget
-introspection/max-listener helpers are not exported. Abort subscriptions use
-ordinary event listeners and cannot bypass a target's `stopImmediatePropagation`.
-Listener-limit warnings are delivered through `process.emitWarning` when that
-hook exists; Nona's current process object does not provide it. Error names and
-codes are compatible; diagnostic message wording and internal `_events` storage
-are not intended to match Node. See the [Node events reference](https://nodejs.org/api/events.html).
+Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
+`AbortSignal` and `DOMException` globals. Event targets support listener objects,
+capture matching, once listeners, signal removal, cancellation and dispatch
+mutation. `AbortSignal.abort`, `timeout`, `any` and `throwIfAborted` are supported.
+`addAbortListener` subscriptions on Nona signals survive `stopImmediatePropagation`.
+`NodeEventTarget` additionally supplies emitter-style registration, single-argument
+`emit`, event names, listener counts, removal and limits. Target listeners are
+unique by callback and capture flag. Introspection and max-listener module helpers
+accept both emitters and targets. Uncaught target listener failures are queued as
+uncaught asynchronous errors.
+
+`EventEmitterAsyncResource` runs listeners in its construction context and exposes
+`asyncId`, `triggerAsyncId`, `asyncResource` and `emitDestroy`. The independent
+`node:async_hooks` / `nona:async_hooks` module provides `AsyncResource`,
+`AsyncLocalStorage`, `executionAsyncId`, `triggerAsyncId`,
+`executionAsyncResource` and `createHook`. Manual resources support scope entry,
+binding, explicit destruction and init/before/after/destroy notifications. Local
+storage supports run, enterWith, exit, disable, bind and snapshot; contexts are
+captured when Promise reactions, await continuations, timers and microtasks are
+registered.
+
+Boundaries: hooks describe explicitly created resources; native Promise and timer
+resource creation, Promise resolution hooks, GC-triggered destruction and Node's
+async resource type catalog are not emitted. Timer callbacks preserve captured
+context IDs rather than creating Node timer IDs. `AbortSignal.timeout` uses Nona's
+referenced timer and may keep the event loop alive until expiry. Event dispatch
+has no DOM hierarchy. Diagnostic wording, private storage and async ID numbers
+are implementation details. Listener-limit warnings use `process.emitWarning`
+where the process adapter supports it. See the
+[Node events reference](https://nodejs.org/api/events.html).

@@ -2,6 +2,8 @@ import type {Target} from '../target.js';
 
 /** Node-compatible event emitters and asynchronous event helpers. */
 export const eventsModuleSource=String.raw`
+import {AsyncResource} from 'node:async_hooks';
+const targetApi = EventTarget[Symbol.for('nona.events.internal')];
 export const errorMonitor = Symbol('events.errorMonitor');
 export const captureRejectionSymbol = Symbol.for('nodejs.rejection');
 export let defaultMaxListeners = 10;
@@ -32,7 +34,7 @@ function add(emitter, name, listener, prepend) {
     list.warned = true;
     const warning = new Error('Possible EventEmitter memory leak detected. ' + list.length + ' ' + String(name) + ' listeners added. MaxListeners is ' + max + '. Use emitter.setMaxListeners() to increase limit');
     warning.name = 'MaxListenersExceededWarning'; warning.emitter = emitter; warning.type = name; warning.count = list.length;
-    if (typeof process.emitWarning === 'function') process.emitWarning(warning);
+    if (globalThis.process && typeof globalThis.process.emitWarning === 'function') globalThis.process.emitWarning(warning);
   }
   return emitter;
 }
@@ -117,9 +119,9 @@ EventEmitter.prototype.eventNames = function() { init(this); return Reflect.ownK
 EventEmitter.prototype.setMaxListeners = function(n) { checkMax(n); this._maxListeners = n; return this; };
 EventEmitter.prototype.getMaxListeners = function() { return this._maxListeners === undefined ? defaultMaxListeners : this._maxListeners; };
 export function listenerCount(emitter, name) { return emitter.listenerCount(name); }
-export function getEventListeners(emitter, name) { if (typeof emitter.listeners === 'function') return emitter.listeners(name); throw invalid('emitter'); }
-export function getMaxListeners(emitter) { if (typeof emitter.getMaxListeners === 'function') return emitter.getMaxListeners(); throw invalid('emitter'); }
-export function setMaxListeners(n = defaultMaxListeners, ...targets) { checkMax(n); if (!targets.length) defaultMaxListeners = n; else for (const target of targets) target.setMaxListeners(n); }
+export function getEventListeners(emitter, name) { if (typeof emitter.listeners === 'function') return emitter.listeners(name); if (targetApi && emitter instanceof EventTarget) { const list=targetApi.state(emitter).listeners.get(String(name)); return list?list.map(entry=>entry.listener):[]; } throw invalid('emitter'); }
+export function getMaxListeners(emitter) { if (typeof emitter.getMaxListeners === 'function') return emitter.getMaxListeners(); if(targetApi && emitter instanceof EventTarget)return targetApi.state(emitter).max; throw invalid('emitter'); }
+export function setMaxListeners(n = defaultMaxListeners, ...targets) { checkMax(n); if (!targets.length) {defaultMaxListeners = n;if(targetApi)targetApi.defaultMaxListeners=n;} else for (const target of targets) { if(typeof target.setMaxListeners==='function')target.setMaxListeners(n);else if(targetApi && target instanceof EventTarget)targetApi.state(target).max=n;else throw invalid('eventTargets'); } }
 function abortError(signal) { const e = new Error('The operation was aborted'); e.name = 'AbortError'; e.code = 'ABORT_ERR'; e.cause = signal.reason; return e; }
 function subscribe(target, name, listener) { if (typeof target.on === 'function') target.on(name, listener); else target.addEventListener(name, listener); }
 function unsubscribe(target, name, listener) { if (typeof target.removeListener === 'function') target.removeListener(name, listener); else target.removeEventListener(name, listener); }
@@ -169,10 +171,38 @@ export function addAbortListener(signal, listener) {
   checkListener(listener);
   let active = true;
   function aborted(...args) { if (!active) return; active = false; signal.removeEventListener('abort', aborted); listener.apply(this, args); }
-  if (signal.aborted) { active = false; queueMicrotask(() => listener()); } else signal.addEventListener('abort', aborted, {once:true});
+  if (signal.aborted) { active = false; queueMicrotask(() => listener()); } else if(targetApi)targetApi.protect(signal,aborted);else signal.addEventListener('abort', aborted, {once:true});
   return {[Symbol.dispose || Symbol.for('nodejs.dispose')]() { active = false; signal.removeEventListener('abort', aborted); }};
 }
-Object.defineProperty(EventEmitter, 'defaultMaxListeners', {enumerable:true,get() { return defaultMaxListeners; },set(n) { checkMax(n); defaultMaxListeners = n; }});
+export class NodeEventTarget extends EventTarget {
+  addListener(type,listener) { if(targetApi)targetApi.add(this,type,listener,undefined,false,true);else this.addEventListener(type,listener);return this; }
+  on(type,listener) { return this.addListener(type,listener); }
+  once(type,listener) { if(targetApi)targetApi.add(this,type,listener,{once:true},false,true);else this.addEventListener(type,listener,{once:true});return this; }
+  off(type,listener,options) { this.removeEventListener(type,listener,options);return this; }
+  removeListener(type,listener,options) { return this.off(type,listener,options); }
+  emit(type,arg) { return targetApi.dispatch(this,new Event(type),arg,true); }
+  eventNames() { return [...targetApi.state(this).listeners.keys()]; }
+  listenerCount(type) { return getEventListeners(this,type).length; }
+  setMaxListeners(n) { checkMax(n);targetApi.state(this).max=n;return this; }
+  getMaxListeners() { return targetApi.state(this).max; }
+  removeAllListeners(type) { const s=targetApi.state(this);for(const key of arguments.length?[String(type)]:[...s.listeners.keys()])for(const listener of getEventListeners(this,key)) {this.removeEventListener(key,listener);this.removeEventListener(key,listener,true);}return this; }
+}
+export class EventEmitterAsyncResource extends EventEmitter {
+  constructor(options) {
+    if(typeof options==='string')options={name:options};options=options||{};
+    super(options);
+    const name=options.name===undefined?(new.target===EventEmitterAsyncResource?undefined:new.target.name):options.name;
+    if(typeof name!=='string')throw invalid('options.name');
+    this._asyncResource=new AsyncResource(name,{triggerAsyncId:options.triggerAsyncId,requireManualDestroy:options.requireManualDestroy});
+    this._asyncResource.eventEmitter=this;
+  }
+  emit(name,...args) { return this._asyncResource.runInAsyncScope(EventEmitter.prototype.emit,this,name,...args); }
+  emitDestroy() { this._asyncResource.emitDestroy(); }
+  get asyncId() { return this._asyncResource.asyncId(); }
+  get triggerAsyncId() { return this._asyncResource.triggerAsyncId(); }
+  get asyncResource() { return this._asyncResource; }
+}
+Object.defineProperty(EventEmitter, 'defaultMaxListeners', {enumerable:true,get() { return defaultMaxListeners; },set(n) { checkMax(n); defaultMaxListeners = n;if(targetApi)targetApi.defaultMaxListeners=n; }});
 Object.defineProperty(EventEmitter, 'captureRejections', {enumerable:true,get() { return captureRejections; },set(value) { if (typeof value !== 'boolean') throw invalid('captureRejections'); captureRejections = value; }});
 EventEmitter.EventEmitter = EventEmitter;
 EventEmitter.errorMonitor = errorMonitor;
@@ -180,6 +210,8 @@ EventEmitter.captureRejectionSymbol = captureRejectionSymbol;
 EventEmitter.once = once; EventEmitter.on = on; EventEmitter.listenerCount = listenerCount;
 EventEmitter.getEventListeners = getEventListeners; EventEmitter.getMaxListeners = getMaxListeners;
 EventEmitter.setMaxListeners = setMaxListeners; EventEmitter.addAbortListener = addAbortListener;
+EventEmitter.NodeEventTarget = NodeEventTarget;
+EventEmitter.EventEmitterAsyncResource = EventEmitterAsyncResource;
 export default EventEmitter;
 `;
 
@@ -187,5 +219,5 @@ export default EventEmitter;
 /** Process warning reporting is optional on targets without a process adapter. */
 export function eventsModuleForTarget(target:Target):string {
   if(target.startsWith('win32-')||target.startsWith('linux-'))return eventsModuleSource;
-  return eventsModuleSource.replace("if (typeof process.emitWarning === 'function') process.emitWarning(warning);",'');
+  return eventsModuleSource.replace("if (globalThis.process && typeof globalThis.process.emitWarning === 'function') globalThis.process.emitWarning(warning);",'');
 }
