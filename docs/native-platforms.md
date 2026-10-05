@@ -96,7 +96,17 @@ Linux x64/ARM64, Windows ARM64 and macOS x64/ARM64 run the shared portable
 oracle suites on their native runners. Process/filesystem suites run where
 those APIs exist: Linux x64/ARM64 and Windows ARM64 here, Windows x64 in
 `check`. FreeBSD and OpenBSD execute loader and runtime probes inside VMs;
-their portable Node.js oracle suite is not yet run there. The Linux
+their portable Node.js oracle suite is not yet run there.
+EventTarget, cancellation and asynchronous context also have shared module probes
+compiled with allocation stress for all eight targets. These check cancellation
+and cleanup despite stopped abort propagation, composed signal event ordering,
+EventTarget cancellation, manual resource identity, emitter construction context,
+and storage across Promise reactions, await, microtasks and timers. Windows x64
+runs those exact probes in `check`; the other platforms execute the images from
+the native probe manifest, including the BSD guests. Node host jobs additionally
+run the full EventTarget/abort/manual-resource oracle suite.
+
+The Linux
 distribution containers share the Ubuntu runner's kernel. BSD VM jobs use an
 Ubuntu runner to build the images and host the VM; the probe commands verify
 the guest's `uname -s` and `uname -m` before executing binaries.

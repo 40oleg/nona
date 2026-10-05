@@ -105,3 +105,8 @@ has no DOM hierarchy. Diagnostic wording, private storage and async ID numbers
 are implementation details. Listener-limit warnings use `process.emitWarning`
 where the process adapter supports it. See the
 [Node events reference](https://nodejs.org/api/events.html).
+
+Native CI executes shared cancellation and async-context probes with allocation
+stress on all eight targets, including the BSD guests. The Node host jobs also
+run the EventEmitter and EventTarget oracle suites; see
+[native verification](native-platforms.md#verification) for the coverage.

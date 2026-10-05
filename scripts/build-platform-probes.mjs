@@ -2,6 +2,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {compile} from '../dist/src/compiler.js';
 import {loaderProbe,loaderProbeOutput,runtimeProbes} from '../dist/src/backend/platform-probes.js';
+import {eventProbes} from '../dist/src/backend/event-probes.js';
 import {arm64BridgeProbe} from '../dist/src/backend/arm64/bridge-probe.js';
 import {arm64CpuProbe} from '../dist/src/backend/arm64/cpu-probe.js';
 import {arm64MathProbe,arm64MathCases} from '../dist/src/backend/arm64/math.js';
@@ -44,7 +45,7 @@ for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','dar
   writeFileSync(join(directory,eventsFile),eventsProbe.image,{mode:0o755});
   writeFileSync(join(directory,eventsFile+'.expected'),eventsProbeExpected);
   runtime[target]=[...(runtime[target]??[]),{file:eventsFile,expected:eventsProbeExpected}];
-  runtime[target]=[...(runtime[target]??[]),...runtimeProbes(target).map(probe=>{
+  runtime[target]=[...(runtime[target]??[]),...[...runtimeProbes(target),...eventProbes(target)].map(probe=>{
     const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);
     return {file,expected:probe.expected};
