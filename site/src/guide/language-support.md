@@ -60,3 +60,5 @@ Full pinned Test262 run on Windows x64 for v0.8.0 (features from ES2020 and earl
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 "`eval`" failures use source text computed at run time, `$262.evalScript` or other realms; "newer semantics" tests check behaviour from later editions under an old or missing feature tag. The [status page](/guide/status) lists the remaining failures.
+
+Script functions can shadow optional built-in global names such as `escape` and `unescape`; runtime initialization completes before script declarations become visible.
