@@ -126,3 +126,8 @@ test('events compile: aliases share one module instance',()=>{
  const result=compile("import A from 'events';import B from 'node:events';import C from 'nona:events';console.log(A===B,B===C);",{fileName:'events-aliases.mjs',target:'linux-x64',module:true});
  assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
+
+for(const target of ['darwin-x64','darwin-arm64','linux-arm64','win32-arm64','freebsd-x64','openbsd-x64'] as const)test('events compile portable: '+target,()=>{
+ const result=compile("import E from 'node:events';new E().on('x',()=>console.log(1)).emit('x');",{fileName:'events-portable.mjs',target,module:true});
+ assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
+});

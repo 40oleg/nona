@@ -1,3 +1,5 @@
+import type {Target} from '../target.js';
+
 /** Node-compatible event emitters and asynchronous event helpers. */
 export const eventsModuleSource=String.raw`
 export const errorMonitor = Symbol('events.errorMonitor');
@@ -177,3 +179,9 @@ EventEmitter.setMaxListeners = setMaxListeners; EventEmitter.addAbortListener = 
 export default EventEmitter;
 `;
 
+
+/** Process warning reporting is optional on targets without a process adapter. */
+export function eventsModuleForTarget(target:Target):string {
+  if(target.startsWith('win32-')||target.startsWith('linux-'))return eventsModuleSource;
+  return eventsModuleSource.replace("if (typeof process.emitWarning === 'function') process.emitWarning(warning);",'');
+}

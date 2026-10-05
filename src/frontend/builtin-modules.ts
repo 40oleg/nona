@@ -1,7 +1,7 @@
 import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
-import {eventsModuleSource} from './events-module.js';
+import {eventsModuleForTarget} from './events-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -81,9 +81,9 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],
   ['node:fs',fsModuleSource],
-  ['node:events',()=>eventsModuleSource],
-  ['events',()=>eventsModuleSource],
-  ['nona:events',()=>eventsModuleSource],
+  ['node:events',eventsModuleForTarget],
+  ['events',eventsModuleForTarget],
+  ['nona:events',eventsModuleForTarget],
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
 ]);
