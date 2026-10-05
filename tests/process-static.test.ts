@@ -11,6 +11,7 @@ import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
 import {runtimeProbes} from '../src/backend/platform-probes.js';
+import {emitRuntime} from '../src/runtime/index.js';
 import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle} from './helpers/process-fixture.js';
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
@@ -38,6 +39,10 @@ test('native process heap snapshot reads actual allocator state without calls',(
  assert.ok(fragment.fixups.some(item=>item.target==='rt.chunks'));
  assert.ok(fragment.fixups.some(item=>item.target==='rt.largeList'));
  assert.ok(fragment.fixups.some(item=>item.target==='rt.largeCache'));
+ assert.ok(fragment.fixups.some(item=>item.target==='rt.sharedArrayBufferBytes'));
+ const runtime=emitRuntime();
+ const shared=runtime.fragments.find(item=>item.name==='rt.SharedArrayBuffer.construct')!;
+ assert.ok(shared.fixups.some(item=>item.target==='rt.sharedArrayBufferBytes'));
  assert.ok(!fragment.fixups.some(item=>item.target==='rt.alloc'||item.target.startsWith('rt.gc')));
 });
 

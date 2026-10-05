@@ -2,20 +2,20 @@ import {RuntimeBuilder} from './abi.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {ChunkLayout as C,LargeLayout as L,chunkBytes} from './memory.js';
 import {ArrayBufferKind,ArrayBufferLayout as B} from './array-buffer.js';
-import {SharedArrayBufferKind} from './shared-array-buffer.js';
 
 /** Snapshot allocator state without allocating, collecting, or calling host code. */
 export function emitProcessMemory(b:RuntimeBuilder):void {
  b.fn('process.heapSnapshot.code',40,a=>{
-  a.mov('r9','rcx');a.mov('rax',0);a.store({base:'r9'},'rax');a.store({base:'r9',disp:16},'rax');
+  a.mov('r9','rcx');a.mov('rax',0);a.store({base:'r9'},'rax');
+  a.load('rax',{rip:'rt.sharedArrayBufferBytes'});a.store({base:'r9',disp:16},'rax');
   a.load('rax',{rip:'rt.liveBytes'});a.store({base:'r9',disp:8},'rax');
   a.load('rax',{rip:'rt.blocks'});a.store({base:'r9',disp:24},'rax');
-  // All ArrayBuffer backing stores are managed raw allocations. Count each
-  // owner once; views and detached owners do not change allocation ownership.
+  // Ordinary ArrayBuffer backing stores are managed raw allocations. Shared
+  // stores use OS heap allocations without GC headers and are counted above.
   const inspect=(prefix:string)=>{
    const done=a.unique(prefix+'done'),yes=a.unique(prefix+'buffer');
    a.load('r10',{base:'rdx',disp:H.kind});a.cmp('r10',HeapKind.object);a.jcc('ne',done);
-   a.load('r10',{base:'rdx',disp:H.size});a.cmp('r10',ArrayBufferKind);a.jcc('e',yes);a.cmp('r10',SharedArrayBufferKind);a.jcc('ne',done);a.label(yes);
+   a.load('r10',{base:'rdx',disp:H.size});a.cmp('r10',ArrayBufferKind);a.jcc('ne',done);a.label(yes);
    a.load('r10',{base:'rdx',disp:H.size+B.bytes});a.test('r10','r10');a.jcc('e',done);
    a.load('r10',{base:'r10',disp:H.bytes-H.size});a.load('rax',{base:'r9',disp:16});a.add('rax','r10');a.store({base:'r9',disp:16},'rax');a.label(done);
   };

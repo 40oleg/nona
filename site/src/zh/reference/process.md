@@ -140,10 +140,13 @@ resident pages. This is not the high-water mark from `resourceUsage()`.
 large mapping reuse cache. `heapUsed` counts allocated cell/mapping bytes,
 including allocator overhead and buffer backing storage. `external` and
 `arrayBuffers` count requested backing allocation bytes of ArrayBuffer and
-SharedArrayBuffer owners; views do not count the same storage again. Nona stores
-these bytes in its managed heap, so they also contribute to heapUsed. Detached
-owners retain their allocated backing storage until collected. Dead allocations
-remain counted until GC sweeps them. These are Nona allocator measurements,
+SharedArrayBuffer allocations; views do not count the same storage again.
+Ordinary ArrayBuffer storage belongs to the managed heap and also contributes
+to heapUsed. Detached owners retain their backing storage until collected;
+dead managed allocations remain counted until GC sweeps them. SharedArrayBuffer
+storage uses separate OS heap allocations that currently survive GC and agent
+aliases; its requested bytes remain counted after owners are collected and do
+not contribute to heapUsed. These are Nona allocator measurements,
 not V8 heap estimates. The private native snapshot allocates no objects and
 does not trigger GC.
 
