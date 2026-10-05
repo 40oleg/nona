@@ -2,7 +2,7 @@
 layout: page
 sidebar: false
 title: Playground
-description: Compile JavaScript into a Windows or Linux executable in your browser.
+description: Compile JavaScript into Windows, Linux, macOS or BSD executables in your browser.
 ---
 
 <script setup>
@@ -14,6 +14,8 @@ import Playground from '../.vitepress/components/Playground.vue';
 # Playground
 
 Write a program, choose a target and press **Build**: Nona's compiler runs in your browser and the executable is downloaded. Your code is not sent anywhere.
+
+Choose among Windows, Linux and macOS on x64 or ARM64, and FreeBSD or OpenBSD on x64. The downloaded program runs on the matching operating system and CPU; see the [native platform matrix](/reference/native-platforms) for host API limits.
 
 <ClientOnly>
   <Playground />

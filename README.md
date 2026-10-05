@@ -53,6 +53,8 @@ The compiler is written in TypeScript and runs on Node.js. A generated executabl
 | macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
 | FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
 
+The [browser playground](https://40oleg.github.io/nona/playground) can compile and download a program for any of these eight targets without installing Nona.
+
 Linux uses one binary per CPU for Mint, Ubuntu, Debian, Fedora and Alpine; separate distribution builds are unnecessary.
 
 ## Build Nona
