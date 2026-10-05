@@ -7,6 +7,9 @@ import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {captureProcessStartup} from '../src/runtime/process-host.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
 import {Arm64Assembler,arm64Registers} from '../src/backend/arm64/assembler.js';
+import {withNativeTarget} from '../src/backend/machine/context.js';
+import {emitFfi} from '../src/runtime/ffi.js';
+import {checkFfiNames} from '../src/ffi.js';
 import {processNativeHelpers} from '../src/runtime/process-host.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
@@ -124,6 +127,14 @@ test('Windows ARM imports preserve logical internal/syscall calls and native OS 
  }
  const native=new Arm64Assembler('native','win32');native.callImport('hostffi.kernel32.dll!GetModuleFileNameW',['gp','gp','gp']);const fragment=native.finish(),instructions=words(fragment.bytes);
  assert.ok(instructions.includes(0xd63f0200),'real Windows import uses native BLR');assert.ok(!instructions.includes(0xf900039e),'native bridge has no logical return slot');assert.ok(fragment.fixups.some(item=>item.target==='hostffi.kernel32.dll!GetModuleFileNameW'));
+});
+test('uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI',()=>{
+ checkFfiNames('SYSCALL','Example');
+ const bundle=withNativeTarget('win32-arm64',()=>emitFfi([{dll:'SYSCALL',name:'Example',signature:'u64(u64,u64,u64)'}]).bundle);
+ const fragment=bundle.fragments.find(item=>item.name==='ffi.0.code')!;assert.ok(fragment);
+ const instructions=Array.from({length:fragment.bytes.length/4},(_,i)=>new DataView(fragment.bytes.buffer,fragment.bytes.byteOffset,fragment.bytes.byteLength).getUint32(i*4,true));
+ assert.ok(instructions.includes(0xd63f0200),'external DLL thunk uses native BLR');assert.ok(fragment.fixups.some(item=>item.target==='ffi.syscall!Example'));assert.ok(bundle.imports.some(item=>item.dll==='SYSCALL'&&item.name==='Example'));
+ const result=compile('import {define} from "nona:ffi";const example=define("SYSCALL","Example","u64(u64,u64,u64)");console.log(example(1,2,3))',{target:'win32-arm64',module:true,fileName:'syscall-dll.mjs'});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
 });
 test('Windows ARM process startup diagnostic compiles with enforced phase output',()=>{
  const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.ok(probe.expected.includes('process init native environment\nprocess init extensions\nprocess built win32 undefined\n'));
