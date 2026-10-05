@@ -2,11 +2,12 @@
 export const processAccountsSource=String.raw`
     function unknownCredential(kind,id){return argumentError('ERR_UNKNOWN_CREDENTIAL','Unknown '+kind+': '+String(id))}
     function accountName(name){if(typeof name!=='string')throw argumentError('ERR_INVALID_ARG_TYPE','The credential must be a number or name');if(name.indexOf('\0')!==-1)throw argumentError('ERR_INVALID_ARG_VALUE','The credential name must not contain NUL');return name}
-    function accountNumber(text){if(!/^[0-9]+$/.test(text))return undefined;var number=Number(text);return Number.isInteger(number)&&number>=0&&number<=4294967295?number:undefined}
+    function decimalNumber(text,maximum){if(!text.length)return undefined;for(var i=0;i<text.length;i++){var digit=text.charCodeAt(i);if(digit<48||digit>57)return undefined}var number=Number(text);return Number.isInteger(number)&&number>=0&&number<=maximum?number:undefined}
+    function accountNumber(text){return decimalNumber(text,4294967295)}
     function localAccounts(group){
       var text=readProcessFile(group?'/etc/group':'/etc/passwd'),lines=text.split('\n'),records=[];
       for(var i=0;i<lines.length;i++){var line=lines[i];if(!line||line[0]==='#'||line[0]==='+'||line[0]==='-')continue;
-        var fields=line.replace(/\r$/,'').split(':');if(fields.length<(group?4:7)||!fields[0])continue;
+        if(line.charCodeAt(line.length-1)===13)line=line.slice(0,-1);var fields=line.split(':');if(fields.length<(group?4:7)||!fields[0])continue;
         var id=accountNumber(fields[2]);if(id===undefined)continue;
         if(group)records.push({name:fields[0],id:id,members:fields[3].split(',')});
         else{var gid=accountNumber(fields[3]);if(gid!==undefined)records.push({name:fields[0],id:id,gid:gid})}

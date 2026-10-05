@@ -93,7 +93,7 @@ test('original local account parser resolves names and collects supplementary gr
  const calls:unknown[][]=[];let bytes=new Uint8Array(),read=false;
  const context=mockProcess({__nonaHost_sys_open:(path:Uint8Array)=>{const name=new TextDecoder().decode(path).split('\0')[0]!;if(!(name in files))return -2;bytes=new TextEncoder().encode(files[name]);read=false;return 10},__nonaHost_sys_read:(_fd:number,out:Uint8Array)=>{if(read)return 0;read=true;out.set(bytes);return bytes.length},__nonaHost_sys_close:()=>0,
   __nonaHost_sys_setuid:(id:number)=>{calls.push(['uid',id]);return 0},__nonaHost_sys_setgid:(id:number)=>{calls.push(['gid',id]);return 0},__nonaHost_sys_setgroups:(n:number,ids:Uint32Array)=>{calls.push(['groups',n,...ids]);return 0}});
- runInContext('process.setuid("alice");process.setgid("staff");process.setgroups(["staff",40]);process.initgroups("alice","wheel");process.initgroups(501,0)',context);
+ runInContext('RegExp.prototype.exec=function(){throw Error("OS scanner must not invoke RegExp")};process.setuid("alice");process.setgid("staff");process.setgroups(["staff",40]);process.initgroups("alice","wheel");process.initgroups(501,0)',context);
  assert.deepEqual(calls,[['uid',501],['gid',20],['groups',2,20,40],['groups',3,0,20,40],['groups',3,0,20,40]]);
  assert.throws(()=>runInContext('process.setuid("unknown")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
  assert.throws(()=>runInContext('process.setgid("invalid")',context),{code:'ERR_UNKNOWN_CREDENTIAL'});
@@ -197,12 +197,15 @@ for(const target of ['freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64'])te
  assert.equal(runInContext('process.memoryUsage.rss()',context),8192);
 });
 test('process Linux memory queries account for real cgroup usage and native limits',()=>{
- const files:Record<string,string>={'/proc/meminfo':'MemAvailable: 4 kB\n','/proc/self/cgroup':'0::/group\n','/sys/fs/cgroup/group/memory.max':'2048','/sys/fs/cgroup/group/memory.current':'1024','/sys/fs/cgroup/memory.max':'4096','/sys/fs/cgroup/memory.current':'1024'};
+ const files:Record<string,string>={'/proc/meminfo':'MemTotal: 8 kB\nMemAvailable: 4 kB\n','/proc/self/status':'Name: nona\nVmRSS:\t4294967296 kB\n','/proc/self/cgroup':'0::/group\n','/sys/fs/cgroup/group/memory.max':'2048','/sys/fs/cgroup/group/memory.current':'1024','/sys/fs/cgroup/memory.max':'4096','/sys/fs/cgroup/memory.current':'1024'};
  let next=10;const handles=new Map<number,{bytes:Uint8Array;done:boolean}>();
  const context=mockProcess({__nonaHost_sys_getrlimit:(_resource:number,bounds:Uint32Array)=>{bounds.set([10000,0,10000,0]);return 0},
   __nonaHost_sys_open:(path:Uint8Array,flags:number)=>{if(flags!==0)return -2;const key=new TextDecoder().decode(path).split('\0')[0]!,text=files[key];if(text===undefined)return -2;const fd=next++;handles.set(fd,{bytes:new TextEncoder().encode(text),done:false});return fd},
   __nonaHost_sys_read:(fd:number,bytes:Uint8Array)=>{const handle=handles.get(fd)!;if(handle.done)return 0;handle.done=true;bytes.set(handle.bytes);return handle.bytes.length},__nonaHost_sys_close:()=>0});
+ runInContext('RegExp.prototype.exec=function(){throw Error("OS scanner must not invoke RegExp")}',context);
  assert.equal(runInContext('process.constrainedMemory()',context),2048);assert.equal(runInContext('process.availableMemory()',context),1024);
+ assert.equal(runInContext('process.memoryUsage.rss()',context),4294967296*1024);
+ files['/proc/self/status']='VmRSS: 12.5 kB\n';assert.throws(()=>runInContext('process.memoryUsage.rss()',context),{code:'EIO'});
 });
 test('process OpenBSD memory uses release uvmexp page/free counters',()=>{
  const context=mockProcess({__nonaHost_sys_sysctl:(mib:Int32Array,_n:number,bytes:Uint8Array,length:Uint32Array)=>{assert.deepEqual(Array.from(mib),[2,4]);new Uint32Array(bytes.buffer).set([4096,4095,12,10000,12]);length[0]=20;return 0},
@@ -275,3 +278,34 @@ for(const target of supportedNativeTargets)test(`process standard streams/resour
  const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle+processThreadOracle+processExecErrorOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });
 
+
+function portableBoundary(){
+ let directory='/work',clock=5000;const jobs:(()=>void)[]=[];
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},scheduleJob:(job:()=>void)=>jobs.push(job),__nonaPromiseDrainJobs(){while(jobs.length)jobs.shift()!()},__nonaProcessNow:()=>clock++,
+  __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_replaceEnvironment:()=>{},
+  __nonaHost_sys_readlink:(_path:unknown,bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode('/app'));return 4},
+  __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>45,
+  __nonaHost_sys_getcwd:(bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode(directory+'\0'));return directory.length+1},
+  __nonaHost_sys_chdir:(bytes:Uint8Array)=>{directory=new TextDecoder().decode(bytes).slice(0,-1);return 0},
+ });
+ runInContext(processPreludeForTarget('linux-x64'),context);return context;
+}
+test('process boundary validates exitCode and directory arguments',()=>{
+ const context=portableBoundary();
+ assert.equal(runInContext('process.exitCode=" 3 ";process.exitCode',context),3);
+ assert.equal(runInContext('process.exitCode=null;process.exitCode',context),undefined);
+ assert.equal(runInContext('try{process.exitCode=1.5}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('try{process.exitCode="1.5"}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('try{process.exitCode=1e30}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
+ assert.equal(runInContext('process.exitCode=" ";process.exitCode',context),0);
+ assert.equal(runInContext('try{process.chdir(1)}catch(e){e.code}',context),'ERR_INVALID_ARG_TYPE');
+ assert.equal(runInContext('process.chdir("/other");process.cwd()',context),'/other');
+ assert.equal(runInContext('process.ppid',context),45);
+ assert.equal(runInContext('process.hrtime.bigint()>0n&&process.uptime()>=0',context),true);
+ assert.equal(runInContext('process.hrtime()[1]>=0&&process.hrtime()[1]<1000000000',context),true);
+});
+test('nextTick boundary drains nested ticks before jobs and later ticks after the job batch',()=>{
+ const context=portableBoundary();
+ const result=runInContext('var order=[];scheduleJob(()=>{order.push("promise");process.nextTick(()=>order.push("later"))});process.nextTick((a,b)=>{order.push(a+b);process.nextTick(()=>order.push("nested"))},1,2);__nonaPromiseDrainJobs();order.join(",")',context);
+ assert.equal(result,'3,nested,promise,later');
+});

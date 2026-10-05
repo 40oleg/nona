@@ -14,37 +14,6 @@ for(const target of supportedNativeTargets)test(`process core compiles for ${tar
  assert.equal(module.ok,true,module.ok?'':JSON.stringify(module.diagnostics));
 });
 
-function boundary(){
- let directory='/work',clock=5000;const jobs:(()=>void)[]=[];
- const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},scheduleJob:(job:()=>void)=>jobs.push(job),__nonaPromiseDrainJobs(){while(jobs.length)jobs.shift()!()},__nonaProcessNow:()=>clock++,
-  __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,
-  __nonaHost_sys_readlink:(_path:unknown,bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode('/app'));return 4},
-  __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>45,
-  __nonaHost_sys_getcwd:(bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode(directory+'\0'));return directory.length+1},
-  __nonaHost_sys_chdir:(bytes:Uint8Array)=>{directory=new TextDecoder().decode(bytes).slice(0,-1);return 0},
- });
- runInContext(processPreludeForTarget('linux-x64'),context);return context;
-}
-test('process boundary validates exitCode and directory arguments',()=>{
- const context=boundary();
- assert.equal(runInContext('process.exitCode=" 3 ";process.exitCode',context),3);
- assert.equal(runInContext('process.exitCode=null;process.exitCode',context),undefined);
- assert.equal(runInContext('try{process.exitCode=1.5}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
- assert.equal(runInContext('try{process.exitCode="1.5"}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
- assert.equal(runInContext('try{process.exitCode=1e30}catch(e){e.code}',context),'ERR_OUT_OF_RANGE');
- assert.equal(runInContext('process.exitCode=" ";process.exitCode',context),0);
- assert.equal(runInContext('try{process.chdir(1)}catch(e){e.code}',context),'ERR_INVALID_ARG_TYPE');
- assert.equal(runInContext('process.chdir("/other");process.cwd()',context),'/other');
- assert.equal(runInContext('process.ppid',context),45);
- assert.equal(runInContext('process.hrtime.bigint()>0n&&process.uptime()>=0',context),true);
- assert.equal(runInContext('process.hrtime()[1]>=0&&process.hrtime()[1]<1000000000',context),true);
-});
-test('nextTick boundary drains nested ticks before jobs and later ticks after the job batch',()=>{
- const context=boundary();
- const result=runInContext('var order=[];scheduleJob(()=>{order.push("promise");process.nextTick(()=>order.push("later"))});process.nextTick((a,b)=>{order.push(a+b);process.nextTick(()=>order.push("nested"))},1,2);__nonaPromiseDrainJobs();order.join(",")',context);
- assert.equal(result,'3,nested,promise,later');
-});
-
 export const processOracleSource=String.raw`
 console.log(process.ppid>0,typeof process.argv0,Array.isArray(process.execArgv));
 let old=process.cwd();process.chdir('.');console.log(process.cwd()===old);

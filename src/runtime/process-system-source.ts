@@ -16,7 +16,7 @@ ${processExecSource}
     });
     function residentMemory(){
       if(windows){var memory=new Uint32Array(18);memory[0]=72;if(!host.K32GetProcessMemoryInfo(-1,memory,72))throw hostError('memoryUsage',5);return unsigned64(memory,4)}
-      if(platform==='linux'){var status=readProcessFile('/proc/self/status'),rss=/^VmRSS:\s*(\d+)\s+kB/m.exec(status);if(!rss)throw hostError('memoryUsage',5);return Number(rss[1])*1024}
+      if(platform==='linux')return procKilobytes(readProcessFile('/proc/self/status'),'VmRSS:','memoryUsage');
       if(platform==='darwin'){var task=new Uint32Array(24),r=host.sys_procinfo(2,host.sys_getpid(),4,0,task,96);if(r<0)throw hostError('memoryUsage',-r);if(r!==96)throw hostError('memoryUsage',5);return unsigned64(task,2)}
       var openbsd=platform==='openbsd',info=new Uint32Array(openbsd?97:1024),length=new Uint32Array([info.byteLength,0]);
       // OpenBSD 7.8 allows a prefix-sized kinfo_proc; RSS is int32 at byte384.
@@ -98,6 +98,14 @@ ${processAccountsSource}
       var parsed=parseEnvironment(readProcessFile(path));for(var key in parsed)if(env[key]===undefined)env[key]=parsed[key]
     });
     function optionalProcessFile(path){try{return readProcessFile(path)}catch(error){if(error.code==='ENOENT'||error.code==='ENOTDIR')return null;throw error}}
+    // The kernel emits one decimal kB field per line. Native string searches
+    // keep the OS text scan bounded without invoking the JavaScript RegExp VM.
+    function procKilobytes(text,key,operation){
+      var start=text.indexOf(key);if(start<0||(start>0&&text[start-1]!=='\n'))throw hostError(operation,5);
+      var end=text.indexOf('\n',start);if(end<0)end=text.length;var line=text.slice(start+key.length,end).trim();
+      if(line.slice(-2)!=='kB')throw hostError(operation,5);var digits=line.slice(0,-2).trim(),number=decimalNumber(digits,Math.floor(Number.MAX_SAFE_INTEGER/1024));
+      if(number===undefined)throw hostError(operation,5);return number*1024
+    }
     function numericFile(path){var text=optionalProcessFile(path);if(text===null)return 0;var number=Number(text.trim());return Number.isFinite(number)&&number>0&&number<Number.MAX_SAFE_INTEGER?number:0}
     function linuxCgroups(){
       var text=optionalProcessFile('/proc/self/cgroup'),entries=[];if(text===null)return entries;
@@ -128,7 +136,7 @@ ${processAccountsSource}
       var available;
       if(windows)available=unsigned64(windowsMemory(),4);
       else if(platform==='linux'){
-        var info=readProcessFile('/proc/meminfo'),match=/^MemAvailable:\s*(\d+)\s+kB/m.exec(info);if(!match)throw hostError('meminfo',5);available=Number(match[1])*1024;
+        available=procKilobytes(readProcessFile('/proc/meminfo'),'MemAvailable:','meminfo');
         var entries=linuxCgroups();for(var i=0;i<entries.length;i++){var limit=numericFile(entries[i].limit);if(limit)available=Math.min(available,Math.max(0,limit-numericFile(entries[i].current)))}
       }else if(platform==='freebsd')available=freebsdNumber('vm.stats.vm.v_free_count')*freebsdNumber('hw.pagesize');
       else if(platform==='openbsd'){var bytes=sysctlBytes([2,4],4096),stats=new Uint32Array(bytes.buffer,bytes.byteOffset,bytes.length/4);available=stats[0]*stats[4]}
