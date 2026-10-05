@@ -137,6 +137,20 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     if(hasPrelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }
   const runtime={imports};
+  // A constant Value in .rdata: {tag, payload}, one per distinct constant.
+  // Recorded in the literal table (under a key no string literal has), which
+  // a cached base image carries, so programs reuse the base's constants.
+  const constantValue=(v:unknown):string=>{
+    const key='\u0000constant:'+(typeof v)+':'+(typeof v==='number'?(Object.is(v,-0)?'-0':String(v)):String(v));
+    const existing=literals.get(key);if(existing)return existing;
+    const tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
+    const name='constant.'+literals.size,bytes=new Uint8Array(16),view=new DataView(bytes.buffer),fixups:NamedFragment['fixups']=[];
+    view.setBigUint64(0,BigInt(tag),true);
+    if(typeof v==='string'||typeof v==='bigint')fixups.push({offset:8,kind:'va64',target:literal(String(v)),addend:0});
+    else if(typeof v==='number')view.setFloat64(8,v,true);
+    else if(v===true)view.setBigUint64(8,1n,true);
+    literals.set(key,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups,symbols:{}});return name;
+  };
   const literal=(value:string):string=>{
     const existing=literals.get(value);if(existing)return existing;
     const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
@@ -202,14 +216,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     a.lea('rbp',{base:'rsp',disp:frameBias});
     a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
-    const value=(n:number):Mem=>stack(valueBase+16*location(n));
+    // A temporary whose only definition is a constant needs no frame
+    // location: its Value lives once in .rdata (constantValue) and operations
+    // read it from there, so the constant is never stored at run time.
+    // Temporaries (slots past the declared locals) are always written before
+    // they are read; a variable can be read before its one assignment
+    // (hoisted `var`), so variables keep their slots.
+    const definitions=new Map<number,number>(),constants=new Map<number,unknown>();
+    for(const block of fn.blocks)for(const op of block.operations){
+      for(const d of destinations(op))definitions.set(d,(definitions.get(d)??0)+1);
+      if(op.kind==='constant')constants.set(op.dest,op.value);
+    }
+    const staticConstant=(n:number):string|undefined=>definitions.get(n)===1&&constants.has(n)&&n>=fn.localCount?constantValue(constants.get(n)):undefined;
+    const value=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c}:stack(valueBase+16*location(n));};
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
     const copy=(to:Mem,from:Mem)=>{
       a.load('rax',from);a.store(to,'rax');
       const add=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};
       a.load('rax',add(from));a.store(add(to),'rax');
     };
-    const payload=(n:number):Mem=>stack(valueBase+16*location(n)+8);
+    const payload=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c,addend:8}:stack(valueBase+16*location(n)+8);};
     const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
     const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
     // Number operands are the common case of every arithmetic and relational
@@ -574,6 +600,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'checkResolvable':a.load('rax',payload(op.slot));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
         case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
         case 'constant':{
+          if(staticConstant(op.dest))break;
           const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
           a.mov('rax',tag);a.store(value(op.dest),'rax');
           if(typeof v==='string'||typeof v==='bigint')a.lea('rax',{rip:literal(String(v))});
