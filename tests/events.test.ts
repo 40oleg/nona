@@ -121,7 +121,7 @@ test('events source oracle: addAbortListener disposal and late subscription',()=
  const directory=mkdtempSync(join(tmpdir(),'nona-events-abort-'));
  try{
   writeFileSync(join(directory,'events.mjs'),eventsModuleSource);
-  const body=`const c=new AbortController();const a=addAbortListener(c.signal,()=>console.log('removed'));a[Symbol.dispose]();addAbortListener(c.signal,()=>console.log('abort'));c.abort();addAbortListener(c.signal,()=>console.log('late'));console.log('sync');`;
+  const body=`const c=new AbortController();const a=addAbortListener(c.signal,()=>console.log('removed'));a[Symbol.dispose]();addAbortListener(c.signal,function(event){console.log('abort',this===c.signal,event.type)});c.abort();addAbortListener(c.signal,()=>console.log('late'));console.log('sync');`;
   for(const [file,module] of [['source.mjs','./events.mjs'],['oracle.mjs','node:events']])writeFileSync(join(directory,file!),`import {addAbortListener} from '${module}';\n`+body);
   const source=spawnSync(process.execPath,[join(directory,'source.mjs')],{encoding:'utf8'});
   const oracle=spawnSync(process.execPath,[join(directory,'oracle.mjs')],{encoding:'utf8'});

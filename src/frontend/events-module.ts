@@ -168,7 +168,7 @@ export function on(emitter, name, options) {
 export function addAbortListener(signal, listener) {
   checkListener(listener);
   let active = true;
-  function aborted() { if (!active) return; active = false; signal.removeEventListener('abort', aborted); listener(); }
+  function aborted(...args) { if (!active) return; active = false; signal.removeEventListener('abort', aborted); listener.apply(this, args); }
   if (signal.aborted) queueMicrotask(aborted); else signal.addEventListener('abort', aborted, {once:true});
   return {[Symbol.dispose || Symbol.for('nodejs.dispose')]() { active = false; signal.removeEventListener('abort', aborted); }};
 }
