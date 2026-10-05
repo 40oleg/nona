@@ -1,0 +1,10 @@
+const records = new Map([["a",1],["b",2],["c",3]]);
+const iterator = records.keys();
+const first = iterator.next().value;
+records.delete("b");
+records.set("d",4);
+const rest = [];
+for (let step=iterator.next();!step.done;step=iterator.next()) rest.push(step.value);
+const keys = Array.from(records.keys());
+const result = {first,rest,keys};
+console.log(JSON.stringify(result));

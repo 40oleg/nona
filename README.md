@@ -22,6 +22,8 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
 
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
+
 ## How it works
 
 ```text
@@ -114,10 +116,13 @@ The full plan, based on a review of the V8 blog, is in [docs/roadmap.md](docs/ro
 
 ```sh
 npm run check      # build and run the unit suite
+npm run check:programs # compare 1,000 standalone programs with Node.js
 npm run compare    # compile the compatibility examples and compare with Node.js
 ```
 
 The tests compile and run real PE and ELF executables, many of them under GC stress, and compare their output with Node.js. Pinned Test262 audits are run with `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). Contribution rules for people and agents are in [AGENTS.md](AGENTS.md).
+
+The separate [program corpus](programs/README.md) contains 1,000 individually authored small applications that combine language features. Each program has a recorded expected result and is compared with Node.js in normal and GC-stress execution; these checks also run as part of `npm run check`.
 
 ```text
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function

@@ -1,0 +1,1660 @@
+[
+  {
+    "id": 836,
+    "file": "language/0836-stack-language.js",
+    "purpose": "Interpret a stack language with arithmetic and variables.",
+    "features": [
+      "closures",
+      "destructuring",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 837,
+    "file": "language/0837-recipe-expander.js",
+    "purpose": "Expand a recipe into scaled shopping quantities.",
+    "features": [
+      "nested-destructuring",
+      "rest-spread",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 838,
+    "file": "language/0838-scope-ledger.js",
+    "purpose": "Track nested budget scopes without changing the parent budget.",
+    "features": [
+      "lexical-scopes",
+      "closures",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 839,
+    "file": "language/0839-validation-pipeline.js",
+    "purpose": "Run form fields through a staged validation pipeline.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 840,
+    "file": "language/0840-reservation-machine.js",
+    "purpose": "Advance a reservation through explicit valid state transitions.",
+    "features": [
+      "classes",
+      "exceptions",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 841,
+    "file": "language/0841-lazy-page-reader.js",
+    "purpose": "Read a bounded stream in pages while accounting for cleanup.",
+    "features": [
+      "generators",
+      "finally",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 842,
+    "file": "language/0842-query-predicate.js",
+    "purpose": "Evaluate a tiny boolean query over inventory rows.",
+    "features": [
+      "recursion",
+      "nullish-coalescing",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 843,
+    "file": "language/0843-template-bindings.js",
+    "purpose": "Render named placeholders using a nested lexical environment.",
+    "features": [
+      "closures",
+      "optional-chaining",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 844,
+    "file": "language/0844-transaction-checkpoint.js",
+    "purpose": "Apply ledger transactions and roll back a failed withdrawal.",
+    "features": [
+      "closures",
+      "exceptions",
+      "finally"
+    ]
+  },
+  {
+    "id": 845,
+    "file": "language/0845-visitor-summary.js",
+    "purpose": "Walk a document tree with a scoped visitor and depth budget.",
+    "features": [
+      "recursion",
+      "rest-spread",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 846,
+    "file": "language/0846-undoable-editor.js",
+    "purpose": "Implement text insertion and deletion with undo snapshots.",
+    "features": [
+      "classes",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 847,
+    "file": "language/0847-argument-binder.js",
+    "purpose": "Bind positional and named arguments to a function signature.",
+    "features": [
+      "destructuring",
+      "default-parameters",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 848,
+    "file": "language/0848-cooperative-jobs.js",
+    "purpose": "Interleave generator jobs until each produces a final result.",
+    "features": [
+      "generators",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 849,
+    "file": "language/0849-permissions-chain.js",
+    "purpose": "Resolve permissions through explicit role inheritance.",
+    "features": [
+      "recursion",
+      "optional-chaining",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 850,
+    "file": "language/0850-event-subscriptions.js",
+    "purpose": "Dispatch events with unsubscribe closures and isolated payload copies.",
+    "features": [
+      "closures",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 851,
+    "file": "language/0851-expression-environment.js",
+    "purpose": "Evaluate arithmetic expressions with local variable bindings.",
+    "features": [
+      "recursion",
+      "lexical-scopes",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 852,
+    "file": "language/0852-route-patterns.js",
+    "purpose": "Match named route segments and collect request parameters.",
+    "features": [
+      "closures",
+      "destructuring",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 853,
+    "file": "language/0853-resource-stack.js",
+    "purpose": "Release acquired resources in reverse order after a task fails.",
+    "features": [
+      "exceptions",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 854,
+    "file": "language/0854-pattern-capture.js",
+    "purpose": "Capture fields from tagged messages using ordered matching rules.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "closures"
+    ]
+  },
+  {
+    "id": 855,
+    "file": "language/0855-bounded-retries.js",
+    "purpose": "Retry a deterministic operation and preserve attempt diagnostics.",
+    "features": [
+      "closures",
+      "exceptions",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 856,
+    "file": "language/0856-audit-decorator.js",
+    "purpose": "Wrap a service method with before and after audit records.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "finally"
+    ]
+  },
+  {
+    "id": 857,
+    "file": "language/0857-command-aliases.js",
+    "purpose": "Expand command aliases and reject recursive expansion.",
+    "features": [
+      "recursion",
+      "exceptions",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 858,
+    "file": "language/0858-token-lookahead.js",
+    "purpose": "Parse a short assignment stream with lookahead and error reporting.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 859,
+    "file": "language/0859-config-overlay.js",
+    "purpose": "Merge nested service configuration with nullish defaults.",
+    "features": [
+      "nested-destructuring",
+      "rest-spread",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 860,
+    "file": "language/0860-nested-menu-search.js",
+    "purpose": "Find a menu action and return its breadcrumb through nested groups.",
+    "features": [
+      "generators",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 861,
+    "file": "language/0861-observable-cell.js",
+    "purpose": "Notify derived subscribers when a mutable cell changes.",
+    "features": [
+      "closures",
+      "rest-spread",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 862,
+    "file": "language/0862-finite-rule-engine.js",
+    "purpose": "Apply ordered pricing rules and retain explanations.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 863,
+    "file": "language/0863-generator-feedback.js",
+    "purpose": "Drive a generator with corrections supplied by its consumer.",
+    "features": [
+      "generators",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 864,
+    "file": "language/0864-try-finally-return.js",
+    "purpose": "Record cleanup while a search returns from nested control flow.",
+    "features": [
+      "finally",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 865,
+    "file": "language/0865-class-mixin-counter.js",
+    "purpose": "Compose a counter with an independent labeled presentation behavior.",
+    "features": [
+      "classes",
+      "closures",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 866,
+    "file": "language/0866-message-mailbox.js",
+    "purpose": "Consume a mailbox while preserving deferred messages.",
+    "features": [
+      "classes",
+      "generators",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 867,
+    "file": "language/0867-currency-expression.js",
+    "purpose": "Interpret money operations while enforcing matching denominations.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 868,
+    "file": "language/0868-constraint-propagation.js",
+    "purpose": "Propagate derived fields through a short dependency chain.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 869,
+    "file": "language/0869-conditional-emitter.js",
+    "purpose": "Compile conditional text blocks into a render closure.",
+    "features": [
+      "closures",
+      "recursion",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 870,
+    "file": "language/0870-assertion-collector.js",
+    "purpose": "Collect multiple assertion failures without abandoning a scenario.",
+    "features": [
+      "exceptions",
+      "closures",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 871,
+    "file": "language/0871-partial-application.js",
+    "purpose": "Build invoice calculations with staged argument binding.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 872,
+    "file": "language/0872-support-ticket-routing.js",
+    "purpose": "Route support tickets through optional team policies and maintain escalation queues.",
+    "features": [
+      "closures",
+      "optional-chaining",
+      "nullish-coalescing",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 873,
+    "file": "language/0873-destructured-rotation.js",
+    "purpose": "Rotate named roles while retaining unused record fields.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 874,
+    "file": "language/0874-exception-taxonomy.js",
+    "purpose": "Route validation failures by error subtype.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 875,
+    "file": "language/0875-generator-window.js",
+    "purpose": "Expose sliding windows from a lazy number source.",
+    "features": [
+      "generators",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 876,
+    "file": "language/0876-closure-capture-grid.js",
+    "purpose": "Capture independent coordinates in delayed cell evaluators.",
+    "features": [
+      "closures",
+      "lexical-scopes",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 877,
+    "file": "language/0877-inventory-lenses.js",
+    "purpose": "Update a nested inventory quantity through composable accessors.",
+    "features": [
+      "closures",
+      "rest-spread",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 878,
+    "file": "language/0878-instruction-budget.js",
+    "purpose": "Execute instructions with an explicit fuel limit.",
+    "features": [
+      "exceptions",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 879,
+    "file": "language/0879-deferred-formatters.js",
+    "purpose": "Freeze display options in reusable formatting closures.",
+    "features": [
+      "closures",
+      "destructuring",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 880,
+    "file": "language/0880-fallback-strategies.js",
+    "purpose": "Choose the first successful resolver and explain rejected strategies.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 881,
+    "file": "language/0881-named-loop-control.js",
+    "purpose": "Scan grouped entries using labeled control flow and scoped totals.",
+    "features": [
+      "labeled-loops",
+      "destructuring",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 882,
+    "file": "language/0882-fluent-query-builder.js",
+    "purpose": "Build and evaluate chained filters and projections.",
+    "features": [
+      "classes",
+      "closures",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 883,
+    "file": "language/0883-method-rebinding.js",
+    "purpose": "Rebind a receiver while preserving reusable operation arguments.",
+    "features": [
+      "classes",
+      "rest-parameters",
+      "closures"
+    ]
+  },
+  {
+    "id": 884,
+    "file": "language/0884-sequence-combinators.js",
+    "purpose": "Compose lazy mapping and filtering for a bounded sequence.",
+    "features": [
+      "generators",
+      "closures",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 885,
+    "file": "language/0885-nested-catch-context.js",
+    "purpose": "Attach outer task context to an inner parsing failure.",
+    "features": [
+      "exceptions",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 886,
+    "file": "language/0886-delegated-workflow.js",
+    "purpose": "Delegate generator stages and collect their returned summaries.",
+    "features": [
+      "generators",
+      "destructuring",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 887,
+    "file": "language/0887-record-migrations.js",
+    "purpose": "Migrate old records through versioned immutable transformations.",
+    "features": [
+      "rest-spread",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 888,
+    "file": "language/0888-warehouse-zone-packing.js",
+    "purpose": "Pack warehouse orders into compatible zones with scoped capacity accounting.",
+    "features": [
+      "lexical-scopes",
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 889,
+    "file": "language/0889-class-accessor-bounds.js",
+    "purpose": "Enforce bounded values through inherited accessors.",
+    "features": [
+      "classes",
+      "getters-setters",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 890,
+    "file": "language/0890-delivery-option-planning.js",
+    "purpose": "Plan delivery charges using nested options and customer-specific fallback policies.",
+    "features": [
+      "nested-destructuring",
+      "default-initializers",
+      "closures",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 891,
+    "file": "language/0891-composed-error-boundary.js",
+    "purpose": "Compose a fallback boundary around a calculation pipeline.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 892,
+    "file": "language/0892-factory-private-sequence.js",
+    "purpose": "Use private closure state to allocate and retire ticket numbers.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 893,
+    "file": "language/0893-iterator-cleanup-break.js",
+    "purpose": "Observe cleanup when a consumer breaks out of iteration.",
+    "features": [
+      "generators",
+      "finally",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 894,
+    "file": "language/0894-stateful-token-transform.js",
+    "purpose": "Transform a token stream while tracking quote context.",
+    "features": [
+      "generators",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 895,
+    "file": "language/0895-behavior-registry.js",
+    "purpose": "Register named transformations with removable handler closures.",
+    "features": [
+      "closures",
+      "exceptions",
+      "computed-property-access"
+    ]
+  },
+  {
+    "id": 896,
+    "file": "language/0896-multi-key-dispatch.js",
+    "purpose": "Dispatch commands using operation and operand kind together.",
+    "features": [
+      "destructuring",
+      "closures",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 897,
+    "file": "language/0897-reversible-command-log.js",
+    "purpose": "Execute commands with inverse operations and rewind the final command.",
+    "features": [
+      "classes",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 898,
+    "file": "language/0898-immutable-path-update.js",
+    "purpose": "Replace a value along a path while rebuilding its ancestors.",
+    "features": [
+      "recursion",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 899,
+    "file": "language/0899-form-session.js",
+    "purpose": "Save valid form edits and retain the previous value on failure.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 900,
+    "file": "language/0900-yield-error-recovery.js",
+    "purpose": "Recover from an exception injected into a suspended generator.",
+    "features": [
+      "generators",
+      "exceptions",
+      "finally"
+    ]
+  },
+  {
+    "id": 901,
+    "file": "language/0901-lexical-policy-switch.js",
+    "purpose": "Create policies that capture configuration at construction.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 902,
+    "file": "language/0902-dataflow-fanout.js",
+    "purpose": "Feed transformed values into several independent reduction sinks.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 903,
+    "file": "language/0903-command-help-dsl.js",
+    "purpose": "Interpret command definitions to validate arguments and generate help.",
+    "features": [
+      "destructuring",
+      "exceptions",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 904,
+    "file": "language/0904-polymorphic-shapes.js",
+    "purpose": "Compute scene bounds and area through inherited shape methods.",
+    "features": [
+      "classes",
+      "destructuring",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 905,
+    "file": "language/0905-lexical-this-callback.js",
+    "purpose": "Preserve a class receiver through arrow callbacks in a batch operation.",
+    "features": [
+      "classes",
+      "closures",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 906,
+    "file": "language/0906-spread-precedence.js",
+    "purpose": "Resolve configuration precedence across several object layers.",
+    "features": [
+      "rest-spread",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 907,
+    "file": "language/0907-pipeline-stop-signal.js",
+    "purpose": "Stop a transformation pipeline when a stage returns an explicit rejection.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "short-circuit-control-flow"
+    ]
+  },
+  {
+    "id": 908,
+    "file": "language/0908-recursive-default-tree.js",
+    "purpose": "Fill missing nested preference fields from a schema tree.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 909,
+    "file": "language/0909-class-static-catalog.js",
+    "purpose": "Construct catalog entries through validated static factory methods.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 910,
+    "file": "language/0910-iterator-peek-buffer.js",
+    "purpose": "Peek at a stream without consuming the buffered value twice.",
+    "features": [
+      "closures",
+      "destructuring",
+      "generators"
+    ]
+  },
+  {
+    "id": 911,
+    "file": "language/0911-nested-resource-success.js",
+    "purpose": "Release nested resources after a successful computed return.",
+    "features": [
+      "finally",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 912,
+    "file": "language/0912-argument-rest-routing.js",
+    "purpose": "Route command tails to handlers after extracting shared options.",
+    "features": [
+      "rest-parameters",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 913,
+    "file": "language/0913-closure-once-gate.js",
+    "purpose": "Allow initialization once while keeping later access read only.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 914,
+    "file": "language/0914-generator-chunk-boundary.js",
+    "purpose": "Emit delimited groups while preserving the final incomplete group.",
+    "features": [
+      "generators",
+      "rest-spread",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 915,
+    "file": "language/0915-class-protected-hook.js",
+    "purpose": "Override a processing hook while reusing the base traversal.",
+    "features": [
+      "classes",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 916,
+    "file": "language/0916-default-parameter-chain.js",
+    "purpose": "Derive later default parameters from earlier explicit arguments.",
+    "features": [
+      "default-parameters",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 917,
+    "file": "language/0917-closure-accumulator-reset.js",
+    "purpose": "Accumulate labeled measurements and reset a captured segment.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 918,
+    "file": "language/0918-scoped-expression-trace.js",
+    "purpose": "Trace expression evaluations while restoring scope after local bindings.",
+    "features": [
+      "recursion",
+      "finally",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 919,
+    "file": "language/0919-class-iterable-deck.js",
+    "purpose": "Expose a class collection as a filtered generator.",
+    "features": [
+      "classes",
+      "generators",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 920,
+    "file": "language/0920-exception-value-normalizer.js",
+    "purpose": "Normalize thrown strings and errors into uniform result records.",
+    "features": [
+      "exceptions",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 921,
+    "file": "language/0921-lexical-recursion-builder.js",
+    "purpose": "Construct a recursive tree scorer with captured node weights.",
+    "features": [
+      "closures",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 922,
+    "file": "language/0922-switch-action-reducer.js",
+    "purpose": "Reduce application actions with immutable state and exhaustiveness errors.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 923,
+    "file": "language/0923-closure-subscription-pause.js",
+    "purpose": "Pause and resume a subscriber without losing its local accumulated state.",
+    "features": [
+      "closures",
+      "destructuring",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 924,
+    "file": "language/0924-destructured-tree-fold.js",
+    "purpose": "Fold nested folders into byte totals and file counts.",
+    "features": [
+      "recursion",
+      "nested-destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 925,
+    "file": "language/0925-bounded-continuation.js",
+    "purpose": "Evaluate a chain of explicit continuations without recursive calls.",
+    "features": [
+      "closures",
+      "destructuring",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 926,
+    "file": "language/0926-notebook-cell-execution.js",
+    "purpose": "Execute notebook cells with shared bindings and isolated failures.",
+    "features": [
+      "closures",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 927,
+    "file": "language/0927-menu-shortcut-compiler.js",
+    "purpose": "Compile nested menu definitions into shortcut closures.",
+    "features": [
+      "recursion",
+      "closures",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 928,
+    "file": "language/0928-state-checkpoint-generator.js",
+    "purpose": "Yield state snapshots during a sequence of reducer updates.",
+    "features": [
+      "generators",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 929,
+    "file": "language/0929-type-directed-coercion.js",
+    "purpose": "Coerce form values using field-specific parser functions.",
+    "features": [
+      "destructuring",
+      "exceptions",
+      "closures"
+    ]
+  },
+  {
+    "id": 930,
+    "file": "language/0930-lexical-memoized-fib.js",
+    "purpose": "Memoize recursive Fibonacci calls within a private closure.",
+    "features": [
+      "closures",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 931,
+    "file": "language/0931-class-queue-capacity.js",
+    "purpose": "Enforce queue capacity and expose bounded drain batches.",
+    "features": [
+      "classes",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 932,
+    "file": "language/0932-conditional-resource-acquisition.js",
+    "purpose": "Release only resources that were successfully acquired.",
+    "features": [
+      "exceptions",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 933,
+    "file": "language/0933-embedded-filter-dsl.js",
+    "purpose": "Interpret field comparisons encoded as small filter objects.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 934,
+    "file": "language/0934-scoped-message-prefix.js",
+    "purpose": "Restore a message prefix after nested contextual logging.",
+    "features": [
+      "closures",
+      "finally",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 935,
+    "file": "language/0935-generator-zip-longest.js",
+    "purpose": "Zip unequal streams with a configurable fill value.",
+    "features": [
+      "generators",
+      "destructuring",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 936,
+    "file": "language/0936-class-configuration-clone.js",
+    "purpose": "Clone configured workers while retaining inherited execution methods.",
+    "features": [
+      "classes",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 937,
+    "file": "language/0937-transactional-map-edit.js",
+    "purpose": "Stage keyed edits before committing a validated record.",
+    "features": [
+      "closures",
+      "exceptions",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 938,
+    "file": "language/0938-default-context-arguments.js",
+    "purpose": "Combine request defaults with nested options and trailing labels.",
+    "features": [
+      "nested-destructuring",
+      "rest-parameters",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 939,
+    "file": "language/0939-closure-comparison-chain.js",
+    "purpose": "Build a stable multi-field comparator from ordered selector closures.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 940,
+    "file": "language/0940-labelled-bytecode-linker.js",
+    "purpose": "Link named branch labels into bytecode addresses and execute a countdown program.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "exceptions",
+      "closures"
+    ]
+  },
+  {
+    "id": 941,
+    "file": "language/0941-error-suppression-policy.js",
+    "purpose": "Suppress only selected errors while propagating other failures.",
+    "features": [
+      "classes",
+      "exceptions",
+      "closures"
+    ]
+  },
+  {
+    "id": 942,
+    "file": "language/0942-nested-command-batch.js",
+    "purpose": "Execute nested command batches with a shared accumulator.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 943,
+    "file": "language/0943-class-composition-service.js",
+    "purpose": "Compose a service from distinct storage and formatting collaborators.",
+    "features": [
+      "classes",
+      "destructuring",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 944,
+    "file": "language/0944-destructuring-sparse-input.js",
+    "purpose": "Parse sparse positional records with defaults and preserved tails.",
+    "features": [
+      "destructuring",
+      "default-initializers",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 945,
+    "file": "language/0945-lexical-lookup-chain.js",
+    "purpose": "Resolve identifiers through nested lexical scopes with explicit shadowing.",
+    "features": [
+      "classes",
+      "optional-chaining",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 946,
+    "file": "language/0946-custom-iterable-countdown.js",
+    "purpose": "Implement an iterator protocol with terminal state tracking.",
+    "features": [
+      "classes",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 947,
+    "file": "language/0947-closure-policy-audit.js",
+    "purpose": "Audit policy decisions while preserving a private rejection counter.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 948,
+    "file": "language/0948-generator-token-replay.js",
+    "purpose": "Replay the last token when a parser requests one step of backtracking.",
+    "features": [
+      "generators",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 949,
+    "file": "language/0949-method-extraction-guard.js",
+    "purpose": "Provide bound methods that remain usable after extraction.",
+    "features": [
+      "classes",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 950,
+    "file": "language/0950-evacuation-capacity-planner.js",
+    "purpose": "Allocate evacuation parties to a vehicle and clear temporary boarding reservations.",
+    "features": [
+      "exceptions",
+      "finally",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 951,
+    "file": "language/0951-class-record-equality.js",
+    "purpose": "Compare value objects and copy them with selective replacements.",
+    "features": [
+      "classes",
+      "destructuring",
+      "default-parameters"
+    ]
+  },
+  {
+    "id": 952,
+    "file": "language/0952-lazy-stop-predicate.js",
+    "purpose": "Stop a lazy stream before the first item violating a condition.",
+    "features": [
+      "generators",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 953,
+    "file": "language/0953-rest-object-redaction.js",
+    "purpose": "Redact sensitive record fields and derive a public summary.",
+    "features": [
+      "rest-spread",
+      "nested-destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 954,
+    "file": "language/0954-exception-aggregate-runner.js",
+    "purpose": "Run independent jobs and combine all their failures into one report.",
+    "features": [
+      "classes",
+      "exceptions",
+      "rest-parameters"
+    ]
+  },
+  {
+    "id": 955,
+    "file": "language/0955-scoped-builder-sections.js",
+    "purpose": "Build nested document sections with a captured current insertion target.",
+    "features": [
+      "closures",
+      "finally",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 956,
+    "file": "language/0956-table-projection-dsl.js",
+    "purpose": "Project table rows using field and computed-column definitions.",
+    "features": [
+      "destructuring",
+      "closures",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 957,
+    "file": "language/0957-lexical-dynamic-stack.js",
+    "purpose": "Model nested execution contexts with explicit push and pop cleanup.",
+    "features": [
+      "classes",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 958,
+    "file": "language/0958-class-command-history.js",
+    "purpose": "Record successful operations while omitting rejected commands from history.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 959,
+    "file": "language/0959-generator-bidirectional-filter.js",
+    "purpose": "Let a stream consumer choose the next acceptance threshold.",
+    "features": [
+      "generators",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 960,
+    "file": "language/0960-closures-over-destructured-values.js",
+    "purpose": "Capture destructured values before mutating the original records.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 961,
+    "file": "language/0961-nested-option-call-chain.js",
+    "purpose": "Invoke optional hooks in order and preserve falsy return values.",
+    "features": [
+      "optional-chaining",
+      "nullish-coalescing",
+      "closures"
+    ]
+  },
+  {
+    "id": 962,
+    "file": "language/0962-dsl-repeat-conditions.js",
+    "purpose": "Execute repeat and conditional commands in a small robot language.",
+    "features": [
+      "recursion",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 963,
+    "file": "language/0963-getter-lazy-cache.js",
+    "purpose": "Compute a derived class value once and invalidate it on mutation.",
+    "features": [
+      "classes",
+      "getters-setters",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 964,
+    "file": "language/0964-exception-location-stack.js",
+    "purpose": "Attach nested operation names to validation errors as they unwind.",
+    "features": [
+      "recursion",
+      "exceptions",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 965,
+    "file": "language/0965-generator-branch-expansion.js",
+    "purpose": "Lazily expand alternatives in a small sentence grammar.",
+    "features": [
+      "generators",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 966,
+    "file": "language/0966-rest-parameter-statistics.js",
+    "purpose": "Summarize variadic measurements and selectively omit extreme values.",
+    "features": [
+      "rest-parameters",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 967,
+    "file": "language/0967-class-reentrant-notifier.js",
+    "purpose": "Queue nested notifications until the current dispatch completes.",
+    "features": [
+      "classes",
+      "closures",
+      "finally"
+    ]
+  },
+  {
+    "id": 968,
+    "file": "language/0968-immutable-todo-reducer.js",
+    "purpose": "Apply toggle and rename edits to selected task records.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "closures"
+    ]
+  },
+  {
+    "id": 969,
+    "file": "language/0969-generator-nested-cleanup.js",
+    "purpose": "Close delegated iterators when the outer generator is terminated.",
+    "features": [
+      "generators",
+      "finally",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 970,
+    "file": "language/0970-lexical-namespace-modules.js",
+    "purpose": "Create isolated namespaces sharing only an explicit public interface.",
+    "features": [
+      "closures",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 971,
+    "file": "language/0971-exception-safe-sort-key.js",
+    "purpose": "Precompute sort keys and skip records with invalid key computations.",
+    "features": [
+      "closures",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 972,
+    "file": "language/0972-class-unit-converter.js",
+    "purpose": "Compose conversion steps between named units and reject unknown targets.",
+    "features": [
+      "classes",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 973,
+    "file": "language/0973-generator-multi-source-merge.js",
+    "purpose": "Merge sorted streams lazily using one buffered item per source.",
+    "features": [
+      "generators",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 974,
+    "file": "language/0974-closure-invalidation-cache.js",
+    "purpose": "Cache computed prices and invalidate a product after an update.",
+    "features": [
+      "closures",
+      "destructuring",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 975,
+    "file": "language/0975-meal-order-assembly.js",
+    "purpose": "Assemble variadic meal orders with addon stock checks and a combined bill.",
+    "features": [
+      "rest-parameters",
+      "rest-spread",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 976,
+    "file": "language/0976-class-result-combinator.js",
+    "purpose": "Chain fallible results while preserving an earlier failure.",
+    "features": [
+      "classes",
+      "closures",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 977,
+    "file": "language/0977-destructured-log-grouping.js",
+    "purpose": "Group event payloads while separating shared metadata from details.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 978,
+    "file": "language/0978-lexical-branch-local-results.js",
+    "purpose": "Produce branch-local result closures without leaking shadowed values.",
+    "features": [
+      "closures",
+      "lexical-scopes",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 979,
+    "file": "language/0979-exception-cleanup-report.js",
+    "purpose": "Retain both a task error and a cleanup error in an outcome report.",
+    "features": [
+      "exceptions",
+      "finally",
+      "closures"
+    ]
+  },
+  {
+    "id": 980,
+    "file": "language/0980-generator-cursor-seek.js",
+    "purpose": "Seek past lazy records until a named marker is encountered.",
+    "features": [
+      "generators",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 981,
+    "file": "language/0981-class-composite-tasks.js",
+    "purpose": "Compose task objects into a weighted executable task group.",
+    "features": [
+      "classes",
+      "rest-parameters",
+      "closures"
+    ]
+  },
+  {
+    "id": 982,
+    "file": "language/0982-closure-debounce-without-clock.js",
+    "purpose": "Coalesce submitted values until an explicit flush operation.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 983,
+    "file": "language/0983-destructuring-assignment-targets.js",
+    "purpose": "Assign unpacked values into nested receiver properties and array slots.",
+    "features": [
+      "destructuring",
+      "rest-spread",
+      "lexical-scopes"
+    ]
+  },
+  {
+    "id": 984,
+    "file": "language/0984-exception-fallback-cascade.js",
+    "purpose": "Try primary and backup operations while preserving both error messages.",
+    "features": [
+      "exceptions",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 985,
+    "file": "language/0985-generator-unique-by-key.js",
+    "purpose": "Yield the first representative of each key in a lazy record stream.",
+    "features": [
+      "generators",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 986,
+    "file": "language/0986-class-command-receiver.js",
+    "purpose": "Route operations to receiver methods while validating method availability.",
+    "features": [
+      "classes",
+      "optional-chaining",
+      "exceptions"
+    ]
+  },
+  {
+    "id": 987,
+    "file": "language/0987-sensor-calibration-snapshots.js",
+    "purpose": "Capture sensor calibration snapshots while retaining live monitoring against the current calibration.",
+    "features": [
+      "closures",
+      "lexical-scopes",
+      "destructuring",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 988,
+    "file": "language/0988-nested-pattern-validator.js",
+    "purpose": "Validate nested packet structures and collect field-specific messages.",
+    "features": [
+      "nested-destructuring",
+      "exceptions",
+      "default-initializers"
+    ]
+  },
+  {
+    "id": 989,
+    "file": "language/0989-generator-tail-summary.js",
+    "purpose": "Maintain a fixed-size tail while yielding prefix totals.",
+    "features": [
+      "generators",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 990,
+    "file": "language/0990-class-visitor-dispatch.js",
+    "purpose": "Dispatch visitor methods by node kind through a reusable class traversal.",
+    "features": [
+      "classes",
+      "recursion",
+      "optional-chaining"
+    ]
+  },
+  {
+    "id": 991,
+    "file": "language/0991-closure-step-controller.js",
+    "purpose": "Advance a workflow one action at a time with a private cursor.",
+    "features": [
+      "closures",
+      "destructuring",
+      "nullish-coalescing"
+    ]
+  },
+  {
+    "id": 992,
+    "file": "language/0992-finally-loop-accounting.js",
+    "purpose": "Account for every iteration despite continue and break statements.",
+    "features": [
+      "finally",
+      "lexical-scopes",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 993,
+    "file": "language/0993-rest-driven-dependency-injection.js",
+    "purpose": "Inject named services into operations using dependency lists.",
+    "features": [
+      "rest-parameters",
+      "destructuring",
+      "closures"
+    ]
+  },
+  {
+    "id": 994,
+    "file": "language/0994-class-snapshot-journal.js",
+    "purpose": "Keep detached snapshots of a changing class record.",
+    "features": [
+      "classes",
+      "rest-spread",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 995,
+    "file": "language/0995-generator-input-validation.js",
+    "purpose": "Validate consumer responses inside a suspended questionnaire.",
+    "features": [
+      "generators",
+      "exceptions",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 996,
+    "file": "language/0996-nested-scope-constants.js",
+    "purpose": "Capture block constants in a matrix of reusable cost evaluators.",
+    "features": [
+      "lexical-scopes",
+      "closures",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 997,
+    "file": "language/0997-exception-classification-report.js",
+    "purpose": "Classify multiple parsing outcomes by error constructor.",
+    "features": [
+      "classes",
+      "exceptions",
+      "closures"
+    ]
+  },
+  {
+    "id": 998,
+    "file": "language/0998-composed-record-normalizers.js",
+    "purpose": "Compose record normalizers while preserving extra fields.",
+    "features": [
+      "closures",
+      "rest-parameters",
+      "rest-spread"
+    ]
+  },
+  {
+    "id": 999,
+    "file": "language/0999-generator-directed-walk.js",
+    "purpose": "Let a consumer prune a lazy tree traversal before descending.",
+    "features": [
+      "generators",
+      "recursion",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 1000,
+    "file": "language/1000-class-workflow-orchestrator.js",
+    "purpose": "Run a composed workflow with context updates and final cleanup.",
+    "features": [
+      "classes",
+      "exceptions",
+      "finally",
+      "rest-spread"
+    ]
+  }
+]

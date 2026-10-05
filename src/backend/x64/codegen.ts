@@ -146,11 +146,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
     if(!options.callStats){baseImages.set(baseKey,image);options.baseCache?.set(baseKey,image);}
   }
-  for(const name of module.globalFunctionProperties??[]){
-    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
-    if(!property)throw new Error('Missing intrinsic global property '+name);
-    property.bytes[P.attributes]=A.writable|A.enumerable;
-  }
   fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
   const globalProperties=module.globalProperties??[];
   const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
@@ -704,7 +699,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
   entry.mov('rax',module.globalCount);entry.store({rip:'rt.gcGlobalCount'},'rax');
   entry.lea('rax',{rip:'js.globalBindings'});entry.store({rip:'rt.globalBindings'},'rax');
-  entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
+  // Preludes install built-ins before script declaration aliases become visible.
+  entry.mov('rax',0);entry.store({rip:'rt.globalBindingCount'},'rax');
   for(const base of hostGlobals){
     entry.lea('rcx',{rip:'rt.globalValue'});entry.lea('rdx',{rip:base+'.keyValue'});entry.lea('r8',{rip:base+'.fnValue'});
     entry.mov('r9',A.writable|A.configurable);entry.call('rt.setProperty');
@@ -719,6 +715,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   };
   callArguments();
   if(hasPrelude){entry.call('js.regexpVm.main');callArguments();}
+  entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
   entry.call('js.main');
   if(hasPrelude)drain();
   if(options.agent){

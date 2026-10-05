@@ -60,3 +60,5 @@ Exécution complète de Test262 figé sous Windows x64 (fonctionnalités d’ES2
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Les échecs « `eval` » utilisent un texte source calculé à l’exécution, `$262.evalScript` ou d’autres realms ; les tests de « sémantique plus récente » vérifient un comportement issu d’éditions ultérieures sous une étiquette de fonctionnalité ancienne ou absente. La [page d’état](/fr/guide/status) liste les échecs restants.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

@@ -1,0 +1,10 @@
+const before = {a:2,b:4,c:7};
+const after = {b:5,c:7,d:9};
+const oldKeys = new Set(Object.keys(before));
+const newKeys = new Set(Object.keys(after));
+const added = Array.from(newKeys).filter(key => !oldKeys.has(key));
+const removed = Array.from(oldKeys).filter(key => !newKeys.has(key));
+const changed = Array.from(newKeys).filter(key => oldKeys.has(key) && before[key] !== after[key]);
+const report = {added,removed,changed};
+const count = added.length + removed.length + changed.length;
+console.log(JSON.stringify([report,count]));

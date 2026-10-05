@@ -1,0 +1,1818 @@
+[
+  {
+    "id": 506,
+    "file": "async/0506-shipment-dependencies.js",
+    "purpose": "Release a shipment only after packing and labeling prerequisites complete.",
+    "features": [
+      "async-await",
+      "Promise.all",
+      "Set",
+      "object-properties"
+    ]
+  },
+  {
+    "id": 507,
+    "file": "async/0507-warehouse-reservation.js",
+    "purpose": "Reserve stock across orders and reject shortages without changing inventory.",
+    "features": [
+      "async-await",
+      "Map",
+      "try-catch",
+      "arrays"
+    ]
+  },
+  {
+    "id": 508,
+    "file": "async/0508-payment-compensation.js",
+    "purpose": "Undo a captured payment when a downstream ticket allocation fails.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "closures",
+      "array-reverse"
+    ]
+  },
+  {
+    "id": 509,
+    "file": "async/0509-document-version-conflict.js",
+    "purpose": "Detect a stale document edit after another asynchronous edit commits.",
+    "features": [
+      "async-await",
+      "object-spread",
+      "try-catch",
+      "closures"
+    ]
+  },
+  {
+    "id": 510,
+    "file": "async/0510-sensor-running-average.js",
+    "purpose": "Consume asynchronous sensor readings and emit each running average.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "arithmetic",
+      "arrays"
+    ]
+  },
+  {
+    "id": 511,
+    "file": "async/0511-search-first-success.js",
+    "purpose": "Select the first successful search provider despite an earlier rejection.",
+    "features": [
+      "Promise.any",
+      "Promise.reject",
+      "async-await",
+      "objects"
+    ]
+  },
+  {
+    "id": 512,
+    "file": "async/0512-invoice-retry-policy.js",
+    "purpose": "Retry transient invoice submission failures and record the attempt count.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "while-loop",
+      "closure-state"
+    ]
+  },
+  {
+    "id": 513,
+    "file": "async/0513-mailbox-cancel-between-pages.js",
+    "purpose": "Stop a paginated mailbox scan after a cancellation flag is set.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "break",
+      "finally"
+    ]
+  },
+  {
+    "id": 514,
+    "file": "async/0514-microtask-audit-order.js",
+    "purpose": "Record nested promise callbacks relative to synchronous audit events.",
+    "features": [
+      "Promise.then",
+      "async-await",
+      "array-push",
+      "closures"
+    ]
+  },
+  {
+    "id": 515,
+    "file": "async/0515-cache-inflight-deduplication.js",
+    "purpose": "Share one in-flight customer lookup between concurrent callers.",
+    "features": [
+      "Map",
+      "Promise.all",
+      "async-await",
+      "finally"
+    ]
+  },
+  {
+    "id": 516,
+    "file": "async/0516-build-topological-layers.js",
+    "purpose": "Build logical dependency layers and verify every artifact is available.",
+    "features": [
+      "Map",
+      "Set",
+      "Promise.all",
+      "array-filter"
+    ]
+  },
+  {
+    "id": 517,
+    "file": "async/0517-batch-import-settlements.js",
+    "purpose": "Report accepted and rejected rows from a parallel import batch.",
+    "features": [
+      "Promise.allSettled",
+      "async-await",
+      "array-map",
+      "throw"
+    ]
+  },
+  {
+    "id": 518,
+    "file": "async/0518-lease-finally-release.js",
+    "purpose": "Release an exclusive lease even when the protected operation rejects.",
+    "features": [
+      "async-await",
+      "try-finally",
+      "Promise.reject",
+      "boolean-state"
+    ]
+  },
+  {
+    "id": 519,
+    "file": "async/0519-checksum-async-chunks.js",
+    "purpose": "Calculate a rolling checksum from asynchronous byte chunks.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "bitwise-xor",
+      "nested-loops"
+    ]
+  },
+  {
+    "id": 520,
+    "file": "async/0520-race-primary-replica.js",
+    "purpose": "Race a primary record lookup against a deliberately deeper replica chain.",
+    "features": [
+      "Promise.race",
+      "Promise.then",
+      "async-await",
+      "objects"
+    ]
+  },
+  {
+    "id": 521,
+    "file": "async/0521-priority-triage.js",
+    "purpose": "Process asynchronous support jobs by urgency with stable tie breaking.",
+    "features": [
+      "array-sort",
+      "async-await",
+      "destructuring",
+      "array-shift"
+    ]
+  },
+  {
+    "id": 522,
+    "file": "async/0522-async-fold-cart.js",
+    "purpose": "Fold cart lines through an awaited subtotal computation.",
+    "features": [
+      "async-await",
+      "array-reduce",
+      "Promise.resolve",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 523,
+    "file": "async/0523-rejected-thenable-assimilation.js",
+    "purpose": "Assimilate an external thenable rejection and normalize its error.",
+    "features": [
+      "thenable",
+      "Promise.resolve",
+      "try-catch",
+      "string-methods"
+    ]
+  },
+  {
+    "id": 524,
+    "file": "async/0524-sequential-token-refresh.js",
+    "purpose": "Refresh a token once before retrying an authorized request.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "object-mutation",
+      "closure-state"
+    ]
+  },
+  {
+    "id": 525,
+    "file": "async/0525-tournament-bracket.js",
+    "purpose": "Resolve a knockout tournament by asynchronously comparing team strengths.",
+    "features": [
+      "async-await",
+      "Promise.all",
+      "nested-arrays",
+      "array-map"
+    ]
+  },
+  {
+    "id": 526,
+    "file": "async/0526-async-generator-return-value.js",
+    "purpose": "Read an async generator completion summary alongside its yielded records.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "while-loop",
+      "objects"
+    ]
+  },
+  {
+    "id": 527,
+    "file": "async/0527-transaction-savepoint.js",
+    "purpose": "Restore a savepoint after a failed discount while preserving earlier basket edits.",
+    "features": [
+      "async-await",
+      "array-slice",
+      "try-catch",
+      "objects"
+    ]
+  },
+  {
+    "id": 528,
+    "file": "async/0528-error-cause-pipeline.js",
+    "purpose": "Propagate a decoding failure through a contextual asynchronous pipeline.",
+    "features": [
+      "async-await",
+      "Error-cause",
+      "try-catch",
+      "JSON-parse"
+    ]
+  },
+  {
+    "id": 529,
+    "file": "async/0529-bounded-window-requests.js",
+    "purpose": "Process page requests in bounded windows and preserve input positions.",
+    "features": [
+      "Promise.all",
+      "array-slice",
+      "async-await",
+      "array-spread"
+    ]
+  },
+  {
+    "id": 530,
+    "file": "async/0530-lazy-range-take.js",
+    "purpose": "Take a prefix from a lazy asynchronous range and verify generator cleanup.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "finally",
+      "break"
+    ]
+  },
+  {
+    "id": 531,
+    "file": "async/0531-promise-finally-value-preservation.js",
+    "purpose": "Confirm fulfillment survives asynchronous cleanup while cleanup rejection overrides it.",
+    "features": [
+      "Promise.finally",
+      "Promise.allSettled",
+      "Promise.then",
+      "arrays"
+    ]
+  },
+  {
+    "id": 532,
+    "file": "async/0532-deferred-approval-gate.js",
+    "purpose": "Hold publication behind a manually resolved promise approval gate.",
+    "features": [
+      "Promise-constructor",
+      "closures",
+      "async-await",
+      "Promise.then"
+    ]
+  },
+  {
+    "id": 533,
+    "file": "async/0533-allsettled-quorum.js",
+    "purpose": "Accept a replicated write only if enough asynchronous replicas acknowledge it.",
+    "features": [
+      "Promise.allSettled",
+      "array-filter",
+      "async-await",
+      "conditional"
+    ]
+  },
+  {
+    "id": 534,
+    "file": "async/0534-nested-await-expression.js",
+    "purpose": "Compute an invoice with nested awaits in arithmetic and conditional expressions.",
+    "features": [
+      "async-await",
+      "arithmetic",
+      "conditional",
+      "template-literal"
+    ]
+  },
+  {
+    "id": 535,
+    "file": "async/0535-reentrant-lock-tail.js",
+    "purpose": "Serialize bank transfers through a promise tail and maintain a balance audit.",
+    "features": [
+      "Promise.then",
+      "closures",
+      "async-await",
+      "arrays"
+    ]
+  },
+  {
+    "id": 536,
+    "file": "async/0536-async-zip-streams.js",
+    "purpose": "Zip separate asynchronous price and quantity streams into line totals.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "Promise.all",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 537,
+    "file": "async/0537-windowed-moving-max.js",
+    "purpose": "Maintain a sliding maximum while consuming asynchronous temperature readings.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-shift",
+      "Math.max"
+    ]
+  },
+  {
+    "id": 538,
+    "file": "async/0538-async-flatten-playlists.js",
+    "purpose": "Flatten nested asynchronously obtained playlists while retaining collection names.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "nested-loops",
+      "template-literal"
+    ]
+  },
+  {
+    "id": 539,
+    "file": "async/0539-log-line-boundaries.js",
+    "purpose": "Reassemble lines split across asynchronous text chunks.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "string-split",
+      "array-pop"
+    ]
+  },
+  {
+    "id": 540,
+    "file": "async/0540-async-distinct-categories.js",
+    "purpose": "Emit each category only once from an asynchronous event stream.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Set",
+      "conditional"
+    ]
+  },
+  {
+    "id": 541,
+    "file": "async/0541-async-page-cursor.js",
+    "purpose": "Follow opaque cursors through a deterministic paginated catalog.",
+    "features": [
+      "async-await",
+      "Map",
+      "while-loop",
+      "object-destructuring"
+    ]
+  },
+  {
+    "id": 542,
+    "file": "async/0542-cyclic-job-detection.js",
+    "purpose": "Report blocked tasks when a dependency graph contains a cycle.",
+    "features": [
+      "Map",
+      "Set",
+      "async-await",
+      "array-every"
+    ]
+  },
+  {
+    "id": 543,
+    "file": "async/0543-async-depth-first-folders.js",
+    "purpose": "Traverse a folder tree asynchronously in depth-first preorder.",
+    "features": [
+      "async-recursion",
+      "Map",
+      "for-of",
+      "arrays"
+    ]
+  },
+  {
+    "id": 544,
+    "file": "async/0544-async-breadth-first-links.js",
+    "purpose": "Traverse linked records breadth-first without revisiting shared targets.",
+    "features": [
+      "async-await",
+      "Map",
+      "Set",
+      "array-shift"
+    ]
+  },
+  {
+    "id": 545,
+    "file": "async/0545-async-recursive-tree-total.js",
+    "purpose": "Aggregate weighted tree nodes through asynchronous recursive child evaluation.",
+    "features": [
+      "async-recursion",
+      "Promise.all",
+      "array-reduce",
+      "objects"
+    ]
+  },
+  {
+    "id": 546,
+    "file": "async/0546-retry-budget-distribution.js",
+    "purpose": "Spend a shared retry budget across transiently failing service operations.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "Map",
+      "while-loop"
+    ]
+  },
+  {
+    "id": 547,
+    "file": "async/0547-retry-error-classification.js",
+    "purpose": "Retry busy responses but stop immediately on validation errors.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "object-properties",
+      "for-loop"
+    ]
+  },
+  {
+    "id": 548,
+    "file": "async/0548-circuit-breaker-states.js",
+    "purpose": "Open a circuit after consecutive failures and close it after a successful probe.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "object-mutation",
+      "array-push"
+    ]
+  },
+  {
+    "id": 549,
+    "file": "async/0549-idempotent-message-delivery.js",
+    "purpose": "Suppress duplicate asynchronous delivery requests with receipt tracking.",
+    "features": [
+      "async-await",
+      "Set",
+      "Map",
+      "conditional"
+    ]
+  },
+  {
+    "id": 550,
+    "file": "async/0550-staged-config-validation.js",
+    "purpose": "Validate all configuration sections before committing the combined configuration.",
+    "features": [
+      "Promise.allSettled",
+      "async-await",
+      "Object.entries",
+      "array-every"
+    ]
+  },
+  {
+    "id": 551,
+    "file": "async/0551-async-partition-orders.js",
+    "purpose": "Partition asynchronously scored orders into fast and manual processing groups.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "array-reduce",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 552,
+    "file": "async/0552-cargo-container-packing.js",
+    "purpose": "Allocate asynchronous cargo declarations to capacity-limited containers while separating hazardous loads.",
+    "features": [
+      "async-await",
+      "Map",
+      "array-find",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 553,
+    "file": "async/0553-coupon-budget-allocation.js",
+    "purpose": "Allocate a limited coupon budget to eligible customer orders in descending value order.",
+    "features": [
+      "Promise.all",
+      "array-sort",
+      "async-await",
+      "conditional"
+    ]
+  },
+  {
+    "id": 554,
+    "file": "async/0554-promise-handler-recovery.js",
+    "purpose": "Recover a rejected parsing chain and resume its downstream transformation.",
+    "features": [
+      "Promise.catch",
+      "Promise.then",
+      "JSON-parse",
+      "object-properties"
+    ]
+  },
+  {
+    "id": 555,
+    "file": "async/0555-promise-handler-throw-propagation.js",
+    "purpose": "Carry a thrown validation error through fulfillment-only handlers to a catch.",
+    "features": [
+      "Promise.then",
+      "Promise.catch",
+      "throw",
+      "arrays"
+    ]
+  },
+  {
+    "id": 556,
+    "file": "async/0556-staff-skill-assignment.js",
+    "purpose": "Assign asynchronous service requests to available staff with matching skills and minimum current load.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-filter",
+      "array-sort"
+    ]
+  },
+  {
+    "id": 557,
+    "file": "async/0557-train-connection-validation.js",
+    "purpose": "Evaluate asynchronous train itineraries for station continuity and minimum transfer time.",
+    "features": [
+      "Promise.all",
+      "nested-loops",
+      "object-properties",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 558,
+    "file": "async/0558-aggregate-provider-errors.js",
+    "purpose": "Inspect aggregate errors when every asynchronous provider fails.",
+    "features": [
+      "Promise.any",
+      "AggregateError",
+      "try-catch",
+      "array-map"
+    ]
+  },
+  {
+    "id": 559,
+    "file": "async/0559-thenable-property-access.js",
+    "purpose": "Track thenable getter access and delayed resolution during promise assimilation.",
+    "features": [
+      "getter",
+      "thenable",
+      "Promise.resolve",
+      "Promise.then"
+    ]
+  },
+  {
+    "id": 560,
+    "file": "async/0560-async-method-this.js",
+    "purpose": "Preserve instance state through awaited asynchronous method calls.",
+    "features": [
+      "class",
+      "async-method",
+      "this",
+      "Promise.all"
+    ]
+  },
+  {
+    "id": 561,
+    "file": "async/0561-async-private-ledger.js",
+    "purpose": "Update private account balances through an asynchronous class API.",
+    "features": [
+      "class-private-field",
+      "async-method",
+      "getter",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 562,
+    "file": "async/0562-async-generator-delegation.js",
+    "purpose": "Delegate asynchronous iteration to nested segment generators.",
+    "features": [
+      "async-generator",
+      "yield-star",
+      "for-await-of",
+      "arrays"
+    ]
+  },
+  {
+    "id": 563,
+    "file": "async/0563-async-generator-injected-error.js",
+    "purpose": "Inject an error into a suspended async generator and observe recovery.",
+    "features": [
+      "async-generator",
+      "iterator-throw",
+      "try-catch",
+      "iterator-next"
+    ]
+  },
+  {
+    "id": 564,
+    "file": "async/0564-async-iterator-return-cleanup.js",
+    "purpose": "Close an asynchronous iterator explicitly and observe its completion value.",
+    "features": [
+      "async-generator",
+      "iterator-return",
+      "try-finally",
+      "iterator-next"
+    ]
+  },
+  {
+    "id": 565,
+    "file": "async/0565-sync-iterable-promise-unwrapping.js",
+    "purpose": "Unwrap promises yielded by a synchronous iterable using for-await.",
+    "features": [
+      "generator",
+      "for-await-of",
+      "Promise.resolve",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 566,
+    "file": "async/0566-async-product-join.js",
+    "purpose": "Join asynchronously loaded stock counts with product prices by SKU.",
+    "features": [
+      "Promise.all",
+      "Map",
+      "async-await",
+      "array-map"
+    ]
+  },
+  {
+    "id": 567,
+    "file": "async/0567-async-left-join-profiles.js",
+    "purpose": "Retain users lacking asynchronous profile matches in a left join.",
+    "features": [
+      "Promise.all",
+      "Map",
+      "nullish-coalescing",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 568,
+    "file": "async/0568-async-group-sales.js",
+    "purpose": "Group asynchronously normalized sales by region and compute totals.",
+    "features": [
+      "async-await",
+      "Map",
+      "string-toLowerCase",
+      "array-destructuring"
+    ]
+  },
+  {
+    "id": 569,
+    "file": "async/0569-async-median-inspection.js",
+    "purpose": "Evaluate asynchronous sample measurements and report the sorted median.",
+    "features": [
+      "Promise.all",
+      "array-sort",
+      "async-await",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 570,
+    "file": "async/0570-async-histogram-buckets.js",
+    "purpose": "Place asynchronous latency samples into deterministic histogram buckets.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Map",
+      "Math.floor"
+    ]
+  },
+  {
+    "id": 571,
+    "file": "async/0571-async-run-length-encoding.js",
+    "purpose": "Encode adjacent equal asynchronous symbols as counted runs.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-at",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 572,
+    "file": "async/0572-async-balanced-delimiters.js",
+    "purpose": "Validate bracket nesting across asynchronously delivered text fragments.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-pop",
+      "Map"
+    ]
+  },
+  {
+    "id": 573,
+    "file": "async/0573-async-word-frequency.js",
+    "purpose": "Count normalized words from asynchronous paragraphs.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "string-split",
+      "Map"
+    ]
+  },
+  {
+    "id": 574,
+    "file": "async/0574-async-merge-sorted-streams.js",
+    "purpose": "Merge two independently awaited sorted streams without collecting them first.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "while-loop",
+      "conditional"
+    ]
+  },
+  {
+    "id": 575,
+    "file": "async/0575-async-filter-map-chain.js",
+    "purpose": "Compose asynchronous filtering and transformation over a source stream.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "yield",
+      "modulo"
+    ]
+  },
+  {
+    "id": 576,
+    "file": "async/0576-async-chunk-tail.js",
+    "purpose": "Group asynchronous records into fixed batches while retaining a partial final batch.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-reset",
+      "conditional"
+    ]
+  },
+  {
+    "id": 577,
+    "file": "async/0577-async-sentinel-stop.js",
+    "purpose": "Stop decoding an asynchronous protocol stream at an end sentinel.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "break",
+      "string-slice"
+    ]
+  },
+  {
+    "id": 578,
+    "file": "async/0578-async-lookahead-parser.js",
+    "purpose": "Use one record of lookahead to combine heading and body tokens.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "while-loop",
+      "string-concatenation"
+    ]
+  },
+  {
+    "id": 579,
+    "file": "async/0579-async-state-machine-handshake.js",
+    "purpose": "Advance a protocol handshake only on valid asynchronous messages.",
+    "features": [
+      "async-await",
+      "Map",
+      "object-properties",
+      "throw"
+    ]
+  },
+  {
+    "id": 580,
+    "file": "async/0580-async-resumable-upload.js",
+    "purpose": "Resume a multipart upload by skipping chunks already acknowledged.",
+    "features": [
+      "async-await",
+      "Set",
+      "for-loop",
+      "array-push"
+    ]
+  },
+  {
+    "id": 581,
+    "file": "async/0581-async-upload-hash-verification.js",
+    "purpose": "Reject an asynchronously reconstructed payload when its expected checksum differs.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "charCodeAt",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 582,
+    "file": "async/0582-async-two-phase-commit.js",
+    "purpose": "Prepare multiple participants and commit only after every preparation succeeds.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "object-mutation",
+      "array-map"
+    ]
+  },
+  {
+    "id": 583,
+    "file": "async/0583-async-two-phase-abort.js",
+    "purpose": "Abort prepared participants when another preparation is rejected.",
+    "features": [
+      "Promise.allSettled",
+      "async-await",
+      "try-catch",
+      "array-filter"
+    ]
+  },
+  {
+    "id": 584,
+    "file": "async/0584-async-outbox-commit.js",
+    "purpose": "Publish pending outbox messages only after a domain transaction commits.",
+    "features": [
+      "async-await",
+      "array-splice",
+      "object-mutation",
+      "for-of"
+    ]
+  },
+  {
+    "id": 585,
+    "file": "async/0585-async-event-replay.js",
+    "purpose": "Rebuild account state by applying an asynchronous journal in sequence.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "switch",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 586,
+    "file": "async/0586-async-booking-conflict.js",
+    "purpose": "Detect overlapping booking intervals before accepting an awaited reservation.",
+    "features": [
+      "async-await",
+      "array-some",
+      "object-properties",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 587,
+    "file": "async/0587-async-escrow-release.js",
+    "purpose": "Release escrow in installments only after asynchronous milestone approval.",
+    "features": [
+      "async-await",
+      "object-mutation",
+      "conditional",
+      "array-push"
+    ]
+  },
+  {
+    "id": 588,
+    "file": "async/0588-async-workflow-suspension.js",
+    "purpose": "Suspend an approval workflow and resume it with a supplied review decision.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "conditional",
+      "objects"
+    ]
+  },
+  {
+    "id": 589,
+    "file": "async/0589-async-incremental-index.js",
+    "purpose": "Build an inverted index from asynchronous document arrivals.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Map",
+      "Set"
+    ]
+  },
+  {
+    "id": 590,
+    "file": "async/0590-async-cache-negative-result.js",
+    "purpose": "Cache absent lookup results using explicit presence checks.",
+    "features": [
+      "async-await",
+      "Map",
+      "closure-state",
+      "undefined"
+    ]
+  },
+  {
+    "id": 591,
+    "file": "async/0591-async-lru-refresh.js",
+    "purpose": "Refresh least-recently-used cache order after awaited reads and evict the oldest key.",
+    "features": [
+      "async-await",
+      "Map",
+      "iterator-next",
+      "array-from"
+    ]
+  },
+  {
+    "id": 592,
+    "file": "async/0592-async-memoized-recursion.js",
+    "purpose": "Memoize asynchronous Fibonacci subproblems as promises.",
+    "features": [
+      "async-recursion",
+      "Map",
+      "Promise.all",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 593,
+    "file": "async/0593-async-keyed-lock.js",
+    "purpose": "Serialize work per resource while allowing independent resource chains.",
+    "features": [
+      "Map",
+      "Promise.then",
+      "Promise.all",
+      "closure-state"
+    ]
+  },
+  {
+    "id": 594,
+    "file": "async/0594-async-keyed-lock-recovery.js",
+    "purpose": "Keep a resource chain usable after a rejected exclusive operation.",
+    "features": [
+      "Promise.catch",
+      "Promise.then",
+      "try-catch",
+      "async-await"
+    ]
+  },
+  {
+    "id": 595,
+    "file": "async/0595-async-round-robin-tenants.js",
+    "purpose": "Service tenant job lists in logical round-robin order.",
+    "features": [
+      "async-await",
+      "Map",
+      "nested-loops",
+      "array-shift"
+    ]
+  },
+  {
+    "id": 596,
+    "file": "async/0596-logical-token-bucket.js",
+    "purpose": "Refill logical admission tokens per tick and admit only affordable requests.",
+    "features": [
+      "async-await",
+      "Math.min",
+      "object-mutation",
+      "for-of"
+    ]
+  },
+  {
+    "id": 597,
+    "file": "async/0597-deadline-admission.js",
+    "purpose": "Reject logically expired jobs before awaiting their computation.",
+    "features": [
+      "async-await",
+      "array-sort",
+      "conditional",
+      "object-properties"
+    ]
+  },
+  {
+    "id": 598,
+    "file": "async/0598-weighted-fair-work.js",
+    "purpose": "Choose tenant work using normalized service totals and tenant weights.",
+    "features": [
+      "async-await",
+      "array-sort",
+      "object-mutation",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 599,
+    "file": "async/0599-logical-backoff-calendar.js",
+    "purpose": "Schedule retry attempts on a logical exponential backoff calendar.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "exponentiation",
+      "array-push"
+    ]
+  },
+  {
+    "id": 600,
+    "file": "async/0600-cooperative-yield-partitions.js",
+    "purpose": "Yield between partitions of a computation so a peer microtask can run.",
+    "features": [
+      "async-await",
+      "Promise.then",
+      "array-push",
+      "for-loop"
+    ]
+  },
+  {
+    "id": 601,
+    "file": "async/0601-cancelled-transaction-rollback.js",
+    "purpose": "Roll back a partially applied transfer when cancellation arrives between awaits.",
+    "features": [
+      "async-await",
+      "Promise.then",
+      "try-catch",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 602,
+    "file": "async/0602-cancellation-listener-removal.js",
+    "purpose": "Remove a cancellation listener after an asynchronous operation completes.",
+    "features": [
+      "Set",
+      "closures",
+      "async-await",
+      "finally"
+    ]
+  },
+  {
+    "id": 603,
+    "file": "async/0603-parent-child-cancellation.js",
+    "purpose": "Propagate cancellation from a parent scope to multiple child operations.",
+    "features": [
+      "async-await",
+      "Promise.all",
+      "object-mutation",
+      "array-map"
+    ]
+  },
+  {
+    "id": 604,
+    "file": "async/0604-multipart-payload-assembly.js",
+    "purpose": "Assemble out-of-order asynchronous payload parts and reject conflicting duplicate parts.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Map",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 605,
+    "file": "async/0605-versioned-profile-migration.js",
+    "purpose": "Migrate asynchronously loaded profile rows through successive schema versions.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "while-loop",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 606,
+    "file": "async/0606-async-parameter-defaults.js",
+    "purpose": "Evaluate default arguments before an asynchronous function suspends.",
+    "features": [
+      "async-function",
+      "default-parameters",
+      "closure-state",
+      "Promise.all"
+    ]
+  },
+  {
+    "id": 607,
+    "file": "async/0607-async-rest-aggregation.js",
+    "purpose": "Aggregate arbitrary asynchronous arguments through an async rest-parameter function.",
+    "features": [
+      "async-function",
+      "rest-parameters",
+      "Promise.all",
+      "array-reduce"
+    ]
+  },
+  {
+    "id": 608,
+    "file": "async/0608-async-destructured-profile.js",
+    "purpose": "Apply destructuring defaults to an asynchronously obtained profile.",
+    "features": [
+      "async-await",
+      "object-destructuring",
+      "default-values",
+      "template-literal"
+    ]
+  },
+  {
+    "id": 609,
+    "file": "async/0609-async-super-call.js",
+    "purpose": "Invoke an asynchronous base-class method from an overriding method.",
+    "features": [
+      "class-extends",
+      "super",
+      "async-method",
+      "template-literal"
+    ]
+  },
+  {
+    "id": 610,
+    "file": "async/0610-async-static-factory.js",
+    "purpose": "Construct a validated instance through an asynchronous static factory.",
+    "features": [
+      "class-static-method",
+      "async-await",
+      "constructor",
+      "throw"
+    ]
+  },
+  {
+    "id": 611,
+    "file": "async/0611-async-symbol-iterator.js",
+    "purpose": "Consume a hand-written object implementing the async iterator protocol.",
+    "features": [
+      "Symbol.asyncIterator",
+      "async-method",
+      "objects",
+      "for-await-of"
+    ]
+  },
+  {
+    "id": 612,
+    "file": "async/0612-async-iterator-error-cleanup.js",
+    "purpose": "Close a custom asynchronous iterator when its consumer throws.",
+    "features": [
+      "Symbol.asyncIterator",
+      "async-method",
+      "try-catch",
+      "iterator-return"
+    ]
+  },
+  {
+    "id": 613,
+    "file": "async/0613-async-generator-queued-next.js",
+    "purpose": "Queue multiple next calls before awaiting an async generator.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "Promise.all",
+      "closure-state"
+    ]
+  },
+  {
+    "id": 614,
+    "file": "async/0614-async-generator-send-values.js",
+    "purpose": "Send increments back into an asynchronous accumulator generator.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "yield-expression",
+      "arithmetic"
+    ]
+  },
+  {
+    "id": 615,
+    "file": "async/0615-backup-retention-policy.js",
+    "purpose": "Retain the latest backup and one backup per older epoch while respecting pinned snapshots.",
+    "features": [
+      "async-await",
+      "array-sort",
+      "Set",
+      "conditional"
+    ]
+  },
+  {
+    "id": 616,
+    "file": "async/0616-async-optional-hooks.js",
+    "purpose": "Invoke optional asynchronous lifecycle hooks with a fallback outcome.",
+    "features": [
+      "optional-chaining",
+      "nullish-coalescing",
+      "async-await",
+      "objects"
+    ]
+  },
+  {
+    "id": 617,
+    "file": "async/0617-async-computed-property-name.js",
+    "purpose": "Create object properties using asynchronously computed names and values.",
+    "features": [
+      "async-await",
+      "computed-property",
+      "object-spread",
+      "Object.keys"
+    ]
+  },
+  {
+    "id": 618,
+    "file": "async/0618-async-binary-search.js",
+    "purpose": "Locate a target with asynchronously fetched array elements.",
+    "features": [
+      "async-await",
+      "while-loop",
+      "Math.floor",
+      "comparison"
+    ]
+  },
+  {
+    "id": 619,
+    "file": "async/0619-async-shortest-path.js",
+    "purpose": "Relax weighted edges using asynchronous cost retrieval in a shortest-path search.",
+    "features": [
+      "async-await",
+      "Map",
+      "Set",
+      "array-sort"
+    ]
+  },
+  {
+    "id": 620,
+    "file": "async/0620-async-union-find.js",
+    "purpose": "Connect asynchronously supplied component edges with path compression.",
+    "features": [
+      "async-await",
+      "Map",
+      "recursion",
+      "for-of"
+    ]
+  },
+  {
+    "id": 621,
+    "file": "async/0621-crash-journal-recovery.js",
+    "purpose": "Recover only committed journal transactions, suppress duplicate commits, and discard incomplete preparations.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Map",
+      "Set",
+      "transaction-state"
+    ]
+  },
+  {
+    "id": 622,
+    "file": "async/0622-async-knapsack.js",
+    "purpose": "Solve a bounded-capacity selection problem with asynchronously supplied item weights.",
+    "features": [
+      "async-await",
+      "reverse-loop",
+      "Math.max",
+      "object-destructuring"
+    ]
+  },
+  {
+    "id": 623,
+    "file": "async/0623-async-grid-flood-fill.js",
+    "purpose": "Flood connected grid cells with asynchronous neighbor examination.",
+    "features": [
+      "async-await",
+      "Set",
+      "array-shift",
+      "nested-arrays"
+    ]
+  },
+  {
+    "id": 624,
+    "file": "async/0624-async-polynomial-evaluation.js",
+    "purpose": "Evaluate a polynomial using awaited coefficients and Horner recurrence.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "arithmetic",
+      "array-push"
+    ]
+  },
+  {
+    "id": 625,
+    "file": "async/0625-async-rational-normalization.js",
+    "purpose": "Normalize asynchronously received fraction pairs using Euclidean reduction.",
+    "features": [
+      "async-await",
+      "while-loop",
+      "modulo",
+      "array-map"
+    ]
+  },
+  {
+    "id": 626,
+    "file": "async/0626-async-interval-union.js",
+    "purpose": "Combine overlapping asynchronous range records into a minimal interval union.",
+    "features": [
+      "Promise.all",
+      "array-sort",
+      "object-mutation",
+      "array-at"
+    ]
+  },
+  {
+    "id": 627,
+    "file": "async/0627-async-insertion-sort.js",
+    "purpose": "Sort incoming asynchronous values by inserting each into its ordered position.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-splice",
+      "while-loop"
+    ]
+  },
+  {
+    "id": 628,
+    "file": "async/0628-async-top-k-scores.js",
+    "purpose": "Retain only the highest three scores from an asynchronous leaderboard stream.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-sort",
+      "array-pop"
+    ]
+  },
+  {
+    "id": 629,
+    "file": "async/0629-async-prefix-sum-query.js",
+    "purpose": "Build a prefix-sum index from asynchronous measurements and answer range queries.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "array-at",
+      "destructuring"
+    ]
+  },
+  {
+    "id": 630,
+    "file": "async/0630-async-matrix-product.js",
+    "purpose": "Calculate matrix rows in parallel with asynchronous dot products.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "nested-arrays",
+      "array-reduce"
+    ]
+  },
+  {
+    "id": 631,
+    "file": "async/0631-async-permutation-validation.js",
+    "purpose": "Validate that asynchronous position assignments form a complete permutation.",
+    "features": [
+      "Promise.all",
+      "Set",
+      "array-every",
+      "throw"
+    ]
+  },
+  {
+    "id": 632,
+    "file": "async/0632-async-rle-decoder.js",
+    "purpose": "Expand asynchronously fetched run records into a decoded symbol sequence.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "string-repeat",
+      "object-destructuring"
+    ]
+  },
+  {
+    "id": 633,
+    "file": "async/0633-async-delta-decoding.js",
+    "purpose": "Reconstruct an absolute position sequence from asynchronously supplied deltas.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "arithmetic",
+      "array-push"
+    ]
+  },
+  {
+    "id": 634,
+    "file": "async/0634-async-command-undo.js",
+    "purpose": "Execute reversible asynchronous editor commands and undo the last two.",
+    "features": [
+      "async-await",
+      "closures",
+      "array-pop",
+      "string-slice"
+    ]
+  },
+  {
+    "id": 635,
+    "file": "async/0635-async-bounded-mailbox.js",
+    "purpose": "Apply producer backpressure when a mailbox reaches its bounded capacity.",
+    "features": [
+      "Promise-constructor",
+      "closures",
+      "async-await",
+      "array-shift"
+    ]
+  },
+  {
+    "id": 636,
+    "file": "async/0636-async-barrier-release.js",
+    "purpose": "Release waiting participants only after all arrivals reach a shared barrier.",
+    "features": [
+      "Promise-constructor",
+      "closures",
+      "Promise.all",
+      "async-await"
+    ]
+  },
+  {
+    "id": 637,
+    "file": "async/0637-async-countdown-latch.js",
+    "purpose": "Wait for independently completed components using a decrementing latch.",
+    "features": [
+      "Promise-constructor",
+      "closures",
+      "Promise.all",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 638,
+    "file": "async/0638-async-reusable-barrier.js",
+    "purpose": "Synchronize two workers across multiple barrier generations.",
+    "features": [
+      "Promise-constructor",
+      "Promise.all",
+      "closures",
+      "async-await"
+    ]
+  },
+  {
+    "id": 639,
+    "file": "async/0639-async-observer-snapshot.js",
+    "purpose": "Notify a snapshot of observers while an observer unsubscribes itself.",
+    "features": [
+      "Set",
+      "Promise.all",
+      "async-function",
+      "closures"
+    ]
+  },
+  {
+    "id": 640,
+    "file": "async/0640-async-middleware-onion.js",
+    "purpose": "Run asynchronous middleware with nested before and after phases.",
+    "features": [
+      "async-recursion",
+      "closures",
+      "async-await",
+      "array-push"
+    ]
+  },
+  {
+    "id": 641,
+    "file": "async/0641-async-middleware-double-next.js",
+    "purpose": "Reject middleware that invokes its continuation more than once.",
+    "features": [
+      "async-await",
+      "closures",
+      "try-catch",
+      "throw"
+    ]
+  },
+  {
+    "id": 642,
+    "file": "async/0642-async-interceptor-rewrite.js",
+    "purpose": "Rewrite asynchronous responses through an ordered interceptor chain.",
+    "features": [
+      "Promise.then",
+      "array-reduce",
+      "object-spread",
+      "string-toUpperCase"
+    ]
+  },
+  {
+    "id": 643,
+    "file": "async/0643-async-pipeline-short-circuit.js",
+    "purpose": "Stop a validation pipeline at the first asynchronous rejection.",
+    "features": [
+      "async-await",
+      "for-of",
+      "try-catch",
+      "object-properties"
+    ]
+  },
+  {
+    "id": 644,
+    "file": "async/0644-async-fallback-catalog.js",
+    "purpose": "Try catalog sources sequentially until one returns a usable result.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "for-of",
+      "conditional"
+    ]
+  },
+  {
+    "id": 645,
+    "file": "async/0645-async-speculative-branch.js",
+    "purpose": "Start alternative pricing computations and select the appropriate awaited branch.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "conditional",
+      "objects"
+    ]
+  },
+  {
+    "id": 646,
+    "file": "async/0646-async-cancellation-race.js",
+    "purpose": "Reject work through a cancellation promise while retaining handled work completion.",
+    "features": [
+      "Promise.race",
+      "Promise-constructor",
+      "try-catch",
+      "Promise.then"
+    ]
+  },
+  {
+    "id": 647,
+    "file": "async/0647-async-latest-search-result.js",
+    "purpose": "Publish only the latest request result using a generation counter.",
+    "features": [
+      "async-await",
+      "Promise.all",
+      "closure-state",
+      "conditional"
+    ]
+  },
+  {
+    "id": 648,
+    "file": "async/0648-async-debounced-logical-events.js",
+    "purpose": "Coalesce synchronous updates into one promise microtask flush.",
+    "features": [
+      "Promise.then",
+      "closures",
+      "object-mutation",
+      "async-await"
+    ]
+  },
+  {
+    "id": 649,
+    "file": "async/0649-async-error-suppression-policy.js",
+    "purpose": "Collect expected operation errors while rethrowing unclassified failures.",
+    "features": [
+      "Promise.allSettled",
+      "async-await",
+      "Error",
+      "Set"
+    ]
+  },
+  {
+    "id": 650,
+    "file": "async/0650-async-recovery-isolation.js",
+    "purpose": "Recover one branch failure without altering a sibling fulfilled branch.",
+    "features": [
+      "Promise.catch",
+      "Promise.all",
+      "Promise.reject",
+      "array-destructuring"
+    ]
+  },
+  {
+    "id": 651,
+    "file": "async/0651-async-finally-return-override.js",
+    "purpose": "Compare cleanup return behavior in async try-finally and promise finally.",
+    "features": [
+      "async-function",
+      "try-finally",
+      "Promise.finally",
+      "Promise.all"
+    ]
+  },
+  {
+    "id": 652,
+    "file": "async/0652-async-return-await-catch.js",
+    "purpose": "Catch an awaited rejection inside a function while returning recovery data.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "Promise.reject",
+      "object-properties"
+    ]
+  },
+  {
+    "id": 653,
+    "file": "async/0653-async-async-arrow-capture.js",
+    "purpose": "Capture each loop binding in an asynchronous arrow task.",
+    "features": [
+      "async-arrow",
+      "let-loop-binding",
+      "Promise.all",
+      "template-literal"
+    ]
+  },
+  {
+    "id": 654,
+    "file": "async/0654-async-promise-valued-map.js",
+    "purpose": "Resolve promised map values while preserving key association.",
+    "features": [
+      "Map",
+      "Promise.all",
+      "async-await",
+      "array-destructuring"
+    ]
+  },
+  {
+    "id": 655,
+    "file": "async/0655-async-resource-stack.js",
+    "purpose": "Dispose acquired resources in reverse order after asynchronous work.",
+    "features": [
+      "async-await",
+      "try-finally",
+      "array-pop",
+      "closures"
+    ]
+  },
+  {
+    "id": 656,
+    "file": "async/0656-async-resource-acquisition-failure.js",
+    "purpose": "Clean up earlier acquisitions when a later resource cannot be opened.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "array-reverse",
+      "closures"
+    ]
+  },
+  {
+    "id": 657,
+    "file": "async/0657-async-generator-error-boundary.js",
+    "purpose": "Catch a source generator failure after retaining its already yielded records.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "try-catch",
+      "throw"
+    ]
+  },
+  {
+    "id": 658,
+    "file": "async/0658-async-nested-stream-cleanup.js",
+    "purpose": "Close both nested streams when an asynchronous composed consumer stops early.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "try-finally",
+      "break"
+    ]
+  },
+  {
+    "id": 659,
+    "file": "async/0659-incident-escalation-routing.js",
+    "purpose": "Route unresolved asynchronous incidents through available responders up to a severity-qualified owner.",
+    "features": [
+      "async-await",
+      "Map",
+      "Set",
+      "while-loop"
+    ]
+  },
+  {
+    "id": 660,
+    "file": "async/0660-allergen-aware-menu-selection.js",
+    "purpose": "Filter asynchronously loaded ingredient declarations and select the cheapest safe meal.",
+    "features": [
+      "Promise.all",
+      "Set",
+      "array-some",
+      "array-sort"
+    ]
+  },
+  {
+    "id": 661,
+    "file": "async/0661-async-preserve-input-order.js",
+    "purpose": "Preserve batch input order despite requests requiring different microtask depths.",
+    "features": [
+      "Promise.all",
+      "async-await",
+      "for-loop",
+      "array-push"
+    ]
+  },
+  {
+    "id": 662,
+    "file": "async/0662-async-tolerant-numeric-stream.js",
+    "purpose": "Continue after malformed asynchronously supplied numeric records.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "Number.isFinite",
+      "try-catch"
+    ]
+  },
+  {
+    "id": 663,
+    "file": "async/0663-async-stream-checkpoint-resume.js",
+    "purpose": "Restart an asynchronous feed after its last successfully stored checkpoint.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "break",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 664,
+    "file": "async/0664-async-snapshot-isolation.js",
+    "purpose": "Read a stable snapshot while an asynchronous writer changes live state.",
+    "features": [
+      "async-await",
+      "object-spread",
+      "Promise.then",
+      "object-mutation"
+    ]
+  },
+  {
+    "id": 665,
+    "file": "async/0665-async-optimistic-update-retry.js",
+    "purpose": "Retry an optimistic increment after detecting an intervening version change.",
+    "features": [
+      "async-await",
+      "Promise.then",
+      "while-loop",
+      "object-spread"
+    ]
+  },
+  {
+    "id": 666,
+    "file": "async/0666-async-completion-notification.js",
+    "purpose": "Publish a completion notification after both success and expected failure paths.",
+    "features": [
+      "async-await",
+      "try-catch",
+      "finally",
+      "Promise.reject"
+    ]
+  },
+  {
+    "id": 667,
+    "file": "async/0667-async-stream-bounded-preview.js",
+    "purpose": "Preview asynchronous report rows while distinguishing exhaustion from truncation.",
+    "features": [
+      "async-generator",
+      "iterator-next",
+      "iterator-return",
+      "for-loop"
+    ]
+  },
+  {
+    "id": 668,
+    "file": "async/0668-async-demand-driven-pages.js",
+    "purpose": "Fetch a new page only when the consumer requests records beyond the current page.",
+    "features": [
+      "async-generator",
+      "for-await-of",
+      "break",
+      "closure-state"
+    ]
+  },
+  {
+    "id": 669,
+    "file": "async/0669-async-dependent-enrichment.js",
+    "purpose": "Enrich an order by using its awaited customer key in a second lookup.",
+    "features": [
+      "async-await",
+      "Map",
+      "object-spread",
+      "object-destructuring"
+    ]
+  },
+  {
+    "id": 670,
+    "file": "async/0670-async-graceful-drain.js",
+    "purpose": "Stop accepting new jobs and await all accepted work before reporting shutdown.",
+    "features": [
+      "Set",
+      "Promise.all",
+      "async-await",
+      "finally"
+    ]
+  }
+]

@@ -60,3 +60,5 @@ Ejecución completa de Test262 fijado en Windows x64 (características de ES2020
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Los fallos de tipo «`eval`» usan código fuente calculado en tiempo de ejecución, `$262.evalScript` u otros realms; las pruebas de «semántica más reciente» comprueban comportamiento de ediciones posteriores bajo una etiqueta de característica antigua o ausente. La [página de estado](/es/guide/status) enumera los fallos restantes.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

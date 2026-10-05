@@ -60,3 +60,5 @@ API хоста, не входящие в ECMAScript, — таймеры, `proces
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 Отказы «`eval`» используют исходный текст, вычисленный во время исполнения, `$262.evalScript` или другие realms; тесты «более новой семантики» проверяют поведение из поздних изданий под старым или отсутствующим тегом возможности. Оставшиеся отказы перечислены на [странице статуса](/ru/guide/status).
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.

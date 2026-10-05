@@ -81,3 +81,5 @@
 Целевой профиль и исключения записаны в [контракте ES2020](es2020-contract.md).
 Закреплённая ревизия и правила запуска Test262 описаны в [адаптере](test262.md),
 а контракт корней и границы GC — в [памяти runtime](runtime-memory.md).
+
+Script functions can shadow optional built-in global names such as `escape` and `unescape`. Runtime built-ins initialize before script declarations become visible, so these declarations behave like the Node.js script oracle rather than interrupting runtime startup.

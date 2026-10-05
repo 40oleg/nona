@@ -60,3 +60,5 @@
 | `annexB/` | 996 / 1016 | 20 `eval` |
 
 إخفاقات «`eval`» تستخدم نصًا مصدريًا محسوبًا وقت التشغيل أو `$262.evalScript` أو عوالم (realms) أخرى؛ أما اختبارات «الدلالات الأحدث» فتتحقق من سلوك من إصدارات لاحقة تحت وسم ميزة قديم أو مفقود. وتسرد [صفحة الحالة](/ar/guide/status) الإخفاقات المتبقية.
+
+Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
