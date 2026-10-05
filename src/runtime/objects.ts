@@ -186,7 +186,16 @@ export function emitObjects(b:RuntimeBuilder):void {
     // the indexed path; a Number key only an element: try the matching one.
     a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e',named);
     a.label(indexed);a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);a.jmp(typed);
-    a.label(named);a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);
+    // `length` of a string or an array (the key is the runtime's record,
+    // which program literals share) without the named lookup.
+    a.label(named);
+    {const notLength=a.unique('notLength'),number=a.unique('lengthNumber'),array=a.unique('lengthArray');
+     a.load('rax',{base:'r8',disp:8});a.lea('r10',{rip:'rt.str.length'});a.cmp('rax','r10');a.jcc('ne',notLength);
+     a.load('rax',{base:'rdx'});a.load('r10',{base:'rdx',disp:8});a.cmp('rax',4);a.jcc('ne',array);a.load('rax',{base:'r10'});a.jmp(number);
+     a.label(array);a.cmp('rax',5);a.jcc('ne',notLength);a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',notLength);a.load('rax',{base:'r10',disp:O.length});
+     a.label(number);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
+     a.label(notLength);}
+    a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);
     // An accessor the fast path found (a typed array's or a map's `length`
     // or `size`, a class getter): its getter is called with the receiver.
     {const noAccessor=a.unique('noAccessor'),call=a.unique('callGetter');
