@@ -1,5 +1,6 @@
 import {Arm64Assembler} from './arm64/assembler.js';
 import {linkWindowsArm64} from './arm64/windows.js';
+import {linkPe} from './pe/writer.js';
 import {Assembler} from './x64/assembler.js';
 import {linkElf} from './elf/writer.js';
 import {linkMachO} from './macho/writer.js';
@@ -33,7 +34,7 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
       const {result:ir,usage}=collectSourceUsage(()=>compileToIR(probe.source,undefined,undefined,target));
       const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
       const descriptor=getTarget(target)!;
-      const image=descriptor.os==='win32'?linkWindowsArm64(program):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
+      const image=descriptor.os==='win32'?(descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='linux'?linkLinux(program,descriptor.arch):linkBsd(program,descriptor.os==='freebsd'?'freebsd':'openbsd');
       return {name:probe.name,image,expected:probe.expected};
     }
     const result=compile(probe.source,{fileName:`${probe.name}.js`,target,...(probe.name==='clock'?{agents:['']}: {})});
