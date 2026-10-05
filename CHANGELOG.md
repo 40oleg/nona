@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
+- Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).
 - Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
 
 - Fixed script functions such as `escape` and `unescape` shadowing optional built-in globals: runtime preludes initialize before script global aliases become visible ([#126](https://github.com/40oleg/nona/issues/126)).
