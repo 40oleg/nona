@@ -15,9 +15,16 @@ import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,proce
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {runOracle} from './helpers/oracle.js';
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+
+test('native probes do not read the private prelude binding as a public global',()=>{
+ const source=readFileSync(new URL('../../src/backend/platform-probes.ts',import.meta.url),'utf8');
+ assert.doesNotMatch(source,/\b__nonaRegexpVm\b/);
+ const result=compileToIR('let p=process;console.log(typeof __nonaRegexpVm)','private-prelude.js');
+ assert.ok(result.functions.some(fn=>fn.blocks.some(block=>block.operations.some(op=>op.kind==='readGlobalProperty'&&op.name==='__nonaRegexpVm'))));
+});
 
 test('FreeBSD startup captures the RDI vector independently of aligned RSP',()=>{
  // FreeBSD14.3 native entry: RDI points to argc, followed by argv and envp.
