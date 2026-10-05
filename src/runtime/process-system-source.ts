@@ -68,7 +68,7 @@ ${processAccountsSource}
         else{n=host.sys_read(handle,bytes,bytes.length);if(n===-4)continue;if(n<0)throw hostError('read',-n,path)}
         if(!n)break;chunks.push(bytes.subarray(0,n));total+=n
       }}finally{if(windows)host.CloseHandle(handle);else host.sys_close(handle)}
-      var all=new Uint8Array(total),offset=0;for(var i=0;i<chunks.length;i++){all.set(chunks[i],offset);offset+=chunks[i].length}return decoder.decode(all)
+      var all=new Uint8Array(total),offset=0;for(var i=0;i<chunks.length;i++){copyProcessBytes(chunks[i],all,offset);offset+=chunks[i].length}return decoder.decode(all)
     }
     function parseEnvironment(text){
       text=text.replace(/\r\n?/g,'\n');

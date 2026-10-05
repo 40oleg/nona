@@ -95,7 +95,8 @@ termination signals. Installing JavaScript signal handlers is unsupported.
 `threadCpuUsage(previous)` returns current JavaScript-thread user/system CPU microseconds and optionally subtracts prior values. Windows uses GetThreadTimes with the current-thread pseudo handle; Linux/FreeBSD14.3/OpenBSD7.8 use verified RUSAGE_THREAD=1. Darwin uses Mach THREAD_BASIC_INFO=3 with ten 32-bit words and signed seconds/microseconds time values, retaining one thread right for the runtime lifetime. The API queries actual thread counters, not process-wide CPU totals. Previous-value validation follows the Node26 oracle, including nonnegative fractional values and ignored falsy arguments.
 
 `execve(file, args = [], env = process.env)` invokes the real POSIX exec syscall
-on Linux, Darwin, FreeBSD and OpenBSD; it is absent on Windows like Node.
+on Linux, Darwin, FreeBSD and OpenBSD. On Windows, the function throws
+ERR_FEATURE_UNAVAILABLE_ON_PLATFORM before argument validation, matching Node 26.
 Successful execution replaces the image without running exit listeners, queued
 ticks, Promise jobs or timers; the process ID remains the same. The kernel's
 file-descriptor/CLOEXEC rules apply. File/argument/environment strings reject

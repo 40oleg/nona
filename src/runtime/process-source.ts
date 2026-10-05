@@ -64,7 +64,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var decoder=new TextDecoder(),encoder=new TextEncoder(),created=null;
   // Built on first access, so programs that never use process pay nothing at startup.
   function build(){
-    function cstring(text){var bytes=encoder.encode(text),out=new Uint8Array(bytes.length+1);out.set(bytes);return out}
+    function copyProcessBytes(source,target,offset){__nonaRegexpVm.arrayBufferCopy(source.buffer,target.buffer,source.byteOffset,source.byteLength,target.byteOffset+(offset||0))}
+    function cstring(text){var bytes=encoder.encode(text),out=new Uint8Array(bytes.length+1);copyProcessBytes(bytes,out,0);return out}
     function readProc(path){
       var fd=host.sys_open(cstring(path),0x80000,0);
       if(fd<0)return new Uint8Array(0);
@@ -76,7 +77,7 @@ __nonaPromiseDrainJobs=(function(drain){
       }
       host.sys_close(fd);
       var out=new Uint8Array(total),offset=0;
-      for(var j=0;j<chunks.length;j++){out.set(chunks[j],offset);offset+=chunks[j].length}
+      for(var j=0;j<chunks.length;j++){copyProcessBytes(chunks[j],out,offset);offset+=chunks[j].length}
       return out
     }
     function splitNul(bytes){

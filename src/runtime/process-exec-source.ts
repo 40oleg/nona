@@ -2,7 +2,8 @@
 export const processExecSource=String.raw`
     function execString(text,label){if(typeof text!=='string')throw argumentError('ERR_INVALID_ARG_TYPE',label+' must be a string');if(text.indexOf('\0')!==-1)throw argumentError('ERR_INVALID_ARG_VALUE',label+' must not contain NUL');return text}
     function packedVector(entries,setter){var bytes=encoder.encode(entries.length?entries.join('\0')+'\0':'');host[setter](bytes,bytes.length,entries.length)}
-    if(!windows)value('execve',function(file,args,environment){
+    if(windows)value('execve',function(){throw argumentError('ERR_FEATURE_UNAVAILABLE_ON_PLATFORM','The feature process.execve is unavailable on the current platform')});
+    else value('execve',function(file,args,environment){
       file=execString(file,'file');args=args===undefined?[]:args;if(!Array.isArray(args))throw argumentError('ERR_INVALID_ARG_TYPE','args must be an array of strings');
       var argumentsList=[];for(var i=0;i<args.length;i++)argumentsList.push(execString(args[i],'args['+i+']'));
       environment=environment===undefined?process.env:environment;

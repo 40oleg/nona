@@ -146,7 +146,7 @@ test('uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI',()=
  const result=compile('import {define} from "nona:ffi";const example=define("SYSCALL","Example","u64(u64,u64,u64)");console.log(example(1,2,3))',{target:'win32-arm64',module:true,fileName:'syscall-dll.mjs'});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
 });
 test('Windows ARM process startup compiles with enforced public getter output',()=>{
- const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.equal(probe.expected,'process getter\nprocess built win32 undefined\n');
+ const probe=runtimeProbes('win32-arm64').find(item=>item.name==='process-startup');assert.ok(probe);assert.ok(probe.image.length>0);assert.equal(probe.expected,'process getter\nprocess built win32 function\n');
 });
 test('process active resource inventory follows real timer and stdin lifecycle',()=>{
  let clock=0;const context=mockProcess({__nonaHostNow:()=>clock,__nonaHostWait:(ms:number)=>{clock+=ms}});runInContext(timersPreludeSource,context);
@@ -166,7 +166,7 @@ test('OpenBSD 7.8 process syscalls match the release ABI and compile its native 
 });
 
 function mockProcess(extra:Record<string,unknown>={},target='linux-x64',before?:string){
- const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{isRejectionError:types.isNativeError},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{isRejectionError:types.isNativeError,arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
  if(before)runInContext(before,context);
@@ -309,7 +309,7 @@ test('unreferenced stdin still polls while a timer keeps the loop alive',()=>{
 });
 test('process native standard output boundary writes exact bytes',()=>{
  const writes:{fd:number;bytes:number[]}[]=[];
- const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
   __nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,
@@ -327,7 +327,7 @@ for(const target of supportedNativeTargets)test(`process standard streams/resour
 
 function portableBoundary(){
  let directory='/work',clock=5000;const jobs:(()=>void)[]=[];
- const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{},scheduleJob:(job:()=>void)=>jobs.push(job),__nonaPromiseDrainJobs(){while(jobs.length)jobs.shift()!()},__nonaProcessNow:()=>clock++,
+ const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))},scheduleJob:(job:()=>void)=>jobs.push(job),__nonaPromiseDrainJobs(){while(jobs.length)jobs.shift()!()},__nonaProcessNow:()=>clock++,
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_replaceEnvironment:()=>{},
   __nonaHost_sys_readlink:(_path:unknown,bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode('/app'));return 4},
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>45,
@@ -445,4 +445,19 @@ test('fatal exit listeners can change status while handler failures skip exit li
 for(const target of supportedNativeTargets)test(`process exception/rejection boundary compiles for ${target}`,()=>{
  const result=compile(processExceptionOracle+processRejectionOracle+'throw Error("top level")',{fileName:'process-exceptions.js',target});assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
  for(const probe of processExceptionProbes){const native=compile(probe.source,{fileName:probe.name+'.js',target});assert.ok(native.ok,native.ok?'':JSON.stringify(native.diagnostics))}
+});
+
+test('process OS file copies bypass JavaScript typed-array set',()=>{
+ let done=false;const payload=new TextEncoder().encode('NONA_COPY='+'x'.repeat(9000)+'\n');
+ const context=mockProcess({__nonaHost_sys_open:(path:Uint8Array)=>{if(new TextDecoder().decode(path).split('\0')[0]!=='fixture.env')return -2;done=false;return 10},__nonaHost_sys_read:(_fd:number,out:Uint8Array)=>{if(done)return 0;done=true;Uint8Array.prototype.set.call(out,payload);return payload.length},__nonaHost_sys_close:()=>0});
+ runInContext('Uint8Array.prototype.set=function(){throw new Error("JavaScript bulk copy")};process.loadEnvFile("fixture.env")',context);
+ assert.equal(runInContext('process.env.NONA_COPY.length',context),9000);
+});
+
+test('Windows execve reports Node 26 platform unavailability before validation',()=>{
+ const context=mockProcess({__nonaHost_GetCommandLineW:()=>100,__nonaHost_RtlMoveMemory:()=>{},__nonaHost_GetModuleFileNameW:()=>0,__nonaHost_lstrlenW:()=>0,__nonaHost_GetEnvironmentStringsW:()=>0,__nonaHost_GetCurrentProcessId:()=>123,__nonaHost_NtQueryInformationProcess:()=>-1},'win32-x64');
+ for(const args of [[],[1],['/missing'],['/missing',[]],['/missing',[],null]]){
+  if(process.platform==='win32'){const oracle=spawnSync(process.execPath,['-e',`try{process.execve(...${JSON.stringify(args)})}catch(e){console.log(e.name,e.code,e.syscall,e.path)}`],{encoding:'utf8'});assert.equal(oracle.stdout,'TypeError ERR_FEATURE_UNAVAILABLE_ON_PLATFORM undefined undefined\n')}
+  assert.throws(()=>runInContext(`process.execve(...${JSON.stringify(args)})`,context),{name:'TypeError',code:'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM'});
+ }
 });
