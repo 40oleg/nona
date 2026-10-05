@@ -146,11 +146,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
     if(!options.callStats){baseImages.set(baseKey,image);options.baseCache?.set(baseKey,image);}
   }
-  for(const name of module.globalFunctionProperties??[]){
-    const property=fragments.find(f=>f.name==='rt.globalObject.'+name);
-    if(!property)throw new Error('Missing intrinsic global property '+name);
-    property.bytes[P.attributes]=A.writable|A.enumerable;
-  }
   fragments.push({name:'js.globals',section:'.data',alignment:16,bytes:new Uint8Array(Math.max(16,module.globalCount*16)),fixups:[],symbols:{}});
   const globalProperties=module.globalProperties??[];
   const aliasBytes=new Uint8Array(Math.max(24,globalProperties.length*24));for(let i=0;i<globalProperties.length;i++)aliasBytes[i*24+16]=3;
