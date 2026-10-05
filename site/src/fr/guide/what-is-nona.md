@@ -37,4 +37,4 @@ Nona n’a fait l’objet d’aucun audit de sécurité. Ne compilez pas de code
 
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
-[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: not enabled yet.
+[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

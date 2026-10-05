@@ -1,7 +1,7 @@
 {
   "name": "nona",
   "version": "0.8.0",
-  "description": "Experimental JavaScript subset AOT compiler for native Windows, Linux, Intel macOS and BSD executables",
+  "description": "Experimental JavaScript subset AOT compiler for native Windows, Linux, macOS and BSD executables",
   "private": true,
   "license": "MIT",
   "repository": {

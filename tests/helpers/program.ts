@@ -23,7 +23,7 @@ export function expectProgram(source:string, expected:string):void {
 export function linkHost(program:NativeProgram,target:Target=hostTarget):Uint8Array {
   const descriptor=getTarget(target)!;
   if(descriptor.os==='linux')return linkLinux(program,descriptor.arch);
-  if(descriptor.os==='darwin')return linkDarwin(program);
+  if(descriptor.os==='darwin')return linkDarwin(program,descriptor.arch);
   if(descriptor.os==='freebsd'||descriptor.os==='openbsd')return linkBsd(program,descriptor.os);
   return descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program);
 }

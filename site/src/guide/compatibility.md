@@ -84,4 +84,4 @@ A program can still reach an omitted part through a name computed at run time, f
 
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
-[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: not enabled yet.
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

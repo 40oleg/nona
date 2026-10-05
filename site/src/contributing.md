@@ -31,7 +31,7 @@ Tests live in `tests/*.test.ts`. Prefer `runOnHost` with the Node.js oracle (`ru
 - Preludes must not add top-level `var` bindings; wrap code in an IIFE.
 - Native runtime functions follow the Win64 ABI (shadow space, 16-byte alignment at calls, callee-saved registers). Functions that hold values across calls that may allocate use `rootedFn`.
 - Every new KERNEL32 import needs a Linux system-call shim in `src/backend/linux/shims.ts`.
-- Generated executables stay free of external dependencies: no libc, no C toolchain, no bundled DLLs.
+- Generated executables need no C toolchain or bundled libraries. macOS may use the operating system's libSystem for native startup and services; other targets remain libc-free.
 
 ## Documentation
 

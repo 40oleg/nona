@@ -3,7 +3,7 @@
 ## Requirements
 
 - To run the compiler: Node.js 26 or newer and npm, on any host running Node.js 26.
-- Targets: Windows/Linux x64 and ARM64, Intel macOS, FreeBSD/OpenBSD x64. The default follows the host OS and CPU.
+- Targets: Windows/Linux/macOS x64 and ARM64, FreeBSD/OpenBSD x64. The default follows the host OS and CPU.
 
 ## Build the compiler
 
@@ -79,4 +79,4 @@ The [command line reference](/reference/cli) lists every option and error.
 
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
-[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: not enabled yet.
+[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

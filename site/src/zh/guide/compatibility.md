@@ -54,4 +54,4 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
-[OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: not enabled yet.
+[OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.

@@ -10,8 +10,9 @@ expand the ECMAScript conformance claim. The user authorized autonomous
 implementation and a PR, and explicitly prohibited merging into main.
 
 The compiler and runtime remain implemented in this repository: no LLVM,
-C toolchain, libc dependency, interpreter, or bundled OS libraries in the
-generated program. Platform-provided Windows DLL imports retain their
+C toolchain, interpreter, or bundled OS libraries in the generated program.
+The owner authorized macOS system libSystem on 2026-10-05 for native startup
+and OS services; other targets remain libc-free. Platform-provided Windows DLL imports retain their
 existing role. Unsupported optional native interop must fail explicitly,
 with the capability and target named in the diagnostic.
 

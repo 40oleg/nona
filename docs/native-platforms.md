@@ -13,17 +13,15 @@ Choose an output target with `--target`. The default is the host OS and CPU.
 | `darwin-x64` | x86-64 | Mach-O64 | Intel macOS 15 runner, clocks/GC/agent probes |
 | `freebsd-x64` | x86-64 | ELF64 | FreeBSD 14.3 VM, clocks/GC/agent probes |
 | `openbsd-x64` | x86-64 | ELF64 | OpenBSD 7.8 VM, clocks/GC/agent probes |
-| `darwin-arm64` | AArch64 | Mach-O64 | **Not enabled:** the signed static loader probe is rejected by macOS |
+| `darwin-arm64` | AArch64 | Mach-O64 | Dynamic dyld/libSystem path; Apple Silicon CI verification pending |
 
-The last row is an explicit limitation, not a supported compiler target.
-Apple Silicon requires a dynamic startup path involving system `libSystem`;
-the project currently prohibits libc dependencies. That policy decision is
-pending. Header/signature tests alone do not establish executable support.
+Apple Silicon executables load the operating system's `/usr/lib/libSystem.B.dylib` through dyld. This macOS exception was authorized by the owner; it adds no bundled runtime, interpreter or C toolchain. PIE data pointers are rebased by dyld, imports are eagerly bound, and an embedded ad-hoc signature covers the final image. Intel macOS retains direct kernel startup.
 
 ```sh
 node dist/cli.js build hello.js -o hello --target linux-arm64
 node dist/cli.js build hello.js -o hello.exe --target win32-arm64
 node dist/cli.js build hello.js -o hello --target darwin-x64
+node dist/cli.js build hello.js -o hello --target darwin-arm64
 node dist/cli.js build hello.js -o hello --target freebsd-x64
 node dist/cli.js build hello.js -o hello --target openbsd-x64
 ```

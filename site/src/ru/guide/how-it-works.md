@@ -80,4 +80,4 @@ site               this documentation site
 
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
-[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: пока не поддерживается.
+[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.
