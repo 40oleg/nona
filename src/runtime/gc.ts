@@ -83,7 +83,8 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  // to a formatting buffer. Static literals are not in any mapping and are ignored.
  b.fn('rt.gcMarkPointer',56,a=>{
   const done=a.unique('done');
-  a.test('rcx','rcx');a.jcc('e',done);a.call('rt.blockOf');a.test('rax','rax');a.jcc('e',done);
+  a.load('r10',{rip:'rt.heapLow'});a.cmp('rcx','r10');a.jcc('b',done);a.load('r10',{rip:'rt.heapHigh'});a.cmp('rcx','r10');a.jcc('ae',done);
+  a.call('rt.blockOf');a.test('rax','rax');a.jcc('e',done);
   a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('ne',done);
   a.mov('r10',1);a.store({base:'rax',disp:H.marked},'r10');
   // A raw block (string, number scratch, byte storage) holds no references and
@@ -103,7 +104,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  });
  b.fn('rt.gcMarkValue',40,a=>{
   const mark=a.unique('mark'),done=a.unique('done');a.load('rax',{base:'rcx'});
-  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',7);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
+  a.cmp('rax',CellTag);a.jcc('e',mark);a.sub('rax',4);a.cmp('rax',3);a.jcc('a',done);
   a.label(mark);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.label(done);
  });
  // RCX first Value*, RDX initialized count. A runtime range may itself be a
@@ -170,7 +171,11 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  b.fn('rt.gcTraceProperty',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:P.next});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:P.key});a.call('rt.gcMarkPointer');
-  for(const offset of [P.value,P.getter,P.setter]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}
+  // Only string, object, symbol, bigint and cell Values hold a pointer
+  // (getters and setters are usually absent).
+  for(const offset of [P.value,P.getter,P.setter]){const skip=a.unique('skip'),mark=a.unique('mark');
+   a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:offset});a.cmp('rax',CellTag);a.jcc('e',mark);a.sub('rax',4);a.cmp('rax',3);a.jcc('a',skip);
+   a.label(mark);a.load('rcx',{base:'rcx',disp:offset+8});a.call('rt.gcMarkPointer');a.label(skip);}
  });
  b.fn('rt.gcTraceMapEntry',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');

@@ -81,8 +81,14 @@ export function emitMemory(b:RuntimeBuilder):void {
  });
 
  // RCX bytes -> RAX zeroed page mapping (fails the process when exhausted).
- b.fn('rt.mapPages',40,a=>{
-  a.mov('rdx','rcx');a.mov('rcx',0);a.mov('r8',0x3000);a.mov('r9',4);a.callImport('VirtualAlloc');a.test('rax','rax');failIf(a,'e');
+ // Every block lies in [rt.heapLow, rt.heapHigh): the collector skips any
+ // other pointer (literals and intrinsics in the image) without a page map probe.
+ b.data('rt.heapLow',new Uint8Array([0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f]),'.data');
+ b.data('rt.heapHigh',new Uint8Array(8),'.data');
+ b.fn('rt.mapPages',56,a=>{
+  a.store(slot(40),'rcx');a.mov('rdx','rcx');a.mov('rcx',0);a.mov('r8',0x3000);a.mov('r9',4);a.callImport('VirtualAlloc');a.test('rax','rax');failIf(a,'e');
+  {const low=a.unique('low'),high=a.unique('high');a.load('r10',{rip:'rt.heapLow'});a.cmp('rax','r10');a.jcc('ae',low);a.store({rip:'rt.heapLow'},'rax');a.label(low);
+   a.load('r10',slot(40));a.add('r10','rax');a.load('r11',{rip:'rt.heapHigh'});a.cmp('r10','r11');a.jcc('be',high);a.store({rip:'rt.heapHigh'},'r10');a.label(high);}
  });
  // RCX mapping, RDX bytes: returns the pages to the system.
  b.fn('rt.unmapPages',40,a=>{a.mov('r8',0x4000);a.callImport('VirtualFree');});
