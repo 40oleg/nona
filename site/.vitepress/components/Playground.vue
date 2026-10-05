@@ -43,7 +43,7 @@ const state = ref('loading'); // loading | ready | compiling
 const result = ref(null);     // {ok, ms, size, url, file} | {ok: false, diagnostics | error}
 const copied = ref(false);
 
-let worker, themeCompartment, oneDark, nextId = 0;
+let worker, themeCompartment, oneDark, nextId = 0, pendingBuild;
 const fileName = computed(() => (name.value.trim() || 'app') + (target.value.startsWith('win32-') ? '.exe' : ''));
 
 function source() {
@@ -135,12 +135,13 @@ function build() {
   result.value = null;
   state.value = 'compiling';
   const isModule = module.value;
+  pendingBuild = {target: target.value, file: fileName.value};
   worker.postMessage({
     id: ++nextId,
     source: source(),
     options: {
       fileName: isModule ? '/app.mjs' : '/app.js',
-      target: target.value,
+      target: pendingBuild.target,
       module: isModule,
       ...(target.value === 'win32-x64' && gui.value ? {subsystem: 'windows'} : {}),
     },
@@ -153,7 +154,7 @@ function onMessage({data}) {
   state.value = 'ready';
   if (data.ok) {
     const blob = new Blob([data.image], {type: 'application/octet-stream'});
-    result.value = {ok: true, ms: data.ms, size: data.image.byteLength, url: URL.createObjectURL(blob), file: fileName.value, target: target.value};
+    result.value = {ok: true, ms: data.ms, size: data.image.byteLength, url: URL.createObjectURL(blob), ...pendingBuild};
     download();
   } else {
     result.value = {ok: false, diagnostics: (data.diagnostics ?? []).map(d => ({...d, ...lineColumn(d.start)})), error: data.error};
