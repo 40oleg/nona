@@ -1279,10 +1279,12 @@ class Lowerer {
       }
     }
     if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor&&this.fn.declaration.defaultClassConstructor){
-      const base=this.slot(),receiver=this.slot(),args=this.slot(),result=this.slot(),dest=this.slot();
-      this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});this.emit({kind:'newRestArray',dest:args,start:0});
+      // super(...args) passes the arguments on as they are: no rest array
+      // and no iteration of it (the spread of an own rest array is not observable).
+      const base=this.slot(),receiver=this.slot(),result=this.slot(),dest=this.slot();
+      this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});
       const target=this.slot();this.emit({kind:'newTarget',dest:target});
-      this.invokeWithArguments(result,base,{array:args},receiver,true,target);this.emit({kind:'constructorResult',dest,result,instance:receiver});
+      this.emit({kind:'constructForward',dest:result,callee:base,receiver,newTarget:target});this.emit({kind:'constructorResult',dest,result,instance:receiver});
       if(this.fn.declaration.instanceFields)this.initializeInstance(dest,this.fn.declaration.instanceFields);
       this.end({kind:'return',value:dest});
     }

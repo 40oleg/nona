@@ -455,6 +455,27 @@ let total=0;for(let round=0;round<20;round++){const live=[];for(const n of sizes
 for(const u of live){if(u[0]!==round||u[u.length-1]!==(u.length&255))throw new Error("corrupt "+u.length);total+=u.length;}}
 console.log(total);
 `,
+ 'default derived constructors':`
+class A{constructor(...a){this.args=a;this.nt=new.target.name;}}
+class B extends A{}
+class C extends B{}
+const b=new B(1,2,3),c=new C();console.log(JSON.stringify(b.args),b.nt,JSON.stringify(c.args),c.nt,b instanceof B,c instanceof A);
+class U extends Uint8Array{};const u=new U(4);console.log(u.length,u instanceof U,Object.getPrototypeOf(u)===U.prototype);
+class E extends Error{};const e=new E('m');console.log(e.message,e instanceof E,e.name);
+class M extends Map{};const m=new M([[1,2]]);console.log(m.get(1),m instanceof M);
+class P extends Promise{};console.log(P.resolve(1) instanceof P);
+function F(x,y){this.s=x+y;arguments.length;this.n=arguments.length}class G extends F{};const g=new G(2,3,4);console.log(g.s,g.n);
+class H extends A{x=5};const h=new H(9);console.log(h.x,JSON.stringify(h.args));
+let k=0;for(let i=0;i<10000;i++)k+=new B(i).args[0];console.log(k);
+try{class Z extends null{};new Z()}catch(err){console.log(err.constructor.name)}
+class Q extends A{constructor(){super(1);return {custom:true}}};console.log(JSON.stringify(new Q()));
+class R extends A{constructor(){return undefined}};try{new R()}catch(e){console.log(e.constructor.name)}
+class S extends A{constructor(){super();}};console.log(Reflect.construct(S,[]) instanceof S, Reflect.construct(S,[],B) instanceof B);
+const BS=S.bind(null);console.log(new BS() instanceof S);
+try{S()}catch(e){console.log(e.constructor.name)}
+class T extends Object{constructor(){super();this.t=1}};console.log(new T().t, new T() instanceof T);
+const Px=new Proxy(S,{});console.log(new Px() instanceof S);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to

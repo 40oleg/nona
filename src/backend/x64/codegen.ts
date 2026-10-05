@@ -558,6 +558,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(op.direct){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
           a.label(called);break;
         }
+        case 'constructForward':
+          a.lea('rax',value(op.receiver));a.store(stack(32),'rax');a.lea('rax',value(op.newTarget));a.store(stack(40),'rax');
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.load('r8',stack(48));a.load('r9',stack(56));a.call('rt.invokeConstruct');break;
         case 'invokeArray':
           a.mov('rax',op.construct?1:0);a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
