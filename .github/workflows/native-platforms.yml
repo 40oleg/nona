@@ -85,6 +85,8 @@ jobs:
         run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
       - name: Execute native loader and runtime probes
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Events module oracle suite
+        run: node --test dist/tests/events.test.js
       - name: Core runtime oracle suites
         run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
       # These exercise byte memory/FP conversions and the large Unicode/RegExp

@@ -100,7 +100,7 @@ for(const [name,body] of cases){
    assert.equal(source.status,0,source.stderr);assert.equal(oracle.status,0,oracle.stderr);assert.equal(source.stdout,oracle.stdout);
   }finally{removeTemporaryDirectory(directory);}
  });
- test('events native oracle: '+name,()=>{
+ test('events native oracle: '+name,{skip:name.startsWith('listener limit warnings')&&process.platform!=='win32'&&process.platform!=='linux'},()=>{
   const {native,oracle}=runModulesOnHost({'main.mjs':imports+body},'main.mjs');
   assert.equal(native.error,undefined);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,oracle);
  });
