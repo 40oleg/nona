@@ -36,7 +36,8 @@ export is `EventEmitter`; listener ordering, once/prepend listeners, removal,
 introspection, meta events, error monitoring and rejection capture are supported.
 Promise `once` and async-iterator `on` include cleanup, close events, externally
 supplied abort signals and emitter watermarks. Listener/max-listener helpers and
-disposable `addAbortListener` subscriptions are also available.
+disposable `addAbortListener` subscriptions under `Symbol.dispose` are also available.
+`Symbol.dispose` and `Symbol.asyncDispose` have the distinct symbol identities used by Node.js 26.
 
 See the [English events reference](/reference/host-apis#events) for the
 complete supported API and limitations.

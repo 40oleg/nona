@@ -18,6 +18,7 @@ const cases:[string,string][]=[
  ['symbol construction error',`try{new Symbol();}catch(e){console.log(e instanceof TypeError);}`],
  ['global registry',`var a=Symbol.for('x'),b=Symbol.for('x'),c=Symbol('x');console.log(a===b,a===c,Symbol.keyFor(a),Symbol.keyFor(c));`],
  ['well-known symbols',`console.log(typeof Symbol.iterator,Symbol.iterator===Symbol.iterator,Symbol.iterator===Symbol.for('Symbol.iterator'),Symbol.iterator.toString());`],
+ ['disposal symbols',`for(const name of ['dispose','asyncDispose']){const s=Symbol[name],d=Object.getOwnPropertyDescriptor(Symbol,name);console.log(typeof s,s.description,Symbol.keyFor(s),s===Symbol.for('nodejs.'+name),d.writable,d.enumerable,d.configurable)}`],
  ['toPrimitive hook',`var o={valueOf:function(){return 1;},[Symbol.toPrimitive]:function(h){console.log(h);return h==='string'?'key':7;}};var x={};x[o]=3;console.log(x.key,+o,''+o);`],
  ['boxed symbol primitive',`var s=Symbol('x'),o=Object(s),x={};x[o]=5;console.log(o==s,Object.getOwnPropertySymbols(x)[0]===s,x[s]);`],
  ['description getter',`console.log(Symbol('x').description,Symbol().description,Symbol('').description,Symbol.iterator.description);`],

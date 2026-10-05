@@ -12,6 +12,17 @@ import {linkBsd} from './bsd/index.js';
 
 /** The same programs run on every native target; expected output is checked against Node. */
 export const eventProbeSources=[
+ {name:'event-abort-disposal',source:`import {addAbortListener,getEventListeners} from 'node:events';
+console.log('symbol',typeof Symbol.dispose,Symbol.dispose.description,Symbol.keyFor(Symbol.dispose),Symbol.dispose===Symbol.for('nodejs.dispose'));
+const controller=new AbortController(),calls=[];
+controller.signal.addEventListener('abort',event=>{calls.push('stop');event.stopImmediatePropagation()});
+const disposed=addAbortListener(controller.signal,()=>calls.push('removed'));
+disposed[Symbol.dispose]();disposed[Symbol.dispose]();
+addAbortListener(controller.signal,()=>calls.push('protected'));
+console.log('listeners',getEventListeners(controller.signal,'abort').length);
+controller.abort();addAbortListener(controller.signal,()=>console.log('late'));
+console.log(calls.join('|'),getEventListeners(controller.signal,'abort').length);
+`,expected:'symbol symbol Symbol.dispose undefined false\nlisteners 2\nstop|protected 1\nlate\n'},
  {name:'event-cancellation',source:`import {EventEmitter,once,on,addAbortListener,getEventListeners} from 'node:events';
 const target=new EventTarget(),event=new CustomEvent('x',{cancelable:true,detail:7});
 target.addEventListener('x',e=>e.preventDefault(),{once:true});
@@ -41,12 +52,13 @@ local.run('resolved',()=>resolve());console.log('outside',local.getStore());emit
 ] as const;
 
 /** Compile module probes under allocation stress; callers choose when to execute. */
-export function eventProbes(target:Target):{name:string;image:Uint8Array;expected:string}[] {
+export function eventProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs:number}[] {
  return withNativeTarget(target,()=>eventProbeSources.map(probe=>{
   const descriptor=getTarget(target)!;
   const {result:ir,usage}=collectSourceUsage(()=>compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target),{unavailableReflectivePreludes:descriptor.os==='darwin'||descriptor.os==='freebsd'||descriptor.os==='openbsd'?['process']:[]});
   const program=generate(ir,{gcStress:true,link:usage});
   const image=descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.arch==='arm64'?linkWindowsArm64(program):linkPe(program);
-  return {name:probe.name,image,expected:probe.expected};
+  // Collection at every safepoint makes these module probes slower on ARM hosts.
+  return {name:probe.name,image,expected:probe.expected,timeoutMs:60000};
  }));
 }

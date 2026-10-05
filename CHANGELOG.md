@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers ([#137](https://github.com/40oleg/nona/issues/137)).
+- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers ([#137](https://github.com/40oleg/nona/issues/137)).
 
 - Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
 - Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).

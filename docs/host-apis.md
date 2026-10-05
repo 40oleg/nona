@@ -70,7 +70,8 @@ The default export and named `EventEmitter` export are the same constructor.
 
 `once` and `on` accept externally supplied signals with `aborted`, `reason`,
 `addEventListener` and `removeEventListener`. `addAbortListener` returns a
-subscription disposable under `Symbol.dispose` or `Symbol.for('nodejs.dispose')`.
+subscription disposable under `Symbol.dispose`. The `Symbol.dispose` and
+`Symbol.asyncDispose` globals use the distinct symbol identities from Node.js 26.
 
 Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
 `AbortSignal` and `DOMException` globals. Event targets support listener objects,
