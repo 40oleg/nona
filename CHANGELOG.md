@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses and timer-aware normal exit ([#141](https://github.com/40oleg/nona/issues/141)).
+- Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
 - Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).

@@ -5,6 +5,11 @@ native runtime and small JavaScript preludes compiled into every executable.
 
 See [native platforms](native-platforms.md) for the OS/CPU capability matrix. The [process adapter](process.md), timers, clocks and the shared runtime are available on every enabled target. The optional filesystem adapter requires Windows or Linux.
 
+Process standard streams use native descriptors without external libraries:
+UTF-8/byte writes are synchronous, and flowing stdin is polled by the event loop.
+The process adapter also provides lifecycle/warning events, OS CPU/resource
+queries and native process control; see its documented compatibility boundaries.
+
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
 ## Timers and the event loop

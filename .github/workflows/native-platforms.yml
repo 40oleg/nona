@@ -95,7 +95,7 @@ jobs:
         run: node --test dist/tests/fs.test.js
         if: matrix.target == 'linux-x64' || matrix.target == 'linux-arm64' || matrix.target == 'win32-arm64'
       - name: Portable process oracle suite
-        run: node --test dist/tests/process.test.js dist/tests/process-portable.test.js
+        run: node --test dist/tests/process.test.js dist/tests/process-portable.test.js dist/tests/process-io.test.js
       - name: Compare Linux examples with Node.js
         run: npm run compare:linux
         if: matrix.target == 'linux-arm64'

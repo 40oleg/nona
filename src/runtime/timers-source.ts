@@ -79,11 +79,13 @@ __nonaPromiseDrainJobs=(function(drain){
   return function eventLoop(){
     drain();
     for(;;){
-      if(count===0){heap=[];return}
+      var pendingIO=typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO();
+      if(pendingIO){__nonaRegexpVm.pumpIO();drain();pendingIO=__nonaRegexpVm.hasPendingIO()}
+      if(count===0){heap=[];if(pendingIO){hostWait(5);continue}return}
       var timer=heap[0];
       if(timer.cancelled){pop();continue}
       var remaining=timer.when-hostNow();
-      if(remaining>0){hostWait(ceil(remaining));continue}
+      if(remaining>0){hostWait(pendingIO?Math.min(5,ceil(remaining)):ceil(remaining));continue}
       pop();run(timer);drain()
     }
   }

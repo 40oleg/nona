@@ -4,7 +4,7 @@ import {compile} from '../src/compiler.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget} from '../src/runtime/process-source.js';
-import {runOnHost} from './helpers/host.js';
+import {runProcess as runOnHost} from './helpers/process.js';
 import {runOracle} from './helpers/oracle.js';
 
 for(const target of supportedNativeTargets)test(`process core compiles for ${target}`,()=>{
@@ -66,6 +66,6 @@ test('process exitCode waits for next ticks, Promise jobs and timers',()=>{
  const native=runOnHost(source);assert.equal(native.status,7,native.stderr);assert.equal(native.stdout,'tick\npromise\ntimer\n');
 });
 test('unsupported process members remain absent',()=>{
- const source='console.log(["on","emit","stdout","stdin","stderr","kill","memoryUsage","cpuUsage","send","versions","report"].every(key=>process[key]===undefined))';
+ const source='console.log(["memoryUsage","send","versions","report","channel","setuid","getgroups"].every(key=>process[key]===undefined))';
  const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true\n');
 });

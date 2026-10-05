@@ -24,7 +24,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | Area | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` is the first argument | `[node, script, ...arguments]` |
-| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Timer ids | Numbers | `Timeout` objects |
 | `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
 | Encodings | `utf8` only | Many |
@@ -58,7 +58,7 @@ Built-in libraries written in JavaScript that only install globals or methods (a
 | --- | --- |
 | `Proxy` | `Proxy` |
 | `TextEncoder`, `TextDecoder` | `TextEncoder`, `TextDecoder` (also linked with `process`) |
-| `process` | `process` |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Timers, the event loop, `queueMicrotask` and `performance` | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
 | `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any` | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables` |
 | Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names |

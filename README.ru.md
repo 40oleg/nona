@@ -17,7 +17,7 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **Нативный runtime.** Точный немещающий mark-and-sweep сборщик мусора, строки UTF-16, настоящие исключения, перехватываемый `RangeError` при переполнении стека.
 - **API хоста** для настоящих программ:
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
-  - глобальный `process` и `node:process` на всех восьми платформах (`argv`, `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, …; [process](docs/process.md));
+  - глобальный `process` и `node:process` на всех восьми платформах (`argv`, `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `kill`, …; [process](docs/process.md));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
 - **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).

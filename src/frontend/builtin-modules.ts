@@ -73,6 +73,9 @@ export const argv = process.argv, env = process.env, platform = process.platform
 export function exit(code) { return process.exit(code); }
 export function cwd() { return process.cwd(); }
 export const argv0 = process.argv0, execArgv = process.execArgv, ppid = process.ppid, chdir = process.chdir, hrtime = process.hrtime, uptime = process.uptime, nextTick = process.nextTick;
+export const stdin = process.stdin, stdout = process.stdout, stderr = process.stderr, openStdin = process.openStdin, emitWarning = process.emitWarning, kill = process.kill, cpuUsage = process.cpuUsage, resourceUsage = process.resourceUsage;
+export const on = process.on, once = process.once, off = process.off, emit = process.emit, addListener = process.addListener, removeListener = process.removeListener, removeAllListeners = process.removeAllListeners, listeners = process.listeners, listenerCount = process.listenerCount, eventNames = process.eventNames, getMaxListeners = process.getMaxListeners, setMaxListeners = process.setMaxListeners;
+export const getuid = process.getuid, geteuid = process.geteuid, getgid = process.getgid, getegid = process.getegid, umask = process.umask;
 `;
 
 import type {Target} from '../target.js';

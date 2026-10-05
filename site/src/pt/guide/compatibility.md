@@ -24,7 +24,7 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 | Área | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` é o primeiro argumento | `[node, script, ...arguments]` |
-| `process` | `argv`, `argv0`, `execArgv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `chdir`, `platform`, `arch`, `pid`, `ppid`, `nextTick`, `hrtime`, `uptime` (all eight targets) | EventEmitter, streams, signals, IPC and resource reports |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Ids de timers | Números | Objetos `Timeout` |
 | `readFileSync(path)` | Retorna um `Uint8Array` | Retorna um `Buffer` |
 | Codificações | Apenas `utf8` | Muitas |

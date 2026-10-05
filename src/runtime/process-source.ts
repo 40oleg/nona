@@ -2,10 +2,10 @@
 // Host functions are FFI thunks installed per target by the code
 // generator as __nonaHost_* globals; the prelude captures and removes them.
 // It wraps the Promise drain (or event loop) so a set exitCode is used at exit.
+import {processExtensionsSource} from './process-extensions-source.js';
 export const processPreludeSource=String.raw`
 __nonaPromiseDrainJobs=(function(drain){
-  var names=['lstrlenW','RtlMoveMemory','GetCommandLineW','GetEnvironmentStringsW','FreeEnvironmentStringsW','GetModuleFileNameW','ExitProcess','GetCurrentProcessId','GetCurrentDirectoryW',
-    'SetCurrentDirectoryW','GetLastError','NtQueryInformationProcess','sys_open','sys_read','sys_close','sys_readlink','sys_exit','sys_getpid','sys_getppid','sys_getcwd','sys_chdir','sys_fcntl','sys_sysctl','sys_procinfo','startupArgv','startupEnv','copy','length'];
+  var names=__NONA_PROCESS_HOST_NAMES__;
   var host={},found=false;
   for(var i=0;i<names.length;i++){
     var name='__nonaHost_'+names[i];
@@ -15,6 +15,7 @@ __nonaPromiseDrainJobs=(function(drain){
   if(!found)return drain;
   var hostNow=__nonaProcessNow,origin=hostNow();delete globalThis.__nonaProcessNow;
   var ticks=[],tickHead=0;
+  var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
   var defineProperty=Object.defineProperty,fromCharCode=String.fromCharCode,apply=Reflect.apply;
   // The foreign OS boundary returns 0; native helpers are bound in the image.
   var windows=host.GetCommandLineW()!==0;
@@ -94,7 +95,7 @@ __nonaPromiseDrainJobs=(function(drain){
     function textBuffer(bytes){var end=0;while(end<bytes.length&&bytes[end]!==0)end++;return decoder.decode(bytes.subarray(0,end))}
     function sysctlString(mib){var bytes=new Uint8Array(65536),length=new Uint32Array([bytes.length,0]);var r=host.sys_sysctl(new Int32Array(mib),mib.length,bytes,length,null,0);if(r<0)throw hostError('sysctl',-r);return textBuffer(bytes)}
     function hostError(syscall,number,path){
-      var codes={1:'EPERM',2:'ENOENT',5:'EIO',9:'EBADF',13:'EACCES',20:'ENOTDIR',22:'EINVAL',34:'ERANGE',36:'ENAMETOOLONG'};
+      var codes={1:'EPERM',2:'ENOENT',3:'ESRCH',4:'EINTR',5:'EIO',9:'EBADF',13:'EACCES',20:'ENOTDIR',22:'EINVAL',32:'EPIPE',34:'ERANGE',36:'ENAMETOOLONG'};
       var code=codes[number]||'UNKNOWN',error=new Error(code+': '+syscall+(path===undefined?'':" '"+path+"'"));error.code=code;error.errno=-number;error.syscall=syscall;if(path!==undefined)error.path=path;return error
     }
     function argumentError(code,message,range){var error=range?new RangeError(message):new TypeError(message);error.code=code;return error}
@@ -148,6 +149,7 @@ __nonaPromiseDrainJobs=(function(drain){
     function exitNow(code){
       code=code===undefined?(created.exitCode===undefined?0:created.exitCode):code;
       code=(exitStatus(code)||0)>>>0;
+      if(!exitEmitted){exitEmitted=true;if(exitCallback)exitCallback(code|0)}
       if(windows)host.ExitProcess(code);else host.sys_exit(code&255);
       throw new Error('exit failed')
     }
@@ -200,20 +202,30 @@ __nonaPromiseDrainJobs=(function(drain){
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});
     value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
+${processExtensionsSource}
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}
   defineProperty(globalThis,'process',{enumerable:false,configurable:true,
     get:function(){if(created===null)created=build();install(created);return created},
     set:function(v){install(v)}});
-  return function(){
+  function flush(){
     do{
       while(tickHead<ticks.length){var job=ticks[tickHead++];apply(job.callback,undefined,job.args)}
       ticks=[];tickHead=0;drain();
     }while(ticks.length);
+  }
+  return function(){
+    flush();
     if(created===null)return;
     if(typeof __nonaRegexpVm.hasPendingTimers==='function'&&__nonaRegexpVm.hasPendingTimers())return;
+    if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return;
+    if(!exitEmitted&&beforeExitCallback){beforeExitCallback();flush();
+      if(typeof __nonaRegexpVm.hasPendingTimers==='function'&&__nonaRegexpVm.hasPendingTimers())return;
+      if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return
+    }
     var code=created.exitCode;
+    if(!exitEmitted){exitEmitted=true;if(exitCallback)exitCallback(code||0)}
     if(code!==undefined&&code!==0)created.exit(code)
   }
 })(__nonaPromiseDrainJobs);
@@ -236,6 +248,18 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['SetCurrentDirectoryW','KERNEL32.dll','SetCurrentDirectoryW','bool(buf)'],
     ['GetLastError','KERNEL32.dll','GetLastError','u32()'],
     ['NtQueryInformationProcess','ntdll.dll','NtQueryInformationProcess','i32(ptr,u32,buf,u32,ptr)'],
+    ['SetEnvironmentVariableW','KERNEL32.dll','SetEnvironmentVariableW','bool(buf,buf)'],
+    ['GetStdHandle','KERNEL32.dll','GetStdHandle','ptr(i32)'],
+    ['ReadFile','KERNEL32.dll','ReadFile','bool(ptr,buf,u32,buf,ptr)'],
+    ['WriteFile','KERNEL32.dll','WriteFile','bool(ptr,buf,u32,buf,ptr)'],
+    ['GetFileType','KERNEL32.dll','GetFileType','u32(ptr)'],
+    ['PeekNamedPipe','KERNEL32.dll','PeekNamedPipe','bool(ptr,ptr,u32,ptr,buf,ptr)'],
+    ['WaitForSingleObject','KERNEL32.dll','WaitForSingleObject','u32(ptr,u32)'],
+    ['OpenProcess','KERNEL32.dll','OpenProcess','ptr(u32,bool,u32)'],
+    ['TerminateProcess','KERNEL32.dll','TerminateProcess','bool(ptr,u32)'],
+    ['CloseHandle','KERNEL32.dll','CloseHandle','bool(ptr)'],
+    ['GetProcessTimes','KERNEL32.dll','GetProcessTimes','bool(ptr,buf,buf,buf,buf)'],
+    ['K32GetProcessMemoryInfo','KERNEL32.dll','K32GetProcessMemoryInfo','bool(ptr,buf,u32)'],
   ];
   const posix:[string,string,string,string][]=[
     ['sys_read','syscall','0','i64(i64,buf,i64)'],
@@ -247,12 +271,19 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
     ['sys_exit','syscall','231','i64(i64)'],
     ['sys_getppid','syscall','110','i64()'],
     ['sys_chdir','syscall','80','i64(buf)'],
+    ['sys_write','syscall','1','i64(i64,buf,i64)'],
+    ['sys_poll','syscall','7','i32(buf,u64,i32)'],
+    ['sys_getrusage','syscall','98','i32(i32,buf)'],
+    ['sys_kill','syscall','62','i32(i32,i32)'],
+    ['sys_getuid','syscall','102','u32()'],['sys_geteuid','syscall','107','u32()'],
+    ['sys_getgid','syscall','104','u32()'],['sys_getegid','syscall','108','u32()'],
+    ['sys_umask','syscall','95','u32(u32)'],
   ];
   if(target==='linux-arm64'){
-    const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getppid:'173',sys_chdir:'49',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94'};
-    for(const entry of posix){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';}
+    const numbers:Record<string,string>={sys_read:'63',sys_open:'56',sys_close:'57',sys_getpid:'172',sys_getppid:'173',sys_chdir:'49',sys_getcwd:'17',sys_readlink:'78',sys_exit:'94',sys_write:'64',sys_poll:'73',sys_getrusage:'165',sys_kill:'129',sys_getuid:'174',sys_geteuid:'175',sys_getgid:'176',sys_getegid:'177',sys_umask:'166'};
+    for(const entry of posix){entry[2]=numbers[entry[0]]!;if(entry[0]==='sys_open')entry[3]='i64(i64,buf,i64,i64)';if(entry[0]==='sys_readlink')entry[3]='i64(i64,buf,buf,i64)';if(entry[0]==='sys_poll')entry[3]='i32(buf,u64,buf,ptr,u64)';}
   }else if(target.startsWith('darwin-')||target.startsWith('freebsd-')||target.startsWith('openbsd-')){
-    const numbers:Record<string,string>={sys_read:'3',sys_open:'5',sys_close:'6',sys_getpid:'20',sys_getppid:'39',sys_chdir:'12',sys_readlink:'58',sys_exit:'1',sys_getcwd:'326'};
+    const numbers:Record<string,string>={sys_read:'3',sys_open:'5',sys_close:'6',sys_getpid:'20',sys_getppid:'39',sys_chdir:'12',sys_readlink:'58',sys_exit:'1',sys_getcwd:'326',sys_write:'4',sys_poll:target.startsWith('darwin-')?'230':target.startsWith('freebsd-')?'209':'252',sys_getrusage:target.startsWith('openbsd-')?'19':'117',sys_kill:'37',sys_getuid:'24',sys_geteuid:'25',sys_getgid:'47',sys_getegid:'43',sys_umask:'60'};
     for(const entry of posix)entry[2]=numbers[entry[0]]!;
     if(!target.startsWith('freebsd-'))posix.splice(posix.findIndex(e=>e[0]==='sys_getcwd'),1);
     if(target.startsWith('darwin-'))posix.push(['sys_fcntl','syscall','92','i64(i64,i64,buf)'],['sys_procinfo','syscall','336','i64(i32,i32,u32,u64,buf,i32)']);
@@ -267,8 +298,8 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
 
 /** Target-specific host boundary without introducing prelude global bindings. */
 export function processPreludeForTarget(target:string|undefined):string {
- const source=processPreludeSource.replace('__NONA_PROCESS_PLATFORM__',target?.startsWith('win32-')?'linux':target?.split('-')[0]??'linux').replace('__NONA_PROCESS_ARCH__',target?.endsWith('-arm64')?'arm64':'x64');
+ const source=processPreludeSource.replace('__NONA_PROCESS_HOST_NAMES__',JSON.stringify(processHostDeclarations((target??'win32-x64') as Target).map(h=>h.name))).replace('__NONA_PROCESS_PLATFORM__',target?.startsWith('win32-')?'linux':target?.split('-')[0]??'linux').replace('__NONA_PROCESS_ARCH__',target?.endsWith('-arm64')?'arm64':'x64');
  if(target!=='linux-arm64')return source;
  return source.replace('var windows=host.GetCommandLineW()!==0;',
-  'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};');
+  'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink,ppoll=host.sys_poll;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};host.sys_poll=function(fds,count){return ppoll(fds,count,new Uint32Array(4),null,8)};');
 }
