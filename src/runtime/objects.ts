@@ -27,9 +27,15 @@ export function emitObjects(b:RuntimeBuilder):void {
   b.bundle.fragments.push({name:'rt.arrayPrototype',section:'.data',alignment:8,bytes:arrayProto,symbols:{},fixups:[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},{offset:O.properties,kind:'va64',target:'rt.arrayPrototype.toString',addend:0}]});
 
   // RCX result Value*, RDX kind (0 object, 1 array), R8 initial array length.
-  b.fn('rt.newObject',72,a=>{
+  // rt.newObject: RCX result, RDX 1 for an array, R8 array length.
+  // rt.newObjectSlots: also R9 inline property nodes, which
+  // rt.allocPropertyNode hands out before it allocates nodes on the heap.
+  for(const withSlots of [false,true])b.fn(withSlots?'rt.newObjectSlots':'rt.newObject',72,a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
-    a.mov('rcx',O.size);a.call('rt.alloc');a.mov('r10',0);
+    if(withSlots){a.store(slot(64),'r9');a.mov('rcx',P.size);a.imul('rcx','r9');a.add('rcx',O.size);}else a.mov('rcx',O.size);
+    a.call('rt.alloc');
+    if(withSlots){a.load('r10',slot(64));a.store({base:'rax',disp:O.slots},'r10');}
+    a.mov('r10',0);
     a.mov('r11',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r11');
     for(const offset of [O.properties,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
     a.load('r10',slot(48));a.store({base:'rax',disp:O.kind},'r10');
@@ -381,10 +387,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(create);const extensible=a.unique('extensible');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',extensible);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',extensible);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',extensible);a.load('r10',{base:'r10',disp:O.flags});a.and('r10',2);a.test('r10','r10');a.jcc('ne',rejected);
-    a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.mov('rcx',P.size);a.call('rt.alloc');
+    a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.load('rcx',slot(72));a.call('rt.allocPropertyNode');
     a.mov('r10',0);for(const offset of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
     a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
-    a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+    
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');
     a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
     a.load('rcx',slot(72));a.mov('rdx','rax');a.call('rt.propIndexAdd');

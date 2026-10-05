@@ -3,7 +3,11 @@
 /** index: raw-heap array-index table of the property list (property-index.ts), or 0. */
 /** elements: raw-heap table from array index to property node (array-elements.ts), or 0. */
 /** keys: a filter of the own property keys (keyFilterValid set: every key ever added has its bit; see named-properties.ts), or 0 when unknown. */
-export const ObjectLayout={kind:0,properties:8,length:16,prototype:24,stringifying:32,flags:40,index:48,elements:56,keys:64,size:72} as const;
+/** slots: inline property nodes after the header (rt.newObjectSlots): capacity in the low 32 bits, nodes handed out in the high 32 bits; 0 for objects without them. */
+/** site: the constructor whose instance hint (FunctionLayout.instanceSlots) grows when this object outgrows its inline nodes, or 0. */
+export const ObjectLayout={kind:0,properties:8,length:16,prototype:24,stringifying:32,flags:40,index:48,elements:56,keys:64,slots:72,site:80,size:88} as const;
+/** Most inline property nodes an object gets (a constructor's hint stops growing here). */
+export const maxInlineSlots=32;
 /** Bit 63 of ObjectLayout.keys: the filter covers every own key of the object. */
 export const keyFilterValid=1n<<63n;
 export const PropertyLayout={next:0,key:8,value:16,attributes:32,getter:40,setter:56,size:72} as const;

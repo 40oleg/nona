@@ -40,7 +40,7 @@ export type Operation =
   | {kind:'derivedReturn';dest:number;source:number}
   | {kind:'newArguments';dest:number;parameters:number[];/** Non-simple parameter list: unmapped, callee is %ThrowTypeError%. */unmapped?:boolean} // -1: earlier duplicate, no mapping
   | {kind:'newRestArray';dest:number;start:number}
-  | {kind:'newObject';dest:number;array:boolean;length:number}
+  | {kind:'newObject';dest:number;array:boolean;length:number;slots?:number}
   | {kind:'forInKeys';dest:number;object:number}
   | {kind:'forInHas';dest:number;object:number;key:number}
   | {kind:'getIterator';iterator:number;next:number;object:number}

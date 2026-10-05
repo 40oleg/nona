@@ -302,6 +302,25 @@ const frozen=Object.freeze({fz:1});out.push(frozen.fz);
 const getter={};Object.defineProperty(getter,'gv',{get(){return 'got';}});out.push(getter.gv);
 console.log(out.join());
 `,
+ 'inline property nodes of literals and instances':`
+const out=[];
+class P{constructor(i){this.a={v:i};this.b='b'+i;this.c=[i];}}
+function read(o){return o.a.v+o.b+o.c[0];}
+const keep=[];for(let i=0;i<200;i++){const p=new P(i);keep.push(p);if(i%50===0)out.push(read(p));}
+let sum=0;for(const p of keep)sum+=p.a.v+p.c[0];out.push(sum,read(keep[199]));
+class W{constructor(n){for(let i=0;i<n;i++)this['w'+i]={i};}}
+for(const n of [2,10,40,3,40])
+{const w=new W(n);out.push(n,Object.keys(w).length,w.w0&&w.w0.i,w.w1&&w.w1.i,n>9?w.w9.i:'-',n>39?w.w39.i:'-');}
+const lit={x:{n:1},y:{n:2},z:{n:3}};function rx(o){return o.x.n+o.y.n+o.z.n;}out.push(rx(lit));
+delete lit.y;out.push(lit.y,Object.keys(lit).join());lit.y={n:20};out.push(rx(lit),Object.keys(lit).join());
+const objs=[{x:{n:1},y:{n:1},z:{n:1}},new (class{constructor(){this.z={n:5};this.y={n:6};this.x={n:7};}})(),Object.assign(Object.create(null),{x:{n:9},y:{n:9},z:{n:9}})];
+for(let r=0;r<3;r++)for(const o of objs)out.push(rx(o));
+const late=new P(1);late.extra={v:'late'};late.a=null;out.push(late.extra.v,late.a,Object.keys(late).join());
+function F(){this.p=1;}const fs=[];for(let i=0;i<30;i++){const f=new F();for(let j=0;j<i%7;j++)f['q'+j]=j;fs.push(f);}
+out.push(fs.map(f=>Object.keys(f).length).join(''));
+const nested={};let cur=nested;for(let i=0;i<50;i++){cur.next={depth:i};cur=cur.next;}let d=0;cur=nested;while(cur.next){cur=cur.next;d=cur.depth;}out.push(d);
+console.log(out.join(' '));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];

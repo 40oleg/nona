@@ -1,5 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags,maxInlineSlots} from './object-layout.js';
+import {FunctionLayout,defaultInstanceSlots} from './functions.js';
 import {BoxKind} from './boxing.js';
 import {bumpEpochIfPrototype,emitNamedKindCheck,namedTypedArrayKind} from './property-cache.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
@@ -38,6 +39,23 @@ import type {Assembler} from '../backend/x64/assembler.js';
 export const ownIndexThreshold=16;
 
 export function emitNamedProperties(b:RuntimeBuilder):void {
+ // RCX object header -> RAX a cleared property node for it, not yet linked:
+ // the next of its inline nodes (ObjectLayout.slots) while there are any,
+ // else a heap block. An object that outgrows its inline nodes raises its
+ // constructor's hint for later instances (FunctionLayout.instanceSlots).
+ // Inline nodes are never reused: a deleted one stays cleared and unlinked.
+ b.fn('rt.allocPropertyNode',40,a=>{
+  const heap=a.unique('heap'),fresh=a.unique('fresh'),done=a.unique('done');
+  a.load('r10',{base:'rcx',disp:O.slots});a.mov('r11','r10');a.shr('r11',32);a.mov('rax','r10');a.shl('rax',32);a.shr('rax',32);
+  a.cmp('r11','rax');a.jcc('ae',heap);
+  a.mov('rax','r11');a.mov('r9',P.size);a.imul('rax','r9');a.add('rax','rcx');a.add('rax',O.size);
+  a.mov('r9',1);a.shl('r9',32);a.add('r10','r9');a.store({base:'rcx',disp:O.slots},'r10');a.jmp(done);
+  a.label(heap);a.test('rax','rax');a.jcc('e',fresh);a.load('r9',{base:'rcx',disp:O.site});a.test('r9','r9');a.jcc('e',fresh);
+  a.load('r8',{base:'r9',disp:FunctionLayout.instanceSlots});{const set=a.unique('set');a.test('r8','r8');a.jcc('ne',set);a.mov('r8',defaultInstanceSlots);a.label(set);}
+  a.cmp('r8',maxInlineSlots);a.jcc('ae',fresh);a.add('r8',1);a.store({base:'r9',disp:FunctionLayout.instanceSlots},'r8');
+  a.label(fresh);a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.label(done);
+ });
  // RCX object payload, RDX key record -> RAX own property node or 0.
  b.fn('rt.ownNamedNode',72,a=>{
   const scan=a.unique('scan'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),chars=a.unique('chars'),scanned=a.unique('scanned');
@@ -151,7 +169,7 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.label(inherited);a.store(slot(96),'r10');a.mov('rcx','r10');a.load('rdx',slot(80));a.call('rt.ownNamedNode');a.test('rax','rax');const nextProto=a.unique('nextProto');a.jcc('e',nextProto);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);a.jmp(own);
   a.label(nextProto);a.load('r10',slot(96));a.load('r10',{base:'r10',disp:O.prototype});a.jmp(chain);
-  a.label(own);a.load('r10',slot(88));bumpEpochIfPrototype(a,'r10');a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.label(own);a.load('r10',slot(88));bumpEpochIfPrototype(a,'r10');a.load('rcx',slot(88));a.call('rt.allocPropertyNode');
   a.load('r10',slot(80));a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
   a.mov('r10',0);for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
   a.load('r8',slot(56));a.load('r11',{base:'r8'});a.store({base:'rax',disp:P.value},'r11');a.load('r11',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r11');

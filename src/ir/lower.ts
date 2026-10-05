@@ -768,7 +768,7 @@ class Lowerer {
       case 'OptionalChain':return this.optionalChain(e,'value');
       case 'ObjectLiteral':case 'ArrayLiteral': {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
-        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0});
+        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{})});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
           if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
         });

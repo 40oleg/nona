@@ -90,7 +90,7 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   a.load('r11',{base:'rax'});a.store(slot(56),'r11');a.load('r11',{base:'rax',disp:8});a.store(slot(64),'r11');
   a.mov('r11',HoleTag);a.store({base:'rax'},'r11');a.load('r11',{base:'r10',disp:E.count});a.sub('r11',1);a.store({base:'r10',disp:E.count},'r11');
   a.mov('rax',3);a.store(slot(72),'rax');a.cvtsi2sd('xmm0','rdx');a.storesd(slot(80),'xmm0');a.lea('rcx',slot(88));a.lea('rdx',slot(72));a.call('rt.toPropertyKey');
-  a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.load('rcx',slot(40));a.call('rt.allocPropertyNode');
   a.load('r10',slot(96));a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
   a.load('r10',slot(56));a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(64));a.store({base:'rax',disp:P.value+8},'r10');
   a.mov('r10',0);for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');

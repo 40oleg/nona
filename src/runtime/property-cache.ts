@@ -38,7 +38,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
 /** Four entries of {prototype, node}, newest first, behind one epoch. */
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
 /** Then the key's bit in object key filters (rt.keyFilterBit), also 0 until first use. */
-export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,size:8+16*4+16} as const;
+/** Then 1 + the inline node index (ObjectLayout.slots) where the key was last found as an own property, or 0. */
+export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,slot:8+16*4+16,size:8+16*4+24} as const;
 
 /** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
 export function cacheableName(name:string):boolean {
@@ -82,7 +83,7 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
  // RCX result Value*, RDX base Value*, R8 key Value* (a cacheable string
  // literal), R9 cache record.
  b.fn('rt.getPropertyCached',104,a=>{
-  const L=PropertyCacheLayout,getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
+  const L=PropertyCacheLayout,ownFound=a.unique('ownFound'),getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   // The receiver: an ordinary object, array or function, or the prototype
   // of a string, number or boolean.
@@ -94,6 +95,14 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   // An own property answers by itself. A receiver with a property index is
   // probed with the key's hash, kept in the record (no rehash per read).
   a.label(scan);a.store(slot(72),'r10');
+  // Objects built the same way keep a property in the same inline node: the
+  // node this site found last time answers if it still holds the key.
+  {const noSlot=a.unique('noSlot');
+   a.load('rax',{base:'r9',disp:L.slot});a.test('rax','rax');a.jcc('e',noSlot);a.sub('rax',1);
+   a.load('r11',{base:'r10',disp:O.slots});a.shr('r11',32);a.cmp('rax','r11');a.jcc('ae',noSlot);
+   a.mov('r11',P.size);a.imul('rax','r11');a.add('rax','r10');a.add('rax',O.size);
+   a.load('r11',{base:'rax',disp:P.key});a.load('rcx',{base:'r8',disp:8});a.cmp('r11','rcx');a.jcc('e',read);
+   a.label(noSlot);}
   {const listScan=a.unique('listScan'),hashed=a.unique('hashed'),probed=a.unique('probed');
    // A complete key filter of the receiver without the key's bit (kept in
    // the record) rules out an own property without touching the key.
@@ -108,8 +117,15 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.load('rdx',{base:'r9',disp:L.hash});a.test('rdx','rdx');a.jcc('ne',hashed);
    a.load('rcx',{base:'r8',disp:8});a.call('rt.propKeyHash');a.load('r9',slot(64));a.store({base:'r9',disp:L.hash},'rax');a.mov('rdx','rax');a.load('r8',slot(56));a.load('r10',slot(72));
    a.label(hashed);a.load('rcx',{base:'r10',disp:O.index});a.load('r8',{base:'r8',disp:8});a.call('rt.propIndexProbe');a.test('r10','r10');a.jcc('e',probed);
-   a.load('rax',{base:'rax',disp:8});a.jmp(read);
-   a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',read);
+   a.load('rax',{base:'rax',disp:8});a.jmp(ownFound);
+   a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',ownFound);
+   a.jmp(probed);
+   // RAX = an own node of the receiver (slot 72): an inline one is remembered.
+   a.label(ownFound);{const remembered=a.unique('remembered');
+    a.load('r10',slot(72));a.mov('r11','rax');a.sub('r11','r10');a.sub('r11',O.size);a.jcc('b',remembered);
+    a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.mov('rcx',P.size);a.imul('r10','rcx');a.cmp('r11','r10');a.jcc('ae',remembered);
+    a.store(slot(80),'rax');a.mov('rax','r11');a.mov('rdx',0);a.div('rcx');a.add('rax',1);a.load('r9',slot(64));a.store({base:'r9',disp:L.slot},'rax');a.load('rax',slot(80));
+    a.label(remembered);a.jmp(read);}
    a.label(probed);}
   // Otherwise the entry for the receiver's prototype, at the current epoch.
   a.load('r9',slot(64));a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});a.test('r10','r10');a.jcc('e',generic);

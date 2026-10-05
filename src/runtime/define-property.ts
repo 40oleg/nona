@@ -116,7 +116,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
   const ordinary=a.unique('ordinary');a.jcc('e',ordinary);a.mov('r11','rax');a.load('rax',slot(200));a.store({base:'rdx'},'rax');
   for(const n of [0,8]){a.load('rax',slot(80+D.value+n));a.store({base:'r11',disp:n},'rax');}a.jmp(yes);
   a.label(ordinary);a.load('rcx',slot(64));a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.findOwnProperty');a.test('rax','rax');
-  const node=a.unique('node');a.jcc('ne',node);a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  const node=a.unique('node');a.jcc('ne',node);a.load('rcx',slot(64));a.call('rt.allocPropertyNode');
   a.mov('r10',0);for(const n of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:n},'r10');
   a.load('r10',slot(64));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
   a.load('rcx',slot(64));a.mov('rdx','rax');a.call('rt.propIndexAdd');

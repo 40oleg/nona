@@ -126,6 +126,16 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  });
  b.fn('rt.gcTraceObject',56,a=>{
   a.store(slot(40),'rcx');a.call('rt.elementsTrace');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
+  // Inline property nodes live inside the object's block, so marking a
+  // pointer to one only reaches the object: their references are traced
+  // here (a deleted node is cleared and traces nothing).
+  {const loop=a.unique('inlineNodes'),traced=a.unique('inlineTraced');
+   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.site});a.call('rt.gcMarkPointer');
+   a.mov('rax',0);a.store(slot(48),'rax');
+   a.label(loop);a.load('r10',slot(40));a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.load('rax',slot(48));a.cmp('rax','r10');a.jcc('ae',traced);
+   a.mov('r9',P.size);a.imul('rax','r9');a.load('rcx',slot(40));a.add('rcx','rax');a.add('rcx',O.size);a.call('rt.gcTraceProperty');
+   a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
+   a.label(traced);}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.prototype});a.call('rt.gcMarkPointer');
   const done=a.unique('done'),box=a.unique('box'),iterator=a.unique('iterator'),generator=a.unique('generator');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
   a.load('rcx',{base:'rcx',disp:FunctionLayout.environment});a.call('rt.gcMarkPointer');
