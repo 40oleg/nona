@@ -489,6 +489,21 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'length',{get(
 log((5).length,true.length,Symbol("ab").description.length);
 try{null.length}catch(e){log(e.constructor.name)}try{undefined.length}catch(e){log(e.constructor.name)}
 `,
+ 'super property reads':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+class A{m(){return 'A.m:'+this.tag} get g(){return 'A.g:'+this.tag} static s(){return 'A.s'} get only(){return this.tag}}
+class B extends A{constructor(){super();this.tag='b'} m(){return 'B>'+super.m()} get g(){return 'B>'+super.g} x(){return [super.only,super.missing,super.constructor.name]} static s(){return 'B>'+super.s()}}
+const b=new B();for(let i=0;i<3;i++)log(b.m(),b.g,b.x(),B.s());
+A.prototype.m=function(){return 'patched:'+this.tag};log(b.m());
+Object.defineProperty(A.prototype,'g',{get(){return 'redef:'+this.tag},configurable:true});log(b.g);
+delete A.prototype.m;try{b.m()}catch(e){log(e.constructor.name)}
+const o={__proto__:{hi(){return 'proto hi '+this.n}},n:1,hi(){return super.hi()+'!'}};log(o.hi());
+Object.setPrototypeOf(o,{hi(){return 'other '+this.n}});log(o.hi());
+const n={f(){return super.f}};Object.setPrototypeOf(n,null);try{n.f()}catch(e){log(e.constructor.name)}
+class C extends Array{last(){return super.at(-1)} len(){return super.length}};const c=C.from([1,2,3]);log(c.last(),c.len());
+class E extends Error{msg(){return super.toString()}};log(new E('x').msg());
+A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<10000;i++)s+=d.m().length;log(s);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to

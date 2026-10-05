@@ -422,7 +422,8 @@ class Lowerer {
     }
     if(e.object.kind==='Super'){
       const receiver=this.slot();this.emit({kind:'currentThis',dest:receiver});
-      const key=this.expression(e.property),object=this.slot();return {object,key,receiver};
+      const key=this.expression(e.property),object=this.slot();
+      return {object,key,receiver,...(e.property.kind==='Literal'&&typeof e.property.value==='string'?{keyName:e.property.value}:{})};
     }
     if(e.property.kind==='PrivateName'){const object=this.expression(e.object);return {object,key:this.privateName(e.property),privateName:true,privateKind:e.property.privateKind};}
     // Keep the raw key: RHS effects may mutate an object used as a key.
@@ -459,7 +460,7 @@ class Lowerer {
     // object to value or method); accessors call their getter in the prelude.
     if(ref.privateName&&ref.privateKind!=='accessor'){const dest=this.slot();this.emit({kind:'privateGet',dest,object:ref.object,name:ref.key});return dest;}
     if(ref.privateName)return this.preludeCall('privateGet',[ref.object,ref.key]);
-    const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
+    const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver,...(ref.keyName!==undefined?{keyName:ref.keyName}:{})});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
   private putReference(ref:Reference,source:number):void {
     if('id'in ref&&ref.withRef){

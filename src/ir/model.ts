@@ -23,7 +23,7 @@ export type Operation =
   | {kind:'popHandler'}
   | {kind:'newTarget';dest:number}
   | {kind:'superBase';dest:number}
-  | {kind:'superGet';dest:number;object:number;key:number;receiver:number}
+  | {kind:'superGet';dest:number;object:number;key:number;receiver:number;/** `super.name`: the literal name */keyName?:string}
   | {kind:'superSet';strict?:boolean;object:number;key:number;receiver:number;source:number}
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}

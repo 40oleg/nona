@@ -1,4 +1,4 @@
-import {RuntimeBuilder,slot} from './abi.js';
+import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {CellTag} from './environment-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
@@ -179,7 +179,11 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.label(number);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
   a.label(done);
  });
- b.fn('rt.getPropertyCached',104,a=>{
+ // rt.superGetCached: the same for `super.name` (R9 cache, fifth argument
+ // the receiver): the lookup starts at the home object's prototype (RDX,
+ // which must be an object) and a getter is called with the receiver.
+ for(const withReceiver of [false,true])b.fn(withReceiver?'rt.superGetCached':'rt.getPropertyCached',104,a=>{
+  if(withReceiver){a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');}
   const L=PropertyCacheLayout,ownFound=a.unique('ownFound'),getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   // The receiver: an ordinary object, array or function, or the prototype
@@ -262,8 +266,8 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.label(getter);a.load('r11',{base:'rax',disp:P.getter});a.store(slot(88),'r11');a.load('r11',{base:'rax',disp:P.getter+8});a.store(slot(96),'r11');
   {const call=a.unique('call');a.load('r11',slot(88));a.test('r11','r11');a.jcc('ne',call);
    a.load('rcx',slot(40));a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.jmp(done);
-   a.label(call);a.load('rax',slot(48));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(88));a.mov('r8',0);a.mov('r9',0);a.call('rt.invoke');a.jmp(done);}
-  a.label(generic);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.call('rt.getProperty');
+   a.label(call);a.load('rax',withReceiver?slot(104+40):slot(48));a.store(slot(32),'rax');a.load('rcx',slot(40));a.lea('rdx',slot(88));a.mov('r8',0);a.mov('r9',0);a.call('rt.invoke');a.jmp(done);}
+  a.label(generic);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));if(withReceiver){a.load('r9',slot(104+40));a.call('rt.getPropertyWithReceiver');}else a.call('rt.getProperty');
   a.label(done);
  });
 }

@@ -484,7 +484,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'validateClassPrototype':{
           const done=a.unique('classPrototypeDone');a.load('rax',value(op.prototype));a.cmp('rax',1);a.jcc('e',done);a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.label(done);break;
         }
-        case 'superGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
+        case 'superGet':
+          // `super.name` with a literal name: a per-site inline cache like `object.name`.
+          if(op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('rax',value(op.receiver));a.store(stack(32),'rax');pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.lea('r9',{rip:cache});a.call('rt.superGetCached');break;
+          }
+          pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
         case 'superSet':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.receiver);pointer('r9',op.source);a.call('rt.superSet');if(op.strict){a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'currentFunction':
           a.load('rax',stack(64));a.store(payload(op.dest),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
