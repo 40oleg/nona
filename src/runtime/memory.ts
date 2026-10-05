@@ -46,8 +46,17 @@ export const ChunkLayout={next:0,cellSize:8,cells:16,carved:24,magic:32,size:64}
 /** Large mapping header, followed by the block header. */
 export const LargeLayout={next:0,bytes:8,size:64} as const;
 export const chunkBytes=1<<16;
-/** Total block sizes (header included): 16-byte steps up to 1024, then doublings to 32768 (one cell per chunk, so a 16 KiB buffer is recycled from a free list instead of mapping and unmapping pages). */
-export const smallClasses=62,classCount=67,largestClass=32768;
+/**
+ * Total block sizes (header included): 16-byte steps up to 1024, then the
+ * largest 16-byte multiple that fits k times into a chunk, for falling k.
+ * Powers of two wasted almost half of a block just above one (a 16 KiB
+ * buffer with its header took a 32 KiB cell); a chunk divisor keeps the waste
+ * of the next class below a third and leaves no unused tail in the chunk.
+ * The largest class fills a whole chunk, so buffers up to 64 KiB are recycled
+ * from a free list instead of mapping and unmapping pages.
+ */
+export const bigClassSizes=[48,32,24,16,12,8,6,5,4,3,2,1].map(k=>Math.floor((chunkBytes-ChunkLayout.size)/k/16)*16);
+export const smallClasses=62,classCount=smallClasses+bigClassSizes.length,largestClass=bigClassSizes[bigClassSizes.length-1]!;
 /** Released large mappings kept for reuse, and the largest one worth keeping. */
 export const largeCacheLimit=16,largeCacheMaxBytes=8<<20;
 const C=ChunkLayout,L=LargeLayout;
@@ -78,18 +87,19 @@ export function emitMemory(b:RuntimeBuilder):void {
  // RCX mapping, RDX bytes: returns the pages to the system.
  b.fn('rt.unmapPages',40,a=>{a.mov('r8',0x4000);a.callImport('VirtualFree');});
 
+ b.data('rt.bigClassSizes',new Uint8Array(new BigUint64Array(bigClassSizes.map(BigInt)).buffer),'.rdata');
  // RCX class index -> RAX cell size. Pure.
  b.fn('rt.classSize',40,a=>{
   const big=a.unique('big'),done=a.unique('done');a.cmp('rcx',smallClasses);a.jcc('ae',big);
   a.mov('rax','rcx');a.shl('rax',4);a.add('rax',48);a.jmp(done);
-  a.label(big);a.sub('rcx',smallClasses-1);a.mov('rax',1024);a.shl('rax','cl');a.label(done);
+  a.label(big);a.sub('rcx',smallClasses);a.shl('rcx',3);a.lea('rax',{rip:'rt.bigClassSizes'});a.add('rax','rcx');a.load('rax',{base:'rax'});a.label(done);
  });
  // RCX cell size -> RAX class index. Pure.
  b.fn('rt.classOf',40,a=>{
   const big=a.unique('big'),done=a.unique('done');a.cmp('rcx',1024);a.jcc('a',big);
   a.mov('rax','rcx');a.sub('rax',48);a.shr('rax',4);a.jmp(done);
-  a.label(big);a.mov('rax',smallClasses);a.mov('r10',2048);const loop=a.unique('loop');
-  a.label(loop);a.cmp('rcx','r10');a.jcc('be',done);a.shl('r10',1);a.add('rax',1);a.jmp(loop);a.label(done);
+  a.label(big);a.mov('rax',smallClasses);a.lea('r10',{rip:'rt.bigClassSizes'});const loop=a.unique('loop');
+  a.label(loop);a.load('r11',{base:'r10'});a.cmp('rcx','r11');a.jcc('be',done);a.add('r10',8);a.add('rax',1);a.jmp(loop);a.label(done);
  });
 
  // Page map: open-addressing hash table from the 64 KiB granule of an address

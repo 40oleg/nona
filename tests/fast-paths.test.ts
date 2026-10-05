@@ -449,6 +449,12 @@ const v=[5,-5,0,-0,5.5,1e20,2**53,NaN,Infinity,-Infinity,3,-3,1,"7",null,true,2*
 const out=[];for(const x of v)for(const y of v)out.push(Object.is(x%y,-0)?"-0":String(x%y));console.log(out.join(","));
 let s=0;for(let i=0;i<1000;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
 `,
+ 'buffers across the large size classes':`
+const sizes=[1000,1100,1400,2000,2100,4000,4100,5500,8100,8200,11000,13000,16384,20000,22000,32000,33000,65000,65500,70000];
+let total=0;for(let round=0;round<20;round++){const live=[];for(const n of sizes){const u=new Uint8Array(n);u[0]=round;u[n-1]=n&255;live.push(u);}
+for(const u of live){if(u[0]!==round||u[u.length-1]!==(u.length&255))throw new Error("corrupt "+u.length);total+=u.length;}}
+console.log(total);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
