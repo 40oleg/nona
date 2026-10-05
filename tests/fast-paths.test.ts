@@ -476,6 +476,19 @@ try{S()}catch(e){console.log(e.constructor.name)}
 class T extends Object{constructor(){super();this.t=1}};console.log(new T().t, new T() instanceof T);
 const Px=new Proxy(S,{});console.log(new Px() instanceof S);
 `,
+ 'length reads':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+const vals=["abc","",[1,2,3],[],new Uint8Array(5),new Float64Array(2),new String("xy"),function(a,b){},(...r)=>0,{length:7},{},Object.create({length:3}),new Map(),[,,],Object.assign([1],{length:4})];
+for(let r=0;r<3;r++)for(const v of vals)log(typeof v, v.length);
+function f(){return arguments.length}log(f(1,2,3),f());
+const u=new Uint8Array(4);Object.defineProperty(u,'length',{value:99});log(u.length);
+class B extends Uint8Array{get length(){return -1}};log(new B(3).length);
+const ab=new ArrayBuffer(8);const t=new Uint8Array(ab);log(t.length);
+const g=new Uint16Array(3);log(g.length,g.subarray(1).length);
+Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'length',{get(){return 42}});log(new Uint8Array(2).length,new Int8Array(1).length);
+log((5).length,true.length,Symbol("ab").description.length);
+try{null.length}catch(e){log(e.constructor.name)}try{undefined.length}catch(e){log(e.constructor.name)}
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to

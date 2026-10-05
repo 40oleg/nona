@@ -163,6 +163,22 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
  for(const name of ['rt.namedGetNode','rt.namedGetHolder'])b.data(name,new Uint8Array(8),'.data');
  // RCX result Value*, RDX base Value*, R8 key Value* (a cacheable string
  // literal), R9 cache record.
+ // `object.length` sites: a string's or an array's length directly, the
+ // inline cache for ordinary objects, functions and typed arrays (whose
+ // length is the inherited accessor), and the generic read for anything else
+ // (string wrappers and other exotic objects have no node for it).
+ // RCX result Value*, RDX base Value*, R8 key Value* ("length"), R9 cache record.
+ b.fn('rt.getLengthCached',40,a=>{
+  const string=a.unique('string'),cached=a.unique('cached'),generic=a.unique('generic'),number=a.unique('number'),done=a.unique('done');
+  a.load('rax',{base:'rdx'});a.load('r10',{base:'rdx',disp:8});a.cmp('rax',4);a.jcc('e',string);a.cmp('rax',5);a.jcc('ne',generic);
+  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',cached+'.kind');a.load('rax',{base:'r10',disp:O.length});a.jmp(number);
+  a.label(cached+'.kind');a.test('rax','rax');a.jcc('e',cached);a.cmp('rax',2);a.jcc('e',cached);a.cmp('rax',namedTypedArrayKind);a.jcc('e',cached);
+  a.label(generic);a.call('rt.getProperty');a.jmp(done);
+  a.label(cached);a.call('rt.getPropertyCached');a.jmp(done);
+  a.label(string);a.load('rax',{base:'r10'});
+  a.label(number);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
+  a.label(done);
+ });
  b.fn('rt.getPropertyCached',104,a=>{
   const L=PropertyCacheLayout,ownFound=a.unique('ownFound'),getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');

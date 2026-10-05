@@ -589,6 +589,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
           }
+          if(op.operation==='get'&&op.keyName==='length'){
+            const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r9',{rip:cache});a.call('rt.getLengthCached');break;
+          }
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
           // `object.name = value` writes go through a per-site record that
