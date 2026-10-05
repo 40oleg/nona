@@ -12,7 +12,7 @@ JavaScript source (script or module graph)
                                      IR lowering → x86-64 code generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 所有步骤都在编译器进程内完成，不使用外部汇编器、链接器或 C 编译器。结果是一个文件，包含程序的机器码和 Nona 的运行时。

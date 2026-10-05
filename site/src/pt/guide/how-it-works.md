@@ -12,7 +12,7 @@ JavaScript source (script or module graph)
                                      IR lowering → x86-64 code generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 Tudo roda dentro do processo do compilador; não há assembler, linker ou compilador de C externo. O resultado é um único arquivo que contém o código de máquina do programa e o runtime do Nona.

@@ -15,7 +15,7 @@
 - Targets: win32-x64, linux-x64, darwin-x64, darwin-arm64, linux-arm64, win32-arm64, freebsd-x64, openbsd-x64.
 - No C/LLVM toolchain, bundled runtime, or interpreter dependency in output. The owner authorized macOS system libSystem for native startup and OS services on 2026-10-05; other targets remain libc-free.
 - No generated Windows executable execution on the local maintainer host.
-- No main push, merge, security-policy changes, WSL installation, or global Node switch.
+- No direct main push, security-policy changes, WSL installation, or global Node switch. The owner authorized merging PR #122 and resolving conflicts on 2026-10-05, superseding the earlier leave-unmerged instruction.
 - Write repo artifacts in English, commit as helgus, retain issue #117's claim.
 
 ## Review Focus
@@ -99,9 +99,9 @@ Files: Mach-O signing/layout, PE ARM64 layout, platform ABI adapters, ARM64 OS s
 Interfaces: Mach-O emits an embedded ad-hoc signature over the final image; PE resolves ARM64 imports/relocations and typed native-call bridges.
 
 - [x] Pin CPU headers, final-image signature hashes, malformed metadata, and unsupported ABI option behavior with failing tests.
-- [ ] Implement Darwin ARM64 startup/syscalls/signing and execute on Apple Silicon CI.
+- [x] Implement Darwin ARM64 startup/syscalls/signing and execute on Apple Silicon CI.
 - [x] Implement Windows ARM64 platform-call bridge and PE metadata; execute on windows-11-arm CI.
-- [ ] Run managed-runtime, GC, coroutine, timers/IO, and agent probes on both targets; commit after gates pass.
+- [x] Run managed-runtime, GC, coroutine, timers/IO, and agent probes on both targets; commit after gates pass.
 
 ## Task 8: CI and distro verification
 
@@ -110,8 +110,8 @@ Files: `.github/workflows/native-platforms.yml`, `scripts/build-platform-probes.
 Interfaces: generated probe manifests identify target/CPU and oracle outputs; runners reject a mismatched host instead of emulating another CPU silently.
 
 - [x] Add explicit host/target mismatch and failing-probe diagnostics to the runner tests.
-- [ ] Verify eight native target gates, existing regression, and Linux distro compatibility without compiling separately per distro.
-- [ ] Confirm OS/kernel floors from the syscall adapters and record native versus format-only/emulated evidence separately.
+- [x] Verify eight native target gates, existing regression, and Linux distro compatibility without compiling separately per distro.
+- [x] Confirm OS/kernel floors from the syscall adapters and record native versus format-only/emulated evidence separately.
 
 ## Task 9: Documentation, review, and PR
 
@@ -119,5 +119,5 @@ Files: README.md, README.ru.md, docs/native-platforms.md, docs/host-apis.md, CHA
 
 - [x] Document target names, cross-compilation, ABI/capability limits, verified OS floors, and actual CI results.
 - [x] Run required existing build/regression/compare gates in CI and enabled-platform gates; review the entire diff and resolve concrete failures. The eighth target remains tracked in Tasks 7/8.
-- [x] Open and attach the PR with `Closes #117`, design, verification, and limitations; leave it unmerged and do not push main. Draft PR #122 records the unresolved Apple Silicon decision.
-- [ ] Mark the goal complete only after the requested platform work and reviewable PR are actually finished.
+- [x] Open and attach the PR with `Closes #117`, design, verification, and limitations; leave it unmerged and do not push main. PR #122 records the authorized macOS system-library exception and all eight native gates.
+- [x] Verify the requested platform work and reviewable PR are actually finished before recording goal completion. Native CI and required check passed at 5391c47; final documentation and merge follow the owner's latest instruction.

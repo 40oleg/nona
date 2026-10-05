@@ -20,7 +20,7 @@ Nona разбирает JavaScript, переводит его в собстве�
   - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
-- **Исполняемые файлы Windows.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
+- **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
 
 ## Как это устроено
 
@@ -34,7 +34,7 @@ Nona разбирает JavaScript, переводит его в собстве�
                                        IR → генерация кода x86-64/AArch64
                                                               │
                                                               ▼
-                     runtime (машинный код + JS-прелюдии) → линковщик PE32+ или ELF64
+                     runtime (машинный код + JS-прелюдии) → линковщик PE32+/ELF64/Mach-O64
 ```
 
 Компилятор написан на TypeScript и запускается в Node.js. Исполняемый файл содержит машинный код программы и runtime Nona: значения, объекты, сборщик мусора, встроенные объекты, очередь jobs и API хоста.
@@ -43,6 +43,15 @@ Nona разбирает JavaScript, переводит его в собстве�
 
 - Для компилятора: Node.js 26 или новее и npm.
 - Цели: Windows/Linux/macOS x64 и ARM64, FreeBSD/OpenBSD x64. По умолчанию выбираются ОС и процессор хоста; проверки и ограничения описаны в [поддержке платформ](docs/native-platforms.md).
+
+| ОС | Цели | Формат |
+| --- | --- | --- |
+| Windows | `win32-x64`, `win32-arm64` | PE32+ |
+| Linux | `linux-x64`, `linux-arm64` | ELF64 |
+| macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
+| FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
+
+Один Linux-бинарник для выбранного процессора подходит для Mint, Ubuntu, Debian, Fedora и Alpine; отдельная сборка для каждого дистрибутива не нужна.
 
 ## Сборка
 
@@ -69,10 +78,11 @@ setTimeout(() => console.log(greet("from Nona")), 10);
 ```sh
 node dist/cli.js build hello.js -o build/hello.exe                     # Windows
 node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
+node dist/cli.js build hello.js -o build/hello --target darwin-arm64   # Apple Silicon
 ```
 
 ```text
-nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|freebsd-x64|openbsd-x64] [--module]
+nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
            [--full-runtime] [--call-stats] [--coverage dir]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
@@ -87,7 +97,7 @@ nona --help | --version
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
 - Модули Node.js, кроме встроенных `fs` и `process`, пакеты npm и браузерные API недоступны.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
-- macOS ARM64 пока не включена. API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
+- API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 
 Неподдерживаемый синтаксис отклоняется при компиляции. Точное поведение и покрытие тестами — в [матрице поддержки](docs/language-support.md).
 

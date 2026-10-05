@@ -20,7 +20,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
-- **Windows executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
+- **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
 
 ## How it works
 
@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
                                      IR lowering → x86-64/AArch64 code generation
                                                          │
                                                          ▼
-                       runtime (native code + JS preludes) → PE32+ or ELF64 linker
+                       runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
 The compiler is written in TypeScript and runs on Node.js. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
@@ -43,6 +43,15 @@ The compiler is written in TypeScript and runs on Node.js. A generated executabl
 
 - To run the compiler: Node.js 26 or newer and npm.
 - Targets: Windows/Linux/macOS x64 and ARM64, FreeBSD/OpenBSD x64. The default follows the host OS and CPU; see [native platforms](docs/native-platforms.md) for verification and API limits.
+
+| OS | Targets | Format |
+| --- | --- | --- |
+| Windows | `win32-x64`, `win32-arm64` | PE32+ |
+| Linux | `linux-x64`, `linux-arm64` | ELF64 |
+| macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
+| FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
+
+Linux uses one binary per CPU for Mint, Ubuntu, Debian, Fedora and Alpine; separate distribution builds are unnecessary.
 
 ## Build Nona
 
@@ -69,10 +78,11 @@ setTimeout(() => console.log(greet("from Nona")), 10);
 ```sh
 node dist/cli.js build hello.js -o build/hello.exe                     # Windows
 node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
+node dist/cli.js build hello.js -o build/hello --target darwin-arm64   # Apple Silicon
 ```
 
 ```text
-nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|freebsd-x64|openbsd-x64] [--module]
+nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
            [--full-runtime] [--call-stats] [--coverage dir]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]

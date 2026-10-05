@@ -7,7 +7,8 @@ Produce standalone native programs for eight explicit targets:
 `win32-arm64`, `freebsd-x64`, and `openbsd-x64`. Preserve the current
 supported JavaScript semantics from main at `569270a`; this work does not
 expand the ECMAScript conformance claim. The user authorized autonomous
-implementation and a PR, and explicitly prohibited merging into main.
+implementation and a PR. On 2026-10-05 the owner authorized merging PR #122
+and resolving any conflicts, superseding the earlier no-merge instruction.
 
 The compiler and runtime remain implemented in this repository: no LLVM,
 C toolchain, interpreter, or bundled OS libraries in the generated program.

@@ -13,7 +13,7 @@ Choose an output target with `--target`. The default is the host OS and CPU.
 | `darwin-x64` | x86-64 | Mach-O64 | Intel macOS 15 runner, clocks/GC/agent probes |
 | `freebsd-x64` | x86-64 | ELF64 | FreeBSD 14.3 VM, clocks/GC/agent probes |
 | `openbsd-x64` | x86-64 | ELF64 | OpenBSD 7.8 VM, clocks/GC/agent probes |
-| `darwin-arm64` | AArch64 | Mach-O64 | Dynamic dyld/libSystem path; Apple Silicon CI verification pending |
+| `darwin-arm64` | AArch64 | Mach-O64 | Native macOS 15 ARM runner, dyld/libSystem, clocks/GC/agent probes |
 
 Apple Silicon executables load the operating system's `/usr/lib/libSystem.B.dylib` through dyld. This macOS exception was authorized by the owner; it adds no bundled runtime, interpreter or C toolchain. PIE data pointers are rebased by dyld, imports are eagerly bound, and an embedded ad-hoc signature covers the final image. Intel macOS retains direct kernel startup.
 
@@ -88,4 +88,4 @@ exercises mixed integer/FP register banks and overflowing stack arguments.
 
 The exact evidence and development failures are recorded in the
 [implementation ledger](superpowers/plans/2026-10-04-native-platforms-ledger.md).
-Final full regression and whole-branch review are required before PR readiness.
+All eight native targets passed at 5391c47 in [native CI](https://github.com/40oleg/nona/actions/runs/37267747072). Intel and Apple Silicon macOS each passed 142 core plus 734 portable tests; Linux/Windows ARM64 also passed 10 host API tests. The [required check](https://github.com/40oleg/nona/actions/runs/37267746992) passed, including 2320 Windows tests, 65 skips, zero failures, example comparisons and the selected Test262 groups. These are the tested OS versions, not a promise of support for every older kernel. Whole-branch review and the subsequent Apple Silicon review are recorded in the ledger.
