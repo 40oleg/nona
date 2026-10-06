@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify emergency process reports through genuine OS-limited allocation failures in isolated native CI children, including absence of JavaScript exit callbacks after unrecoverable failure ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Add original native process signal registration, restoration and console delivery, plus Nona diagnostic reports with actual network enumeration and an allocation-free emergency writer ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Instantiated built-in module namespaces only when their reachable graph is requested, preserving cyclic hoisted exports and avoiding eager inventory allocation; unrelated scalar and constructor global reads keep optional runtimes omitted ([#141](https://github.com/40oleg/nona/issues/141)).

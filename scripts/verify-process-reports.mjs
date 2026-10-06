@@ -14,4 +14,8 @@ for(const [filename,event] of [['nona-process-report-probe.json','JavaScript API
  if(event==='Exception')assert.match(report.javascriptStack.message,/nona-report-uncaught/);
 }
 for(const filename of ['nona-process-report-handled-must-not-exist.json','nona-process-report-fatal-must-not-exist.json'])assert.equal(existsSync(join(directory,filename)),false,filename);
+const emergency=JSON.parse(readFileSync(join(directory,'nona-process-report-oom.json'),'utf8'));
+assert.equal(emergency.header.runtime,'nona');assert.equal(emergency.header.event,'FatalError');assert.equal(emergency.header.trigger,'FatalError');
+assert.equal(emergency.header.filename,'nona-process-report-oom.json');assert.equal(typeof emergency.header.configurationTime,'string');
+assert.ok(emergency.javascriptHeap.heapTotal>=emergency.javascriptHeap.heapUsed);assert.ok(emergency.javascriptHeap.managedBlocks>0);
 console.log('Native process reports contain valid JSON and respect handled/disabled policy');

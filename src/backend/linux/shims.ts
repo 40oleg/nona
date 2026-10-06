@@ -33,6 +33,8 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
  fn('linux.SetConsoleCtrlHandler.code',40,a=>a.mov('rax',0));
  // The process adapter uses native POSIX interface enumeration on foreign ELF.
  fn('linux.GetAdaptersAddresses.code',40,a=>a.mov('rax',50));
+ // Memory-limit regression fixtures use these only in native Windows children.
+ for(const name of ['CreateJobObjectW','SetInformationJobObject','AssignProcessToJobObject'])fn('linux.'+name+'.code',40,a=>a.mov('rax',0));
  fn('linux.GetTickCount64.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');
   a.mov('rdi',1);a.lea('rsi',slot(24));systemCall(a,228);

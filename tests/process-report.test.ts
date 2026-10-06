@@ -4,6 +4,13 @@ import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {runOnHost} from './helpers/host.js';
+import {runNative} from './helpers/native.js';
+import {linkHost} from './helpers/program.js';
+import {compileModuleToIR} from '../src/compiler.js';
+import {generate} from '../src/backend/x64/codegen.js';
+import {requireHostTarget} from '../src/target.js';
+import {withNativeTarget} from '../src/backend/machine/context.js';
+import {processReportAllocationFailureProbe} from '../src/runtime/process-report-probe.js';
 
 test('native process reports write valid JSON with genuine OS and allocator data',()=>{
  const directory=resolve(mkdtempSync(join(tmpdir(),'nona-report-'))),filename=join(directory,'api.json');
@@ -20,5 +27,15 @@ test('native uncaught reporting excludes handled failures and disabled emergency
   const setup=`process.report.filename=${JSON.stringify(filename)};process.report.excludeEnv=true;process.report.excludeNetwork=true;process.report.reportOnUncaughtException=true;`;
   const handled=runOnHost(setup+`process.report.reportOnFatalError=true;process.report.reportOnFatalError=false;process.on('uncaughtException',e=>console.log(e.message));setTimeout(()=>{throw Error('handled')},0)`);assert.equal(handled.status,0,handled.stderr);assert.equal(handled.stdout,'handled\n');assert.equal(existsSync(filename),false);
   const fatal=runOnHost(setup+`throw Error('unhandled-report')`);assert.equal(fatal.status,1,fatal.stderr);const report=JSON.parse(readFileSync(filename,'utf8'));assert.equal(report.header.event,'Exception');assert.match(report.javascriptStack.message,/unhandled-report/);
+ }finally{rmSync(directory,{recursive:true,force:true})}
+});
+
+test('CI native allocator failure writes emergency JSON without JavaScript exit hooks',{skip:process.env.GITHUB_ACTIONS!=='true'},()=>{
+ const directory=resolve(mkdtempSync(join(tmpdir(),'nona-report-oom-'))),filename=join(directory,'emergency.json'),target=requireHostTarget();
+ try{
+  const source=processReportAllocationFailureProbe(target).replace("'nona-process-report-oom.json'",JSON.stringify(filename)).replace("console.log('armed');","console.log('armed');process.on('exit',()=>console.log('unexpected JS exit hook'));");
+  const image=withNativeTarget(target,()=>linkHost(generate(compileModuleToIR(source,'report-oom.mjs',undefined,'',target),{gcStress:true}),target));
+  const result=runNative(image);assert.equal(result.error,undefined);assert.equal(result.status,1,result.stderr.toString());assert.equal(result.stdout.toString(),'armed\n');assert.match(result.stderr.toString(),/Nona runtime error/);
+  const report=JSON.parse(readFileSync(filename,'utf8'));assert.equal(report.header.event,'FatalError');assert.equal(report.header.filename,filename);assert.equal(typeof report.header.configurationTime,'string');assert.ok(report.javascriptHeap.heapTotal>=report.javascriptHeap.heapUsed);assert.ok(report.javascriptHeap.managedBlocks>0);
  }finally{rmSync(directory,{recursive:true,force:true})}
 });

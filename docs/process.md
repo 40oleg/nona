@@ -261,3 +261,9 @@ Its metadata timestamp is explicitly the configuration time. Configuration
 larger than 32 KiB fails without replacing the previous configuration.
 Native execution and intentional allocation-failure verification remain CI gates
 until the process pull request is integrated.
+
+The allocation-failure regression runs only in isolated CI children. It uses
+a Windows process-memory Job Object, Linux/FreeBSD/macOS address-space limits,
+or OpenBSD's anonymous-mapping [data limit](https://man.openbsd.org/setrlimit.2).
+It requests a 1 GiB backing store after configuring a lower native limit;
+it does not fill that memory or manufacture failure with an invalid FFI call.
