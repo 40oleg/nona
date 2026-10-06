@@ -12,6 +12,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
 | `nona:process`、`node:process` | 模块 | all eight native targets | [process](/zh/reference/process) |
 | `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/zh/reference/host-apis#paths-nodepath) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
 | `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |
 
@@ -19,7 +20,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 - 全局对象在脚本和模块中都可用。
 - 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，也可以在脚本中用字面量 `import()` 导入。FFI 声明（`define`）必须位于模块代码中。
-- `node:` 模块中只有 `node:fs` 和 `node:process`；它们是 Nona 子集的别名，而不是 Node.js 的实现。`node:path`、`Buffer` 和 `require` 不可用。
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
 - `nona:win32` 和 DLL 声明只能为 `win32-x64` 编译；系统调用声明只能为 `linux-x64` 编译。
 
 ## `nona:win32` {#nona-win32}

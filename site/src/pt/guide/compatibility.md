@@ -29,8 +29,8 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 | `readFileSync(path)` | Retorna um `Uint8Array` | Retorna um `Buffer` |
 | Codificações | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Muitas |
 | Mensagens de erro no Windows | Contêm o caminho como foi passado | Contêm o caminho absoluto |
-| Módulos | `nona:*`, `node:fs`, `node:process`, `node:buffer` e arquivos relativos | Todo o `node:*` e pacotes npm |
-| `require`, `node:path` | Não disponíveis | Disponíveis |
+| Módulos | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` e arquivos relativos | Todo o `node:*` e pacotes npm |
+| `require` | Não disponíveis | Disponíveis |
 | `console.log` sem saída padrão | A saída é descartada | A saída é descartada ou um erro é lançado |
 
 ## Desempenho

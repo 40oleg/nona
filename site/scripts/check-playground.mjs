@@ -16,6 +16,7 @@ const cases = [
   ...['win32-x64', 'win32-arm64', 'linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'freebsd-x64', 'openbsd-x64']
     .map(target => ({file: 'hello.js', options: {fileName: '/app.js', target}})),
   {file: 'playground-async.mjs', options: {fileName: '/app.mjs', target: 'linux-x64', module: true}},
+  ...['win32-x64', 'linux-x64', 'darwin-x64', 'darwin-arm64', 'freebsd-x64', 'openbsd-x64', 'win32-arm64', 'linux-arm64'].map(target => ({file: 'path.mjs', options: {fileName: '/app.mjs', target, module: true}})),
   {file: 'playground-messagebox.win32.mjs', options: {fileName: '/app.mjs', target: 'win32-x64', module: true, subsystem: 'windows'}},
 ];
 let failed = false;

@@ -30,7 +30,7 @@ for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','dar
     writeFileSync(join(directory,file+'.expected'),probe.expected);
     writeFileSync(join(directory,file+'.status'),String(probe.status??0)+'\n');
     writeFileSync(join(directory,file+'.minimal-environment'),probe.minimalEnvironment?'1\n':'0\n');
-    return {file,expected:probe.expected,status:probe.status??0,...(probe.signal?{signal:probe.signal}:{}),minimalEnvironment:probe.minimalEnvironment??false};
+    return {file,expected:probe.expected,status:probe.status??0,...(probe.signal?{signal:probe.signal}:{}),minimalEnvironment:probe.minimalEnvironment??false,...('timeoutMs' in probe?{timeoutMs:probe.timeoutMs}:{})};
   })];
 }
 writeFileSync(join(directory,'manifest.json'),JSON.stringify({kind:'loader',targets,expected:loaderProbeOutput,runtime},null,2)+'\n');

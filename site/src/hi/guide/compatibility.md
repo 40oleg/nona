@@ -29,8 +29,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `readFileSync(path)` | `Uint8Array` लौटाता है | `Buffer` लौटाता है |
 | एन्कोडिंग | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | कई |
 | Windows पर एरर मैसेज | पाथ वैसा ही, जैसा दिया गया | एब्सोल्यूट पाथ |
-| मॉड्यूल | `nona:*`, `node:fs`, `node:process`, `node:buffer` और रिलेटिव फ़ाइलें | `node:*` का सब कुछ और npm पैकेज |
-| `require`, `node:path` | उपलब्ध नहीं | उपलब्ध |
+| मॉड्यूल | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` और रिलेटिव फ़ाइलें | `node:*` का सब कुछ और npm पैकेज |
+| `require` | उपलब्ध नहीं | उपलब्ध |
 | स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है | आउटपुट छोड़ दिया जाता है या एरर आता है |
 
 ## प्रदर्शन

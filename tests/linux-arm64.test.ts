@@ -11,6 +11,7 @@ test('Linux ARM64 compiles the language runtime into an AArch64 ELF image',()=>{
 test('Linux ARM64 builds runtime, forced GC and concurrent agent probes',()=>{
   const probes=runtimeProbes('linux-arm64');
   assert.ok(probes.some(probe=>probe.name==='process-core'));
+  for(const name of ['path','path-lazy-startup'])assert.ok(probes.some(probe=>probe.name===name),name);
   assert.ok(probes.some(p=>p.name==='gc-stress'));
   assert.ok(probes.some(p=>p.name==='agents'));
   for(const p of probes)assert.equal(new DataView(p.image.buffer).getUint16(18,true),183,p.name);
