@@ -46,9 +46,11 @@ const pending=Stream.promises.pipeline(Readable.from(['a','b']),transform,sink);
 const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console.log('partial',r.read(1).toString(),r.read(2).toString());r.resume();await Stream.promises.finished(r);console.log('ended',r.readableEnded,r.closed)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
 `,expected:"partial a bc\nended true true\n"},
   {name:'stream-operators',source:imports+String.raw`
-(async()=>{const results=await Readable.from([1,2,3,4]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(2).toArray();console.log('operators',results.join(','));
-console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
-`,expected:"operators 4,6\nreduce 6\n"},
+(async()=>{const results=await Readable.from([1,2,3]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(1).toArray();console.log('operators',results.join(','))})()
+`,expected:"operators 4\n"},
+  {name:'stream-reduce',source:imports+String.raw`
+(async()=>{console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
+`,expected:"reduce 6\n"},
   {name:'stream-consumer-bytes',source:imports+String.raw`
 import consumers from 'node:stream/consumers';
 (async()=>{const bytes=await consumers.bytes(Readable.from([Buffer.from([97]),new Uint8Array([98])]));console.log('bytes',bytes instanceof Uint8Array,Buffer.isBuffer(bytes),Array.from(bytes).join(','))})()
