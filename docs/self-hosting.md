@@ -40,3 +40,11 @@ both macOS CPUs and both BSD guests. BSD smoke checks run without Node installed
 including module/RegExp output, hard-link/symlink overwrite refusal and warm
 cache image identity. These new full CLI and host checks are pending; distribution
 integration is still required before completion.
+
+Successful native CLI jobs package `nona-<target>` artifacts containing only
+the executable, license, version and usage notes. The verifier relocates the
+executable and hides the prepared compiler source directory before compiling
+a module with disk caching enabled and an empty PATH. Compiler cache home
+lookup uses the native account profile when HOME/USERPROFILE is absent.
+Node.js remains a development bootstrap and test oracle; it is not included
+in these native distribution artifacts.

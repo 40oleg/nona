@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {resolve,dirname} from 'node:path';
 import {compile} from '../dist/src/compiler.js';
 import {regexpVmSource} from '../dist/src/runtime/regexp-vm-source.js';
-import {compilerCryptoSource,compilerUrlSource} from '../dist/src/selfhost-adapters.js';
+import {compilerCryptoSource,compilerUrlSource,compilerHomeSource} from '../dist/src/selfhost-adapters.js';
 import {nonaVersion} from '../dist/src/version.js';
 
 const target=process.argv[2]||'linux-x64';
@@ -68,6 +68,7 @@ for(const [file,names] of [
 if(cliMode){
  writeFileSync(resolve(sources,'selfhost-crypto.js'),compilerCryptoSource(target));
  writeFileSync(resolve(sources,'selfhost-url.js'),compilerUrlSource);
+ writeFileSync(resolve(sources,'selfhost-home.js'),compilerHomeSource(target));
  const cliPath=resolve(sources,'cli.js');
  const cli=readFileSync(cliPath,'utf8').replace("from 'node:crypto'","from './selfhost-crypto.js'")
   .replace("from 'node:url'","from './selfhost-url.js'").replace('process.exitCode = main(process.argv.slice(2));','');
@@ -75,7 +76,7 @@ if(cliMode){
  const cachePath=resolve(sources,'cache.js');
  let cache=readFileSync(cachePath,'utf8').replace("from 'node:crypto'","from './selfhost-crypto.js'")
   .replace(/^import \{ fileURLToPath \} from 'node:url';\r?\n/m,'')
-  .replace(/^import \{ homedir \} from 'node:os';\r?\n/m,`function homedir(){const home=process.platform==='win32'?process.env.USERPROFILE:process.env.HOME;if(home)return home;if(process.platform!=='win32'){const uid=process.getuid();for(const line of readFileSync('/etc/passwd','utf8').split('\\n')){const fields=line.split(':');if(Number(fields[2])===uid&&fields[5])return fields[5];}}throw new Error('Cannot determine compiler cache home; set NONA_CACHE_DIR');}\n`);
+  .replace("from 'node:os'","from './selfhost-home.js'");
  // The native distribution contains compiled functions, not a JavaScript
  // source installation. Embed a fingerprint of the prepared compiler sources.
  cache=cache.replace(/function compilerFingerprint\(\) \{[\s\S]*?\r?\n\}/,'function compilerFingerprint(){return "SELFHOST_FINGERPRINT";}');

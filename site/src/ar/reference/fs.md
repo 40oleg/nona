@@ -25,3 +25,5 @@
 ## TextEncoder وTextDecoder {#textencoder-and-textdecoder}
 
 ‏`TextEncoder` و`TextDecoder` كائنان عامّان ينفّذان UTF-8 كما يحدده معيار WHATWG Encoding: ‏`encode(string)` و`decode(bufferSource)`، والخياران `fatal` و`ignoreBOM`، واستبدال U+FFFD بالتسلسلات غير الصالحة وأنصاف الأزواج البديلة المنفردة. أما الترميزات الأخرى فترمي `RangeError`.
+
+متاح على Windows وLinux وmacOS بمعماريتي x64 وARM64، وعلى FreeBSD وOpenBSD بمعمارية x64.

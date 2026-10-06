@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {chmodSync,readFileSync,writeFileSync,statSync} from 'node:fs';
+import {chmodSync,readFileSync,writeFileSync,statSync,copyFileSync,mkdirSync,renameSync} from 'node:fs';
 import {resolve,dirname,join} from 'node:path';
 import {compileToIR,compileModuleToIR} from '../dist/src/compiler.js';
 
@@ -78,4 +78,14 @@ if(cliMode){
  assert.equal(refusal.status,1);assert.match(refusal.stderr,/must not overwrite/);sameImage(readFileSync(input),original,'native CLI modified input');
  if(process.platform!=='win32')assert.equal(statSync(cached).mode&0o777,0o755);
  console.log('Native CLI help, version, warm cache and output protections passed');
+ const standalone=join(directory,'standalone');mkdirSync(standalone);
+ const relocated=join(standalone,process.platform==='win32'?'nona.exe':'nona');copyFileSync(validated,relocated);if(process.platform!=='win32')chmodSync(relocated,0o755);
+ const sources=join(directory,'sources'),hidden=join(directory,'sources.hidden');renameSync(sources,hidden);
+ try{
+  const input=join(directory,'module.mjs'),output=join(standalone,process.platform==='win32'?'application.exe':'application');
+  run(relocated,buildArgs(input,output),{NONA_CACHE:'1',NONA_CACHE_DIR:join(standalone,'cache')});
+  if(process.platform!=='win32')assert.equal(statSync(output).mode&0o777,0o755);
+  assert.equal(run(output,[]),'/b\n');
+ }finally{renameSync(hidden,sources);}
+ console.log('Relocated native CLI compiled a module with its compiler source tree absent');
 }

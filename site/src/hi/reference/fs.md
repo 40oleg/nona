@@ -25,3 +25,5 @@ Node.js के `fs` मॉड्यूल का एक सिंक्रोन
 ## TextEncoder और TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` और `TextDecoder` ग्लोबल हैं और WHATWG Encoding मानक के अनुसार UTF-8 लागू करते हैं: `encode(string)`, `decode(bufferSource)`, `fatal` और `ignoreBOM` विकल्प, अमान्य अनुक्रमों और अकेले सरोगेट का U+FFFD से प्रतिस्थापन। अन्य एन्कोडिंग `RangeError` फेंकती हैं।
+
+Windows, Linux और macOS (x64 और ARM64), FreeBSD और OpenBSD (x64) पर उपलब्ध है।

@@ -25,3 +25,5 @@ Node.js-এর `fs` মডিউলের একটি সিঙ্ক্রো�
 ## TextEncoder ও TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` ও `TextDecoder` গ্লোবাল এবং WHATWG Encoding স্ট্যান্ডার্ডে নির্ধারিত পদ্ধতিতে UTF-8 বাস্তবায়ন করে: `encode(string)`, `decode(bufferSource)`, `fatal` ও `ignoreBOM` অপশন, অবৈধ ক্রম ও একক সারোগেটের U+FFFD দিয়ে প্রতিস্থাপন। অন্য এনকোডিং `RangeError` ছোড়ে।
+
+Windows, Linux ও macOS (x64 ও ARM64), FreeBSD ও OpenBSD (x64)-এ উপলব্ধ।

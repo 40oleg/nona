@@ -155,6 +155,7 @@ const ReadFile = define('kernel32.dll', 'ReadFile', 'bool(ptr,buf,u32,buf,ptr)')
 const WriteFile = define('kernel32.dll', 'WriteFile', 'bool(ptr,buf,u32,buf,ptr)');
 const GetFileSizeEx = define('kernel32.dll', 'GetFileSizeEx', 'bool(ptr,buf)');
 const GetFileInformationByHandle = define('kernel32.dll','GetFileInformationByHandle','bool(ptr,buf)');
+const GetFileInformationByHandleEx = define('kernel32.dll','GetFileInformationByHandleEx','bool(ptr,u32,buf,u32)');
 const GetFinalPathNameByHandleW = define('kernel32.dll','GetFinalPathNameByHandleW','u32(ptr,buf,u32,u32)');
 const CloseHandle = define('kernel32.dll', 'CloseHandle', 'bool(ptr)');
 const GetFileAttributesExW = define('kernel32.dll', 'GetFileAttributesExW', 'bool(wstr,u32,buf)');
@@ -233,11 +234,15 @@ const sys = {
     const directory = (a & DIRECTORY) !== 0;
     const handle=CreateFileW(path,0,7,null,3,0x02000000,null);
     if(handle===INVALID_HANDLE)error('stat',path);
-    const identity=new Uint8Array(52),identityView=new DataView(identity.buffer);
-    try{if(!GetFileInformationByHandle(handle,identity))error('stat',path);}finally{CloseHandle(handle);}
-    return { kind: directory ? 'dir' : 'file', size: directory ? 0 : size,
-      dev:BigInt(identityView.getUint32(28,true)),ino:(BigInt(identityView.getUint32(44,true))<<32n)|BigInt(identityView.getUint32(48,true)),
-      mtimeMs: (ticks - 116444736000000000) / 10000, mode: directory ? 0o40666 : 0o100666 };
+    const identity=new Uint8Array(52),identityView=new DataView(identity.buffer),fileId=new Uint8Array(24),idView=new DataView(fileId.buffer);let extended=false;
+    try{if(!GetFileInformationByHandle(handle,identity))error('stat',path);extended=GetFileInformationByHandleEx(handle,18,fileId,fileId.length);}finally{CloseHandle(handle);}
+    const targetDirectory=(identityView.getUint32(0,true)&DIRECTORY)!==0;
+    const targetSize=identityView.getUint32(36,true)+identityView.getUint32(32,true)*4294967296;
+    const targetTicks=identityView.getUint32(20,true)+identityView.getUint32(24,true)*4294967296;
+    return { kind: targetDirectory ? 'dir' : 'file', size: targetDirectory ? 0 : targetSize,
+      dev:extended?idView.getBigUint64(0,true):BigInt(identityView.getUint32(28,true)),
+      ino:extended?idView.getBigUint64(8,true)|(idView.getBigUint64(16,true)<<64n):(BigInt(identityView.getUint32(44,true))<<32n)|BigInt(identityView.getUint32(48,true)),
+      mtimeMs: (targetTicks - 116444736000000000) / 10000, mode: targetDirectory ? 0o40666 : 0o100666 };
   },
   lstat(path){const result=this.stat(path);if(result&&(attributes(path)&REPARSE_POINT))result.kind='link';return result;},
   realpath(path){
@@ -416,7 +421,7 @@ function linuxArm64Source():string {
 /** Native 64-bit BSD/Darwin ABIs; filesystem algorithms remain our own. */
 function bsdSource(target:Target):string {
  const darwin=target.startsWith('darwin-'),freebsd=target==='freebsd-x64';
- const calls:Record<string,string>={sysRead:'3',sysWrite:'4',sysOpen:'5',sysClose:'6',sysFstat:darwin?'339':freebsd?'551':'62',sysRename:'128',sysMkdir:'136',sysRmdir:'137',sysUnlink:'10',sysReadlink:'58'};
+ const calls:Record<string,string>={sysRead:'3',sysWrite:'4',sysOpen:'5',sysClose:'6',sysFstat:darwin?'339':freebsd?'551':'53',sysRename:'128',sysMkdir:'136',sysRmdir:'137',sysUnlink:'10',sysReadlink:'58'};
  let source=linux;
  for(const [name,number] of Object.entries(calls))source=source.replace(new RegExp("const "+name+" =? ?define\\('syscall', ?'\\d+'"),"const "+name+" = define('syscall', '"+number+"'");
  if(freebsd){

@@ -37,4 +37,11 @@ for task_pass in cold warm; do
   env -i PATH='' NONA_CACHE=1 NONA_CACHE_DIR="$task_directory/cache" "$task_compiler" build "$task_input" -o "$task_directory/$task_pass.image" --target "$task_target"
 done
 cmp "$task_directory/cold.image" "$task_directory/warm.image"
+mkdir "$task_directory/standalone"
+cp "$task_compiler" "$task_directory/standalone/nona"
+mv "$(pwd)/work/native-cli-$task_target/sources" "$(pwd)/work/native-cli-$task_target/sources.hidden"
+trap 'if [ -d "$(pwd)/work/native-cli-$task_target/sources.hidden" ]; then mv "$(pwd)/work/native-cli-$task_target/sources.hidden" "$(pwd)/work/native-cli-$task_target/sources"; fi' 0 HUP INT TERM
+env -i PATH='' NONA_CACHE=1 NONA_CACHE_DIR="$task_directory/standalone/cache" "$task_directory/standalone/nona" build "$task_directory/module.mjs" -o "$task_directory/standalone/application" --target "$task_target"
+env -i PATH='' "$task_directory/standalone/application" > "$task_directory/standalone/module.actual"
+cmp "$task_directory/module.expected" "$task_directory/standalone/module.actual"
 echo "Native $task_target CLI, module/RegExp execution, atomic output protections and warm cache passed"

@@ -25,3 +25,5 @@ Implementación: en Windows el módulo llama a KERNEL32 (`CreateFileW`, `ReadFil
 ## TextEncoder y TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` y `TextDecoder` son globales e implementan UTF-8 según el estándar WHATWG Encoding: `encode(string)`, `decode(bufferSource)`, las opciones `fatal` e `ignoreBOM`, y el reemplazo por U+FFFD de secuencias no válidas y surrogates sueltos. Las demás codificaciones lanzan `RangeError`.
+
+Disponible en Windows, Linux y macOS (x64 y ARM64), FreeBSD y OpenBSD (x64).

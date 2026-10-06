@@ -16,6 +16,7 @@ function randomBytes(size){
  if(fd<0)throw new Error('Cannot open OS entropy source');
  try{const bytes=new Uint8Array(size);let at=0;while(at<size){const count=read(fd,bytes.subarray(at),size-at);if(count===-4)continue;if(count<=0)throw new Error('Cannot read OS entropy');at+=count;}return bytes;}finally{close(fd);}
 }
+
 `;
  return entropy+String.raw`
 import {sha256} from './backend/macho/sha256.js';
@@ -26,6 +27,31 @@ export function createHash(algorithm){
  digest(encoding){if(finished)throw new Error('Hash already finalized');finished=true;const input=new Uint8Array(length);let at=0;for(const chunk of chunks){input.set(chunk,at);at+=chunk.length;}const output=sha256(input);return encoding==='hex'?Buffer.from(output).toString('hex'):Buffer.from(output);}};
 }
 export function randomUUID(){const bytes=randomBytes(16);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const text=Buffer.from(bytes).toString('hex');return text.slice(0,8)+'-'+text.slice(8,12)+'-'+text.slice(12,16)+'-'+text.slice(16,20)+'-'+text.slice(20);}
+`;
+}
+
+
+export function compilerHomeSource(target:Target):string {
+ if(target.startsWith('win32-'))return String.raw`
+import {define} from 'nona:ffi';
+const current=define('kernel32.dll','GetCurrentProcess','ptr()');
+const openToken=define('advapi32.dll','OpenProcessToken','bool(ptr,u32,buf)');
+const profile=define('userenv.dll','GetUserProfileDirectoryW','bool(ptr,buf,buf)');
+const close=define('kernel32.dll','CloseHandle','bool(ptr)');
+export function homedir(){
+ if(process.env.USERPROFILE)return process.env.USERPROFILE;
+ const token=new Uint8Array(8);if(!openToken(current(),8,token))throw new Error('Cannot query the current profile');
+ const handle=Number(new DataView(token.buffer).getBigUint64(0,true));
+ try{const data=new Uint16Array(32768),size=new Uint32Array([data.length]);if(!profile(handle,data,size))throw new Error('Cannot query the current profile directory');let path='';for(let i=0;i<size[0]&&data[i];i++)path+=String.fromCharCode(data[i]);return path;}finally{close(handle);}
+}
+`;
+ return String.raw`
+import {readFileSync} from 'node:fs';
+export function homedir(){
+ if(process.env.HOME)return process.env.HOME;
+ const uid=process.getuid();for(const line of readFileSync('/etc/passwd','utf8').split('\n')){const fields=line.split(':');if(Number(fields[2])===uid&&fields[5])return fields[5];}
+ throw new Error('Cannot determine compiler cache home; set NONA_CACHE_DIR');
+}
 `;
 }
 

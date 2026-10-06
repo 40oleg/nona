@@ -25,3 +25,5 @@
 ## TextEncoder и TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` и `TextDecoder` — глобальные объекты, реализующие UTF-8 по стандарту WHATWG Encoding: `encode(string)`, `decode(bufferSource)`, параметры `fatal` и `ignoreBOM`, замена некорректных последовательностей и одиночных суррогатов на U+FFFD. Другие кодировки бросают `RangeError`.
+
+Доступно на Windows, Linux и macOS (x64 и ARM64), FreeBSD и OpenBSD (x64).

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {compilerCryptoSource,compilerUrlSource} from '../src/selfhost-adapters.js';
+import {compilerCryptoSource,compilerHomeSource,compilerUrlSource} from '../src/selfhost-adapters.js';
 import {requireHostTarget} from '../src/target.js';
 import {runModulesOnHost} from './helpers/host.js';
 
@@ -16,6 +16,14 @@ test('private native compiler hashes and UUIDs agree with the Node API contract'
   'sha256.mjs':readFileSync(new URL('../src/backend/macho/sha256.js',import.meta.url),'utf8'),
  };
  const {native,oracle}=runModulesOnHost(files,'main.mjs',{gcStress:true,oracleSource:"import {createHash,randomUUID} from 'node:crypto';"+body});
+ assert.equal(native.status,0,String(native.error??native.stderr));assert.equal(native.stdout,oracle);
+});
+
+test('private compiler cache home falls back to the native account profile',()=>{
+ const body=`const key=process.platform==='win32'?'USERPROFILE':'HOME',saved=process.env[key];delete process.env[key];try{console.log(homedir());}finally{if(saved!==undefined)process.env[key]=saved;}`;
+ const {native,oracle}=runModulesOnHost({'main.mjs':"import {homedir} from './home.mjs';"+body,'home.mjs':compilerHomeSource(requireHostTarget())},'main.mjs',{
+  gcStress:true,oracleSource:"import {homedir} from 'node:os';"+body,
+ });
  assert.equal(native.status,0,String(native.error??native.stderr));assert.equal(native.stdout,oracle);
 });
 

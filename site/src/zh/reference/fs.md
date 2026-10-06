@@ -25,3 +25,5 @@
 ## TextEncoder 与 TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` 和 `TextDecoder` 是全局对象，按照 WHATWG Encoding 标准实现 UTF-8：`encode(string)`、`decode(bufferSource)`、`fatal` 和 `ignoreBOM` 选项，以及把无效序列和孤立代理项替换为 U+FFFD。其他编码会抛出 `RangeError`。
+
+支持 Windows、Linux 和 macOS（x64 和 ARM64），以及 FreeBSD 和 OpenBSD（x64）。

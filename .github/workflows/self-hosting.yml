@@ -7,6 +7,7 @@ on:
       - 'scripts/bootstrap-selfhost.mjs'
       - 'scripts/verify-selfhost.mjs'
       - 'scripts/native-cli-smoke.sh'
+      - 'scripts/package-native-cli.mjs'
       - 'tests/selfhost-liveness.test.ts'
       - 'tests/selfhost-traversal.test.ts'
       - 'tests/selfhost-filesystem.test.ts'
@@ -50,6 +51,12 @@ jobs:
         run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
       - name: Verify full CLI self-hosting, cache and output protections
         run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.os == 'windows-latest' && 'stage2.exe' || 'stage2' }} work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.target }}
+          path: work/distribution
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -80,6 +87,12 @@ jobs:
         run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli
       - name: Run native compiler, executable, cache and output checks
         run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli --platform-smoke
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.target }}
+          path: work/distribution
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -121,6 +134,12 @@ jobs:
             test "$(uname -s)" = OpenBSD
             test "$(uname -m)" = amd64
             sh scripts/native-cli-smoke.sh openbsd-x64
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.os }}-x64 work/native-cli-${{ matrix.os }}-x64/compiler work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.os }}-x64
+          path: work/distribution
       - uses: actions/upload-artifact@v4
         if: always()
         with:
