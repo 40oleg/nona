@@ -33,6 +33,7 @@ sink.cork();console.log('pressure',sink.write('a',()=>values.push('a')),sink.wri
 sink.on('close',()=>console.log('closed',values.join('|'),sink.writableLength,sink.writableFinished,sink.destroyed));sink.end('c',()=>values.push('end'));
 `,expected:"pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n"},
   {name:'stream-pipeline-demand',source:imports+String.raw`
+process.on('uncaughtExceptionMonitor',function(error,origin){console.log('pipeline uncaught',origin,typeof error,error&&error.name,error&&error.code,error&&error.message)});
 (async()=>{console.log('pipeline phase entry');const values=[],transform=new Transform({transform(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Writable({highWaterMark:1,write(chunk,encoding,callback){values.push(chunk.toString());setImmediate(function(){try{callback()}catch(error){console.log('pipeline callback',error.name,error.code,error.message);throw error}})}});
 console.log('pipeline phase constructed');const pending=Stream.promises.pipeline(Readable.from(['a','b','c']),transform,sink);console.log('pipeline phase scheduled');await pending;console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished);
 const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console.log('partial',r.read(1).toString(),r.read(2).toString());r.resume();await Stream.promises.finished(r);console.log('ended',r.readableEnded,r.closed)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
@@ -55,11 +56,11 @@ const controller=new AbortController(),readable=new Readable({read(){}}),pending
 }
 
 /** Called after canonical Events/Stream providers are installed in the compiler. */
-export function streamProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs:number}[]{
+export function streamProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs:number;minimalEnvironment:boolean}[]{
  return streamProbeCases(target).map(probe=>{
   const {result:ir,usage}=collectSourceUsage(()=>compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
-  return {name:probe.name,image,expected:probe.expected,timeoutMs:60000};
+  return {name:probe.name,image,expected:probe.expected,timeoutMs:60000,minimalEnvironment:true};
  });
 }
