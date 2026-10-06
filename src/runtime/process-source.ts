@@ -219,15 +219,15 @@ ${processReportNetworkIntrinsicsSource}
     var process=new Process();
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
-    value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
+    defineProperty(process,'platform',{value:platform,enumerable:true,configurable:true});defineProperty(process,'arch',{value:'__NONA_PROCESS_ARCH__',enumerable:true,configurable:true});
     startupPhase("core object");
 ${processMetadataSource(undefined,true)}
     startupPhase("metadata");
     value('getBuiltinModule',function getBuiltinModule(id){return __nonaRegexpVm.getBuiltinModule(id)});
     value('abort',function abort(){if(windows)host.ExitProcess(134);else host.abort()});
-    value('pid',windows?host.GetCurrentProcessId():host.sys_getpid());
+    defineProperty(process,'pid',{value:windows?host.GetCurrentProcessId():host.sys_getpid(),enumerable:true,configurable:true});
     startupPhase("parent pid");
-    value('ppid',parentPid());value('argv0',commandLine[0]);value('execArgv',[]);
+    value('ppid',parentPid());defineProperty(process,'argv0',{value:commandLine[0],enumerable:true});value('execArgv',[]);
     var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});

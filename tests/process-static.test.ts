@@ -397,6 +397,13 @@ test('process boundary validates exitCode and directory arguments',()=>{
  assert.equal(runInContext('process.hrtime.bigint()>0n&&process.uptime()>=0',context),true);
  assert.equal(runInContext('process.hrtime()[1]>=0&&process.hrtime()[1]<1000000000',context),true);
 });
+
+test('process native identity and metadata descriptors match Node26 immutability',()=>{
+ const context=mockProcess();
+ const body='JSON.stringify(["platform","arch","pid","ppid","argv0","execPath","version","versions","release","execArgv","argv","env","features","config","stdin","stdout","stderr"].map(function(name){var d=Object.getOwnPropertyDescriptor(process,name);return [name,d.writable,d.enumerable,d.configurable,typeof d.get,typeof d.set]}))';
+ assert.equal(runInContext(body,context),runOracle('console.log('+body+')').stdout.trim());
+ assert.equal(runInContext('var pid=process.pid;process.pid=0;process.arch="fake";process.platform="fake";process.pid===pid&&process.arch==="x64"&&process.platform==="linux"',context),true);
+});
 test('nextTick boundary drains nested ticks before jobs and later ticks after the job batch',()=>{
  const context=portableBoundary();
  const result=runInContext('var order=[];scheduleJob(()=>{order.push("promise");process.nextTick(()=>order.push("later"))});process.nextTick((a,b)=>{order.push(a+b);process.nextTick(()=>order.push("nested"))},1,2);__nonaPromiseDrainJobs();order.join(",")',context);

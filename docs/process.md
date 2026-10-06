@@ -271,3 +271,5 @@ a Windows process-memory Job Object, Linux/FreeBSD/macOS address-space limits,
 or OpenBSD's anonymous-mapping [data limit](https://man.openbsd.org/setrlimit.2).
 It requests a 1 GiB backing store after configuring a lower native limit;
 it does not fill that memory or manufacture failure with an invalid FFI call.
+
+Native platform, architecture and PID are read-only data properties; argv0 is also nonconfigurable. Mutable argv, environment and executable-path properties keep Node 26 descriptors. Standard I/O uses getter properties backed by the canonical streams.
