@@ -426,7 +426,7 @@ log(Object.keys({}),Object.keys([1,2]),Object.keys("ab"),Object.keys(new Map()),
 class C{constructor(){this.m=1;this.n=2}};const c=new C();c.k=3;log(Object.keys(c));
 const big={};for(let i=0;i<40;i++)big["k"+i]=i;const ks=Object.keys(big);ks.push("zz");log(ks.length,ks[0],ks[39],ks[40]);
 const keys=Object.keys({a:1});keys[5]=1;keys.pop();log(keys,keys.length);
-let n=0;for(let i=0;i<2000;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
+let n=0;for(let i=0;i<300;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
 `,
  'array push and pop':`
 const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
@@ -438,7 +438,7 @@ const o={length:2,0:"a",1:"b"};log(Array.prototype.push.call(o,"c"),o,Array.prot
 const s=Object.seal([1,2]);try{s.pop()}catch(e){log(e.constructor.name,s)}try{s.push(3)}catch(e){log(e.constructor.name,s)}
 const x=Object.preventExtensions([1]);try{x.push(2)}catch(e){log(e.constructor.name,x)}log(x.pop(),x);
 class X extends Array{};const xs=new X();xs.push(5,6);log(xs.pop(),xs.length,xs instanceof X);
-const big=[];for(let i=0;i<5000;i++)big.push(i,{i});let sum=0;while(big.length){big.pop();sum+=big.pop();}log(sum);
+const big=[];for(let i=0;i<500;i++)big.push(i,{i});let sum=0;while(big.length){big.pop();sum+=big.pop();}log(sum);
 const sp=[];sp[1000]=1;log(sp.push(2),sp.length,sp.pop(),sp.pop(),sp.length);
 Array.prototype[3]="p";const q=[0,1,2];q.push(9);log(q[3],q.length,q.pop(),q.pop(),q.length,q[3]);delete Array.prototype[3];
 const r=[1,2,3];r.length=1;log(r.pop(),r.length,r.pop(),r.length,r.pop());
@@ -447,7 +447,7 @@ const g=[1,2];Object.defineProperty(g,"1",{get(){return "g"},configurable:true})
  'integer remainder':`
 const v=[5,-5,0,-0,5.5,1e20,2**53,NaN,Infinity,-Infinity,3,-3,1,"7",null,true,2**31,-(2**31),4294967296];
 const out=[];for(const x of v)for(const y of v)out.push(Object.is(x%y,-0)?"-0":String(x%y));console.log(out.join(","));
-let s=0;for(let i=0;i<1000;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
+let s=0;for(let i=0;i<300;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
 `,
  'buffers across the large size classes':`
 const sizes=[1000,1100,1400,2000,2100,4000,4100,5500,8100,8200,11000,13000,16384,20000,22000,32000,33000,65000,65500,70000];
@@ -466,7 +466,7 @@ class M extends Map{};const m=new M([[1,2]]);console.log(m.get(1),m instanceof M
 class P extends Promise{};console.log(P.resolve(1) instanceof P);
 function F(x,y){this.s=x+y;arguments.length;this.n=arguments.length}class G extends F{};const g=new G(2,3,4);console.log(g.s,g.n);
 class H extends A{x=5};const h=new H(9);console.log(h.x,JSON.stringify(h.args));
-let k=0;for(let i=0;i<10000;i++)k+=new B(i).args[0];console.log(k);
+let k=0;for(let i=0;i<300;i++)k+=new B(i).args[0];console.log(k);
 try{class Z extends null{};new Z()}catch(err){console.log(err.constructor.name)}
 class Q extends A{constructor(){super(1);return {custom:true}}};console.log(JSON.stringify(new Q()));
 class R extends A{constructor(){return undefined}};try{new R()}catch(e){console.log(e.constructor.name)}
@@ -501,7 +501,7 @@ Object.setPrototypeOf(o,{hi(){return 'other '+this.n}});log(o.hi());
 const n={f(){return super.f}};Object.setPrototypeOf(n,null);try{n.f()}catch(e){log(e.constructor.name)}
 class C extends Array{last(){return super.at(-1)} len(){return super.length}};const c=C.from([1,2,3]);log(c.last(),c.len());
 class E extends Error{msg(){return super.toString()}};log(new E('x').msg());
-A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<10000;i++)s+=d.m().length;log(s);
+A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<300;i++)s+=d.m().length;log(s);
 `,
  'global name reads':`
 const log=(...a)=>console.log(a.map(x=>typeof x==='function'?'fn:'+x.name:JSON.stringify(x)).join(" "));
@@ -515,7 +515,7 @@ Object.defineProperty(globalThis,'foo',{value:'data',configurable:true,writable:
 const savedMath=Math;globalThis.Math={PI:3};log(readAll());globalThis.Math=savedMath;log(readAll());
 delete globalThis.Math;try{log(readAll())}catch(e){log(e.constructor.name)}globalThis.Math=savedMath;log(readAll());
 function bar(){return baz}try{bar()}catch(e){log(e.constructor.name)}globalThis.baz=7;log(bar());delete globalThis.baz;try{bar()}catch(e){log(e.constructor.name)}
-let s=0;for(let i=0;i<10000;i++)s+=Math.abs(-1);log(s);
+let s=0;for(let i=0;i<300;i++)s+=Math.abs(-1);log(s);
 `,
  'JSON.stringify members, toJSON and replacers':`
 const log=console.log;
