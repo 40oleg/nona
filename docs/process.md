@@ -240,7 +240,7 @@ shared API and native CI probes exercise all eight targets.
 
 The focused finalization and builtin-registry GC-stress probes use an empty
 POSIX environment or only `SystemRoot` on Windows. Environment compatibility
-probes retain the inherited environment. New full Stream, builtin-registry, signal and diagnostic-report probes use a 60-second execution budget; existing Blob test deadlines remain unchanged.
+probes retain the inherited environment. New full Stream, builtin-registry, signal and diagnostic-report probes use a 60-second execution budget. Only ARM64 Stream fixtures with forced collection use 180 seconds: their ordinary-allocation equivalents complete in milliseconds, while each stressed allocation scans the larger lowered runtime. Existing Blob test deadlines remain unchanged.
 
 ## Native signals and diagnostic reports
 

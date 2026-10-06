@@ -93,6 +93,10 @@ export function streamProbes(target:Target):{name:string;image:Uint8Array;expect
   const {result:ir,usage}=collectSourceUsage(()=>compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:probe.gcStress!==false,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
-  return {name:probe.name,image,expected:probe.expected,timeoutMs:60000,minimalEnvironment:true};
+  // Ordinary composition completes in milliseconds; ARM forced collection
+  // scans the larger lowered runtime at every allocation and needs its own
+  // bounded budget. Other probes, including Blob, retain their deadlines.
+  const timeoutMs=descriptor.arch==='arm64'&&probe.gcStress!==false?180000:60000;
+  return {name:probe.name,image,expected:probe.expected,timeoutMs,minimalEnvironment:true};
  });
 }
