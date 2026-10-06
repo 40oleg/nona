@@ -26,6 +26,13 @@ test('first/last listener transitions install once, drain real numbers and remov
 test('Linux action uses checked native handler/restorer and avoids mask changes',()=>{
  const f=fixture();f.hooks.change('SIGINT',true);const action=f.calls.find(c=>c[0]==='action')!;assert.deepEqual(action.slice(2,8),[4096,0,0x14000000,0,8192,0]);f.hooks.prepare();f.hooks.restore();assert.equal(f.calls.filter(c=>c[0]==='action').length,1);
 });
+test('Linux ARM signals use a separate native stack instead of overwriting the logical JS stack',()=>{
+ const f=fixture();Object.assign(f.host,{signalStackAddress:()=>0x123456789,signalStack:(stack:Uint32Array)=>{f.calls.push(['stack',...Array.from(stack)]);return 0}});
+ f.hooks.change('SIGINT',true);f.hooks.change('SIGTERM',true);
+ assert.deepEqual(f.calls[0],['stack',0x23456789,1,0,0,65536,0]);
+ assert.equal(f.calls.filter(c=>c[0]==='stack').length,1);
+ assert.equal(f.calls.find(c=>c[0]==='action')![4],0x1c000000);
+});
 test('BSD exec preparation restores exact action and failed exec reinstalls watcher',()=>{
  const f=fixture('freebsd');f.hooks.change('SIGTERM',true);f.process.on('SIGTERM',()=>{});f.hooks.prepare();assert.equal(f.calls.filter(c=>c[0]==='action')[1]![2],1234);f.hooks.restore();assert.equal(f.calls.filter(c=>c[0]==='action')[2]![2],1);f.process.removeAllListeners();f.hooks.change('SIGTERM',false);assert.equal(f.calls.at(-1)![0],'close');
 });

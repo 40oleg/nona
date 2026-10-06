@@ -273,3 +273,5 @@ It requests a 1 GiB backing store after configuring a lower native limit;
 it does not fill that memory or manufacture failure with an invalid FFI call.
 
 Native platform, architecture and PID are read-only data properties; argv0 is also nonconfigurable. Mutable argv, environment and executable-path properties keep Node 26 descriptors. Standard I/O uses getter properties backed by the canonical streams.
+
+On Linux ARM64, native signal frames use a dedicated 64 KiB alternate stack so asynchronous kernel delivery cannot overwrite Nona frames held on its logical stack. Signal callbacks still only record native flags; JavaScript listeners run on the event loop.

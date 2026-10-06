@@ -4,7 +4,7 @@ export const processSignalsSource=String.raw`
     else{signals.SIGIOT=6;signals.SIGXCPU=24;signals.SIGXFSZ=25;signals.SIGVTALRM=26;signals.SIGPROF=27;signals.SIGWINCH=28;
       if(platform==='linux'){signals.SIGURG=23;signals.SIGIO=29;signals.SIGPOLL=29;signals.SIGPWR=30;signals.SIGSYS=31;signals.SIGSTKFLT=16}
       else{signals.SIGEMT=7;signals.SIGSYS=12;signals.SIGIO=23;signals.SIGINFO=29;if(platform==='freebsd'){signals.SIGTHR=32;signals.SIGLWP=32;signals.SIGLIBRT=33}else if(platform==='openbsd')signals.SIGTHR=32}}
-    var signalEntries=[],signalNames={},signalQueue=-1,signalCount=0,signalsPrepared=false,reportWatchName;
+    var signalEntries=[],signalNames={},signalQueue=-1,signalCount=0,signalsPrepared=false,reportWatchName,signalStackReady=false;
     for(var signalName in signals)if(signalNames[signals[signalName]]===undefined)signalNames[signals[signalName]]=signalName;
     if(windows){signals.SIGBREAK=21;signalNames[21]='SIGBREAK'}
     function signalResult(result,operation){if(result<0){if(platform==='darwin'){var pointer=host.__error(),words=new Int32Array(1);host.copy(words,pointer,4);throw hostError(operation,words[0])}throw hostError(operation,-result)}return result}
@@ -19,9 +19,10 @@ export const processSignalsSource=String.raw`
         else{host.signalEnable(number,0);signalEntries[number]=undefined;signalCount--;if(!signalCount&&!host.SetConsoleCtrlHandler(host.consoleHandlerAddress(),false))throw hostError('signal',host.GetLastError())}return
       }
       if(enabled){
+        if(platform==='linux'&&typeof host.signalStackAddress==='function'&&!signalStackReady){var stack=new Uint32Array(6);signalPointer(stack,0,host.signalStackAddress());stack[4]=65536;signalResult(host.signalStack(stack,null),'sigaltstack');signalStackReady=true}
         if(signalQueue<0&&platform!=='linux'){signalQueue=signalResult(host.signalQueue(),'kqueue');try{signalResult(host.signalFcntl(signalQueue,2,1),'fcntl')}catch(error){host.sys_close(signalQueue);signalQueue=-1;throw error}}
         var previous=new Uint32Array(8),action=new Uint32Array(8);
-        if(platform==='linux'){signalPointer(action,0,host.signalHandlerAddress());action[2]=0x14000000;signalPointer(action,4,host.signalRestorerAddress())}
+        if(platform==='linux'){signalPointer(action,0,host.signalHandlerAddress());action[2]=signalStackReady?0x1c000000:0x14000000;signalPointer(action,4,host.signalRestorerAddress())}
         else action[0]=number===20?0:1;
         host.signalEnable(number,1);
         try{signalAction(number,action,previous)}catch(error){host.signalEnable(number,0);if(!signalCount&&signalQueue>=0){host.sys_close(signalQueue);signalQueue=-1}throw error}

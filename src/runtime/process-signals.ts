@@ -5,6 +5,12 @@ import type {Target} from '../target.js';
 
 /** OS callbacks touch only native flags, never the JS stack or allocator. */
 export function emitProcessSignals(b:RuntimeBuilder,target:Target):void {
+ if(target==='linux-arm64'){
+  // Kernel signal frames use hardware SP; Nona frames live on logical x28.
+  // A separate signal stack prevents the kernel frame from overlapping them.
+  b.data('process.signalStack',new Uint8Array(65536),'.data');
+  b.fn('process.signalStackAddress.code',40,a=>a.lea('rax',{rip:'process.signalStack'}));
+ }
  b.data('process.signalPending',new Uint8Array(64*8),'.data');
  b.data('process.signalEnabled',new Uint8Array(64*8),'.data');
  b.data('process.signalAcknowledgement',new Uint8Array(64*8),'.data');
@@ -49,6 +55,7 @@ export function emitProcessSignals(b:RuntimeBuilder,target:Target):void {
 /** OS ABI declarations; no external runtime library is introduced. */
 export function processSignalHostDeclarations(target:Target):[string,string,string,string][] {
  const list:[string,string,string,string][]=[['signalHandlerAddress','nona.internal','signalHandlerAddress','ptr()'],['signalEnable','nona.internal','signalEnable','void(i32,i32)'],['signalPoll','nona.internal','signalPoll','i32()'],['signalAcknowledge','nona.internal','signalAcknowledge','void(i32)']];
+ if(target==='linux-arm64')list.push(['signalStackAddress','nona.internal','signalStackAddress','ptr()'],['signalStack','syscall','132','i32(buf,buf)']);
  if(target.startsWith('win32-')){list.push(['consoleHandlerAddress','nona.internal','consoleHandlerAddress','ptr()'],['SetConsoleCtrlHandler','KERNEL32.dll','SetConsoleCtrlHandler','bool(ptr,bool)']);if(target==='win32-arm64')return list}
  if(target.startsWith('linux-')||target==='win32-x64')return [...list,['signalRestorerAddress','nona.internal','signalRestorerAddress','ptr()'],['signalAction','syscall',target==='linux-arm64'?'134':'13','i32(i32,buf,buf,i64)']];
  if(target.startsWith('darwin-'))return [...list,['signalAction','/usr/lib/libSystem.B.dylib','sigaction','i32(i32,buf,buf)'],['signalQueue','/usr/lib/libSystem.B.dylib','kqueue','i32()'],['signalEvent','/usr/lib/libSystem.B.dylib','kevent','i32(i32,buf,i32,buf,i32,buf)'],['signalFcntl','/usr/lib/libSystem.B.dylib','fcntl','i32(i32,i32,i32)']];

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Isolate Linux ARM64 kernel signal frames on an original native alternate stack to protect the logical JavaScript stack ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Add an original Immediate check queue with cancellation, ref/unref/disposal, asynchronous context propagation and process reference protocols, required by native Stream pipelines ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Validate full Stream and builtin-registry GC-stress probes with the standard 60-second oracle budget and preserve failure diagnostics for native pipelines ([#141](https://github.com/40oleg/nona/issues/141)).
