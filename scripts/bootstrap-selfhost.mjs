@@ -41,6 +41,22 @@ generator=generator.replace('export function generate(', 'function generateOrigi
 generator=generator.replace('cachedRuntimePreludes.set(preludeKey, prelude);',"if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('prelude',prelude);cachedRuntimePreludes.set(preludeKey, prelude);");
 generator+=`\nexport function generate(module,options={}){const program=generateOriginal(module,options);if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('program',{...program,fragments:program.fragments.map(fragment=>({...fragment,bytes:Buffer.from(fragment.bytes).toString('base64')}))});return program}\n`;
 writeFileSync(codegen,generator);
+// Preserve the failed compiler phase in native diagnostics, where a source
+// stack may be unavailable. These wrappers also help distinguish graph loading
+// from binding/lowering while bringing up the bootstrap.
+for(const [file,names] of [
+ ['frontend/parser.js',['parse']],['frontend/binder.js',['bind']],
+ ['frontend/dynamic-functions.js',['lowerDynamicFunctions']],
+ ['frontend/eval-aot.js',['lowerLiteralEval']],['ir/lower.js',['lower']],
+ ['frontend/modules.js',['loadModuleGraph','moduleRequests']],
+]){
+ const path=resolve(sources,file);let prepared=readFileSync(path,'utf8');
+ for(const name of names){
+  prepared=prepared.replace('export function '+name+'(', 'function '+name+'Original(');
+  prepared+='\nexport function '+name+'(...args){try{return '+name+'Original(...args)}catch(error){process.stderr.write('+JSON.stringify('Compiler phase '+file+' '+name+': ')+'+String(error)+"\\n");throw error}}\n';
+ }
+ writeFileSync(path,prepared);
+}
 const result=compile(source,{fileName:entry,target,module:true});
 mkdirSync(dirname(output),{recursive:true});
 if(!result.ok){writeFileSync(output+'.diagnostics.json',JSON.stringify(result.diagnostics,null,2));console.error(JSON.stringify(result.diagnostics,null,2));process.exitCode=1}

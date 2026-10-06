@@ -4,6 +4,8 @@
 
 - Begin native compiler bootstrap validation with Nona's directly compiled RegExp engine; correct template-substitution bracket depth and fold long literal Unicode data concatenations without recursive lowering ([#143](https://github.com/40oleg/nona/issues/143)).
 
+- Keep Map and Set hash-index growth from inserting an entry twice, preserving deletion and reinsertion during native compiler liveness analysis ([#143](https://github.com/40oleg/nona/issues/143)).
+
 - Integrate Process and public Stream providers with the merged HTTP/network loop, preserving its private fast transport provider and target-supported builtin inventory ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Preserve allocation-free native coverage output on fatal runtime failures; match report properties for stackless plain objects and keep complete Path stress vectors in bounded batches ([#141](https://github.com/40oleg/nona/issues/141)).
