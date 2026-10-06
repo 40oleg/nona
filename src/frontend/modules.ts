@@ -47,12 +47,24 @@ export function resolveRelative(specifier:string,referrer:string):string|undefin
 }
 
 function walk(node:unknown,visit:(node:A.Node,parent?:A.Node)=>void,parent?:A.Node):void {
-  if(Array.isArray(node)){for(const item of node)walk(item,visit,parent);return;}
-  if(!node||typeof node!=='object')return;
-  const record=node as Record<string,unknown>;
-  const current=typeof record.kind==='string'&&typeof record.span==='object'?record as unknown as A.Node:parent;
-  if(current!==parent)visit(current!,parent);
-  for(const [key,value] of Object.entries(record))if(key!=='span'&&key!=='source')walk(value,visit,current);
+  const pending:[unknown,A.Node|undefined][]=[[node,parent]];
+  while(pending.length){
+    const [value,outer]=pending.pop()!;
+    if(Array.isArray(value)){
+      for(let index=value.length-1;index>=0;index--)pending.push([value[index],outer]);
+      continue;
+    }
+    if(!value||typeof value!=='object')continue;
+    const record=value as Record<string,unknown>;
+    const current=typeof record.kind==='string'&&typeof record.span==='object'?record as unknown as A.Node:outer;
+    if(current!==outer)visit(current!,outer);
+    // Reverse the work stack to preserve the recursive walk's source order.
+    const entries=Object.entries(record);
+    for(let index=entries.length-1;index>=0;index--){
+      const [key,child]=entries[index]!;
+      if(key!=='span'&&key!=='source')pending.push([child,current]);
+    }
+  }
 }
 
 /** Plan only user AST requests; provider exports must not recursively select inventory. */
