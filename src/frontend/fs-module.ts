@@ -454,6 +454,7 @@ function bsdSource(target:Target):string {
 
 export function fsModuleSource(target:Target):string {
   if(target.startsWith('darwin-')||target==='freebsd-x64'||target==='openbsd-x64')return bsdSource(target)+common;
-  if(target!=='win32-x64'&&target!=='win32-arm64'&&target!=='linux-x64'&&target!=='linux-arm64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
+  const supported:string[]=['win32-x64','win32-arm64','linux-x64','linux-arm64','darwin-x64','darwin-arm64','freebsd-x64','openbsd-x64'];
+  if(!supported.includes(target))throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
   return (target==='linux-arm64'?linuxArm64Source():target==='linux-x64'?linux:win32)+common;
 }

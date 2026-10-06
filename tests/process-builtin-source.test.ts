@@ -110,7 +110,7 @@ test('escaped builtin methods select only target-supported inventory',()=>{
  const ir=compileToIR('const get=process.getBuiltinModule;console.log([get][0]("process"))','builtin.js',emptyHost,'darwin-arm64');
  assert.ok(ir.scripts!.includes('node:process'));
  assert.ok(ir.scripts!.includes('nona:ffi'));
- assert.ok(!ir.scripts!.includes('node:fs'));
+ assert.ok(ir.scripts!.includes('node:fs'));
  assert.ok(!ir.scripts!.includes('nona:win32'));
 });
 
@@ -200,7 +200,7 @@ for(const target of supportedNativeTargets)test('builtin inventory derives suppo
  const host=withBuiltinModules(emptyHost,target),supported=host.builtinCandidates!();
  const ir=compileToIR('const get=process.getBuiltinModule;get(process.argv[1])','builtin.js',emptyHost,target);
  for(const path of supported){assert.equal(ir.scripts!.filter(item=>item===path).length,1);assert.ok(host.builtinAliases!(path)!.includes(path))}
- assert.equal(supported.includes('node:fs'),target.startsWith('win32-')||target.startsWith('linux-'));
+ assert.ok(supported.includes('node:fs'),target+' has a native filesystem adapter');
  assert.equal(supported.includes('nona:win32'),target.startsWith('win32-'));
  assert.equal(supported.includes('node:net'),target==='win32-x64'||target==='linux-x64');
  assert.equal(supported.includes('node:http'),target==='win32-x64'||target==='linux-x64');
