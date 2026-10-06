@@ -247,7 +247,11 @@ private initialization retains the required startup intrinsics.
 
 The focused finalization and builtin-registry GC-stress probes use an empty
 POSIX environment or only `SystemRoot` on Windows. Environment compatibility
-probes retain the inherited environment. New full Stream, builtin-registry, signal and diagnostic-report probes use a 60-second execution budget. Only ARM64 Stream fixtures with forced collection use 180 seconds: their ordinary-allocation equivalents complete in milliseconds, while each stressed allocation scans the larger lowered runtime. Existing Blob test deadlines remain unchanged.
+probes keep the inherited environment; focused native report stress tests use
+the bounded Process test environment. Fatal termination still flushes native,
+allocation-free coverage data while bypassing JavaScript exit hooks.
+
+New full Stream, builtin-registry, signal and diagnostic-report probes use a 60-second execution budget. ARM64 Stream fixtures with forced collection use 180 seconds: their ordinary-allocation equivalents complete in milliseconds, while each stressed allocation scans the larger lowered runtime. The new Process GC-stress suite also has a bounded 180-second budget on ARM64; account and memory scenarios additionally run with ordinary allocation and the same Node 26 oracle. Existing Blob test deadlines remain unchanged.
 
 ## Native signals and diagnostic reports
 

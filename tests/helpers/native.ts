@@ -27,6 +27,7 @@ export function runNative(
   image: Uint8Array,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   redirectStdout = false,
+  env?:Record<string,string>,
 ): NativeRun {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError('Native process timeout must be a positive finite number');
@@ -49,6 +50,7 @@ export function runNative(
       timeout: timeoutMs,
       maxBuffer: MAX_BUFFER_BYTES,
       windowsHide: true,
+      env,
       ...(outputFd === undefined ? {} : {stdio: ["ignore", outputFd, "pipe"] as const}),
     });
 

@@ -10,7 +10,7 @@ export const processReportSource=String.raw`
       if(typeof stack!=='string'){var message='No stack.';if(error instanceof reportIntrinsics.Error&&typeof error.message==='string')message=(typeof error.name==='string'?error.name:'Error')+': '+error.message;result={message:message,stack:['Unavailable.'],errorProperties:properties}}
       else{var newline=stack.indexOf('\n');result={message:newline<0?stack:stack.slice(0,newline),errorProperties:properties};
        if(newline>=0){var frames=[],start=newline+1,end;while((end=stack.indexOf('\n',start))>=0){var frame=apply(reportIntrinsics.trim,stack.slice(start,end),[]);apply(reportIntrinsics.push,frames,[frame]);start=end+1}result.stack=frames}}
-      for(var key of reportIntrinsics.keys(error))if(key!=='stack'&&key!=='message')defineProperty(properties,key,{value:reportIntrinsics.String(error[key]),writable:true,enumerable:true,configurable:true});return result
+      if(typeof stack==='string'||error instanceof reportIntrinsics.Error)for(var key of reportIntrinsics.keys(error))if(key!=='stack'&&key!=='message')defineProperty(properties,key,{value:reportIntrinsics.String(error[key]),writable:true,enumerable:true,configurable:true});return result
     }
     function reportSnapshot(error,event,trigger,filename){
       var date=new reportIntrinsics.Date(),memory=apply(reportMemory,process,[]),resources=apply(reportResources,process,[]);

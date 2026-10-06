@@ -305,7 +305,8 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.load('rax',{rip:'rt.fatalReportHook'});a.test('rax','rax');a.jcc('e',noReport);a.callRegister('rax');a.label(noReport);
   // Runtime failure is unrecoverable. JavaScript lifecycle hooks may allocate
   // or replace the fatal status, so they belong only to ordinary process exit.
-  a.call('rt.callStatsReport');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');
+  // This hook only writes compiler-generated native coverage from static data.
+  a.call('rt.runExitHook');a.call('rt.callStatsReport');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');
   a.label(exit);a.mov('rcx',1);a.callImport('ExitProcess');
  });
  b.data('rt.error',new TextEncoder().encode('Nona runtime error\r\n'));

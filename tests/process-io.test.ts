@@ -22,8 +22,11 @@ test('process native environment property paths match the Node 26 oracle',()=>{
  assert.equal(actual.status,oracle.status,JSON.stringify({stdout:actual.stdout,stderr:actual.stderr,error:actual.error?.message}));assert.equal(actual.stdout,oracle.stdout);
 });
 test('process invalid account names match Node 26 without changing credentials',()=>{
- const oracle=runOracle(processAccountOracle),actual=runProcess(processAccountOracle);
- assert.equal(actual.status,oracle.status,JSON.stringify({stdout:actual.stdout,stderr:actual.stderr,error:actual.error?.message}));assert.equal(actual.stdout,oracle.stdout);
+ const oracle=runOracle(processAccountOracle);
+ for(const gcStress of [false,true]){
+  const actual=runProcess(processAccountOracle,undefined,{gcStress});
+  assert.equal(actual.status,oracle.status,JSON.stringify({gcStress,stdout:actual.stdout,stderr:actual.stderr,error:actual.error?.message}));assert.equal(actual.stdout,oracle.stdout);
+ }
 });
 test('process native thread CPU shape and previous values match Node 26',()=>{
  const oracle=runOracle(processThreadOracle),actual=runProcess(processThreadOracle);
@@ -38,7 +41,10 @@ test('process native dotenv loading matches Node 26 and reads real memory counte
  try{
   writeFileSync(path,"export NONA_ENV_A=' value # text '\nNONA_ENV_B=\"first\\nsecond\"\nNONA_ENV_KEEP=replaced\n");
   const source='process.env.NONA_ENV_KEEP="original";process.loadEnvFile('+JSON.stringify(path)+');console.log(JSON.stringify([process.env.NONA_ENV_A,process.env.NONA_ENV_B,process.env.NONA_ENV_KEEP]));console.log(process.availableMemory()>0,process.constrainedMemory()>=0)';
-  const result=runProcess(source);assert.equal(result.status,0,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,runOracle(source).stdout);
+  const oracle=runOracle(source).stdout;
+  for(const gcStress of [false,true]){
+   const result=runProcess(source,undefined,{gcStress});assert.equal(result.status,0,JSON.stringify({gcStress,stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,oracle);
+  }
  }finally{rmSync(directory,{recursive:true,force:true})}
 });
 test('process reviewed lifecycle and unreferenced stdin match Node 26 natively',()=>{
@@ -53,4 +59,3 @@ test('process stdin consumes UTF-8 pipe input through data/end events',()=>{
  const source='process.stdin.setEncoding("utf8");let text="";process.stdin.on("data",chunk=>text+=chunk);process.stdin.on("end",()=>console.log(text))';
  const result=runProcess(source,'hello ü');assert.equal(result.status,0,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,'hello ü\n');
 });
-

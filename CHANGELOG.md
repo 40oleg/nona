@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Preserve allocation-free native coverage output on fatal runtime failures; match report properties for stackless plain objects and keep complete Path stress vectors in bounded batches ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Pair native Process account and memory GC-stress scenarios with ordinary-allocation oracle runs and bound the new ARM64 Process stress suite at 180 seconds ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Initialize the canonical EventEmitter only when Events, Stream or process uses it, reducing full-runtime GC-stress startup work without extending Blob deadlines ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Keep type-only observations of the lazy process descriptor from linking unrelated builtin providers, while retaining inventory for callable or escaping descriptors ([#141](https://github.com/40oleg/nona/issues/141)).

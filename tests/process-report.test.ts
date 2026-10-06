@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {runOnHost} from './helpers/host.js';
+import {runProcess as runOnHost,processTestEnvironment} from './helpers/process.js';
 import {runNative} from './helpers/native.js';
 import {linkHost} from './helpers/program.js';
 import {compileModuleToIR} from '../src/compiler.js';
@@ -35,7 +35,7 @@ test('CI native allocator failure writes emergency JSON without JavaScript exit 
  try{
   const source=processReportAllocationFailureProbe(target).replace("'nona-process-report-oom.json'",JSON.stringify(filename)).replace("console.log('armed');","console.log('armed');process.on('exit',()=>console.log('unexpected JS exit hook'));");
   const image=withNativeTarget(target,()=>linkHost(generate(compileModuleToIR(source,'report-oom.mjs',undefined,'',target),{gcStress:true}),target));
-  const result=runNative(image);assert.equal(result.error,undefined);assert.equal(result.status,1,result.stderr.toString());assert.equal(result.stdout.toString(),'armed\n');assert.match(result.stderr.toString(),/Nona runtime error/);
+  const result=runNative(image,process.arch==='arm64'?180000:60000,false,processTestEnvironment());assert.equal(result.error,undefined,JSON.stringify({stdout:result.stdout.toString(),stderr:result.stderr.toString(),error:result.error?.message}));assert.equal(result.status,1,result.stderr.toString());assert.equal(result.stdout.toString(),'armed\n');assert.match(result.stderr.toString(),/Nona runtime error/);
   const report=JSON.parse(readFileSync(filename,'utf8'));assert.equal(report.header.event,'FatalError');assert.equal(report.header.filename,filename);assert.equal(typeof report.header.configurationTime,'string');assert.ok(report.javascriptHeap.heapTotal>=report.javascriptHeap.heapUsed);assert.ok(report.javascriptHeap.managedBlocks>0);
  }finally{rmSync(directory,{recursive:true,force:true})}
 });

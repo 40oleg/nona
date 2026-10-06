@@ -13,6 +13,8 @@ const paths=['','.', '..','../..','a/./b/../c/','///a//b///','//','/','/..','/a/
 for(const p of [path.posix,path.win32]) for(const s of paths) {
  console.log(JSON.stringify([p.normalize(s),p.dirname(s),p.basename(s),p.basename(s,'.txt'),p.extname(s),p.isAbsolute(s),p.parse(s),p.format(p.parse(s)),p.toNamespacedPath(s)]));
 }
+`,
+ 'path resolution and formatting': String.raw`
 for(const p of [path.posix,path.win32]) {
  for(const parts of [[],[''],['a','b','..','c/'],['/a','/b'],['//server','share','x'],['C:','foo'],['C:/x','../y']])console.log(p.join(...parts),p.resolve(...parts));
  for(const pair of [['/a/b','/a/c'],['/a','/a'],['','x'],['C:/a','c:/B'],['C:/a','D:/b'],['//server/share/a','//server/share/b'],['/','//'],['//','/a'],['/a','//'],['//','\\\\?\\C:\\a./server\\CON:\\foo.txt'],['\\\\?\\C:\\a./server\\CON:\\foo.txt','//'],['C:/a','//'],['//','C:/a'],['/a','/ab'],['/ab','/abc'],['/abc','/ab'],['/server','//server/share'],['/server/share','//server/share']])console.log(p.relative(...pair));
