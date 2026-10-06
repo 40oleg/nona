@@ -1,5 +1,7 @@
 name: self-hosting
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   pull_request:
     paths:
