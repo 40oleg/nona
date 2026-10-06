@@ -367,6 +367,14 @@ test('process stream ancestry and pipe versus pipeline termination use the canon
  }
 });
 
+test('polled stdin retains the Readable requested native read size',()=>{
+ let ready=false;const sizes:number[]=[];
+ const context=mockProcess({__nonaHost_sys_poll:()=>ready?1:0,__nonaHost_sys_read:(_fd:number,_bytes:Uint8Array,size:number)=>{sizes.push(size);return 0}});
+ runInContext('__nonaRegexpVm.streamModule.setDefaultHighWaterMark(false,8);process.stdin.read(0)',context);
+ assert.deepEqual(sizes,[]);ready=true;runInContext('__nonaRegexpVm.pumpIO()',context);
+ assert.deepEqual(sizes,[8]);
+});
+
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
  const result=compile(processExtendedOracle+processReviewOracle+processEnvironmentOracle+processAccountOracle+processThreadOracle+processExecErrorOracle,{fileName:'process-io.js',target});assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });

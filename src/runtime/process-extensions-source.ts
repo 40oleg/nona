@@ -42,8 +42,8 @@ export const processExtensionsSource=String.raw`
       defineProperty(stream,'fd',{value:fd,writable:true,enumerable:true,configurable:true});
       return stream
     }
-    var out=output(1),err=output(2),inputRef=true,inputRequested=false,inputEOF=false;
-    var input=new processStreams.Readable({autoDestroy:false,read:function(size){inputRequested=true;try{if(inputReady()){var chunk=readInput(size);inputRequested=false;input.push(chunk)}}catch(error){inputRequested=false;input.destroy(error)}},destroy:function(error,callback){inputRequested=false;callback(error)}});
+    var out=output(1),err=output(2),inputRef=true,inputRequested=false,inputEOF=false,inputReadSize=65536;
+    var input=new processStreams.Readable({autoDestroy:false,read:function(size){inputRequested=true;inputReadSize=Math.max(1,size);try{if(inputReady()){var chunk=readInput(inputReadSize);inputRequested=false;input.push(chunk)}}catch(error){inputRequested=false;input.destroy(error)}},destroy:function(error,callback){inputRequested=false;callback(error)}});
     defineProperty(input,'fd',{value:0,writable:true,enumerable:true,configurable:true});
     __nonaRegexpVm.isProcessOutput=function(stream){return stream===out||stream===err};
     function readInput(size){
@@ -70,7 +70,7 @@ export const processExtensionsSource=String.raw`
     __nonaRegexpVm.hasPendingIO=function(){return inputRef&&__nonaRegexpVm.hasReadableIO()};
     __nonaRegexpVm.pumpIO=function(){
       if(!__nonaRegexpVm.hasReadableIO())return;
-      try{if(!inputReady())return;var chunk=readInput();inputRequested=false;input.push(chunk)}catch(error){inputRequested=false;input.destroy(error)}
+      try{if(!inputReady())return;var chunk=readInput(inputReadSize);inputRequested=false;input.push(chunk)}catch(error){inputRequested=false;input.destroy(error)}
     };
     for(var stdio of [['stdout',out],['stderr',err],['stdin',input]])(function(name,stream){defineProperty(process,name,{enumerable:true,configurable:true,get:function(){return stream}})})(stdio[0],stdio[1]);
     value('openStdin',function(){return input.resume()});
