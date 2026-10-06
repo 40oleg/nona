@@ -25,7 +25,8 @@ console.log('identity',Stream===namespace.default,Stream===namespace.Stream,Read
 console.log('brands',new PassThrough() instanceof Duplex,new Writable() instanceof EventEmitter,new Readable() instanceof EventEmitter);
 console.log('process',process instanceof EventEmitter,process.stdin instanceof Readable,process.stdout instanceof Writable,process.stderr instanceof Writable);
 console.log('registry',process.getBuiltinModule('stream')===Stream,process.getBuiltinModule('node:stream')===Stream,process.getBuiltinModule('buffer').Buffer===Buffer);
-`,expected:"identity true true true true\nbrands true true true\nprocess true true true true\nregistry true true true\n"},
+console.log('descriptors',['platform','arch','pid','argv0'].every(name=>Object.getOwnPropertyDescriptor(process,name).writable===false),Object.getOwnPropertyDescriptor(process,'argv0').configurable===false);
+`,expected:"identity true true true true\nbrands true true true\nprocess true true true true\nregistry true true true\ndescriptors true true\n"},
   {name:'stream-writable-queues',source:imports+String.raw`
 const values=[],sink=new Writable({highWaterMark:2,write(chunk,encoding,callback){values.push('write:'+chunk);callback()},writev(chunks,callback){values.push('batch:'+chunks.map(entry=>entry.chunk.toString()).join(','));callback()}});
 sink.cork();console.log('pressure',sink.write('a',()=>values.push('a')),sink.write('b',()=>values.push('b')),sink.writableLength,sink.writableNeedDrain);
