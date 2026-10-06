@@ -6,7 +6,7 @@ Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describe
 
 | API | Tipo | Destinos | Referencia |
 | --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | globales | ambos | [Temporizadores y bucle de eventos](/es/reference/host-apis) |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | globales | ambos | [Temporizadores y bucle de eventos](/es/reference/host-apis) |
 | `process` | global | all eight native targets | [process](/es/reference/process) |
 | `TextEncoder`, `TextDecoder` | globales | ambos | [Sistema de archivos y codificación de texto](/es/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | global | ambos | escribe UTF-8 en la salida estándar |

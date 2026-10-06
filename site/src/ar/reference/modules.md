@@ -6,7 +6,7 @@
 
 | الواجهة | النوع | المنصات | المرجع |
 | --- | --- | --- | --- |
-| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`queueMicrotask` و`performance.now()` | عامة | كلتاهما | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
+| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`setImmediate`/`clearImmediate`, `queueMicrotask` و`performance.now()` | عامة | كلتاهما | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
 | `process` | عام | all eight native targets | [process](/ar/reference/process) |
 | `TextEncoder` و`TextDecoder` | عامة | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |

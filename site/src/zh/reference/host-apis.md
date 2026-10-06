@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## 定时器与事件循环
 
-全局函数：`setTimeout(callback, delay, ...args)`、`setInterval`、`clearTimeout`、`clearInterval`、`queueMicrotask(callback)` 和 `performance.now()`。
+全局函数：`setTimeout(callback, delay, ...args)`、`setInterval`、`clearTimeout`、`clearInterval`、`setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` 和 `performance.now()`。
 
 - 顶层程序执行完后，入口会运行事件循环：先清空 Promise 任务队列，然后反复等待最近的定时器到期，执行其回调，再次清空任务队列。没有剩余定时器时，进程退出。
 - 定时器先按到期时间排序，再按注册顺序排序。延迟的处理与 Node.js 一致：用 `ToNumber` 转换，`NaN`、小于 1 或大于 2^31-1 的值都变为 1。

@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## Timers e o loop de eventos
 
-Globais: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` e `performance.now()`.
+Globais: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` e `performance.now()`.
 
 - Depois do programa de nível superior, o ponto de entrada executa um loop de eventos: ele esvazia a fila de jobs de Promise e depois, repetidamente, espera o prazo do timer mais próximo, executa o callback e esvazia a fila de jobs de novo. O processo termina quando não restam timers.
 - Os timers são ordenados por prazo e depois por ordem de registro. O atraso segue o Node.js: é convertido com `ToNumber`, e valores `NaN`, menores que 1 ou maiores que 2^31-1 viram 1.

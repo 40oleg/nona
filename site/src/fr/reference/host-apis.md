@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## Minuteurs et boucle d’événements
 
-Objets globaux : `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` et `performance.now()`.
+Objets globaux : `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` et `performance.now()`.
 
 - Après le programme de premier niveau, le point d’entrée exécute une boucle d’événements : elle vide la file des tâches de Promise, puis attend à plusieurs reprises l’échéance du minuteur le plus proche, exécute son callback et vide de nouveau la file. Le processus se termine lorsqu’il ne reste plus de minuteurs.
 - Les minuteurs sont ordonnés par échéance, puis par ordre d’enregistrement. Le délai suit Node.js : il est converti avec `ToNumber`, et les valeurs `NaN`, inférieures à 1 ou supérieures à 2^31-1 deviennent 1.

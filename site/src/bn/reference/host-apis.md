@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## টাইমার ও ইভেন্ট লুপ
 
-গ্লোবাল: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` ও `performance.now()`।
+গ্লোবাল: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` ও `performance.now()`।
 
 - টপ-লেভেল প্রোগ্রামের পরে এন্ট্রি একটি ইভেন্ট লুপ চালায়: এটি Promise জব কিউ খালি করে, তারপর বারবার নিকটতম টাইমারের সময়সীমার জন্য অপেক্ষা করে, সেই কলব্যাক চালায় এবং আবার জব কিউ খালি করে। কোনো টাইমার বাকি না থাকলে প্রসেস বের হয়ে যায়।
 - টাইমারগুলো সময়সীমা অনুযায়ী, তারপর নিবন্ধনের ক্রম অনুযায়ী সাজানো হয়। বিলম্ব (delay) Node.js অনুসরণ করে: এটি `ToNumber` দিয়ে রূপান্তরিত হয়, এবং যে মান `NaN`, 1-এর কম বা 2^31-1-এর বেশি, সেগুলো 1 হয়ে যায়।

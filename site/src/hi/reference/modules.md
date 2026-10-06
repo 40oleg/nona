@@ -6,7 +6,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 | API | प्रकार | टार्गेट | संदर्भ |
 | --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | ग्लोबल | दोनों | [टाइमर और इवेंट लूप](/hi/reference/host-apis) |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | ग्लोबल | दोनों | [टाइमर और इवेंट लूप](/hi/reference/host-apis) |
 | `process` | ग्लोबल | all eight native targets | [process](/hi/reference/process) |
 | `TextEncoder`, `TextDecoder` | ग्लोबल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |

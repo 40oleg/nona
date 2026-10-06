@@ -59,7 +59,15 @@ See [paths](path.md) for examples and compatibility boundaries.
 ## Timers and the event loop
 
 Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
-`clearInterval`, `queueMicrotask(callback)` and `performance.now()`.
+`clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`,
+`queueMicrotask(callback)` and `performance.now()`.
+
+- Immediates run in registration order after the current timer phase, draining
+  microtasks between callbacks. An immediate registered by an immediate waits
+  for the next iteration. Handles provide `ref()`, `unref()`, `hasRef()` and
+  `[Symbol.dispose]()`, including the `process.ref()`/`process.unref()` protocol.
+  An unreferenced immediate does not keep the process alive. Cancelled and
+  completed handles cannot be reactivated.
 
 - After the top-level program the entry runs an event loop: it drains the
   Promise job queue, then repeatedly waits for the nearest timer deadline, runs

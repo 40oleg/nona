@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## المؤقتات وحلقة الأحداث
 
-الدوال العامة: `setTimeout(callback, delay, ...args)` و`setInterval` و`clearTimeout` و`clearInterval` و`queueMicrotask(callback)` و`performance.now()`.
+الدوال العامة: `setTimeout(callback, delay, ...args)` و`setInterval` و`clearTimeout` و`clearInterval` و`setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` و`performance.now()`.
 
 - بعد انتهاء البرنامج في المستوى الأعلى تشغّل نقطة الدخول حلقة أحداث: تفرغ طابور مهام Promise، ثم تنتظر مرارًا أقرب موعد لمؤقت، وتنفّذ دالة الاستدعاء الخاصة به، ثم تفرغ طابور المهام من جديد. وتنتهي العملية حين لا تبقى مؤقتات.
 - تُرتَّب المؤقتات حسب الموعد ثم حسب ترتيب التسجيل. ويتبع التأخير سلوك Node.js: يُحوَّل عبر `ToNumber`، والقيم `NaN` أو الأصغر من 1 أو الأكبر من 2^31-1 تصبح 1.

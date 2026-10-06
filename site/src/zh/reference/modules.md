@@ -6,7 +6,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 | API | 类型 | 目标平台 | 参考 |
 | --- | --- | --- | --- |
-| `setTimeout`、`setInterval`、`clearTimeout`、`clearInterval`、`queueMicrotask`、`performance.now()` | 全局 | 两者 | [定时器与事件循环](/zh/reference/host-apis) |
+| `setTimeout`、`setInterval`、`clearTimeout`、`clearInterval`、`setImmediate`/`clearImmediate`, `queueMicrotask`、`performance.now()` | 全局 | 两者 | [定时器与事件循环](/zh/reference/host-apis) |
 | `process` | 全局 | all eight native targets | [process](/zh/reference/process) |
 | `TextEncoder`、`TextDecoder` | 全局 | 两者 | [文件系统与文本编码](/zh/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |

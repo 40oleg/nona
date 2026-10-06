@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## Таймеры и цикл событий
 
-Глобальные функции: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` и `performance.now()`.
+Глобальные функции: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` и `performance.now()`.
 
 - После программы верхнего уровня точка входа запускает цикл событий: он выполняет очередь заданий Promise, затем раз за разом ждёт ближайшего срока таймера, вызывает его callback и снова выполняет очередь заданий. Процесс завершается, когда таймеров не осталось.
 - Таймеры упорядочены по сроку, затем по порядку регистрации. Задержка обрабатывается как в Node.js: она преобразуется через `ToNumber`, а значения `NaN`, меньше 1 или больше 2^31-1 становятся равны 1.

@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## Temporizadores y el bucle de eventos
 
-Globales: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` y `performance.now()`.
+Globales: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` y `performance.now()`.
 
 - Tras el programa de nivel superior, el punto de entrada ejecuta un bucle de eventos: vacía la cola de tareas de Promise y luego, repetidamente, espera al vencimiento del temporizador más próximo, ejecuta su callback y vuelve a vaciar la cola de tareas. El proceso termina cuando no quedan temporizadores.
 - Los temporizadores se ordenan por vencimiento y luego por orden de registro. El retardo sigue a Node.js: se convierte con `ToNumber`, y los valores `NaN`, menores que 1 o mayores que 2^31-1 pasan a ser 1.

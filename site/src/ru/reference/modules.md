@@ -6,7 +6,7 @@
 
 | API | Вид | Цели | Справка |
 | --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | глобальные | обе | [Таймеры и цикл событий](/ru/reference/host-apis) |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | глобальные | обе | [Таймеры и цикл событий](/ru/reference/host-apis) |
 | `process` | глобальный | all eight native targets | [process](/ru/reference/process) |
 | `TextEncoder`, `TextDecoder` | глобальные | обе | [Файловая система и кодировка текста](/ru/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |

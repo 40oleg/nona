@@ -19,7 +19,7 @@ Path does not initialize the full process object. [Full reference](https://githu
 
 ## टाइमर और इवेंट लूप
 
-ग्लोबल: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` और `performance.now()`।
+ग्लोबल: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`, `queueMicrotask(callback)` और `performance.now()`।
 
 - टॉप-लेवल प्रोग्राम के बाद एंट्री एक इवेंट लूप चलाती है: यह Promise जॉब कतार खाली करती है, फिर बार-बार सबसे नज़दीकी टाइमर की समय-सीमा का इंतज़ार करती है, उस कॉलबैक को चलाती है और फिर से जॉब कतार खाली करती है। जब कोई टाइमर नहीं बचता, प्रोसेस बाहर निकल जाती है।
 - टाइमर समय-सीमा के क्रम में, फिर पंजीकरण के क्रम में व्यवस्थित होते हैं। देरी (delay) Node.js का पालन करती है: इसे `ToNumber` से बदला जाता है, और जो मान `NaN` हैं, 1 से कम हैं या 2^31-1 से अधिक हैं, वे 1 बन जाते हैं।

@@ -19,7 +19,7 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **`eval` и `Function` с исходником, известным при компиляции.** Строковый литерал, конкатенация литералов или переменная, которой присваиваются только такие константы, компилируются заранее с полной семантикой прямого и косвенного `eval`. Строка, вычисленная во время исполнения, бросает `EvalError` — это единственное сознательное исключение.
 - **Нативный runtime.** Точный немещающий mark-and-sweep сборщик мусора, строки UTF-16, настоящие исключения, перехватываемый `RangeError` при переполнении стека.
 - **API хоста** для настоящих программ:
-  - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
+  - цикл событий: `setTimeout`/`setInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
   - глобальный `process` и `node:process` на всех восьми платформах (`version`, `versions.nona`, `argv`, изменяемое нативное `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `getBuiltinModule`, `abort`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
   - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, отмена, освобождаемые подписки на отмену и асинхронный контекст; сохранённое хранилище переживает смену контекста без копирования Map для каждой реакции, а сигналы с таймером не удерживают процесс запущенным ([API хоста](docs/host-apis.md#events));
 

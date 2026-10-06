@@ -6,7 +6,7 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 
 | API | ধরন | টার্গেট | রেফারেন্স |
 | --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`, `performance.now()` | গ্লোবাল | উভয় | [টাইমার ও ইভেন্ট লুপ](/bn/reference/host-apis) |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | গ্লোবাল | উভয় | [টাইমার ও ইভেন্ট লুপ](/bn/reference/host-apis) |
 | `process` | গ্লোবাল | all eight native targets | [process](/bn/reference/process) |
 | `TextEncoder`, `TextDecoder` | গ্লোবাল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে |

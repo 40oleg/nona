@@ -20,6 +20,11 @@ import {EventEmitter} from 'node:events';
 import {Buffer} from 'node:buffer';
 `;
  return [
+  {name:'stream-immediate-lifecycle',source:imports+String.raw`
+const cancelled=setImmediate(()=>console.log('unexpected'));cancelled[Symbol.dispose]();
+const handle=setImmediate(function(value){console.log('first',this===handle,value,handle.hasRef());queueMicrotask(()=>console.log('microtask'));setImmediate(()=>console.log('nested'))},'argument');
+process.unref(handle);console.log('unref',handle.hasRef());process.ref(handle);console.log('ref',handle.hasRef());setImmediate(()=>console.log('second'));
+`,expected:"unref false\nref true\nfirst true argument false\nmicrotask\nsecond\nnested\n"},
   {name:'stream-identity',source:imports+String.raw`
 console.log('identity',Stream===namespace.default,Stream===namespace.Stream,Readable===namespace.Readable,Object.getPrototypeOf(Stream)===EventEmitter);
 console.log('brands',new PassThrough() instanceof Duplex,new Writable() instanceof EventEmitter,new Readable() instanceof EventEmitter);
