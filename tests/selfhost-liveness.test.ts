@@ -31,5 +31,7 @@ test('self-hosted liveness agrees with Node on the RegExp VM control-flow graph'
  // point allocates millions of snapshots and exceeds the host helper timeout.
  const native=runOnHost(source,{gcStress:false});
  assert.equal(native.status,0,String(native.error??native.stderr));
- assert.equal(native.stdout,oracle.stdout);
+ const actual=native.stdout.split('\n'),expected=oracle.stdout.split('\n');
+ assert.equal(actual.length,expected.length);
+ for(let index=0;index<expected.length;index++)assert.equal(actual[index],expected[index],`Output row ${index}`);
 });
