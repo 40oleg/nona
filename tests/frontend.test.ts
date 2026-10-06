@@ -8,6 +8,12 @@ import {compile} from '../src/compiler.js';
 const syntax = (s: string) => parse(lex(s));
 const check = (s: string) => bind(syntax(s));
 
+test('template substitutions preserve bracket depth for relational in and for initializers',()=>{
+ assert.doesNotThrow(()=>check('const text=`${1}${2}`;if("x" in {}){}'));
+ assert.doesNotThrow(()=>check('for(let text=`${"x" in {}}${"y" in {}}`;;)break;'));
+ assert.throws(()=>check('for(let text=`${1}${2}` in {};;)break;'));
+});
+
 for(const [spelling,value] of [['0xAf',175],['.25e+2',25],['12.',12],['1e-2',0.01],['"\\x41\\u0042"','AB'],['"a\\\r\nb"','ab'],['"\\n\\r\\t\\b\\f\\v\\0"','\n\r\t\b\f\v\0']] as const)
   test('literal decoding '+JSON.stringify(spelling),()=>assert.equal(lex(spelling)[0]!.value,value));
 for(const source of ['/* missing','"\\x0G"','"\\u000"','"a\nb"','for(var i=0\ni<2;i++){}','while(true){break x;}','class C{static prototype(){}}'])test('malformed syntax '+JSON.stringify(source),()=>assert.throws(()=>check(source)));

@@ -1,0 +1,45 @@
+name: self-hosting
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/bootstrap-selfhost.mjs'
+      - 'scripts/verify-selfhost.mjs'
+      - '.github/workflows/self-hosting.yml'
+permissions:
+  contents: read
+concurrency:
+  group: self-hosting-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-x64
+            image: stage1
+          - os: windows-latest
+            target: win32-x64
+            image: stage1.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build native stage 1 with the development bootstrap
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
+      - name: Verify native regressions and stage 1 builds stage 2
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfhost-${{ matrix.target }}
+          path: work/selfhost

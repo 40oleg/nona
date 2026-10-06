@@ -1,5 +1,7 @@
 # Nona
 
+Native compiler self-hosting is being verified separately; see [bootstrap status](docs/self-hosting.md). The development compiler still uses Node.js until native stage 1, stage 2 and the complete CLI pass validation.
+
 The process adapter includes native OS signals and diagnostic reports with
 actual allocator, resource and network snapshots. See [Process API](docs/process.md).
 

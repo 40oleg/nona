@@ -1,0 +1,31 @@
+# Native compiler bootstrap
+
+Work in progress for [#143](https://github.com/40oleg/nona/issues/143).
+
+`scripts/bootstrap-selfhost.mjs` uses the development Node.js compiler to
+compile the compiler's emitted JavaScript into a native stage 1 image. It
+prepares a source tree next to the image so stage 1 can compile that same tree
+into stage 2. RegExp validation is compiled directly from Nona's own engine;
+the native source tree's lexer does not import `node:vm` or evaluate source.
+No Node.js source, third-party polyfill or JavaScript interpreter is bundled.
+
+```sh
+npm run build
+node scripts/bootstrap-selfhost.mjs linux-x64 work/selfhost/stage1
+node scripts/verify-selfhost.mjs linux-x64 work/selfhost/stage1
+```
+
+Windows uses `win32-x64` and `stage1.exe`. Generated Windows executables are
+verified in native CI; local verification refuses to execute them.
+
+The development verifier launches native children with an empty `PATH`, checks
+representative programs against bootstrap images, asks stage 1 to build stage 2,
+compares the two compiler images, and repeats the program regressions with stage
+2. Its use of Node.js for bootstrap, comparison and orchestration does not imply
+a native compiler runtime dependency.
+
+The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe,
+not a replacement distribution CLI. Native execution and stage 2 success remain
+unverified until the `self-hosting` workflow passes. Integration of the complete
+CLI, atomic output protections, compiler cache and adapters for the remaining
+hosts is still required before distributing a native compiler.
