@@ -562,3 +562,9 @@ test('native probe manifest rejects malformed termination and environment metada
  const builder=readFileSync(new URL('../../scripts/build-platform-probes.mjs',import.meta.url),'utf8'),workflow=readFileSync(new URL('../../.github/workflows/native-platforms.yml',import.meta.url),'utf8');
  assert.ok(builder.includes("file+'.minimal-environment'"));assert.equal((workflow.match(/cat "\$binary\.minimal-environment"/g)??[]).length,3);assert.equal((workflow.match(/env -i "\$binary"/g)??[]).length,3);
 });
+
+test('fatal exceptions write diagnostics without initializing standard streams',()=>{
+ const writes:string[]=[],stopped=new Error('exit');const context=mockProcess({__nonaHost_sys_write:(fd:number,bytes:Uint8Array)=>{assert.equal(fd,2);writes.push(new TextDecoder().decode(bytes));return bytes.length},__nonaHost_sys_exit:()=>{throw stopped}},'linux-x64','__nonaRegexpVm.initializeStreams=undefined');
+ assert.throws(()=>runInContext('process.pid;__nonaRegexpVm.dispatchUncaught(new Error("fatal without streams"))',context),error=>error===stopped);
+ assert.match(writes.join(''),/fatal without streams/);assert.equal(runInContext('__nonaRegexpVm.streamModule===undefined',context),true);
+});

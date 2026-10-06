@@ -12,7 +12,7 @@ export const processExceptionsSource=String.raw`
       captureCallback=callback
     });
     function fatalException(error,code){
-      try{err.write(String(error&&error.stack||error)+'\n')}catch(ignored){}
+      try{var diagnostic=String(error&&error.stack||error)+'\n';if(err)err.write(diagnostic);else nativeWrite(2,encoder.encode(diagnostic))}catch(ignored){}
       process.exitCode=code;
       if(code===7)exitEmitted=true;
       else if(!exitEmitted){exitEmitted=true;try{if(exitCallback)exitCallback(code);code=process.exitCode===undefined?0:process.exitCode}catch(exitError){code=7}}
