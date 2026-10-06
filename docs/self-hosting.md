@@ -35,4 +35,8 @@ with private original SHA-256/UUID/file-URL adapters and an embedded fingerprint
 of the prepared compiler sources. This mode is under native validation; it is
 not yet a replacement distribution CLI. The verifier checks help, version,
 warm cache, executable permissions and source overwrite refusal as well as
-stage 2. Remaining hosts and full distribution integration are still required.
+stage 2. Additional jobs execute the complete native CLI on Windows/Linux ARM64,
+both macOS CPUs and both BSD guests. BSD smoke checks run without Node installed,
+including module/RegExp output, hard-link/symlink overwrite refusal and warm
+cache image identity. These new full CLI and host checks are pending; distribution
+integration is still required before completion.

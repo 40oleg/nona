@@ -10,7 +10,8 @@ test('compiler filesystem operations preserve exclusive writes, identities and d
  console.log(readFileSync('protected.txt','utf8'));
  const first=statSync('protected.txt',{bigint:true}),again=statSync('./protected.txt',{bigint:true});
  console.log(typeof first.dev,typeof first.ino,first.dev===again.dev&&first.ino===again.ino);
- console.log(realpathSync('./protected.txt')===resolve('protected.txt'));
+ const canonical=realpathSync('./protected.txt'),identity=statSync(canonical,{bigint:true});
+ console.log(identity.dev===first.dev&&identity.ino===first.ino&&realpathSync(canonical)===canonical);
  mkdirSync('nested');writeFileSync('nested/child.js','ok',{flag:'wx',mode:0o755});
  const entries=readdirSync('.',{withFileTypes:true}),directory=entries.find(entry=>entry.name==='nested'),file=entries.find(entry=>entry.name==='protected.txt');
  console.log(directory.isDirectory(),directory.isFile(),file.isFile(),file.isSymbolicLink());

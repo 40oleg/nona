@@ -6,6 +6,7 @@ on:
       - 'src/**'
       - 'scripts/bootstrap-selfhost.mjs'
       - 'scripts/verify-selfhost.mjs'
+      - 'scripts/native-cli-smoke.sh'
       - 'tests/selfhost-liveness.test.ts'
       - 'tests/selfhost-traversal.test.ts'
       - 'tests/selfhost-filesystem.test.ts'
@@ -56,3 +57,72 @@ jobs:
           path: |
             work/selfhost
             work/selfhost-cli
+  native-cli-platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04-arm, target: linux-arm64, image: compiler}
+          - {os: windows-11-arm, target: win32-arm64, image: compiler.exe}
+          - {os: macos-15-intel, target: darwin-x64, image: compiler}
+          - {os: macos-15, target: darwin-arm64, image: compiler}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Bootstrap native CLI for the actual CPU and OS
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli
+      - name: Run native compiler, executable, cache and output checks
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli --platform-smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-cli-${{ matrix.target }}
+          path: work/native-cli
+  native-cli-bsd:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/bootstrap-selfhost.mjs ${{ matrix.os }}-x64 work/native-cli-${{ matrix.os }}-x64/compiler --cli
+      - uses: vmactions/freebsd-vm@v1
+        if: matrix.os == 'freebsd'
+        with:
+          release: '14.3'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -s)" = FreeBSD
+            test "$(uname -m)" = amd64
+            sh scripts/native-cli-smoke.sh freebsd-x64
+      - uses: vmactions/openbsd-vm@v1
+        if: matrix.os == 'openbsd'
+        with:
+          release: '7.8'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -s)" = OpenBSD
+            test "$(uname -m)" = amd64
+            sh scripts/native-cli-smoke.sh openbsd-x64
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-cli-${{ matrix.os }}-x64
+          path: work/native-cli-${{ matrix.os }}-x64

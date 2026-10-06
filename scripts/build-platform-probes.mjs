@@ -6,6 +6,7 @@ import {eventProbes} from '../dist/src/backend/event-probes.js';
 import {arm64BridgeProbe} from '../dist/src/backend/arm64/bridge-probe.js';
 import {arm64CpuProbe} from '../dist/src/backend/arm64/cpu-probe.js';
 import {arm64MathProbe,arm64MathCases} from '../dist/src/backend/arm64/math.js';
+import {selfhostFsProbeSource,selfhostFsProbeExpected} from '../dist/src/backend/selfhost-fs-probe.js';
 
 const allTargets=['linux-x64','linux-arm64','freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64','win32-arm64'];
 const targets=process.argv[3]?.split(',')??allTargets;
@@ -48,6 +49,14 @@ for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','dar
   writeFileSync(join(directory,eventsFile+'.status'),'0\n');
   writeFileSync(join(directory,eventsFile+'.minimal-environment'),'0\n');
   runtime[target]=[...(runtime[target]??[]),{file:eventsFile,expected:eventsProbeExpected}];
+  const filesystem=compile(selfhostFsProbeSource(target),{fileName:'selfhost-fs-probe.mjs',target,module:true});
+  if(!filesystem.ok)throw new Error('Compiler filesystem probe failed: '+JSON.stringify(filesystem.diagnostics));
+  const filesystemFile=target+'-selfhost-filesystem'+(target.startsWith('win32-')?'.exe':'');
+  writeFileSync(join(directory,filesystemFile),filesystem.image,{mode:0o755});
+  writeFileSync(join(directory,filesystemFile+'.expected'),selfhostFsProbeExpected);
+  writeFileSync(join(directory,filesystemFile+'.status'),'0\n');
+  writeFileSync(join(directory,filesystemFile+'.minimal-environment'),'0\n');
+  runtime[target].push({file:filesystemFile,expected:selfhostFsProbeExpected});
   runtime[target]=[...(runtime[target]??[]),...[...runtimeProbes(target),...eventProbes(target)].map(probe=>{
     const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);

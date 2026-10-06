@@ -23,9 +23,18 @@ and the same message format as Node.js (on Windows, Node.js shows the absolute
 path in messages; Nona shows the path as given).
 
 Implementation: on Windows the module calls KERNEL32 (`CreateFileW`,
-`ReadFile`, `FindFirstFileW`, …) through [`nona:ffi`](ffi.md); on Linux it uses
-raw system calls declared with `define('syscall', number, signature)`. Only the
+`ReadFile`, `FindFirstFileW`, …) through [`nona:ffi`](ffi.md); on Linux, Darwin,
+FreeBSD and OpenBSD it uses raw system calls declared with
+`define('syscall', number, signature)`. All eight native targets have adapters. Only the
 functions of the platform being compiled for are linked in.
+
+The independently authored BSD/Darwin adapters use the operating systems'
+documented syscall numbers and 64-bit stat/directory-entry layouts:
+[FreeBSD ABI](https://github.com/freebsd/freebsd-src/tree/releng/14.3/sys/sys),
+[OpenBSD ABI](https://github.com/openbsd/src/tree/master/sys/sys), and
+[Darwin ABI](https://github.com/apple-oss-distributions/xnu/tree/main/bsd/sys).
+Windows canonical paths can expand DOS short names; compare exact `dev`/`ino`
+identities when deciding whether paths refer to the same file.
 
 ## TextEncoder and TextDecoder
 

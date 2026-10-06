@@ -54,7 +54,7 @@ wall/monotonic clocks, sleeping, thread creation and wait/wake operations.
 `process`, `node:process` and `nona:process` are available on all eight targets,
 including `chdir`, `ppid`, `hrtime`, `uptime` and `nextTick`; see the
 [process API](process.md) for compatibility boundaries. `node:fs` and `nona:fs`
-require Windows or Linux x64/ARM64 and produce `E_HOST_MODULE` on Darwin/BSD.
+also have adapters for all eight native targets.
 Syscall numbers, flags and structure layouts follow the selected target.
 Darwin process memory queries use the OS's libSystem Mach APIs. Intel images
 with those imports use dyld/LC_MAIN and preserve argv/env through the system C
@@ -95,9 +95,9 @@ workflow runs the full Windows x64 suite and Test262 selections on PRs and
 `main`; the platform workflow also checks the browser compiler, samples and
 internal site links. `pages` builds and deploys the documentation site.
 Linux x64/ARM64, Windows ARM64 and macOS x64/ARM64 run the shared portable
-oracle suites on their native runners. Process/filesystem suites run where
-those APIs exist: Linux x64/ARM64 and Windows ARM64 here, Windows x64 in
-`check`. FreeBSD and OpenBSD execute loader and runtime probes inside VMs;
+oracle suites on their native runners. Process/filesystem suites run on
+Linux x64/ARM64, Windows ARM64 and macOS x64/ARM64 here, Windows x64 in
+`check`. FreeBSD and OpenBSD execute loader, filesystem and runtime probes inside VMs;
 their portable Node.js oracle suite is not yet run there.
 EventTarget, cancellation and asynchronous context also have shared module probes
 compiled with allocation stress for all eight targets. These check cancellation

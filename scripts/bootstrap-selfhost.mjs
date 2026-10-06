@@ -6,6 +6,7 @@ import {resolve,dirname} from 'node:path';
 import {compile} from '../dist/src/compiler.js';
 import {regexpVmSource} from '../dist/src/runtime/regexp-vm-source.js';
 import {compilerCryptoSource,compilerUrlSource} from '../dist/src/selfhost-adapters.js';
+import {nonaVersion} from '../dist/src/version.js';
 
 const target=process.argv[2]||'linux-x64';
 const output=resolve(process.argv[3]||'out/selfhost/stage1');
@@ -89,4 +90,4 @@ if(cliMode){
 const result=compile(source,{fileName:entry,target,module:true});
 mkdirSync(dirname(output),{recursive:true});
 if(!result.ok){writeFileSync(output+'.diagnostics.json',JSON.stringify(result.diagnostics,null,2));console.error(JSON.stringify(result.diagnostics,null,2));process.exitCode=1}
-else{writeFileSync(output,result.image,{mode:0o755});console.log('Stage 1 image compiled:',target,result.image.length,output)}
+else{writeFileSync(output,result.image,{mode:0o755});writeFileSync(output+'.version',nonaVersion+'\n');console.log('Stage 1 image compiled:',target,result.image.length,output)}

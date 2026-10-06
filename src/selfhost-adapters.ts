@@ -40,7 +40,7 @@ export function pathToFileURL(value){
   else path='/'+path;
  }
  path=new TextDecoder().decode(new TextEncoder().encode(path));
- const encoded=encodeURI(path).replaceAll('#','%23').replaceAll('?','%3F');
+ const encoded=encodeURI(path).replaceAll('#','%23').replaceAll('?','%3F').replaceAll('~','%7E');
  return {href:'file://'+host+encoded};
 }
 `;
