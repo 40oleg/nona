@@ -18,7 +18,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
 - **Host APIs** for real programs:
   - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
   - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
-  - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, cancellation, disposable abort subscriptions and asynchronous context helpers; captured storage survives later scope changes without copying a Map per reaction ([host APIs](docs/host-apis.md#events));
+  - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, cancellation, disposable abort subscriptions and asynchronous context helpers; captured storage survives later scope changes without copying a Map per reaction, and timeout signals do not keep the process alive ([host APIs](docs/host-apis.md#events));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - global `Buffer`, `Blob` and `File`, with `node:buffer`/`buffer`/`nona:buffer` imports, byte encodings and numeric access ([binary data](docs/host-apis.md#buffer-and-binary-data));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).

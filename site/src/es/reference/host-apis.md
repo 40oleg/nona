@@ -49,3 +49,6 @@ and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks an
 local context storage. Promise, await, timer and microtask callbacks preserve
 captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
 this API; see the English reference for the precise boundaries.
+
+
+AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.

@@ -22,6 +22,11 @@ export const bufferCancellationProbeSource=String.raw`
 })()
 `;
 export const eventProbeSources=[
+ {name:'event-timeout-liveness',source:`
+const later=AbortSignal.timeout(1000);later.addEventListener('abort',()=>console.log('unexpected'));
+const earlier=AbortSignal.timeout(1);earlier.addEventListener('abort',()=>console.log('timeout',earlier.reason.name));
+setTimeout(()=>console.log('live',earlier.aborted,later.aborted),20);
+`,expected:'timeout TimeoutError\nlive true false\n'},
  {name:'event-buffer-cancellation',source:bufferCancellationProbeSource,expected:'sink true\nrejected true\nlocks false false\n'},
  {name:'event-abort-disposal',source:`import {addAbortListener,getEventListeners} from 'node:events';
 console.log('symbol',typeof Symbol.dispose,Symbol.dispose.description,Symbol.keyFor(Symbol.dispose),Symbol.dispose===Symbol.for('nodejs.dispose'));

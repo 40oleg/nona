@@ -101,12 +101,15 @@ Captured bind, snapshot and resource contexts retain their original stores after
 later `enterWith` or `disable` calls, and restore the caller's context on return.
 Registration reuses immutable context records rather than copying a Map for
 every Promise reaction; scope changes create a new record and store map.
+Promise reactions, timers and microtasks retain the record directly and restore
+the calling context after success or failure, without creating extra callback wrappers.
 
 Boundaries: hooks describe explicitly created resources; native Promise and timer
 resource creation, Promise resolution hooks, GC-triggered destruction and Node's
 async resource type catalog are not emitted. Timer callbacks preserve captured
-context IDs rather than creating Node timer IDs. `AbortSignal.timeout` uses Nona's
-referenced timer and may keep the event loop alive until expiry. Event dispatch
+context IDs rather than creating Node timer IDs. `AbortSignal.timeout` uses an
+unreferenced timer: it can fire while ordinary timers keep the loop active, but
+neither the signal nor its abort listeners keep the process alive. Event dispatch
 has no DOM hierarchy. Diagnostic wording, private storage and async ID numbers
 are implementation details. Listener-limit warnings use `process.emitWarning`
 where the process adapter supports it. See the

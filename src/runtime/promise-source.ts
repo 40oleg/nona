@@ -48,7 +48,7 @@ var __nonaPromiseDrainJobs=(function(){
       var resolve=reaction.resolve,reject=reaction.reject;
       if(typeof handler!=='function'){
         if(kind===1)resolve(value);else reject(value)
-      }else resolve(handler(value))
+      }else{var context=__nonaRegexpVm.asyncContext;resolve(context&&reaction.context?context.runCapturedUnary(reaction.context,handler,value):handler(value))}
     }catch(error){var reject=reaction.reject;reject(error)}
   }
   function resolvePromise(promise,value){
@@ -105,8 +105,7 @@ var __nonaPromiseDrainJobs=(function(){
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
     var context=__nonaRegexpVm.asyncContext;
-    if(context){if(typeof onFulfilled==='function')onFulfilled=context.capture(onFulfilled);if(typeof onRejected==='function')onRejected=context.capture(onRejected)}
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject,context:context?context.captureRecord():undefined};
     state.handled=true;
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
@@ -201,8 +200,7 @@ var __nonaPromiseDrainJobs=(function(){
   function performThen(promise,onFulfilled,onRejected){
     var state=record(promise);
     var context=__nonaRegexpVm.asyncContext;
-    if(context){if(typeof onFulfilled==='function')onFulfilled=context.capture(onFulfilled);if(typeof onRejected==='function')onRejected=context.capture(onRejected)}
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop};
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop,context:context?context.captureRecord():undefined};
     state.handled=true;
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))

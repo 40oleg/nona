@@ -3,8 +3,16 @@ import assert from 'node:assert/strict';
 import {runInNewContext} from 'node:vm';
 import {spawnSync} from 'node:child_process';
 import {asyncHooksPreludeSource} from '../src/runtime/async-hooks-source.js';
+import {promisePreludeSource} from '../src/runtime/promise-source.js';
 
 function run(body:string,MapConstructor:MapConstructor=Map){return runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'var api=__nonaRegexpVm.asyncContext;'+body,{Map:MapConstructor,EventTarget:class {}})}
+test('Promise reactions retain context records without allocating capture wrappers',()=>{
+ const body=`var local=new AsyncLocalStorage(),resolve,values=[],pending=new Promise(function(fn){resolve=fn});local.run('registered',function(){pending.then(function(){values.push(local.getStore());local.enterWith('changed');throw Error('expected')}).catch(function(){values.push(local.getStore())})});local.run('delivery',function(){resolve()});`;
+ const oracle=spawnSync(process.execPath,['-e',`var {AsyncLocalStorage}=require('node:async_hooks');`+body+`setImmediate(function(){console.log(JSON.stringify(values))})`],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);
+ const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+ const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+`var AsyncLocalStorage=__nonaRegexpVm.asyncContext.AsyncLocalStorage;__nonaRegexpVm.asyncContext.capture=function(){throw Error('automatic wrapper allocation')};`+body+`__nonaPromiseDrainJobs();JSON.stringify(values)`,{EventTarget:class {}});
+ assert.equal(actual,oracle.stdout.trim());
+});
 test('automatic context capture does not allocate a Map for every reaction',()=>{
  let count=0;class CountingMap extends Map<unknown,unknown>{constructor(entries?:Iterable<readonly [unknown,unknown]>|null){super(entries);count++}}
  run('for(var i=0;i<100;i++)api.capture(function(){});',CountingMap);assert.equal(count,1);

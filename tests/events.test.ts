@@ -10,6 +10,14 @@ import {runModulesOnHost} from './helpers/host.js';
 import {removeTemporaryDirectory} from './helpers/cleanup.js';
 
 const cases:[string,string][]=[
+ ['timeout signals do not keep the process alive', `
+AbortSignal.timeout(1000).addEventListener('abort',()=>console.log('unexpected'));console.log('done');
+`],
+ ['timeout cancellation fires while an ordinary timer remains active', `
+const early=AbortSignal.timeout(1),later=AbortSignal.timeout(1000);
+early.addEventListener('abort',()=>console.log('timeout',early.reason.name));later.addEventListener('abort',()=>console.log('unexpected'));
+setTimeout(()=>console.log('live',early.aborted,later.aborted),20);
+`],
  ['listener ordering, symbols, receiver and mutation', `
 const e=new EventEmitter(), key=Symbol('key'), out=[];
 function a(x){out.push('a'+x+':'+(this===e));e.off(key,b);e.on(key,()=>out.push('late'));}

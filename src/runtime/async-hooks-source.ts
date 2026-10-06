@@ -22,8 +22,12 @@ export const asyncHooksPreludeSource=String.raw`;(function(){
  // record without copying a Map, including the shared empty root context.
  // The wrapper still restores that context when invoked from another scope.
  function capture(fn){var context=current;return function(...args){var previous=current;current=context;try{return Reflect.apply(fn,this,args)}finally{current=previous}}}
+ function runCaptured(context,fn,receiver,args){var previous=current;current=context;try{return Reflect.apply(fn,receiver,args)}finally{current=previous}}
+ function runCapturedUnary(context,fn,value){var previous=current;current=context;try{return fn(value)}finally{current=previous}}
+ function runCapturedNullary(context,fn){var previous=current;current=context;try{return fn()}finally{current=previous}}
  AsyncLocalStorage.bind=function(fn){if(typeof fn!=='function'){var error=new TypeError('fn must be a function');if(fn!==undefined&&fn!==null)error.code='ERR_INVALID_ARG_TYPE';throw error}return capture(fn)};AsyncLocalStorage.snapshot=function(){var context=capture(function(fn,...args){return fn(...args)});return context};
  var api={AsyncResource:AsyncResource,AsyncLocalStorage:AsyncLocalStorage,executionAsyncId:function(){return current.id},triggerAsyncId:function(){return current.trigger},executionAsyncResource:function(){return current.resource},createHook:function(callbacks){if(!callbacks||typeof callbacks!=='object')throw new TypeError('callbacks must be an object');for(var name of ['init','before','after','destroy','promiseResolve'])if(callbacks[name]!==undefined&&typeof callbacks[name]!=='function')throw new TypeError(name+' must be a function');var hook={callbacks:callbacks,enabled:false,enable:function(){if(!this.enabled){this.enabled=true;hooks.push(this)}return this},disable:function(){this.enabled=false;var i=hooks.indexOf(this);if(i>=0)hooks.splice(i,1);return this}};return hook},capture:capture};
+ api.captureRecord=function(){return current};api.runCaptured=runCaptured;api.runCapturedUnary=runCapturedUnary;api.runCapturedNullary=runCapturedNullary;
  __nonaRegexpVm.asyncContext=api;Object.defineProperty(EventTarget,Symbol.for('nona.async_hooks.internal'),{value:api});
 })();`;
 
