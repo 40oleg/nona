@@ -168,3 +168,5 @@ Teeing a cancelled or completed stream preserves its terminal state. A tee branc
 - `node:fs` continues to return Uint8Array data. Convert it with `Buffer.from(bytes)` when Buffer methods are needed.
 
 See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buffer.html) for the shared API contract and [the runnable Buffer sample](../site/samples/buffer.mjs).
+
+The asynchronous-context bridge initializes on the first async-hooks module access. Programs that do not use it allocate no resource/storage maps. Reactions registered before initialization retain root storage when the API is later activated; callback scope changes are restored on success and failure.
