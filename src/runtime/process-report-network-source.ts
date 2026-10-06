@@ -6,8 +6,8 @@ export const processReportNetworkSource=String.raw`
     __nonaRegexpVm.processReportNetworkInterfaces=(function(){
       var Uint8Array=networkIntrinsics.Uint8Array,Uint32Array=networkIntrinsics.Uint32Array,Int32Array=networkIntrinsics.Int32Array,DataView=networkIntrinsics.DataView,Map=networkIntrinsics.Map,Set=networkIntrinsics.Set,Math=networkIntrinsics.Math,String=networkIntrinsics.String,Array=networkIntrinsics.Array;
       function view(bytes){return new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength)}
-      function u16(bytes,at){return view(bytes).getUint16(at,true)}
-      function u32(bytes,at){return view(bytes).getUint32(at,true)}
+      function u16(bytes,at){if(at<0||at+2>bytes.length)throw hostError('networkInterfaces',22);return bytes[at]+bytes[at+1]*256}
+      function u32(bytes,at){if(at<0||at+4>bytes.length)throw hostError('networkInterfaces',22);return bytes[at]+bytes[at+1]*256+bytes[at+2]*65536+bytes[at+3]*16777216}
       function pointer(bytes,at){return u32(bytes,at)+u32(bytes,at+4)*4294967296}
       function read(address,size){var bytes=new Uint8Array(size);host.copy(bytes,address,size);return bytes}
       function text(bytes){var end=0;while(end<bytes.length&&bytes[end])end++;return decoder.decode(bytes.subarray(0,end))}
@@ -44,7 +44,7 @@ export const processReportNetworkSource=String.raw`
       function linuxSnapshot(){
         var fd=host.networkSocket(16,524291,0);if(fd<0)throw hostError('networkInterfaces',-fd);
         var interfaces=new Map(),output=[];
-        function attributes(bytes,start,end){var result=new Map();for(var at=start;at<end;){if(at+4>end)throw hostError('networkInterfaces',22);var length=u16(bytes,at);if(length<4||at+length>end)throw hostError('networkInterfaces',22);result.set(u16(bytes,at+2)&16383,bytes.slice(at+4,at+length));at+=(length+3)&~3}return result}
+        function attributes(bytes,start,end){var result=new Map();for(var at=start;at<end;){if(at+4>end)throw hostError('networkInterfaces',22);var length=u16(bytes,at);if(length<4||at+length>end)throw hostError('networkInterfaces',22);var kind=u16(bytes,at+2)&16383;if(kind>=1&&kind<=3)result.set(kind,bytes.slice(at+4,at+length));at+=(length+3)&~3}return result}
         function dump(kind,sequence){
           var request=new Uint8Array(kind===18?32:24),header=view(request);header.setUint32(0,request.length,true);header.setUint16(4,kind,true);header.setUint16(6,769,true);header.setUint32(8,sequence,true);var destination=new Uint8Array(12);view(destination).setUint16(0,16,true);
           var sent;do{sent=host.networkSend(fd,request,request.length,0,destination,destination.length)}while(sent===-4);if(sent!==request.length)throw hostError('networkInterfaces',sent<0?-sent:5);

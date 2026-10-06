@@ -50,7 +50,7 @@ test('canonical process lookup uses its private lazy default without materializi
  assert.equal(runInContext('var get=__nonaRegexpVm.getBuiltinModule;get("process")===original&&get("node:process")===original&&get("nona:process")===original&&calls===3',context),true);
 });
 test('inventory namespace creation is outside the eager module registration function',()=>{
- const ir=compileToIR('const lookup=process.getBuiltinModule;console.log(lookup("process")===process)','lazy-builtins.js',emptyHost,'linux-x64');
+ const ir=compileToIR('const lookup=process.getBuiltinModule;console.log(lookup(process.argv[1])===process)','lazy-builtins.js',emptyHost,'linux-x64');
  const factories=ir.functions.filter(fn=>fn.id.startsWith('js.namespace.'));
  assert.equal(factories.length,ir.scripts!.length-1);
  assert.ok(factories.length>2);
@@ -96,7 +96,7 @@ test('builtin import aliases share one canonical module record and actual defaul
 });
 
 test('escaped builtin methods select only target-supported inventory',()=>{
- const ir=compileToIR('const get=process.getBuiltinModule;console.log(get("process"))','builtin.js',emptyHost,'darwin-arm64');
+ const ir=compileToIR('const get=process.getBuiltinModule;console.log([get][0]("process"))','builtin.js',emptyHost,'darwin-arm64');
  assert.ok(ir.scripts!.includes('node:process'));
  assert.ok(ir.scripts!.includes('nona:ffi'));
  assert.ok(!ir.scripts!.includes('node:fs'));
@@ -187,7 +187,7 @@ test('process objects escaping through calls, returns, aggregates and global ref
 
 for(const target of supportedNativeTargets)test('builtin inventory derives supported providers for '+target,()=>{
  const host=withBuiltinModules(emptyHost,target),supported=host.builtinCandidates!();
- const ir=compileToIR('const get=process.getBuiltinModule;get("process")','builtin.js',emptyHost,target);
+ const ir=compileToIR('const get=process.getBuiltinModule;get(process.argv[1])','builtin.js',emptyHost,target);
  for(const path of supported){assert.equal(ir.scripts!.filter(item=>item===path).length,1);assert.ok(host.builtinAliases!(path)!.includes(path))}
  assert.equal(supported.includes('node:fs'),target.startsWith('win32-')||target.startsWith('linux-'));
  assert.equal(supported.includes('nona:win32'),target.startsWith('win32-'));
@@ -238,4 +238,11 @@ test('folded process stdio access selects streams while metadata stays trimmed',
  }
  const {usage}=collectSourceUsage(()=>compileToIR('console.log(globalThis["pro"+"cess"].pid)','metadata.js',emptyHost,'linux-x64'));
  assert.equal(usage.preludes.process,true);assert.equal(usage.preludes.stream,false);
+});
+
+test('immutable local builtin getters with literal calls omit unrelated inventory',()=>{
+ for(const source of ['const lookup=process.getBuiltinModule;lookup("process")','const lookup=process.getBuiltinModule;const get=lookup;get("process")']){
+  const ir=compileToIR(source,'literal-alias.js',emptyHost,'linux-x64');
+  assert.ok(ir.scripts!.includes('node:process'));assert.ok(!ir.scripts!.includes('node:fs'),source);
+ }
 });

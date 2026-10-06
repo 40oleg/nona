@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep literal calls through immutable local builtin getters selective, retain stream dependencies for folded standard-I/O access, and avoid per-field network snapshot allocations ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Initialize Stream constructors and process standard I/O on first use so process metadata does not allocate unused stream state ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Preserve Node 26 read-only native process identity descriptors for platform, architecture, PID and immutable argv0 ([#141](https://github.com/40oleg/nona/issues/141)).

@@ -79,13 +79,15 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
   }
   return false;
  };
+ const getterObject=(expression:A.Expression):boolean=>expression.kind==='Identifier'&&getterNames.has(expression.name)||expression.kind==='Member'&&processObject(expression.object)&&text(expression.property)==='getBuiltinModule';
+ const getterDeclaration=(parent:A.Node|undefined,node:A.Node):boolean=>parent?.kind==='Var'&&(parent as A.Var).declarationKind==='const'&&(parent as A.Var).declarations.some(d=>d.id.kind==='Identifier'&&getterNames.has(d.id.name)&&(d.id===node||d.init===node));
  // Follow simple object aliases so computed access through them is conservative.
  let changed=true;
  while(changed){changed=false;walk(ast.body,node=>{
   const add=(id:A.Expression,init:A.Expression|null)=>{if(id.kind!=='Identifier'||!init)return;
    for(const [matches,names] of [[processObject(init),processNames],[globalObject(init),globalNames]] as const)if(matches&&!names.has(id.name)){names.add(id.name);changed=true}
   };
-  if(node.kind==='Var'){for(const declaration of (node as A.Var).declarations)if(declaration.id.kind==='Identifier')add(declaration.id,declaration.init)}
+  if(node.kind==='Var'){for(const declaration of (node as A.Var).declarations)if(declaration.id.kind==='Identifier'){add(declaration.id,declaration.init);if((node as A.Var).declarationKind==='const'&&declaration.init&&getterObject(declaration.init)&&!getterNames.has(declaration.id.name)){getterNames.add(declaration.id.name);changed=true}}}
   else if(node.kind==='Assignment'){const assignment=node as A.Assignment;if(assignment.operator==='='&&assignment.left.kind==='Identifier')add(assignment.left,assignment.right)}
  })}
  const ioNames=new Set(['stdin','stdout','stderr','openStdin','emitWarning']);
@@ -116,7 +118,7 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
    if(key==='getBuiltinModule'){
     lookup=true;
     if(parent?.kind==='Call'&&(parent as A.Call).callee===member)request((parent as A.Call).arguments);
-    else computed=true;
+    else if(!getterDeclaration(parent,node))computed=true;
    }else if(key===undefined&&(processObject(member.object)||globalObject(member.object))){
     // A scalar global read or constructor call cannot use the process object.
     // Keep inventory selection for escaping values and nested API lookups.
@@ -125,7 +127,7 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
    }
   }else if(node.kind==='Identifier'&&getterNames.has((node as A.Identifier).name)&&parent?.kind!=='Import'){
    lookup=true;
-   if(parent?.kind==='Call'&&(parent as A.Call).callee===node)request((parent as A.Call).arguments);else computed=true;
+   if(parent?.kind==='Call'&&(parent as A.Call).callee===node)request((parent as A.Call).arguments);else if(!getterDeclaration(parent,node))computed=true;
   }else if(node.kind==='ObjectPattern'){
    if((node as A.ObjectPattern).properties.some(property=>text(property.key)==='getBuiltinModule'))computed=lookup=true;
   }else if(node.kind==='Call'){

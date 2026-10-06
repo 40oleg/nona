@@ -11,9 +11,9 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {processReportNetworkSource,processReportNetworkIntrinsicsSource,processReportNetworkHosts} from '../src/runtime/process-report-network-source.js';
 
-function snapshot(platform:string,host:Record<string,unknown>){
+function snapshot(platform:string,host:Record<string,unknown>,View:typeof DataView=DataView){
  const api:Record<string,unknown>={};
- runInNewContext(processReportNetworkIntrinsicsSource+processReportNetworkSource,{platform,windows:platform==='win32',host,__nonaRegexpVm:api,TextDecoder,Uint8Array,Uint32Array,Int32Array,DataView,decoder:new TextDecoder(),hostError:(name:string,code:number)=>Object.assign(new Error(name),{code})});
+ runInNewContext(processReportNetworkIntrinsicsSource+processReportNetworkSource,{platform,windows:platform==='win32',host,__nonaRegexpVm:api,TextDecoder,Uint8Array,Uint32Array,Int32Array,DataView:View,decoder:new TextDecoder(),hostError:(name:string,code:number)=>Object.assign(new Error(name),{code})});
  return JSON.parse(JSON.stringify((api.processReportNetworkInterfaces as ()=>unknown)()));
 }
 function number(bytes:Uint8Array,at:number,value:number,size=4){const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);if(size===2)view.setUint16(at,value,true);else view.setUint32(at,value,true)}
@@ -95,4 +95,10 @@ for(const target of ['win32-x64','win32-arm64','linux-x64','linux-arm64','darwin
  const ir=compileModuleToIR('console.log(1)','network-syntax.mjs',emptyHost,source,target);assert.ok(ir.functions.length>10);
  const {usage}=collectSourceUsage(()=>compileModuleToIR('console.log(1)','bare.mjs',emptyHost,'',target));
  const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));assert.ok(program.fragments.filter(f=>f.section==='.text'&&f.name.startsWith('js.')).length>10);
+});
+
+test('Linux network header reads reuse byte storage instead of allocating per field',()=>{
+ let views=0,queue:Uint8Array[]=[];const View=new Proxy(DataView,{construct(target,args){views++;return Reflect.construct(target,args)}});
+ const result=snapshot('linux',{networkSocket:()=>7,networkSend:(_fd:number,request:Uint8Array)=>{queue=new DataView(request.buffer).getUint16(4,true)===18?[link,done(1)]:[inet,done(2)];return request.length},networkReceive:(_fd:number,out:Uint8Array)=>{const packet=queue.shift()!;out.set(packet);return packet.length},sys_close:()=>0},View);
+ assert.equal(result[0].address,'127.0.0.1');assert.equal(views,4);
 });
