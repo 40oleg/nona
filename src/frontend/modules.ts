@@ -81,6 +81,32 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
  };
  const getterObject=(expression:A.Expression):boolean=>expression.kind==='Identifier'&&getterNames.has(expression.name)||expression.kind==='Member'&&processObject(expression.object)&&text(expression.property)==='getBuiltinModule';
  const getterDeclaration=(parent:A.Node|undefined,node:A.Node):boolean=>parent?.kind==='Var'&&(parent as A.Var).declarationKind==='const'&&(parent as A.Var).declarations.some(d=>d.id.kind==='Identifier'&&getterNames.has(d.id.name)&&(d.id===node||d.init===node));
+ // An immutable descriptor inspected only for identity or member types cannot
+ // invoke its getter. Any escape, reassignment or callable use stays conservative.
+ const observedDescriptors=new Set<A.Call>();
+ walk(ast.body,node=>{
+  if(node.kind!=='Var'||(node as A.Var).declarationKind!=='const')return;
+  for(const declaration of (node as A.Var).declarations){
+   if(declaration.id.kind!=='Identifier'||declaration.init?.kind!=='Call')continue;
+   const call=declaration.init,callee=call.callee,object=call.arguments[0],key=call.arguments[1];
+   if(callee.kind!=='Member'||callee.object.kind!=='Identifier'||callee.object.name!=='Object'||text(callee.property)!=='getOwnPropertyDescriptor'||!object||object.kind==='SpreadElement'||!globalObject(object)||!key||key.kind==='SpreadElement'||text(key)!=='process')continue;
+   const name=declaration.id.name;let safe=true;
+   walk(ast.body,(use,parent)=>{
+    if(use.kind!=='Identifier'||(use as A.Identifier).name!==name||use===declaration.id)return;
+    if(parent?.kind==='Unary'&&(parent as A.Unary).operator==='typeof')return;
+    if(parent?.kind==='Binary'){
+     const binary=parent as A.Binary,other=binary.left===use?binary.right:binary.left;
+     if(['===','!==','==','!='].includes(binary.operator)&&other.kind==='Identifier'&&other.name==='undefined')return;
+    }
+    if(parent?.kind==='Member'&&(parent as A.Member).object===use){
+     let typeOnly=false;walk(ast.body,(member,owner)=>{if(member===parent&&owner?.kind==='Unary'&&(owner as A.Unary).operator==='typeof')typeOnly=true});
+     if(typeOnly)return;
+    }
+    safe=false;
+   });
+   if(safe)observedDescriptors.add(call);
+  }
+ });
  // Follow simple object aliases so computed access through them is conservative.
  let changed=true;
  while(changed){changed=false;walk(ast.body,node=>{
@@ -136,7 +162,7 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
     const key=call.arguments[1],unknown=!key||key.kind==='SpreadElement'||text(key)===undefined;
     selectIO(object,unknown?undefined:text(key as A.Expression));
     if(processObject(object)&&(unknown||text(key as A.Expression)==='getBuiltinModule'))computed=true;
-    if(globalObject(object)&&(unknown||text(call.callee.property)==='getOwnPropertyDescriptor'&&text(key as A.Expression)==='process'))computed=true;
+    if(globalObject(object)&&(unknown||text(call.callee.property)==='getOwnPropertyDescriptor'&&text(key as A.Expression)==='process'&&!observedDescriptors.has(call)))computed=true;
    }
   }else if(node.kind==='OptionalChain'){
    const chain=node as A.OptionalChain;

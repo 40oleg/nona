@@ -23,7 +23,8 @@ for(const probe of manifest.runtime?.[target]??[]){
   const file=join(directory,probe.file);chmodSync(file,0o755);
   const env=probe.minimalEnvironment?(process.platform==='win32'?{SystemRoot:process.env.SystemRoot}:{}):process.env;
   const timeout=probe.timeoutMs??15000;
-  if(!Number.isInteger(timeout)||timeout<1||timeout>60000)throw new Error('Invalid runtime probe timeout');
+  const extendedArmStream=target.endsWith('-arm64')&&probe.file.startsWith(target+'-stream-');
+  if(!Number.isInteger(timeout)||timeout<1||timeout>(extendedArmStream?180000:60000))throw new Error('Invalid runtime probe timeout');
   const result=spawnSync(file,[],{encoding:'utf8',timeout,windowsHide:true,env});
   const terminated=probe.signal?result.status===null&&result.signal===probe.signal:result.status===(probe.status??0);
   if(result.error||!terminated||result.stdout!==probe.expected)throw new Error(`Native probe ${probe.file} failed: status=${result.status}, signal=${result.signal}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}, error=${result.error??''}`);

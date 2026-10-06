@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep type-only observations of the lazy process descriptor from linking unrelated builtin providers, while retaining inventory for callable or escaping descriptors ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Validate complete native Stream compositions with ordinary allocation and focused per-API GC-stress cases; use untouched private virtual reservations for genuine macOS allocation-failure reports ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Preserve native exception messages and error properties in diagnostic reports when stack capture is unavailable, and emit complete BSD probe metadata ([#141](https://github.com/40oleg/nona/issues/141)).

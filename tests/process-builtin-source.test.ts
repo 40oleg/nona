@@ -16,6 +16,17 @@ import {withNativeTarget} from '../src/backend/machine/context.js';
 
 const emptyHost={resolve:()=>undefined,read:()=>undefined};
 const foldedLookup='console.log(typeof globalThis["pro"+"cess"]["get"+"BuiltinModule"]("fs"))';
+
+test('observing a process descriptor does not select its callable builtin inventory',()=>{
+ const source='import path from "node:path";const resolved=path.resolve(),descriptor=Object.getOwnPropertyDescriptor(globalThis,"pro"+"cess");console.log(path.isAbsolute(resolved),descriptor===undefined||typeof descriptor.get==="function");';
+ const selected=collectSourceUsage(()=>compileModuleToIR(source,'descriptor.mjs',emptyHost,'','win32-arm64'));
+ assert.equal(selected.usage.preludes.process,false);
+ assert.equal(selected.usage.preludes.stream,false);
+ assert.ok(!selected.result.scripts!.includes('node:fs'));
+ for(const source of ['const d=Object.getOwnPropertyDescriptor(globalThis,"process");d.get().getBuiltinModule("fs")','const d=Object.getOwnPropertyDescriptor(globalThis,"process");function use(x){return x.get()}use(d).getBuiltinModule("fs")']){
+  const ir=compileToIR(source,'descriptor.js',emptyHost,'linux-x64');assert.ok(ir.scripts!.includes('node:fs'));
+ }
+});
 test('folded builtin access selects the actual process runtime and usage resets',()=>{
  const {result:ir,usage}=collectSourceUsage(()=>compileToIR(foldedLookup,'folded.js',emptyHost,'linux-x64'));
  assert.equal(usage.preludes.process,true);

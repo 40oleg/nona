@@ -11,6 +11,10 @@ non-string arguments, including boxed strings, throw `ERR_INVALID_ARG_TYPE`.
 Nona modules without a default export return their actual module namespace
 through the explicit `nona:` name. The compiler links literal requests or the
 target-supported inventory for computed requests; evaluation remains lazy.
+Reading an immutable local descriptor of `globalThis.process` only to compare
+it with `undefined` or inspect member types does not request that inventory.
+Calling its getter or passing the descriptor elsewhere preserves conservative
+inventory selection.
 This registry uses compiled modules and introduces no interpreter or package
 loader. `fs` remains unavailable on Darwin and BSD.
 
