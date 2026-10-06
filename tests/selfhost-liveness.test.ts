@@ -33,5 +33,6 @@ test('self-hosted liveness agrees with Node on the RegExp VM control-flow graph'
  assert.equal(native.status,0,String(native.error??native.stderr));
  const actual=native.stdout.split('\n'),expected=oracle.stdout.split('\n');
  assert.equal(actual.length,expected.length);
- for(let index=0;index<expected.length;index++)assert.equal(actual[index],expected[index],`Output row ${index}`);
+ const differences=expected.flatMap((line,index)=>actual[index]===line?[]:[`Row ${index}\nNative ${actual[index]}\nNode ${line}`]);
+ assert.equal(differences.join('\n'),'');
 });
