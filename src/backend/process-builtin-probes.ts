@@ -51,11 +51,11 @@ console.log('reflected',Reflect.get(globalThis,rootKey)[key]('process')===proces
  ];
 }
 
-export function processBuiltinProbes(target:Target):{name:string;image:Uint8Array;expected:string;minimalEnvironment:boolean}[] {
+export function processBuiltinProbes(target:Target):{name:string;image:Uint8Array;expected:string;minimalEnvironment:boolean;timeoutMs:number}[] {
  return processBuiltinProbeCases(target).map(probe=>{
   const {result:ir,usage}=collectSourceUsage(()=>probe.module?compileModuleToIR(probe.source,probe.fileName??probe.name+'.mjs',probe.host,'',target):compileToIR(probe.source,probe.name+'.js',undefined,target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
-  return {name:probe.name,image,expected:probe.expected,minimalEnvironment:true};
+  return {name:probe.name,image,expected:probe.expected,minimalEnvironment:true,timeoutMs:60000};
  });
 }

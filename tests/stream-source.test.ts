@@ -6,6 +6,7 @@ import {addAbortListener} from 'node:events';
 import * as nodeStream from 'node:stream';
 import * as nodeStreamPromises from 'node:stream/promises';
 import * as nodeStreamConsumers from 'node:stream/consumers';
+import {promisePreludeSource} from '../src/runtime/promise-source.js';
 import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {bufferPreludeSource} from '../src/runtime/buffer-source.js';
 import {runOracle} from './helpers/oracle.js';
@@ -18,10 +19,11 @@ async function originalEvents(){
  const body=provider.eventsModuleSource.replace(/^import .*$/gm,'').replace('export default EventEmitter;','return EventEmitter;').replace(/\bexport /g,'');
  return new Function('AsyncResource','EventTarget',body)(AsyncResource,EventTarget);
 }
-async function boundary(initialize=true){
+async function boundary(initialize=true,nativePromise=false){
  const events=await originalEvents(),vm:{[key:string]:unknown}={eventEmitterModule:events,enqueueNextTick:(callback:Function,args:unknown[]=[])=>process.nextTick(()=>Reflect.apply(callback,undefined,args)),events:{isSignal:(signal:unknown)=>signal instanceof AbortSignal,protect:(signal:AbortSignal,callback:()=>void)=>{const subscription=addAbortListener(signal,callback);return ()=>subscription[Symbol.dispose]()}}};
  const context=createContext({__nonaRegexpVm:vm,setImmediate,setTimeout,queueMicrotask,AbortController,AbortSignal});
  const source=await import(new URL('../src/runtime/stream-source.js',import.meta.url).href);
+ if(nativePromise)runInContext("__nonaRegexpVm.isConstructor=function(fn){return typeof fn==='function'};__nonaRegexpVm.AggregateError=AggregateError;Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};"+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true'),context);
  runInContext(encodingPreludeSource+bufferPreludeSource+source.streamPreludeForTarget('win32-x64'),context);
  if(initialize)runInContext("Buffer[Symbol.for('nona.stream.module')]",context);
  return context;
@@ -461,4 +463,11 @@ test('Readable toWeb queue size failures keep the source alive and reach the gua
  const oracle=runOracle(`var {Readable}=require('node:stream'),source,reader;process.setUncaughtExceptionCaptureCallback(async function(reason){source.removeAllListeners('data');console.log(reason.name,reason.code,source.destroyed);source.destroy();try{await reader.closed}catch(error){console.log(error===reason)}reader.releaseLock();process.setUncaughtExceptionCaptureCallback(null)});source=Readable.from(['a','b']);reader=Readable.toWeb(source,{strategy:{size:function(){return -1}}}).getReader();reader.closed.catch(function(){});`);
  assert.equal(actual+'\n'+same+'\n',oracle.stdout);
  runInContext('source.destroy();reader.releaseLock()',context);
+});
+
+test('pipeline pressure completes with Nona original Promise reactions',async()=>{
+ const context=await boundary(true,true);let finished=false,failure:unknown;context.complete=()=>{finished=true};context.failure=(error:unknown)=>{failure=error;finished=true};
+ runInContext(`var Stream=__nonaRegexpVm.streamModule,values=[],transform=new Stream.Transform({transform:function(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Stream.Writable({highWaterMark:1,write:function(chunk,encoding,callback){values.push(chunk.toString());setImmediate(callback)}});Stream.promises.pipeline(Stream.Readable.from(['a','b','c']),transform,sink).then(complete,failure);`,context);
+ for(let i=0;i<100&&!finished;i++){runInContext('__nonaPromiseDrainJobs()',context);await new Promise<void>(resolve=>setImmediate(resolve))}
+ assert.equal(failure,undefined);assert.equal(finished,true);assert.equal(runInContext('values.join("")',context),'ABC');
 });

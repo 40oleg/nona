@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Validate full Stream and builtin-registry GC-stress probes with the standard 60-second oracle budget and preserve failure diagnostics for native pipelines ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Keep literal calls through immutable local builtin getters selective, retain stream dependencies for folded standard-I/O access, and avoid per-field network snapshot allocations ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Initialize Stream constructors and process standard I/O on first use so process metadata does not allocate unused stream state ([#141](https://github.com/40oleg/nona/issues/141)).
