@@ -241,6 +241,9 @@ Programs that never link the process prelude have no process startup work.
 Once linked, monotonic uptime starts during prelude initialization; metadata
 and environment decoding remain lazy. Node.js 26 black-box oracles check the
 shared API and native CI probes exercise all eight targets.
+The shared EventEmitter constructor is also created on first use by Events,
+Stream or process. Linking it alone does not allocate its prototype methods;
+private initialization retains the required startup intrinsics.
 
 The focused finalization and builtin-registry GC-stress probes use an empty
 POSIX environment or only `SystemRoot` on Windows. Environment compatibility

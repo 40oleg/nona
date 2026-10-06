@@ -24,7 +24,7 @@ __nonaPromiseDrainJobs=(function(drain){
   var ticks=[],tickHead=0;
   var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
   var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply,createObject=Object.create,setPrototype=Object.setPrototypeOf;
-  var processEmitter=__nonaRegexpVm.eventEmitterModule,initializeStreams=__nonaRegexpVm.initializeStreams;
+  var processEmitter=null,initializeStreams=__nonaRegexpVm.initializeStreams;
   function enqueueTick(callback,args){var context=__nonaRegexpVm.asyncContext;ticks[ticks.length]={callback:callback,args:args,context:context?context.activeRecord:undefined}}
   __nonaRegexpVm.enqueueNextTick=enqueueTick;
   var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has,finalizationPush=Array.prototype.push,finalizationSplice=Array.prototype.splice,finalizationApply=apply;
@@ -209,6 +209,7 @@ ${processReportNetworkIntrinsicsSource}
       if(typeof callback!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The callback argument must be a function');
       var args=[];for(var i=1;i<arguments.length;i++)args[args.length]=arguments[i];enqueueTick(callback,args)
     }
+    processEmitter=__nonaRegexpVm.eventEmitterModule;
     function Process(){apply(processEmitter,this,[])}
     Process.prototype=createObject(processEmitter.prototype);defineProperty(Process.prototype,'constructor',{value:Process,writable:true,configurable:true});setPrototype(Process,processEmitter);defineProperty(Process,'name',{value:'process',configurable:true});
     var process=new Process();
