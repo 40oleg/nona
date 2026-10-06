@@ -1,6 +1,6 @@
 /** Writable queue and completion state, inserted in the shared stream closure. */
 export const streamWritableSource=String.raw`
- var bufferFrom=Bytes.from,bufferIsEncoding=Bytes.isEncoding,bufferIsBuffer=Bytes.isBuffer,arrayPush=Array.prototype.push,arrayShift=Array.prototype.shift;
+ var bufferFrom=Bytes.from,bufferIsEncoding=Bytes.isEncoding,bufferIsBuffer=Bytes.isBuffer;
  function later(callback){vm.enqueueNextTick(callback,[])}
  function append(array,value){apply(arrayPush,array,[value])}
  function shift(array){return apply(arrayShift,array,[])}

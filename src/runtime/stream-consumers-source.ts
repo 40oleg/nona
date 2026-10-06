@@ -7,5 +7,5 @@ export const streamConsumersSource=String.raw`
  async function consumeBlob(input){return new BlobConstructor([await consumeBuffer(input)])}
  async function consumeText(input){return apply(consumerDecode,consumerDecoder,[await consumeBuffer(input)])}
  async function consumeJson(input){return parseJson(await consumeText(input))}
- var streamConsumers={arrayBuffer:consumeArrayBuffer,blob:consumeBlob,buffer:consumeBuffer,bytes:consumeBytes,json:consumeJson,text:consumeText};vm.streamConsumersModule=streamConsumers;define(Bytes,Symbol.for('nona.stream.consumers'),{value:streamConsumers});
+ var streamConsumers={arrayBuffer:consumeArrayBuffer,blob:consumeBlob,buffer:consumeBuffer,bytes:consumeBytes,json:consumeJson,text:consumeText};vm.streamConsumersModule=streamConsumers;
 `;

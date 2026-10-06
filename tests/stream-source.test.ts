@@ -18,13 +18,20 @@ async function originalEvents(){
  const body=provider.eventsModuleSource.replace(/^import .*$/gm,'').replace('export default EventEmitter;','return EventEmitter;').replace(/\bexport /g,'');
  return new Function('AsyncResource','EventTarget',body)(AsyncResource,EventTarget);
 }
-async function boundary(){
+async function boundary(initialize=true){
  const events=await originalEvents(),vm:{[key:string]:unknown}={eventEmitterModule:events,enqueueNextTick:(callback:Function,args:unknown[]=[])=>process.nextTick(()=>Reflect.apply(callback,undefined,args)),events:{isSignal:(signal:unknown)=>signal instanceof AbortSignal,protect:(signal:AbortSignal,callback:()=>void)=>{const subscription=addAbortListener(signal,callback);return ()=>subscription[Symbol.dispose]()}}};
  const context=createContext({__nonaRegexpVm:vm,setImmediate,setTimeout,queueMicrotask,AbortController,AbortSignal});
  const source=await import(new URL('../src/runtime/stream-source.js',import.meta.url).href);
  runInContext(encodingPreludeSource+bufferPreludeSource+source.streamPreludeForTarget('win32-x64'),context);
+ if(initialize)runInContext("Buffer[Symbol.for('nona.stream.module')]",context);
  return context;
 }
+
+test('stream constructors remain lazy and preserve startup object intrinsics',async()=>{
+ const context=await boundary(false);
+ assert.equal(runInContext('__nonaRegexpVm.streamModule===undefined',context),true);
+ assert.equal(runInContext("var originalMap=WeakMap;WeakMap=function(){throw Error('replacement')};Object.defineProperty=function(){throw Error('replacement')};Reflect.apply=function(){throw Error('replacement')};var loaded=Buffer[Symbol.for('nona.stream.module')];loaded===Buffer[Symbol.for('nona.stream.module')]&&new loaded.Readable({read:function(){}}) instanceof loaded.Readable",context),true);
+});
 
 test('stream constructors use actual canonical Events and Buffer dependencies without adding globals',async()=>{
  const context=await boundary();

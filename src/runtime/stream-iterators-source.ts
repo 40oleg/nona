@@ -1,6 +1,6 @@
 /** Iterator factories and Readable consumption use the same demand queue. */
 export const streamIteratorsSource=String.raw`
- var resolvePromise=Promise.resolve.bind(Promise),rejectPromise=Promise.reject.bind(Promise),asyncIteratorSymbol=Symbol.asyncIterator,iteratorSymbol=Symbol.iterator,iteratorClosingErrors=new WeakMap();
+ var resolvePromise=Promise.resolve.bind(Promise),rejectPromise=Promise.reject.bind(Promise),asyncIteratorSymbol=Symbol.asyncIterator,iteratorSymbol=Symbol.iterator,iteratorClosingErrors=new StorageWeakMap();
  function abortError(reason){var value=error(Error,'ABORT_ERR','The operation was aborted');value.name='AbortError';if(reason!==undefined)value.cause=reason;return value}
  function prematureClose(){return error(Error,'ERR_STREAM_PREMATURE_CLOSE','Premature close')}
  function iteratorCloseReason(){var reason=abortError();apply(weakSet,iteratorClosingErrors,[reason,true]);return reason}

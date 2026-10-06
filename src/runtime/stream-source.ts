@@ -12,10 +12,14 @@ import {streamComposeSource} from './stream-compose-source.js';
 
 /** Shared original stream constructors; module providers expose this exact object. */
 export const streamPreludeSource=String.raw`;(function(){
- var vm=__nonaRegexpVm,EventEmitter=vm.eventEmitterModule,Bytes=vm.bufferModule.Buffer;
+ var runtime=__nonaRegexpVm,Bytes=runtime.bufferModule.Buffer,initialized=null,StorageWeakMap=WeakMap;
  var define=Object.defineProperty,own=Object.prototype.hasOwnProperty,apply=Reflect.apply,setPrototype=Object.setPrototypeOf,create=Object.create;
- var weakGet=WeakMap.prototype.get,weakSet=WeakMap.prototype.set,states=new WeakMap();
+ var weakGet=WeakMap.prototype.get,weakSet=WeakMap.prototype.set;
  var isInteger=Number.isInteger,isView=ArrayBuffer.isView,toString=String;
+ var startupDefine=define,Promise=globalThis.Promise,arrayPush=Array.prototype.push,arrayShift=Array.prototype.shift,arraySplice=Array.prototype.splice;
+ function initialize(){if(initialized)return initialized;
+ var vm=__nonaRegexpVm,EventEmitter=vm.eventEmitterModule,Bytes=vm.bufferModule.Buffer;
+ var states=new StorageWeakMap();
  var defaultByteHwm=__NONA_STREAM_BYTE_HIGH_WATER_MARK__,defaultObjectHwm=16;
  function error(kind,code,message){var value=new kind(message);value.code=code;return value}
  function state(stream){var value=apply(weakGet,states,[stream]);if(!value)throw error(TypeError,'ERR_INVALID_THIS','Expected a stream');return value}
@@ -47,7 +51,11 @@ ${streamWebSource}
 ${streamConsumersSource}
 ${streamComposeSource}
  for(var pair of [['Stream',Stream],['Writable',Writable],['Readable',Readable],['Duplex',Duplex],['Transform',Transform],['PassThrough',PassThrough],['getDefaultHighWaterMark',getDefaultHighWaterMark],['setDefaultHighWaterMark',setDefaultHighWaterMark]])define(Stream,pair[0],{value:pair[1],writable:true,enumerable:true,configurable:true});
- vm.streamModule=Stream;define(Bytes,Symbol.for('nona.stream.module'),{value:Stream});
+ vm.streamModule=Stream;initialized=Stream;return Stream;
+ }
+ runtime.initializeStreams=initialize;
+ startupDefine(Bytes,Symbol.for('nona.stream.module'),{get:initialize});
+ startupDefine(Bytes,Symbol.for('nona.stream.consumers'),{get:function(){initialize();return runtime.streamConsumersModule}});
 })();`;
 
 export function streamPreludeForTarget(target:Target='win32-x64'):string {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Initialize Stream constructors and process standard I/O on first use so process metadata does not allocate unused stream state ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Preserve Node 26 read-only native process identity descriptors for platform, architecture, PID and immutable argv0 ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Add independently authored Node Stream modules and connect process standard I/O to canonical EventEmitter/Readable/Writable constructors, preserving next-tick asynchronous storage and lazy process default lookup ([#141](https://github.com/40oleg/nona/issues/141)).

@@ -37,14 +37,23 @@ export const processExtensionsSource=String.raw`
         if(n<=0)throw hostError('write',5);offset+=n
       }
     }
+    var out,err,input,processStreams,inputRef=true,inputRequested=false,inputEOF=false,inputReadSize=65536;
+    function initializeIO(){
+      if(input)return;
+      processStreams=initializeStreams();
+      out=output(1);err=output(2);
+      input=new processStreams.Readable({autoDestroy:false,read:function(size){inputRequested=true;inputReadSize=Math.max(1,size);try{if(inputReady()){var chunk=readInput(inputReadSize);inputRequested=false;input.push(chunk)}}catch(error){inputRequested=false;input.destroy(error)}},destroy:function(error,callback){inputRequested=false;callback(error)}});
+      defineProperty(input,'fd',{value:0,writable:true,enumerable:true,configurable:true});
+      var inputPause=processStreams.Readable.prototype.pause;
+      input.pause=function(){inputRequested=false;return apply(inputPause,input,[])};
+      input.ref=function(){inputRef=true;return input};input.unref=function(){inputRef=false;return input};
+      input[Symbol.for('nodejs.ref')]=input.ref;input[Symbol.for('nodejs.unref')]=input.unref;
+    }
     function output(fd){
       var stream=new processStreams.Writable({autoDestroy:false,write:function(bytes,encoding,callback){try{nativeWrite(fd,bytes);callback()}catch(error){callback(error)}}});
       defineProperty(stream,'fd',{value:fd,writable:true,enumerable:true,configurable:true});
       return stream
     }
-    var out=output(1),err=output(2),inputRef=true,inputRequested=false,inputEOF=false,inputReadSize=65536;
-    var input=new processStreams.Readable({autoDestroy:false,read:function(size){inputRequested=true;inputReadSize=Math.max(1,size);try{if(inputReady()){var chunk=readInput(inputReadSize);inputRequested=false;input.push(chunk)}}catch(error){inputRequested=false;input.destroy(error)}},destroy:function(error,callback){inputRequested=false;callback(error)}});
-    defineProperty(input,'fd',{value:0,writable:true,enumerable:true,configurable:true});
     __nonaRegexpVm.isProcessOutput=function(stream){return stream===out||stream===err};
     function readInput(size){
       size=size===undefined?65536:size;if(!Number.isInteger(size)||size<0||size>0x40000000)throw argumentError('ERR_OUT_OF_RANGE','The size must be a nonnegative integer',true);
@@ -63,24 +72,21 @@ export const processExtensionsSource=String.raw`
       }
       var poll=new Int32Array([0,1]),r=host.sys_poll(poll,1,0);if(r<0&&r!==-4)throw hostError('poll',-r);return r>0
     }
-    var inputPause=processStreams.Readable.prototype.pause;
-    input.pause=function(){inputRequested=false;return apply(inputPause,input,[])};
-    input.ref=function(){inputRef=true;return input};input.unref=function(){inputRef=false;return input};
-    __nonaRegexpVm.hasReadableIO=function(){return (inputRequested||input.readableFlowing===true)&&!inputEOF&&!input.destroyed};
+    __nonaRegexpVm.hasReadableIO=function(){return !!input&&(inputRequested||input.readableFlowing===true)&&!inputEOF&&!input.destroyed};
     __nonaRegexpVm.hasPendingIO=function(){return inputRef&&__nonaRegexpVm.hasReadableIO()};
     __nonaRegexpVm.pumpIO=function(){
       if(!__nonaRegexpVm.hasReadableIO())return;
       try{if(!inputReady())return;var chunk=readInput(inputReadSize);inputRequested=false;input.push(chunk)}catch(error){inputRequested=false;input.destroy(error)}
     };
-    for(var stdio of [['stdout',out],['stderr',err],['stdin',input]])(function(name,stream){defineProperty(process,name,{enumerable:true,configurable:true,get:function(){return stream}})})(stdio[0],stdio[1]);
-    value('openStdin',function(){return input.resume()});
+    for(var stdio of ['stdout','stderr','stdin'])(function(name){defineProperty(process,name,{enumerable:true,configurable:true,get:function(){initializeIO();return name==='stdout'?out:name==='stderr'?err:input}})})(stdio);
+    value('openStdin',function(){initializeIO();return input.resume()});
     value('emitWarning',function(warning,type,code){
       var options=type&&typeof type==='object'?type:{type:type,code:code};
       if(typeof warning==='string'){var error=new Error(warning);error.name=options.type===undefined?'Warning':options.type;if(options.code!==undefined)error.code=options.code;if(options.detail!==undefined)error.detail=options.detail;warning=error}
       else if(!(warning instanceof Error))throw argumentError('ERR_INVALID_ARG_TYPE','The warning must be a string or Error');
       if(warning.name==='DeprecationWarning'&&process.noDeprecation)return;
       nextTick(function(){if(warning.name==='DeprecationWarning'&&process.throwDeprecation)throw warning;
-        process.emit('warning',warning);err.write('(nona:'+process.pid+') '+(warning.code?'['+warning.code+'] ':'')+warning.name+': '+warning.message+'\n'+(warning.detail?warning.detail+'\n':''))})
+        process.emit('warning',warning);process.stderr.write('(nona:'+process.pid+') '+(warning.code?'['+warning.code+'] ':'')+warning.name+': '+warning.message+'\n'+(warning.detail?warning.detail+'\n':''))})
     });
     var signals=platform==='linux'?{SIGHUP:1,SIGINT:2,SIGQUIT:3,SIGILL:4,SIGTRAP:5,SIGABRT:6,SIGBUS:7,SIGFPE:8,SIGKILL:9,SIGUSR1:10,SIGSEGV:11,SIGUSR2:12,SIGPIPE:13,SIGALRM:14,SIGTERM:15,SIGCHLD:17,SIGCONT:18,SIGSTOP:19,SIGTSTP:20,SIGTTIN:21,SIGTTOU:22}:{SIGHUP:1,SIGINT:2,SIGQUIT:3,SIGILL:4,SIGTRAP:5,SIGABRT:6,SIGFPE:8,SIGKILL:9,SIGBUS:10,SIGSEGV:11,SIGPIPE:13,SIGALRM:14,SIGTERM:15,SIGURG:16,SIGSTOP:17,SIGTSTP:18,SIGCONT:19,SIGCHLD:20,SIGTTIN:21,SIGTTOU:22,SIGUSR1:30,SIGUSR2:31};
 ${processSignalsSource}

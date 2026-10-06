@@ -1,6 +1,6 @@
 /** Pipe records keep each destination's drain wait and listeners independent. */
 export const streamPipeSource=String.raw`
- var arraySplice=Array.prototype.splice;
+
  function pipeRecords(stream){var s=readableState(stream);if(!s.pipes)s.pipes=[];return s.pipes}
  function pipeWaiting(stream){for(var record of pipeRecords(stream))if(record.active&&record.waiting)return true;return false}
  function disconnectPipe(stream,record){if(!record.active)return;var waiting=record.waiting;record.active=false;record.waiting=false;var records=pipeRecords(stream);for(var i=0;i<records.length;i++)if(records[i]===record){apply(arraySplice,records,[i,1]);break}

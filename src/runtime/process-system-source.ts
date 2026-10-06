@@ -40,7 +40,6 @@ ${processTitleSource}
       if(object===null||object===undefined)return;var fn=object[Symbol.for('nodejs.'+action)];
       if(typeof fn==='function')apply(fn,object,[]);else if(typeof object[action]==='function')apply(object[action],object,[])
     })})(action)}
-    input[Symbol.for('nodejs.ref')]=input.ref;input[Symbol.for('nodejs.unref')]=input.unref;
     function numericId(id){if(typeof id!=='number')throw argumentError('ERR_INVALID_ARG_TYPE','The id must be a number');if(!Number.isInteger(id)||id<0||id>4294967295)throw argumentError('ERR_OUT_OF_RANGE','The id must be an unsigned 32-bit integer',true);return id}
 ${processAccountsSource}
     if(!windows){

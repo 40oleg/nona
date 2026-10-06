@@ -193,6 +193,12 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64',before?:
  runInContext(processPreludeForTarget(target),context);return context;
 }
 
+test('process metadata leaves stream constructors and standard I/O uninitialized',()=>{
+ const context=mockProcess();
+ assert.equal(runInContext('process.pid===123&&__nonaRegexpVm.streamModule===undefined&&!__nonaRegexpVm.hasPendingIO()',context),true);
+ assert.equal(runInContext('process.stdout===process.stdout&&process.stdin===process.stdin&&typeof __nonaRegexpVm.streamModule.Writable==="function"',context),true);
+});
+
 test('private nextTick scheduler preserves captured scopes without constructing process',()=>{
  const context=mockProcess({__nonaHost_startupEnv:()=>{throw Error('Process environment must stay lazy')}});
  const result=runInContext(`var values=[],api={activeRecord:{name:'captured'},restoreRecord:function(record){this.activeRecord=record},runCaptured:function(record,fn,receiver,args){var previous=this.activeRecord;this.activeRecord=record;try{return Reflect.apply(fn,receiver,args)}finally{this.activeRecord=previous}}};__nonaRegexpVm.asyncContext=api;__nonaRegexpVm.enqueueNextTick(function(value){values.push([api.activeRecord.name,value]);api.restoreRecord({name:'changed'});__nonaRegexpVm.enqueueNextTick(function(next){values.push([api.activeRecord.name,next])},[43])},[42]);api.restoreRecord({name:'caller'});__nonaPromiseDrainJobs();JSON.stringify([values,api.activeRecord.name,typeof Object.getOwnPropertyDescriptor(globalThis,'process').get])`,context);
@@ -370,7 +376,7 @@ test('process stream ancestry and pipe versus pipeline termination use the canon
 test('polled stdin retains the Readable requested native read size',()=>{
  let ready=false;const sizes:number[]=[];
  const context=mockProcess({__nonaHost_sys_poll:()=>ready?1:0,__nonaHost_sys_read:(_fd:number,_bytes:Uint8Array,size:number)=>{sizes.push(size);return 0}});
- runInContext('__nonaRegexpVm.streamModule.setDefaultHighWaterMark(false,8);process.stdin.read(0)',context);
+ runInContext('__nonaRegexpVm.initializeStreams().setDefaultHighWaterMark(false,8);process.stdin.read(0)',context);
  assert.deepEqual(sizes,[]);ready=true;runInContext('__nonaRegexpVm.pumpIO()',context);
  assert.deepEqual(sizes,[8]);
 });

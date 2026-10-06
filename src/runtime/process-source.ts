@@ -24,7 +24,7 @@ __nonaPromiseDrainJobs=(function(drain){
   var ticks=[],tickHead=0;
   var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
   var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply,createObject=Object.create,setPrototype=Object.setPrototypeOf;
-  var processEmitter=__nonaRegexpVm.eventEmitterModule,processStreams=__nonaRegexpVm.streamModule;
+  var processEmitter=__nonaRegexpVm.eventEmitterModule,initializeStreams=__nonaRegexpVm.initializeStreams;
   function enqueueTick(callback,args){var context=__nonaRegexpVm.asyncContext;ticks[ticks.length]={callback:callback,args:args,context:context?context.activeRecord:undefined}}
   __nonaRegexpVm.enqueueNextTick=enqueueTick;
   var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has,finalizationPush=Array.prototype.push,finalizationSplice=Array.prototype.splice,finalizationApply=apply;
