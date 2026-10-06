@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve native exception messages and error properties in diagnostic reports when stack capture is unavailable, and emit complete BSD probe metadata ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Preserve native ARM64 condition/parity registers and the link register when returning from OS signal callbacks ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Isolate Linux ARM64 kernel signal frames on an original native alternate stack to protect the logical JavaScript stack ([#141](https://github.com/40oleg/nona/issues/141)).

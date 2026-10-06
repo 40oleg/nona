@@ -21,6 +21,11 @@ var host={sys_open:function(path,flags,mode){files.push([path,flags,mode]);retur
 var __nonaRegexpVm={processReportNetworkInterfaces:function(){return [{name:'loopback',address:'127.0.0.1'}]},processReportSignalWatch:function(name,enabled){writes.push(['signal',name,enabled])}};
 `;
 function run(source:string){return runInNewContext(fixture+processReportSource+source,{TextEncoder,TextDecoder})}
+test('native errors retain their diagnostic message when stack capture is unavailable',()=>{
+ const result=JSON.parse(run(`var error=new Error('nona-report-uncaught');error.stack=undefined;error.code='ERR_NATIVE';JSON.stringify(process.report.getReport(error).javascriptStack)`));
+ assert.equal(result.message,'Error: nona-report-uncaught');assert.deepEqual(result.stack,['Unavailable.']);
+ assert.equal(result.errorProperties.code,'ERR_NATIVE');
+});
 test('report public argument, accessor and supplied stack behavior agrees with Node oracle',()=>{
  const sample=String.raw`var r=process.report,errors=[];for(var item of [null,1,'x',[],true,function(){}])try{r.getReport(item)}catch(error){errors.push(error.code)};for(var key of ['directory','filename','compact','excludeEnv','excludeNetwork','reportOnSignal','reportOnFatalError','reportOnUncaughtException'])try{r[key]=null}catch(error){errors.push(error.code)};console.log(JSON.stringify({errors:errors,stack:r.getReport({stack:'Error: x\n  at a\n  at b',code:12}).javascriptStack,descriptors:Object.keys(r).map(function(key){var d=Object.getOwnPropertyDescriptor(r,key);return [key,d.enumerable,d.configurable,typeof d.get]})}));`;
  const oracle=spawnSync(process.execPath,['-e',sample],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);
