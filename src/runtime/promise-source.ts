@@ -25,6 +25,8 @@ var __nonaPromiseDrainJobs=(function(){
     }
     unhandled=[]
   }
+  function markHandled(state){state.handled=true}
+  __nonaRegexpVm.markPromiseHandled=function(promise){markHandled(record(promise))};
   function record(value){
     var state=getState(value);
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');
@@ -112,7 +114,7 @@ var __nonaPromiseDrainJobs=(function(){
     var state=record(this),C=species(this),next=capability(C);
     var context=__nonaRegexpVm.asyncContext;
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject,context:context?context.activeRecord:undefined};
-    state.handled=true;
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
     return next.promise
@@ -207,7 +209,7 @@ var __nonaPromiseDrainJobs=(function(){
     var state=record(promise);
     var context=__nonaRegexpVm.asyncContext;
     var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop,context:context?context.activeRecord:undefined};
-    state.handled=true;
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))
   }

@@ -172,3 +172,5 @@ See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buff
 The asynchronous-context bridge initializes on the first async-hooks module access. Programs that do not use it allocate no resource/storage maps. Reactions registered before initialization retain root storage when the API is later activated; callback scope changes are restored on success and failure.
 
 Blob piping retains its startup Promise constructor. Releasing a reader preserves a pending closed Promise and uses one shared release error; a reader that was already closed receives a new rejected closed Promise. This matches Node 26 identity and avoids redundant cleanup allocations under GC stress.
+
+Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
