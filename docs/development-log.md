@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-06 — выпуск v0.9.0
+
+- Версия package.json, package-lock.json, CLI help и `--version` обновлена до 0.9.0; changelog собран в разделы (сеть, нативные цели, исправления, тестирование и CI).
+- В выпуск вошли собственный HTTP-сервер `node:http`/`node:net` (#70, #115), нативные цели ARM64, macOS и BSD (#117, #133), `node:events` и `node:async_hooks` (#137), `node:path` (#135) и глобальные `Buffer`, `Blob`, `File` (#136), CI для всех платформ (#131) и корпус из 1000 программ (#125).
+- Полный аудит Test262 для v0.9.0 не проводился: цифры на странице статуса относятся к v0.8.0; CI выпуска прогоняет на Windows x64 наборы Test262 для ArrayBuffer, DataView, Date, JSON, Promise, Reflect, SharedArrayBuffer и TypedArray.
+
 ## 2026-10-05 — выпуск v0.8.0
 
 - Версия package.json, package-lock.json, CLI help и `--version` обновлена до 0.8.0; changelog собран в разделы (язык, производительность, размер и время сборки, инструменты, бенчмарки, документация).

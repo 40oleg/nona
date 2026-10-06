@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
 import {position} from './source.js';
 
-const help='Nona 0.8.0 — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona 0.9.0 — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
@@ -26,7 +26,7 @@ export function main(args:string[]):number {
   let temporary:string|undefined;
   try {
     if(args.length===1&&args[0]==='--help'){process.stdout.write(help);return 0;}
-    if(args.length===1&&args[0]==='--version'){process.stdout.write('0.8.0\n');return 0;}
+    if(args.length===1&&args[0]==='--version'){process.stdout.write('0.9.0\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
     const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
     let outputArg:string|undefined,coverage:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target:string|undefined=detectHostTarget(),module=inputArg.endsWith('.mjs'),fullRuntime=false,callStats=false;const seen=new Set<string>();

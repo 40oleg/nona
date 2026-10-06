@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**v0.8.0** — veja o [registro de mudanças](/changelog) (em inglês). O Nona é experimental: não passou por auditoria de segurança e não é um substituto direto do Node.js.
+**v0.9.0** — veja o [registro de mudanças](/changelog) (em inglês). O Nona é experimental: não passou por auditoria de segurança e não é um substituto direto do Node.js.
 
 ## Auditoria do Test262
 
