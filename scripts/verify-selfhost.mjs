@@ -42,7 +42,10 @@ function check(image){
    const nativeIR=output+'.native-ir.json';
    run(image,[input,output,target],{NONA_SELFHOST_DUMP_IR:nativeIR});
    const oracleIR=name.endsWith('.mjs')?compileModuleToIR(source,input,undefined,'',target):compileToIR(source,input,undefined,target);
-   writeFileSync(output+'.oracle-ir.json',JSON.stringify(oracleIR));
+   writeFileSync(output+'.oracle-ir.json',JSON.stringify(oracleIR,(_key,value)=>typeof value==='bigint'?{bigint:String(value)}:value));
+   run(image,[input,output,target],{NONA_SELFHOST_TRACE:output+'.native'});
+   const trace=spawnSync(process.execPath,[join(directory,'sources','selfhost-entry.mjs'),input,output+'.trace-oracle',target],{env:{...process.env,NONA_SELFHOST_TRACE:output+'.oracle'},encoding:'utf8',timeout:120000,windowsHide:true});
+   assert.equal(trace.status,0,trace.stderr);
    throw error;
   }
   console.log('Native compiler regression passed:',image,name);
