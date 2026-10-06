@@ -238,7 +238,20 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
         case 'Yield':if(!fn?.declaration.generator)fail(e,'yield outside generator');if(e.argument)expression(e.argument);break;
         case 'Await':if(!fn?.declaration.async)fail(e,'await outside async function');expression(e.argument);break;
         case 'ObjectLiteral':if(e.duplicateProto)fail(e,'Duplicate __proto__ property');for(const p of e.properties){if('spread'in p)expression(p.spread);else{if(p.coverInitialized)fail(e,'Shorthand default is only valid in an assignment pattern');expression(p.key);expression(p.value);}}break;
-        case 'Binary':if(e.operator==='in'&&e.left.kind==='PrivateName')privateName(e.left);else expression(e.left);expression(e.right);break;
+        case 'Binary':{
+          // Long literal tables and generated expressions have left-deep binary
+          // trees. Preserve the left-to-right binding order without one native
+          // call frame per binary operator.
+          const pending:A.Expression[]=[e];
+          while(pending.length){
+            const current=pending.pop()!;
+            if(current.kind!=='Binary'){expression(current);continue;}
+            pending.push(current.right);
+            if(current.operator==='in'&&current.left.kind==='PrivateName')privateName(current.left);
+            else pending.push(current.left);
+          }
+          break;
+        }
         case 'Conditional':expression(e.test);expression(e.consequent);expression(e.alternate);break;
         case 'New':case 'Call':if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001')){/* runtime helper (eval-aot) */}else if(e.callee.kind==='Identifier')resolve(e.callee,'call');else if(e.callee.kind==='Super'&&e.kind==='Call'){
           let owner=fn;while(owner?.declaration.kind==='FunctionExpression'&&owner.declaration.arrow)owner=owner.parent;
