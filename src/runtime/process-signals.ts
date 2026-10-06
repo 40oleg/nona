@@ -20,9 +20,9 @@ export function emitProcessSignals(b:RuntimeBuilder,target:Target):void {
  function nativeStore(reg:'rax'|'r11',offset:number):void {if(a instanceof Arm64Assembler)a.nativeWord((0xf90003e0|((offset/8)<<10)|(reg==='rax'?0:10))>>>0);else a.store({base:'rsp',disp:offset},reg)}
  function nativeLoad(reg:'rax'|'r11'|'r10',offset:number):void {if(a instanceof Arm64Assembler)a.nativeWord((0xf94003e0|((offset/8)<<10)|(reg==='rax'?0:reg==='r11'?10:9))>>>0);else a.load(reg,{base:'rsp',disp:offset})}
  // A native ARM64 callback arrives on the hardware stack, not Nona's x28 stack.
- // The logical assembler's condition helpers use x23; preserve this native
- // callee-saved register explicitly. All remaining temporaries are volatile.
- if(a instanceof Arm64Assembler){if(windows){a.nativeWord(0xd100c3ff);a.nativeWord(0xa9007bf7)}else a.nativeWord(0xa9bf7bf7);a.mov('r10','rax')}
+ // Logical condition/parity helpers use native callee-saved x23 and x24.
+ // Keep their saved pair separate from the native return address and deadline.
+ if(a instanceof Arm64Assembler){if(windows){a.nativeWord(0xd100c3ff);a.nativeWord(0xa90063f7);a.nativeWord(0xf90013fe)}else{a.nativeWord(0xa9be63f7);a.nativeWord(0xf9000bfe)}a.mov('r10','rax')}
  else{if(windows)a.sub('rsp',56);a.mov('r10',windows?'rcx':'rdi')}
  if(windows){const interrupt=a.unique('interrupt'),close=a.unique('close'),record=a.unique('record');a.cmp('r10',0);a.jcc('e',interrupt);a.cmp('r10',2);a.jcc('e',close);a.cmp('r10',1);a.jcc('ne',done);a.mov('r10',21);a.jmp(record);a.label(close);a.mov('r10',1);a.jmp(record);a.label(interrupt);a.mov('r10',2);a.label(record)}
  a.cmp('r10',1);a.jcc('b',done);a.cmp('r10',64);a.jcc('ae',done);a.shl('r10',3);
@@ -35,7 +35,7 @@ export function emitProcessSignals(b:RuntimeBuilder,target:Target):void {
  if(windows){const ordinary=a.unique('ordinary'),wait=a.unique('wait');a.cmp('r10',8);a.jcc('ne',ordinary);a.lea('r11',{rip:'process.signalAcknowledgement',addend:8});nativeStore('r11',a instanceof Arm64Assembler?24:40);nativeCall('GetTickCount64');a.add('rax',5000);nativeStore('rax',a instanceof Arm64Assembler?16:32);a.label(wait);nativeLoad('r11',a instanceof Arm64Assembler?24:40);a.load('rax',{base:'r11'});a.test('rax','rax');a.jcc('e',ordinary);if(a instanceof Arm64Assembler)a.mov('rax',1);else a.mov('rcx',1);nativeCall('Sleep');nativeCall('GetTickCount64');nativeLoad('r10',a instanceof Arm64Assembler?16:32);a.cmp('rax','r10');a.jcc('b',wait);a.label(ordinary)}
  a.mov('rax',1);
  const finish=a.unique('finish');a.jmp(finish);a.label(done);a.mov('rax',0);a.label(finish);
- if(a instanceof Arm64Assembler){if(windows){a.nativeWord(0xa9407bf7);a.nativeWord(0x9100c3ff)}else a.nativeWord(0xa8c17bf7);a.nativeWord(0xd65f03c0)}else{if(windows)a.add('rsp',56);a.ret()}
+ if(a instanceof Arm64Assembler){if(windows){a.nativeWord(0xf94013fe);a.nativeWord(0xa94063f7);a.nativeWord(0x9100c3ff)}else{a.nativeWord(0xf9400bfe);a.nativeWord(0xa8c263f7)}a.nativeWord(0xd65f03c0)}else{if(windows)a.add('rsp',56);a.ret()}
  b.bundle.fragments.push({...a.finish(),name,section:'.text'});
  }
  handler('process.signalHandler',target==='win32-arm64');

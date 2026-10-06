@@ -47,7 +47,7 @@ test('BSD cross-compilation under an ARM64 emission scope also scopes OS service
     if(probe.name==='process-abort'){assert.equal(probe.status,134);assert.equal(probe.signal,'SIGABRT')}
   }
   for(const probe of images){
-    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')||probe.name.startsWith('stream-')||probe.name.startsWith('process-builtin-')||probe.name.startsWith('process-report-')?60000:undefined,probe.name);
+    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')||probe.name.startsWith('stream-')||probe.name.startsWith('process-builtin-')||probe.name.startsWith('process-report-')||probe.name.startsWith('process-signals-')?60000:undefined,probe.name);
     const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
     assert.equal(v.getUint16(18,true),62,probe.name);
   }

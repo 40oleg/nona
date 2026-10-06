@@ -79,8 +79,6 @@ ${processReportNetworkIntrinsicsSource}
   var decoder=new TextDecoder(),encoder=new TextEncoder(),created=null;
   // Built on first access, so programs that never use process pay nothing at startup.
   function build(){
-    function startupPhase(name){if(globalThis.__nonaProcessStartupTrace===true)console.log("process init",name)}
-    startupPhase("begin");
     function copyProcessBytes(source,target,offset){__nonaRegexpVm.arrayBufferCopy(source.buffer,target.buffer,source.byteOffset,source.byteLength,target.byteOffset+(offset||0))}
     function cstring(text){var bytes=encoder.encode(text),out=new Uint8Array(bytes.length+1);copyProcessBytes(bytes,out,0);return out}
     function readProc(path){
@@ -118,7 +116,6 @@ ${processReportNetworkIntrinsicsSource}
       var code=codes[number]||'UNKNOWN',error=new Error(code+': '+syscall+(path===undefined?'':" '"+path+"'"));error.code=code;error.errno=-number;error.syscall=syscall;if(path!==undefined)error.path=path;return error
     }
     function argumentError(code,message,range){var error=range?new RangeError(message):new TypeError(message);error.code=code;return error}
-    startupPhase("host read");
     var execPath,commandLine,environment;
     if(windows){
       var path=new Uint16Array(32768),length=host.GetModuleFileNameW(null,path,32768);
@@ -150,7 +147,6 @@ ${processReportNetworkIntrinsicsSource}
     }
     var argv=[execPath];
     for(var a=1;a<commandLine.length;a++)argv[argv.length]=commandLine[a];
-    startupPhase("host decoded");
     var env={};
     for(var e=0;e<environment.length;e++){
       var entry=environment[e],eq=entry.indexOf('=',1);
@@ -160,7 +156,6 @@ ${processReportNetworkIntrinsicsSource}
       if(windows){var upper=key.toUpperCase(),known=false;for(var existing in env)if(existing.toUpperCase()===upper){known=true;break}if(known)continue}
       defineProperty(env,key,{value:entry.slice(eq+1),writable:true,enumerable:true,configurable:true})
     }
-    startupPhase("environment parsed");
     function exitStatus(code){
       if(code===undefined||code===null)return undefined;
       if(typeof code==='string'&&code!==''&&!Number.isNaN(Number(code)))code=Number(code);
@@ -220,23 +215,18 @@ ${processReportNetworkIntrinsicsSource}
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     defineProperty(process,'platform',{value:platform,enumerable:true,configurable:true});defineProperty(process,'arch',{value:'__NONA_PROCESS_ARCH__',enumerable:true,configurable:true});
-    startupPhase("core object");
 ${processMetadataSource(undefined,true)}
-    startupPhase("metadata");
     value('getBuiltinModule',function getBuiltinModule(id){return __nonaRegexpVm.getBuiltinModule(id)});
     value('abort',function abort(){if(windows)host.ExitProcess(134);else host.abort()});
     defineProperty(process,'pid',{value:windows?host.GetCurrentProcessId():host.sys_getpid(),enumerable:true,configurable:true});
-    startupPhase("parent pid");
     value('ppid',parentPid());defineProperty(process,'argv0',{value:commandLine[0],enumerable:true});value('execArgv',[]);
     var exitCode;defineProperty(process,'exitCode',{enumerable:true,configurable:true,get:function(){return exitCode},set:function(code){exitCode=exitStatus(code)}});
     value('exit',function exit(code){return exitNow(code)});
     value('cwd',function cwd_(){return cwd()});
     value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
-    startupPhase("extensions");
 ${processExtensionsSource}
 ${processReportNetworkSource}
 ${processReportSource}
-    startupPhase("ready");
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}

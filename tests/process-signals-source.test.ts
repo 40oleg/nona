@@ -62,3 +62,13 @@ for(const target of supportedNativeTargets)test('signal leaf emission and OS dec
  const handler=builder.bundle.fragments.find(f=>f.name==='process.signalHandler')!;if(target.endsWith('arm64'))assert.deepEqual(Array.from(handler.bytes.slice(-4)),[0xc0,0x03,0x5f,0xd6]);if(target.startsWith('linux-'))assert.ok(builder.bundle.fragments.some(f=>f.name==='process.signalRestorer'));
  if(target==='win32-x64'){assert.ok(builder.bundle.fragments.some(f=>f.name==='process.consoleHandler'));assert.ok(builder.bundle.fragments.some(f=>f.name==='process.signalRestorer'));assert.ok(processSignalHostDeclarations(target).some(d=>d[0]==='signalAction'&&d[2]==='13'));assert.deepEqual(Array.from(handler.bytes.slice(0,3)),[0x49,0x89,0xfa]);const console=builder.bundle.fragments.find(f=>f.name==='process.consoleHandler')!;assert.deepEqual(Array.from(console.bytes.slice(4,7)),[0x49,0x89,0xca])}
 }));
+test('Windows ARM64 console callbacks preserve the condition and parity callee-saved registers',()=>withNativeTarget('win32-arm64',()=>{
+ const builder=new RuntimeBuilder();emitProcessSignals(builder,'win32-arm64');const fragment=builder.bundle.fragments.find(f=>f.name==='process.consoleHandler')!;
+ const view=new DataView(fragment.bytes.buffer,fragment.bytes.byteOffset,fragment.bytes.byteLength),words=Array.from({length:fragment.bytes.length/4},(_,i)=>view.getUint32(i*4,true));
+ // x23 holds emulated condition flags; x24 holds parity. Both are native
+ // callee-saved registers and must survive an OS call into the callback.
+ assert.ok(words.includes(0xa90063f7),'Save x23 and x24 on the hardware stack');
+ assert.ok(words.includes(0xa94063f7),'Restore x23 and x24 before returning to the OS');
+ assert.ok(words.includes(0xf90013fe),'Save the native link register independently');
+ assert.ok(words.includes(0xf94013fe),'Restore the native link register independently');
+}));

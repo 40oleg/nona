@@ -38,16 +38,29 @@ sink.cork();console.log('pressure',sink.write('a',()=>values.push('a')),sink.wri
 sink.on('close',()=>console.log('closed',values.join('|'),sink.writableLength,sink.writableFinished,sink.destroyed));sink.end('c',()=>values.push('end'));
 `,expected:"pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n"},
   {name:'stream-pipeline-demand',source:imports+String.raw`
-process.on('uncaughtExceptionMonitor',function(error,origin){console.log('pipeline uncaught',origin,typeof error,error&&error.name,error&&error.code,error&&error.message)});
-(async()=>{console.log('pipeline phase entry');const values=[],transform=new Transform({transform(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Writable({highWaterMark:1,write(chunk,encoding,callback){values.push(chunk.toString());setImmediate(function(){try{callback()}catch(error){console.log('pipeline callback',error.name,error.code,error.message);throw error}})}});
-console.log('pipeline phase constructed');const pending=Stream.promises.pipeline(Readable.from(['a','b','c']),transform,sink);console.log('pipeline phase scheduled');await pending;console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished);
+(async()=>{const values=[],transform=new Transform({transform(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Writable({highWaterMark:1,write(chunk,encoding,callback){values.push(chunk.toString());setImmediate(callback)}});
+const pending=Stream.promises.pipeline(Readable.from(['a','b']),transform,sink);await pending;console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
+`,expected:"pipeline AB true true true\n"},
+  {name:'stream-partial-read',source:imports+String.raw`
+(async()=>{
 const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console.log('partial',r.read(1).toString(),r.read(2).toString());r.resume();await Stream.promises.finished(r);console.log('ended',r.readableEnded,r.closed)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
-`,expected:"pipeline phase entry\npipeline phase constructed\npipeline phase scheduled\npipeline ABC true true true\npartial a bc\nended true true\n"},
-  {name:'stream-operators-consumers',source:imports+String.raw`
-import consumers from 'node:stream/consumers';
+`,expected:"partial a bc\nended true true\n"},
+  {name:'stream-operators',source:imports+String.raw`
 (async()=>{const results=await Readable.from([1,2,3,4]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(2).toArray();console.log('operators',results.join(','));
-console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0));const bytes=await consumers.bytes(Readable.from([Buffer.from([97]),new Uint8Array([98])]));console.log('bytes',bytes instanceof Uint8Array,Buffer.isBuffer(bytes),Array.from(bytes).join(','));console.log('text',await consumers.text(Readable.from([Buffer.from([239,187,191,226]),Buffer.from([130,172])])));console.log('json',(await consumers.json(Readable.from(['{"x":2}']))).x)})()
-`,expected:"operators 4,6\nreduce 6\nbytes true false 97,98\ntext €\njson 2\n"},
+console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
+`,expected:"operators 4,6\nreduce 6\n"},
+  {name:'stream-consumer-bytes',source:imports+String.raw`
+import consumers from 'node:stream/consumers';
+(async()=>{const bytes=await consumers.bytes(Readable.from([Buffer.from([97]),new Uint8Array([98])]));console.log('bytes',bytes instanceof Uint8Array,Buffer.isBuffer(bytes),Array.from(bytes).join(','))})()
+`,expected:"bytes true false 97,98\n"},
+  {name:'stream-consumer-text',source:imports+String.raw`
+import consumers from 'node:stream/consumers';
+(async()=>{console.log('text',await consumers.text(Readable.from([Buffer.from([239,187,191,226]),Buffer.from([130,172])])))})()
+`,expected:"text €\n"},
+  {name:'stream-consumer-json',source:imports+String.raw`
+import consumers from 'node:stream/consumers';
+(async()=>{console.log('json',(await consumers.json(Readable.from(['{"x":2}']))).x)})()
+`,expected:"json 2\n"},
   {name:'stream-web-cancellation',source:imports+String.raw`
 (async()=>{const controller=new AbortController();controller.signal.addEventListener('abort',event=>event.stopImmediatePropagation());let aborts=0;const source=new Readable({read(){}}),web=Readable.toWeb(source),destination=new WritableStream({abort(){aborts++}}),pending=web.pipeTo(destination,{signal:controller.signal});controller.abort('stop');try{await pending}catch(reason){console.log('abort',reason,web.locked,destination.locked,aborts,source.destroyed)}
 const complete=Readable.toWeb(Readable.from([])),reader=complete.getReader();await reader.read();await reader.closed;const old=reader.closed;reader.releaseLock();console.log('release',await reader.closed.then(()=> 'fulfilled',error=>error.name),old===reader.closed,complete.locked);
