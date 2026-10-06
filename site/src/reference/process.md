@@ -15,4 +15,4 @@ Native signal listeners do not keep the loop alive and restore prior OS disposit
 
 ## Stream integration
 
-Process and standard I/O now share the original EventEmitter and Stream constructors, with queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](https://github.com/40oleg/nona/blob/main/docs/host-apis.md#streams).
+Stream constructors and standard I/O are initialized on first use. Process and standard I/O share the original EventEmitter and Stream constructors, with queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](https://github.com/40oleg/nona/blob/main/docs/host-apis.md#streams).
