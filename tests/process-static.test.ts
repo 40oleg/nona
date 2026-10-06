@@ -198,6 +198,14 @@ test('private nextTick scheduler preserves captured scopes without constructing 
  const result=runInContext(`var values=[],api={activeRecord:{name:'captured'},restoreRecord:function(record){this.activeRecord=record},runCaptured:function(record,fn,receiver,args){var previous=this.activeRecord;this.activeRecord=record;try{return Reflect.apply(fn,receiver,args)}finally{this.activeRecord=previous}}};__nonaRegexpVm.asyncContext=api;__nonaRegexpVm.enqueueNextTick(function(value){values.push([api.activeRecord.name,value]);api.restoreRecord({name:'changed'});__nonaRegexpVm.enqueueNextTick(function(next){values.push([api.activeRecord.name,next])},[43])},[42]);api.restoreRecord({name:'caller'});__nonaPromiseDrainJobs();JSON.stringify([values,api.activeRecord.name,typeof Object.getOwnPropertyDescriptor(globalThis,'process').get])`,context);
  assert.deepEqual(JSON.parse(result),[[['captured',42],['changed',43]],'caller','function']);
 });
+
+test('nextTick restores root storage when async hooks activate inside its first callback',()=>{
+ const context=mockProcess();
+ assert.equal(runInContext('typeof __nonaRegexpVm.asyncContext',context),'undefined');
+ runInContext('var local,values=[];process.nextTick(function(){local=new (EventTarget[Symbol.for("nona.async_hooks.internal")].AsyncLocalStorage)();local.enterWith("inner");values.push(local.getStore());process.nextTick(function(){values.push(local.getStore())})});process.nextTick(function(){values.push(local.getStore())});__nonaPromiseDrainJobs()',context);
+ assert.equal(runInContext('JSON.stringify(values)',context),'["inner",null,"inner"]');
+ assert.equal(runInContext('local.getStore()',context),undefined);
+});
 test('POSIX execve packs actual UTF-8 argv/envp without mutating the current environment',()=>{
  let args:string[]=[],environment:string[]=[];const calls:unknown[][]=[];const decode=(bytes:Uint8Array)=>new TextDecoder().decode(bytes).split('\0').filter(Boolean);
  const context=mockProcess({__nonaHost_replaceArguments:(bytes:Uint8Array)=>{args=decode(bytes)},__nonaHost_replaceExecEnvironment:(bytes:Uint8Array)=>{environment=decode(bytes)},__nonaHost_argumentVector:()=>1234,__nonaHost_execEnvironmentVector:()=>5678,
