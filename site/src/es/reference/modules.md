@@ -12,6 +12,8 @@ Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describe
 | `console.log` | global | ambos | escribe UTF-8 en la salida estándar |
 | `nona:process`, `node:process` | módulos | ambos | [process](/es/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de archivos y codificación de texto](/es/reference/fs) |
+| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/es/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/es/reference/host-apis#paths-nodepath) |
 | `nona:ffi` | módulo | Windows (DLL), Linux (llamadas al sistema) | [Funciones nativas (FFI)](/es/reference/ffi) |
 | `nona:win32` | módulo | Windows | más abajo y en [FFI](/es/reference/ffi#nona-win32) |
@@ -20,7 +22,7 @@ Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describe
 
 - Los globales están disponibles en scripts y módulos.
 - Los módulos integrados se pueden importar desde código de módulo (`.mjs` o `--module`) y con `import()` literal desde scripts. Las declaraciones FFI (`define`) deben estar en código de módulo.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
 - `nona:win32` y las declaraciones de DLL solo compilan para `win32-x64`; las declaraciones de llamadas al sistema, solo para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -86,6 +88,8 @@ Para las funciones que no aparecen en la lista, decláralas tú mismo con `defin
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+`node:events` is also supported. It provides EventEmitter and asynchronous event helpers; see the linked host API reference for supported operations and limitations. Blob piping uses its AbortController signals and protects cancellation against stopped event propagation.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 

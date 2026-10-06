@@ -5,7 +5,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {prependFunctionBuiltin,emitNativeFunction,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 
-const wellKnown=['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables'] as const;
+const wellKnown=['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables','dispose','asyncDispose'] as const;
 export const symbolRoots=['rt.Symbol.for.fn','rt.Symbol.keyFor.fn','rt.symbolToPrimitive.fn','rt.symbolDescription.fn','rt.functionHasInstance.fn'];
 export const symbolPropertyRoots=[...['for','keyFor'].flatMap(name=>builtinPropertyRoots('rt.Symbol.'+name+'.fn',name,'rt.Symbol')),
  'rt.symbolPrototype.@@toPrimitive','rt.symbolToPrimitive.fn.name','rt.symbolToPrimitive.fn.length',

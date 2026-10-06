@@ -9,7 +9,7 @@ __nonaPromiseDrainJobs=(function(drain){
   delete globalThis.__nonaHostNow;delete globalThis.__nonaHostWait;
   var defineProperty=Object.defineProperty,reflectApply=Reflect.apply,floor=Math.floor,ceil=Math.ceil,toNumber=Number;
   var enqueueJob=__nonaRegexpVm.enqueueJob;
-  var heap=[],active=new Map(),count=0,nextId=1,seq=0,origin=hostNow();
+  var heap=[],active=new Map(),count=0,referenced=0,nextId=1,seq=0,origin=hostNow();
   var getTimer=Map.prototype.get.bind(active),setTimer=Map.prototype.set.bind(active),deleteTimer=Map.prototype['delete'].bind(active);
   function append(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
   function less(x,y){return x.when<y.when||(x.when===y.when&&x.seq<y.seq)}
@@ -41,11 +41,12 @@ __nonaPromiseDrainJobs=(function(drain){
     for(var j=floor(heap.length/2)-1;j>=0;j--)siftDown(j)
   }
   function delayOf(delay){delay=toNumber(delay);return delay>=1&&delay<=2147483647?delay:1}
-  function schedule(callback,delay,args,repeat){
+  function schedule(callback,delay,args,repeat,unreferenced){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
+    var context=__nonaRegexpVm.asyncContext;
     var d=delayOf(delay),id=nextId++;
-    var timer={id:id,when:hostNow()+d,seq:++seq,delay:d,callback:callback,args:args,repeat:repeat,cancelled:false};
-    setTimer(id,timer);count++;push(timer);
+    var timer={id:id,when:hostNow()+d,seq:++seq,delay:d,callback:callback,args:args,repeat:repeat,cancelled:false,referenced:!unreferenced,context:context?context.activeRecord:undefined};
+    setTimer(id,timer);count++;if(timer.referenced)referenced++;push(timer);
     return id
   }
   function rest(list){var args=[];for(var i=2;i<list.length;i++)append(args,list[i]);return args}
@@ -53,15 +54,17 @@ __nonaPromiseDrainJobs=(function(drain){
     if(typeof id!=='number'&&typeof id!=='string')return;
     var timer=getTimer(toNumber(id));
     if(timer===undefined)return;
-    timer.cancelled=true;deleteTimer(timer.id);count--;compact()
+    timer.cancelled=true;deleteTimer(timer.id);count--;if(timer.referenced)referenced--;compact()
   }
   function setTimeout(callback,delay){return schedule(callback,delay,rest(arguments),false)}
   function setInterval(callback,delay){return schedule(callback,delay,rest(arguments),true)}
   function clearTimeout(id){cancel(id)}
   function clearInterval(id){cancel(id)}
+  __nonaRegexpVm.scheduleUnreferencedTimeout=function(callback,delay){return schedule(callback,delay,[],false,true)};
   function queueMicrotask(callback){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
-    enqueueJob(function(){callback()})
+    var context=__nonaRegexpVm.asyncContext,snapshot=context?context.activeRecord:undefined;
+    enqueueJob(function(){var active=__nonaRegexpVm.asyncContext,previous=active?active.activeRecord:undefined,captured=snapshot||(active?active.defaultRecord:undefined);try{if(active&&captured!==previous)active.runCapturedNullary(captured,callback);else callback()}finally{if(!active){active=__nonaRegexpVm.asyncContext;previous=active?active.defaultRecord:undefined}if(active&&active.activeRecord!==previous)active.restoreRecord(previous)}})
   }
   function now(){return hostNow()-origin}
   var performance={};
@@ -72,18 +75,29 @@ __nonaPromiseDrainJobs=(function(drain){
   install('queueMicrotask',queueMicrotask);install('performance',performance);
   function run(timer){
     if(timer.repeat){timer.when=hostNow()+timer.delay;timer.seq=++seq;push(timer)}
-    else{deleteTimer(timer.id);count--}
-    reflectApply(timer.callback,undefined,timer.args)
+    else{deleteTimer(timer.id);count--;if(timer.referenced)referenced--}
+    var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
+    var captured=timer.context||(context?context.defaultRecord:undefined);
+    try{if(context&&captured&&captured!==previous)context.runCaptured(captured,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)}finally{if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
   return function eventLoop(){
     drain();
+    if(referenced===0)return;
     for(;;){
-      if(count===0){heap=[];return}
+      if(heap.length===0)return;
       var timer=heap[0];
       if(timer.cancelled){pop();continue}
       var remaining=timer.when-hostNow();
-      if(remaining>0){hostWait(ceil(remaining));continue}
-      pop();run(timer);drain()
+      if(remaining>0){if(referenced===0)return;hostWait(ceil(remaining));continue}
+      // Finish timers already due in this phase even if its last reference expires.
+      var phaseTime=hostNow();
+      while(heap.length>0){
+        timer=heap[0];
+        if(timer.cancelled){pop();continue}
+        if(timer.when>phaseTime)break;
+        pop();run(timer);drain()
+      }
+      if(referenced===0)return;
     }
   }
 })(__nonaPromiseDrainJobs);

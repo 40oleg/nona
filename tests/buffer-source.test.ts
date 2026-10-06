@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {runInNewContext} from 'node:vm';
 import {compile} from '../src/compiler.js';
 import {runOracle} from './helpers/oracle.js';
+import {promisePreludeSource} from '../src/runtime/promise-source.js';
 import {bufferPreludeSource} from '../src/runtime/buffer-source.js';
 import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {nativeTargets} from '../src/target.js';
@@ -66,6 +67,18 @@ test('Blob asynchronous prelude oracle',async()=>{
  assert.equal(stdout,runOracle(body).stdout);
 });
 
+test('reader release preserves pending closed promises and shares one release error',async()=>{
+ const body=`(async function(){for(var done of [false,true]){var reader=new Blob(['x']).stream().getReader();if(done){await reader.read();await reader.read()}var before=reader.closed;reader.releaseLock();var after=reader.closed,result=await Promise.allSettled([before,after]);console.log(done,before===after,result.map(function(value){return value.status}).join(','),result[0].reason===result[1].reason)}})()`;
+ let stdout='';await runInNewContext(encodingPreludeSource+bufferPreludeSource+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n'}}});
+ assert.equal(stdout,streamOracle(body));
+});
+
+test('Blob asynchronous methods retain the startup Promise constructor',async()=>{
+ const body=`(async function(){var original=Promise,blob=new Blob(['ok']);globalThis.Promise={resolve:function(){throw Error('resolve trap')},reject:function(){throw Error('reject trap')}};var result=blob.text();console.log(result instanceof original,await result);var reader=blob.stream().getReader();console.log((await reader.read()).done);reader.releaseLock()})()`;
+ let stdout='';await runInNewContext(encodingPreludeSource+bufferPreludeSource+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n'}}});
+ assert.equal(stdout,streamOracle(body));
+});
+
 test('Blob stream compile only: every native target',()=>{for(const {target} of nativeTargets){const result=compile(`import {resolveObjectURL} from 'node:buffer';`+blobStreamCases.join(';'),{fileName:'blob-stream.mjs',target,module:true});assert.equal(result.ok,true,target+': '+JSON.stringify(result))}});
 for(const [index,body] of blobStreamCases.entries()){
  test('Blob stream and object URL prelude oracle '+index,async()=>{let stdout='';await runInNewContext(encodingPreludeSource+'\n'+bufferPreludeSource+'\nvar {resolveObjectURL}=__nonaRegexpVm.bufferModule;'+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n';}}});assert.equal(stdout,streamOracle(body))});
@@ -78,3 +91,9 @@ for(const [index,source] of cases.entries()){
   assert.equal(stdout,runOracle(source).stdout);
  });
 }
+
+test('private Web reader and writer rejection handling does not construct species promises',()=>{
+ const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+ const body=`var speciesCalls=0;Object.defineProperty(Promise,Symbol.species,{get:function(){speciesCalls++;return Promise},configurable:true});var reader=new Blob(['x']).stream().getReader();reader.releaseLock();var writer=new WritableStream().getWriter();writer.releaseLock();__nonaPromiseDrainJobs();speciesCalls`;
+ assert.equal(runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+encodingPreludeSource+bufferPreludeSource+body),0);
+});

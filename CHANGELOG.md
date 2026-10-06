@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Preserve Web-stream internal Promise handling without discarded species Promises or unused cancellation Promises ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Preserve Blob reader closed-promise identity during release and avoid duplicate cleanup errors; retain original Promise and lazy asynchronous-storage constructors ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Initialize asynchronous-context storage only on first API access and preserve root snapshots registered before initialization; avoid a redundant finally handler on ordinary Promise reactions ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Skip redundant async-context scope calls when Promise reactions, timers and microtasks already run in their captured context, while restoring stores changed by callbacks ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Retained asynchronous context records directly in Promise reactions, timer records and microtasks, avoiding extra callback wrappers under GC stress ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Made `AbortSignal.timeout` cancellation timers unreferenced and aligned delay validation error codes with Node.js 26 ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Reused immutable asynchronous context snapshots to avoid per-reaction Map copies under GC stress; fixed captured store restoration after `enterWith` and `disable`, bind argument validation and exit receiver validation ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers, including protected Blob piping cancellation ([#137](https://github.com/40oleg/nona/issues/137)).
+
+
 - Read Path working directories and Windows drive environment entries on demand through original target adapters; avoid full process startup for path-only programs under GC stress ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added `node:path` and `path` ES modules, including explicit POSIX/Windows variants, path component and resolution APIs, Windows relative paths on POSIX hosts, namespace conversion and Node.js 26 glob matching ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added global `Buffer`, `Blob` and `File` and the `node:buffer`, `buffer` and `nona:buffer` modules: typed-array byte storage, standard encodings, numeric access, shared slices, copies, search bounds, aligned allocation and immutable Blob/File data APIs. Blob byte/text streams, BYOB readers and object URL registration/resolution are included ([#136](https://github.com/40oleg/nona/issues/136)).
