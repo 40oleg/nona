@@ -22,18 +22,22 @@ test('exception transfer restores all GP and full 128-bit XMM nonvolatile state'
  }
  // Test-only helpers deliberately alter nonvolatile state. The source handler
  // must restore the seeded state rather than rely on normal callee epilogues.
+ // RBP is left alone: generated JavaScript functions address their frames
+ // through it, so seeding it would corrupt the caller of test.seed itself
+ // (the handler still restores it, as every exception transfer shows).
+ const seeded=preservedGp.filter(reg=>reg!=='rbp');
  b.fn('test.seed.code',40,a=>{
-  preservedGp.forEach((reg,i)=>a.mov(reg,0x123400+i));
+  seeded.forEach((reg,i)=>a.mov(reg,0x123400+i));
   preservedXmm.forEach((reg,i)=>a.loadXmm128(reg,{rip:'test.xmm'+i}));
   a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
  });
  b.fn('test.corrupt.code',40,a=>{
-  preservedGp.forEach(reg=>a.mov(reg,0));a.mov('rax',0);
+  seeded.forEach(reg=>a.mov(reg,0));a.mov('rax',0);
   preservedXmm.forEach(reg=>a.movqToXmm(reg,'rax'));
   a.mov('rcx','r8');a.call('rt.throw');
  });
  b.fn('test.check.code',72,a=>{
-  a.store(slot(40),'rcx');preservedGp.forEach((reg,i)=>{a.cmp(reg,0x123400+i);failIf(a,'ne');});
+  a.store(slot(40),'rcx');seeded.forEach((reg,i)=>{a.cmp(reg,0x123400+i);failIf(a,'ne');});
   preservedXmm.forEach((reg,i)=>{
    a.storeXmm128(slot(48),reg);
    for(const [offset,bits] of [[0,0x1122334455667700n],[8,0x8877665544332200n]] as const){a.load('rax',slot(48+offset));a.mov('r10',bits+BigInt(i));a.cmp('rax','r10');failIf(a,'ne');}

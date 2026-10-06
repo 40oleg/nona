@@ -247,9 +247,11 @@ ${processReportSource}
     if(created===null)return;
     if(typeof __nonaRegexpVm.hasPendingTimers==='function'&&__nonaRegexpVm.hasPendingTimers())return;
     if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return;
+    if(typeof __nonaRegexpVm.hasPendingNetworkIO==='function'&&__nonaRegexpVm.hasPendingNetworkIO())return;
     if(!exitEmitted&&beforeExitCallback){beforeExitCallback();flush();
       if(typeof __nonaRegexpVm.hasPendingTimers==='function'&&__nonaRegexpVm.hasPendingTimers())return;
-      if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return
+      if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return;
+      if(typeof __nonaRegexpVm.hasPendingNetworkIO==='function'&&__nonaRegexpVm.hasPendingNetworkIO())return
     }
     var code=created.exitCode;
     if(!exitEmitted){exitEmitted=true;if(exitCallback)exitCallback(code||0)}

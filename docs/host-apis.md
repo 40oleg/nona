@@ -81,6 +81,11 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - Waiting uses `Sleep` on Windows and `nanosleep` on Linux, so an idle program
   does not use the CPU. On Windows the resolution is the system timer tick
   (typically 15.6 ms).
+- While sockets or servers from [`node:net`/`node:http`](network.md) are open,
+  the loop waits for socket readiness (`poll` on Linux, `WSAPoll` on Windows)
+  with the nearest timer deadline as the limit, and runs the ready sockets'
+  callbacks, draining the job queue after each. The process exits when no
+  timers and no referenced sockets or servers remain.
 - `performance.now()` uses the monotonic clock (`QueryPerformanceCounter`,
   `clock_gettime(CLOCK_MONOTONIC)`) and counts milliseconds from program start.
 - An uncaught exception in a timer callback terminates the process with exit

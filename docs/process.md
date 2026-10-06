@@ -17,6 +17,10 @@ Calling its getter or passing the descriptor elsewhere preserves conservative
 inventory selection.
 This registry uses compiled modules and introduces no interpreter or package
 loader. `fs` remains unavailable on Darwin and BSD.
+The merged network providers `net` and `http` are included only on Windows
+x64 and Linux x64. Private network transport providers are not exposed by
+the public builtin registry. Network readiness, standard I/O, signals,
+timers and check-phase Immediates share the same native event loop.
 
 `abort()` terminates immediately without running exit, beforeExit, capture,
 queued callbacks or finalization handlers. POSIX restores and unblocks SIGABRT

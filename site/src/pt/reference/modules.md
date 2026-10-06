@@ -16,6 +16,8 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/pt/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/pt/reference/host-apis#paths-nodepath) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | módulos | ambos | [Rede (em inglês)](/reference/network) |
+| `node:events`, `node:string_decoder` | módulos | ambos | [Módulos de apoio do Node.js (em inglês)](/reference/network#supporting-modules) |
 | `nona:ffi` | módulo | Windows (DLLs), Linux (chamadas de sistema) | [Funções nativas (FFI)](/pt/reference/ffi) |
 | `nona:win32` | módulo | Windows | abaixo e em [FFI](/pt/reference/ffi#nona-win32) |
 
@@ -23,7 +25,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 
 - Os globais estão disponíveis em scripts e módulos.
 - Módulos embutidos podem ser importados em código de módulo (`.mjs` ou `--module`) e com `import()` literal em scripts. Declarações FFI (`define`) precisam estar em código de módulo.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - `nona:win32` e declarações de DLL só compilam para `win32-x64`; declarações de chamadas de sistema, só para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}

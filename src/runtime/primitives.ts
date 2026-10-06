@@ -31,6 +31,20 @@ export function emitPrimitives(b:RuntimeBuilder):void {
  });
  b.fn('rt.typeof',40,a=>{a.load('r10',{base:'rdx'});for(const [n,s] of ['undefined','object','boolean','number','string','object','symbol','bigint'].entries()){a.cmp('r10',n);a.jcc('ne','rt.typeof.next'+n);a.lea('rax',{rip:'rt.str.'+s});if(n===5){a.load('r11',{base:'rdx',disp:8});a.load('r10',{base:'r11'});a.cmp('r10',2);a.jcc('e','rt.typeof.function');a.cmp('r10',ProxyKind);a.jcc('ne','rt.typeof.save');a.load('r10',{base:'r11',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');a.jcc('e','rt.typeof.save');a.label('rt.typeof.function');a.lea('rax',{rip:'rt.str.function'});}a.jmp('rt.typeof.save');a.label('rt.typeof.next'+n);}a.label('rt.typeof.save');a.store({base:'rcx',disp:8},'rax');tag(a,4);});
  for(const op of ['add','sub','mul','div','rem','pow'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
+  const fastDone=a.unique('fastDone');
+  if(op==='rem'){
+   // Integral Numbers with a non-negative dividend (not -0) and a non-zero
+   // divisor: the remainder is the integer one (its sign is the dividend's).
+   const slow=a.unique('slow');
+   a.load('rax',{base:'rdx'});a.cmp('rax',3);a.jcc('ne',slow);a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',slow);
+   a.load('r10',{base:'rdx',disp:8});a.test('r10','r10');a.jcc('s',slow);
+   a.movsd('xmm0',{base:'rdx',disp:8});a.cvttsd2si('r10','xmm0');a.cvtsi2sd('xmm1','r10');a.ucomisd('xmm0','xmm1');a.jcc('ne',slow);a.jcc('p',slow);
+   a.movsd('xmm0',{base:'r8',disp:8});a.cvttsd2si('r11','xmm0');a.cvtsi2sd('xmm1','r11');a.ucomisd('xmm0','xmm1');a.jcc('ne',slow);a.jcc('p',slow);
+   a.test('r11','r11');a.jcc('e',slow);
+   a.mov('r9','rcx');a.mov('rax','r10');a.mov('rdx',0);a.idiv('r11');a.cvtsi2sd('xmm0','rdx');
+   a.mov('rax',3);a.store({base:'r9'},'rax');a.storesd({base:'r9',disp:8},'xmm0');a.jmp(fastDone);
+   a.label(slow);
+  }
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   if(op==='add'){
    a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');
@@ -51,6 +65,28 @@ export function emitPrimitives(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');tag(a,3);
   if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');a.label('rt.add.done');}
   if(op==='sub'||op==='mul'||op==='div'||op==='rem'||op==='pow')a.label(bigDone);
+  a.label(fastDone);
+ });
+ // RCX result, RDX left Value*, R8 right Value*: `left === right` (a
+ // Boolean) without a rooted frame. Numbers compare by value (NaN unequal,
+ // -0 equal to 0), different tags are unequal, undefined and null equal
+ // themselves, booleans compare by truth, objects and symbols by identity,
+ // strings of the same record are equal; other strings and BigInts take
+ // rt.strictEq.
+ b.fn('rt.strictEquals',40,a=>{
+  const yes=a.unique('yes'),no=a.unique('no'),store=a.unique('store'),number=a.unique('number'),bool=a.unique('bool'),identity=a.unique('identity'),generic=a.unique('generic'),leftFalse=a.unique('leftFalse'),done=a.unique('done');
+  a.load('rax',{base:'rdx'});a.load('r10',{base:'r8'});a.cmp('rax','r10');a.jcc('ne',no);
+  a.cmp('rax',3);a.jcc('e',number);a.cmp('rax',1);a.jcc('be',yes);a.cmp('rax',2);a.jcc('e',bool);a.cmp('rax',5);a.jcc('e',identity);a.cmp('rax',6);a.jcc('e',identity);
+  a.cmp('rax',4);a.jcc('ne',generic);a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'r8',disp:8});a.cmp('rax','r10');a.jcc('e',yes);a.jmp(generic);
+  a.label(number);a.movsd('xmm0',{base:'rdx',disp:8});a.ucomisd('xmm0',{base:'r8',disp:8});a.jcc('p',no);a.jcc('e',yes);a.jmp(no);
+  a.label(identity);a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'r8',disp:8});a.cmp('rax','r10');a.jcc('e',yes);a.jmp(no);
+  a.label(bool);a.load('rax',{base:'rdx',disp:8});a.load('r10',{base:'r8',disp:8});a.test('rax','rax');a.jcc('e',leftFalse);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);
+  a.label(leftFalse);a.test('r10','r10');a.jcc('e',yes);
+  a.label(no);a.mov('rax',0);a.jmp(store);
+  a.label(yes);a.mov('rax',1);
+  a.label(store);a.store({base:'rcx',disp:8},'rax');a.mov('rax',2);a.store({base:'rcx'},'rax');a.jmp(done);
+  a.label(generic);a.call('rt.strictEq');
+  a.label(done);
  });
  for(const op of ['strictEq','eq','lt','le','gt','ge'])rootedFn(b,'rt.'+op,120,binaryRoots,a=>{
  const p='rt.'+op;const eq=op==='eq'||op==='strictEq';a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');if(!eq){a.lea('rcx',slot(64));a.call('rt.toPrimitive');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toPrimitive');a.lea('rdx',slot(64));a.store(slot(48),'rdx');a.lea('r8',slot(80));a.store(slot(56),'r8');}a.load('r10',{base:'rdx'});a.load('r11',{base:'r8'});

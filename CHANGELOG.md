@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Integrate Process and public Stream providers with the merged HTTP/network loop, preserving its private fast transport provider and target-supported builtin inventory ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Preserve allocation-free native coverage output on fatal runtime failures; match report properties for stackless plain objects and keep complete Path stress vectors in bounded batches ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Pair native Process account and memory GC-stress scenarios with ordinary-allocation oracle runs and bound the new ARM64 Process stress suite at 180 seconds ([#141](https://github.com/40oleg/nona/issues/141)).
@@ -70,6 +72,8 @@
 
 - Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
 
+- `node:http` runs on Nona's own HTTP/1.1 server and client: request heads are parsed and responses encoded by native code, per-request work Node.js defers is batched, and the runtime got general speedups the server exposed (inline caches for `.length`, `super.name` and global names, cheaper `Object.keys`, `push`/`pop`, `%`, default derived constructors and `JSON.stringify`, size classes that fit 16 KiB buffers, a cheaper mark phase and lazy sweeping). On the HTTP benchmark Nona is level with Node.js on small requests, 1.8 times faster on 64 KiB responses, 10–20% behind on request bodies and uses a fifth of the memory ([#115](https://github.com/40oleg/nona/issues/115)). See [PERFORMANCE.md](PERFORMANCE.md#http-server).
+- Added `node:http` (HTTP/1.1 servers, clients and keep-alive agents) and `node:net` (TCP sockets and servers) on Linux and Windows, with `node:events` and `node:string_decoder`; the event loop waits for socket readiness while sockets are open ([#70](https://github.com/40oleg/nona/issues/70)). See [networking](docs/network.md).
 - Preserve Web-stream internal Promise handling without discarded species Promises or unused cancellation Promises ([#137](https://github.com/40oleg/nona/issues/137)).
 
 - Preserve Blob reader closed-promise identity during release and avoid duplicate cleanup errors; retain original Promise and lazy asynchronous-storage constructors ([#137](https://github.com/40oleg/nona/issues/137)).

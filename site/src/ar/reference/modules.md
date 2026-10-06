@@ -15,6 +15,8 @@
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/ar/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ar/reference/host-apis#paths-nodepath) |
+| `nona:http` و`node:http` و`nona:net` و`node:net` | وحدات | كلتاهما | [الشبكات (بالإنجليزية)](/reference/network) |
+| `node:events` و`node:buffer` و`node:string_decoder` | وحدات | كلتاهما | [وحدات دعم Node.js (بالإنجليزية)](/reference/network#supporting-modules) |
 | `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
 | `nona:win32` | وحدة | Windows | أدناه وفي [FFI](/ar/reference/ffi#nona-win32) |
 
@@ -22,7 +24,7 @@
 
 - الكائنات العامة متاحة في السكربتات والوحدات.
 - يمكن استيراد الوحدات المدمجة من شيفرة الوحدات (`.mjs` أو `--module`) ومن السكربتات عبر `import()` حرفي. ويجب أن تكون تصريحات FFI ‏(`define`) في شيفرة وحدة.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - لا تُترجَم `nona:win32` وتصريحات DLL إلا للمنصة `win32-x64`، ولا تُترجَم تصريحات استدعاءات النظام إلا للمنصة `linux-x64`.
 
 ## `nona:win32` {#nona-win32}

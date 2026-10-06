@@ -1,6 +1,6 @@
 import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,maxInlineSlots} from '../../runtime/object-layout.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
@@ -42,7 +42,7 @@ import {cloneRealms,realmSymbol} from '../realms.js';
 import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
 import {emitFfi} from '../../runtime/ffi.js';
-import {PropertyCacheLayout,cacheableName} from '../../runtime/property-cache.js';
+import {PropertyCacheLayout,SetCacheLayout,cacheableName} from '../../runtime/property-cache.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -117,7 +117,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -139,9 +139,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   else{
     const runtime=emitRuntime({operations:new Set(),realms,unicodeNormalization:link.unicodeNormalization});
     fragments=[...runtime.fragments];functions=[...runtime.functions];imports=[...runtime.imports];literals=new Map();
+    // Program literals equal to a runtime string record use that record:
+    // property keys then match by identity (`x.length`, global names).
+    for(const fragment of runtime.fragments)if(fragment.stringText!==undefined&&!literals.has(fragment.stringText))literals.set(fragment.stringText,fragment.name);
     if(hasPrelude)fragments.find(f=>f.name==='rt.regexpVmCell')!.fixups.push({offset:0,kind:'va64',target:'rt.preludeGlobals',addend:0});
   }
   const runtime={imports};
+  // A constant Value in .rdata: {tag, payload}, one per distinct constant.
+  // Recorded in the literal table (under a key no string literal has), which
+  // a cached base image carries, so programs reuse the base's constants.
+  const constantValue=(v:unknown):string=>{
+    const key='\u0000constant:'+(typeof v)+':'+(typeof v==='number'?(Object.is(v,-0)?'-0':String(v)):String(v));
+    const existing=literals.get(key);if(existing)return existing;
+    const tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
+    const name='constant.'+literals.size,bytes=new Uint8Array(16),view=new DataView(bytes.buffer),fixups:NamedFragment['fixups']=[];
+    view.setBigUint64(0,BigInt(tag),true);
+    if(typeof v==='string'||typeof v==='bigint')fixups.push({offset:8,kind:'va64',target:literal(String(v)),addend:0});
+    else if(typeof v==='number')view.setFloat64(8,v,true);
+    else if(v===true)view.setBigUint64(8,1n,true);
+    literals.set(key,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups,symbols:{}});return name;
+  };
   const literal=(value:string):string=>{
     const existing=literals.get(value);if(existing)return existing;
     const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
@@ -161,11 +178,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       {offset:i*24,kind:'va64' as const,target:literal(property.name),addend:0},
       {offset:i*24+8,kind:'va64' as const,target:'js.globals',addend:property.index*16},
     ])});
-  function finish(a:Assembler,name:string,size:number,prologSize:number):void {
+  function finish(a:Assembler,name:string,size:number,prologSize:number,allocationCodeOffset=prologSize,savedRegisters:UnwindFunction['savedRegisters']=[]):void {
     a.label(name+'.end');fragments.push({...a.finish(),name,section:'.text'});
-    functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset:prologSize,stackAllocation:size,savedRegisters:[]});
+    functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset,stackAllocation:size,savedRegisters});
   }
   function emitFunction(fn:FunctionIR):void {
+    // Slow paths emitted after the blocks, so that the common paths stay dense.
+    const cold:(()=>void)[]=[];
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
     const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
@@ -174,6 +193,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
     }
     const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
+    const savedFrameBase=rootBase+R.size,frameBias=valueBase+128;
+    const stack=(disp:number):Mem=>({base:'rbp',disp:disp-frameBias});
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
     if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
     // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
@@ -187,17 +208,37 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Touch the last partial page before moving RSP, as Windows guard pages require.
       if(allocation%4096){a.sub('r11',allocation%4096);a.load('r10',{base:'r11'});}
     }
-    a.sub('rsp',allocation);const prologSize=a.offset;
+    // RBP addresses the frame from the first value slot + 128, so that the
+    // first sixteen value slots (most of a function's traffic) are reached
+    // with 8-bit displacements; RSP-relative 32-bit ones made every load and
+    // store of the generated code three bytes longer. RBP is preserved: it is
+    // saved in the frame (stack+104, below the value slots) during the prolog
+    // and restored before returning; handlers and coroutines save it with the
+    // other preserved registers.
+    a.sub('rsp',allocation);const allocated=a.offset;a.store({base:'rsp',disp:savedFrameBase},'rbp');const prologSize=a.offset;
+    a.lea('rbp',{base:'rsp',disp:frameBias});
     a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
-    const value=(n:number):Mem=>stack(valueBase+16*location(n));
+    // A temporary whose only definition is a constant needs no frame
+    // location: its Value lives once in .rdata (constantValue) and operations
+    // read it from there, so the constant is never stored at run time.
+    // Temporaries (slots past the declared locals) are always written before
+    // they are read; a variable can be read before its one assignment
+    // (hoisted `var`), so variables keep their slots.
+    const definitions=new Map<number,number>(),constants=new Map<number,unknown>();
+    for(const block of fn.blocks)for(const op of block.operations){
+      for(const d of destinations(op))definitions.set(d,(definitions.get(d)??0)+1);
+      if(op.kind==='constant')constants.set(op.dest,op.value);
+    }
+    const staticConstant=(n:number):string|undefined=>definitions.get(n)===1&&constants.has(n)&&n>=fn.localCount?constantValue(constants.get(n)):undefined;
+    const value=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c}:stack(valueBase+16*location(n));};
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
     const copy=(to:Mem,from:Mem)=>{
       a.load('rax',from);a.store(to,'rax');
       const add=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};
       a.load('rax',add(from));a.store(add(to),'rax');
     };
-    const payload=(n:number):Mem=>stack(valueBase+16*location(n)+8);
+    const payload=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c,addend:8}:stack(valueBase+16*location(n)+8);};
     const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
     const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
     // Number operands are the common case of every arithmetic and relational
@@ -207,7 +248,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // the SSE instruction in place; anything else falls through to the call.
     // Returns the label the caller places after the generic call, or undefined
     // when the operator has no inline form.
-    const emitNumberBinary=(dest:number,operator:string,left:number,right:number):string|undefined=>{
+    const emitNumberBinary=(dest:number,operator:string,left:number,right:number):{slow:string,done:string}|undefined=>{
       const arithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
       const relation:Record<string,Condition>={'<':'b','<=':'be','>':'a','>=':'ae','==':'e','===':'e','!=':'e','!==':'e'};
       const bitwise=['&','|','^','<<','>>','>>>'];
@@ -242,7 +283,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         }
         a.cvtsi2sd('xmm0','r10');setNumber(dest);
       }
-      a.jmp(done);a.label(slow);return done;
+      a.jmp(done);return {slow,done};
     };
     // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
     const knownArithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
@@ -274,9 +315,19 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
         setNumber(dest);
       }
-      a.jmp(done);a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.label(done);return true;
+      a.jmp(done);cold.push(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
-    a.mov('rax',0);for(let i=0;i<locations.count;i++){a.store(stack(valueBase+16*i),'rax');a.store(stack(valueBase+16*i+8),'rax');}
+    // Every value location starts cleared (the GC scans them), one 16-byte
+    // store each: unrolled for small frames, a loop of two stores per turn
+    // for larger ones (`rep stosq` cost a microcode start-up of tens of
+    // cycles on every call). The argument registers are already saved.
+    if(locations.count>0){a.mov('rax',0);a.movqToXmm('xmm0','rax');}
+    if(locations.count<=8){for(let i=0;i<locations.count;i++)a.storeXmm128(stack(valueBase+16*i),'xmm0');}
+    else{
+     const odd=locations.count%2;if(odd)a.storeXmm128(stack(valueBase),'xmm0');
+     const clear=a.unique('clear');a.lea('r10',stack(valueBase+16*odd));a.mov('rcx',locations.count>>1);
+     a.label(clear);a.storeXmm128({base:'r10'},'xmm0');a.storeXmm128({base:'r10',disp:16},'xmm0');a.add('r10',32);a.sub('rcx',1);a.jcc('ne',clear);
+    }
     a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
     copy(stack(superReceiverBase),stack(thisBase));
     if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
@@ -362,7 +413,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // Prelude code is shared by every program and cannot know which
           // names a script declares, so only user code gets the fast path.
           const prelude=fn.id.startsWith('js.regexpVm.'),notBinding=!prelude&&!globalProperties.some(p=>p.name===op.name);
-          pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));a.call('rt.readGlobalProperty');break;
+          pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));
+          if(notBinding){const cache='gc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(16),fixups:[],symbols:{}});a.lea('r9',{rip:cache});a.call('rt.readGlobalCached');}
+          else a.call('rt.readGlobalProperty');break;
         }
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -436,15 +489,27 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'validateClassPrototype':{
           const done=a.unique('classPrototypeDone');a.load('rax',value(op.prototype));a.cmp('rax',1);a.jcc('e',done);a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.label(done);break;
         }
-        case 'superGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
+        case 'superGet':
+          // `super.name` with a literal name: a per-site inline cache like `object.name`.
+          if(op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('rax',value(op.receiver));a.store(stack(32),'rax');pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.lea('r9',{rip:cache});a.call('rt.superGetCached');break;
+          }
+          pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);pointer('r9',op.receiver);a.call('rt.superGet');break;
         case 'superSet':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.receiver);pointer('r9',op.source);a.call('rt.superSet');if(op.strict){a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'currentFunction':
           a.load('rax',stack(64));a.store(payload(op.dest),'rax');a.mov('rax',5);a.store(value(op.dest),'rax');break;
         case 'currentThis':{
-          const direct=a.unique('directThis'),done=a.unique('thisReady');a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('ne',direct);
-          pointer('rcx',op.dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');a.jmp(done);
-          a.label(direct);copy(value(op.dest),stack(thisBase));a.label(done);
-          a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');break;
+          // `this` is a cell when an arrow function captured it (read out of
+          // line); only a derived constructor's own `this`, or a captured
+          // one, can still be uninitialized.
+          const cell=a.unique('cellThis'),done=a.unique('thisReady');a.load('rax',stack(thisBase));a.cmp('rax',CellTag);a.jcc('e',cell);
+          copy(value(op.dest),stack(thisBase));
+          if(fn.derivedConstructor){a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');}
+          a.label(done);
+          {const dest=op.dest;cold.push(()=>{a.label(cell);pointer('rcx',dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');
+            a.load('rax',value(dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');a.jmp(done);});}
+          break;
         }
         case 'newInstance':
           pointer('rcx',op.callee);
@@ -487,17 +552,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
              a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
             a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
             pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
-            // A tail call made by the callee comes back as a marker (rt.invoke does the same).
-            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('ne',called);pointer('rcx',op.dest);a.call('rt.tailDispatch');a.jmp(called);
+            // A tail call made by the callee comes back as a marker (rt.invoke
+            // does the same); it and the general call are out of line.
+            const tail=a.unique('tailMarker'),dest=op.dest;
+            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
+            cold.push(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
           }
-          a.label(general);
-          if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
-          a.store(stack(32),'rax');
-          if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
-          a.store(stack(40),'rax');
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
+          const generalCall=(op:Extract<Operation,{kind:'invoke'}>)=>{
+            a.label(general);
+            if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
+            a.store(stack(32),'rax');
+            if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
+            a.store(stack(40),'rax');
+            pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
+          };
+          if(op.direct){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
           a.label(called);break;
         }
+        case 'constructForward':
+          a.lea('rax',value(op.receiver));a.store(stack(32),'rax');a.lea('rax',value(op.newTarget));a.store(stack(40),'rax');
+          pointer('rcx',op.dest);pointer('rdx',op.callee);a.load('r8',stack(48));a.load('r9',stack(56));a.call('rt.invokeConstruct');break;
         case 'invokeArray':
           a.mov('rax',op.construct?1:0);a.store(stack(32),'rax');
           if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
@@ -510,7 +584,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
-        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);a.call('rt.newObject');break;
+        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots){a.mov('r9',Math.min(op.slots,maxInlineSlots));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
         case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
         case 'forInHas':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.forInHas');break;
         case 'getIterator':pointer('rcx',op.iterator);pointer('rdx',op.next);pointer('r8',op.object);a.call('rt.getIterator');break;
@@ -526,8 +600,19 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
           }
+          if(op.operation==='get'&&op.keyName==='length'){
+            const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r9',{rip:cache});a.call('rt.getLengthCached');break;
+          }
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
-        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));a.call('rt.setProperty');break;
+        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
+          // `object.name = value` writes go through a per-site record that
+          // remembers the inline node holding the property (property-cache.ts).
+          if(!op.define&&op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r10',{rip:cache});a.call('rt.setPropertyCached');break;
+          }
+          a.call('rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;
         case 'privateSet':pointer('rcx',op.object);pointer('rdx',op.name);pointer('r8',op.source);a.call('rt.privateSet');break;
         case 'defineField':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.call('rt.defineField');break;
@@ -539,6 +624,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'checkResolvable':a.load('rax',payload(op.slot));a.test('rax','rax');failIf(a,'e','rt.throwReferenceError');break;
         case 'immutableWrite':a.call('rt.throw'+(op.error??'TypeError'));break;
         case 'constant':{
+          if(staticConstant(op.dest))break;
           const v=op.value,tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:typeof v==='number'?3:typeof v==='bigint'?7:4;
           a.mov('rax',tag);a.store(value(op.dest),'rax');
           if(typeof v==='string'||typeof v==='bigint')a.lea('rax',{rip:literal(String(v))});
@@ -568,10 +654,21 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // fused into it: no boolean is materialized.
           if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!liveness.get(block.id)!.liveOut.has(op.dest)){fused=op;break;}
           if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
-          const done=emitNumberBinary(op.dest,op.operator,op.left,op.right);
-          pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
-          if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
-          if(done)a.label(done);break;
+          // Strict equality of values whose types are not known is one call
+          // to rt.strictEquals: inline tag dispatch made each site several
+          // hundred bytes, and code size costs more than the call.
+          if(op.operator==='==='||op.operator==='!=='){
+            pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.strictEquals');
+            if(op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
+            break;
+          }
+          const fast=emitNumberBinary(op.dest,op.operator,op.left,op.right);
+          const generic=()=>{pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.'+binary[op.operator]);
+            if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}};
+          // The generic call is placed after the function's blocks, out of the
+          // path that Numbers take.
+          if(fast){cold.push(()=>{a.label(fast.slow);generic();a.jmp(fast.done);});a.label(fast.done);}else generic();
+          break;
         }
         case 'call':
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -594,7 +691,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           const slow=a.unique('branchSlow'),test=a.unique('branchTest'),yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no;
           a.load('rax',value(term.condition));a.load('r10',payload(term.condition));a.cmp('rax',2);a.jcc('e',test);a.cmp('rax',3);a.jcc('ne',slow);
           a.movqToXmm('xmm0','r10');a.xor('rax','rax');a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',no);a.jcc('e',no);a.jmp(yes);
-          a.label(slow);pointer('rcx',term.condition);a.call('rt.toBoolean');a.mov('r10','rax');
+          {const condition=term.condition;cold.push(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
           a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
         }
         case 'throw':pointer('rcx',term.value);a.call('rt.throw');break;
@@ -603,10 +700,11 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(term.value<0){a.mov('rax',0);a.store({base:'r10'},'rax');a.store({base:'r10',disp:8},'rax');}
           else copy({base:'r10'},value(term.value));
           a.load('rax',stack(rootBase+R.next));a.store({rip:'rt.gcRoots'},'rax');
-          a.add('rsp',allocation);a.ret();break;
+          a.load('rbp',{base:'rsp',disp:savedFrameBase});a.add('rsp',allocation);a.ret();break;
       }
     }
-    finish(a,fn.id,allocation,prologSize);
+    for(const emit of cold)emit();
+    finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));
   // Host functions installed as properties of the global object before the prelude.
@@ -668,6 +766,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   if(hasPrelude&&linked.includes('buffer')){
     hostGlobal('__nonaHexEncode','rt.hexEncode.code',1);
     hostGlobal('__nonaByteCopy','rt.byteCopy.code',3);
+  }
+  if(hasPrelude&&linked.includes('network')){
+    // Captured and removed from the global object by nona:internal/native.
+    hostGlobal('__nonaNetParse','rt.netParse.code',4);
+    hostGlobal('__nonaNetLatin1','rt.netLatin1.code',3);
+    hostGlobal('__nonaNetWrite','rt.netWrite.code',4);
+    hostGlobal('__nonaNetCopy','rt.netCopy.code',5);
+    hostGlobal('__nonaNetCheck','rt.netCheck.code',2);
   }
   const agentPrograms=options.agentPrograms??[];
   if(options.agent){

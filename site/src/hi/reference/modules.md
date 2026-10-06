@@ -16,6 +16,8 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/hi/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/hi/reference/host-apis#paths-nodepath) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | मॉड्यूल | दोनों | [नेटवर्किंग (अंग्रेज़ी)](/reference/network) |
+| `node:events`, `node:string_decoder` | मॉड्यूल | दोनों | [Node.js सहायक मॉड्यूल (अंग्रेज़ी)](/reference/network#supporting-modules) |
 | `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
 | `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |
 
@@ -23,7 +25,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 - ग्लोबल स्क्रिप्ट और मॉड्यूल दोनों में उपलब्ध हैं।
 - बिल्ट-इन मॉड्यूल मॉड्यूल कोड (`.mjs` या `--module`) से इम्पोर्ट किए जा सकते हैं, और स्क्रिप्ट से लिटरल `import()` के साथ। FFI डिक्लेरेशन (`define`) मॉड्यूल कोड में होने चाहिए।
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - `nona:win32` और DLL डिक्लेरेशन केवल `win32-x64` के लिए कंपाइल होते हैं; सिस्टम कॉल डिक्लेरेशन केवल `linux-x64` के लिए।
 
 ## `nona:win32` {#nona-win32}

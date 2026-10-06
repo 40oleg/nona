@@ -5,12 +5,11 @@ var __nonaPromiseDrainJobs=(function(){
   var jobs=[],head=0,unhandled=[],handledLater=[],states=new WeakMap(),defineProperty=Object.defineProperty;
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
-  // CreateDataProperty through one reused descriptor: a fresh descriptor
-  // object per append cost five allocations on every job and reaction.
+  // CreateDataProperty at the end, natively (Array.__nonaAppendInternal).
+  // Hosts without the intrinsic (source tests on Node) use one reused descriptor.
   var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
-  function append(array,value){
-    appendDescriptor.value=value;defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined
-  }
+  var nativeAppend=__nonaRegexpVm.append||function(array,value){appendDescriptor.value=value;defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
+  function append(array,value){nativeAppend(array,value)}
   var noReactions=[];
   function enqueue(job){append(jobs,job)}
   // Realms created later reuse the first realm's queue and drain.

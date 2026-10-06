@@ -227,6 +227,32 @@ expressions against the rest of the document, which was quadratic before #107
 property lookup: the object model keeps properties in linked nodes, so
 `rt.findOwnProperty`, `rt.ownNamedNode` and string comparison lead the profile.
 
+## HTTP server
+
+Nona's own HTTP/1.1 implementation behind `node:http` (#115) against Node.js
+22 on the same server program, [`bench/http/server.mjs`](bench/http/server.mjs).
+`bench/http/run.sh` builds it, runs it on one CPU and drives it from another
+with [`bench/http/load.c`](bench/http/load.c): 50 connections with one
+request in flight each, 4 s per case. Measured on 2026-10-05 (Linux x64,
+shared machine: two consecutive runs, throughput varies by about 10%).
+
+| Case | Node.js req/s | Nona req/s | p99 Node.js / Nona | RSS Node.js / Nona |
+| --- | --- | --- | --- | --- |
+| hello (keep-alive, 13-byte body) | 71–72k | 61–70k | 1.4–1.6 / 1.7–2.2 ms | 80 / 16 MB |
+| json (`JSON.stringify` of a small object) | 66–68k | 55–61k | 1.6 / 2.0–2.2 ms | 79 / 16 MB |
+| close (new connection per request) | 25–27k | 22–26k | 4.3–4.6 / 4.1–4.6 ms | 70 / 18 MB |
+| big64k (64 KiB response) | 20–21k | **33–38k** | 4.5–5.2 / **2.7–3.0 ms** | 91 / 16 MB |
+| upload16k (16 KiB request body) | 49–54k | 41k | 1.8–2.1 / 2.5–2.9 ms | 78 / 16 MB |
+
+Nona serves large responses about 1.8 times faster than Node.js, is level
+on small keep-alive and per-connection requests, 10–20% behind when a
+request carries a body, and uses a fifth of the memory throughout. Counted
+by callgrind, a hello request costs about the same number of instructions in
+both (68k for Nona, 72k for Node.js); Nona's remaining gap is time per
+instruction (values live in stack slots, and allocation and collection touch
+more memory). How the server and the runtime got here is described in the
+pull request of #115 and the commits it lists.
+
 ## Where the time goes
 
 Grouping the ratios against Node by their cause:

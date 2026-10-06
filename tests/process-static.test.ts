@@ -193,6 +193,14 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64',before?:
  runInContext(processPreludeForTarget(target),context);return context;
 }
 
+test('process waits for referenced network services before lifecycle events',()=>{
+ const context=mockProcess();
+ runInContext('var lifecycle=[],networkPending=true;__nonaRegexpVm.hasPendingNetworkIO=()=>networkPending;process.on("beforeExit",()=>lifecycle.push("beforeExit"));process.on("exit",()=>lifecycle.push("exit"));__nonaPromiseDrainJobs()',context);
+ assert.equal(runInContext('JSON.stringify(lifecycle)',context),'[]');
+ runInContext('networkPending=false;__nonaPromiseDrainJobs()',context);
+ assert.equal(runInContext('JSON.stringify(lifecycle)',context),'["beforeExit","exit"]');
+});
+
 test('process metadata leaves stream constructors and standard I/O uninitialized',()=>{
  const context=mockProcess();
  assert.equal(runInContext('process.pid===123&&__nonaRegexpVm.streamModule===undefined&&!__nonaRegexpVm.hasPendingIO()',context),true);

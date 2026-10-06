@@ -25,6 +25,7 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - `node:path` / `path` with POSIX and Windows variants, parsing, resolution and glob matching; working directories are read on demand ([paths](docs/path.md));
   - global `Buffer`, `Blob` and `File`, with `node:buffer`/`buffer`/`nona:buffer` imports, byte encodings and numeric access ([binary data](docs/host-apis.md#buffer-and-binary-data));
+  - HTTP/1.1 servers and clients with `node:http`, TCP sockets with `node:net`, and `node:events` and `node:string_decoder` ([networking](docs/network.md));
   - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
 - **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
 

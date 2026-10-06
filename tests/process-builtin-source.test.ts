@@ -202,6 +202,9 @@ for(const target of supportedNativeTargets)test('builtin inventory derives suppo
  for(const path of supported){assert.equal(ir.scripts!.filter(item=>item===path).length,1);assert.ok(host.builtinAliases!(path)!.includes(path))}
  assert.equal(supported.includes('node:fs'),target.startsWith('win32-')||target.startsWith('linux-'));
  assert.equal(supported.includes('nona:win32'),target.startsWith('win32-'));
+ assert.equal(supported.includes('node:net'),target==='win32-x64'||target==='linux-x64');
+ assert.equal(supported.includes('node:http'),target==='win32-x64'||target==='linux-x64');
+ assert.ok(!supported.some(path=>path.startsWith('nona:internal/')));
  assert.ok(supported.includes('nona:ffi'));assert.ok(supported.includes('node:process'));
 });
 

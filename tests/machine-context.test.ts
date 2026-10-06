@@ -8,7 +8,7 @@ test('native target scopes restore the outer target after nested emission and ex
   const before=context.currentNativeTarget();
   context.withNativeTarget('freebsd-x64',()=>{
     assert.equal(context.currentNativeTarget(),'freebsd-x64');
-    const a=context.createAssembler('one');a.mov('rax',42);assert.equal(a.finish().bytes[0],0x48);
+    const a=context.createAssembler('one');a.mov('rax',42);assert.equal(a.finish().bytes[0],0xb8);
     assert.throws(()=>context.withNativeTarget('linux-arm64',()=>{throw new Error('intentional scope failure')}),/intentional/);
     assert.equal(context.currentNativeTarget(),'freebsd-x64');
     context.withNativeTarget('darwin-x64',()=>assert.equal(context.currentNativeTarget(),'darwin-x64'));

@@ -1,6 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {ObjectLayout as O,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyAttributes as A,PropertyLayout as P} from './object-layout.js';
+import {ElementsLayout as E} from './array-elements.js';
 import {DescriptorLayout as D} from './descriptor-layout.js';
 import {ValueListLayout as L} from './heap-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
@@ -86,6 +87,30 @@ export function emitObjectCollections(b:RuntimeBuilder):void {
  });
  for(const mode of ['keys','values','entries','getOwnPropertyNames','getOwnPropertySymbols','getOwnPropertyDescriptors'] as const)rootedFn(b,'rt.Object.'+mode+'.fn.code',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:13}],a=>{
   a.store(slot(40),'rcx');const absent=a.unique('absent');a.test('rdx','rdx');a.jcc('e',absent);for(const n of [0,8]){a.load('rax',{base:'r8',disp:n});a.store(slot(64+n),'rax');}a.label(absent);
+  const finished=a.unique('finished');
+  if(mode==='keys'){
+   // Ordinary object with only string-named properties (no index keys, no
+   // elements, not the global object): the keys are the enumerable list
+   // nodes in creation order, so the result array is filled directly
+   // instead of snapshotting rt.ownKeys and re-reading each key's attributes.
+   const generic=a.unique('generic'),count=a.unique('count'),skip=a.unique('skip'),counted=a.unique('counted'),fill=a.unique('fill'),fillSkip=a.unique('fillSkip'),filled=a.unique('filled');
+   a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',generic);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',generic);
+   a.load('rax',{base:'r10',disp:O.elements});a.test('rax','rax');a.jcc('ne',generic);a.lea('rax',{rip:'rt.globalObject'});a.cmp('r10','rax');a.jcc('e',generic);
+   a.mov('rdx',0);a.load('r10',{base:'r10',disp:O.properties});
+   a.label(count);a.test('r10','r10');a.jcc('e',counted);a.load('r11',{base:'r10',disp:P.key});a.load('rax',{base:'r11'});a.cmp('rax',-1);a.jcc('e',skip);
+   a.test('rax','rax');const nonEmpty=a.unique('nonEmpty');a.jcc('e',nonEmpty);a.load('rax',{base:'r11',disp:8},16);a.sub('rax',48);a.cmp('rax',9);a.jcc('be',generic);a.label(nonEmpty);
+   a.load('rax',{base:'r10',disp:P.attributes});a.and('rax',A.enumerable);a.jcc('e',skip);a.add('rdx',1);
+   a.label(skip);a.load('r10',{base:'r10',disp:P.next});a.jmp(count);
+   a.label(counted);a.store(slot(280),'rdx');a.lea('rcx',slot(112));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
+   a.load('rcx',slot(280));a.test('rcx','rcx');a.jcc('e',finished);a.call('rt.elementsAlloc');
+   a.load('r10',slot(120));a.store({base:'r10',disp:O.elements},'rax');a.load('rcx',slot(280));a.store({base:'r10',disp:O.length},'rcx');a.store({base:'rax',disp:E.count},'rcx');
+   a.shl('rcx',4);a.lea('r9',{base:'rax',disp:E.values});a.add('r9','rcx');
+   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.properties});
+   a.label(fill);a.test('r10','r10');a.jcc('e',finished);a.load('r11',{base:'r10',disp:P.key});a.load('rax',{base:'r11'});a.cmp('rax',-1);a.jcc('e',fillSkip);
+   a.load('rax',{base:'r10',disp:P.attributes});a.and('rax',A.enumerable);a.jcc('e',fillSkip);a.sub('r9',16);a.mov('rax',4);a.store({base:'r9'},'rax');a.store({base:'r9',disp:8},'r11');
+   a.label(fillSkip);a.load('r10',{base:'r10',disp:P.next});a.jmp(fill);
+   a.label(generic);
+  }
   a.lea('rcx',slot(80));a.lea('rdx',slot(64));a.call('rt.toObject');a.lea('rcx',slot(96));a.lea('rdx',slot(80));a.call('rt.ownKeys');
   a.lea('rcx',slot(112));a.mov('rdx',mode==='getOwnPropertyDescriptors'?0:1);a.mov('r8',0);a.call('rt.newObject');a.mov('rax',0);a.store(slot(280),'rax');
   const loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done');a.label(loop);a.load('rax',slot(280));a.load('r10',slot(104));a.load('r11',{base:'r10',disp:L.count});a.cmp('rax','r11');a.jcc('ae',done);a.shl('rax',4);a.add('r10',L.values);a.add('r10','rax');
@@ -106,7 +131,7 @@ export function emitObjectCollections(b:RuntimeBuilder):void {
    }
    a.lea('rcx',slot(112));a.lea('rdx',slot(mode==='entries'?160:mode==='values'?144:128));a.call('rt.appendArrayValue');
   }
-  a.label(next);a.load('rax',slot(280));a.add('rax',1);a.store(slot(280),'rax');a.jmp(loop);a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(112+n));a.store({base:'rcx',disp:n},'rax');}
+  a.label(next);a.load('rax',slot(280));a.add('rax',1);a.store(slot(280),'rax');a.jmp(loop);a.label(done);a.label(finished);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(112+n));a.store({base:'rcx',disp:n},'rax');}
  });
  for(const mode of ['create','defineProperties'] as const)rootedFn(b,'rt.Object.'+mode+'.fn.code',136,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:4}],a=>{
   a.store(slot(40),'rcx');for(const i of [0,1]){const absent=a.unique('absent');a.cmp('rdx',i);a.jcc('be',absent);for(const n of [0,8]){a.load('rax',{base:'r8',disp:16*i+n});a.store(slot(64+16*i+n),'rax');}a.label(absent);}

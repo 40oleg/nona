@@ -15,7 +15,8 @@ __nonaPromiseDrainJobs=(function(drain){
   __nonaRegexpVm.hasPendingTimers=function(){return referenced!==0};
   __nonaRegexpVm.activeTimerResources=function(){var resources=[];active.forEach(function(timer){if(timer.referenced)append(resources,timer.immediate?'Immediate':'Timeout')});return resources};
   var getTimer=Map.prototype.get.bind(active),setTimer=Map.prototype.set.bind(active),deleteTimer=Map.prototype['delete'].bind(active);
-  function append(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
+  var nativeAppend=__nonaRegexpVm.append||function(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})};
+  function append(array,value){nativeAppend(array,value)}
   function less(x,y){return x.when<y.when||(x.when===y.when&&x.seq<y.seq)}
   function siftUp(i){
     while(i>0){var p=floor((i-1)/2);if(!less(heap[i],heap[p]))return;var t=heap[i];heap[i]=heap[p];heap[p]=t;i=p}
@@ -103,9 +104,15 @@ __nonaPromiseDrainJobs=(function(drain){
     try{if(context&&captured&&captured!==previous)context.runCaptured(captured,timer.callback,timer.handle,timer.args);else reflectApply(timer.callback,timer.handle,timer.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}finally{if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
   function immediatePhase(){var limit=immediates.length;while(immediateHead<limit){var state=immediates[immediateHead++];if(!state.cancelled){run(state);drain()}}if(immediateHead===immediates.length){immediates=[];immediateHead=0}}
+  // The network module registers its native readiness poller on first use.
+  var io=null;
+  defineProperty(globalThis,'__nonaIoLoop',{value:function(poller){io=poller},writable:true,configurable:true});
+  function networkAlive(){return io!==null&&io.active()>0}
+  __nonaRegexpVm.hasPendingNetworkIO=networkAlive;
+  function pollNetwork(timeout){var ready=io.poll(timeout);for(var i=0;i<ready;i++){try{io.run(i)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}drain()}}
   return function eventLoop(){
     drain();
-    if(referenced===0&&!(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO()))return;
+    if(referenced===0&&!networkAlive()&&!(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO()))return;
     for(;;){
       if(typeof __nonaRegexpVm.pumpSignals==='function'){
         try{__nonaRegexpVm.pumpSignals()}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}
@@ -113,12 +120,14 @@ __nonaPromiseDrainJobs=(function(drain){
       }
       var pendingIO=typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO();
       var readableIO=typeof __nonaRegexpVm.hasReadableIO==='function'&&__nonaRegexpVm.hasReadableIO();
-      if(readableIO&&(referenced>0||pendingIO)){__nonaRegexpVm.pumpIO();drain();pendingIO=__nonaRegexpVm.hasPendingIO();readableIO=__nonaRegexpVm.hasReadableIO()}
-      if(heap.length===0){if(immediateHead<immediates.length&&(referenced>0||pendingIO)){immediatePhase();continue}if(pendingIO){hostWait(5);continue}return}
+      while(heap.length>0&&heap[0].cancelled)pop();
+      if(readableIO&&(referenced>0||pendingIO||networkAlive())){__nonaRegexpVm.pumpIO();drain();pendingIO=__nonaRegexpVm.hasPendingIO();readableIO=__nonaRegexpVm.hasReadableIO()}
+      if(io!==null&&io.total()>0&&(heap.length===0||heap[0].when>hostNow())){pollNetwork(0);pendingIO=typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO();readableIO=typeof __nonaRegexpVm.hasReadableIO==='function'&&__nonaRegexpVm.hasReadableIO()}
+      if(heap.length===0){if(immediateHead<immediates.length&&(referenced>0||pendingIO||networkAlive())){immediatePhase();continue}if(networkAlive()){pollNetwork(pendingIO?5:-1);continue}if(pendingIO){hostWait(5);continue}return}
       var timer=heap[0];
       if(timer.cancelled){pop();continue}
       var remaining=timer.when-hostNow();
-      if(remaining>0){if(referenced===0&&!pendingIO)return;if(immediateHead<immediates.length){immediatePhase();continue}var signals=typeof __nonaRegexpVm.hasSignalWatches==='function'&&__nonaRegexpVm.hasSignalWatches();hostWait(readableIO||signals?Math.min(5,ceil(remaining)):ceil(remaining));continue}
+      if(remaining>0){if(referenced===0&&!pendingIO&&!networkAlive())return;if(immediateHead<immediates.length){immediatePhase();continue}var signals=typeof __nonaRegexpVm.hasSignalWatches==='function'&&__nonaRegexpVm.hasSignalWatches(),timeout=readableIO||signals?Math.min(5,ceil(remaining)):ceil(remaining);if(io!==null&&io.total()>0)pollNetwork(timeout);else hostWait(timeout);continue}
       // Finish timers already due in this phase even if its last reference expires.
       var phaseTime=hostNow();
       while(heap.length>0){
@@ -128,7 +137,7 @@ __nonaPromiseDrainJobs=(function(drain){
         pop();run(timer);drain()
       }
       if(immediateHead<immediates.length)immediatePhase();
-      if(referenced===0&&!(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO()))return;
+      if(referenced===0&&!networkAlive()&&!(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO()))return;
     }
   }
 })(__nonaPromiseDrainJobs);

@@ -22,6 +22,7 @@ export const zh: Dictionary = {
     hostApis: '定时器与事件循环',
     process: 'process',
     fs: '文件系统与文本编码',
+    network: '网络：http 与 net（英文）',
     ffi: '原生函数（FFI）',
     windowsExecutables: 'Windows 可执行文件',
     test262: 'Test262',

@@ -5,9 +5,14 @@ import {CompileError} from '../diagnostics.js';
 import {getTarget,type Target} from '../target.js';
 import {eventsModuleForTarget} from './events-module.js';
 import {asyncHooksModuleSource} from './async-hooks-module.js';
-import {pathModuleSourceForTarget} from './path-module.js';
 import {bufferModuleSource} from './buffer-module.js';
 import {streamModuleSource,streamPromisesModuleSource,streamConsumersModuleSource} from './stream-module.js';
+import {stringDecoderModuleSource} from './string-decoder-module.js';
+import {nativeModuleSource} from './native-module.js';
+import {netModuleSource} from './net-module.js';
+import {httpModuleSource} from './http-module.js';
+import {pathModuleSourceForTarget} from './path-module.js';
+import {networkStreamModuleSource} from './network-stream-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -94,6 +99,8 @@ export const report = process.report;
 export const version = process.version, versions = process.versions, release = process.release, features = process.features, config = process.config;
 `;
 
+/** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
+function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
 const sources=new Map<string,(target:Target)=>string>([
   ['node:buffer',()=>bufferModuleSource],
   ['buffer',()=>bufferModuleSource],
@@ -114,6 +121,14 @@ const sources=new Map<string,(target:Target)=>string>([
   ...['node:stream/promises','nona:stream/promises'].map(name=>[name,()=>streamPromisesModuleSource] as [string,()=>string]),
   ...['node:stream/consumers','nona:stream/consumers'].map(name=>[name,()=>streamConsumersModuleSource] as [string,()=>string]),
   ['node:process',()=>processModuleSource],
+  ['node:string_decoder',()=>stringDecoderModuleSource],
+  ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
+  ['nona:internal/stream',()=>networkStreamModuleSource],
+  ['nona:internal/native',()=>nativeModuleSource],
+  ['node:net',netModuleSource],
+  ['nona:net',()=>aliasOf('node:net')],
+  ['node:http',()=>httpModuleSource],
+  ['nona:http',()=>aliasOf('node:http')],
 ]);
 
 export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier)||sources.has('node:'+specifier);}
@@ -123,6 +138,8 @@ function builtinInventory(target:Target):{path:string;source:string;aliases:stri
  const implemented=new Map<string,string>();
  for(const [specifier,provider] of sources){
   if(specifier==='nona:win32'&&getTarget(target)!.os!=='win32')continue;
+  if(specifier.startsWith('nona:internal/'))continue;
+  if(['node:net','nona:net','node:http','nona:http'].includes(specifier)&&target!=='win32-x64'&&target!=='linux-x64')continue;
   let source:string;
   try{source=provider(target)}catch(error){
    if(error instanceof CompileError&&error.diagnostics.every(d=>d.code==='E_HOST_MODULE'))continue;

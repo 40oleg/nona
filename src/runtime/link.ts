@@ -37,6 +37,8 @@ export const preludeTriggers={
   arraySort:['sort'],
   objectIntegrity:['freeze','seal','isFrozen','isSealed'],
   objectAnnexB:['__defineGetter__','__defineSetter__','__lookupGetter__','__lookupSetter__'],
+  // Native helpers of node:net and node:http (no prelude code, only host functions).
+  network:['__nonaNetParse'],
 } as const satisfies Record<string,readonly string[]>;
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];

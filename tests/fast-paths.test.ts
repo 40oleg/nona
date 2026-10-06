@@ -232,6 +232,169 @@ out.push(churn.length);
 const arr=[1,2,3];function len(a){return a.push(4);}out.push(len(arr),len(arr),arr.length);
 console.log(out.join());
 `,
+ 'inline caches across prototype changes and deletes':`
+const out=[];
+const a={m(){return 'a';}},b={m(){return 'b';}};
+const mid=Object.create(a),leaf=Object.create(mid);
+function call(o){return o.m();}
+for(let i=0;i<3;i++)out.push(call(leaf));
+// The chain above a cached receiver changes: mid is a flagged prototype.
+Object.setPrototypeOf(mid,b);out.push(call(leaf),call(leaf));
+mid.__proto__=a;out.push(call(leaf));
+// Objects created and re-parented in between do not disturb the cache.
+for(let i=0;i<50;i++){const t={__proto__:b,k:i};Object.setPrototypeOf(t,a);delete t.k;out.push(call(t));}
+// An object that was re-parented before it became a prototype.
+const p=Object.create(b);Object.setPrototypeOf(p,a);const q=Object.create(p);out.push(call(q),call(q));
+Object.setPrototypeOf(p,b);out.push(call(q));
+// Deleting from a prototype after its re-parenting, and an own shadow.
+b.m=function(){return 'b2';};out.push(call(q));delete b.m;out.push(q.m===undefined?'none':'some');
+try{call(q);}catch(e){out.push(e.constructor.name);}
+const own={m(){return 'own';},__proto__:a};out.push(call(own));delete own.m;out.push(call(own));
+class C{m(){return 'C';}}const objs=[];for(let i=0;i<20;i++)objs.push(new C());
+for(const o of objs){delete o.x;out.push(call(o));}
+C.prototype.m=function(){return 'C2';};out.push(call(objs[3]));
+Object.setPrototypeOf(C.prototype,{m(){return 'up';}});delete C.prototype.m;out.push(call(objs[4]));
+console.log(out.join());
+`,
+ 'inline caches for getters and objects of every kind':`
+class A { constructor() { this._x = 1; } get x() { return this._x * 2; } set x(v) { this._x = v; } get self() { return this; } }
+const a = new A(); const out = [];
+for (let i = 0; i < 5; i++) { out.push(a.x); a.x = i; }
+out.push(a.self === a);
+const m = new Map([[1, 2]]); out.push(m.size, typeof m.get, m.get(1));
+const ta = new Int32Array(4); out.push(ta.length, ta.byteLength, ta.NaN, ta.Infinity, ta['-1'], ta.foo);
+ta.foo = 5; ta.Nx = 3; out.push(ta.foo, ta.Nx, Object.keys(ta).join());
+out.push('hello'.length, ''.length, 'héllo'.length);
+Object.defineProperty(A.prototype, 'x', { get() { return 'redefined'; }, configurable: true });
+out.push(a.x);
+const o = { get g() { return 'og'; } }; out.push(o.g, o.g);
+const s = new Set([1]); s.tag = 'set'; out.push(s.size, s.tag, s.has(1));
+const d = new Date(0); d.label = 'd'; out.push(d.label, typeof d.getTime);
+const e = new Error('m'); out.push(e.message, e.name);
+const p = new Proxy({}, { get: (t, k) => 'proxy:' + String(k) }); out.push(p.abc, p.abc);
+const nob = { __proto__: { get v() { return this === nob; } } }; out.push(nob.v);
+String.prototype.lenx = 7; out.push('ab'.lenx);
+Object.defineProperty(String.prototype, 'gs', { get() { return typeof this; }, configurable: true }); out.push('ab'.gs);
+const so = { get onlySet() { return undefined; }, set onlySet2(v) {} }; out.push(so.onlySet, so.onlySet2);
+console.log(out.join(','));
+`,
+ 'own key filters across every way a key is added':`
+const out=[];const sym=Symbol('s');
+class P{m(){return 'proto';}}
+const objs=[];
+for(let i=0;i<40;i++){const o=new P();for(let j=0;j<i;j++)o['k'+j]=j;objs.push(o);}
+for(const o of objs){out.push(o.m(),o.k0,o.k5,o.k38,o.missing,o.m===P.prototype.m);}
+const lit={a:1,b:2};Object.defineProperty(lit,'m',{value:()=>'own',configurable:true});out.push(lit.m(),lit.a);
+const viaAssign=Object.assign(new P(),{m(){return 'assigned';},x:1});out.push(viaAssign.m(),viaAssign.x);
+const spread={...{m(){return 'spread';}}};out.push(spread.m());
+const parsed=JSON.parse('{"m":5,"n":6}');out.push(parsed.m,parsed.n,parsed.o);
+const arr=[1,2,3];arr.m=function(){return 'array';};out.push(arr.m(),arr.length);arr[10]=4;out.push(arr[10],Object.keys(arr).join());
+const withSym=new P();withSym[sym]='sym';out.push(withSym[sym],withSym.m());
+const del=new P();del.m=function(){return 'shadow';};out.push(del.m());delete del.m;out.push(del.m());del.m=()=>'again';out.push(del.m());
+const many={};for(let i=0;i<300;i++)many['p'+i]=i;let s=0;for(let i=0;i<300;i++)s+=many['p'+i];out.push(s,many.p299,many.q1,'p150' in many,'q1' in many);
+function F(){this.a=1;}F.prototype.b=2;const f=new F();out.push(f.a,f.b,f.c);f.b=3;out.push(f.b,F.prototype.b);
+const proto=Object.create(null);proto.z='z';const child=Object.create(proto);out.push(child.z);child.z='own z';out.push(child.z,proto.z);
+const args=(function(){return arguments;})(1,2);out.push(args.length,args[1]);
+const re=/x/g;re.exec('xx');out.push(re.lastIndex);
+function g(){}g.extra=1;out.push(g.extra,g.name,g.length);
+class Q extends P{constructor(){super();this.q=1;}}const q=new Q();out.push(q.q,q.m());
+const frozen=Object.freeze({fz:1});out.push(frozen.fz);
+const getter={};Object.defineProperty(getter,'gv',{get(){return 'got';}});out.push(getter.gv);
+console.log(out.join());
+`,
+ 'inline property nodes of literals and instances':`
+const out=[];
+class P{constructor(i){this.a={v:i};this.b='b'+i;this.c=[i];}}
+function read(o){return o.a.v+o.b+o.c[0];}
+const keep=[];for(let i=0;i<200;i++){const p=new P(i);keep.push(p);if(i%50===0)out.push(read(p));}
+let sum=0;for(const p of keep)sum+=p.a.v+p.c[0];out.push(sum,read(keep[199]));
+class W{constructor(n){for(let i=0;i<n;i++)this['w'+i]={i};}}
+for(const n of [2,10,40,3,40])
+{const w=new W(n);out.push(n,Object.keys(w).length,w.w0&&w.w0.i,w.w1&&w.w1.i,n>9?w.w9.i:'-',n>39?w.w39.i:'-');}
+const lit={x:{n:1},y:{n:2},z:{n:3}};function rx(o){return o.x.n+o.y.n+o.z.n;}out.push(rx(lit));
+delete lit.y;out.push(lit.y,Object.keys(lit).join());lit.y={n:20};out.push(rx(lit),Object.keys(lit).join());
+const objs=[{x:{n:1},y:{n:1},z:{n:1}},new (class{constructor(){this.z={n:5};this.y={n:6};this.x={n:7};}})(),Object.assign(Object.create(null),{x:{n:9},y:{n:9},z:{n:9}})];
+for(let r=0;r<3;r++)for(const o of objs)out.push(rx(o));
+const late=new P(1);late.extra={v:'late'};late.a=null;out.push(late.extra.v,late.a,Object.keys(late).join());
+function F(){this.p=1;}const fs=[];for(let i=0;i<30;i++){const f=new F();for(let j=0;j<i%7;j++)f['q'+j]=j;fs.push(f);}
+out.push(fs.map(f=>Object.keys(f).length).join(''));
+const nested={};let cur=nested;for(let i=0;i<50;i++){cur.next={depth:i};cur=cur.next;}let d=0;cur=nested;while(cur.next){cur=cur.next;d=cur.depth;}out.push(d);
+console.log(out.join(' '));
+`,
+ 'cached property writes':`
+'use strict';
+const out=[];
+class A{constructor(v){this.x=v;this.y=v+1;}}
+function make(v){return new A(v);}
+function setX(o,v){o.x=v;return o.x;}
+function setZ(o,v){o.z=v;return o.z;}
+for(let i=0;i<20;i++){const o=make(i);out.push(setX(o,i*2),setZ(o,i*3),Object.keys(o).join('|'));}
+// A setter appears on the prototype after the site created the property many times.
+let log=[];Object.defineProperty(A.prototype,'z',{set(v){log.push(v);},get(){return 'proto z';},configurable:true});
+for(let i=0;i<3;i++){const o=make(i);out.push(setZ(o,100+i),Object.keys(o).join('|'));}
+out.push(log.join(','));delete A.prototype.z;
+for(let i=0;i<3;i++){const o=make(i);out.push(setZ(o,200+i),Object.keys(o).join('|'));}
+// Readonly on a grand-prototype.
+const base={};Object.defineProperty(base,'w',{value:1,writable:false,configurable:true});
+function B(){}B.prototype=Object.create(base);
+function setW(o,v){try{o.w=v;return 'ok '+o.w;}catch(e){return e.constructor.name;}}
+for(let i=0;i<3;i++)out.push(setW({},i),setW(new B(),i));
+delete base.w;for(let i=0;i<3;i++)out.push(setW(new B(),i));
+// Frozen, sealed, non-extensible receivers.
+const f=Object.freeze(make(1));out.push((()=>{try{f.x=5;return 'no throw';}catch(e){return e.constructor.name;}})());
+const ne=Object.preventExtensions(make(2));out.push((()=>{try{ne.z=5;return 'no throw';}catch(e){return e.constructor.name;}})(),setX(ne,9));
+// Writability changed on an instance.
+const r=make(3);Object.defineProperty(r,'x',{writable:false});out.push((()=>{try{r.x=1;return 'no throw';}catch(e){return e.constructor.name;}})(),r.x);
+// Delete and re-add, prototype swap, other classes at the same site.
+const d=make(4);delete d.x;out.push(setX(d,44),Object.keys(d).join('|'));
+const p=make(5);Object.setPrototypeOf(p,{set z(v){out.push('swapped '+v);}});setZ(p,55);out.push(Object.keys(p).join('|'));
+class C{constructor(){this.a=1;this.x=2;}}
+for(let i=0;i<4;i++){out.push(setX(new C(),i),setX(make(i),-i),setX({x:0,q:1},i),setX([],i));}
+// Many fields, more than the first instances get.
+class Big{constructor(){for(let i=0;i<40;i++)this['f'+i]=i;}}
+function setF(o){o.f1=-1;o.f39=-39;return o.f1+o.f39;}
+for(let i=0;i<5;i++){const b=new Big();out.push(setF(b),Object.keys(b).length,b.f20);}
+// Getter-only accessor on the instance and Proxy receivers.
+const g=make(6);Object.defineProperty(g,'x',{get(){return 'gx';},configurable:true});out.push((()=>{try{g.x=1;return 'no throw';}catch(e){return e.constructor.name;}})());
+const px=new Proxy({},{set(t,k,v){out.push('trap '+k+'='+v);t[k]=v;return true;}});setX(px,7);setZ(px,8);
+console.log(out.join(' '));
+`,
+ 'array length assignments':`
+const out=[];
+const a=[1,2,3,4,5];a.length=3;out.push(a.join(),a.length,a[3],3 in a);a.length=6;out.push(a.length,a[5],5 in a,a.join());a.length=0;out.push(a.length,a[0]);
+const b=[1,2,3];b.x=1;b.length=1;out.push(b.join(),b.x,Object.keys(b).join());
+const c=[1,2,3];Object.defineProperty(c,'1',{value:9,configurable:false});c.length=0;out.push(c.length,c.join());
+const d=[1,2,3];Object.defineProperty(d,'length',{writable:false});d.length=1;out.push(d.length);
+try{(function(){'use strict';const e=[1];Object.freeze(e);e.length=0;})();}catch(err){out.push(err.constructor.name);}
+for(const v of [1.5,-1,2**32,NaN,'2',{valueOf(){return 1;}}]){const f=[1,2,3];try{f.length=v;out.push(f.length);}catch(err){out.push(err.constructor.name);}}
+const g=[];for(let i=0;i<100;i++)g.push(i);g.length=10;out.push(g.reduce((x,y)=>x+y,0));g.length=50;g[49]=1;out.push(g.length,g[20]);
+const h={length:5};h.length=1;out.push(h.length);
+console.log(out.join(' '));
+`,
+ 'computed reads of getters':`
+const out=[];const u=new Uint8Array(5);const k='length';out.push(u[k],u.length,new Map([[1,1]])['size']);
+class G{get v(){return this.w*2;}constructor(){this.w=3;}}const g=new G();const key='v';out.push(g[key],g['v']);
+const o={get x(){return this;}};out.push(o['x']===o);const s='str';out.push(s['length'],s[k]);
+Object.defineProperty(Object.prototype,'ww',{set(v){},configurable:true});out.push(({})['ww']);delete Object.prototype.ww;
+const arr=[1,2];out.push(arr[k]);const p=new Proxy({},{get:(t,q)=>'P'+String(q)});out.push(p[k]);
+console.log(out.join(' '));
+`,
+ 'Number keys of plain objects':`
+const T={100:'a',200:'b',404:'c',1.5:'d','-1':'e'};const out=[];
+for(const k of [100,200,404,500,1.5,-1,0,-0,NaN,1e21]){out.push(T[k]);}
+const proto={7:'p'};const child=Object.create(proto);child[8]='c';out.push(child[7],child[8],child[9]);
+const acc={};Object.defineProperty(acc,'5',{get(){return 'g';}});out.push(acc[5]);
+const arr=[1,2,3];arr[100]=4;out.push(arr[100],arr[50]);
+function C(){this[3]='three';}out.push(new C()[3]);
+console.log(out.join(' '));
+`,
+ 'this in constructors, arrows and sloppy functions':`
+class A{constructor(){this.v=1;}m(){return this.v;}arrow(){return (()=>this.v)();}}
+class B extends A{constructor(){const f=()=>this;let e;try{f();}catch(x){e=x.constructor.name;}super();this.e=e;this.g=f()===this;}}
+const b=new B();console.log(b.m(),b.arrow(),b.e,b.g);
+class C extends A{constructor(){try{this.x=1;}catch(e){console.log('tdz',e.constructor.name);}super();}}new C();
+function sloppy(){return typeof this;}console.log(sloppy(),sloppy.call(5));
+`,
  'JSON.parse over the source text':`
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];
@@ -253,6 +416,137 @@ try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constr
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
+ 'Object.keys of ordinary objects':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+log(Object.keys({b:1,a:2,c:3}));
+const p={};Object.defineProperty(p,"h",{value:1,enumerable:false});p.x=1;p[Symbol("s")]=2;p.y=3;log(Object.keys(p));
+log(Object.keys({z:1,2:2,1:3,"":4,"01":5}));
+const r={get g(){return 1},v:2};delete r.v;r.w=5;log(Object.keys(r),JSON.stringify(r));
+log(Object.keys({}),Object.keys([1,2]),Object.keys("ab"),Object.keys(new Map()),Object.keys(Object.create({inherited:1})));
+class C{constructor(){this.m=1;this.n=2}};const c=new C();c.k=3;log(Object.keys(c));
+const big={};for(let i=0;i<40;i++)big["k"+i]=i;const ks=Object.keys(big);ks.push("zz");log(ks.length,ks[0],ks[39],ks[40]);
+const keys=Object.keys({a:1});keys[5]=1;keys.pop();log(keys,keys.length);
+let n=0;for(let i=0;i<300;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
+`,
+ 'array push and pop':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+const a=[];log(a.push(1,2,3),a,a.pop(),a,a.length,a.push(),a.length);
+const b=[1,,3];log(b.pop(),b.pop(),b.length,b.pop(),b.pop(),b.length);
+const f=Object.freeze([1,2]);try{f.push(3)}catch(e){log(e.constructor.name,f)}try{f.pop()}catch(e){log(e.constructor.name,f)}
+const c=[1,2];Object.defineProperty(c,"length",{writable:false});try{c.push(1)}catch(e){log(e.constructor.name,c)}try{c.pop()}catch(e){log(e.constructor.name,c)}
+const o={length:2,0:"a",1:"b"};log(Array.prototype.push.call(o,"c"),o,Array.prototype.pop.call(o),o);
+const s=Object.seal([1,2]);try{s.pop()}catch(e){log(e.constructor.name,s)}try{s.push(3)}catch(e){log(e.constructor.name,s)}
+const x=Object.preventExtensions([1]);try{x.push(2)}catch(e){log(e.constructor.name,x)}log(x.pop(),x);
+class X extends Array{};const xs=new X();xs.push(5,6);log(xs.pop(),xs.length,xs instanceof X);
+const big=[];for(let i=0;i<500;i++)big.push(i,{i});let sum=0;while(big.length){big.pop();sum+=big.pop();}log(sum);
+const sp=[];sp[1000]=1;log(sp.push(2),sp.length,sp.pop(),sp.pop(),sp.length);
+Array.prototype[3]="p";const q=[0,1,2];q.push(9);log(q[3],q.length,q.pop(),q.pop(),q.length,q[3]);delete Array.prototype[3];
+const r=[1,2,3];r.length=1;log(r.pop(),r.length,r.pop(),r.length,r.pop());
+const g=[1,2];Object.defineProperty(g,"1",{get(){return "g"},configurable:true});log(g.pop(),g.length);
+`,
+ 'integer remainder':`
+const v=[5,-5,0,-0,5.5,1e20,2**53,NaN,Infinity,-Infinity,3,-3,1,"7",null,true,2**31,-(2**31),4294967296];
+const out=[];for(const x of v)for(const y of v)out.push(Object.is(x%y,-0)?"-0":String(x%y));console.log(out.join(","));
+let s=0;for(let i=0;i<300;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
+`,
+ 'buffers across the large size classes':`
+const sizes=[1000,1100,1400,2000,2100,4000,4100,5500,8100,8200,11000,13000,16384,20000,22000,32000,33000,65000,65500,70000];
+let total=0;for(let round=0;round<20;round++){const live=[];for(const n of sizes){const u=new Uint8Array(n);u[0]=round;u[n-1]=n&255;live.push(u);}
+for(const u of live){if(u[0]!==round||u[u.length-1]!==(u.length&255))throw new Error("corrupt "+u.length);total+=u.length;}}
+console.log(total);
+`,
+ 'default derived constructors':`
+class A{constructor(...a){this.args=a;this.nt=new.target.name;}}
+class B extends A{}
+class C extends B{}
+const b=new B(1,2,3),c=new C();console.log(JSON.stringify(b.args),b.nt,JSON.stringify(c.args),c.nt,b instanceof B,c instanceof A);
+class U extends Uint8Array{};const u=new U(4);console.log(u.length,u instanceof U,Object.getPrototypeOf(u)===U.prototype);
+class E extends Error{};const e=new E('m');console.log(e.message,e instanceof E,e.name);
+class M extends Map{};const m=new M([[1,2]]);console.log(m.get(1),m instanceof M);
+class P extends Promise{};console.log(P.resolve(1) instanceof P);
+function F(x,y){this.s=x+y;arguments.length;this.n=arguments.length}class G extends F{};const g=new G(2,3,4);console.log(g.s,g.n);
+class H extends A{x=5};const h=new H(9);console.log(h.x,JSON.stringify(h.args));
+let k=0;for(let i=0;i<300;i++)k+=new B(i).args[0];console.log(k);
+try{class Z extends null{};new Z()}catch(err){console.log(err.constructor.name)}
+class Q extends A{constructor(){super(1);return {custom:true}}};console.log(JSON.stringify(new Q()));
+class R extends A{constructor(){return undefined}};try{new R()}catch(e){console.log(e.constructor.name)}
+class S extends A{constructor(){super();}};console.log(Reflect.construct(S,[]) instanceof S, Reflect.construct(S,[],B) instanceof B);
+const BS=S.bind(null);console.log(new BS() instanceof S);
+try{S()}catch(e){console.log(e.constructor.name)}
+class T extends Object{constructor(){super();this.t=1}};console.log(new T().t, new T() instanceof T);
+const Px=new Proxy(S,{});console.log(new Px() instanceof S);
+`,
+ 'length reads':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+const vals=["abc","",[1,2,3],[],new Uint8Array(5),new Float64Array(2),new String("xy"),function(a,b){},(...r)=>0,{length:7},{},Object.create({length:3}),new Map(),[,,],Object.assign([1],{length:4})];
+for(let r=0;r<3;r++)for(const v of vals)log(typeof v, v.length);
+function f(){return arguments.length}log(f(1,2,3),f());
+const u=new Uint8Array(4);Object.defineProperty(u,'length',{value:99});log(u.length);
+class B extends Uint8Array{get length(){return -1}};log(new B(3).length);
+const ab=new ArrayBuffer(8);const t=new Uint8Array(ab);log(t.length);
+const g=new Uint16Array(3);log(g.length,g.subarray(1).length);
+log((5).length,true.length,Symbol("ab").description.length);
+try{null.length}catch(e){log(e.constructor.name)}try{undefined.length}catch(e){log(e.constructor.name)}
+`,
+ 'super property reads':`
+const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
+class A{m(){return 'A.m:'+this.tag} get g(){return 'A.g:'+this.tag} static s(){return 'A.s'} get only(){return this.tag}}
+class B extends A{constructor(){super();this.tag='b'} m(){return 'B>'+super.m()} get g(){return 'B>'+super.g} x(){return [super.only,super.missing,super.constructor.name]} static s(){return 'B>'+super.s()}}
+const b=new B();for(let i=0;i<3;i++)log(b.m(),b.g,b.x(),B.s());
+A.prototype.m=function(){return 'patched:'+this.tag};log(b.m());
+Object.defineProperty(A.prototype,'g',{get(){return 'redef:'+this.tag},configurable:true});log(b.g);
+delete A.prototype.m;try{b.m()}catch(e){log(e.constructor.name)}
+const o={__proto__:{hi(){return 'proto hi '+this.n}},n:1,hi(){return super.hi()+'!'}};log(o.hi());
+Object.setPrototypeOf(o,{hi(){return 'other '+this.n}});log(o.hi());
+const n={f(){return super.f}};Object.setPrototypeOf(n,null);try{n.f()}catch(e){log(e.constructor.name)}
+class C extends Array{last(){return super.at(-1)} len(){return super.length}};const c=C.from([1,2,3]);log(c.last(),c.len());
+class E extends Error{msg(){return super.toString()}};log(new E('x').msg());
+A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<300;i++)s+=d.m().length;log(s);
+`,
+ 'global name reads':`
+const log=(...a)=>console.log(a.map(x=>typeof x==='function'?'fn:'+x.name:JSON.stringify(x)).join(" "));
+function readAll(){return [typeof Math, Math.PI, typeof Date, typeof queueMicrotask, typeof undeclaredThing, globalThis.foo===undefined?'nofoo':foo]}
+for(let i=0;i<3;i++)log(readAll());
+globalThis.foo=1;log(readAll());
+globalThis.foo=2;log(readAll());
+delete globalThis.foo;log(readAll());
+Object.defineProperty(globalThis,'foo',{get(){return 'getter'},configurable:true});log(readAll());
+Object.defineProperty(globalThis,'foo',{value:'data',configurable:true,writable:true});log(readAll());
+const savedMath=Math;globalThis.Math={PI:3};log(readAll());globalThis.Math=savedMath;log(readAll());
+delete globalThis.Math;try{log(readAll())}catch(e){log(e.constructor.name)}globalThis.Math=savedMath;log(readAll());
+function bar(){return baz}try{bar()}catch(e){log(e.constructor.name)}globalThis.baz=7;log(bar());delete globalThis.baz;try{bar()}catch(e){log(e.constructor.name)}
+let s=0;for(let i=0;i<300;i++)s+=Math.abs(-1);log(s);
+`,
+ 'JSON.stringify members, toJSON and replacers':`
+const log=console.log;
+const user={id:42,name:'Ada',roles:['a','b'],nested:{x:[1,{y:2}]},d:new Date(0),n:null,u:undefined,f(){},s:Symbol('q')};
+for(let i=0;i<3;i++)log(JSON.stringify(user));
+log(JSON.stringify([1,'a',{toJSON(k){return 'tj:'+k+':'+typeof k}},[{toJSON(k){return k+typeof k}}]]));
+log(JSON.stringify({a:{toJSON(k){return 'key '+k}}}));
+Object.prototype.toJSON=function(k){return 'P:'+k};log(JSON.stringify({a:1,b:[1]}));delete Object.prototype.toJSON;log(JSON.stringify({a:1,b:[1]}));
+Array.prototype.toJSON=function(k){return 'A:'+k};log(JSON.stringify({a:[1,2]}));delete Array.prototype.toJSON;log(JSON.stringify({a:[1,2]}));
+const o={a:1};o.toJSON=()=>'own';log(JSON.stringify([o]));delete o.toJSON;log(JSON.stringify([o]));
+class C{constructor(){this.v=1}toJSON(){return 'class'}};log(JSON.stringify([new C()]));
+log(JSON.stringify({a:[1,2]},(k,v)=>typeof k+':'+k+(typeof v==='object'?'':v)));
+log(JSON.stringify([[0,1]],function(k,v){return Array.isArray(v)?v:typeof k+k}));
+log(JSON.stringify(Object.create(null,{x:{value:1,enumerable:true}})));
+log(JSON.stringify({big:10n<0?1:2,m:new Map([[1,2]])}));
+try{JSON.stringify({b:1n})}catch(e){log(e.constructor.name)}
+BigInt.prototype.toJSON=function(){return this.toString()};log(JSON.stringify({b:1n}));delete BigInt.prototype.toJSON;
+log(JSON.stringify({a:1,b:'x'},null,2));
+const proto={toJSON(){return 'proto'}};log(JSON.stringify([Object.create(proto)]));
+const m={a:1,get b(){delete this.c;this.a=5;return 2},c:3,d:{toJSON(){m.e='late';return 'D'}},e:'early',0:'zero',1.5:'f'};log(JSON.stringify(m));
+const inh=Object.create({p:1});inh.own=2;log(JSON.stringify(inh));
+const big={};for(let i=0;i<30;i++)big['k'+i]=i;log(JSON.stringify(big));
+const arrHole=[1,,3];arrHole.x=1;log(JSON.stringify(arrHole));
+log(JSON.stringify(5,function(k,v){return JSON.stringify(Object.keys(this))+typeof this+k+v}));
+log(JSON.stringify('top'),JSON.stringify(null),JSON.stringify(undefined),JSON.stringify(()=>1),JSON.stringify([undefined]));
+`,
+ 'JSON string quoting':`
+const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','\\u00fcnicode','emoji\\ud83d\\ude00x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd\\u2028efgh'];
+for(const s of strs)console.log(JSON.stringify(s),JSON.stringify({[s]:s}));
+let n=0;for(let i=0;i<400;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
+`,
 };
 
 // The operator matrix does not allocate on its fast paths and is too large to
@@ -263,4 +557,21 @@ for(const [name,source] of Object.entries(programs))test(`fast paths agree with 
  const expected=runOracle(source).stdout;
  const run=runOnHost(source,{gcStress:!plainPrograms.has(name)});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,expected);
+});
+
+test('the named fast paths list the ordinary object kinds by their numbers',async()=>{
+ const {namedPropertyKinds,namedTypedArrayKind}=await import('../src/runtime/property-cache.js');
+ const kinds=await Promise.all([
+  import('../src/runtime/arguments.js').then(m=>m.ArgumentsKind),import('../src/runtime/boxing.js').then(m=>m.BoxKind),
+  import('../src/runtime/errors.js').then(m=>m.ErrorKind),import('../src/runtime/date.js').then(m=>m.DateKind),
+  import('../src/runtime/iterators.js').then(m=>m.IteratorKind),import('../src/runtime/generator.js').then(m=>m.GeneratorKind),
+  import('../src/runtime/regexp.js').then(m=>m.RegExpKind),import('../src/runtime/array-buffer.js').then(m=>m.ArrayBufferKind),
+  import('../src/runtime/data-view.js').then(m=>m.DataViewKind),import('../src/runtime/typed-array.js').then(m=>m.TypedArrayKind),
+  import('../src/runtime/shared-array-buffer.js').then(m=>m.SharedArrayBufferKind),import('../src/runtime/map.js').then(m=>m.MapKind),
+  import('../src/runtime/map-iterator.js').then(m=>m.MapIteratorKind),import('../src/runtime/set.js').then(m=>m.SetKind),
+  import('../src/runtime/set-iterator.js').then(m=>m.SetIteratorKind),import('../src/runtime/weak-collections.js').then(m=>[m.WeakMapKind,m.WeakSetKind])]);
+ assert.deepEqual(namedPropertyKinds,[0,1,2,...kinds.flat()]);
+ assert.equal(namedTypedArrayKind,(await import('../src/runtime/typed-array.js')).TypedArrayKind);
+ const {ProxyKind}=await import('../src/runtime/object-layout.js');
+ assert.ok(!namedPropertyKinds.includes(ProxyKind));
 });

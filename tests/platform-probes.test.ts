@@ -42,12 +42,12 @@ test('BSD cross-compilation under an ARM64 emission scope also scopes OS service
   for(const name of ['path','path-lazy-startup'])assert.ok(images.some((probe:{name:string})=>probe.name===name),name);
   for(const name of ['process-abort','process-builtin-literal','process-builtin-dynamic','process-builtin-escaped','process-builtin-folded','process-signals-delivery','process-signals-unreferenced','process-signals-restoration'])assert.ok(images.some((probe:{name:string})=>probe.name===name),name);
   for(const probe of images){
-    if(probe.name.startsWith('process-signals-')||probe.name.startsWith('process-report-')||probe.name==='process-finalization'||probe.name.startsWith('process-builtin-')||probe.name.startsWith('stream-'))assert.equal(probe.minimalEnvironment,true,probe.name);
+    if(probe.name.startsWith('process-signals-')||probe.name.startsWith('process-report-')||probe.name==='process-finalization'||probe.name==='process-network-stream-integration'||probe.name.startsWith('process-builtin-')||probe.name.startsWith('stream-'))assert.equal(probe.minimalEnvironment,true,probe.name);
     else assert.notEqual(probe.minimalEnvironment,true,probe.name);
     if(probe.name==='process-abort'){assert.equal(probe.status,134);assert.equal(probe.signal,'SIGABRT')}
   }
   for(const probe of images){
-    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')||probe.name.startsWith('stream-')||probe.name.startsWith('process-builtin-')||probe.name.startsWith('process-report-')||probe.name.startsWith('process-signals-')?60000:undefined,probe.name);
+    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')||probe.name==='process-network-stream-integration'||probe.name.startsWith('stream-')||probe.name.startsWith('process-builtin-')||probe.name.startsWith('process-report-')||probe.name.startsWith('process-signals-')?60000:undefined,probe.name);
     const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
     assert.equal(v.getUint16(18,true),62,probe.name);
   }

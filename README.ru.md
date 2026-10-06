@@ -26,6 +26,7 @@ Nona разбирает JavaScript, переводит его в собстве�
   - глобальные `Buffer`, `Blob` и `File`, импорты `node:buffer`/`buffer`/`nona:buffer`, кодировки и числовые операции ([двоичные данные, англ.](docs/host-apis.md#buffer-and-binary-data));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - `node:path` / `path`: варианты POSIX и Windows, разбор, разрешение путей и glob-шаблоны; рабочие каталоги читаются по требованию ([пути](docs/path.md));
+  - HTTP/1.1-серверы и клиенты в `node:http`, TCP-сокеты в `node:net`, а также `node:events` и `node:string_decoder` ([сеть](docs/network.md));
   - вызов экспортов любых DLL на Windows через `nona:ffi`, готовые объявления в `nona:win32` ([FFI](docs/ffi.md)).
 - **Исполняемые файлы Windows x64.** GUI-программы без консоли (`--subsystem windows`), иконка, манифест и сведения о версии в ресурсах ([подробности](docs/windows-executables.md)).
 

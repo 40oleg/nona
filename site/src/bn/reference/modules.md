@@ -16,6 +16,8 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/bn/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/bn/reference/host-apis#paths-nodepath) |
+| `nona:http`, `node:http`, `nona:net`, `node:net` | মডিউল | উভয় | [নেটওয়ার্কিং (ইংরেজি)](/reference/network) |
+| `node:events`, `node:string_decoder` | মডিউল | উভয় | [Node.js সহায়ক মডিউল (ইংরেজি)](/reference/network#supporting-modules) |
 | `nona:ffi` | মডিউল | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi) |
 | `nona:win32` | মডিউল | Windows | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ |
 
@@ -23,7 +25,7 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 
 - গ্লোবালগুলো স্ক্রিপ্ট ও মডিউল উভয়েই উপলব্ধ।
 - বিল্ট-ইন মডিউল মডিউল কোড (`.mjs` বা `--module`) থেকে ইমপোর্ট করা যায়, আর স্ক্রিপ্ট থেকে লিটারাল `import()` দিয়ে। FFI ডিক্লারেশন (`define`) মডিউল কোডে থাকতে হবে।
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - `nona:win32` ও DLL ডিক্লারেশন কেবল `win32-x64`-এর জন্য কম্পাইল হয়; সিস্টেম কল ডিক্লারেশন কেবল `linux-x64`-এর জন্য।
 
 ## `nona:win32` {#nona-win32}
