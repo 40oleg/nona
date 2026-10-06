@@ -1,5 +1,7 @@
 /** Manual asynchronous resources and context capture, implemented by Nona. */
 export const asyncHooksPreludeSource=String.raw`;(function(){
+ var runtime=__nonaRegexpVm,initialized=null;
+ function initialize(){if(initialized)return initialized;
  var resources=new WeakMap(),locals=new WeakMap(),hooks=[],nextId=2,current={id:1,trigger:0,resource:{},stores:new Map()};
  function replaceContext(context){current=context;api.activeRecord=context}
  function notify(name,args){for(var hook of hooks.slice())if(hook.enabled&&typeof hook.callbacks[name]==='function')Reflect.apply(hook.callbacks[name],undefined,args)}
@@ -28,8 +30,10 @@ export const asyncHooksPreludeSource=String.raw`;(function(){
  function runCapturedNullary(context,fn){var previous=current;replaceContext(context);try{return fn()}finally{replaceContext(previous)}}
  AsyncLocalStorage.bind=function(fn){if(typeof fn!=='function'){var error=new TypeError('fn must be a function');if(fn!==undefined&&fn!==null)error.code='ERR_INVALID_ARG_TYPE';throw error}return capture(fn)};AsyncLocalStorage.snapshot=function(){var context=capture(function(fn,...args){return fn(...args)});return context};
  var api={AsyncResource:AsyncResource,AsyncLocalStorage:AsyncLocalStorage,executionAsyncId:function(){return current.id},triggerAsyncId:function(){return current.trigger},executionAsyncResource:function(){return current.resource},createHook:function(callbacks){if(!callbacks||typeof callbacks!=='object')throw new TypeError('callbacks must be an object');for(var name of ['init','before','after','destroy','promiseResolve'])if(callbacks[name]!==undefined&&typeof callbacks[name]!=='function')throw new TypeError(name+' must be a function');var hook={callbacks:callbacks,enabled:false,enable:function(){if(!this.enabled){this.enabled=true;hooks.push(this)}return this},disable:function(){this.enabled=false;var i=hooks.indexOf(this);if(i>=0)hooks.splice(i,1);return this}};return hook},capture:capture};
- api.activeRecord=current;api.restoreRecord=replaceContext;api.captureRecord=function(){return current};api.runCaptured=runCaptured;api.runCapturedUnary=runCapturedUnary;api.runCapturedNullary=runCapturedNullary;
- __nonaRegexpVm.asyncContext=api;Object.defineProperty(EventTarget,Symbol.for('nona.async_hooks.internal'),{value:api});
+ api.activeRecord=current;api.defaultRecord=current;api.restoreRecord=replaceContext;api.captureRecord=function(){return current};api.runCaptured=runCaptured;api.runCapturedUnary=runCapturedUnary;api.runCapturedNullary=runCapturedNullary;
+ runtime.asyncContext=api;initialized=api;return api;
+ }
+ Object.defineProperty(EventTarget,Symbol.for('nona.async_hooks.internal'),{get:initialize});
 })();`;
 
 

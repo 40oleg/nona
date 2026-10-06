@@ -54,8 +54,13 @@ var __nonaPromiseDrainJobs=(function(){
       var resolve=reaction.resolve,reject=reaction.reject;
       if(typeof handler!=='function'){
         if(kind===1)resolve(value);else reject(value)
-      }else{resolve(context&&reaction.context&&reaction.context!==context.activeRecord?context.runCapturedUnary(reaction.context,handler,value):handler(value))}
-    }catch(error){var reject=reaction.reject;reject(error)}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
+      }else{var snapshot=reaction.context||(context?context.defaultRecord:undefined);resolve(context&&snapshot&&snapshot!==context.activeRecord?context.runCapturedUnary(snapshot,handler,value):handler(value))}
+    }catch(error){
+      var reject=reaction.reject;
+      try{reject(error)}catch(rejectionError){if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous);throw rejectionError}
+    }
+    if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}
+    if(context&&context.activeRecord!==previous)context.restoreRecord(previous)
   }
   function resolvePromise(promise,value){
     if(promise===value){settle(promise,2,new TypeError('Promise self resolution'));return}

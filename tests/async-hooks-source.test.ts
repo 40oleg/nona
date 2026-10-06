@@ -5,12 +5,24 @@ import {spawnSync} from 'node:child_process';
 import {asyncHooksPreludeSource} from '../src/runtime/async-hooks-source.js';
 import {promisePreludeSource} from '../src/runtime/promise-source.js';
 
-function run(body:string,MapConstructor:MapConstructor=Map){return runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'var api=__nonaRegexpVm.asyncContext;'+body,{Map:MapConstructor,EventTarget:class {}})}
+function run(body:string,MapConstructor:MapConstructor=Map){return runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'EventTarget[Symbol.for("nona.async_hooks.internal")];'+'var api=__nonaRegexpVm.asyncContext;'+body,{Map:MapConstructor,EventTarget:class {}})}
+test('unused asynchronous context installs only a lazy public bridge',()=>{
+ let maps=0;class CountedMap<K,V> extends Map<K,V>{constructor(entries?:readonly(readonly[K,V])[]|null){super(entries);maps++}}
+ const actual=runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'typeof __nonaRegexpVm.asyncContext',{Map:CountedMap,EventTarget:class {}});
+ assert.equal(actual,'undefined');assert.equal(maps,0);
+});
+test('reactions registered before the first async-hooks access retain root storage',()=>{
+ const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+ const body=`var local,values=[],p=Promise.resolve();p.then(function(){local=new AsyncLocalStorage();local.enterWith('inner');values.push(local.getStore());p.then(function(){values.push(local.getStore())});throw Error('expected')}).catch(function(){values.push(local.getStore())});p.then(function(){values.push(local.getStore())});`;
+ const oracle=spawnSync(process.execPath,['-e',`var {AsyncLocalStorage}=require('node:async_hooks');`+body+`setImmediate(function(){console.log(JSON.stringify(values))})`],{encoding:'utf8',timeout:5000,windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);
+ const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+body.replace('new AsyncLocalStorage()','new (EventTarget[Symbol.for("nona.async_hooks.internal")].AsyncLocalStorage)()')+'__nonaPromiseDrainJobs();JSON.stringify(values)',{EventTarget:class {}});
+ assert.equal(actual,oracle.stdout.trim());
+});
 test('Promise reactions retain context records without allocating capture wrappers',()=>{
  const body=`var local=new AsyncLocalStorage(),resolve,values=[],pending=new Promise(function(fn){resolve=fn});local.run('registered',function(){pending.then(function(){values.push(local.getStore());local.enterWith('changed');throw Error('expected')}).catch(function(){values.push(local.getStore())})});local.run('delivery',function(){resolve()});`;
  const oracle=spawnSync(process.execPath,['-e',`var {AsyncLocalStorage}=require('node:async_hooks');`+body+`setImmediate(function(){console.log(JSON.stringify(values))})`],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);
  const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
- const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+`var AsyncLocalStorage=__nonaRegexpVm.asyncContext.AsyncLocalStorage;__nonaRegexpVm.asyncContext.capture=function(){throw Error('automatic wrapper allocation')};`+body+`__nonaPromiseDrainJobs();JSON.stringify(values)`,{EventTarget:class {}});
+ const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+'EventTarget[Symbol.for("nona.async_hooks.internal")];'+`var AsyncLocalStorage=__nonaRegexpVm.asyncContext.AsyncLocalStorage;__nonaRegexpVm.asyncContext.capture=function(){throw Error('automatic wrapper allocation')};`+body+`__nonaPromiseDrainJobs();JSON.stringify(values)`,{EventTarget:class {}});
  assert.equal(actual,oracle.stdout.trim());
 });
 test('automatic context capture does not allocate a Map for every reaction',()=>{
@@ -19,13 +31,13 @@ test('automatic context capture does not allocate a Map for every reaction',()=>
 });
 test('same-context reactions skip redundant capture calls and scope wrappers',()=>{
  const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
- const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+`var api=__nonaRegexpVm.asyncContext;api.captureRecord=api.runCapturedUnary=function(){throw Error('redundant scope call')};var sum=0;for(var i=0;i<100;i++)Promise.resolve(i).then(function(value){sum+=value});__nonaPromiseDrainJobs();sum`,{EventTarget:class {}});assert.equal(actual,4950);
+ const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+'EventTarget[Symbol.for("nona.async_hooks.internal")];'+`var api=__nonaRegexpVm.asyncContext;api.captureRecord=api.runCapturedUnary=function(){throw Error('redundant scope call')};var sum=0;for(var i=0;i<100;i++)Promise.resolve(i).then(function(value){sum+=value});__nonaPromiseDrainJobs();sum`,{EventTarget:class {}});assert.equal(actual,4950);
 });
 test('same-context callbacks entering a new store do not leak it to sibling reactions',()=>{
  const body=`var local=new AsyncLocalStorage(),values=[],p=Promise.resolve();p.then(function(){local.enterWith('inner');values.push(local.getStore());Promise.resolve().then(function(){values.push(local.getStore())});throw Error('expected')}).catch(function(){values.push(local.getStore())});p.then(function(){values.push(local.getStore())});`;
  const oracle=spawnSync(process.execPath,['-e',`var {AsyncLocalStorage}=require('node:async_hooks');`+body+`setImmediate(function(){console.log(JSON.stringify(values))})`],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);
  const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
- const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+`var AsyncLocalStorage=__nonaRegexpVm.asyncContext.AsyncLocalStorage;`+body+`__nonaPromiseDrainJobs();JSON.stringify(values)`,{EventTarget:class {}});assert.equal(actual,oracle.stdout.trim());
+ const actual=runInNewContext(setup+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true')+asyncHooksPreludeSource+'EventTarget[Symbol.for("nona.async_hooks.internal")];'+`var AsyncLocalStorage=__nonaRegexpVm.asyncContext.AsyncLocalStorage;`+body+`__nonaPromiseDrainJobs();JSON.stringify(values)`,{EventTarget:class {}});assert.equal(actual,oracle.stdout.trim());
 });
 test('root capture invoked under a different context restores empty storage and caller context',()=>{
  const actual=run(`var local=new api.AsyncLocalStorage(),root=api.capture(function(){return local.getStore()}),resource=new api.AsyncResource('resource'),captured;local.run('captured',function(){captured=api.capture(function(){return local.getStore()})});var values=[];local.run('caller',function(){values.push(root(),local.getStore(),captured(),local.getStore());resource.runInAsyncScope(function(){values.push(root(),local.getStore(),api.executionAsyncId()===resource.asyncId())})});JSON.stringify(values)`);

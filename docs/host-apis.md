@@ -234,3 +234,4 @@ underlying sources. The byte high-water mark defaults to 16 KiB on Windows and
 64 KiB on other targets, matching Node 26; object mode defaults to 16 objects.
 Native CI runs original pipeline, queue, identity, operator, Web cancellation
 and construction/destruction fixtures under GC stress on all eight targets.
+The asynchronous-context bridge initializes on the first async-hooks module access. Programs that do not use it allocate no resource/storage maps. Reactions registered before initialization retain root storage when the API is later activated; callback scope changes are restored on success and failure.

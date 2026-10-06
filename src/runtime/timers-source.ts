@@ -66,7 +66,7 @@ __nonaPromiseDrainJobs=(function(drain){
   function queueMicrotask(callback){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
     var context=__nonaRegexpVm.asyncContext,snapshot=context?context.activeRecord:undefined;
-    enqueueJob(function(){var previous=context?context.activeRecord:undefined;try{if(context&&snapshot!==previous)context.runCapturedNullary(snapshot,callback);else callback()}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}})
+    enqueueJob(function(){var active=__nonaRegexpVm.asyncContext,previous=active?active.activeRecord:undefined,captured=snapshot||(active?active.defaultRecord:undefined);try{if(active&&captured!==previous)active.runCapturedNullary(captured,callback);else callback()}finally{if(!active){active=__nonaRegexpVm.asyncContext;previous=active?active.defaultRecord:undefined}if(active&&active.activeRecord!==previous)active.restoreRecord(previous)}})
   }
   function now(){return hostNow()-origin}
   var performance={};
@@ -79,7 +79,8 @@ __nonaPromiseDrainJobs=(function(drain){
     if(timer.repeat){timer.when=hostNow()+timer.delay;timer.seq=++seq;push(timer)}
     else{deleteTimer(timer.id);count--;if(timer.referenced)referenced--}
     var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
-    try{if(context&&timer.context&&timer.context!==previous)context.runCaptured(timer.context,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
+    var captured=timer.context||(context?context.defaultRecord:undefined);
+    try{if(context&&captured&&captured!==previous)context.runCaptured(captured,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}finally{if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
   return function eventLoop(){
     drain();
