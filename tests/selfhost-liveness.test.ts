@@ -22,6 +22,26 @@ const block=optimized.blocks.find(block=>block.id===171);
 console.log('copy32',block.operations.some(op=>op.kind==='copy'&&op.dest===32&&op.source===709));
 })();`;
 
+test('collection index growth preserves delete and reinsert semantics',()=>{
+ const program=`
+ for(const collection of [new Set(),new Map()]){
+  for(let value=0;value<70;value++){
+   if(collection instanceof Map)collection.set(value,value);else collection.add(value);
+  }
+  for(let value=0;value<70;value++){
+   if(!collection.delete(value)||collection.has(value))throw new Error('stale key '+value);
+   if(collection instanceof Map)collection.set(value,value+1);else collection.add(value);
+   if(!collection.has(value)||collection.size!==70)throw new Error('missing key '+value);
+  }
+  console.log(collection.size,[...collection.keys()].join(','));
+ }`;
+ const oracle=spawnSync(process.execPath,['-'],{input:program,encoding:'utf8',timeout:10_000,windowsHide:true});
+ assert.equal(oracle.status,0,oracle.stderr);
+ const native=runOnHost(program);
+ assert.equal(native.status,0,String(native.error??native.stderr));
+ assert.equal(native.stdout,oracle.stdout);
+});
+
 test('self-hosted liveness agrees with Node on the RegExp VM control-flow graph',()=>{
  // Feed the captured graph over stdin: it exceeds Windows' command-line limit.
  const oracle=spawnSync(process.execPath,['-'],{input:source,encoding:'utf8',timeout:10_000,windowsHide:true});
