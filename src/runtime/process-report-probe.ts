@@ -38,6 +38,18 @@ console.log(Array.isArray(rows),rows.length>0,rows.some(function(row){return row
 /** CI children impose OS limits before requesting a large anonymous allocation. */
 export function processReportAllocationFailureProbe(target:string):string {
  const configuration=`process.report.filename='nona-process-report-oom.json';process.report.reportOnFatalError=true;console.log('armed');`;
+ if(target.startsWith('darwin-'))return String.raw`
+import {define} from 'nona:ffi';
+const reserve=define('syscall','197','i64(ptr,i64,i32,i32,i32,i64)');
+`+configuration+String.raw`
+// Darwin's resident-set limit does not constrain anonymous virtual mappings.
+// Reserve inaccessible private ranges without touching pages or replacing
+// existing mappings. The isolated child's exit releases every reservation.
+for(let size=70368744177664;size>=536870912;size/=2){
+ let attempts=0;while(reserve(null,size,0,0x1042,-1,0)>=0){if(++attempts===64)throw Error('Virtual reservation bound exceeded')}
+}
+new ArrayBuffer(1073741824);throw Error('Expected native allocation failure');
+`;
  if(target.startsWith('win32-'))return String.raw`
 import {define} from 'nona:ffi';
 const query=define('KERNEL32.dll','K32GetProcessMemoryInfo','bool(ptr,buf,u32)');

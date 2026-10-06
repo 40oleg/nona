@@ -7,7 +7,7 @@ import {supportedNativeTargets} from '../src/target.js';
 const cases=streamProbeCases('win32-x64');
 test('Stream native cases retain unique names and identical host-independent expectations',()=>{
  assert.equal(new Set(cases.map(probe=>probe.name)).size,cases.length);
- assert.equal(cases.length,13);
+ assert.equal(cases.length,16);
  for(const target of supportedNativeTargets)assert.deepEqual(streamProbeCases(target),cases);
 });
 for(const probe of cases)test('Stream native case matches actual Node26 module oracle: '+probe.name,()=>{

@@ -11,7 +11,7 @@ import {linkBsd} from './bsd/index.js';
 
 export type StreamProbeCase={name:string;source:string;expected:string;gcStress?:boolean};
 
-/** Deterministic programs for the eventual shared native Stream integration. */
+/** Independent native functional and forced-collection Stream regressions. */
 export function streamProbeCases(_target:Target):StreamProbeCase[]{
  const imports=String.raw`
 import Stream,{Readable,Writable,Duplex,Transform,PassThrough} from 'node:stream';
@@ -37,10 +37,13 @@ const values=[],sink=new Writable({highWaterMark:2,write(chunk,encoding,callback
 sink.cork();console.log('pressure',sink.write('a',()=>values.push('a')),sink.write('b',()=>values.push('b')),sink.writableLength,sink.writableNeedDrain);
 sink.on('close',()=>console.log('closed',values.join('|'),sink.writableLength,sink.writableFinished,sink.destroyed));sink.end('c',()=>values.push('end'));
 `,expected:"pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n"},
+  {name:'stream-pipeline-full',gcStress:false,source:imports+String.raw`
+(async()=>{const values=[],transform=new Transform({transform(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Writable({highWaterMark:1,write(chunk,encoding,callback){values.push(chunk.toString());setImmediate(callback)}});await Stream.promises.pipeline(Readable.from(['a','b','c']),transform,sink);console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished)})()
+`,expected:"pipeline ABC true true true\n"},
   {name:'stream-pipeline-demand',source:imports+String.raw`
 (async()=>{const values=[],transform=new Transform({transform(chunk,encoding,callback){callback(null,chunk.toString().toUpperCase())}}),sink=new Writable({highWaterMark:1,write(chunk,encoding,callback){values.push(chunk.toString());setImmediate(callback)}});
-const pending=Stream.promises.pipeline(Readable.from(['a','b']),transform,sink);await pending;console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
-`,expected:"pipeline AB true true true\n"},
+const pending=Stream.promises.pipeline(Readable.from(['a']),transform,sink);await pending;console.log('pipeline',values.join(''),transform.readableEnded,transform.writableFinished,sink.writableFinished)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
+`,expected:"pipeline A true true true\n"},
   {name:'stream-partial-read',source:imports+String.raw`
 (async()=>{
 const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console.log('partial',r.read(1).toString(),r.read(2).toString());r.resume();await Stream.promises.finished(r);console.log('ended',r.readableEnded,r.closed)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
@@ -48,9 +51,15 @@ const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console
   {name:'stream-operators-full',gcStress:false,source:imports+String.raw`
 (async()=>{const results=await Readable.from([1,2,3,4]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(2).toArray();console.log('operators',results.join(','));console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
 `,expected:"operators 4,6\nreduce 6\n"},
-  {name:'stream-operators',source:imports+String.raw`
-(async()=>{const results=await Readable.from([1,2,3]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(1).toArray();console.log('operators',results.join(','))})()
-`,expected:"operators 4\n"},
+  {name:'stream-map-concurrency',source:imports+String.raw`
+(async()=>{const results=await Readable.from([1,2]).map(async value=>value*2,{concurrency:2}).toArray();console.log('map',results.join(','))})()
+`,expected:"map 2,4\n"},
+  {name:'stream-filter',source:imports+String.raw`
+(async()=>{console.log('filter',(await Readable.from([1,2]).filter(value=>value>1).toArray()).join(','))})()
+`,expected:"filter 2\n"},
+  {name:'stream-take-cancellation',source:imports+String.raw`
+(async()=>{console.log('take',(await Readable.from([1,2,3]).take(1).toArray()).join(','))})()
+`,expected:"take 1\n"},
   {name:'stream-reduce',source:imports+String.raw`
 (async()=>{console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
 `,expected:"reduce 6\n"},

@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {emitProcessFatalReport} from '../src/runtime/process-report-fatal.js';
+import {processReportAllocationFailureProbe} from '../src/runtime/process-report-probe.js';
 
 const fixture=String.raw`
 var files=[],closed=[],writes=[],attempt=0,failOpen=false,partial=false;
@@ -21,6 +22,13 @@ var host={sys_open:function(path,flags,mode){files.push([path,flags,mode]);retur
 var __nonaRegexpVm={processReportNetworkInterfaces:function(){return [{name:'loopback',address:'127.0.0.1'}]},processReportSignalWatch:function(name,enabled){writes.push(['signal',name,enabled])}};
 `;
 function run(source:string){return runInNewContext(fixture+processReportSource+source,{TextEncoder,TextDecoder})}
+test('Darwin OOM child reserves inaccessible virtual space with bounded original calls',()=>{
+ const calls:number[][]=[],fatal=new Error('native allocation failure'),mockProcess={report:{}};
+ const source=processReportAllocationFailureProbe('darwin-x64').replace(/^import .*$/gm,'');
+ assert.throws(()=>runInNewContext(source,{process:mockProcess,console:{log(){}},define(_library:string,name:string){assert.equal(name,'197');return (...args:number[])=>{calls.push(args);return calls.length===1?4096:-12}},ArrayBuffer:class {constructor(length:number){assert.equal(length,1073741824);throw fatal}}}),error=>error===fatal);
+ assert.ok(calls.length>1&&calls.length<=1200);assert.ok(calls.every(args=>args[2]===0&&args[3]===0x1042&&args[4]===-1&&args[5]===0));
+ assert.equal((mockProcess.report as {reportOnFatalError?:boolean}).reportOnFatalError,true);
+});
 test('native errors retain their diagnostic message when stack capture is unavailable',()=>{
  const result=JSON.parse(run(`var error=new Error('nona-report-uncaught');error.stack=undefined;error.code='ERR_NATIVE';JSON.stringify(process.report.getReport(error).javascriptStack)`));
  assert.equal(result.message,'Error: nona-report-uncaught');assert.deepEqual(result.stack,['Unavailable.']);

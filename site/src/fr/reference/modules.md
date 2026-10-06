@@ -6,11 +6,12 @@ Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous
 
 | API | Nature | Cibles | Référence |
 | --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | globaux | les deux | [Minuteurs et boucle d’événements](/fr/reference/host-apis) |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | globaux | all eight native targets | [Minuteurs et boucle d’événements](/fr/reference/host-apis) |
 | `process` | global | all eight native targets | [process](/fr/reference/process) |
 | `TextEncoder`, `TextDecoder` | globaux | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | global | les deux | écrit de l’UTF-8 sur la sortie standard |
 | `nona:process`, `node:process` | modules | all eight native targets | [process](/fr/reference/process) |
+| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/fr/reference/process) |
 | `nona:fs`, `node:fs` | modules | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs) |
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/fr/reference/host-apis#events) |
@@ -22,7 +23,7 @@ Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous
 
 - Les objets globaux sont disponibles dans les scripts et les modules.
 - Les modules intégrés peuvent être importés depuis du code de module (`.mjs` ou `--module`) et, depuis des scripts, avec un `import()` littéral. Les déclarations FFI (`define`) doivent se trouver dans du code de module.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
 - `nona:win32` et les déclarations de DLL ne compilent que pour `win32-x64` ; les déclarations d’appels système, que pour `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
