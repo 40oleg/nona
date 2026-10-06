@@ -1,6 +1,7 @@
 /** Node Buffer backed by the runtime's native typed arrays. */
 export const bufferPreludeSource=String.raw`
 (function(){
+ var Promise=globalThis.Promise;
  var U8=Uint8Array,AB=ArrayBuffer,SAB=SharedArrayBuffer,DV=DataView;
  var define=Object.defineProperty,setProto=Object.setPrototypeOf,apply=Reflect.apply;
  var u8sub=U8.prototype.subarray,u8set=U8.prototype.set,u8fill=U8.prototype.fill,encoder=new TextEncoder(),decoder=new TextDecoder('utf8',{ignoreBOM:true});
@@ -210,7 +211,7 @@ export const bufferPreludeSource=String.raw`
   if(n===0){finishStream(s);finishTee(s);return Promise.resolve({value:value,done:true})}if(s.position===s.data.length)finishStream(s);return Promise.resolve({value:value,done:false})
  }catch(e){return Promise.reject(e)}}
  function cancelReader(reason){try{var r=readerState(this);if(r.released)throw streamError('Reader has been released');return cancelStream(streamState(r.stream),reason)}catch(e){return Promise.reject(e)}}
- function releaseReader(){var r=readerState(this);if(r.released)return;var s=streamState(r.stream);s.reader=null;r.released=true;r.rejectClosed(streamError('Reader has been released'));r.closed=Promise.reject(streamError('Reader has been released'));r.closed.catch(function(){})}
+ function releaseReader(){var r=readerState(this);if(r.released)return;var s=streamState(r.stream),failure=streamError('Reader has been released');s.reader=null;r.released=true;if(s.closed){r.closed=Promise.reject(failure);r.closed.catch(function(){})}else r.rejectClosed(failure)}
  for(var readerCtor of [ReadableStreamDefaultReader,ReadableStreamBYOBReader]){getter(readerCtor.prototype,'closed',function(){return readerState(this).closed});method(readerCtor.prototype,'cancel',cancelReader);method(readerCtor.prototype,'releaseLock',releaseReader);define(readerCtor.prototype,Symbol.toStringTag,{value:readerCtor.name,configurable:true})}
  method(ReadableStreamDefaultReader.prototype,'read',function read(){return readStream(this)});method(ReadableStreamBYOBReader.prototype,'read',function read(view,options){return readStream(this,view,options)});
  method(ReadableStream.prototype,'cancel',function cancel(reason){try{var s=streamState(this);if(s.reader!==null)throw streamError('ReadableStream is locked');return cancelStream(s,reason)}catch(e){return Promise.reject(e)}});

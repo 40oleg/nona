@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve Blob reader closed-promise identity during release and avoid duplicate cleanup errors; retain original Promise and lazy asynchronous-storage constructors ([#137](https://github.com/40oleg/nona/issues/137)).
+
 - Initialize asynchronous-context storage only on first API access and preserve root snapshots registered before initialization; avoid a redundant finally handler on ordinary Promise reactions ([#137](https://github.com/40oleg/nona/issues/137)).
 
 - Skip redundant async-context scope calls when Promise reactions, timers and microtasks already run in their captured context, while restoring stores changed by callbacks ([#137](https://github.com/40oleg/nona/issues/137)).

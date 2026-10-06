@@ -11,6 +11,10 @@ test('unused asynchronous context installs only a lazy public bridge',()=>{
  const actual=runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'typeof __nonaRegexpVm.asyncContext',{Map:CountedMap,EventTarget:class {}});
  assert.equal(actual,'undefined');assert.equal(maps,0);
 });
+test('lazy async-hooks activation retains startup storage constructors',()=>{
+ const actual=runInNewContext('var __nonaRegexpVm={};'+asyncHooksPreludeSource+'Map=WeakMap=function(){throw Error("constructor trap")};var api=EventTarget[Symbol.for("nona.async_hooks.internal")],local=new api.AsyncLocalStorage(),resource=new api.AsyncResource("test");local.run("stored",function(){resource.runInAsyncScope(function(){});});local.getStore()',{EventTarget:class {}});
+ assert.equal(actual,undefined);
+});
 test('reactions registered before the first async-hooks access retain root storage',()=>{
  const setup=`var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
  const body=`var local,values=[],p=Promise.resolve();p.then(function(){local=new AsyncLocalStorage();local.enterWith('inner');values.push(local.getStore());p.then(function(){values.push(local.getStore())});throw Error('expected')}).catch(function(){values.push(local.getStore())});p.then(function(){values.push(local.getStore())});`;
