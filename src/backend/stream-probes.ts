@@ -9,7 +9,7 @@ import {linkLinux} from './linux/index.js';
 import {linkDarwin} from './darwin/index.js';
 import {linkBsd} from './bsd/index.js';
 
-export type StreamProbeCase={name:string;source:string;expected:string};
+export type StreamProbeCase={name:string;source:string;expected:string;gcStress?:boolean};
 
 /** Deterministic programs for the eventual shared native Stream integration. */
 export function streamProbeCases(_target:Target):StreamProbeCase[]{
@@ -45,6 +45,9 @@ const pending=Stream.promises.pipeline(Readable.from(['a','b']),transform,sink);
 (async()=>{
 const r=new Readable({read(){}});r.push(Buffer.from('abc'));r.push(null);console.log('partial',r.read(1).toString(),r.read(2).toString());r.resume();await Stream.promises.finished(r);console.log('ended',r.readableEnded,r.closed)})().catch(function(error){console.log('pipeline failure',error.name,error.code,error.message);throw error})
 `,expected:"partial a bc\nended true true\n"},
+  {name:'stream-operators-full',gcStress:false,source:imports+String.raw`
+(async()=>{const results=await Readable.from([1,2,3,4]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(2).toArray();console.log('operators',results.join(','));console.log('reduce',await Readable.from([1,2,3]).reduce((sum,value)=>sum+value,0))})()
+`,expected:"operators 4,6\nreduce 6\n"},
   {name:'stream-operators',source:imports+String.raw`
 (async()=>{const results=await Readable.from([1,2,3]).map(async value=>value*2,{concurrency:2}).filter(value=>value>2).take(1).toArray();console.log('operators',results.join(','))})()
 `,expected:"operators 4\n"},
@@ -79,7 +82,7 @@ const controller=new AbortController(),readable=new Readable({read(){}}),pending
 export function streamProbes(target:Target):{name:string;image:Uint8Array;expected:string;timeoutMs:number;minimalEnvironment:boolean}[]{
  return streamProbeCases(target).map(probe=>{
   const {result:ir,usage}=collectSourceUsage(()=>compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target));
-  const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
+  const program=withNativeTarget(target,()=>generate(ir,{gcStress:probe.gcStress!==false,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
   return {name:probe.name,image,expected:probe.expected,timeoutMs:60000,minimalEnvironment:true};
  });

@@ -277,3 +277,5 @@ Native platform, architecture and PID are read-only data properties; argv0 is al
 On Linux ARM64, native signal frames use a dedicated 64 KiB alternate stack so asynchronous kernel delivery cannot overwrite Nona frames held on its logical stack. Signal callbacks still only record native flags; JavaScript listeners run on the event loop.
 
 When native Error stack capture is unavailable, diagnostic reports preserve the error name, message and enumerable error properties, while explicitly marking stack frames as unavailable.
+
+Native Stream regressions run a complete concurrent map/filter/take/reduce sequence with ordinary allocation and separate focused cancellation/reduction fixtures under GC stress. This keeps functional completion and forced-collection behavior independently observable within their execution budgets.
