@@ -86,6 +86,7 @@ export const addUncaughtExceptionCaptureCallback = process.addUncaughtExceptionC
 export const finalization = process.finalization;
 export const getBuiltinModule = process.getBuiltinModule;
 export const abort = process.abort;
+export const report = process.report;
 export const version = process.version, versions = process.versions, release = process.release, features = process.features, config = process.config;
 `;
 

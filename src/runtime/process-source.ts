@@ -4,10 +4,14 @@
 // It wraps the Promise drain (or event loop) so a set exitCode is used at exit.
 import {processExtensionsSource} from './process-extensions-source.js';
 import {processMetadataSource} from './process-metadata-source.js';
+import {processSignalHostDeclarations} from './process-signals.js';
+import {processReportSource} from './process-report-source.js';
+import {processReportNetworkIntrinsicsSource,processReportNetworkSource,processReportNetworkHosts} from './process-report-network-source.js';
 export const processPreludeSource=String.raw`
 __nonaPromiseDrainJobs=(function(drain){
   var nativeUnits=globalThis.__nonaProcessUnits;delete globalThis.__nonaProcessUnits;
   var finalizationNative=globalThis.__nonaProcessFinalization;delete globalThis.__nonaProcessFinalization;
+  var processMain=typeof globalThis.__nonaAgentReceiveBroadcast!=='function';
   var names=__NONA_PROCESS_HOST_NAMES__;
   var host={},found=false;
   for(var i=0;i<names.length;i++){
@@ -21,6 +25,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
   var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply;
   var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has,finalizationPush=Array.prototype.push,finalizationSplice=Array.prototype.splice,finalizationApply=apply;
+  var reportIntrinsics={Error:Error,Uint8Array:Uint8Array,Uint32Array:Uint32Array,subarray:Uint8Array.prototype.subarray,min:Math.min,Date:Date,keys:Object.keys,isArray:Array.isArray,stringify:JSON.stringify,String:String,push:Array.prototype.push,trim:String.prototype.trim,time:Date.prototype.getTime,iso:Date.prototype.toISOString,year:Date.prototype.getFullYear,month:Date.prototype.getMonth,date:Date.prototype.getDate,hour:Date.prototype.getHours,minute:Date.prototype.getMinutes,second:Date.prototype.getSeconds};
+${processReportNetworkIntrinsicsSource}
   // The foreign OS boundary returns 0; native helpers are bound in the image.
   var windows=host.GetCommandLineW()!==0;
   var platform=windows?'win32':'__NONA_PROCESS_PLATFORM__';
@@ -223,6 +229,8 @@ ${processMetadataSource(undefined,true)}
     value('chdir',chdir);value('hrtime',hrtime);value('uptime',function uptime(){return (hostNow()-origin)/1000});value('nextTick',nextTick);
     startupPhase("extensions");
 ${processExtensionsSource}
+${processReportNetworkSource}
+${processReportSource}
     startupPhase("ready");
     return process
   }
@@ -345,6 +353,8 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
   if(target.startsWith('darwin-'))list.push(['getenv','/usr/lib/libSystem.B.dylib','getenv','ptr(buf)'],['__error','/usr/lib/libSystem.B.dylib','__error','ptr()']);
   if(target.startsWith('darwin-'))list.push(['getpwnam','/usr/lib/libSystem.B.dylib','getpwnam','ptr(buf)'],['getpwuid','/usr/lib/libSystem.B.dylib','getpwuid','ptr(u32)'],['getgrnam','/usr/lib/libSystem.B.dylib','getgrnam','ptr(buf)'],['getgrgid','/usr/lib/libSystem.B.dylib','getgrgid','ptr(u32)'],['initgroups','/usr/lib/libSystem.B.dylib','initgroups','i32(buf,u32)']);
   if(target.startsWith('darwin-'))list.push(['mach_thread_self','/usr/lib/libSystem.B.dylib','mach_thread_self','u32()'],['thread_info','/usr/lib/libSystem.B.dylib','thread_info','i32(u32,u32,buf,buf)']);
+  list.push(...processSignalHostDeclarations(target));
+  list.push(['reportConfigure','nona.internal','reportConfigure','u32(buf,u64,buf,u64)'],...processReportNetworkHosts(target));
   return list.map(([name,dll,exported,signature])=>({name,declaration:{dll,name:exported,signature}}));
 }
 

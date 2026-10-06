@@ -90,12 +90,17 @@ jobs:
       - name: Execute native loader and runtime probes
         if: matrix.target == 'win32-arm64'
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Record Node process signal behavior
+        if: matrix.target != 'win32-arm64'
+        run: node scripts/process-signals-oracle.mjs
       - name: Execute native POSIX loader and runtime probes
         if: matrix.target != 'win32-arm64'
         shell: bash
         run: |
           ulimit -c 0
           node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Verify native process report files
+        run: node scripts/verify-process-reports.mjs
       - name: Core runtime oracle suites
         run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
       - name: Buffer and Blob oracle suites
@@ -139,6 +144,7 @@ jobs:
           docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
             set -eu
             ulimit -c 0
+            cd /results
             /probes/linux-x64 > /results/loader.actual
             for expected in /probes/linux-x64-*.expected; do
               binary=${expected%.expected}
@@ -159,6 +165,7 @@ jobs:
             binary=${expected%.expected}
             cmp "$expected" "work/distro-results/${binary##*/}.actual"
           done
+      - run: node scripts/verify-process-reports.mjs work/distro-results
   bsd-loaders:
     name: ${{ matrix.os }} x64 guest VM on Ubuntu host
     runs-on: ubuntu-24.04
@@ -239,3 +246,4 @@ jobs:
         with:
           name: loader-${{ matrix.os }}-x64
           path: work/platform-probes
+      - run: node scripts/verify-process-reports.mjs

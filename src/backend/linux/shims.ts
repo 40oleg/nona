@@ -17,9 +17,23 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
   ]});
  }
  fn('linux.GetProcessHeap.code',40,a=>a.mov('rax',1));
+ // The universal entry adapter uses this only to distinguish a foreign ELF
+ // boundary from Windows. Linux has no Windows command-line pointer.
+ fn('linux.GetCommandLineW.code',40,a=>a.mov('rax',0));
  // Windows thread handles are unavailable here; the process adapter queries
  // Linux/BSD RUSAGE_THREAD directly instead of claiming a successful Win32 call.
  fn('linux.GetThreadTimes.code',40,a=>a.mov('rax',0));
+ // Console-control callbacks have no POSIX console service; this path fails.
+ fn('linux.SetConsoleCtrlHandler.code',40,a=>a.mov('rax',0));
+ // The process adapter uses native POSIX interface enumeration on foreign ELF.
+ fn('linux.GetAdaptersAddresses.code',40,a=>a.mov('rax',50));
+ fn('linux.GetTickCount64.code',72,a=>{
+  a.store(slot(40),'rsi');a.store(slot(48),'rdi');
+  a.mov('rdi',1);a.lea('rsi',slot(24));systemCall(a,228);
+  a.load('rax',slot(24));a.mov('r10',1000);a.imul('rax','r10');a.store(slot(56),'rax');
+  a.load('rax',slot(32));a.mov('rdx',0);a.mov('r10',1000000);a.div('r10');a.load('r10',slot(56));a.add('rax','r10');
+  a.load('rsi',slot(40));a.load('rdi',slot(48));
+ });
  // Heap: size classes of 32..4096 bytes (header included) carved from 1 MiB
  // mmap chunks with per-class free lists; larger blocks map their own pages.
  // The 16-byte header holds the block size. A spin lock serializes agents.

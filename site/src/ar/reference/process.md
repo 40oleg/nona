@@ -225,3 +225,8 @@ shared API and native CI probes exercise all eight targets.
 
 
 تعيد `getBuiltinModule(id)` التصدير الفعلي للوحدة المدمجة؛ تشترك الأسماء البديلة في الهوية وتعيد الأسماء غير المعروفة `undefined`. تنهي `abort()` العملية فورًا دون معالجات دورة الحياة: SIGABRT على POSIX والحالة 134 على Windows.
+
+
+## Native signals and diagnostic reports
+
+Native signal listeners do not keep the loop alive and restore prior OS dispositions when removed. Windows supports console SIGHUP, SIGINT and SIGBREAK. Diagnostic reports expose genuine Nona allocator, OS resource and network data through process.report; report signal registration survives removal of public listeners. Fatal reporting uses static native storage. See the current [Process API](https://github.com/40oleg/nona/blob/main/docs/process.md) for details and verification status.

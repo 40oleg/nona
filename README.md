@@ -1,5 +1,8 @@
 # Nona
 
+The process adapter includes native OS signals and diagnostic reports with
+actual allocator, resource and network snapshots. See [Process API](docs/process.md).
+
 **Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into standalone native executables for Windows, Linux, macOS (Intel and Apple Silicon), FreeBSD and OpenBSD.**
 
 [Documentation](https://40oleg.github.io/nona/) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [ES2020 status](docs/v0.17-v0.20-status.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md)

@@ -1,5 +1,8 @@
 # Nona
 
+Адаптер process поддерживает системные сигналы и диагностические отчёты
+с реальными данными аллокатора, ресурсов и сети. Подробнее: [Process API](docs/process.md).
+
 **Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в самостоятельные исполняемые файлы Windows, Linux, macOS на Intel и Apple Silicon, FreeBSD и OpenBSD.**
 
 [Документация](https://40oleg.github.io/nona/) (англ.) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Статус ES2020](docs/v0.17-v0.20-status.md) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)

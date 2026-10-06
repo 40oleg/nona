@@ -1,5 +1,9 @@
 # Host APIs
 
+The process adapter provides native signal delivery and independently registered
+diagnostic reports. Reports contain Nona allocator, OS resource and network
+snapshots; fatal output uses static native storage. See [process](process.md).
+
 Process thread CPU accounting uses real Windows thread times, Linux/BSD
 RUSAGE_THREAD or Darwin Mach thread_info. POSIX process.execve replaces the
 current image through the native kernel syscall using original owned argv/envp

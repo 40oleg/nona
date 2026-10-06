@@ -80,6 +80,10 @@ __nonaPromiseDrainJobs=(function(drain){
   return function eventLoop(){
     drain();
     for(;;){
+      if(typeof __nonaRegexpVm.pumpSignals==='function'){
+        try{__nonaRegexpVm.pumpSignals()}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}
+        drain()
+      }
       var pendingIO=typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO();
       var readableIO=typeof __nonaRegexpVm.hasReadableIO==='function'&&__nonaRegexpVm.hasReadableIO();
       if(readableIO&&(count>0||pendingIO)){__nonaRegexpVm.pumpIO();drain();pendingIO=__nonaRegexpVm.hasPendingIO();readableIO=__nonaRegexpVm.hasReadableIO()}
@@ -87,7 +91,7 @@ __nonaPromiseDrainJobs=(function(drain){
       var timer=heap[0];
       if(timer.cancelled){pop();continue}
       var remaining=timer.when-hostNow();
-      if(remaining>0){hostWait(readableIO?Math.min(5,ceil(remaining)):ceil(remaining));continue}
+      if(remaining>0){var signals=typeof __nonaRegexpVm.hasSignalWatches==='function'&&__nonaRegexpVm.hasSignalWatches();hostWait(readableIO||signals?Math.min(5,ceil(remaining)):ceil(remaining));continue}
       pop();run(timer);drain()
     }
   }

@@ -13,7 +13,7 @@ export const processExecSource=String.raw`
         for(var i=0;i<keys.length;i++){var key=execString(keys[i],'env key'),entry=execString(environment[key],'env value');entries.push(key+'='+entry)}
         packedVector(entries,'replaceExecEnvironment');envPointer=host.execEnvironmentVector()
       }
-      packedVector(argumentsList,'replaceArguments');var r=host.sys_execve(cstring(file),host.argumentVector(),envPointer);
+      packedVector(argumentsList,'replaceArguments');var nativeFile=cstring(file);signalPrepareExec();var r=host.sys_execve(nativeFile,host.argumentVector(),envPointer);signalRestoreExec();
       if(r<0)throw hostError('execve',-r,file);throw hostError('execve',5,file)
     });
 `;

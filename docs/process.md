@@ -225,7 +225,7 @@ updates the attached console title when available. The public value retains
 its most recent assignment when no console is attached, matching Node 26;
 external console-title changes do not replace this process-owned value.
 IPC/channel APIs, worker integration, V8 heap reports, remote Linux/BSD account resolution,
-Node.js/V8 version metadata, debugger/report APIs
+Node.js/V8 version metadata, debugger APIs
 and interpreter flag processing remain absent. Nona does not fabricate V8 or
 IPC behavior. Error messages and some OS error mappings differ from Node.js.
 
@@ -237,3 +237,27 @@ shared API and native CI probes exercise all eight targets.
 The focused finalization and builtin-registry GC-stress probes use an empty
 POSIX environment or only `SystemRoot` on Windows. Environment compatibility
 probes retain the inherited environment; native execution budgets are unchanged.
+
+## Native signals and diagnostic reports
+
+Signal listeners receive OS delivery on the main runtime. Linux uses native
+handlers and polling; BSD and macOS use kqueue; Windows supports console
+SIGHUP, SIGINT and SIGBREAK. Listeners do not keep the event loop alive.
+Aliases share registration and removing the last listener restores the previous
+OS disposition. SIGPIPE and SIGXFSZ are ignored during main runtime startup;
+worker initialization leaves process-wide dispositions alone.
+
+`process.report` provides `getReport`, `writeReport`, directory/filename/compact,
+excludeEnv/excludeNetwork, signal, and automatic signal, uncaught-exception and
+fatal-error configuration. Reports identify Nona schema version 1 and include
+real process identity, allocator counters, OS resources and network interfaces.
+Handled exceptions do not generate automatic reports. Signal reporting owns
+an independent registration, so removing public listeners does not disable it.
+
+Normal reports perform complete synchronous OS writes and close owned files.
+The fatal path uses bounded static native storage, allocation-free allocator
+counters and OS writes; it avoids JavaScript callbacks after allocator failure.
+Its metadata timestamp is explicitly the configuration time. Configuration
+larger than 32 KiB fails without replacing the previous configuration.
+Native execution and intentional allocation-failure verification remain CI gates
+until the process pull request is integrated.

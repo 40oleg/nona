@@ -509,7 +509,7 @@ test('native probe manifest rejects malformed termination and environment metada
  const validation=runner.slice(runner.indexOf("  if(typeof probe.file"),runner.indexOf('  const file=join(directory,probe.file)'));
  const validate=(probe:unknown)=>runInContext(validation,createContext({probe}));
  const good={file:'process-probe',expected:'',status:134,signal:'SIGABRT',minimalEnvironment:true};validate(good);validate({file:'process-probe',expected:''});
- for(const extra of [{signal:'SIGTERM'},{signal:1},{status:-1},{status:256},{status:1.5},{status:'134'},{minimalEnvironment:'true'}])assert.throws(()=>validate({...good,...extra}));
+ for(const extra of [{signal:'SIGUSR1'},{signal:1},{status:-1},{status:256},{status:1.5},{status:'134'},{minimalEnvironment:'true'}])assert.throws(()=>validate({...good,...extra}));
  const builder=readFileSync(new URL('../../scripts/build-platform-probes.mjs',import.meta.url),'utf8'),workflow=readFileSync(new URL('../../.github/workflows/native-platforms.yml',import.meta.url),'utf8');
  assert.ok(builder.includes("file+'.minimal-environment'"));assert.equal((workflow.match(/cat "\$binary\.minimal-environment"/g)??[]).length,3);assert.equal((workflow.match(/env -i "\$binary"/g)??[]).length,3);
 });

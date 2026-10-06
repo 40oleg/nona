@@ -30,6 +30,7 @@ export const processExceptionsSource=String.raw`
         if(process.emit('uncaughtException',error,origin))return true
       }catch(handlerError){return fatalException(handlerError,7)}
       finally{dispatchingException=false}
+      if(typeof reportUncaught!=='undefined'&&reportUncaught)reportAutomatic(error,'Exception','Exception');
       return fatalException(error,1)
     };
     __nonaRegexpVm.reportUnhandledRejection=function(reason,promise,fail){

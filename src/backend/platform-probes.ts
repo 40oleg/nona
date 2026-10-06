@@ -12,6 +12,8 @@ import {processFinalizationProbeSource,processFinalizationProbeExpected} from '.
 import {nonaVersion} from '../version.js';
 import {processAbortProbeSource} from './process-abort-probe.js';
 import {processBuiltinProbes} from './process-builtin-probes.js';
+import {processSignalPlatformProbes} from './process-signal-platform-probes.js';
+import {processReportPlatformProbes} from './process-report-platform-probes.js';
 import {compileToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
 import {generate} from './x64/codegen.js';
@@ -49,6 +51,8 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
   });
   const descriptor=getTarget(target)!;
   probes.push(...processBuiltinProbes(target));
+  probes.push(...processSignalPlatformProbes(target));
+  probes.push(...processReportPlatformProbes(target));
   {const abort=compile(processAbortProbeSource,{fileName:'process-abort.js',target});if(!abort.ok)throw new Error(JSON.stringify(abort.diagnostics));probes.push({name:'process-abort',image:abort.image,expected:'',status:134,...(!target.startsWith('win32-')?{signal:'SIGABRT'}:{})})}
   const metadata=compile('console.log(process.version,Object.keys(process.versions).join(","),process.versions.nona,process.release.name,process.features.aot,process.features.inspector,process.config.target,Object.isFrozen(process.config))',{fileName:'process-metadata.js',target});if(!metadata.ok)throw new Error(JSON.stringify(metadata.diagnostics));probes.push({name:'process-metadata',image:metadata.image,expected:`v${nonaVersion} nona ${nonaVersion} nona true false ${descriptor.os}-${descriptor.arch} true\n`});
   probes.push({name:'process-finalization',image:processFinalizationProbeImage(target),expected:processFinalizationProbeExpected,minimalEnvironment:true});

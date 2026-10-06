@@ -2,14 +2,16 @@
 import {processSystemSource} from './process-system-source.js';
 import {processExceptionsSource} from './process-exceptions-source.js';
 import {processFinalizationSource} from './process-finalization-source.js';
+import {processSignalsSource} from './process-signals-source.js';
 export const processExtensionsSource=String.raw`
     function emitter(object){
       var events=new Map(),maximum=10;
       function records(name){return events.get(name)||[]}
-      function removeRecord(name,record){var list=records(name).slice(),index=list.indexOf(record);if(index<0)return;apply(finalizationSplice,list,[index,1]);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,record.fn)}
+      function removeRecord(name,record){var list=records(name).slice(),index=list.indexOf(record);if(index<0)return;apply(finalizationSplice,list,[index,1]);if(list.length)events.set(name,list);else events.delete(name);if(object===process)signalListenerChanged(name,false);if(records('removeListener').length)object.emit('removeListener',name,record.fn)}
       function add(name,fn,once,prepend){
         if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
-        if(name!=='newListener')object.emit('newListener',name,fn);
+        if(name!=='newListener'&&records('newListener').length)object.emit('newListener',name,fn);
+        if(object===process)signalListenerChanged(name,true);
         var list=records(name).slice(),record={fn:fn,once:once};if(prepend)list.unshift(record);else apply(finalizationPush,list,[record]);events.set(name,list);
         if(object===input&&name==='data')input.resume();return object
       }
@@ -19,7 +21,7 @@ export const processExtensionsSource=String.raw`
       object.prependOnceListener=function(name,fn){return add(name,fn,true,true)};
       object.removeListener=object.off=function(name,fn){
         if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
-        var list=records(name).slice();for(var i=list.length-1;i>=0;i--)if(list[i].fn===fn){apply(finalizationSplice,list,[i,1]);if(list.length)events.set(name,list);else events.delete(name);object.emit('removeListener',name,fn);break}return object
+        var list=records(name).slice();for(var i=list.length-1;i>=0;i--)if(list[i].fn===fn){apply(finalizationSplice,list,[i,1]);if(list.length)events.set(name,list);else events.delete(name);if(object===process)signalListenerChanged(name,false);if(records('removeListener').length)object.emit('removeListener',name,fn);break}return object
       };
       object.removeAllListeners=function(name){
         if(arguments.length){var list=records(name).slice();for(var i=list.length-1;i>=0;i--)object.removeListener(name,list[i].fn)}
@@ -59,7 +61,7 @@ export const processExtensionsSource=String.raw`
       defineProperty:function(target,key,descriptor){if(!descriptor.writable||!descriptor.enumerable||!descriptor.configurable||!('value' in descriptor)||'get' in descriptor||'set' in descriptor)throw argumentError('ERR_INVALID_OBJECT_DEFINE_PROPERTY','Environment descriptors must be configurable, writable and enumerable data properties');return setEnvironment(target,key,descriptor.value)},
       deleteProperty:function(target,key){key=normalizedKey(target,key);if(typeof key==='string'&&(!key||key.indexOf('=')!==-1))return true;if(windows&&typeof key==='string'&&!host.SetEnvironmentVariableW(wideString(key),null)&&host.GetLastError()!==203)throw hostError('unsetenv',22,key);if(platform==='darwin'&&typeof key==='string'&&host.unsetenv(cstring(key))!==0)throw darwinEnvironmentError('unsetenv',key);var deleted=Reflect.deleteProperty(target,key);syncEnvironment(target);return deleted}
     });
-    process.env=env;emitter(process);
+    process.env=env;emitter(process);var signalListenerCount=process.listenerCount,signalEmit=process.emit;
     function ioError(operation,number){return hostError(operation,number===109?0:number===5?13:number===6?9:number)}
     function nativeWrite(fd,bytes){
       var offset=0,counter=new Uint32Array(1);
@@ -129,6 +131,7 @@ export const processExtensionsSource=String.raw`
         process.emit('warning',warning);err.write('(nona:'+process.pid+') '+(warning.code?'['+warning.code+'] ':'')+warning.name+': '+warning.message+'\n'+(warning.detail?warning.detail+'\n':''))})
     });
     var signals=platform==='linux'?{SIGHUP:1,SIGINT:2,SIGQUIT:3,SIGILL:4,SIGTRAP:5,SIGABRT:6,SIGBUS:7,SIGFPE:8,SIGKILL:9,SIGUSR1:10,SIGSEGV:11,SIGUSR2:12,SIGPIPE:13,SIGALRM:14,SIGTERM:15,SIGCHLD:17,SIGCONT:18,SIGSTOP:19,SIGTSTP:20,SIGTTIN:21,SIGTTOU:22}:{SIGHUP:1,SIGINT:2,SIGQUIT:3,SIGILL:4,SIGTRAP:5,SIGABRT:6,SIGFPE:8,SIGKILL:9,SIGBUS:10,SIGSEGV:11,SIGPIPE:13,SIGALRM:14,SIGTERM:15,SIGURG:16,SIGSTOP:17,SIGTSTP:18,SIGCONT:19,SIGCHLD:20,SIGTTIN:21,SIGTTOU:22,SIGUSR1:30,SIGUSR2:31};
+${processSignalsSource}
     value('kill',function(pid,signal){
       if(!Number.isInteger(pid)||pid<-2147483648||pid>2147483647)throw argumentError('ERR_INVALID_ARG_TYPE','The pid must be a signed 32-bit integer');
       signal=signal===undefined?'SIGTERM':signal;if(typeof signal==='string'){if(signals[signal]===undefined)throw argumentError('ERR_UNKNOWN_SIGNAL','Unknown signal '+signal);signal=signals[signal]}

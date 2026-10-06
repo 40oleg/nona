@@ -18,7 +18,7 @@ if(run.error||run.status!==0||run.stdout!==manifest.expected)throw new Error(`Lo
 console.log(`Native loader probe passed on ${process.platform}/${process.arch}: ${target}`);
 for(const probe of manifest.runtime?.[target]??[]){
   if(typeof probe.file!=='string'||!/^[a-z0-9-]+(?:\.exe)?$/.test(probe.file)||typeof probe.expected!=='string'||(probe.minimalEnvironment!==undefined&&typeof probe.minimalEnvironment!=='boolean'))throw new Error('Invalid runtime probe manifest');
-  if(probe.signal!==undefined&&probe.signal!=='SIGABRT')throw new Error('Invalid runtime probe signal');
+  if(probe.signal!==undefined&&!['SIGABRT','SIGTERM'].includes(probe.signal))throw new Error('Invalid runtime probe signal');
   if(probe.status!==undefined&&(!Number.isInteger(probe.status)||probe.status<0||probe.status>255))throw new Error('Invalid runtime probe status');
   const file=join(directory,probe.file);chmodSync(file,0o755);
   const env=probe.minimalEnvironment?(process.platform==='win32'?{SystemRoot:process.env.SystemRoot}:{}):process.env;

@@ -1,5 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {emitCallStats} from './call-stats.js';
+import {emitProcessSignalDefaults} from './process-signal-defaults.js';
+import {currentNativeTarget} from '../backend/machine/context.js';
 import {HeapLayout as H} from './heap-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 
@@ -58,6 +60,9 @@ const times24=(a:Assembler,dst:'r11'|'r10'|'rax',src:'rax'|'r11'|'r10'|'r9')=>{a
 export function emitMemory(b:RuntimeBuilder):void {
  // rt.fail reports call statistics, so they live with it (call-stats.ts).
  emitCallStats(b);
+ emitProcessSignalDefaults(b,currentNativeTarget()??'win32-x64');
+ b.data('rt.fatalReportHook',new Uint8Array(8),'.data');
+ b.data('rt.fatalActive',new Uint8Array(8),'.data');
  b.data('rt.heap',new Uint8Array(8),'.data');
  for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
@@ -294,6 +299,14 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.label(clear);a.test('r11','r11');a.jcc('e',cleared);a.store({base:'r10'},'rax');a.add('r10',8);a.sub('r11',8);a.jmp(clear);
   a.label(cleared);
  });
- b.fn('rt.fail',72,a=>{a.call('rt.callStatsReport');a.call('rt.runExitHook');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');a.mov('rcx',1);a.callImport('ExitProcess');});
+ b.fn('rt.fail',72,a=>{
+  const exit=a.unique('exit'),noReport=a.unique('noReport');
+  a.mov('rax',1);a.atomicExchange({rip:'rt.fatalActive'},'rax',64);a.test('rax','rax');a.jcc('ne',exit);
+  a.load('rax',{rip:'rt.fatalReportHook'});a.test('rax','rax');a.jcc('e',noReport);a.callRegister('rax');a.label(noReport);
+  // Runtime failure is unrecoverable. JavaScript lifecycle hooks may allocate
+  // or replace the fatal status, so they belong only to ordinary process exit.
+  a.call('rt.callStatsReport');a.mov('rcx',-12);a.callImport('GetStdHandle');a.mov('rcx','rax');a.lea('rdx',{rip:'rt.error'});a.mov('r8',20);a.lea('r9',slot(48));a.mov('rax',0);a.store(slot(32),'rax');a.callImport('WriteFile');
+  a.label(exit);a.mov('rcx',1);a.callImport('ExitProcess');
+ });
  b.data('rt.error',new TextEncoder().encode('Nona runtime error\r\n'));
 }
