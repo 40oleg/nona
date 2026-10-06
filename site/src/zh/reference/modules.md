@@ -12,6 +12,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
 | `nona:process`、`node:process` | 模块 | 两者 | [process](/zh/reference/process) |
 | `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/zh/reference/host-apis#paths-nodepath) |
 | `nona:http`、`node:http`、`nona:net`、`node:net` | 模块 | 两者 | [网络（英文）](/reference/network) |
 | `node:events`、`node:buffer`、`node:string_decoder` | 模块 | 两者 | [Node.js 支持模块（英文）](/reference/network#supporting-modules) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
@@ -21,7 +22,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 - 全局对象在脚本和模块中都可用。
 - 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，也可以在脚本中用字面量 `import()` 导入。FFI 声明（`define`）必须位于模块代码中。
-- `node:` 模块包括 `node:fs`、`node:process`、`node:http`、`node:net`、`node:events`、`node:buffer` 和 `node:string_decoder`；它们是 Nona 对 Node.js 子集的实现，而不是 Node.js 的代码。`node:path` 和 `require` 不可用；导入 `node:buffer`、`node:net` 或 `node:http` 后才有全局 `Buffer`。
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net`, `node:events` and `node:string_decoder` are available for networking.
 - `nona:win32` 和 DLL 声明只能为 `win32-x64` 编译；系统调用声明只能为 `linux-x64` 编译。
 
 ## `nona:win32` {#nona-win32}
@@ -87,3 +88,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## `node:buffer`, `buffer`, `nona:buffer`
+
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

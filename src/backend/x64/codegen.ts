@@ -15,11 +15,12 @@ import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
-import {fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
+import {fullRuntimeLink,optionalPreludes,preludeDependencies,runtimeRegExpLink,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
+import {bufferPreludeSource} from '../../runtime/buffer-source.js';
 import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
@@ -90,7 +91,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
-  const regexpLink={regexp:link.regexp,unicodeProperties:link.regexp&&link.unicodeProperties};
+  const regexpLink=runtimeRegExpLink(link);
   const linked=linkedPreludes(link);
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;
@@ -110,7 +111,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -745,6 +746,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.
     hostGlobal('__nonaUtf8Encode','rt.utf8Encode.code',2);
     hostGlobal('__nonaUtf8Decode','rt.utf8Decode.code',3);
+  }
+  if(hasPrelude&&linked.includes('buffer')){
+    hostGlobal('__nonaHexEncode','rt.hexEncode.code',1);
+    hostGlobal('__nonaByteCopy','rt.byteCopy.code',3);
   }
   if(hasPrelude&&linked.includes('network')){
     // Captured and removed from the global object by nona:internal/native.

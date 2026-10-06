@@ -12,6 +12,7 @@
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
 | `nona:process` و`node:process` | وحدات | كلتاهما | [process](/ar/reference/process) |
 | `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ar/reference/host-apis#paths-nodepath) |
 | `nona:http` و`node:http` و`nona:net` و`node:net` | وحدات | كلتاهما | [الشبكات (بالإنجليزية)](/reference/network) |
 | `node:events` و`node:buffer` و`node:string_decoder` | وحدات | كلتاهما | [وحدات دعم Node.js (بالإنجليزية)](/reference/network#supporting-modules) |
 | `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
@@ -21,7 +22,7 @@
 
 - الكائنات العامة متاحة في السكربتات والوحدات.
 - يمكن استيراد الوحدات المدمجة من شيفرة الوحدات (`.mjs` أو `--module`) ومن السكربتات عبر `import()` حرفي. ويجب أن تكون تصريحات FFI ‏(`define`) في شيفرة وحدة.
-- من وحدات `node:` توجد `node:fs` و`node:process` و`node:http` و`node:net` و`node:events` و`node:buffer` و`node:string_decoder`؛ وهي تنفيذات Nona لمجموعات فرعية من Node.js، لا شيفرة Node.js نفسها. أما `node:path` و`require` فغير متاحة؛ ويتوفر `Buffer` العام بعد استيراد `node:buffer` أو `node:net` أو `node:http`.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net`, `node:events` and `node:string_decoder` are available for networking.
 - لا تُترجَم `nona:win32` وتصريحات DLL إلا للمنصة `win32-x64`، ولا تُترجَم تصريحات استدعاءات النظام إلا للمنصة `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -87,3 +88,7 @@
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## `node:buffer`, `buffer`, `nona:buffer`
+
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

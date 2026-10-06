@@ -6,6 +6,17 @@
 
 تعمل برامج Nona دون Node.js. واجهات المضيف أدناه تنفّذها بيئة التشغيل الأصلية ومقدّمات JavaScript صغيرة تُترجَم في كل ملف تنفيذي.
 
+## Paths (`node:path`)
+
+`node:path` / `path` implements Node.js 26 path utilities on all eight native targets.
+Use `posix`, `win32`, or explicit flavor modules (`node:path/posix`,
+`node:path/win32`, `path/posix`, `path/win32`). Functions: `normalize`, `join`,
+`resolve`, `relative`, `parse`, `format`, `basename`, `dirname`, `extname`,
+`isAbsolute`, `toNamespacedPath`, `matchesGlob`; properties: `sep`, `delimiter`.
+The target selects the default flavor; resolution reads the executable's runtime
+current directory. Working-directory information is read on demand; importing
+Path does not initialize the full process object. [Full reference](https://github.com/40oleg/nona/blob/main/docs/path.md).
+
 ## المؤقتات وحلقة الأحداث
 
 الدوال العامة: `setTimeout(callback, delay, ...args)` و`setInterval` و`clearTimeout` و`clearInterval` و`queueMicrotask(callback)` و`performance.now()`.

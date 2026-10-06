@@ -25,7 +25,7 @@ function fail(message) {
 
 ## Paso 2: las imágenes
 
-`readdirSync` de `node:fs` lista la carpeta. No hay `node:path`, así que las rutas se unen a mano con `\`.
+`readdirSync` from `node:fs` lists the folder. This sample joins paths with `\\`; `node:path` is also available.
 
 ```js
 const pictures = readdirSync(folder)

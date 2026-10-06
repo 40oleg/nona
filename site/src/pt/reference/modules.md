@@ -12,8 +12,9 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `console.log` | global | ambos | escreve UTF-8 na saída padrão |
 | `nona:process`, `node:process` | módulos | ambos | [process](/pt/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/pt/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | módulos | ambos | [Rede (em inglês)](/reference/network) |
-| `node:events`, `node:buffer`, `node:string_decoder` | módulos | ambos | [Módulos de apoio do Node.js (em inglês)](/reference/network#supporting-modules) |
+| `node:events`, `node:string_decoder` | módulos | ambos | [Módulos de apoio do Node.js (em inglês)](/reference/network#supporting-modules) |
 | `nona:ffi` | módulo | Windows (DLLs), Linux (chamadas de sistema) | [Funções nativas (FFI)](/pt/reference/ffi) |
 | `nona:win32` | módulo | Windows | abaixo e em [FFI](/pt/reference/ffi#nona-win32) |
 
@@ -21,7 +22,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 
 - Os globais estão disponíveis em scripts e módulos.
 - Módulos embutidos podem ser importados em código de módulo (`.mjs` ou `--module`) e com `import()` literal em scripts. Declarações FFI (`define`) precisam estar em código de módulo.
-- Entre os módulos `node:` estão `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` e `node:string_decoder`; são implementações do Nona de subconjuntos do Node.js, não o código do Node.js. `node:path` e `require` não estão disponíveis; o `Buffer` global existe depois que `node:buffer`, `node:net` ou `node:http` é importado.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net`, `node:events` and `node:string_decoder` are available for networking.
 - `nona:win32` e declarações de DLL só compilam para `win32-x64`; declarações de chamadas de sistema, só para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -87,3 +88,7 @@ Para funções que não estão na lista, declare-as você mesmo com `define` de 
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## `node:buffer`, `buffer`, `nona:buffer`
+
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

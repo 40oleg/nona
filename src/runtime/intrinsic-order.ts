@@ -16,7 +16,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.BigInt':['length','name','prototype','asIntN','asUintN'],
   'rt.Date':['length','name','prototype','now','parse','UTC'],
   'rt.RegExp':['length','name','prototype','@@species'],
-  'rt.ArrayBuffer':['length','name','prototype','@@species','isView','__nonaCopyInternal','__nonaDetachInternal'],
+  'rt.ArrayBuffer':['length','name','prototype','@@species','isView','__nonaCopyInternal','__nonaDetachInternal','__nonaAlignmentInternal'],
   'rt.SharedArrayBuffer':['length','name','prototype','@@species'],
   'rt.Map':['length','name','prototype','@@species'],
   'rt.Set':['length','name','prototype','@@species'],

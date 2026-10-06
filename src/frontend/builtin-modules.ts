@@ -2,11 +2,13 @@ import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleSource} from './events-module.js';
-import {bufferModuleSource,stringDecoderModuleSource} from './buffer-module.js';
+import {bufferModuleSource} from './buffer-module.js';
+import {stringDecoderModuleSource} from './string-decoder-module.js';
 import {streamModuleSource} from './stream-module.js';
 import {nativeModuleSource} from './native-module.js';
 import {netModuleSource} from './net-module.js';
 import {httpModuleSource} from './http-module.js';
+import {pathModuleSourceForTarget} from './path-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -84,16 +86,19 @@ import type {Target} from '../target.js';
 /** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
 function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
 const sources=new Map<string,(target:Target)=>string>([
+  ['node:buffer',()=>bufferModuleSource],
+  ['buffer',()=>bufferModuleSource],
+  ['nona:buffer',()=>bufferModuleSource],
   ['nona:ffi',()=>ffiModuleSource],
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],
   ['node:fs',fsModuleSource],
+  ['node:path',pathModuleSourceForTarget],
+  ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
   ['node:events',()=>eventsModuleSource],
   ['nona:events',()=>aliasOf('node:events')],
-  ['node:buffer',()=>bufferModuleSource],
-  ['nona:buffer',()=>aliasOf('node:buffer')],
   ['node:string_decoder',()=>stringDecoderModuleSource],
   ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
   ['nona:internal/stream',()=>streamModuleSource],
@@ -104,13 +109,15 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:http',()=>aliasOf('node:http')],
 ]);
 
-export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
+const aliases=new Map(['','/posix','/win32'].map(flavor=>['path'+flavor,'node:path'+flavor]));
+const canonicalBuiltin=(specifier:string)=>specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':aliases.get(specifier)??specifier;
+export function isBuiltinModule(specifier:string):boolean {return sources.has(canonicalBuiltin(specifier));}
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
 export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
   return {
-    resolve:(specifier,referrer)=>sources.has(specifier)?specifier:host.resolve(specifier,referrer),
-    read:path=>sources.get(path)?.(target)??host.read(path),
+    resolve:(specifier,referrer)=>sources.has(canonicalBuiltin(specifier))?canonicalBuiltin(specifier):host.resolve(specifier,referrer),
+    read:path=>sources.get(canonicalBuiltin(path))?.(target)??host.read(path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };
 }

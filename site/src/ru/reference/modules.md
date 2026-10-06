@@ -12,8 +12,9 @@
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |
 | `nona:process`, `node:process` | модули | обе | [process](/ru/reference/process) |
 | `nona:fs`, `node:fs` | модули | обе | [Файловая система и кодировка текста](/ru/reference/fs) |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ru/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | модули | обе | [Сеть (англ.)](/reference/network) |
-| `node:events`, `node:buffer`, `node:string_decoder` | модули | обе | [Вспомогательные модули Node.js (англ.)](/reference/network#supporting-modules) |
+| `node:events`, `node:string_decoder` | модули | обе | [Вспомогательные модули Node.js (англ.)](/reference/network#supporting-modules) |
 | `nona:ffi` | модуль | Windows (DLL), Linux (системные вызовы) | [Нативные функции (FFI)](/ru/reference/ffi) |
 | `nona:win32` | модуль | Windows | ниже и в [FFI](/ru/reference/ffi#nona-win32) |
 
@@ -21,7 +22,7 @@
 
 - Глобальные объекты доступны в скриптах и модулях.
 - Встроенные модули можно импортировать из кода модулей (`.mjs` или `--module`) и литеральным `import()` из скриптов. Объявления FFI (`define`) должны находиться в коде модуля.
-- Среди модулей `node:` есть `node:fs`, `node:process`, `node:http`, `node:net`, `node:events`, `node:buffer` и `node:string_decoder`; это реализации подмножеств Node.js в Nona, а не код Node.js. `node:path` и `require` недоступны; глобальный `Buffer` появляется после импорта `node:buffer`, `node:net` или `node:http`.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net`, `node:events` and `node:string_decoder` are available for networking.
 - `nona:win32` и объявления DLL компилируются только для `win32-x64`; объявления системных вызовов — только для `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -87,3 +88,7 @@
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## `node:buffer`, `buffer`, `nona:buffer`
+
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

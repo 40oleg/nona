@@ -27,10 +27,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | EventEmitter с потоками, `nextTick`, `hrtime`, … |
 | Идентификаторы таймеров | Числа | Объекты `Timeout` |
 | `readFileSync(path)` | Возвращает `Uint8Array` | Возвращает `Buffer` |
-| Кодировки | Только `utf8` | Много |
+| Кодировки | Только `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Много |
 | Сообщения об ошибках на Windows | Содержат путь в том виде, в каком он передан | Содержат абсолютный путь |
-| Модули | `nona:*`, `node:fs`, `node:process` и относительные файлы | Всё из `node:*` и пакеты npm |
-| `require`, `Buffer`, `node:path` | Недоступны | Доступны |
+| Модули | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` и относительные файлы | Всё из `node:*` и пакеты npm |
+| `require` | Недоступны | Доступны |
 | `console.log` без стандартного вывода | Вывод отбрасывается | Вывод отбрасывается или возникает ошибка |
 
 ## Производительность
@@ -55,3 +55,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

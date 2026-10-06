@@ -78,8 +78,7 @@ Node.js defers with `process.nextTick` are deferred with microtasks.
 | Module | Contents |
 | --- | --- |
 | `node:events` | `EventEmitter` (`on`, `once`, `off`, `prependListener`, `prependOnceListener`, `emit`, `removeAllListeners`, `listeners`, `rawListeners`, `listenerCount`, `eventNames`, `setMaxListeners`, the `newListener`/`removeListener` events, `error` without listeners throws), `once(emitter, name)` returning a promise, `errorMonitor`, `defaultMaxListeners`. The default export is `EventEmitter`. |
-| `node:buffer` | `Buffer`, a `Uint8Array` subclass: `from`, `alloc`, `allocUnsafe`, `concat`, `byteLength`, `isBuffer`, `isEncoding`, `compare`; `toString`, `toJSON`, `equals`, `compare`, `copy`, `slice`/`subarray` (views), `write`, `fill`, `indexOf`, `includes`, and `read`/`write` methods for 8/16/32-bit integers, floats and doubles. Encodings: `utf8`, `latin1`/`binary`, `ascii`, `hex`, `base64`, `base64url`, `utf16le`. Also `atob`, `btoa`, `isUtf8`, `kMaxLength`, `constants`. Importing `node:buffer` (directly or through `node:net`/`node:http`) installs the global `Buffer`. |
+| `node:buffer` | The global `Buffer`, `Blob` and `File`; see [binary data](host-apis.md#buffer-and-binary-data). |
 | `node:string_decoder` | `StringDecoder` with `write` and `end`; multi-byte characters split across chunks are kept for the next chunk. |
 
-Request and response bodies, and socket data, are `Buffer`s; `console.log` of
-a `Buffer` prints it as a typed array, not as `<Buffer …>`.
+Request and response bodies, and socket data, are `Buffer`s.

@@ -14,7 +14,7 @@ const regexpVmTemplate=String.raw`(function(){
   // CreateDataProperty at the end: natively in Nona (captured below as
   // __nonaRegexpVm.append), through a reused descriptor elsewhere.
   var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
-  var nativeAppend=intrinsic?intrinsic.append:function(array,value){appendDescriptor.value=value;Object.defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
+  var nativeAppend=intrinsic&&intrinsic.append?intrinsic.append:function(array,value){appendDescriptor.value=value;Object.defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
   function append(array,value){nativeAppend(array,value)}
   // Array.prototype.slice captured before user code runs: CreateDataProperty
   // semantics (no setters on Array.prototype can interfere), one native
@@ -1473,6 +1473,9 @@ __nonaRegexpVm.bufferTypeError=TypeError;
 __nonaRegexpVm.bufferRangeError=RangeError;
 __nonaRegexpVm.arrayBufferLength=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'byteLength').get;
 __nonaRegexpVm.arrayBufferCopy=ArrayBuffer.__nonaCopyInternal;
+__nonaRegexpVm.arrayBufferAlignment=ArrayBuffer.__nonaAlignmentInternal;
+__nonaRegexpVm.arrayBufferDetach=ArrayBuffer.__nonaDetachInternal;
+delete ArrayBuffer.__nonaAlignmentInternal;
 delete ArrayBuffer.__nonaCopyInternal;
 __nonaRegexpVm.append=Array.__nonaAppendInternal;
 delete Array.__nonaAppendInternal;

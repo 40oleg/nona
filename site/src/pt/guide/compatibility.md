@@ -27,10 +27,10 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 | `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | Um EventEmitter com streams, `nextTick`, `hrtime`, … |
 | Ids de timers | Números | Objetos `Timeout` |
 | `readFileSync(path)` | Retorna um `Uint8Array` | Retorna um `Buffer` |
-| Codificações | Apenas `utf8` | Muitas |
+| Codificações | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Muitas |
 | Mensagens de erro no Windows | Contêm o caminho como foi passado | Contêm o caminho absoluto |
-| Módulos | `nona:*`, `node:fs`, `node:process` e arquivos relativos | Todo o `node:*` e pacotes npm |
-| `require`, `Buffer`, `node:path` | Não disponíveis | Disponíveis |
+| Módulos | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` e arquivos relativos | Todo o `node:*` e pacotes npm |
+| `require` | Não disponíveis | Disponíveis |
 | `console.log` sem saída padrão | A saída é descartada | A saída é descartada ou um erro é lançado |
 
 ## Desempenho
@@ -55,3 +55,7 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Buffer
+
+Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).

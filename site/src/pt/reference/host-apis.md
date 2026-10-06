@@ -6,6 +6,17 @@ Esta página é uma tradução da página em inglês [Host APIs](/reference/host
 
 Os programas Nona rodam sem Node.js. As APIs do host abaixo são implementadas pelo runtime nativo e por pequenos prelúdios JavaScript compilados em cada executável.
 
+## Paths (`node:path`)
+
+`node:path` / `path` implements Node.js 26 path utilities on all eight native targets.
+Use `posix`, `win32`, or explicit flavor modules (`node:path/posix`,
+`node:path/win32`, `path/posix`, `path/win32`). Functions: `normalize`, `join`,
+`resolve`, `relative`, `parse`, `format`, `basename`, `dirname`, `extname`,
+`isAbsolute`, `toNamespacedPath`, `matchesGlob`; properties: `sep`, `delimiter`.
+The target selects the default flavor; resolution reads the executable's runtime
+current directory. Working-directory information is read on demand; importing
+Path does not initialize the full process object. [Full reference](https://github.com/40oleg/nona/blob/main/docs/path.md).
+
 ## Timers e o loop de eventos
 
 Globais: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` e `performance.now()`.
