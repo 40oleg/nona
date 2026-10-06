@@ -14,6 +14,7 @@ import {processAbortProbeSource} from './process-abort-probe.js';
 import {processBuiltinProbes} from './process-builtin-probes.js';
 import {processSignalPlatformProbes} from './process-signal-platform-probes.js';
 import {processReportPlatformProbes} from './process-report-platform-probes.js';
+import {streamProbes} from './stream-probes.js';
 import {compileToIR} from '../compiler.js';
 import {compileModuleToIR} from '../compiler.js';
 import {collectSourceUsage} from '../frontend/lexer.js';
@@ -55,6 +56,7 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
   probes.push(...processBuiltinProbes(target));
   probes.push(...processSignalPlatformProbes(target));
   probes.push(...processReportPlatformProbes(target));
+  probes.push(...streamProbes(target));
   {const abort=compile(processAbortProbeSource,{fileName:'process-abort.js',target});if(!abort.ok)throw new Error(JSON.stringify(abort.diagnostics));probes.push({name:'process-abort',image:abort.image,expected:'',status:134,...(!target.startsWith('win32-')?{signal:'SIGABRT'}:{})})}
   const metadata=compile('console.log(process.version,Object.keys(process.versions).join(","),process.versions.nona,process.release.name,process.features.aot,process.features.inspector,process.config.target,Object.isFrozen(process.config))',{fileName:'process-metadata.js',target});if(!metadata.ok)throw new Error(JSON.stringify(metadata.diagnostics));probes.push({name:'process-metadata',image:metadata.image,expected:`v${nonaVersion} nona ${nonaVersion} nona true false ${descriptor.os}-${descriptor.arch} true\n`});
   probes.push({name:'process-finalization',image:processFinalizationProbeImage(target),expected:processFinalizationProbeExpected,minimalEnvironment:true});
@@ -88,10 +90,10 @@ export function runtimeProbes(target:Target):{name:string;image:Uint8Array;expec
   const processProbe=compile('let original=process.cwd();process.chdir(".");let t=process.hrtime(),n=process.hrtime.bigint();console.log(process.platform,process.arch,process.pid>0,process.ppid>0,process.execPath.length>0,process.argv[0]===process.execPath,process.argv.length>0,process.cwd()===original,typeof (process.env.PATH||process.env.Path));console.log(t.length,t[1]>=0&&t[1]<1000000000,process.hrtime.bigint()>=n,process.uptime()>=0);Promise.resolve().then(()=>{console.log("promise");process.nextTick(()=>console.log("after promise"))});process.nextTick((n)=>{console.log("tick",n);process.nextTick(()=>console.log("nested"))},42);console.log("sync")',{fileName:'process-core.js',target});
   if(!processProbe.ok)throw new Error(`${target}/process-core: ${JSON.stringify(processProbe.diagnostics)}`);
   probes.push({name:'process-core',image:processProbe.image,expected:`${descriptor.os} ${descriptor.arch} true true true true true true string\n2 true true true\nsync\ntick 42\nnested\npromise\nafter promise\n`});
-  const {result:pathIR,usage:pathUsage}=collectSourceUsage(()=>compileModuleToIR('import path from "node:path";console.log("path",path.normalize("a/../b"),path.isAbsolute(path.resolve()),typeof Object.getOwnPropertyDescriptor(globalThis,"pro"+"cess"));','path-lazy-startup.mjs',undefined,'',target));
+  const {result:pathIR,usage:pathUsage}=collectSourceUsage(()=>compileModuleToIR('import path from "node:path";const descriptor=Object.getOwnPropertyDescriptor(globalThis,"pro"+"cess");console.log("path",path.normalize("a/../b"),path.isAbsolute(path.resolve()),descriptor===undefined||typeof descriptor.get==="function");','path-lazy-startup.mjs',undefined,'',target));
   const pathProgram=withNativeTarget(target,()=>generate(pathIR,{gcStress:true,link:pathUsage}));
   const pathImage=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(pathProgram):linkPe(pathProgram)):descriptor.os==='linux'?linkLinux(pathProgram,descriptor.arch):descriptor.os==='darwin'?linkDarwin(pathProgram,descriptor.arch):linkBsd(pathProgram,descriptor.os);
-  probes.push({name:'path-lazy-startup',image:pathImage,expected:'path b true undefined\n'});
+  probes.push({name:'path-lazy-startup',image:pathImage,expected:'path b true true\n'});
   if(target==='freebsd-x64'||target==='openbsd-x64'||target==='linux-arm64'||getTarget(target)!.os==='darwin'||target==='win32-arm64'||target==='linux-x64'){
     const source='let saved=[];for(let i=0;i<200;i++){let x={n:i,s:"x"+i};saved.push(()=>x)}let sum=0;for(let i=0;i<saved.length;i++)sum+=saved[i]().n;console.log(saved.length,sum,saved[199]().s)';
     const {result:ir,usage}=collectSourceUsage(()=>compileToIR(source,undefined,undefined,target));

@@ -150,3 +150,5 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 ## License
 
 [MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The original Node-compatible stream modules share constructors with process standard I/O and support queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](docs/host-apis.md#streams).

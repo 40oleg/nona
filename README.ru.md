@@ -151,3 +151,5 @@ examples           примеры программ
 ## Лицензия
 
 [MIT](LICENSE). Сторонние лицензии — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The original Node-compatible stream modules share constructors with process standard I/O and support queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](docs/host-apis.md#streams).

@@ -1,3 +1,4 @@
+import {installProcessDependencies} from './helpers/process-prelude.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
@@ -35,7 +36,7 @@ test('public abort delegates directly to the terminal native boundary without JS
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))},__nonaProcessNow:()=>0,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,__nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>1,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,
   __nonaHost_abort:()=>{trace.push('native');throw terminal},console:{log:(...args:unknown[])=>trace.push(args.join(' '))}});
- runInContext(processPreludeForTarget('linux-x64'),context);
+ installProcessDependencies(context);runInContext(processPreludeForTarget('linux-x64'),context);
  runInContext('process.on("exit",()=>console.log("unexpected exit"));process.on("beforeExit",()=>console.log("unexpected beforeExit"));process.setUncaughtExceptionCaptureCallback(()=>console.log("unexpected capture"));process.nextTick(()=>console.log("unexpected tick"))',context);
  assert.equal(runInContext('process.abort.name+":"+process.abort.length',context),'abort:0');
  assert.throws(()=>runInContext('process.abort()',context),error=>error===terminal);assert.deepEqual(trace,['native']);

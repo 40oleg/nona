@@ -1,3 +1,4 @@
+import {installProcessDependencies} from './helpers/process-prelude.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createContext,runInContext} from 'node:vm';
@@ -15,7 +16,7 @@ function signalRuntime(){
  for(const {name} of processHostDeclarations('linux-x64'))host['__nonaHost_'+name]=()=>0;
  Object.assign(host,{__nonaHost_sys_open:()=>-2,__nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>1,__nonaHost_signalHandlerAddress:()=>4096,__nonaHost_signalRestorerAddress:()=>8192,__nonaHost_signalAction:(number:number,action:Uint32Array)=>{actions.push(action[0]?number:-number);return 0},__nonaHost_signalPoll:()=>pending.shift()??0});
  const context=createContext({...host,TextEncoder,TextDecoder,console:{log:(...args:unknown[])=>output.push(args.join(' '))},__nonaProcessNow:()=>clock,__nonaHostNow:()=>clock,__nonaHostWait:(delay:number)=>{clock+=delay},__nonaPromiseDrainJobs(){},__nonaRegexpVm:{arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))}});
- runInContext(timersPreludeSource,context);runInContext(processPreludeForTarget('linux-x64'),context);return {context,actions,pending,output};
+ installProcessDependencies(context);runInContext(processPreludeForTarget('linux-x64'),context);runInContext(timersPreludeSource,context);return {context,actions,pending,output};
 }
 test('actual process listeners install, consume once and restore native signal disposition',()=>{
  const f=signalRuntime();runInContext('process.once("SIGTERM",name=>console.log(name,process.listenerCount(name)))',f.context);assert.deepEqual(f.actions,[15]);f.pending.push(15);runInContext('__nonaRegexpVm.pumpSignals()',f.context);assert.deepEqual(f.actions,[15,-15]);assert.deepEqual(f.output,['SIGTERM 0']);assert.equal(runInContext('__nonaRegexpVm.hasSignalWatches()',f.context),false);

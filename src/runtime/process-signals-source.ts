@@ -34,6 +34,7 @@ export const processSignalsSource=String.raw`
     }
     function signalPublicCount(number){var count=0;for(var alias in signals)if(signals[alias]===number)count+=apply(signalListenerCount,process,[alias]);return count}
     function signalListenerChanged(name,adding){if(!processMain)return;if(windows&&name!=='SIGHUP'&&name!=='SIGINT'&&name!=='SIGBREAK')return;var number=signals[name];if(number===undefined)return;var count=signalPublicCount(number)+(reportWatchName!==undefined&&signals[reportWatchName]===number?1:0);if(adding&&count===0)signalNativeWatch(number,true);else if(!adding&&count===0)signalNativeWatch(number,false)}
+    __nonaRegexpVm.processSignalEmitter=process;__nonaRegexpVm.processSignalListenerChanged=signalListenerChanged;
     __nonaRegexpVm.processReportSignalWatch=function(name,enabled){if(!processMain||windows)return;var previous=reportWatchName,next=enabled?name:undefined;if(next===previous)return;if(next!==undefined)signalNativeWatch(signals[next],true);try{if(previous!==undefined&&signals[previous]!==signals[next]&&!signalPublicCount(signals[previous]))signalNativeWatch(signals[previous],false)}catch(error){if(next!==undefined&&signals[next]!==signals[previous]&&!signalPublicCount(signals[next]))signalNativeWatch(signals[next],false);throw error}reportWatchName=next};
     __nonaRegexpVm.hasSignalWatches=function(){return signalCount!==0};
     __nonaRegexpVm.pumpSignals=function(){

@@ -26,6 +26,8 @@ import {processNativeHelpers,captureProcessStartup} from '../../runtime/process-
 import {ffiImportSymbol} from '../../ffi.js';
 import {eventsPreludeSource} from '../../runtime/events-source.js';
 import {asyncHooksPreludeSource} from '../../runtime/async-hooks-source.js';
+import {eventEmitterPreludeSource} from '../../runtime/event-emitter-source.js';
+import {streamPreludeForTarget} from '../../runtime/stream-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -87,7 +89,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
 /** The optional preludes `link` selects, with their dependencies, in declaration order. */
 function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   const selected=new Set(optionalPreludes.filter(name=>link.preludes[name]));
-  for(const name of [...selected])for(const dependency of preludeDependencies[name]??[])selected.add(dependency);
+  for(const name of selected)for(const dependency of preludeDependencies[name]??[])selected.add(dependency);
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
@@ -115,7 +117,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }

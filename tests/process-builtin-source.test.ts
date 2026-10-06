@@ -43,6 +43,12 @@ test('inventory namespaces materialize only for a requested graph and keep failu
  assert.equal(runInContext('__nonaRegexpVm.getBuiltinModule("process")===object&&__nonaRegexpVm.getBuiltinModule("node:process")===object&&made===1&&ran===1&&unused===0',context),true);
  assert.equal(runInContext('var first,second;try{__nonaRegexpVm.getBuiltinModule("failed")}catch(e){first=e}try{__nonaRegexpVm.getBuiltinModule("failed")}catch(e){second=e}first===fault&&second===fault&&unused===0',context),true);
 });
+test('canonical process lookup uses its private lazy default without materializing ESM exports',()=>{
+ const context=boundary();
+ runInContext(`var original={},calls=0;__nonaRegexpVm.processBuiltin=function(){calls++;return original};
+ __nonaRegexpVm.registerModule(0,'node:process',function(){throw Error('body evaluated')},[],undefined,[],[],undefined,['process','node:process','nona:process'],function(){throw Error('namespace allocated')});`,context);
+ assert.equal(runInContext('var get=__nonaRegexpVm.getBuiltinModule;get("process")===original&&get("node:process")===original&&get("nona:process")===original&&calls===3',context),true);
+});
 test('inventory namespace creation is outside the eager module registration function',()=>{
  const ir=compileToIR('const lookup=process.getBuiltinModule;console.log(lookup("process")===process)','lazy-builtins.js',emptyHost,'linux-x64');
  const factories=ir.functions.filter(fn=>fn.id.startsWith('js.namespace.'));

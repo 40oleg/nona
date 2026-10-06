@@ -597,6 +597,9 @@ var __nonaPromiseDrainJobs=(function(){
     if(!hasOwn.call(builtinModules,id))return undefined;
     var index=builtinModules[id],failure=linkError(index,objectCreate(null));
     if(failure!==undefined)throw new SyntaxError(failure);
+    // Process already has a private lazy factory. Its CommonJS default does
+    // not require allocating the ESM namespace's individual export getters.
+    if(moduleTable[index].path==='node:process'&&typeof __nonaRegexpVm.processBuiltin==='function')return __nonaRegexpVm.processBuiltin();
     evaluateModule(index);
     var namespace=moduleTable[index].namespace;
     return hasOwn.call(namespace,'default')?namespace.default:namespace

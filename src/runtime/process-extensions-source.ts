@@ -4,40 +4,6 @@ import {processExceptionsSource} from './process-exceptions-source.js';
 import {processFinalizationSource} from './process-finalization-source.js';
 import {processSignalsSource} from './process-signals-source.js';
 export const processExtensionsSource=String.raw`
-    function emitter(object){
-      var events=new Map(),maximum=10;
-      function records(name){return events.get(name)||[]}
-      function removeRecord(name,record){var list=records(name).slice(),index=list.indexOf(record);if(index<0)return;apply(finalizationSplice,list,[index,1]);if(list.length)events.set(name,list);else events.delete(name);if(object===process)signalListenerChanged(name,false);if(records('removeListener').length)object.emit('removeListener',name,record.fn)}
-      function add(name,fn,once,prepend){
-        if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
-        if(name!=='newListener'&&records('newListener').length)object.emit('newListener',name,fn);
-        if(object===process)signalListenerChanged(name,true);
-        var list=records(name).slice(),record={fn:fn,once:once};if(prepend)list.unshift(record);else apply(finalizationPush,list,[record]);events.set(name,list);
-        if(object===input&&name==='data')input.resume();return object
-      }
-      object.on=object.addListener=function(name,fn){return add(name,fn,false,false)};
-      object.once=function(name,fn){return add(name,fn,true,false)};
-      object.prependListener=function(name,fn){return add(name,fn,false,true)};
-      object.prependOnceListener=function(name,fn){return add(name,fn,true,true)};
-      object.removeListener=object.off=function(name,fn){
-        if(typeof fn!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The listener must be a function');
-        var list=records(name).slice();for(var i=list.length-1;i>=0;i--)if(list[i].fn===fn){apply(finalizationSplice,list,[i,1]);if(list.length)events.set(name,list);else events.delete(name);if(object===process)signalListenerChanged(name,false);if(records('removeListener').length)object.emit('removeListener',name,fn);break}return object
-      };
-      object.removeAllListeners=function(name){
-        if(arguments.length){var list=records(name).slice();for(var i=list.length-1;i>=0;i--)object.removeListener(name,list[i].fn)}
-        else{var names=Array.from(events.keys());for(var i=0;i<names.length;i++)object.removeAllListeners(names[i])}return object
-      };
-      object.emit=function(name){
-        var list=records(name).slice(),args=[];for(var i=1;i<arguments.length;i++)apply(finalizationPush,args,[arguments[i]]);
-        if(!list.length){if(name==='error')throw (args[0] instanceof Error?args[0]:new Error('Unhandled error event'));return false}
-        for(var i=0;i<list.length;i++){var record=list[i];if(record.once){if(record.fired)continue;record.fired=true;removeRecord(name,record)}apply(record.fn,object,args)}return true
-      };
-      object.listeners=function(name){return records(name).map(function(record){return record.fn})};
-      object.listenerCount=function(name,fn){var list=records(name);if(fn===undefined)return list.length;var count=0;for(var i=0;i<list.length;i++)if(list[i].fn===fn)count++;return count};
-      object.eventNames=function(){return Array.from(events.keys())};
-      object.getMaxListeners=function(){return maximum};object.setMaxListeners=function(n){if(typeof n!=='number'||n<0||Number.isNaN(n))throw argumentError('ERR_OUT_OF_RANGE','The maximum must be nonnegative',true);maximum=n;return object};
-      return object
-    }
     function wideString(text){var bytes=new Uint16Array(text.length+1);for(var i=0;i<text.length;i++)bytes[i]=text.charCodeAt(i);return bytes}
     function environmentString(text){var nul=text.indexOf('\0');return nul<0?text:text.slice(0,nul)}
     function normalizedKey(target,key){if(typeof key==='string'){key=environmentString(key);if(windows){var upper=key.toUpperCase();for(var name in target)if(name.toUpperCase()===upper)return name}}return key}
@@ -61,7 +27,7 @@ export const processExtensionsSource=String.raw`
       defineProperty:function(target,key,descriptor){if(!descriptor.writable||!descriptor.enumerable||!descriptor.configurable||!('value' in descriptor)||'get' in descriptor||'set' in descriptor)throw argumentError('ERR_INVALID_OBJECT_DEFINE_PROPERTY','Environment descriptors must be configurable, writable and enumerable data properties');return setEnvironment(target,key,descriptor.value)},
       deleteProperty:function(target,key){key=normalizedKey(target,key);if(typeof key==='string'&&(!key||key.indexOf('=')!==-1))return true;if(windows&&typeof key==='string'&&!host.SetEnvironmentVariableW(wideString(key),null)&&host.GetLastError()!==203)throw hostError('unsetenv',22,key);if(platform==='darwin'&&typeof key==='string'&&host.unsetenv(cstring(key))!==0)throw darwinEnvironmentError('unsetenv',key);var deleted=Reflect.deleteProperty(target,key);syncEnvironment(target);return deleted}
     });
-    process.env=env;emitter(process);var signalListenerCount=process.listenerCount,signalEmit=process.emit;
+    process.env=env;var signalListenerCount=processEmitter.prototype.listenerCount,signalEmit=processEmitter.prototype.emit;
     function ioError(operation,number){return hostError(operation,number===109?0:number===5?13:number===6?9:number)}
     function nativeWrite(fd,bytes){
       var offset=0,counter=new Uint32Array(1);
@@ -71,35 +37,23 @@ export const processExtensionsSource=String.raw`
         if(n<=0)throw hostError('write',5);offset+=n
       }
     }
-    function encodeChunk(chunk,encoding){
-      if(typeof chunk==='string'){
-        if(encoding!==undefined&&encoding!=='utf8'&&encoding!=='utf-8')throw argumentError('ERR_UNKNOWN_ENCODING','Only UTF-8 string writes are supported');return encoder.encode(chunk)
-      }
-      if(ArrayBuffer.isView(chunk)&&chunk.BYTES_PER_ELEMENT===1)return new Uint8Array(chunk.buffer,chunk.byteOffset,chunk.byteLength);
-      throw argumentError('ERR_INVALID_ARG_TYPE','The chunk must be a string or byte array')
-    }
     function output(fd){
-      var stream=emitter({fd:fd,writable:true,destroyed:false});
-      stream.write=function(chunk,encoding,callback){
-        if(typeof encoding==='function'){callback=encoding;encoding=undefined}
-        if(callback!==undefined&&typeof callback!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The callback must be a function');
-        var bytes=encodeChunk(chunk,encoding),error;
-        try{nativeWrite(fd,bytes)}catch(e){error=e}
-        if(error){nextTick(function(){if(callback)callback(error);stream.emit('error',error)});return false}
-        if(callback)nextTick(callback);return true
-      };
+      var stream=new processStreams.Writable({autoDestroy:false,write:function(bytes,encoding,callback){try{nativeWrite(fd,bytes);callback()}catch(error){callback(error)}}});
+      defineProperty(stream,'fd',{value:fd,writable:true,enumerable:true,configurable:true});
       return stream
     }
-    var out=output(1),err=output(2),input=emitter({fd:0,readable:true,readableEnded:false,destroyed:false}),flowing=false,inputRef=true,inputDecoder=null;
+    var out=output(1),err=output(2),inputRef=true,inputRequested=false,inputEOF=false;
+    var input=new processStreams.Readable({autoDestroy:false,read:function(size){inputRequested=true;try{if(inputReady()){var chunk=readInput(size);inputRequested=false;input.push(chunk)}}catch(error){inputRequested=false;input.destroy(error)}},destroy:function(error,callback){inputRequested=false;callback(error)}});
+    defineProperty(input,'fd',{value:0,writable:true,enumerable:true,configurable:true});
+    __nonaRegexpVm.isProcessOutput=function(stream){return stream===out||stream===err};
     function readInput(size){
       size=size===undefined?65536:size;if(!Number.isInteger(size)||size<0||size>0x40000000)throw argumentError('ERR_OUT_OF_RANGE','The size must be a nonnegative integer',true);
-      if(size===0||input.readableEnded||input.destroyed)return null;
+      if(size===0||inputEOF||input.destroyed)return null;
       var bytes=new Uint8Array(size),n,counter=new Uint32Array(1);
       if(windows){if(!host.ReadFile(host.GetStdHandle(-10),bytes,size,counter,null)){var code=host.GetLastError();if(code===109)n=0;else throw ioError('read',code)}else n=counter[0]}
       else{do{n=host.sys_read(0,bytes,size)}while(n===-4);if(n<0)throw hostError('read',-n)}
-      if(!n){input.readableEnded=true;input.readable=false;flowing=false;return null}
-      bytes=bytes.subarray(0,n);if(inputDecoder)return inputDecoder.decode(bytes,{stream:true});
-      return typeof Buffer==='function'?Buffer.from(bytes):bytes
+      if(!n){inputEOF=true;return null}
+      return __nonaRegexpVm.bufferModule.Buffer.from(bytes.subarray(0,n))
     }
     function inputReady(){
       if(windows){var handle=host.GetStdHandle(-10),type=host.GetFileType(handle);
@@ -109,19 +63,17 @@ export const processExtensionsSource=String.raw`
       }
       var poll=new Int32Array([0,1]),r=host.sys_poll(poll,1,0);if(r<0&&r!==-4)throw hostError('poll',-r);return r>0
     }
-    input.read=readInput;
-    input.setEncoding=function(encoding){if(encoding!=='utf8'&&encoding!=='utf-8')throw argumentError('ERR_UNKNOWN_ENCODING','Only UTF-8 reads are supported');inputDecoder=new TextDecoder();return input};
-    input.pause=function(){flowing=false;return input};input.resume=function(){if(!input.readableEnded&&!input.destroyed)flowing=true;return input};input.isPaused=function(){return !flowing};
+    var inputPause=processStreams.Readable.prototype.pause;
+    input.pause=function(){inputRequested=false;return apply(inputPause,input,[])};
     input.ref=function(){inputRef=true;return input};input.unref=function(){inputRef=false;return input};
-    input.destroy=function(error){input.destroyed=true;input.readable=false;flowing=false;nextTick(function(){if(error)input.emit('error',error);input.emit('close')});return input};
-    input.pipe=function(destination){input.on('data',function(chunk){destination.write(chunk)});input.on('end',function(){if(destination!==out&&destination!==err&&typeof destination.end==='function')destination.end()});return destination};
-    __nonaRegexpVm.hasReadableIO=function(){return flowing&&!input.readableEnded&&!input.destroyed};
+    __nonaRegexpVm.hasReadableIO=function(){return (inputRequested||input.readableFlowing===true)&&!inputEOF&&!input.destroyed};
     __nonaRegexpVm.hasPendingIO=function(){return inputRef&&__nonaRegexpVm.hasReadableIO()};
     __nonaRegexpVm.pumpIO=function(){
-      if(!flowing||input.readableEnded||input.destroyed)return;
-      try{if(!inputReady())return;var chunk=readInput();if(chunk===null){if(inputDecoder){var tail=inputDecoder.decode();if(tail)input.emit('data',tail)}input.emit('end')}else input.emit('data',chunk)}catch(error){flowing=false;input.emit('error',error)}
+      if(!__nonaRegexpVm.hasReadableIO())return;
+      try{if(!inputReady())return;var chunk=readInput();inputRequested=false;input.push(chunk)}catch(error){inputRequested=false;input.destroy(error)}
     };
-    value('stdout',out);value('stderr',err);value('stdin',input);value('openStdin',function(){return input.resume()});
+    for(var stdio of [['stdout',out],['stderr',err],['stdin',input]])(function(name,stream){defineProperty(process,name,{enumerable:true,configurable:true,get:function(){return stream}})})(stdio[0],stdio[1]);
+    value('openStdin',function(){return input.resume()});
     value('emitWarning',function(warning,type,code){
       var options=type&&typeof type==='object'?type:{type:type,code:code};
       if(typeof warning==='string'){var error=new Error(warning);error.name=options.type===undefined?'Warning':options.type;if(options.code!==undefined)error.code=options.code;if(options.detail!==undefined)error.detail=options.detail;warning=error}

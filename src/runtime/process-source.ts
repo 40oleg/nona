@@ -23,7 +23,10 @@ __nonaPromiseDrainJobs=(function(drain){
   var hostNow=__nonaProcessNow,origin=hostNow();delete globalThis.__nonaProcessNow;
   var ticks=[],tickHead=0;
   var beforeExitCallback=null,exitCallback=null,exitEmitted=false;
-  var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply;
+  var defineProperty=Object.defineProperty,freeze=Object.freeze,fromCharCode=String.fromCharCode,apply=Reflect.apply,createObject=Object.create,setPrototype=Object.setPrototypeOf;
+  var processEmitter=__nonaRegexpVm.eventEmitterModule,processStreams=__nonaRegexpVm.streamModule;
+  function enqueueTick(callback,args){var context=__nonaRegexpVm.asyncContext;ticks[ticks.length]={callback:callback,args:args,context:context?context.activeRecord:undefined}}
+  __nonaRegexpVm.enqueueNextTick=enqueueTick;
   var finalizationMap=WeakMap,finalizationSet=WeakMap.prototype.set,finalizationHas=WeakMap.prototype.has,finalizationPush=Array.prototype.push,finalizationSplice=Array.prototype.splice,finalizationApply=apply;
   var reportIntrinsics={Error:Error,Uint8Array:Uint8Array,Uint32Array:Uint32Array,subarray:Uint8Array.prototype.subarray,min:Math.min,Date:Date,keys:Object.keys,isArray:Array.isArray,stringify:JSON.stringify,String:String,push:Array.prototype.push,trim:String.prototype.trim,time:Date.prototype.getTime,iso:Date.prototype.toISOString,year:Date.prototype.getFullYear,month:Date.prototype.getMonth,date:Date.prototype.getDate,hour:Date.prototype.getHours,minute:Date.prototype.getMinutes,second:Date.prototype.getSeconds};
 ${processReportNetworkIntrinsicsSource}
@@ -209,9 +212,11 @@ ${processReportNetworkIntrinsicsSource}
     hrtime.bigint=function(){return BigInt(Math.floor(hostNow()*1000000))};
     function nextTick(callback){
       if(typeof callback!=='function')throw argumentError('ERR_INVALID_ARG_TYPE','The callback argument must be a function');
-      var args=[];for(var i=1;i<arguments.length;i++)args[args.length]=arguments[i];ticks[ticks.length]={callback:callback,args:args}
+      var args=[];for(var i=1;i<arguments.length;i++)args[args.length]=arguments[i];enqueueTick(callback,args)
     }
-    var process={};
+    function Process(){apply(processEmitter,this,[])}
+    Process.prototype=createObject(processEmitter.prototype);defineProperty(Process.prototype,'constructor',{value:Process,writable:true,configurable:true});setPrototype(Process,processEmitter);defineProperty(Process,'name',{value:'process',configurable:true});
+    var process=new Process();
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     value('platform',platform);value('arch','__NONA_PROCESS_ARCH__');
@@ -235,12 +240,14 @@ ${processReportSource}
     return process
   }
   function install(v){defineProperty(globalThis,'process',{value:v,writable:true,enumerable:false,configurable:true})}
+  function processBuiltin(){if(created===null)created=build();return created}
+  __nonaRegexpVm.processBuiltin=processBuiltin;
   defineProperty(globalThis,'process',{enumerable:false,configurable:true,
-    get:function(){if(created===null)created=build();install(created);return created},
+    get:function(){var result=processBuiltin();install(result);return result},
     set:function(v){install(v)}});
   function flush(){
     do{
-      while(tickHead<ticks.length){var job=ticks[tickHead++];try{apply(job.callback,undefined,job.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}}
+      while(tickHead<ticks.length){var job=ticks[tickHead++],context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;try{if(context&&job.context&&job.context!==previous)context.runCaptured(job.context,job.callback,undefined,job.args);else apply(job.callback,undefined,job.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}}
       ticks=[];tickHead=0;drain();
     }while(ticks.length||(typeof __nonaRegexpVm.hasPendingPromiseJobs==='function'&&__nonaRegexpVm.hasPendingPromiseJobs()));
   }

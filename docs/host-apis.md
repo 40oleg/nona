@@ -202,3 +202,35 @@ Teeing a cancelled or completed stream preserves its terminal state. A tee branc
 - `node:fs` continues to return Uint8Array data. Convert it with `Buffer.from(bytes)` when Buffer methods are needed.
 
 See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buffer.html) for the shared API contract and [the runnable Buffer sample](../site/samples/buffer.mjs).
+
+## Streams
+
+`node:stream`, `stream` and `nona:stream` expose the same original Stream,
+Readable, Writable, Duplex, Transform and PassThrough constructors on every
+native target. They inherit the canonical EventEmitter used by process.
+`node:stream/promises` and `node:stream/consumers` also have bare and nona aliases.
+No Node.js source, external interpreter or third-party polyfill is bundled.
+
+Readable queues implement demand, push/unshift/read, object and byte modes,
+encoding, flow control, readable/data/end events, pipe/unpipe and backpressure.
+Writable queues implement write/end, callbacks, cork/uncork, writev, drain,
+final/finish and destruction. Duplex half-open controls and Transform flushing
+share these queues. Construction and destruction callbacks retain exact-once
+completion; errors and premature closes propagate to observers and pipelines.
+
+The module includes callback and Promise finished/pipeline, compose,
+addAbortSignal, high-water-mark configuration, state/brand queries and the
+asynchronous iterator/disposal protocol. Readable.from supports synchronous and
+asynchronous iterables; iterator cancellation releases the source. Operators
+map, filter, flatMap, drop, take, toArray, forEach, some, every, find and reduce
+support abort and bounded concurrency where applicable. Consumers provide
+buffer, arrayBuffer, text, json and blob.
+
+Readable/Writable/Duplex fromWeb and toWeb retain one reader/writer and propagate
+queue pressure, locks, cancellation and terminal errors. Blob streams use their
+private original brand bridge. Web adapters returned by stream are supported;
+this does not extend the separate global Web Stream constructors to arbitrary
+underlying sources. The byte high-water mark defaults to 16 KiB on Windows and
+64 KiB on other targets, matching Node 26; object mode defaults to 16 objects.
+Native CI runs original pipeline, queue, identity, operator, Web cancellation
+and construction/destruction fixtures under GC stress on all eight targets.

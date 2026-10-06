@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add independently authored Node Stream modules and connect process standard I/O to canonical EventEmitter/Readable/Writable constructors, preserving next-tick asynchronous storage and lazy process default lookup ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Verify emergency process reports through genuine OS-limited allocation failures in isolated native CI children, including absence of JavaScript exit callbacks after unrecoverable failure ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Add original native process signal registration, restoration and console delivery, plus Nona diagnostic reports with actual network enumeration and an allocation-free emergency writer ([#141](https://github.com/40oleg/nona/issues/141)).

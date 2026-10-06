@@ -49,26 +49,30 @@ boundary. No external JavaScript runtime or polyfill is bundled.
 
 ## Compatibility boundaries
 
-`stdout.write()` and `stderr.write()` write real UTF-8 strings or byte arrays to
-native descriptors 1 and 2, including partial-write handling. Writes are
-synchronous; optional callbacks run on the next tick. `stdin` uses descriptor 0:
-`read(size?)` performs a blocking read; `setEncoding('utf8')`, `data`/`end` events,
-`pause`/`resume`, `pipe`, `destroy`, `ref`/`unref`, and `openStdin()` provide a
-small readable interface. The event loop polls flowing input between timers.
-`stdin.unref()` removes input from loop keepalive; ready data still runs while
-timers keep the loop alive.
-These are practical standard-stream interfaces, without Node's asynchronous
-write backpressure, general stream classes, terminal controls, or full encodings.
+`process` inherits the canonical `EventEmitter`; standard input inherits
+`Readable` and standard output/error inherit `Writable` from `node:stream`.
+Their constructors and module aliases share identity. Listener introspection,
+raw once wrappers, maximum-listener warnings and rejection capture use the same
+original Events implementation.
 
-Process and standard streams expose listener registration/removal, once and
-prepend listeners, `emit`, listener introspection and maximum-listener settings.
+Output writes pass through real Writable queues, encoding, cork/writev fallback,
+callbacks, drain and finalization. Native descriptor writes are synchronous and
+handle partial writes and interrupted syscalls. Input uses Readable queues,
+encoding, read/readable/data/end events, pause/resume, backpressure, iterators,
+pipe/unpipe and destruction. Its OS descriptor is polled when requested by a
+reader; input never blocks the scheduler waiting for unavailable data.
+`stdin.unref()` removes input from loop keepalive while other referenced work
+still permits ready input delivery. Ordinary `pipe(stdout)` does not end stdout;
+`pipeline` explicitly ends its destination. Terminal-specific controls are not
+provided by the descriptor streams. See [Streams](host-apis.md#streams).
+
 Normal completion emits `beforeExit`; newly scheduled work delays `exit`.
 Once listeners remain single-use during nested emission; changes to `exitCode`
 from normal-completion `exit` listeners determine the final status.
 Explicit `exit()` emits `exit` once before terminating. `emitWarning()` queues a
 warning event and writes a diagnostic to stderr; warning details and deprecation
-flags are supported. Maximum-listener warning diagnostics and `rawListeners`
-are not yet available.
+flags are supported. Next-tick callbacks retain their captured asynchronous
+storage; the private queue does not require eager construction of process.
 
 ### Runtime exceptions and promise rejections
 

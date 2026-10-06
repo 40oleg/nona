@@ -1,3 +1,4 @@
+import {installProcessDependencies} from './helpers/process-prelude.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {types} from 'node:util';
@@ -188,9 +189,15 @@ function mockProcess(extra:Record<string,unknown>={},target='linux-x64',before?:
  const context=createContext({TextEncoder,TextDecoder,__nonaRegexpVm:{isRejectionError:types.isNativeError,arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target,offset,count).set(new Uint8Array(source,start,count))},__nonaProcessNow:()=>1000,__nonaPromiseDrainJobs(){},
   __nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_sys_procinfo:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0,...extra});
- if(before)runInContext(before,context);
+ installProcessDependencies(context,target);if(before)runInContext(before,context);
  runInContext(processPreludeForTarget(target),context);return context;
 }
+
+test('private nextTick scheduler preserves captured scopes without constructing process',()=>{
+ const context=mockProcess({__nonaHost_startupEnv:()=>{throw Error('Process environment must stay lazy')}});
+ const result=runInContext(`var values=[],api={activeRecord:{name:'captured'},restoreRecord:function(record){this.activeRecord=record},runCaptured:function(record,fn,receiver,args){var previous=this.activeRecord;this.activeRecord=record;try{return Reflect.apply(fn,receiver,args)}finally{this.activeRecord=previous}}};__nonaRegexpVm.asyncContext=api;__nonaRegexpVm.enqueueNextTick(function(value){values.push([api.activeRecord.name,value]);api.restoreRecord({name:'changed'});__nonaRegexpVm.enqueueNextTick(function(next){values.push([api.activeRecord.name,next])},[43])},[42]);api.restoreRecord({name:'caller'});__nonaPromiseDrainJobs();JSON.stringify([values,api.activeRecord.name,typeof Object.getOwnPropertyDescriptor(globalThis,'process').get])`,context);
+ assert.deepEqual(JSON.parse(result),[[['captured',42],['changed',43]],'caller','function']);
+});
 test('POSIX execve packs actual UTF-8 argv/envp without mutating the current environment',()=>{
  let args:string[]=[],environment:string[]=[];const calls:unknown[][]=[];const decode=(bytes:Uint8Array)=>new TextDecoder().decode(bytes).split('\0').filter(Boolean);
  const context=mockProcess({__nonaHost_replaceArguments:(bytes:Uint8Array)=>{args=decode(bytes)},__nonaHost_replaceExecEnvironment:(bytes:Uint8Array)=>{environment=decode(bytes)},__nonaHost_argumentVector:()=>1234,__nonaHost_execEnvironmentVector:()=>5678,
@@ -334,9 +341,22 @@ test('process native standard output boundary writes exact bytes',()=>{
   __nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,
   __nonaHost_sys_write:(fd:number,b:Uint8Array,n:number)=>{writes.push({fd,bytes:Array.from(b.slice(0,n))});return n},
  });
- runInContext(processPreludeForTarget('linux-x64'),context);
+ installProcessDependencies(context);runInContext(processPreludeForTarget('linux-x64'),context);
  assert.equal(runInContext('process.stdout.write("hello ü");process.stderr.write(new Uint8Array([0,65,255]))',context),true);
  assert.deepEqual(writes,[{fd:1,bytes:Array.from(new TextEncoder().encode('hello ü'))},{fd:2,bytes:[0,65,255]}]);
+});
+
+test('process stream ancestry and pipe versus pipeline termination use the canonical runtime',()=>{
+ for(const pipeline of [false,true]){
+  const written:number[]=[];
+  const context=mockProcess({__nonaHost_sys_write:(_fd:number,bytes:Uint8Array,n:number)=>{written.push(...bytes.subarray(0,n));return n}});
+  assert.equal(runInContext('process instanceof __nonaRegexpVm.eventEmitterModule&&process.stdin instanceof __nonaRegexpVm.streamModule.Readable&&process.stdout instanceof __nonaRegexpVm.streamModule.Writable&&process.on===__nonaRegexpVm.eventEmitterModule.prototype.on',context),true);
+  runInContext('var completed=false,source=__nonaRegexpVm.streamModule.Readable.from(["ok"]);'+(pipeline?'__nonaRegexpVm.streamModule.pipeline(source,process.stdout,function(error){if(error)throw error;completed=true})':'source.pipe(process.stdout)'),context);
+  runInContext('__nonaPromiseDrainJobs()',context);
+  assert.equal(runInContext('process.stdout.writableEnded',context),pipeline);
+  assert.equal(runInContext('completed',context),pipeline);
+  assert.deepEqual(written,[111,107]);
+ }
 });
 
 for(const target of supportedNativeTargets)test(`process standard streams/resources compile for ${target}`,()=>{
@@ -353,7 +373,7 @@ function portableBoundary(){
   __nonaHost_sys_getcwd:(bytes:Uint8Array)=>{bytes.set(new TextEncoder().encode(directory+'\0'));return directory.length+1},
   __nonaHost_sys_chdir:(bytes:Uint8Array)=>{directory=new TextDecoder().decode(bytes).slice(0,-1);return 0},
  });
- runInContext(processPreludeForTarget('linux-x64'),context);return context;
+ installProcessDependencies(context);runInContext(processPreludeForTarget('linux-x64'),context);return context;
 }
 test('process boundary validates exitCode and directory arguments',()=>{
  const context=portableBoundary();

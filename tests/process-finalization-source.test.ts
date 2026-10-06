@@ -1,3 +1,4 @@
+import {installProcessDependencies} from './helpers/process-prelude.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createContext,runInContext} from 'node:vm';
@@ -82,7 +83,7 @@ test('lazy process finalization preserves startup intrinsics before and after fi
   const metadata=new Map<object,{key:object;callback:unknown}>(),output:string[]=[];
   class PrivateMap extends WeakMap<object,boolean>{override set(key:object,value:boolean){super.set(key,value);metadata.set(this,{key,callback:undefined});return this}}
   const context=createContext({TextEncoder,TextDecoder,WeakMap:PrivateMap,console:{log:(...args:unknown[])=>output.push(args.map(String).join(' '))},__nonaRegexpVm:{arrayBufferCopy:(source:ArrayBuffer,target:ArrayBuffer,start:number,count:number,offset:number)=>new Uint8Array(target).set(new Uint8Array(source,start,count),offset)},__nonaPromiseDrainJobs(){},__nonaProcessNow:()=>1000,__nonaProcessFinalization:(map:object,mode:number,callback:unknown)=>{const record=metadata.get(map)!;if(mode===0)return record.key;if(mode===1)return record.callback;record.callback=callback},__nonaHost_GetCommandLineW:()=>0,__nonaHost_sys_open:()=>-2,__nonaHost_sys_readlink:()=>0,__nonaHost_sys_getpid:()=>123,__nonaHost_sys_getppid:()=>12,__nonaHost_startupArgv:()=>0,__nonaHost_startupEnv:()=>0,__nonaHost_replaceEnvironment:()=>{},__nonaHost_environmentVector:()=>0});
-  runInContext(processPreludeForTarget('linux-x64'),context);assert.equal('__nonaProcessFinalization' in context,false);
+  installProcessDependencies(context);runInContext(processPreludeForTarget('linux-x64'),context);assert.equal('__nonaProcessFinalization' in context,false);
   const source=(after?'var p=process;':'')+override+';var target={},cancelled={};process.finalization.register(target,(ref,event)=>console.log(ref===target,event));process.finalization.register(cancelled,()=>console.log("unexpected"));process.finalization.unregister(cancelled);console.log("registered");';
   runInContext(source,context);runInContext('__nonaPromiseDrainJobs()',context);
   const oracle=spawnSync(globalThis.process.execPath,['--disable-warning=ExperimentalWarning','-e',source],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);assert.equal(output.join('\n')+'\n',oracle.stdout,override+' after='+after);

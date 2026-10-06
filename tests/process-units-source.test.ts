@@ -1,3 +1,4 @@
+import {installProcessDependencies} from './helpers/process-prelude.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createContext,runInContext} from 'node:vm';
@@ -10,7 +11,7 @@ import {compile} from '../src/compiler.js';
  for(const item of processHostDeclarations('win32-arm64'))globals['__nonaHost_'+item.name]=()=>0;
  globals.__nonaHost_GetCommandLineW=()=>1;globals.__nonaHost_lstrlenW=()=>0;
  globals.__nonaHost_GetModuleFileNameW=(_:unknown,units:Uint16Array)=>{for(let i=0;i<text.length;i++)units[i]=text.charCodeAt(i);return text.length};
- const context=createContext(globals);runInContext(processPreludeForTarget('win32-arm64'),context);
+ const context=createContext(globals);installProcessDependencies(context);runInContext(processPreludeForTarget('win32-arm64'),context);
  assert.equal(runInContext('process.execPath',context),text);assert.equal(calls,2);assert.equal(runInContext('typeof __nonaProcessUnits',context),'undefined');
  });
 for(const target of ['win32-x64','win32-arm64','linux-x64','linux-arm64','darwin-x64','darwin-arm64','freebsd-x64','openbsd-x64'] as const)test('UTF-16 process helper links for '+target,()=>{

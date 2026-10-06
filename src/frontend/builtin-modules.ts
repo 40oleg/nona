@@ -7,6 +7,7 @@ import {eventsModuleForTarget} from './events-module.js';
 import {asyncHooksModuleSource} from './async-hooks-module.js';
 import {pathModuleSourceForTarget} from './path-module.js';
 import {bufferModuleSource} from './buffer-module.js';
+import {streamModuleSource,streamPromisesModuleSource,streamConsumersModuleSource} from './stream-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -109,6 +110,9 @@ const sources=new Map<string,(target:Target)=>string>([
   ['node:path',pathModuleSourceForTarget],
   ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
   ['nona:process',()=>processModuleSource],
+  ...['node:stream','nona:stream'].map(name=>[name,()=>streamModuleSource] as [string,()=>string]),
+  ...['node:stream/promises','nona:stream/promises'].map(name=>[name,()=>streamPromisesModuleSource] as [string,()=>string]),
+  ...['node:stream/consumers','nona:stream/consumers'].map(name=>[name,()=>streamConsumersModuleSource] as [string,()=>string]),
   ['node:process',()=>processModuleSource],
 ]);
 
