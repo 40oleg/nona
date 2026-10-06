@@ -21,6 +21,8 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **API хоста** для настоящих программ:
   - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
   - глобальный `process` и `node:process` на всех восьми платформах (`version`, `versions.nona`, `argv`, изменяемое нативное `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `getBuiltinModule`, `abort`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
+  - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, отмена, освобождаемые подписки на отмену и асинхронный контекст; сохранённое хранилище переживает смену контекста без копирования Map для каждой реакции, а сигналы с таймером не удерживают процесс запущенным ([API хоста](docs/host-apis.md#events));
+
   - глобальные `Buffer`, `Blob` и `File`, импорты `node:buffer`/`buffer`/`nona:buffer`, кодировки и числовые операции ([двоичные данные, англ.](docs/host-apis.md#buffer-and-binary-data));
   - синхронные `node:fs`/`nona:fs`, `TextEncoder`/`TextDecoder` ([файловая система](docs/fs.md));
   - `node:path` / `path`: варианты POSIX и Windows, разбор, разрешение путей и glob-шаблоны; рабочие каталоги читаются по требованию ([пути](docs/path.md));

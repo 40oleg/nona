@@ -93,6 +93,84 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
   with hundreds of live timers or large objects slow down; on Linux every heap
   block is a separate memory mapping (#37).
 
+## Events
+
+`node:events`, `events` and `nona:events` resolve to the same built-in module.
+The default export and named `EventEmitter` export are the same constructor.
+
+- Listener registration: `on`/`addListener`, `once`, `prependListener` and
+  `prependOnceListener`. Dispatch is synchronous, preserves registration order,
+  binds `this` to the emitter and snapshots listeners before calling them.
+- Listener removal: `off`/`removeListener` removes the most recently registered
+  matching listener; `removeAllListeners` supports one event or every event.
+  `newListener` and `removeListener` notifications expose original once listeners.
+- Introspection: `listeners`, `rawListeners`, `listenerCount` (including its
+  optional listener filter), `eventNames`, `getMaxListeners`, `setMaxListeners`.
+  Event names support strings, symbols and other property keys.
+- Error dispatch: unhandled `error` events throw; `errorMonitor` observers run
+  first. `captureRejections`, constructor options and `captureRejectionSymbol`
+  support rejected listener promises and custom rejection handlers.
+- Module helpers: `listenerCount`, `getEventListeners`, `getMaxListeners`,
+  `setMaxListeners`, Promise-based `once`, and async-iterator `on`. The iterator
+  supports buffered events, pending requests, error cleanup, `close` events,
+  cancellation, and high/low watermarks for emitters with `pause`/`resume`.
+- `EventEmitter.defaultMaxListeners` and `EventEmitter.captureRejections` are
+  writable; named exports track their current values.
+
+`once` and `on` accept externally supplied signals with `aborted`, `reason`,
+`addEventListener` and `removeEventListener`. `addAbortListener` returns a
+subscription disposable under `Symbol.dispose`. The `Symbol.dispose` and
+`Symbol.asyncDispose` globals use the distinct symbol identities from Node.js 26.
+
+Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
+`AbortSignal` and `DOMException` globals. Event targets support listener objects,
+capture matching, once listeners, signal removal, cancellation and dispatch
+mutation. `AbortSignal.abort`, `timeout`, `any` and `throwIfAborted` are supported.
+`addAbortListener` subscriptions on Nona signals survive `stopImmediatePropagation`.
+The cancellation subscriptions used by `once` and `on` have the same protection.
+`AbortSignal.any` follows actual source cancellation; synthetic `abort` events do
+not cancel composed signals. Replacing `onabort` retains its original listener slot.
+`NodeEventTarget` additionally supplies emitter-style registration, single-argument
+`emit`, event names, listener counts, removal and limits. Target listeners are
+unique by callback and capture flag. Introspection and max-listener module helpers
+accept both emitters and targets. Uncaught target listener failures are queued as
+uncaught asynchronous errors.
+
+`EventEmitterAsyncResource` runs listeners in its construction context and exposes
+`asyncId`, `triggerAsyncId`, `asyncResource` and `emitDestroy`. The independent
+`node:async_hooks` / `nona:async_hooks` module provides `AsyncResource`,
+`AsyncLocalStorage`, `executionAsyncId`, `triggerAsyncId`,
+`executionAsyncResource` and `createHook`. Manual resources support scope entry,
+binding, explicit destruction and init/before/after/destroy notifications. Local
+storage supports run, enterWith, exit, disable, bind and snapshot; contexts are
+captured when Promise reactions, await continuations, timers and microtasks are
+registered.
+
+Captured bind, snapshot and resource contexts retain their original stores after
+later `enterWith` or `disable` calls, and restore the caller's context on return.
+Registration reuses immutable context records rather than copying a Map for
+every Promise reaction; scope changes create a new record and store map.
+Promise reactions, timers and microtasks retain the record directly and restore
+the calling context after success or failure, without creating extra callback wrappers.
+Callbacks already in their captured context bypass redundant scope calls.
+If a callback changes its store, the calling context is still restored.
+
+Boundaries: hooks describe explicitly created resources; native Promise and timer
+resource creation, Promise resolution hooks, GC-triggered destruction and Node's
+async resource type catalog are not emitted. Timer callbacks preserve captured
+context IDs rather than creating Node timer IDs. `AbortSignal.timeout` uses an
+unreferenced timer: it can fire while ordinary timers keep the loop active, but
+neither the signal nor its abort listeners keep the process alive. Event dispatch
+has no DOM hierarchy. Diagnostic wording, private storage and async ID numbers
+are implementation details. Listener-limit warnings use `process.emitWarning`
+where the process adapter supports it. See the
+[Node events reference](https://nodejs.org/api/events.html).
+
+Native CI executes shared cancellation and async-context probes with allocation
+stress on all eight targets, including the BSD guests. The Node host jobs also
+run the EventEmitter and EventTarget oracle suites; see
+[native verification](native-platforms.md#verification) for the coverage.
+
 ## Buffer and binary data
 
 The global `Buffer` and the `node:buffer`, `buffer` and `nona:buffer` ES modules use the same constructor on every native target. Buffer storage is a native `Uint8Array`: indexing, iteration, ArrayBuffer views and inherited typed-array methods work without an interpreter or external libraries.
@@ -107,7 +185,7 @@ The module also exports `isAscii`, `isUtf8`, `atob`, `btoa`, `transcode` (UTF-8,
 
 Global and module `Blob` and `File` constructors provide immutable copied data, `size`, `type`, `slice`, Promise-returning `text`/`arrayBuffer`/`bytes`, and File `name`/`lastModified` metadata. Blob string parts normalize unpaired surrogates; `endings: 'native'` uses CRLF on Windows and LF elsewhere. Returned bytes and ArrayBuffers are independent copies.
 
-`Blob.stream()` returns a byte `ReadableStream`; `Blob.textStream()` returns a UTF-8 text stream with BOM removal, replacement decoding, and characters retained across part boundaries. Streams support default readers, byte BYOB readers with buffer transfer and minimum reads, `read`, `closed`, reader cancellation/release, locking, stream cancellation, async iteration (`values`), `tee`, `pipeTo` and `pipeThrough`. Each byte chunk is independent of Blob storage. The WritableStream dependency accepts asynchronous underlying sink callbacks, queues writes, and provides writers, close and abort. Piping honors `preventClose`, `preventCancel`, `preventAbort` and an AbortSignal-compatible `signal` (initial or mid-transfer cancellation). Until EventTarget/AbortController support is integrated, signals can be supplied through the `aborted`/`reason`/`addEventListener`/`removeEventListener` protocol.
+`Blob.stream()` returns a byte `ReadableStream`; `Blob.textStream()` returns a UTF-8 text stream with BOM removal, replacement decoding, and characters retained across part boundaries. Streams support default readers, byte BYOB readers with buffer transfer and minimum reads, `read`, `closed`, reader cancellation/release, locking, stream cancellation, async iteration (`values`), `tee`, `pipeTo` and `pipeThrough`. Each byte chunk is independent of Blob storage. The WritableStream dependency accepts asynchronous underlying sink callbacks, queues writes, and provides writers, close and abort. Piping honors `preventClose`, `preventCancel`, `preventAbort` and an AbortSignal-compatible `signal` (initial or mid-transfer cancellation). The original AbortController supplies native signals; Blob piping protects their cancellation subscriptions against stopImmediatePropagation. External signals can also use the `aborted`/`reason`/`addEventListener`/`removeEventListener` protocol.
 
 `URL.createObjectURL(blob)` registers immutable Blob data under a unique process-local `blob:nodedata:` URL. `resolveObjectURL(url)` returns a fresh Blob wrapper or undefined for an unknown/revoked URL. Query strings and fragments do not change the registry lookup. `URL.revokeObjectURL(url)` releases the registry entry; previously resolved Blobs remain valid. Registered data stays reachable until revocation or process exit.
 

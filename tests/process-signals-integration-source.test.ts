@@ -24,6 +24,9 @@ test('signal polling observes a live timer but signal listeners do not keep the 
  const f=signalRuntime();runInContext('process.on("SIGTERM",name=>console.log(name));setTimeout(()=>console.log("timer"),20)',f.context);f.pending.push(15);runInContext('__nonaPromiseDrainJobs()',f.context);assert.deepEqual(f.output,['SIGTERM','timer']);
  const idle=signalRuntime();runInContext('process.on("SIGTERM",()=>console.log("unexpected"));__nonaPromiseDrainJobs()',idle.context);assert.deepEqual(idle.output,[]);
 });
+test('referenced native input keeps an unreferenced timeout runnable without listing it as a timer resource',()=>{
+ const f=signalRuntime();runInContext(`var activeInput=true,pumps=0;__nonaRegexpVm.hasPendingIO=function(){return activeInput};__nonaRegexpVm.hasReadableIO=function(){return activeInput};__nonaRegexpVm.pumpIO=function(){if(++pumps===4)activeInput=false};__nonaRegexpVm.scheduleUnreferencedTimeout(()=>console.log('cancel'),2);console.log(__nonaRegexpVm.hasPendingTimers(),__nonaRegexpVm.activeTimerResources().length);__nonaPromiseDrainJobs()`,f.context);assert.deepEqual(f.output,['false 0','cancel']);
+});
 test('native dispatch uses captured process methods after public replacements',()=>{
  const f=signalRuntime();runInContext('process.once("SIGTERM",name=>console.log(name));process.listenerCount=function(){throw Error("public count")};process.emit=function(){throw Error("public emit")}',f.context);f.pending.push(15);runInContext('__nonaRegexpVm.pumpSignals()',f.context);assert.deepEqual(f.output,['SIGTERM']);assert.deepEqual(f.actions,[15,-15]);
 });

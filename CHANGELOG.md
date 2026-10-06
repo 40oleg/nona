@@ -41,6 +41,16 @@
 - Fixed reentrant process once listeners, final exit-listener status updates, polling of unreferenced stdin while timers keep the process alive, and the OpenBSD 7.8 `kill` syscall mapping ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
+- Skip redundant async-context scope calls when Promise reactions, timers and microtasks already run in their captured context, while restoring stores changed by callbacks ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Retained asynchronous context records directly in Promise reactions, timer records and microtasks, avoiding extra callback wrappers under GC stress ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Made `AbortSignal.timeout` cancellation timers unreferenced and aligned delay validation error codes with Node.js 26 ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Reused immutable asynchronous context snapshots to avoid per-reaction Map copies under GC stress; fixed captured store restoration after `enterWith` and `disable`, bind argument validation and exit receiver validation ([#137](https://github.com/40oleg/nona/issues/137)).
+
+- Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers, including protected Blob piping cancellation ([#137](https://github.com/40oleg/nona/issues/137)).
+
 
 - Read Path working directories and Windows drive environment entries on demand through original target adapters; avoid full process startup for path-only programs under GC stress ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added `node:path` and `path` ES modules, including explicit POSIX/Windows variants, path component and resolution APIs, Windows relative paths on POSIX hosts, namespace conversion and Node.js 26 glob matching ([#135](https://github.com/40oleg/nona/issues/135)).

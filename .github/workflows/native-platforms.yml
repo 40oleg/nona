@@ -101,6 +101,8 @@ jobs:
           node scripts/run-platform-probes.mjs ${{ matrix.target }}
       - name: Verify native process report files
         run: node scripts/verify-process-reports.mjs
+      - name: Events module oracle suite
+        run: node --test dist/tests/events.test.js dist/tests/event-target.test.js dist/tests/event-probes.test.js
       - name: Core runtime oracle suites
         run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
       - name: Buffer and Blob oracle suites

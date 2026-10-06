@@ -48,13 +48,14 @@ var __nonaPromiseDrainJobs=(function(){
     }
   }
   function runReaction(reaction,kind,value){
+    var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
     try{
       var handler=kind===1?reaction.onFulfilled:reaction.onRejected;
       var resolve=reaction.resolve,reject=reaction.reject;
       if(typeof handler!=='function'){
         if(kind===1)resolve(value);else reject(value)
-      }else resolve(handler(value))
-    }catch(error){var reject=reaction.reject;reject(error)}
+      }else{resolve(context&&reaction.context&&reaction.context!==context.activeRecord?context.runCapturedUnary(reaction.context,handler,value):handler(value))}
+    }catch(error){var reject=reaction.reject;reject(error)}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
   function resolvePromise(promise,value){
     if(promise===value){settle(promise,2,new TypeError('Promise self resolution'));return}
@@ -109,7 +110,8 @@ var __nonaPromiseDrainJobs=(function(){
   }
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
+    var context=__nonaRegexpVm.asyncContext;
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject,context:context?context.activeRecord:undefined};
     markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
@@ -203,7 +205,8 @@ var __nonaPromiseDrainJobs=(function(){
   function noop(){}
   function performThen(promise,onFulfilled,onRejected){
     var state=record(promise);
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop};
+    var context=__nonaRegexpVm.asyncContext;
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop,context:context?context.activeRecord:undefined};
     markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))

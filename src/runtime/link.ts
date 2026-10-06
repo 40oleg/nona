@@ -21,6 +21,8 @@ export interface RuntimeLink {
  * are always linked.
  */
 export const preludeTriggers={
+  asyncHooks:['AsyncResource','AsyncLocalStorage','executionAsyncId','triggerAsyncId','nona.async_hooks.internal'],
+  events:['Event','CustomEvent','EventTarget','AbortController','AbortSignal','DOMException','NodeEventTarget','nona.events.internal'],
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
   buffer:['Buffer','Blob','File','URL','ReadableStream','ReadableStreamDefaultReader','ReadableStreamBYOBReader','WritableStream','WritableStreamDefaultWriter','node:buffer','nona:buffer','bufferModule'],
@@ -37,7 +39,7 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers'],buffer:['encoding']};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers'],buffer:['encoding'],events:['timers'],asyncHooks:['events','timers']};
 /** Process parses dotenv/memory text and validates masks with original regexes. */
 export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]=[]){
  const regexp=link.regexp||link.preludes.buffer||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};

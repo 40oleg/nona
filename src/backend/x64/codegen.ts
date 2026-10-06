@@ -24,6 +24,8 @@ import {bufferPreludeSource} from '../../runtime/buffer-source.js';
 import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
 import {processNativeHelpers,captureProcessStartup} from '../../runtime/process-host.js';
 import {ffiImportSymbol} from '../../ffi.js';
+import {eventsPreludeSource} from '../../runtime/events-source.js';
+import {asyncHooksPreludeSource} from '../../runtime/async-hooks-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -113,7 +115,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
