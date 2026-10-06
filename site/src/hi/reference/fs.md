@@ -9,11 +9,12 @@ Node.js के `fs` मॉड्यूल का एक सिंक्रोन
 | फ़ंक्शन | टिप्पणी |
 | --- | --- |
 | `readFileSync(path, options?)` | एन्कोडिंग के बिना `Uint8Array` लौटाता है (Node.js `Buffer` लौटाता है); `'utf8'` के साथ स्ट्रिंग। |
-| `writeFileSync(path, data, options?)` | `data`: स्ट्रिंग (UTF-8), typed array, DataView या ArrayBuffer। `{flag: 'a'}` अंत में जोड़ता है। |
+| `writeFileSync(path, data, options?)` | `data`: स्ट्रिंग (UTF-8), typed array, DataView या ArrayBuffer। `{flag: 'a'}` अंत में जोड़ता है। `flag`: `w` / `a` / `wx`; POSIX `mode`. |
 | `appendFileSync(path, data)` | |
 | `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`। |
-| `readdirSync(path)` | `.` और `..` के बिना नाम, फ़ाइल सिस्टम के क्रम में। `withFileTypes` समर्थित नहीं है। |
+| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`। `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)` | प्रतीकात्मक लिंक हल करने के बाद कैनोनिकल पूर्ण पथ। |
+| `readdirSync(path, options?)` | `.` और `..` के बिना नाम; `{withFileTypes: true}` से `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()` वाली प्रविष्टियाँ मिलती हैं। |
 | `mkdirSync(path, {recursive}?)` | `recursive` के साथ, बनाई गई पहली डायरेक्टरी लौटाता है। |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` समर्थित है। |
 

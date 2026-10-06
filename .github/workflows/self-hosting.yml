@@ -8,6 +8,8 @@ on:
       - 'scripts/verify-selfhost.mjs'
       - 'tests/selfhost-liveness.test.ts'
       - 'tests/selfhost-traversal.test.ts'
+      - 'tests/selfhost-filesystem.test.ts'
+      - 'tests/selfhost-adapters.test.ts'
       - 'tests/fixtures/selfhost-regexp-run-ir.json'
       - '.github/workflows/self-hosting.yml'
 permissions:
@@ -38,13 +40,19 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Verify compiler liveness on the native host
-        run: node --test dist/tests/selfhost-liveness.test.js dist/tests/selfhost-traversal.test.js
+        run: node --test dist/tests/selfhost-liveness.test.js dist/tests/selfhost-traversal.test.js dist/tests/selfhost-filesystem.test.js dist/tests/selfhost-adapters.test.js
       - name: Build native stage 1 with the development bootstrap
         run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
       - name: Verify native regressions and stage 1 builds stage 2
         run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
+      - name: Build the full native CLI
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
+      - name: Verify full CLI self-hosting, cache and output protections
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: selfhost-${{ matrix.target }}
-          path: work/selfhost
+          path: |
+            work/selfhost
+            work/selfhost-cli

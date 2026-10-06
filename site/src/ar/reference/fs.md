@@ -9,11 +9,12 @@
 | الدالة | ملاحظات |
 | --- | --- |
 | `readFileSync(path, options?)` | دون ترميز تعيد `Uint8Array` (يعيد Node.js ‏`Buffer`)؛ ومع `'utf8'` تعيد سلسلة. |
-| `writeFileSync(path, data, options?)` | ‏`data`: سلسلة (UTF-8) أو مصفوفة منمَّطة أو DataView أو ArrayBuffer. ‏`{flag: 'a'}` يُلحق بنهاية الملف. |
+| `writeFileSync(path, data, options?)` | ‏`data`: سلسلة (UTF-8) أو مصفوفة منمَّطة أو DataView أو ArrayBuffer. ‏`{flag: 'a'}` يُلحق بنهاية الملف. `flag`: `w` / `a` / `wx`; POSIX `mode`. |
 | `appendFileSync(path, data)` | |
 | `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()` و`isDirectory()` و`isSymbolicLink()` و`size` و`mtimeMs` و`mtime` و`mode`؛ و`{throwIfNoEntry: false}`. |
-| `readdirSync(path)` | الأسماء دون `.` و`..`، بترتيب نظام الملفات. ‏`withFileTypes` غير مدعوم. |
+| `statSync(path, options?)` | `isFile()` و`isDirectory()` و`isSymbolicLink()` و`size` و`mtimeMs` و`mtime` و`mode`؛ و`{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)` | المسار المطلق بعد حل الروابط الرمزية. |
+| `readdirSync(path, options?)` | أسماء دون `.` و`..`؛ يعيد `{withFileTypes: true}` عناصر تتضمن `name` و`isFile()` و`isDirectory()` و`isSymbolicLink()`. |
 | `mkdirSync(path, {recursive}?)` | مع `recursive` تعيد أول مجلد أُنشئ. |
 | `rmdirSync` و`unlinkSync` و`renameSync` و`copyFileSync(src, dest, mode?)` | ‏`constants.COPYFILE_EXCL` مدعوم. |
 

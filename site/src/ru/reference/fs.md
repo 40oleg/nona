@@ -9,11 +9,12 @@
 | Функция | Примечания |
 | --- | --- |
 | `readFileSync(path, options?)` | Без кодировки возвращает `Uint8Array` (Node.js возвращает `Buffer`); с `'utf8'` возвращает строку. |
-| `writeFileSync(path, data, options?)` | `data`: строка (UTF-8), typed array, DataView или ArrayBuffer. `{flag: 'a'}` дописывает в конец. |
+| `writeFileSync(path, data, options?)` | `data`: строка (UTF-8), typed array, DataView или ArrayBuffer. `{flag: 'a'}` дописывает в конец. `flag`: `w` / `a` / `wx`; POSIX `mode`. |
 | `appendFileSync(path, data)` | |
 | `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`. |
-| `readdirSync(path)` | Имена без `.` и `..`, в порядке файловой системы. `withFileTypes` не поддерживается. |
+| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)` | Канонический абсолютный путь с разрешением символических ссылок. |
+| `readdirSync(path, options?)` | Имена без `.` и `..`; `{withFileTypes: true}` возвращает записи с `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()`. |
 | `mkdirSync(path, {recursive}?)` | С `recursive` возвращает первый созданный каталог. |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` поддерживается. |
 

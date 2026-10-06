@@ -15,6 +15,11 @@ node scripts/bootstrap-selfhost.mjs linux-x64 work/selfhost/stage1
 node scripts/verify-selfhost.mjs linux-x64 work/selfhost/stage1
 ```
 
+Stage 1 has built a byte-identical stage 2 on Windows x64 and Linux x64 in
+[native CI](https://github.com/40oleg/nona/actions/runs/37493485834), with Node
+absent from the child compiler's PATH. Both stages compiled and executed
+arithmetic, Path-module and Unicode RegExp regressions matching bootstrap images.
+
 Windows uses `win32-x64` and `stage1.exe`. Generated Windows executables are
 verified in native CI; local verification refuses to execute them.
 
@@ -24,8 +29,10 @@ compares the two compiler images, and repeats the program regressions with stage
 2. Its use of Node.js for bootstrap, comparison and orchestration does not imply
 a native compiler runtime dependency.
 
-The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe,
-not a replacement distribution CLI. Native execution and stage 2 success remain
-unverified until the `self-hosting` workflow passes. Integration of the complete
-CLI, atomic output protections, compiler cache and adapters for the remaining
-hosts is still required before distributing a native compiler.
+The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe.
+Passing `--cli` to the bootstrap and verifier instead builds the original CLI,
+with private original SHA-256/UUID/file-URL adapters and an embedded fingerprint
+of the prepared compiler sources. This mode is under native validation; it is
+not yet a replacement distribution CLI. The verifier checks help, version,
+warm cache, executable permissions and source overwrite refusal as well as
+stage 2. Remaining hosts and full distribution integration are still required.
