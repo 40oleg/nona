@@ -48,11 +48,12 @@ JavaScript source (script or module graph)
                        runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
-The compiler is written in TypeScript and runs on Node.js. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
+The compiler is written in TypeScript. Its development bootstrap runs on Node.js; the standalone native CLI runs on Nona's own runtime. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
 
 ## Requirements
 
-- To run the compiler: Node.js 26 or newer and npm.
+- To develop or bootstrap the compiler: Node.js 26 or newer and npm.
+- To use the standalone compiler: download the `nona-<target>` artifact from a successful [self-hosting workflow](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml), extract it and run `nona --help` (`./nona` on POSIX). It contains no Node.js runtime or compiler source tree. See [native compiler bootstrap](docs/self-hosting.md) for building and validation.
 - Targets: Windows/Linux/macOS x64 and ARM64, FreeBSD/OpenBSD x64. The default follows the host OS and CPU; see [native platforms](docs/native-platforms.md) for verification and API limits.
 
 | OS | Targets | Format |
