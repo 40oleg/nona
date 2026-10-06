@@ -72,38 +72,51 @@
 
 - Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
 
+
+## v0.9.0 — 2026-10-06
+
+Highlights since v0.8.0:
+
+- **`node:http` and `node:net`** on Linux and Windows x64, with `node:events`, `node:buffer` and `node:string_decoder`. The HTTP server is Nona's own: on the HTTP benchmark it is level with Node.js on small requests, 1.8 times faster on 64 KiB responses and uses a fifth of the memory (see [PERFORMANCE.md](PERFORMANCE.md#http-server)).
+- **`node:events`, `node:async_hooks`, `node:path` and the global `Buffer`, `Blob` and `File`**: EventEmitter and EventTarget, `AsyncLocalStorage` with context carried through promises, timers and microtasks, `node:buffer` with Node.js-compatible encodings, and glob matching.
+- **Faster runtime for every program**: inline caches for `.length`, `super.name` and global names, cheaper `Object.keys`, `push`/`pop`, `%`, default derived constructors and `JSON.stringify`, and a collector whose pauses only mark (lazy sweeping).
+- **Eight native targets**: Linux, Windows and macOS on ARM64, Intel macOS and FreeBSD/OpenBSD x64 join Windows and Linux x64, also in the browser playground.
+- **Testing**: native CI for every platform on each pull request, and a corpus of 1,000 combination programs checked against Node.js.
+
+### Networking
+
 - `node:http` runs on Nona's own HTTP/1.1 server and client: request heads are parsed and responses encoded by native code, per-request work Node.js defers is batched, and the runtime got general speedups the server exposed (inline caches for `.length`, `super.name` and global names, cheaper `Object.keys`, `push`/`pop`, `%`, default derived constructors and `JSON.stringify`, size classes that fit 16 KiB buffers, a cheaper mark phase and lazy sweeping). On the HTTP benchmark Nona is level with Node.js on small requests, 1.8 times faster on 64 KiB responses, 10–20% behind on request bodies and uses a fifth of the memory ([#115](https://github.com/40oleg/nona/issues/115)). See [PERFORMANCE.md](PERFORMANCE.md#http-server).
 - Added `node:http` (HTTP/1.1 servers, clients and keep-alive agents) and `node:net` (TCP sockets and servers) on Linux and Windows, with `node:events` and `node:string_decoder`; the event loop waits for socket readiness while sockets are open ([#70](https://github.com/40oleg/nona/issues/70)). See [networking](docs/network.md).
+
+### Node.js APIs
+
 - Preserve Web-stream internal Promise handling without discarded species Promises or unused cancellation Promises ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Preserve Blob reader closed-promise identity during release and avoid duplicate cleanup errors; retain original Promise and lazy asynchronous-storage constructors ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Initialize asynchronous-context storage only on first API access and preserve root snapshots registered before initialization; avoid a redundant finally handler on ordinary Promise reactions ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Skip redundant async-context scope calls when Promise reactions, timers and microtasks already run in their captured context, while restoring stores changed by callbacks ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Retained asynchronous context records directly in Promise reactions, timer records and microtasks, avoiding extra callback wrappers under GC stress ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Made `AbortSignal.timeout` cancellation timers unreferenced and aligned delay validation error codes with Node.js 26 ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Reused immutable asynchronous context snapshots to avoid per-reaction Map copies under GC stress; fixed captured store restoration after `enterWith` and `disable`, bind argument validation and exit receiver validation ([#137](https://github.com/40oleg/nona/issues/137)).
-
 - Added `node:events` (`events` / `nona:events`) with EventEmitter, EventTarget and abort globals, listener introspection, native disposal symbols, rejection capture, Promise `once`, async-iterator `on`, NodeEventTarget and manual async-resource context helpers, including protected Blob piping cancellation ([#137](https://github.com/40oleg/nona/issues/137)).
-
-
 - Read Path working directories and Windows drive environment entries on demand through original target adapters; avoid full process startup for path-only programs under GC stress ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added `node:path` and `path` ES modules, including explicit POSIX/Windows variants, path component and resolution APIs, Windows relative paths on POSIX hosts, namespace conversion and Node.js 26 glob matching ([#135](https://github.com/40oleg/nona/issues/135)).
 - Added global `Buffer`, `Blob` and `File` and the `node:buffer`, `buffer` and `nona:buffer` modules: typed-array byte storage, standard encodings, numeric access, shared slices, copies, search bounds, aligned allocation and immutable Blob/File data APIs. Blob byte/text streams, BYOB readers and object URL registration/resolution are included ([#136](https://github.com/40oleg/nona/issues/136)).
-- Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
+
+### Native targets
+
 - Exposed all eight native output targets in the browser playground, including ARM64, macOS and BSD downloads ([#133](https://github.com/40oleg/nona/issues/133)).
-- Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
-
-- Fixed script functions such as `escape` and `unescape` shadowing optional built-in globals: runtime preludes initialize before script global aliases become visible ([#126](https://github.com/40oleg/nona/issues/126)).
-- Expanded the separate program corpus to 1,000 individually authored combination programs, with per-case purpose catalogs, source hashes, Node.js reference snapshots, ten native test shards and Linux/Windows CI on every push and pull request ([#125](https://github.com/40oleg/nona/issues/125)).
-
-- Added a separate corpus of ten small programs combining algorithms, closures, classes, generators, collections, typed arrays, JSON and async exception cleanup, with fixed expected results and Node.js comparisons in normal and GC-stress execution. A dedicated Linux/Windows workflow runs the corpus on every branch push and pull request ([#123](https://github.com/40oleg/nona/issues/123)).
-
 - Added native Linux/Windows/macOS ARM64, Intel macOS and FreeBSD/OpenBSD x64 backends, architecture-specific math/call bridges and native CI probes. Apple Silicon uses system dyld/libSystem; see [native platforms](docs/native-platforms.md) ([#117](https://github.com/40oleg/nona/issues/117)).
+
+### Fixes
+
+- Fixed script function declarations shadowing globals installed by JavaScript preludes, including `process`, timers and `TextEncoder`/`TextDecoder`. Global function descriptors are installed after runtime initialization instead of patching static intrinsic properties ([#128](https://github.com/40oleg/nona/issues/128)).
+- Fixed script functions such as `escape` and `unescape` shadowing optional built-in globals: runtime preludes initialize before script global aliases become visible ([#126](https://github.com/40oleg/nona/issues/126)).
+
+### Testing and CI
+
+- Run native platform CI for every pull request and `main` commit, extend the portable and host API suites to Linux x64, and make manual runs cover the complete OS matrix ([#131](https://github.com/40oleg/nona/issues/131)).
+- Expanded the separate program corpus to 1,000 individually authored combination programs, with per-case purpose catalogs, source hashes, Node.js reference snapshots, ten native test shards and Linux/Windows CI on every push and pull request ([#125](https://github.com/40oleg/nona/issues/125)).
+- Added a separate corpus of ten small programs combining algorithms, closures, classes, generators, collections, typed arrays, JSON and async exception cleanup, with fixed expected results and Node.js comparisons in normal and GC-stress execution. A dedicated Linux/Windows workflow runs the corpus on every branch push and pull request ([#123](https://github.com/40oleg/nona/issues/123)).
 
 ## v0.8.0 — 2026-10-05
 
