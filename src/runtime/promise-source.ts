@@ -6,7 +6,9 @@ var __nonaPromiseDrainJobs=(function(){
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
   // CreateDataProperty at the end, natively (Array.__nonaAppendInternal).
-  var nativeAppend=__nonaRegexpVm.append;
+  // Hosts without the intrinsic (source tests on Node) use one reused descriptor.
+  var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
+  var nativeAppend=__nonaRegexpVm.append||function(array,value){appendDescriptor.value=value;defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
   function append(array,value){nativeAppend(array,value)}
   var noReactions=[];
   function enqueue(job){append(jobs,job)}
@@ -22,6 +24,8 @@ var __nonaPromiseDrainJobs=(function(){
     }
     unhandled=[]
   }
+  function markHandled(state){state.handled=true}
+  __nonaRegexpVm.markPromiseHandled=function(promise){markHandled(record(promise))};
   function record(value){
     var state=getState(value);
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');
@@ -40,13 +44,19 @@ var __nonaPromiseDrainJobs=(function(){
     }
   }
   function runReaction(reaction,kind,value){
+    var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
     try{
       var handler=kind===1?reaction.onFulfilled:reaction.onRejected;
       var resolve=reaction.resolve,reject=reaction.reject;
       if(typeof handler!=='function'){
         if(kind===1)resolve(value);else reject(value)
-      }else resolve(handler(value))
-    }catch(error){var reject=reaction.reject;reject(error)}
+      }else{var snapshot=reaction.context||(context?context.defaultRecord:undefined);resolve(context&&snapshot&&snapshot!==context.activeRecord?context.runCapturedUnary(snapshot,handler,value):handler(value))}
+    }catch(error){
+      var reject=reaction.reject;
+      try{reject(error)}catch(rejectionError){if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous);throw rejectionError}
+    }
+    if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}
+    if(context&&context.activeRecord!==previous)context.restoreRecord(previous)
   }
   function resolvePromise(promise,value){
     if(promise===value){settle(promise,2,new TypeError('Promise self resolution'));return}
@@ -101,8 +111,9 @@ var __nonaPromiseDrainJobs=(function(){
   }
   var then=({then(onFulfilled,onRejected){
     var state=record(this),C=species(this),next=capability(C);
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject};
-    state.handled=true;
+    var context=__nonaRegexpVm.asyncContext;
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject,context:context?context.activeRecord:undefined};
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
     return next.promise
@@ -195,8 +206,9 @@ var __nonaPromiseDrainJobs=(function(){
   function noop(){}
   function performThen(promise,onFulfilled,onRejected){
     var state=record(promise);
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop};
-    state.handled=true;
+    var context=__nonaRegexpVm.asyncContext;
+    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop,context:context?context.activeRecord:undefined};
+    markHandled(state);
     if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
     else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))
   }

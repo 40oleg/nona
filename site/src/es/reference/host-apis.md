@@ -39,3 +39,27 @@ Globales: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+## Events
+
+`node:events`, `events` and `nona:events` share one built-in module. The default
+export is `EventEmitter`; listener ordering, once/prepend listeners, removal,
+introspection, meta events, error monitoring and rejection capture are supported.
+Promise `once` and async-iterator `on` include cleanup, close events, externally
+supplied abort signals and emitter watermarks. Listener/max-listener helpers and
+disposable `addAbortListener` subscriptions under `Symbol.dispose` are also available.
+`Symbol.dispose` and `Symbol.asyncDispose` have the distinct symbol identities used by Node.js 26.
+
+See the [English events reference](/reference/host-apis#events) for the
+complete supported API and limitations.
+
+Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
+`AbortSignal`) and `NodeEventTarget` are supported, including cancellation,
+protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
+and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
+local context storage. Promise, await, timer and microtask callbacks preserve
+captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
+this API; see the English reference for the precise boundaries.
+
+
+AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.

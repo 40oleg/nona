@@ -1,7 +1,8 @@
 import type {ModuleHost} from './modules.js';
 import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
-import {eventsModuleSource} from './events-module.js';
+import {eventsModuleForTarget} from './events-module.js';
+import {asyncHooksModuleSource} from './async-hooks-module.js';
 import {bufferModuleSource} from './buffer-module.js';
 import {stringDecoderModuleSource} from './string-decoder-module.js';
 import {streamModuleSource} from './stream-module.js';
@@ -93,12 +94,15 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:win32',()=>win32ModuleSource],
   ['nona:fs',fsModuleSource],
   ['node:fs',fsModuleSource],
+  ['node:events',eventsModuleForTarget],
+  ['node:async_hooks',()=>asyncHooksModuleSource],
+  ['nona:async_hooks',()=>asyncHooksModuleSource],
+  ['events',eventsModuleForTarget],
+  ['nona:events',eventsModuleForTarget],
   ['node:path',pathModuleSourceForTarget],
   ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
-  ['node:events',()=>eventsModuleSource],
-  ['nona:events',()=>aliasOf('node:events')],
   ['node:string_decoder',()=>stringDecoderModuleSource],
   ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
   ['nona:internal/stream',()=>streamModuleSource],
@@ -110,7 +114,7 @@ const sources=new Map<string,(target:Target)=>string>([
 ]);
 
 const aliases=new Map(['','/posix','/win32'].map(flavor=>['path'+flavor,'node:path'+flavor]));
-const canonicalBuiltin=(specifier:string)=>specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':aliases.get(specifier)??specifier;
+const canonicalBuiltin=(specifier:string)=>specifier==='events'||specifier==='nona:events'?'node:events':specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':aliases.get(specifier)??specifier;
 export function isBuiltinModule(specifier:string):boolean {return sources.has(canonicalBuiltin(specifier));}
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */

@@ -29,7 +29,7 @@ export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:tr
 
 import {compileModuleToIR} from '../../src/compiler.js';
 /** Write a module graph to a temp directory, compile the entry as a module and run it; also run Node on it. */
-export function runModulesOnHost(files:Record<string,string>,entry:string,options:{gcStress?:boolean}={gcStress:true}):{native:HostRun;oracle:string} {
+export function runModulesOnHost(files:Record<string,string>,entry:string,options:{gcStress?:boolean;oracleSource?:string}={gcStress:true}):{native:HostRun;oracle:string} {
  const directory=mkdtempSync(join(tmpdir(),'nona-modules-'));
  try{
   for(const [name,text] of Object.entries(files))writeFileSync(join(directory,name),text);
@@ -39,6 +39,7 @@ export function runModulesOnHost(files:Record<string,string>,entry:string,option
   writeFileSync(executable,linkHost(program));chmodSync(executable,0o755);
   const result=spawnSync(executable,[],{cwd:directory,encoding:'utf8',timeout:60_000,windowsHide:true});
   const native:HostRun={status:result.status,stdout:result.stdout??'',stderr:result.stderr??'',error:result.error};
+  if(options.oracleSource!==undefined)writeFileSync(join(directory,entry),options.oracleSource);
   const oracle=spawnSync(process.execPath,[join(directory,entry)],{cwd:directory,encoding:'utf8',timeout:10_000});
   return {native,oracle:oracle.stdout};
  }finally{removeTemporaryDirectory(directory);}
