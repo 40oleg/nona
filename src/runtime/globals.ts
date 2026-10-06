@@ -1,5 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
+import {CellTag} from './environment-layout.js';
 import {stringLiteral} from './value.js';
 import {rootedFn} from './root-scope.js';
 
@@ -39,6 +40,28 @@ export function emitGlobals(b:RuntimeBuilder):void {
  // global object is an ordinary object for it and the named fast path may
  // answer: a found data property is the value; a miss, an accessor or an
  // absent name take the generic path, which also throws for absent names).
+ // A global name read by user code that cannot be a script binding, with a
+ // per-site record {node, epoch}: the global object's data node found last
+ // time answers while the shape epoch is unchanged (the global object is
+ // flagged like a cached prototype, so adding, deleting or redefining its
+ // properties advances the epoch). RCX result, RDX name, R8 flags, R9 record.
+ b.fn('rt.readGlobalCached',72,a=>{
+  const slow=a.unique('slow'),generic=a.unique('generic'),done=a.unique('done'),copy=a.unique('copy');
+  a.load('rax',{base:'r9',disp:8});a.load('r10',{rip:'rt.shapeEpoch'});a.cmp('rax','r10');a.jcc('ne',slow);
+  a.load('r10',{base:'r9'});a.test('r10','r10');a.jcc('e',slow);
+  a.label(copy);a.load('r11',{base:'r10',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',generic);
+  a.store({base:'rcx'},'r11');a.load('r11',{base:'r10',disp:P.value+8});a.store({base:'rcx',disp:8},'r11');a.jmp(done);
+  a.label(slow);a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.lea('rcx',{rip:'rt.globalObject'});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('e',generic+'.reload');
+  a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.jcc('ne',generic+'.reload');
+  a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('e',generic+'.reload');
+  a.lea('r10',{rip:'rt.globalObject'});a.load('r11',{base:'r10',disp:O.flags});a.or('r11',ObjectFlags.cachedPrototype);a.store({base:'r10',disp:O.flags},'r11');
+  a.load('r9',slot(64));a.store({base:'r9'},'rax');a.load('r11',{rip:'rt.shapeEpoch'});a.store({base:'r9',disp:8},'r11');
+  a.mov('r10','rax');a.load('rcx',slot(40));a.jmp(copy);
+  a.label(generic+'.reload');a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));
+  a.label(generic);a.call('rt.readGlobalProperty');
+  a.label(done);
+ });
  rootedFn(b,'rt.readGlobalProperty',104,[{kind:'output',register:'rcx'},{kind:'locals',offset:56,count:2}],a=>{
   a.store(slot(40),'rcx');a.mov('rax',4);a.store(slot(56),'rax');a.store(slot(64),'rdx');a.store(slot(48),'r8');
   const read=a.unique('read'),generic=a.unique('generic');

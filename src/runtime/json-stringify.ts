@@ -1,6 +1,7 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {CellTag} from './environment-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {stringLiteral} from './value.js';
 
@@ -9,6 +10,28 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.json.toJSON','toJSON'));
  b.bundle.fragments.push(stringLiteral('rt.json.newline','\n'));
  b.bundle.fragments.push(stringLiteral('rt.json.space',' '));
+ // RCX object payload -> RAX 1 when it certainly has no `toJSON`: an
+ // ordinary object or array whose complete key filter lacks the name's bit,
+ // inheriting from Object.prototype or Array.prototype while neither has one.
+ // That check of the prototypes holds for the shape epoch it was made in
+ // (both are flagged, so a change to either advances it). Otherwise 0.
+ b.data('rt.json.toJSONBit',new Uint8Array(8),'.data');
+ b.data('rt.json.protoEpoch',new Uint8Array(8),'.data');
+ b.fn('rt.jsonNoToJSON',56,a=>{
+  const no=a.unique('no'),yes=a.unique('yes'),haveBit=a.unique('haveBit'),protoOk=a.unique('protoOk'),done=a.unique('done');
+  a.store(slot(40),'rcx');a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',1);a.jcc('a',no);
+  a.load('rax',{rip:'rt.json.toJSONBit'});a.test('rax','rax');a.jcc('ne',haveBit);
+  a.lea('rcx',{rip:'rt.json.toJSON'});a.call('rt.keyFilterBit');a.store({rip:'rt.json.toJSONBit'},'rax');a.load('rcx',slot(40));
+  a.label(haveBit);a.load('r10',{base:'rcx',disp:O.keys});a.test('r10','r10');a.jcc('ns',no);a.and('r10','rax');a.jcc('ne',no);
+  a.load('r10',{base:'rcx',disp:O.prototype});a.lea('r11',{rip:'rt.objectPrototype'});a.cmp('r10','r11');a.jcc('e',protoOk);
+  a.lea('r11',{rip:'rt.arrayPrototype'});a.cmp('r10','r11');a.jcc('ne',no);
+  a.label(protoOk);a.load('rax',{rip:'rt.json.protoEpoch'});a.load('r10',{rip:'rt.shapeEpoch'});a.cmp('rax','r10');a.jcc('e',yes);
+  for(const proto of ['rt.objectPrototype','rt.arrayPrototype']){a.lea('r10',{rip:proto});a.load('r11',{base:'r10',disp:O.flags});a.or('r11',ObjectFlags.cachedPrototype);a.store({base:'r10',disp:O.flags},'r11');}
+  a.lea('r10',{rip:'rt.arrayPrototype'});a.load('r10',{base:'r10',disp:O.prototype});a.lea('r11',{rip:'rt.objectPrototype'});a.cmp('r10','r11');a.jcc('ne',no);
+  for(const proto of ['rt.objectPrototype','rt.arrayPrototype']){a.lea('rcx',{rip:proto});a.lea('rdx',{rip:'rt.json.toJSON'});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',no);}
+  a.load('rax',{rip:'rt.shapeEpoch'});a.store({rip:'rt.json.protoEpoch'},'rax');
+  a.label(yes);a.mov('rax',1);a.jmp(done);a.label(no);a.mov('rax',0);a.label(done);
+ });
  rootedFn(b,'rt.jsonNormalizeGap',136,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:3}],a=>{
   a.store(slot(40),'rcx');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');}
   const raw=a.unique('raw'),number=a.unique('number'),string=a.unique('string'),done=a.unique('done');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',raw);
@@ -48,18 +71,22 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'r8');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');a.load('rax',{base:'r9',disp:n});a.store(slot(248+n),'rax');}
   // An array index arrives as a Number key (rt.arrayIndexKey); toJSON and the
   // replacer observe the key, so they get its string form.
-  {const stringKey=a.unique('stringKey');a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',stringKey);
-   a.lea('rcx',slot(328));a.mov('rdx','r8');a.call('rt.toString');a.lea('rax',slot(328));a.store(slot(48),'rax');a.label(stringKey);}
   a.load('r10',slot(frame+40));a.store(slot(56),'r10');for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(264+n),'rax');}
   const builder=()=>{a.load('rcx',slot(56));a.add('rcx',48);};
-  const appendLiteral=(name:string)=>{builder();a.lea('rdx',{rip:name});a.call('rt.builderAppend');};
+  // Only toJSON and a replacer observe the key: an array index (a Number)
+  // becomes its string form just before one of them is called.
+  const stringKey=()=>{const ready=a.unique('stringKey');a.load('r8',slot(48));a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',ready);
+   a.lea('rcx',slot(328));a.mov('rdx','r8');a.call('rt.toString');a.lea('rax',slot(328));a.store(slot(48),'rax');a.label(ready);};
+  const units:Record<string,number>={'rt.json.openArray':91,'rt.json.closeArray':93,'rt.json.openObject':123,'rt.json.closeObject':125,'rt.json.colon':58,'rt.str.comma':44,'rt.json.newline':10,'rt.json.space':32};
+  const appendLiteral=(name:string)=>{builder();if(units[name]!==undefined){a.mov('rdx',units[name]!);a.call('rt.builderAppendUnit');}else{a.lea('rdx',{rip:name});a.call('rt.builderAppend');}};
   const dispatch=a.unique('dispatch'),checkToJson=a.unique('checkToJson');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('e',checkToJson);a.cmp('rax',7);a.jcc('ne',dispatch);a.label(checkToJson);
+  {const lookup=a.unique('lookup');a.cmp('rax',5);a.jcc('ne',lookup);a.load('rcx',slot(72));a.call('rt.jsonNoToJSON');a.test('rax','rax');a.jcc('ne',dispatch);a.label(lookup);}
   a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.json.toJSON'});a.store(slot(104),'rax');
   a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
   a.load('rax',slot(112));a.cmp('rax',5);a.jcc('ne',dispatch);a.load('r10',slot(120));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',dispatch);
-  a.lea('rax',slot(64));a.store(slot(32),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.mov('r8',1);a.load('r9',slot(48));a.call('rt.invoke');
+  stringKey();a.lea('rax',slot(64));a.store(slot(32),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(112));a.mov('r8',1);a.load('r9',slot(48));a.call('rt.invoke');
   a.label(dispatch);const noReplacer=a.unique('noReplacer');a.load('rax',slot(264));a.cmp('rax',5);a.jcc('ne',noReplacer);a.load('r10',slot(272));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('ne',noReplacer);
-  a.load('r10',slot(48));for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(144+n),'rax');a.load('rax',slot(64+n));a.store(slot(160+n),'rax');}
+  stringKey();a.load('r10',slot(48));for(const n of [0,8]){a.load('rax',{base:'r10',disp:n});a.store(slot(144+n),'rax');a.load('rax',slot(64+n));a.store(slot(160+n),'rax');}
   a.lea('rax',slot(248));a.store(slot(32),'rax');a.lea('rcx',slot(64));a.lea('rdx',slot(264));a.mov('r8',2);a.lea('r9',slot(144));a.call('rt.invoke');
   a.label(noReplacer);a.load('rax',slot(64));const primitiveReady=a.unique('primitiveReady'),numberBox=a.unique('numberBox'),stringBox=a.unique('stringBox');a.cmp('rax',5);a.jcc('ne',primitiveReady);
   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',BoxKind);a.jcc('ne',primitiveReady);
@@ -107,7 +134,17 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');a.jmp('rt.jsonStringifyValue.keyReady');
   a.label(objectKey);a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
   a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.call('rt.getProperty');for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(96+n),'rax');}
-  a.label('rt.jsonStringifyValue.keyReady');a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
+  // An ordinary object's member is usually still the data node the key came
+  // from: read it directly (a getter, a deleted or inherited member and any
+  // other holder take the generic [[Get]]).
+  {const generic=a.unique('memberGeneric'),read=a.unique('memberRead');
+   a.load('rax',slot(96));a.cmp('rax',4);a.jcc('ne',generic);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',generic);
+   a.mov('rcx','r10');a.load('rdx',slot(104));a.call('rt.ownNamedNodeScan');a.test('rax','rax');a.jcc('e',generic);
+   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.jcc('ne',generic);
+   a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('e',generic);
+   a.store(slot(112),'r10');a.load('r10',{base:'rax',disp:P.value+8});a.store(slot(120),'r10');a.jmp(read);
+   a.label('rt.jsonStringifyValue.keyReady');a.label(generic);a.lea('rcx',slot(112));a.lea('rdx',slot(64));a.lea('r8',slot(96));a.call('rt.getProperty');
+   a.label(read);}
   // The separator, line break, indent and (for objects) the quoted key go in
   // first; the mark lets an omitted member take them back out again.
   builder();a.load('rax',{base:'rcx',disp:8});a.store(slot(320),'rax');

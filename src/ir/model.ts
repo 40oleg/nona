@@ -23,13 +23,15 @@ export type Operation =
   | {kind:'popHandler'}
   | {kind:'newTarget';dest:number}
   | {kind:'superBase';dest:number}
-  | {kind:'superGet';dest:number;object:number;key:number;receiver:number}
+  | {kind:'superGet';dest:number;object:number;key:number;receiver:number;/** `super.name`: the literal name */keyName?:string}
   | {kind:'superSet';strict?:boolean;object:number;key:number;receiver:number;source:number}
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}
   | {kind:'readGlobalProperty';dest:number;name:string;allowMissing:boolean}
   | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean;/** Code label of the function the callee is expected to be (src/ir/calls.ts). */direct?:string;/** That function is strict (receives this unchanged). */directStrict?:boolean}
   | {kind:'invokeArray';dest:number;callee:number;array:number;receiver?:number;construct?:boolean;newTarget?:number}
+  /** Constructs callee with the current function's own arguments (a default derived constructor's super(...args)). */
+  | {kind:'constructForward';dest:number;callee:number;receiver:number;newTarget:number}
   | {kind:'yield';dest:number;source:number}
   | {kind:'await';dest:number;source:number}
   | {kind:'yieldDelegated';dest:number;mode:number;source:number;value?:boolean}
@@ -40,7 +42,7 @@ export type Operation =
   | {kind:'derivedReturn';dest:number;source:number}
   | {kind:'newArguments';dest:number;parameters:number[];/** Non-simple parameter list: unmapped, callee is %ThrowTypeError%. */unmapped?:boolean} // -1: earlier duplicate, no mapping
   | {kind:'newRestArray';dest:number;start:number}
-  | {kind:'newObject';dest:number;array:boolean;length:number}
+  | {kind:'newObject';dest:number;array:boolean;length:number;slots?:number}
   | {kind:'forInKeys';dest:number;object:number}
   | {kind:'forInHas';dest:number;object:number;key:number}
   | {kind:'getIterator';iterator:number;next:number;object:number}
@@ -49,7 +51,7 @@ export type Operation =
   | {kind:'requireIterable';object:number}
   | {kind:'forOfValue';dest:number;iterable:number;index:number}
   | {kind:'property';strict?:boolean;operation:'get'|'delete'|'has';dest:number;object:number;key:number;/** The key is this literal name (`object.name`): the read may use an inline cache. */keyName?:string}
-  | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean}
+  | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean;/** `object.name = value`: the write may use an inline cache. */keyName?:string}
   | {kind:'defineAccessor';object:number;key:number;source:number;setter:boolean;nonEnumerable?:boolean}
   | {kind:'setPrototype';object:number;prototype:number}
   | {kind:'uninitialized';dest:number}

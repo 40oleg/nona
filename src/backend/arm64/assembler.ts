@@ -336,6 +336,8 @@ export class Arm64Assembler extends Assembler {
   override cvttsd2si(dst:Reg,src:Xmm):void {this.fpToInteger(dst,src,false);}
   override cvtsd2si(dst:Reg,src:Xmm):void {this.fpToInteger(dst,src,true);}
   override mfence():void {this.nativeWord(0xd5033bbf);}
+  /** A hint only: x64 prefetcht0 has no required effect, so A64 emits nothing for it. */
+  override prefetch(_src:Mem):void {}
   private partialMove(dst:number,src:number,width:8|16|32|64):void {
     if(width>=32)this.nativeWord(((width===32?0x2a0003e0:0xaa0003e0)|(src<<16)|dst)>>>0);
     else this.nativeWord((0xb3400000|((width-1)<<10)|(src<<5)|dst)>>>0);

@@ -12,7 +12,8 @@ const capture = Symbol('capture');
 function invalid(name) { const e = new TypeError('The "' + name + '" argument is invalid'); e.code = 'ERR_INVALID_ARG_TYPE'; return e; }
 function checkListener(listener) { if (typeof listener !== 'function') throw invalid('listener'); }
 function checkMax(n) { if (typeof n !== 'number') throw invalid('n'); if (n < 0 || Number.isNaN(n)) { const e = new RangeError('The value of "n" is out of range'); e.code = 'ERR_OUT_OF_RANGE'; throw e; } }
-function init(emitter) { if (!Object.prototype.hasOwnProperty.call(emitter, '_events')) { emitter._events = Object.create(null); emitter._eventsCount = 0; } }
+const hasOwn = Object.prototype.hasOwnProperty;
+function init(emitter) { if (!hasOwn.call(emitter, '_events')) { emitter._events = Object.create(null); emitter._eventsCount = 0; } }
 export function EventEmitter(options) {
   init(this);
   this._maxListeners = undefined;
@@ -86,6 +87,18 @@ EventEmitter.prototype.removeAllListeners = function(name) {
   }
   return this;
 };
+function callListener(emitter, listener, name, args) {
+  const result = args.length === 0 ? listener.call(emitter) : args.length === 1 ? listener.call(emitter, args[0]) : listener.apply(emitter, args);
+  if (emitter[capture] && result != null) {
+    try {
+      const then = result.then;
+      if (typeof then === 'function') then.call(result, undefined, error => queueMicrotask(() => {
+        if (typeof emitter[captureRejectionSymbol] === 'function') emitter[captureRejectionSymbol](error, name, ...args);
+        else { const previous = emitter[capture]; emitter[capture] = false; try { emitter.emit('error', error); } finally { emitter[capture] = previous; } }
+      }));
+    } catch (error) { emitter.emit('error', error); }
+  }
+}
 EventEmitter.prototype.emit = function(name, ...args) {
   init(this);
   if (name === 'error') {
@@ -98,23 +111,15 @@ EventEmitter.prototype.emit = function(name, ...args) {
   }
   const list = this._events[name];
   if (!list) return false;
-  for (const listener of list.slice()) {
-    const result = listener.apply(this, args);
-    if (this[capture] && result != null) {
-      try {
-        const then = result.then;
-        if (typeof then === 'function') then.call(result, undefined, error => queueMicrotask(() => {
-          if (typeof this[captureRejectionSymbol] === 'function') this[captureRejectionSymbol](error, name, ...args);
-          else { const previous = this[capture]; this[capture] = false; try { this.emit('error', error); } finally { this[capture] = previous; } }
-        }));
-      } catch (error) { this.emit('error', error); }
-    }
-  }
+  // One listener needs no snapshot; several are called from a copy, so
+  // listeners added or removed meanwhile do not change this emit.
+  if (list.length === 1) callListener(this, list[0], name, args);
+  else { const handlers = list.slice(); for (let i = 0; i < handlers.length; i++) callListener(this, handlers[i], name, args); }
   return true;
 };
 EventEmitter.prototype.rawListeners = function(name) { init(this); const list = this._events[name]; return list ? list.slice() : []; };
 EventEmitter.prototype.listeners = function(name) { return this.rawListeners(name).map(fn => fn.listener || fn); };
-EventEmitter.prototype.listenerCount = function(name, listener) { const list = this.rawListeners(name); if (listener === undefined) return list.length; return list.filter(fn => fn === listener || fn.listener === listener).length; };
+EventEmitter.prototype.listenerCount = function(name, listener) { if (listener === undefined) { init(this); const own = this._events[name]; return own ? own.length : 0; } const list = this.rawListeners(name); if (listener === undefined) return list.length; return list.filter(fn => fn === listener || fn.listener === listener).length; };
 EventEmitter.prototype.eventNames = function() { init(this); return Reflect.ownKeys(this._events); };
 EventEmitter.prototype.setMaxListeners = function(n) { checkMax(n); this._maxListeners = n; return this; };
 EventEmitter.prototype.getMaxListeners = function() { return this._maxListeners === undefined ? defaultMaxListeners : this._maxListeners; };

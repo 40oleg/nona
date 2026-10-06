@@ -51,6 +51,8 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
         {text: d.key === 'ru' ? 'Платформы (EN)' : 'Native platforms (EN)', link: '/reference/native-platforms'},
         {text: s.process, link: `${p}/reference/process`},
         {text: s.fs, link: `${p}/reference/fs`},
+        // Not translated yet: every locale links to the English page.
+        {text: s.network, link: '/reference/network'},
         {text: s.ffi, link: `${p}/reference/ffi`},
         {text: s.windowsExecutables, link: `${p}/reference/windows-executables`},
         {text: s.test262, link: `${p}/reference/test262`},

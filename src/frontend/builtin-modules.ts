@@ -3,8 +3,13 @@ import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleForTarget} from './events-module.js';
 import {asyncHooksModuleSource} from './async-hooks-module.js';
-import {pathModuleSourceForTarget} from './path-module.js';
 import {bufferModuleSource} from './buffer-module.js';
+import {stringDecoderModuleSource} from './string-decoder-module.js';
+import {streamModuleSource} from './stream-module.js';
+import {nativeModuleSource} from './native-module.js';
+import {netModuleSource} from './net-module.js';
+import {httpModuleSource} from './http-module.js';
+import {pathModuleSourceForTarget} from './path-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -79,6 +84,8 @@ export function cwd() { return process.cwd(); }
 `;
 
 import type {Target} from '../target.js';
+/** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
+function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
 const sources=new Map<string,(target:Target)=>string>([
   ['node:buffer',()=>bufferModuleSource],
   ['buffer',()=>bufferModuleSource],
@@ -96,6 +103,14 @@ const sources=new Map<string,(target:Target)=>string>([
   ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
+  ['node:string_decoder',()=>stringDecoderModuleSource],
+  ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
+  ['nona:internal/stream',()=>streamModuleSource],
+  ['nona:internal/native',()=>nativeModuleSource],
+  ['node:net',netModuleSource],
+  ['nona:net',()=>aliasOf('node:net')],
+  ['node:http',()=>httpModuleSource],
+  ['nona:http',()=>aliasOf('node:http')],
 ]);
 
 const aliases=new Map(['','/posix','/win32'].map(flavor=>['path'+flavor,'node:path'+flavor]));

@@ -1,5 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
+import type {Assembler} from '../backend/x64/assembler.js';
 
 /**
  * Hash index for property lists.
@@ -24,32 +25,69 @@ const T=PropertyIndexLayout;
 /** Linear scans at least this long build a table for the object. */
 export const propertyIndexThreshold=32;
 
+const keyHashCacheEntries=1024;
+/** R10 = the rt.keyHashCache entry {record, hash} for the key record in RCX. Clobbers R11. */
+const keyHashEntry=(a:Assembler)=>{a.mov('r10','rcx');a.shr('r10',4);a.and('r10',keyHashCacheEntries-1);a.shl('r10',4);a.lea('r11',{rip:'rt.keyHashCache'});a.add('r10','r11');};
+
 export function emitPropertyIndex(b:RuntimeBuilder):void {
  // RCX key (string or symbol record) -> RAX hash. Pure, no calls.
+ // String keys remember their hash in rt.keyHashCache, a direct-mapped table
+ // keyed by the record's address: the same few key records (literals, field
+ // names) are looked up over and over, and hashing them cost more than the
+ // probe. Strings are immutable and only the collector frees them, so an
+ // entry stays right until a collection, which empties the table.
+ b.data('rt.keyHashCache',new Uint8Array(keyHashCacheEntries*16),'.data');
  b.fn('rt.propKeyHash',40,a=>{
-  const symbol=a.unique('symbol'),loop=a.unique('loop'),done=a.unique('done');
+  const symbol=a.unique('symbol'),loop=a.unique('loop'),done=a.unique('done'),miss=a.unique('miss'),hit=a.unique('hit');
   a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',symbol);
+  keyHashEntry(a);a.load('r11',{base:'r10'});a.cmp('r11','rcx');a.jcc('ne',miss);a.load('rax',{base:'r10',disp:8});a.jmp(hit);
+  a.label(miss);
   a.mov('rax',0xcbf29ce484222325n);a.load('r9',{rip:'rt.hashSeed'});a.xor('rax','r9');a.xor('rax','r8');a.mov('r9',0x100000001b3n);a.lea('r10',{base:'rcx',disp:8});
   a.label(loop);a.test('r8','r8');a.jcc('e',done);a.load('r11',{base:'r10'},16);a.xor('rax','r11');a.imul('rax','r9');
   a.add('r10',2);a.sub('r8',1);a.jmp(loop);
   a.label(symbol);a.mov('rax','rcx');a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');
   a.label(done);a.shl('rax',1);a.shr('rax',1);a.or('rax',1);
+  {const stored=a.unique('stored');a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',stored);keyHashEntry(a);a.store({base:'r10'},'rcx');a.store({base:'r10',disp:8},'rax');a.label(stored);}
+  a.label(hit);
+ });
+ // RCX key record -> RAX its bit in an object's key filter: one of bits
+ // 0-62 (bit 63 is keyFilterValid), chosen from the length and the first,
+ // middle and last code units of a string (a symbol: from its address), so
+ // equal keys always get the same bit without hashing the whole name.
+ // Clobbers RCX, R8-R10.
+ b.fn('rt.keyFilterBit',40,a=>{
+  const symbol=a.unique('symbol'),mixed=a.unique('mixed'),fine=a.unique('fine');
+  a.load('r8',{base:'rcx'});a.cmp('r8',-1);a.jcc('e',symbol);a.mov('rax','r8');a.test('r8','r8');a.jcc('e',mixed);
+  a.mov('r9',0x9E3779B1);a.imul('rax','r9');
+  a.load('r10',{base:'rcx',disp:8},16);a.xor('rax','r10');a.imul('rax','r9');
+  a.mov('r10','r8');a.add('r10','r10');a.add('r10','rcx');a.load('r10',{base:'r10',disp:6},16);a.xor('rax','r10');a.imul('rax','r9');
+  a.mov('r10','r8');a.and('r10',-2);a.add('r10','rcx');a.load('r10',{base:'r10',disp:8},16);a.xor('rax','r10');a.imul('rax','r9');a.jmp(mixed);
+  a.label(symbol);a.mov('rax','rcx');a.mov('r9',0x9E3779B97F4A7C15n);a.imul('rax','r9');
+  a.label(mixed);a.shr('rax',20);a.and('rax',63);a.cmp('rax',63);a.jcc('ne',fine);a.mov('rax',62);a.label(fine);
+  a.mov('rcx','rax');a.mov('rax',1);a.shl('rax','cl');
+ });
+ // Called by the collector after a sweep: freed records may be reused.
+ b.fn('rt.keyHashCacheClear',40,a=>{
+  a.push('rdi');a.lea('rdi',{rip:'rt.keyHashCache'});a.mov('rcx',keyHashCacheEntries*2);a.mov('rax',0);a.repStosq();a.pop('rdi');
  });
  // RCX table, RDX hash, R8 key or 0. RAX entry address of the key (R10 = 1)
  // or of the first empty slot (R10 = 0). With R8 = 0 it only finds a slot.
  b.fn('rt.propIndexProbe',88,a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   const loop=a.unique('loop'),found=a.unique('found'),empty=a.unique('empty'),next=a.unique('next'),done=a.unique('done');
-  a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);a.mov('rax','rdx');a.shr('rax',7);a.and('rax','r9');a.store(slot(64),'rax');
-  a.label(loop);a.load('rax',slot(64));a.shl('rax',4);a.load('rcx',slot(40));a.add('rax','rcx');a.store(slot(72),'rax');
-  a.load('r10',{base:'rax',disp:T.entries});a.test('r10','r10');a.jcc('e',empty);
-  a.load('r11',slot(56));a.test('r11','r11');a.jcc('e',next);
-  a.load('rdx',slot(48));a.cmp('r10','rdx');a.jcc('ne',next);
-  a.load('rcx',{base:'rax',disp:T.entries+8});a.load('rcx',{base:'rcx',disp:P.key});a.cmp('rcx','r11');a.jcc('e',found);a.mov('rdx','r11');a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',found);
-  a.label(next);a.load('rcx',slot(40));a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);
-  a.load('rax',slot(64));a.add('rax',1);a.and('rax','r9');a.store(slot(64),'rax');a.jmp(loop);
-  a.label(found);a.load('rax',slot(72));a.add('rax',T.entries);a.mov('r10',1);a.jmp(done);
-  a.label(empty);a.load('rax',slot(72));a.add('rax',T.entries);a.mov('r10',0);a.label(done);
+  // RCX table, RDX hash, R8 key, R9 mask, RAX slot, R11 entry address.
+  a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);a.mov('rax','rdx');a.shr('rax',7);a.and('rax','r9');
+  a.label(loop);a.mov('r11','rax');a.shl('r11',4);a.add('r11','rcx');
+  a.load('r10',{base:'r11',disp:T.entries});a.test('r10','r10');a.jcc('e',empty);
+  a.test('r8','r8');a.jcc('e',next);a.cmp('r10','rdx');a.jcc('ne',next);
+  // Same hash: the same key record (the usual case), else compare contents.
+  a.load('r10',{base:'r11',disp:T.entries+8});a.load('r10',{base:'r10',disp:P.key});a.cmp('r10','r8');a.jcc('e',found);
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'rax');a.store(slot(72),'r11');
+  a.mov('rcx','r10');a.mov('rdx','r8');a.call('rt.compareStrings');a.mov('r10','rax');
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('rax',slot(64));a.load('r11',slot(72));
+  a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);a.test('r10','r10');a.jcc('e',found);
+  a.label(next);a.add('rax',1);a.and('rax','r9');a.jmp(loop);
+  a.label(found);a.lea('rax',{base:'r11',disp:T.entries});a.mov('r10',1);a.jmp(done);
+  a.label(empty);a.lea('rax',{base:'r11',disp:T.entries});a.mov('r10',0);a.label(done);
  });
  // RCX object, RDX key. RAX property node or 0.
  b.fn('rt.propIndexFind',56,a=>{
@@ -89,6 +127,9 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  // an own key before). Keeps an existing table in sync; returns the node.
  b.fn('rt.propIndexAdd',72,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done'),room=a.unique('room');
+  // The key's bit joins the object's key filter (named-properties.ts).
+  a.load('rcx',{base:'rdx',disp:P.key});a.call('rt.keyFilterBit');a.load('rcx',slot(40));a.load('r10',{base:'rcx',disp:O.keys});a.or('r10','rax');a.store({base:'rcx',disp:O.keys},'r10');
+  a.load('rdx',slot(48));
   a.call('rt.elementsNoteNode');a.load('rcx',slot(40));a.load('rdx',slot(48));
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',done);
   a.load('rdx',{base:'r10',disp:T.used});a.add('rdx',1);a.shl('rdx',1);a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rdx','r11');a.jcc('be',room);

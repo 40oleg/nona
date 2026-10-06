@@ -37,6 +37,7 @@ export interface Dictionary {
     hostApis: string;
     process: string;
     fs: string;
+    network: string;
     ffi: string;
     windowsExecutables: string;
     test262: string;

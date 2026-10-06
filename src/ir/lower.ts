@@ -418,7 +418,8 @@ class Lowerer {
     }
     if(e.object.kind==='Super'){
       const receiver=this.slot();this.emit({kind:'currentThis',dest:receiver});
-      const key=this.expression(e.property),object=this.slot();return {object,key,receiver};
+      const key=this.expression(e.property),object=this.slot();
+      return {object,key,receiver,...(e.property.kind==='Literal'&&typeof e.property.value==='string'?{keyName:e.property.value}:{})};
     }
     if(e.property.kind==='PrivateName'){const object=this.expression(e.object);return {object,key:this.privateName(e.property),privateName:true,privateKind:e.property.privateKind};}
     // Keep the raw key: RHS effects may mutate an object used as a key.
@@ -455,7 +456,7 @@ class Lowerer {
     // object to value or method); accessors call their getter in the prelude.
     if(ref.privateName&&ref.privateKind!=='accessor'){const dest=this.slot();this.emit({kind:'privateGet',dest,object:ref.object,name:ref.key});return dest;}
     if(ref.privateName)return this.preludeCall('privateGet',[ref.object,ref.key]);
-    const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
+    const dest=this.slot();if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superGet',dest,object:ref.object,key,receiver:ref.receiver,...(ref.keyName!==undefined?{keyName:ref.keyName}:{})});}else this.emit({kind:'property',operation:'get',dest,...ref});return dest;
   }
   private putReference(ref:Reference,source:number):void {
     if('id'in ref&&ref.withRef){
@@ -474,7 +475,7 @@ class Lowerer {
     else if(ref.privateName&&ref.privateKind==='field')this.emit({kind:'privateSet',object:ref.object,name:ref.key,source});
     else if(ref.privateName)this.preludeCall('privateSet',[ref.object,ref.key,source]);
     else if(ref.receiver!==undefined){if(!ref.baseReady)this.emit({kind:'superBase',dest:ref.object});const key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:ref.key});this.emit({kind:'superSet',strict:this.strict,object:ref.object,key,receiver:ref.receiver,source});}
-    else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false});
+    else this.emit({kind:'setProperty',strict:this.strict,object:ref.object,key:ref.key,source,define:false,...(ref.keyName!==undefined?{keyName:ref.keyName}:{})});
   }
   private bindPattern(pattern:A.BindingPattern,value:number,initializing:boolean,assignment=false):void {
     if(pattern.kind==='Identifier'){
@@ -764,7 +765,7 @@ class Lowerer {
       case 'OptionalChain':return this.optionalChain(e,'value');
       case 'ObjectLiteral':case 'ArrayLiteral': {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
-        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0});
+        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{})});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
           if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
         });
@@ -1279,10 +1280,12 @@ class Lowerer {
       }
     }
     if(this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor&&this.fn.declaration.defaultClassConstructor){
-      const base=this.slot(),receiver=this.slot(),args=this.slot(),result=this.slot(),dest=this.slot();
-      this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});this.emit({kind:'newRestArray',dest:args,start:0});
+      // super(...args) passes the arguments on as they are: no rest array
+      // and no iteration of it (the spread of an own rest array is not observable).
+      const base=this.slot(),receiver=this.slot(),result=this.slot(),dest=this.slot();
+      this.emit({kind:'superConstructor',dest:base});this.emit({kind:'superReceiver',dest:receiver});
       const target=this.slot();this.emit({kind:'newTarget',dest:target});
-      this.invokeWithArguments(result,base,{array:args},receiver,true,target);this.emit({kind:'constructorResult',dest,result,instance:receiver});
+      this.emit({kind:'constructForward',dest:result,callee:base,receiver,newTarget:target});this.emit({kind:'constructorResult',dest,result,instance:receiver});
       if(this.fn.declaration.instanceFields)this.initializeInstance(dest,this.fn.declaration.instanceFields);
       this.end({kind:'return',value:dest});
     }

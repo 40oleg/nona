@@ -38,17 +38,30 @@ export function emitStringBuilder(b:RuntimeBuilder):void {
   a.label(done);
  });
  // RCX builder, RDX string record: appends its code units.
+ // Short pieces that fit are copied here a unit at a time (no reserve call,
+ // no copy call): separators, keys and small values are most pieces.
  b.fn('rt.builderAppend',56,a=>{
+  const slow=a.unique('slow'),loop=a.unique('loop'),done=a.unique('done');
+  a.load('r9',{base:'rdx'});a.cmp('r9',8);a.jcc('a',slow);
+  a.load('r11',{base:'rcx',disp:B.length});a.lea('rax',{base:'r11'});a.add('rax','r9');a.load('r10',{base:'rcx',disp:B.capacity});a.cmp('rax','r10');a.jcc('a',slow);
+  a.store({base:'rcx',disp:B.length},'rax');a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');a.lea('r10',{base:'rdx',disp:8});
+  a.label(loop);a.test('r9','r9');a.jcc('e',done);a.load('rax',{base:'r10'},16);a.store({base:'r11'},'rax',16);a.add('r10',2);a.add('r11',2);a.sub('r9',1);a.jmp(loop);
+  a.label(slow);
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rdx',{base:'rdx'});a.call('rt.builderReserve');
   a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r9',{base:'rdx'});a.lea('r10',{base:'rdx',disp:8});
   a.load('r11',{base:'rcx',disp:B.length});a.mov('rax','r11');a.add('rax','r9');a.store({base:'rcx',disp:B.length},'rax');
   a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');copyUnits(a);
+  a.label(done);
  });
  // RCX builder, RDX code unit: appends one unit.
  b.fn('rt.builderAppendUnit',56,a=>{
+  {const slow=a.unique('slow'),done=a.unique('done');a.load('r11',{base:'rcx',disp:B.length});a.load('rax',{base:'rcx',disp:B.capacity});a.cmp('r11','rax');a.jcc('ae',slow);
+   a.lea('rax',{base:'r11',disp:1});a.store({base:'rcx',disp:B.length},'rax');a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');a.store({base:'r11'},'rdx',16);a.jmp('rt.builderAppendUnit.done.out');
+   a.label(slow);}
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.mov('rdx',1);a.call('rt.builderReserve');
   a.load('rcx',slot(40));a.load('r11',{base:'rcx',disp:B.length});a.lea('rax',{base:'r11',disp:1});a.store({base:'rcx',disp:B.length},'rax');
   a.shl('r11',1);a.load('rax',{base:'rcx',disp:B.buffer});a.add('r11','rax');a.load('r8',slot(48));a.store({base:'r11'},'r8',16);
+  a.label('rt.builderAppendUnit.done.out');
  });
  // RCX builder, RDX signed integer with |x| < 2^53: appends its decimal
  // digits (the same text Number::toString produces for it).

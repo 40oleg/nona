@@ -1,9 +1,9 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {bumpEpoch,bumpEpochIfPrototype} from './property-cache.js';
+import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {propertyIndexThreshold} from './property-index.js';
 import {stringLiteral} from './value.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags as OF,keyFilterValid} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 import {BoxLayout} from './boxing.js';
@@ -27,13 +27,21 @@ export function emitObjects(b:RuntimeBuilder):void {
   b.bundle.fragments.push({name:'rt.arrayPrototype',section:'.data',alignment:8,bytes:arrayProto,symbols:{},fixups:[{offset:O.prototype,kind:'va64',target:'rt.objectPrototype',addend:0},{offset:O.properties,kind:'va64',target:'rt.arrayPrototype.toString',addend:0}]});
 
   // RCX result Value*, RDX kind (0 object, 1 array), R8 initial array length.
-  b.fn('rt.newObject',72,a=>{
+  // rt.newObject: RCX result, RDX 1 for an array, R8 array length.
+  // rt.newObjectSlots: also R9 inline property nodes, which
+  // rt.allocPropertyNode hands out before it allocates nodes on the heap.
+  for(const withSlots of [false,true])b.fn(withSlots?'rt.newObjectSlots':'rt.newObject',72,a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
-    a.mov('rcx',O.size);a.call('rt.alloc');a.mov('r10',0);
+    if(withSlots){a.store(slot(64),'r9');a.mov('rcx',P.size);a.imul('rcx','r9');a.add('rcx',O.size);}else a.mov('rcx',O.size);
+    a.call('rt.alloc');
+    if(withSlots){a.load('r10',slot(64));a.store({base:'rax',disp:O.slots},'r10');}
+    a.mov('r10',0);
     a.mov('r11',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r11');
     for(const offset of [O.properties,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
     a.load('r10',slot(48));a.store({base:'rax',disp:O.kind},'r10');
     a.load('r11',slot(56));a.store({base:'rax',disp:O.length},'r11');
+    // An empty object: its key filter is complete from the start.
+    a.mov('r11',keyFilterValid);a.store({base:'rax',disp:O.keys},'r11');
     const ordinary=a.unique('ordinary'),save=a.unique('save');a.test('r10','r10');a.jcc('e',ordinary);
     a.lea('r11',{rip:'rt.arrayPrototype'});a.jmp(save);a.label(ordinary);a.lea('r11',{rip:'rt.objectPrototype'});
     a.label(save);a.store({base:'rax',disp:O.prototype},'r11');a.load('rcx',slot(40));
@@ -151,7 +159,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.test('rax','rax');failIf(a,'ne','rt.throwTypeError');a.label(mutable);
     a.mov('r10','rax');a.label(loop);a.test('r10','r10');const write=a.unique('write');a.jcc('e',write);
     a.cmp('r10','rcx');failIf(a,'e','rt.throwTypeError');a.load('r10',{base:'r10',disp:O.prototype});a.jmp(loop);
-    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');bumpEpoch(a);a.label(done);a.label(proxyDone);
+    a.label(write);a.store({base:'rcx',disp:O.prototype},'rax');bumpEpochIfPrototype(a,'rcx');a.label(done);a.label(proxyDone);
   });
 
   // Preserve the initial receiver through proxy forwarding and accessor calls.
@@ -173,13 +181,31 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(eight);a.shl('rax',3);a.jmp(scaled);a.label(two);a.shl('rax',1);a.label(scaled);
     a.mov('r11','r9');a.add('r11','rax');
   };
-  b.fn('rt.getProperty',40,a=>{
+  b.fn('rt.getProperty',104,a=>{
     const slow=a.unique('slow'),done=a.unique('done'),named=a.unique('named'),indexed=a.unique('indexed'),typed=a.unique('typed');
     // A string key can only be a named property or a string-keyed index of
     // the indexed path; a Number key only an element: try the matching one.
     a.load('rax',{base:'r8'});a.cmp('rax',4);a.jcc('e',named);
     a.label(indexed);a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);a.jmp(typed);
-    a.label(named);a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);
+    // `length` of a string or an array (the key is the runtime's record,
+    // which program literals share) without the named lookup.
+    a.label(named);
+    {const notLength=a.unique('notLength'),number=a.unique('lengthNumber'),array=a.unique('lengthArray');
+     a.load('rax',{base:'r8',disp:8});a.lea('r10',{rip:'rt.str.length'});a.cmp('rax','r10');a.jcc('ne',notLength);
+     a.load('rax',{base:'rdx'});a.load('r10',{base:'rdx',disp:8});a.cmp('rax',4);a.jcc('ne',array);a.load('rax',{base:'r10'});a.jmp(number);
+     a.label(array);a.cmp('rax',5);a.jcc('ne',notLength);a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',notLength);a.load('rax',{base:'r10',disp:O.length});
+     a.label(number);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
+     a.label(notLength);}
+    a.call('rt.namedGetFast');a.test('rax','rax');a.jcc('ne',done);
+    // An accessor the fast path found (a typed array's or a map's `length`
+    // or `size`, a class getter): its getter is called with the receiver.
+    {const noAccessor=a.unique('noAccessor'),call=a.unique('callGetter');
+     a.load('rax',{rip:'rt.namedGetNode'});a.test('rax','rax');a.jcc('e',noAccessor);
+     a.load('r10',{base:'rax',disp:P.getter});a.store(slot(48),'r10');a.load('r10',{base:'rax',disp:P.getter+8});a.store(slot(56),'r10');
+     a.load('r10',slot(48));a.test('r10','r10');a.jcc('ne',call);a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+     a.label(call);a.store(slot(32),'rdx');a.lea('rdx',slot(48));a.mov('r8',0);a.mov('r9',0);a.call('rt.invoke');a.jmp(done);
+     a.label(noAccessor);}
+    a.call('rt.arrayGetFast');a.test('rax','rax');a.jcc('ne',done);
     a.label(typed);typedElement(a,'rdx','r8',slow);
     const f32=a.unique('f32'),f64=a.unique('f64'),int=a.unique('int'),store=a.unique('store');
     a.cmp('r10',8);a.jcc('e',f32);a.cmp('r10',9);a.jcc('e',f64);
@@ -191,7 +217,22 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(f32);a.cvtss2sd('xmm0',{base:'r11'});a.jmp(store);
     a.label(f64);a.movsd('xmm0',{base:'r11'});
     a.label(store);a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
-    a.label(slow);a.mov('r9','rdx');a.call('rt.getPropertyWithReceiver');a.label(done);
+    // A Number key of a plain object without dense elements (a lookup
+    // table such as {100: 'Continue', ...}): its own data property is the
+    // answer; anything else goes generic.
+    a.label(slow);
+    {const generic=a.unique('generic');
+     a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',generic);a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',generic);
+     a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',generic);a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',generic);
+     a.store(slot(40),'rcx');a.store(slot(64),'rdx');a.store(slot(72),'r8');
+     a.lea('rcx',slot(48));a.mov('rdx','r8');a.call('rt.toPropertyKey');
+     a.load('rcx',slot(64));a.load('rcx',{base:'rcx',disp:8});a.load('rdx',slot(56));a.call('rt.findOwnProperty');
+     a.load('rcx',slot(40));a.load('rdx',slot(64));a.load('r8',slot(72));
+     a.test('rax','rax');a.jcc('e',generic);a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('ne',generic);
+     a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('e',generic);
+     a.store({base:'rcx'},'r10');a.load('r10',{base:'rax',disp:P.value+8});a.store({base:'rcx',disp:8},'r10');a.jmp(done);
+     a.label(generic);}
+    a.mov('r9','rdx');a.call('rt.getPropertyWithReceiver');a.label(done);
   });
   // Unary propertyKeyIndex: Numbers are kept, everything else is ToPropertyKey.
   b.fn('rt.toPropertyKeyIndex',40,a=>{
@@ -204,7 +245,26 @@ export function emitObjects(b:RuntimeBuilder):void {
     const slow=a.unique('slow'),done=a.unique('done'),named=a.unique('named'),indexed=a.unique('indexed'),typed=a.unique('typed');
     a.load('rax',{base:'rdx'});a.cmp('rax',4);a.jcc('e',named);
     a.label(indexed);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);a.jmp(typed);
-    a.label(named);a.call('rt.namedSetFast');a.test('rax','rax');a.jcc('ne',done);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);
+    // `array.length = n` (an assignment, not a definition) with an integer n
+    // on an array whose length is writable: growing only sets the length;
+    // shrinking an array without property nodes clears the dense elements
+    // above n. Arrays with nodes (indices made properties, non-index keys)
+    // keep the generic ArraySetLength, which deletes nodes in order.
+    {const generic=a.unique('lengthGeneric');
+     a.label('rt.setProperty.length');
+     a.load('rax',{base:'rdx',disp:8});a.lea('r10',{rip:'rt.str.length'});a.cmp('rax','r10');a.jcc('ne',generic);
+     a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',generic);a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',generic);
+     a.mov('rax','r9');a.and('rax',1);a.test('rax','rax');a.jcc('ne',generic);
+     a.load('rax',{base:'r10',disp:O.flags});a.and('rax',OF.lengthReadonly);a.test('rax','rax');a.jcc('ne',generic);
+     a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',generic);a.movsd('xmm0',{base:'r8',disp:8});a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm1','xmm0');a.jcc('p',generic);a.jcc('ne',generic);
+     a.test('rax','rax');a.jcc('s',generic);a.mov('r11',0xffffffff);a.cmp('rax','r11');a.jcc('a',generic);
+     {const shrink=a.unique('shrink');a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',shrink);a.store({base:'r10',disp:O.length},'rax');a.jmp(done);
+      a.label(shrink);a.load('r11',{base:'r10',disp:O.properties});a.test('r11','r11');a.jcc('ne',generic);
+      a.store({base:'r10',disp:O.length},'rax');a.mov('rcx','r10');a.mov('rdx','rax');a.call('rt.elementsTruncate');a.jmp(done);}
+     a.label(generic);a.jmp('rt.setProperty.named');}
+    a.label(named);a.load('rax',{base:'rdx',disp:8});a.load('rax',{base:'rax'});a.cmp('rax',6);a.jcc('e','rt.setProperty.length');
+    a.label('rt.setProperty.named');
+    a.call('rt.namedSetFast');a.test('rax','rax');a.jcc('ne',done);a.call('rt.arraySetFast');a.test('rax','rax');a.jcc('ne',done);
     a.label(typed);
     // Only [[Set]] (not definitions) of finite Numbers into non-clamped, non-BigInt arrays.
     a.store(slot(32),'r8');a.store(slot(40),'r9');
@@ -380,10 +440,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(create);const extensible=a.unique('extensible');a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.flags});a.and('rax',1);a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',extensible);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:8});a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',extensible);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.length});a.cmp('rax','r11');a.jcc('b',extensible);a.load('r10',{base:'r10',disp:O.flags});a.and('r10',2);a.test('r10','r10');a.jcc('ne',rejected);
-    a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.mov('rcx',P.size);a.call('rt.alloc');
+    a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.load('rcx',slot(72));a.call('rt.allocPropertyNode');
     a.mov('r10',0);for(const offset of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
     a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
-    a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
+    
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');
     a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
     a.load('rcx',slot(72));a.mov('rdx','rax');a.call('rt.propIndexAdd');
@@ -430,7 +490,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     const ordinaryDelete=a.unique('ordinaryDelete'),proxyDone=a.unique('proxyDone');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',ordinaryDelete);
     a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinaryDelete);
     a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyDelete');a.jmp(proxyDone);
-    a.label(ordinaryDelete);bumpEpoch(a);a.load('rax',slot(64));
+    a.label(ordinaryDelete);
+    // Only a flagged prototype can be on a cached chain (property-cache.ts).
+    {const unflagged=a.unique('unflagged');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',unflagged);a.load('r10',{base:'r10',disp:8});bumpEpochIfPrototype(a,'r10');a.label(unflagged);}
+    a.load('rax',slot(64));
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');

@@ -11,7 +11,8 @@ __nonaPromiseDrainJobs=(function(drain){
   var enqueueJob=__nonaRegexpVm.enqueueJob;
   var heap=[],active=new Map(),count=0,referenced=0,nextId=1,seq=0,origin=hostNow();
   var getTimer=Map.prototype.get.bind(active),setTimer=Map.prototype.set.bind(active),deleteTimer=Map.prototype['delete'].bind(active);
-  function append(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})}
+  var nativeAppend=__nonaRegexpVm.append||function(array,value){defineProperty(array,array.length,{value:value,writable:true,enumerable:true,configurable:true})};
+  function append(array,value){nativeAppend(array,value)}
   function less(x,y){return x.when<y.when||(x.when===y.when&&x.seq<y.seq)}
   function siftUp(i){
     while(i>0){var p=floor((i-1)/2);if(!less(heap[i],heap[p]))return;var t=heap[i];heap[i]=heap[p];heap[p]=t;i=p}
@@ -80,24 +81,37 @@ __nonaPromiseDrainJobs=(function(drain){
     var captured=timer.context||(context?context.defaultRecord:undefined);
     try{if(context&&captured&&captured!==previous)context.runCaptured(captured,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)}finally{if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
+  // Socket readiness (node:net registers a poller on first use): active()
+  // counts the handles that keep the loop alive, total() all registered
+  // handles, poll(timeout) waits at most timeout ms (-1: no limit) and
+  // returns the number of ready entries, and run(i) runs entry i.
+  var io=null;
+  defineProperty(globalThis,'__nonaIoLoop',{value:function(poller){io=poller},writable:true,configurable:true});
   return function eventLoop(){
     drain();
-    if(referenced===0)return;
     for(;;){
-      if(heap.length===0)return;
-      var timer=heap[0];
-      if(timer.cancelled){pop();continue}
-      var remaining=timer.when-hostNow();
-      if(remaining>0){if(referenced===0)return;hostWait(ceil(remaining));continue}
-      // Finish timers already due in this phase even if its last reference expires.
-      var phaseTime=hostNow();
-      while(heap.length>0){
-        timer=heap[0];
-        if(timer.cancelled){pop();continue}
-        if(timer.when>phaseTime)break;
-        pop();run(timer);drain()
+      while(heap.length>0&&heap[0].cancelled)pop();
+      var waiting=io!==null&&io.active()>0;
+      if(referenced===0&&!waiting)return;
+      var timeout=-1;
+      if(heap.length>0){
+        var remaining=heap[0].when-hostNow();
+        if(remaining<=0){
+          // Finish timers already due in this phase even if its last reference expires.
+          var phaseTime=hostNow();
+          while(heap.length>0){
+            var timer=heap[0];
+            if(timer.cancelled){pop();continue}
+            if(timer.when>phaseTime)break;
+            pop();run(timer);drain()
+          }
+          continue
+        }
+        timeout=ceil(remaining)
       }
-      if(referenced===0)return;
+      if(io===null||io.total()===0){hostWait(timeout);continue}
+      var ready=io.poll(timeout);
+      for(var i=0;i<ready;i++){io.run(i);drain()}
     }
   }
 })(__nonaPromiseDrainJobs);

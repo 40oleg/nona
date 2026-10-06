@@ -15,6 +15,8 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/zh/reference/host-apis#events) |
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/zh/reference/host-apis#paths-nodepath) |
+| `nona:http`、`node:http`、`nona:net`、`node:net` | 模块 | 两者 | [网络（英文）](/reference/network) |
+| `node:events`、`node:buffer`、`node:string_decoder` | 模块 | 两者 | [Node.js 支持模块（英文）](/reference/network#supporting-modules) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
 | `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |
 
@@ -22,7 +24,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 - 全局对象在脚本和模块中都可用。
 - 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，也可以在脚本中用字面量 `import()` 导入。FFI 声明（`define`）必须位于模块代码中。
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - `nona:win32` 和 DLL 声明只能为 `win32-x64` 编译；系统调用声明只能为 `linux-x64` 编译。
 
 ## `nona:win32` {#nona-win32}

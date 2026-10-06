@@ -20,7 +20,7 @@ import {constructorRoots,constructorPropertyRoots} from './builtin-constructors.
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
-import {ChunkLayout as C,LargeLayout as L,FreeKind} from './memory.js';
+import {ChunkLayout as C,LargeLayout as L,FreeKind,classCount} from './memory.js';
 import {FunctionLayout,FunctionKind} from './functions.js';
 import {ContextLayout} from './context-switch.js';
 import {GeneratorKind,GeneratorLayout as G,generatorRoots,generatorPropertyRoots} from './generator.js';
@@ -60,6 +60,15 @@ import {stringNormalizeRoots,stringNormalizePropertyRoots} from './string-normal
 import {stringLocaleCompareRoots,stringLocaleComparePropertyRoots} from './string-locale-compare.js';
 import {stringReplaceRoots,stringReplacePropertyRoots} from './string-replace.js';
 
+/**
+ * The next collection runs when the managed heap reaches twice the bytes
+ * that survived the last one, and never below this. Every collection marks
+ * all live objects, so a small floor made programs that churn short-lived
+ * buffers (a server receiving request bodies) collect every few hundred
+ * kilobytes of garbage.
+ */
+export const minimumGcThreshold=8<<20;
+
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 /** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
 export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
@@ -67,16 +76,22 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   b.data('rt.'+name,new Uint8Array(8),'.data');
  // Nonzero once a cloned realm is initialized; the main realm is always live.
  b.data('rt.realmReady',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
- const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,1048576n,true);
+ const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,BigInt(minimumGcThreshold),true);
  b.data('rt.gcThreshold',threshold,'.data');
 
  // Only typed pointers reach this function. A string descriptor can be interior
  // to a formatting buffer. Static literals are not in any mapping and are ignored.
  b.fn('rt.gcMarkPointer',56,a=>{
   const done=a.unique('done');
-  a.test('rcx','rcx');a.jcc('e',done);a.call('rt.blockOf');a.test('rax','rax');a.jcc('e',done);
-  a.load('r10',{base:'rax',disp:H.marked});a.test('r10','r10');a.jcc('ne',done);
-  a.mov('r10',1);a.store({base:'rax',disp:H.marked},'r10');
+  a.load('r10',{rip:'rt.heapLow'});a.cmp('rcx','r10');a.jcc('b',done);a.load('r10',{rip:'rt.heapHigh'});a.cmp('rcx','r10');a.jcc('ae',done);
+  a.call('rt.blockOf');a.test('rax','rax');a.jcc('e',done);
+  // A block is marked when its mark is the current collection's epoch
+  // (blocks allocated since the last collection carry the previous one).
+  a.load('r10',{base:'rax',disp:H.marked});a.load('r11',{rip:'rt.gcEpoch'});a.cmp('r10','r11');a.jcc('e',done);
+  a.store({base:'rax',disp:H.marked},'r11');
+  // Survivor bytes and blocks: rt.liveBytes and rt.blocks after the collection.
+  a.load('r10',{base:'rax',disp:H.bytes});a.add('r10',H.size+15);a.and('r10',-16);a.load('r11',{rip:'rt.markedBytes'});a.add('r11','r10');a.store({rip:'rt.markedBytes'},'r11');
+  a.load('r11',{rip:'rt.markedBlocks'});a.add('r11',1);a.store({rip:'rt.markedBlocks'},'r11');
   // A raw block (string, number scratch, byte storage) holds no references and
   // is never a weak key: marking it is all there is to do.
   a.load('r10',{base:'rax',disp:H.kind});a.cmp('r10',HeapKind.raw);a.jcc('e',done);
@@ -90,11 +105,11 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   const done=a.unique('done'),heap=a.unique('heap');
   a.test('rcx','rcx');const nonnull=a.unique('nonnull');a.jcc('ne',nonnull);a.mov('rax',0);a.jmp(done);a.label(nonnull);
   a.call('rt.blockOf');a.test('rax','rax');a.jcc('ne',heap);a.mov('rax',1);a.jmp(done);
-  a.label(heap);a.load('rax',{base:'rax',disp:H.marked});a.label(done);
+  a.label(heap);a.load('r10',{base:'rax',disp:H.marked});a.load('r11',{rip:'rt.gcEpoch'});a.mov('rax',0);a.cmp('r10','r11');a.jcc('ne',done);a.mov('rax',1);a.label(done);
  });
  b.fn('rt.gcMarkValue',40,a=>{
   const mark=a.unique('mark'),done=a.unique('done');a.load('rax',{base:'rcx'});
-  a.cmp('rax',4);a.jcc('e',mark);a.cmp('rax',5);a.jcc('e',mark);a.cmp('rax',6);a.jcc('e',mark);a.cmp('rax',7);a.jcc('e',mark);a.cmp('rax',CellTag);a.jcc('ne',done);
+  a.cmp('rax',CellTag);a.jcc('e',mark);a.sub('rax',4);a.cmp('rax',3);a.jcc('a',done);
   a.label(mark);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.label(done);
  });
  // RCX first Value*, RDX initialized count. A runtime range may itself be a
@@ -117,6 +132,16 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  });
  b.fn('rt.gcTraceObject',56,a=>{
   a.store(slot(40),'rcx');a.call('rt.elementsTrace');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
+  // Inline property nodes live inside the object's block, so marking a
+  // pointer to one only reaches the object: their references are traced
+  // here (a deleted node is cleared and traces nothing).
+  {const loop=a.unique('inlineNodes'),traced=a.unique('inlineTraced');
+   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.site});a.call('rt.gcMarkPointer');
+   a.mov('rax',0);a.store(slot(48),'rax');
+   a.label(loop);a.load('r10',slot(40));a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.load('rax',slot(48));a.cmp('rax','r10');a.jcc('ae',traced);
+   a.mov('r9',P.size);a.imul('rax','r9');a.load('rcx',slot(40));a.add('rcx','rax');a.add('rcx',O.size);a.call('rt.gcTraceProperty');
+   a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
+   a.label(traced);}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.prototype});a.call('rt.gcMarkPointer');
   const done=a.unique('done'),box=a.unique('box'),iterator=a.unique('iterator'),generator=a.unique('generator');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
   a.load('rcx',{base:'rcx',disp:FunctionLayout.environment});a.call('rt.gcMarkPointer');
@@ -151,7 +176,11 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  b.fn('rt.gcTraceProperty',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:P.next});a.call('rt.gcMarkPointer');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:P.key});a.call('rt.gcMarkPointer');
-  for(const offset of [P.value,P.getter,P.setter]){a.load('rcx',slot(40));a.add('rcx',offset);a.call('rt.gcMarkValue');}
+  // Only string, object, symbol, bigint and cell Values hold a pointer
+  // (getters and setters are usually absent).
+  for(const offset of [P.value,P.getter,P.setter]){const skip=a.unique('skip'),mark=a.unique('mark');
+   a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:offset});a.cmp('rax',CellTag);a.jcc('e',mark);a.sub('rax',4);a.cmp('rax',3);a.jcc('a',skip);
+   a.label(mark);a.load('rcx',{base:'rcx',disp:offset+8});a.call('rt.gcMarkPointer');a.label(skip);}
  });
  b.fn('rt.gcTraceMapEntry',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');
@@ -243,7 +272,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   const loop=a.unique('loop'),done=a.unique('done'),dead=a.unique('dead');
   a.lea('rax',{rip:'rt.weakList'});a.store(slot(40),'rax');
   a.label(loop);a.load('rax',slot(40));a.load('rcx',{base:'rax'});a.test('rcx','rcx');a.jcc('e',done);
-  a.load('r10',{base:'rcx',disp:H.marked-H.size});a.test('r10','r10');a.jcc('e',dead);
+  a.load('r10',{base:'rcx',disp:H.marked-H.size});a.load('r11',{rip:'rt.gcEpoch'});a.cmp('r10','r11');a.jcc('ne',dead);
   a.store(slot(48),'rcx');a.call('rt.gcPruneWeakCollection');a.load('rcx',slot(48));a.lea('rax',{base:'rcx',disp:MapLayout.weakNext});a.store(slot(40),'rax');a.jmp(loop);
   a.label(dead);a.load('r10',{base:'rcx',disp:MapLayout.weakNext});a.store({base:'rax'},'r10');a.jmp(loop);
   a.label(done);
@@ -270,33 +299,52 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.cmp('r11',GeneratorKind);a.jcc('ne',done);a.load('rcx',{base:'rax',disp:H.size+G.stack});a.test('rcx','rcx');a.jcc('e',done);a.call('rt.freeGeneratorStack');
   a.label(done);
  });
- // Frees every unmarked block and clears the marks of the live ones: chunk
- // cells in address order, then the large mappings.
- b.fn('rt.gcSweep',72,a=>{
-  const chunks=a.unique('chunks'),cells=a.unique('cells'),nextCell=a.unique('nextCell'),nextChunk=a.unique('nextChunk'),live=a.unique('live'),larges=a.unique('larges'),largeNext=a.unique('largeNext'),largeLive=a.unique('largeLive'),done=a.unique('done');
-  a.load('rax',{rip:'rt.chunks'});a.store(slot(40),'rax');
-  a.label(chunks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',larges);a.load('r10',{base:'rax',disp:C.cells});a.store(slot(48),'r10');
-  a.label(cells);a.load('rax',slot(40));a.load('r10',slot(48));a.load('r11',{base:'rax',disp:C.carved});a.cmp('r10','r11');a.jcc('ae',nextChunk);
-  a.load('r11',{base:'r10',disp:H.kind});a.cmp('r11',FreeKind);a.jcc('e',nextCell);
-  a.load('r11',{base:'r10',disp:H.marked});a.test('r11','r11');a.jcc('ne',live);
-  a.mov('rcx','r10');a.call('rt.gcFreeBlock');a.load('rax',slot(40));a.load('rcx',slot(48));a.load('rdx',{base:'rax',disp:C.cellSize});a.call('rt.freeCell');a.jmp(nextCell);
-  a.label(live);a.mov('r11',0);a.store({base:'r10',disp:H.marked},'r11');a.store({base:'r10',disp:H.greyNext},'r11');
-  a.label(nextCell);a.load('rax',slot(40));a.load('r10',slot(48));a.load('r11',{base:'rax',disp:C.cellSize});a.add('r10','r11');a.store(slot(48),'r10');a.jmp(cells);
-  a.label(nextChunk);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:C.next});a.store(slot(40),'rax');a.jmp(chunks);
-  // Large mappings: slot(56) is the link to patch, slot(48) the mapping.
-  a.label(larges);a.lea('rax',{rip:'rt.largeList'});a.store(slot(56),'rax');
+ // Large mappings are swept at once: each is one block, and an unmarked one
+ // is unmapped (or kept for reuse). Its bytes are already left out of
+ // rt.liveBytes, which the collection sets to the marked bytes.
+ b.fn('rt.gcSweepLarge',72,a=>{
+  const largeNext=a.unique('largeNext'),largeLive=a.unique('largeLive'),done=a.unique('done');
+  // slot(56) is the link to patch, slot(48) the mapping.
+  a.lea('rax',{rip:'rt.largeList'});a.store(slot(56),'rax');
   a.label(largeNext);a.load('rax',slot(56));a.load('r10',{base:'rax'});a.test('r10','r10');a.jcc('e',done);a.store(slot(48),'r10');
-  a.load('r11',{base:'r10',disp:L.size+H.marked});a.test('r11','r11');a.jcc('ne',largeLive);
+  a.load('r11',{base:'r10',disp:L.size+H.marked});a.load('rax',{rip:'rt.gcEpoch'});a.cmp('r11','rax');a.jcc('e',largeLive);
   a.lea('rcx',{base:'r10',disp:L.size});a.call('rt.gcFreeBlock');
   a.load('r10',slot(48));a.load('rax',{base:'r10',disp:L.next});a.load('r11',slot(56));a.store({base:'r11'},'rax');
-  a.load('rdx',{base:'r10',disp:L.bytes});a.load('r11',{rip:'rt.liveBytes'});a.sub('r11','rdx');a.store({rip:'rt.liveBytes'},'r11');a.load('r11',{rip:'rt.blocks'});a.sub('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.mov('rcx','r10');a.load('rdx',{base:'r10',disp:L.bytes});a.call('rt.largeUnmapPages');a.load('rcx',slot(48));a.call('rt.releaseLarge');a.jmp(largeNext);
-  a.label(largeLive);a.mov('r11',0);a.store({base:'r10',disp:L.size+H.marked},'r11');a.store({base:'r10',disp:L.size+H.greyNext},'r11');a.lea('rax',{base:'r10',disp:L.next});a.store(slot(56),'rax');a.jmp(largeNext);
+  a.label(largeLive);a.load('r10',slot(48));a.lea('rax',{base:'r10',disp:L.next});a.store(slot(56),'rax');a.jmp(largeNext);
   a.label(done);
+ });
+ // After marking: every chunk is listed as unswept under its class and the
+ // free lists start empty (sweeping a chunk lists its free cells again).
+ // Under GC stress everything is swept at once, so freed payloads are
+ // poisoned before any further code runs.
+ b.fn('rt.gcPrepareSweep',56,a=>{
+  {const clear=a.unique('clear');a.mov('rax',0);a.mov('rcx',0);a.label(clear);
+   a.lea('r10',{rip:'rt.classState'});a.add('r10','rcx');a.store({base:'r10'},'rax');a.lea('r10',{rip:'rt.unswept'});a.add('r10','rcx');a.store({base:'r10'},'rax');
+   a.add('rcx',8);a.cmp('rcx',8*classCount);a.jcc('b',clear);}
+  {const chunks=a.unique('chunks'),listed=a.unique('listed');a.load('rax',{rip:'rt.chunks'});a.store(slot(40),'rax');
+   a.label(chunks);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',listed);
+   a.load('rcx',{base:'rax',disp:C.cellSize});a.call('rt.classOf');a.shl('rax',3);a.lea('r10',{rip:'rt.unswept'});a.add('r10','rax');
+   a.load('rax',slot(40));a.load('r11',{base:'r10'});a.store({base:'rax',disp:C.sweepNext},'r11');a.store({base:'r10'},'rax');
+   a.load('rax',{base:'rax',disp:C.next});a.store(slot(40),'rax');a.jmp(chunks);a.label(listed);}
+  // Generator objects own their stack mappings (1 MiB each, counted in
+  // rt.generatorStackBytes): their class is swept now, so dead coroutines
+  // release them at the collection.
+  {const cell=(G.size+H.size+15)&-16;if(cell>1024)throw new Error('generator objects need a small size class');
+   const none=a.unique('noStacks'),again=a.unique('stacks');a.load('rax',{rip:'rt.generatorStackBytes'});a.test('rax','rax');a.jcc('e',none);
+   a.label(again);a.mov('rcx',(cell-48)>>4);a.call('rt.sweepClass');a.test('rax','rax');a.jcc('ne',again);a.label(none);}
+  {const done=a.unique('done'),cls=a.unique('cls'),again=a.unique('again');a.load('rax',{rip:'rt.gcPoison'});a.test('rax','rax');a.jcc('e',done);
+   a.mov('rax',0);a.store(slot(48),'rax');
+   a.label(cls);a.load('rcx',slot(48));a.cmp('rcx',classCount);a.jcc('ae',done);
+   a.label(again);a.load('rcx',slot(48));a.call('rt.sweepClass');a.test('rax','rax');a.jcc('ne',again);
+   a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(cls);
+   a.label(done);}
  });
  b.fn('rt.collect',72,a=>{
   const mark=a.unique('mark'),sweep=a.unique('sweep'),sweepLoop=a.unique('sweepLoop'),keep=a.unique('keep'),finish=a.unique('finish');
   a.load('rax',{rip:'rt.gcCount'});a.add('rax',1);a.store({rip:'rt.gcCount'},'rax');
+  // A new epoch: every block's mark is now stale until marking reaches it.
+  a.load('rax',{rip:'rt.gcEpoch'});a.add('rax',1);a.store({rip:'rt.gcEpoch'},'rax');a.mov('rax',0);a.store({rip:'rt.markedBytes'},'rax');a.store({rip:'rt.markedBlocks'},'rax');
   a.lea('rcx',{rip:'rt.tailPending'});a.mov('rdx',3);a.call('rt.gcMarkRange');
   a.lea('rcx',{rip:'rt.tailStaging'});a.mov('rdx',tailStagingCapacity);a.call('rt.gcMarkRange');
   a.lea('rcx',{rip:'rt.sharedJobQueue'});a.mov('rdx',1);a.call('rt.gcMarkRange');
@@ -333,9 +381,13 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
   a.label(ephemerons);a.call('rt.gcPendingFree');a.call('rt.gcPruneWeakEntries');
-  a.label(sweep);a.call('rt.gcSweep');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
+  // Chunk cells are swept lazily (rt.sweepClass, when an allocation finds
+  // its class's free list empty): the pause only marks.
+  a.label(sweep);a.call('rt.gcSweepLarge');a.lea('rax',{rip:'rt.gcFreeBlock'});a.store({rip:'rt.freeBlockHook'},'rax');a.call('rt.gcPrepareSweep');
+  a.load('rax',{rip:'rt.markedBytes'});a.store({rip:'rt.liveBytes'},'rax');a.load('rax',{rip:'rt.markedBlocks'});a.store({rip:'rt.blocks'},'rax');
+  a.call('rt.keyHashCacheClear');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
-  const thresholdReady=a.unique('thresholdReady');a.cmp('rax',1048576);a.jcc('ae',thresholdReady);a.mov('rax',1048576);
+  const thresholdReady=a.unique('thresholdReady');a.cmp('rax',minimumGcThreshold);a.jcc('ae',thresholdReady);a.mov('rax',minimumGcThreshold);
   a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');
  });
  b.fn('rt.safepoint',40,a=>{

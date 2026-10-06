@@ -22,6 +22,7 @@ export const fr: Dictionary = {
     hostApis: 'Minuteurs et boucle d’événements',
     process: 'process',
     fs: 'Système de fichiers et encodage du texte',
+    network: 'Réseau : http et net (en anglais)',
     ffi: 'Fonctions natives (FFI)',
     windowsExecutables: 'Exécutables Windows',
     test262: 'Test262',

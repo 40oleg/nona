@@ -65,8 +65,8 @@ test('source usage: optional preludes follow the names a program uses',()=>{
  assert.equal(linked('const word = "data format"'),'');
  assert.equal(linked('const key = "at"'),'es2021');
  // Enumerating built-ins could observe a missing method: everything is linked.
- assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
- assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Object.getOwnPropertyNames(Array.prototype)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,network,objectAnnexB,objectIntegrity,process,proxy,timers');
+ assert.equal(linked('Reflect.ownKeys(globalThis)'),'annexB,arraySort,asyncHooks,buffer,encoding,es2021,events,network,objectAnnexB,objectIntegrity,process,proxy,timers');
 });
 
 test('unrelated programs omit event and async-context preludes',()=>{

@@ -32,10 +32,15 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
  b.data('linux.heapFree',new Uint8Array(8*8),'.data');
  b.data('linux.heapCursor',new Uint8Array(8),'.data');
  b.data('linux.heapEnd',new Uint8Array(8),'.data');
+ // Nonzero once a second thread exists (linux.CreateThread): before that the
+ // lock is skipped, since its two locked instructions were most of the cost
+ // of a small allocation.
+ b.data('linux.threaded',new Uint8Array(8),'.data');
  const lock=(a:import('../x64/assembler.js').Assembler)=>{
-  const spin=a.unique('spin');a.label(spin);a.mov('rax',0);a.mov('r11',1);a.atomicCompareExchange({rip:'linux.heapLock'},'r11',64);a.jcc('ne',spin);
+  const spin=a.unique('spin'),locked=a.unique('locked');a.load('rax',{rip:'linux.threaded'});a.test('rax','rax');a.jcc('e',locked);
+  a.label(spin);a.mov('rax',0);a.mov('r11',1);a.atomicCompareExchange({rip:'linux.heapLock'},'r11',64);a.jcc('ne',spin);a.label(locked);
  };
- const unlock=(a:import('../x64/assembler.js').Assembler)=>{a.mov('r11',0);a.atomicExchange({rip:'linux.heapLock'},'r11',64);};
+ const unlock=(a:import('../x64/assembler.js').Assembler)=>{const single=a.unique('single');a.load('r11',{rip:'linux.threaded'});a.test('r11','r11');a.jcc('e',single);a.mov('r11',0);a.atomicExchange({rip:'linux.heapLock'},'r11',64);a.label(single);};
  fn('linux.HeapAlloc.code',88,a=>{
   a.store(slot(48),'rsi');a.store(slot(56),'rdi');a.store(slot(64),'rdx');
   const bad=a.unique('bad'),done=a.unique('done'),large=a.unique('large'),small=a.unique('small');
@@ -134,6 +139,8 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
  // stack, then exits only its own thread.
  fn('linux.CreateThread.code',72,a=>{
   a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  // From now on the heap lock is taken (no allocation is in progress here).
+  a.mov('rax',1);a.store({rip:'linux.threaded'},'rax');
   const bad=a.unique('bad'),done=a.unique('done'),child=a.unique('child');
   a.mov('rdi',0);a.mov('rsi',64*1024*1024);a.mov('rdx',3);a.mov('r10',0x22);a.mov('r8',-1);a.mov('r9',0);systemCall(a,9);
   a.cmp('rax',-4095);a.jcc('ae',bad);

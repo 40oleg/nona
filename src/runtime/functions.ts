@@ -8,7 +8,9 @@ import {BoundDataLayout as B} from './bound-layout.js';
 import {TailCallTag} from './tail-calls.js';
 import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,size:O.size+120} as const;
+/** Inline property nodes of a constructor's first instances. */
+export const defaultInstanceSlots=4;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,/** Inline property nodes for this constructor's next instances (0: the default); rt.allocPropertyNode raises it when one outgrows them. */instanceSlots:O.size+120,size:O.size+128} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -171,7 +173,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
  });
  // Construction is split at IR safepoints: prepare rooted instance, invoke JS,
  // choose returned object or instance. No unregistered runtime locals span JS.
- for(const raw of [false,true])rootedFn(b,raw?'rt.newInstanceRaw':'rt.newInstance',88,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
+ for(const raw of [false,true])rootedFn(b,raw?'rt.newInstanceRaw':'rt.newInstance',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   const complete=a.unique('complete');
   const unwrap=a.unique('unwrap'),unwrapped=a.unique('unwrapped');a.label(unwrap);
@@ -183,8 +185,17 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(validInstance);
   if(!raw){a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('e',unwrapped);a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
    a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
-  a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
-  a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
+  a.store(slot(88),'rdx');a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
+  // Instances of a function get as many inline property nodes as its
+  // earlier instances ended up needing (defaultInstanceSlots at first), and
+  // remember it as their site so that an instance that outgrows them raises
+  // the hint (rt.allocPropertyNode).
+  {const plain=a.unique('plainCallee'),create=a.unique('create'),hinted=a.unique('hinted');
+   a.mov('r9',0);a.load('r10',slot(88));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',create);
+   a.load('r9',{base:'r10',disp:FunctionLayout.instanceSlots});a.test('r9','r9');a.jcc('ne',hinted);a.mov('r9',defaultInstanceSlots);a.label(hinted);
+   a.label(create);a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObjectSlots');
+   a.load('r10',slot(88));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',plain);
+   a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.site},'r10');a.label(plain);}
   const done=a.unique('done'),fallback=a.unique('fallback');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',fallback);
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.jmp(done);
   // GetPrototypeFromConstructor falls back to the intrinsic of new.target's realm.

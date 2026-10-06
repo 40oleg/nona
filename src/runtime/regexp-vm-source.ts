@@ -11,8 +11,11 @@ const regexpVmTemplate=String.raw`(function(){
   var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
   var ByteArray=intrinsic?intrinsic.byteArrayConstructor:Uint8Array;
   var byteFill=intrinsic?intrinsic.byteArrayFill:Uint8Array.prototype.fill;
+  // CreateDataProperty at the end: natively in Nona (captured below as
+  // __nonaRegexpVm.append), through a reused descriptor elsewhere.
   var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
-  function append(array,value){appendDescriptor.value=value;Object.defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined}
+  var nativeAppend=intrinsic&&intrinsic.append?intrinsic.append:function(array,value){appendDescriptor.value=value;Object.defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
+  function append(array,value){nativeAppend(array,value)}
   // Array.prototype.slice captured before user code runs: CreateDataProperty
   // semantics (no setters on Array.prototype can interfere), one native
   // call instead of a defineProperty per element.
@@ -1474,6 +1477,8 @@ __nonaRegexpVm.arrayBufferAlignment=ArrayBuffer.__nonaAlignmentInternal;
 __nonaRegexpVm.arrayBufferDetach=ArrayBuffer.__nonaDetachInternal;
 delete ArrayBuffer.__nonaAlignmentInternal;
 delete ArrayBuffer.__nonaCopyInternal;
+__nonaRegexpVm.append=Array.__nonaAppendInternal;
+delete Array.__nonaAppendInternal;
 Object.defineProperty(ArrayBuffer.prototype,'slice',{value:({slice(start,end){
   'use strict';
   var length=__nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength,this);

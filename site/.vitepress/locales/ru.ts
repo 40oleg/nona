@@ -22,6 +22,7 @@ export const ru: Dictionary = {
     hostApis: 'Таймеры и цикл событий',
     process: 'process',
     fs: 'Файловая система и кодировка текста',
+    network: 'Сеть: http и net (англ.)',
     ffi: 'Нативные функции (FFI)',
     windowsExecutables: 'Исполняемые файлы Windows',
     test262: 'Test262',

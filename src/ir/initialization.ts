@@ -16,7 +16,7 @@ import type {FunctionIR,Operation} from './model.js';
  * with what holds at every point of the blocks it protects.
  */
 const producesValue=new Set<Operation['kind']>(['constant','binary','unary','newFunction','newObject','newArguments','newRestArray',
- 'invoke','invokeArray','property','newInstance','constructorResult','forInKeys','forInHas','forOfValue','globalObject','currentFunction',
+ 'invoke','invokeArray','constructForward','property','newInstance','constructorResult','forInKeys','forInHas','forOfValue','globalObject','currentFunction',
  'newCell','superGet','newTarget','iteratorStep','call']);
 
 type State=Set<number>|null; // null: every slot (not yet reached)
