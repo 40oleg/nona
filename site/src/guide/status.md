@@ -2,7 +2,7 @@
 
 ## Current release
 
-**v0.8.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
+**v0.9.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
 
 ## Test262 audit
 
