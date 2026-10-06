@@ -24,6 +24,6 @@ export function processReportPlatformProbes(target:Target){
   const {result:ir,usage}=collectSourceUsage(()=>'module' in probe?compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target):compileToIR(probe.source,probe.name+'.js',undefined,target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
-  return {name:probe.name,image,expected:probe.expected,status:probe.status,minimalEnvironment:true};
+  return {name:probe.name,image,expected:probe.expected,status:probe.status,minimalEnvironment:true,timeoutMs:60000};
  });
 }
