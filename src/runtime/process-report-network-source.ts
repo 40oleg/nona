@@ -39,7 +39,10 @@ export const processReportNetworkSource=String.raw`
             current=pointer(unicast,8)
           }
           var next=pointer(adapter,8);if(!next)break;if(seen.has(next))throw hostError('networkInterfaces',22);seen.add(next);adapter=read(next,112)
-        }return output
+        }
+        // Adapter, unicast and string addresses point inside this managed
+        // snapshot. Keep its owner live until every native address is read.
+        return bytes.length?output:[]
       }
       function linuxSnapshot(){
         var fd=host.networkSocket(16,524291,0);if(fd<0)throw hostError('networkInterfaces',-fd);

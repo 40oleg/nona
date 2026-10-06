@@ -5,6 +5,7 @@ import {lex} from '../src/frontend/lexer.js';
 import {parse} from '../src/frontend/parser.js';
 import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
+import {analyzeLiveness} from '../src/ir/liveness.js';
 import {compileModuleToIR} from '../src/compiler.js';
 import {collectSourceUsage} from '../src/frontend/lexer.js';
 import {generate} from '../src/backend/x64/codegen.js';
@@ -16,6 +17,19 @@ function snapshot(platform:string,host:Record<string,unknown>,View:typeof DataVi
  runInNewContext(processReportNetworkIntrinsicsSource+processReportNetworkSource,{platform,windows:platform==='win32',host,__nonaRegexpVm:api,TextDecoder,Uint8Array,Uint32Array,Int32Array,DataView:View,decoder:new TextDecoder(),hostError:(name:string,code:number)=>Object.assign(new Error(name),{code})});
  return JSON.parse(JSON.stringify((api.processReportNetworkInterfaces as ()=>unknown)()));
 }
+
+test('Windows native pointer traversal retains the original snapshot owner at allocation safepoints',()=>{
+ const fn=lower(bind(parse(lex(processReportNetworkSource)))).functions.find(fn=>fn.name==='windowsSnapshot')!;
+ const copies=fn.blocks.flatMap(block=>block.operations).filter(op=>op.kind==='copy');
+ // The adapter starts as the snapshot, then receives copied native records.
+ const adapter=copies.find(op=>copies.some(next=>next.dest===op.dest&&next.source!==op.source)&&op.source<fn.localCount&&op.dest!==op.source)!;
+ const traversal=copies.filter(op=>op.dest===adapter.dest).at(-1)!;
+ const live=analyzeLiveness(fn);
+ const block=fn.blocks.find(block=>block.operations.some(op=>'dest' in op&&op.dest===traversal.source))!;
+ const at=block.operations.findIndex(op=>'dest' in op&&op.dest===traversal.source);
+ assert.equal(block.operations[at]!.kind,'invoke');
+ assert.ok(live.get(block.id)!.before[at]!.has(adapter.source),'native addresses must retain their managed owner');
+});
 function number(bytes:Uint8Array,at:number,value:number,size=4){const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);if(size===2)view.setUint16(at,value,true);else view.setUint32(at,value,true)}
 function attr(kind:number,payload:Uint8Array){const out=new Uint8Array((payload.length+7)&~3);number(out,0,payload.length+4,2);number(out,2,kind,2);out.set(payload,4);return out}
 function netMessage(kind:number,body:Uint8Array,attributes:Uint8Array[]){const out=new Uint8Array(16+body.length+attributes.reduce((n,a)=>n+a.length,0));number(out,0,out.length);number(out,4,kind,2);number(out,8,kind===16?1:2);out.set(body,16);let at=16+body.length;for(const a of attributes){out.set(a,at);at+=a.length}return out}
