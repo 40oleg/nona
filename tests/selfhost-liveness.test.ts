@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import {spawnSync} from 'node:child_process';
 
 // This fixture is Nona's own lowered RegExp VM function, captured while
 // bootstrapping the compiler. No external implementation is embedded here.
@@ -23,7 +23,9 @@ console.log('copy32',block.operations.some(op=>op.kind==='copy'&&op.dest===32&&o
 })();`;
 
 test('self-hosted liveness agrees with Node on the RegExp VM control-flow graph',()=>{
- const oracle=runOracle(source);
+ // Feed the captured graph over stdin: it exceeds Windows' command-line limit.
+ const oracle=spawnSync(process.execPath,['-'],{input:source,encoding:'utf8',timeout:10_000,windowsHide:true});
+ assert.equal(oracle.status,0,String(oracle.error??oracle.stderr));
  assert.match(oracle.stdout,/copy32 true\n$/);
  // The bootstrap uses the normal collector; stressing this complete fixed
  // point allocates millions of snapshots and exceeds the host helper timeout.
