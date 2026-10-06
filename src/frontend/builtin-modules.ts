@@ -3,6 +3,7 @@ import {ffiModuleSource} from '../ffi.js';
 import {fsModuleSource} from './fs-module.js';
 import {eventsModuleForTarget} from './events-module.js';
 import {asyncHooksModuleSource} from './async-hooks-module.js';
+import {pathModuleSourceForTarget} from './path-module.js';
 import {bufferModuleSource} from './buffer-module.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
@@ -91,17 +92,21 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:async_hooks',()=>asyncHooksModuleSource],
   ['events',eventsModuleForTarget],
   ['nona:events',eventsModuleForTarget],
+  ['node:path',pathModuleSourceForTarget],
+  ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
   ['nona:process',()=>processModuleSource],
   ['node:process',()=>processModuleSource],
 ]);
 
-export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier);}
+const aliases=new Map(['','/posix','/win32'].map(flavor=>['path'+flavor,'node:path'+flavor]));
+const canonicalBuiltin=(specifier:string)=>specifier==='events'||specifier==='nona:events'?'node:events':specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':aliases.get(specifier)??specifier;
+export function isBuiltinModule(specifier:string):boolean {return sources.has(canonicalBuiltin(specifier));}
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
 export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
   return {
-    resolve:(specifier,referrer)=>specifier==='events'||specifier==='nona:events'?'node:events':sources.has(specifier)?(specifier==='buffer'||specifier==='nona:buffer'?'node:buffer':specifier):host.resolve(specifier,referrer),
-    read:path=>sources.get(path)?.(target)??host.read(path),
+    resolve:(specifier,referrer)=>sources.has(canonicalBuiltin(specifier))?canonicalBuiltin(specifier):host.resolve(specifier,referrer),
+    read:path=>sources.get(canonicalBuiltin(path))?.(target)??host.read(path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
   };
 }

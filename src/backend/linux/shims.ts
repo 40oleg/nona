@@ -11,10 +11,16 @@ export function linuxShims(imports:NativeProgram['imports'],options:PosixShimOpt
  const b=new RuntimeBuilder(),pageSize=options.pageSize??4096;
  const systemCall=options.syscall??((a:Assembler,number:number)=>a.syscall(number));
  const fn=(name:string,size:number,body:(a:Assembler)=>void)=>{if(!options.replace?.has(name))b.fn(name,size,body);};
- for(const {symbol} of imports){
+ for(const {dll,name,symbol} of imports){
   b.bundle.fragments.push({name:symbol,section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[
    {offset:0,kind:'va64',target:'linux.'+symbol+'.code',addend:0},
   ]});
+  // Windows-target Path declarations can also be linked into an ELF image.
+  // Foreign Windows cwd/drive APIs are unavailable there, like the host FFI
+  // stubs. Linux-target Path uses its actual getcwd syscall adapter instead.
+  if(dll.toLowerCase()==='kernel32.dll'&&(symbol===name||symbol.startsWith('ffi.'))&&
+   (name==='GetCurrentDirectoryW'||name==='GetEnvironmentVariableW'))
+   fn('linux.'+symbol+'.code',40,a=>a.mov('rax',0));
  }
  fn('linux.GetProcessHeap.code',40,a=>a.mov('rax',1));
  // Heap: size classes of 32..4096 bytes (header included) carved from 1 MiB

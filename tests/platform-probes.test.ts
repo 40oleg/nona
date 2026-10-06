@@ -38,8 +38,13 @@ test('Buffer platform probe uses the x64 PE linker for Windows x64',()=>{
 test('BSD cross-compilation under an ARM64 emission scope also scopes OS service linking',()=>{
   assert.ok(probes);
   const images=withNativeTarget('linux-arm64',()=>probes.runtimeProbes('freebsd-x64'));
-  assert.equal(images.length,probes.runtimeProbeSources.length+4);
+  // FreeBSD adds lazy Path startup, GC stress, two agent probes and raw syscalls.
+  const expected=[...probes.runtimeProbeSources.map((probe:{name:string})=>probe.name),'path-lazy-startup','gc-stress','agents','atomic-contention','ffi-syscall'];
+  assert.equal(images.length,expected.length);
+  assert.deepEqual(images.map((probe:{name:string})=>probe.name),expected);
+  assert.ok(images.some((probe:{name:string})=>probe.name==='path'));
   for(const probe of images){
+    assert.equal(probe.timeoutMs,probe.name.startsWith('buffer')?60000:undefined,probe.name);
     const image:Uint8Array=probe.image,v=new DataView(image.buffer,image.byteOffset,image.byteLength);
     assert.equal(v.getUint16(18,true),62,probe.name);
   }

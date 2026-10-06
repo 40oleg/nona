@@ -6,6 +6,17 @@ Cette page est une traduction de la page anglaise [Host APIs](/reference/host-ap
 
 Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous sont implémentées par le runtime natif et par de petits préludes JavaScript compilés dans chaque exécutable.
 
+## Paths (`node:path`)
+
+`node:path` / `path` implements Node.js 26 path utilities on all eight native targets.
+Use `posix`, `win32`, or explicit flavor modules (`node:path/posix`,
+`node:path/win32`, `path/posix`, `path/win32`). Functions: `normalize`, `join`,
+`resolve`, `relative`, `parse`, `format`, `basename`, `dirname`, `extname`,
+`isAbsolute`, `toNamespacedPath`, `matchesGlob`; properties: `sep`, `delimiter`.
+The target selects the default flavor; resolution reads the executable's runtime
+current directory. Working-directory information is read on demand; importing
+Path does not initialize the full process object. [Full reference](https://github.com/40oleg/nona/blob/main/docs/path.md).
+
 ## Minuteurs et boucle d’événements
 
 Objets globaux : `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask(callback)` et `performance.now()`.
@@ -49,3 +60,5 @@ and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks an
 local context storage. Promise, await, timer and microtask callbacks preserve
 captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
 this API; see the English reference for the precise boundaries.
+
+AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.

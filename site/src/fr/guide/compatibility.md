@@ -29,8 +29,8 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 | `readFileSync(path)` | Renvoie un `Uint8Array` | Renvoie un `Buffer` |
 | Encodages | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) uniquement | Nombreux |
 | Messages d’erreur sous Windows | Contiennent le chemin tel que fourni | Contiennent le chemin absolu |
-| Modules | `nona:*`, `node:fs`, `node:process`, `node:buffer` et fichiers relatifs | Tout `node:*` et les paquets npm |
-| `require`, `node:path` | Non disponibles | Disponibles |
+| Modules | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` et fichiers relatifs | Tout `node:*` et les paquets npm |
+| `require` | Non disponibles | Disponibles |
 | `console.log` sans sortie standard | La sortie est ignorée | La sortie est ignorée ou une erreur est levée |
 
 ## Performances
