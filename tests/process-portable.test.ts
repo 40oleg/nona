@@ -35,7 +35,7 @@ test('process exitCode waits for next ticks, Promise jobs and timers',()=>{
  const source='process.exitCode=7;process.nextTick(()=>console.log("tick"));Promise.resolve().then(()=>console.log("promise"));setTimeout(()=>console.log("timer"),1)';
  const native=runOnHost(source);assert.equal(native.status,7,native.stderr);assert.equal(native.stdout,'tick\npromise\ntimer\n');
 });
-test('unsupported process members remain absent',()=>{
- const source='console.log(["send","report","channel"].every(key=>process[key]===undefined));console.log(Object.keys(process.versions).join(","),process.versions.nona,process.release.name)';
- const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true\nnona '+nonaVersion+' nona\n');
+test('process exposes native reports while unavailable IPC members remain absent',()=>{
+ const source='console.log(["send","channel"].every(key=>process[key]===undefined),typeof process.report.getReport,typeof process.report.writeReport);console.log(Object.keys(process.versions).join(","),process.versions.nona,process.release.name)';
+ const native=runOnHost(source);assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,'true function function\nnona '+nonaVersion+' nona\n');
 });
