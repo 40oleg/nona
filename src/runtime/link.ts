@@ -21,6 +21,8 @@ export interface RuntimeLink {
  * are always linked.
  */
 export const preludeTriggers={
+  eventEmitter:['EventEmitter','nona.events.emitter'],
+  stream:['node:stream','nona:stream','streamModule','nona.stream.module','nona.stream.consumers','stdin','stdout','stderr','openStdin','emitWarning'],
   asyncHooks:['AsyncResource','AsyncLocalStorage','executionAsyncId','triggerAsyncId','nona.async_hooks.internal'],
   events:['Event','CustomEvent','EventTarget','AbortController','AbortSignal','DOMException','NodeEventTarget','nona.events.internal'],
   proxy:['Proxy'],
@@ -41,11 +43,10 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding'],buffer:['encoding'],events:['timers'],asyncHooks:['events','timers']};
-/** Buffer's URL validation and Blob native line endings use internal regexes. */
-export function runtimeRegExpLink(link:RuntimeLink):{regexp:boolean;unicodeProperties:boolean} {
-  const regexp=link.regexp||link.preludes.buffer;
-  return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers','eventEmitter'],buffer:['encoding'],events:['timers'],asyncHooks:['events','timers'],eventEmitter:['events','asyncHooks'],stream:['eventEmitter','buffer','process']};
+/** Process parses dotenv/memory text and validates masks with original regexes. */
+export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]=[]){
+ const regexp=link.regexp||link.preludes.buffer||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};
 }
 /**
  * Names that enumerate built-ins: a program using one could observe a missing

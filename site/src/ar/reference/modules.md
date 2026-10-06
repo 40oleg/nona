@@ -6,11 +6,11 @@
 
 | الواجهة | النوع | المنصات | المرجع |
 | --- | --- | --- | --- |
-| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`queueMicrotask` و`performance.now()` | عامة | كلتاهما | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
-| `process` | عام | كلتاهما | [process](/ar/reference/process) |
+| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`setImmediate`/`clearImmediate`, `queueMicrotask` و`performance.now()` | عامة | all eight native targets | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
+| `process` | عام | all eight native targets | [process](/ar/reference/process) |
 | `TextEncoder` و`TextDecoder` | عامة | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
-| `nona:process` و`node:process` | وحدات | كلتاهما | [process](/ar/reference/process) |
+| `nona:process` و`node:process` | وحدات | all eight native targets | [process](/ar/reference/process) |
 | `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
 | `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/ar/reference/host-apis#events) |
@@ -24,7 +24,7 @@
 
 - الكائنات العامة متاحة في السكربتات والوحدات.
 - يمكن استيراد الوحدات المدمجة من شيفرة الوحدات (`.mjs` أو `--module`) ومن السكربتات عبر `import()` حرفي. ويجب أن تكون تصريحات FFI ‏(`define`) في شيفرة وحدة.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
 - لا تُترجَم `nona:win32` وتصريحات DLL إلا للمنصة `win32-x64`، ولا تُترجَم تصريحات استدعاءات النظام إلا للمنصة `linux-x64`.
 
 ## `nona:win32` {#nona-win32}

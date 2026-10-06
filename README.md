@@ -1,5 +1,8 @@
 # Nona
 
+The process adapter includes native OS signals and diagnostic reports with
+actual allocator, resource and network snapshots. See [Process API](docs/process.md).
+
 **Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into standalone native executables for Windows, Linux, macOS (Intel and Apple Silicon), FreeBSD and OpenBSD.**
 
 [Documentation](https://40oleg.github.io/nona/) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [ES2020 status](docs/v0.17-v0.20-status.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md)
@@ -16,8 +19,8 @@ Nona parses JavaScript, lowers it to its own intermediate representation, emits 
 - **`eval` and `Function` with source known at compile time.** A string literal, a concatenation of literals, or a variable only ever given such constants is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception.
 - **A native runtime.** A precise non-moving mark-and-sweep garbage collector, UTF-16 strings, real exceptions, and a catchable `RangeError` on stack overflow.
 - **Host APIs** for real programs:
-  - an event loop with `setTimeout`/`setInterval`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
-  - a global `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) and `node:process` ([process](docs/process.md));
+  - an event loop with `setTimeout`/`setInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
+  - a global `process` and `node:process` on all eight targets (`version`, `versions.nona`, `argv`, mutable native `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `getBuiltinModule`, `abort`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
   - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, cancellation, disposable abort subscriptions and asynchronous context helpers; captured storage survives later scope changes without copying a Map per reaction, and timeout signals do not keep the process alive ([host APIs](docs/host-apis.md#events));
   - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
   - `node:path` / `path` with POSIX and Windows variants, parsing, resolution and glob matching; working directories are read on demand ([paths](docs/path.md));
@@ -105,7 +108,7 @@ nona --help | --version
 - Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 - Node.js modules other than the built-in `fs`, `path`, `process` and `buffer` subsets, npm packages, and browser APIs are not available. Blob byte/text streams and object URL registration/resolution are available; general URL parsing remains unsupported.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
-- Optional process/filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
+- Optional filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
 
@@ -148,3 +151,5 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 ## License
 
 [MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The original Node-compatible stream modules share constructors with process standard I/O and support queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](docs/host-apis.md#streams).

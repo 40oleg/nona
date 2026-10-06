@@ -231,7 +231,10 @@ export class Arm64Assembler extends Assembler {
       if(!parameters||parameters.length>8||parameters.some(k=>k!=='gp'))throw new Error('Darwin system imports require at most eight explicit integer/pointer arguments');
       this.nativeImport(target,parameters);return;
     }
-    if(this.os==='win32'&&target!=='CreateThread'){this.nativeImport(target,parameters);return;}
+    // Internal helpers and unavailable syscall cells point to Nona code using
+    // the logical registers and x28 return stack, rather than the Windows ABI.
+    const logicalHost=target.startsWith('hostffi.nona.internal!')||target.startsWith('hostffi.syscall!')||/^ffi\.syscall!\d{1,3}$/.test(target);
+    if(this.os==='win32'&&target!=='CreateThread'&&!logicalHost){this.nativeImport(target,parameters);return;}
     this.load('r11',{rip:target});this.callRegister('r11');
   }
   private nativeImport(target:string,parameters?:readonly NativeArgumentKind[]):void {

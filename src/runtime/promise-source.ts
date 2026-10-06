@@ -2,7 +2,7 @@
 // This is compiled by the same frontend as user code.
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
-  var jobs=[],head=0,unhandled=[],states=new WeakMap(),defineProperty=Object.defineProperty;
+  var jobs=[],head=0,unhandled=[],handledLater=[],states=new WeakMap(),defineProperty=Object.defineProperty;
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
   // CreateDataProperty at the end, natively (Array.__nonaAppendInternal).
@@ -17,14 +17,18 @@ var __nonaPromiseDrainJobs=(function(){
   if(typeof hostEnqueue==='function')enqueue=function(job){hostEnqueue(job)};
   else sharedQueue(enqueue);
   function drain(){
-    while(head<jobs.length){var job=jobs[head++];job()}
+    while(head<jobs.length){var job=jobs[head++];try{job()}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}}
     jobs=[];head=0;
-    for(var i=0;i<unhandled.length;i++){
-      if(failOnUnhandled&&!unhandled[i].handled)throw unhandled[i].value
+    var handled=handledLater;handledLater=[];
+    var pending=unhandled;unhandled=[];
+    for(var i=0;i<pending.length;i++){
+      var state=pending[i];if(state.handled)continue;state.reported=true;
+      if(typeof __nonaRegexpVm.reportUnhandledRejection==='function')__nonaRegexpVm.reportUnhandledRejection(state.value,state.promise,failOnUnhandled);
+      else if(failOnUnhandled)throw state.value
     }
-    unhandled=[]
+    for(var i=0;i<handled.length;i++)if(typeof __nonaRegexpVm.reportRejectionHandled==='function')__nonaRegexpVm.reportRejectionHandled(handled[i].promise)
   }
-  function markHandled(state){state.handled=true}
+  function markHandled(state){if(state.handled)return;state.handled=true;if(state.reported)append(handledLater,state)}
   __nonaRegexpVm.markPromiseHandled=function(promise){markHandled(record(promise))};
   function record(value){
     var state=getState(value);
@@ -88,7 +92,7 @@ var __nonaPromiseDrainJobs=(function(){
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
-    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false});
+    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false,reported:false,promise:this});
     var functions=resolving(this);
     try{executor(functions.resolve,functions.reject)}catch(error){functions.reject(error)}
   }
@@ -351,7 +355,7 @@ var __nonaPromiseDrainJobs=(function(){
       var done=!!result.done,value=result.value,wrapper;
       try{wrapper=promiseResolve(Promise,value)}
       catch(error){if(!done&&closeOnRejection)closeSyncIterator(record,true,error);throw error}
-      var state=record_(wrapper);state.handled=true;
+      var state=record_(wrapper);markHandled(state);
       var onRejected=done||!closeOnRejection?undefined:function(error){closeSyncIterator(record,true,error)};
       var reaction={onFulfilled:function(unwrapped){return iterResult(unwrapped,done)},onRejected:onRejected,resolve:functions.resolve,reject:functions.reject};
       if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
@@ -550,23 +554,36 @@ var __nonaPromiseDrainJobs=(function(){
       preventExtensions(){return true}
     })
   };
-  var moduleTable=[],modulePaths=objectCreate(null);
-  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError){
+  var moduleTable=[],modulePaths=objectCreate(null),builtinModules=objectCreate(null);
+  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError,aliases,namespaceFactory){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
-    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
-    modulePaths[path]=index
+    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,namespaceFactory:namespaceFactory,instantiated:false,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
+    modulePaths[path]=index;
+    if(aliases)for(var i=0;i<aliases.length;i++)builtinModules[aliases[i]]=index
   };
   var scriptRecord;
   __nonaRegexpVm.registerScript=function(path,specifiers,targets){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
     scriptRecord={path:path,resolved:resolved}
   };
+  function instantiateModule(index){
+    var record=moduleTable[index];
+    if(record.instantiated)return;
+    if(record.failed)throw record.error;
+    try{if(record.namespaceFactory){record.namespace=record.namespaceFactory();record.namespaceFactory=undefined}}
+    catch(error){record.status=2;record.failed=true;record.error=error;throw error}
+    record.instantiated=true;
+    // The whole static graph must exist before bodies run, including siblings
+    // that a cyclic dependency can reach through a re-exported namespace.
+    for(var i=0;i<record.requests.length;i++)instantiateModule(record.requests[i])
+  }
   function evaluateModule(index){
     var record=moduleTable[index];
     if(record.status===2){if(record.failed)throw record.error;return}
     if(record.status===1)return;
     record.status=1;
     try{
+      instantiateModule(index);
       for(var i=0;i<record.requests.length;i++)evaluateModule(record.requests[i]);
       record.body.call(undefined)
     }catch(error){record.status=2;record.failed=true;record.error=error;throw error}
@@ -580,6 +597,18 @@ var __nonaPromiseDrainJobs=(function(){
     for(var i=0;i<record.requests.length;i++){var error=linkError(record.requests[i],seen);if(error!==undefined)return error}
     return undefined
   }
+  __nonaRegexpVm.getBuiltinModule=function(id){
+    if(typeof id!=='string'){var error=new TypeError('The "id" argument must be a string');error.code='ERR_INVALID_ARG_TYPE';throw error}
+    if(!hasOwn.call(builtinModules,id))return undefined;
+    var index=builtinModules[id],failure=linkError(index,objectCreate(null));
+    if(failure!==undefined)throw new SyntaxError(failure);
+    // Process already has a private lazy factory. Its CommonJS default does
+    // not require allocating the ESM namespace's individual export getters.
+    if(moduleTable[index].path==='node:process'&&typeof __nonaRegexpVm.processBuiltin==='function')return __nonaRegexpVm.processBuiltin();
+    evaluateModule(index);
+    var namespace=moduleTable[index].namespace;
+    return hasOwn.call(namespace,'default')?namespace.default:namespace
+  };
   function resolveSpecifier(specifier,referrerPath){
     if(!(specifier.slice(0,2)==='./'||specifier.slice(0,3)==='../'||specifier.slice(0,1)==='/'))return undefined;
     var parts=[],segments=specifier.split('/'),i;
@@ -646,6 +675,7 @@ var __nonaPromiseDrainJobs=(function(){
   if(!hasOwn.call(generatorFunctionPrototype,Symbol.toStringTag))define(generatorFunctionPrototype,Symbol.toStringTag,'GeneratorFunction',false);
   // The timer prelude queues microtasks (queueMicrotask) on the same queue.
   __nonaRegexpVm.enqueueJob=function(job){enqueue(job)};
+  __nonaRegexpVm.hasPendingPromiseJobs=function(){return head<jobs.length||handledLater.length>0||unhandled.length>0};
   return drain
 })();
 `;

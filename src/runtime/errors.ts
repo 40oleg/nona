@@ -6,12 +6,26 @@ import {errorConstructorNames} from '../global-builtins.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import type {Fixup} from '../backend/pe/model.js';
+import {ProxyKind} from './object-layout.js';
+import {ProxyLayout} from './proxy.js';
 
 export const ErrorKind=5;
 export const errorRoots=[...errorConstructorNames.map(n=>'rt.'+n.toLowerCase()+'Prototype'),'rt.errorToString'];
-export const errorPropertyRoots=[...errorConstructorNames.flatMap(n=>['name','message'].map(k=>'rt.'+n.toLowerCase()+'Prototype.'+k)),...builtinPropertyRoots('rt.errorToString','toString','rt.errorPrototype')];
+export const errorPropertyRoots=['rt.Error.__nonaIsRejectionErrorInternal',...errorConstructorNames.flatMap(n=>['name','message'].map(k=>'rt.'+n.toLowerCase()+'Prototype.'+k)),...builtinPropertyRoots('rt.errorToString','toString','rt.errorPrototype')];
 const pointer=(offset:number,target:string):Fixup=>({offset,kind:'va64',target,addend:0});
 
+export function emitErrorBrand(b:RuntimeBuilder):void {
+ prependFunctionBuiltin(b,'rt.errorIsNative.fn','__nonaIsRejectionErrorInternal',1,'rt.Error');
+ b.fn('rt.errorIsNative.fn.code',40,a=>{
+  const done=a.unique('done');a.mov('rax',0);a.test('rdx','rdx');a.jcc('e',done);
+  a.load('r10',{base:'r8'});a.cmp('r10',5);a.jcc('ne',done);
+  a.load('r10',{base:'r8',disp:8});const inspect=a.unique('inspect'),brand=a.unique('brand');a.label(inspect);
+  a.load('r11',{base:'r10',disp:O.kind});a.cmp('r11',ProxyKind);a.jcc('ne',brand);
+  a.load('r11',{base:'r10',disp:ProxyLayout.revoked});a.test('r11','r11');failIf(a,'ne','rt.throwTypeError');
+  a.load('r10',{base:'r10',disp:ProxyLayout.target+8});a.jmp(inspect);a.label(brand);a.cmp('r11',ErrorKind);a.jcc('ne',done);
+  a.mov('rax',1);a.label(done);a.mov('r10',2);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
+ });
+}
 export function emitErrors(b:RuntimeBuilder):void {
  b.bundle.fragments.push(stringLiteral('rt.error.runtimeMessage','Invalid operation'));
  const runtimeMessage=new Uint8Array(16);runtimeMessage[0]=4;

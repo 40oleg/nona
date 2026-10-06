@@ -1,9 +1,43 @@
 # Host APIs
 
+The process adapter provides native signal delivery and independently registered
+diagnostic reports. Reports contain Nona allocator, OS resource and network
+snapshots; fatal output uses static native storage. See [process](process.md).
+
+Process thread CPU accounting uses real Windows thread times, Linux/BSD
+RUSAGE_THREAD or Darwin Mach thread_info. POSIX process.execve replaces the
+current image through the native kernel syscall using original owned argv/envp
+vectors. Windows exposes the function and throws
+`ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` before argument validation, matching
+Node.js 26. Native probes verify self-reexecution and PID identity.
+
+POSIX process credentials accept numeric IDs and names. Darwin resolves names
+through OS libSystem account services and uses native initgroups. Linux/BSD
+resolve local /etc/passwd and /etc/group using original scanners and pass actual
+IDs to native credential syscalls; remote NSS/LDAP/NIS resolution is absent.
+
+Process memory reporting queries current native resident memory on every target.
+Its allocation-free private adapter walks Nona's actual allocator mappings and
+buffer owners; the public Node-compatible fields describe Nona allocation
+semantics as detailed in [process](process.md), without inventing V8 counters.
+
+Process environment mutation publishes an original owned native UTF-8 envp
+vector for native execution adapters. Windows also updates kernel32 environment
+state; Darwin updates the authorized OS libSystem environment. Linux/BSD do not
+pretend to offer a kernel setenv operation or modify unrelated library state.
+
 Nona programs run without Node.js. The host APIs below are implemented by the
 native runtime and small JavaScript preludes compiled into every executable.
 
-See [native platforms](native-platforms.md) for the OS/CPU capability matrix. Optional `process` and filesystem adapters currently require Windows or Linux; timers, clocks and the shared runtime are available on every enabled target.
+See [native platforms](native-platforms.md) for the OS/CPU capability matrix. The [process adapter](process.md), timers, clocks and the shared runtime are available on every enabled target. The optional filesystem adapter requires Windows or Linux.
+
+Process standard streams use native descriptors without external libraries:
+UTF-8/byte writes are synchronous, and flowing stdin is polled by the event loop.
+The process adapter also provides lifecycle/warning events, OS CPU/resource
+queries and native process control; see its documented compatibility boundaries.
+Native process file reads support dotenv loading on every target independently
+of the optional filesystem module. POSIX numeric credential operations and
+native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
@@ -25,7 +59,15 @@ See [paths](path.md) for examples and compatibility boundaries.
 ## Timers and the event loop
 
 Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
-`clearInterval`, `queueMicrotask(callback)` and `performance.now()`.
+`clearInterval`, `setImmediate(callback, ...args)`, `clearImmediate`,
+`queueMicrotask(callback)` and `performance.now()`.
+
+- Immediates run in registration order after the current timer phase, draining
+  microtasks between callbacks. An immediate registered by an immediate waits
+  for the next iteration. Handles provide `ref()`, `unref()`, `hasRef()` and
+  `[Symbol.dispose]()`, including the `process.ref()`/`process.unref()` protocol.
+  An unreferenced immediate does not keep the process alive. Cancelled and
+  completed handles cannot be reactivated.
 
 - After the top-level program the entry runs an event loop: it drains the
   Promise job queue, then repeatedly waits for the nearest timer deadline, runs
@@ -174,8 +216,42 @@ Teeing a cancelled or completed stream preserves its terminal state. A tee branc
 
 See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buffer.html) for the shared API contract and [the runnable Buffer sample](../site/samples/buffer.mjs).
 
+## Streams
+
+`node:stream`, `stream` and `nona:stream` expose the same original Stream,
+Readable, Writable, Duplex, Transform and PassThrough constructors on every
+native target. They inherit the canonical EventEmitter used by process.
+`node:stream/promises` and `node:stream/consumers` also have bare and nona aliases.
+No Node.js source, external interpreter or third-party polyfill is bundled.
+
+Readable queues implement demand, push/unshift/read, object and byte modes,
+encoding, flow control, readable/data/end events, pipe/unpipe and backpressure.
+Writable queues implement write/end, callbacks, cork/uncork, writev, drain,
+final/finish and destruction. Duplex half-open controls and Transform flushing
+share these queues. Construction and destruction callbacks retain exact-once
+completion; errors and premature closes propagate to observers and pipelines.
+
+The module includes callback and Promise finished/pipeline, compose,
+addAbortSignal, high-water-mark configuration, state/brand queries and the
+asynchronous iterator/disposal protocol. Readable.from supports synchronous and
+asynchronous iterables; iterator cancellation releases the source. Operators
+map, filter, flatMap, drop, take, toArray, forEach, some, every, find and reduce
+support abort and bounded concurrency where applicable. Consumers provide
+buffer, arrayBuffer, text, json and blob.
+
+Readable/Writable/Duplex fromWeb and toWeb retain one reader/writer and propagate
+queue pressure, locks, cancellation and terminal errors. Blob streams use their
+private original brand bridge. Web adapters returned by stream are supported;
+this does not extend the separate global Web Stream constructors to arbitrary
+underlying sources. The byte high-water mark defaults to 16 KiB on Windows and
+64 KiB on other targets, matching Node 26; object mode defaults to 16 objects.
+Native CI runs original pipeline, queue, identity, operator, Web cancellation
+and construction/destruction fixtures under GC stress on all eight targets.
 The asynchronous-context bridge initializes on the first async-hooks module access. Programs that do not use it allocate no resource/storage maps. Reactions registered before initialization retain root storage when the API is later activated; callback scope changes are restored on success and failure.
 
+See the [runnable Stream sample](../site/samples/stream.mjs).
 Blob piping retains its startup Promise constructor. Releasing a reader preserves a pending closed Promise and uses one shared release error; a reader that was already closed receives a new rejected closed Promise. This matches Node 26 identity and avoids redundant cleanup allocations under GC stress.
+
+Stream constructors and process standard I/O are initialized on first use. Reading process metadata does not create stream queues or standard-stream instances; direct standard-I/O access and warning output retain the canonical Stream constructors.
 
 Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.

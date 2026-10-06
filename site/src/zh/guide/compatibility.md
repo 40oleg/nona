@@ -24,7 +24,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | 领域 | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`：`argv[1]` 是第一个参数 | `[node, script, ...arguments]` |
-| `process` | `argv`、`env`、`exit`、`exitCode`、`execPath`、`cwd`、`platform`、`arch`、`pid` | 带有流、`nextTick`、`hrtime` 等的 EventEmitter |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | 定时器 id | 数字 | `Timeout` 对象 |
 | `readFileSync(path)` | 返回 `Uint8Array` | 返回 `Buffer` |
 | 编码 | 仅 `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | 多种 |

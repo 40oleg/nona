@@ -1,5 +1,8 @@
 # Nona
 
+Адаптер process поддерживает системные сигналы и диагностические отчёты
+с реальными данными аллокатора, ресурсов и сети. Подробнее: [Process API](docs/process.md).
+
 **Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в самостоятельные исполняемые файлы Windows, Linux, macOS на Intel и Apple Silicon, FreeBSD и OpenBSD.**
 
 [Документация](https://40oleg.github.io/nona/) (англ.) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Статус ES2020](docs/v0.17-v0.20-status.md) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
@@ -16,8 +19,8 @@ Nona разбирает JavaScript, переводит его в собстве�
 - **`eval` и `Function` с исходником, известным при компиляции.** Строковый литерал, конкатенация литералов или переменная, которой присваиваются только такие константы, компилируются заранее с полной семантикой прямого и косвенного `eval`. Строка, вычисленная во время исполнения, бросает `EvalError` — это единственное сознательное исключение.
 - **Нативный runtime.** Точный немещающий mark-and-sweep сборщик мусора, строки UTF-16, настоящие исключения, перехватываемый `RangeError` при переполнении стека.
 - **API хоста** для настоящих программ:
-  - цикл событий: `setTimeout`/`setInterval`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
-  - глобальный `process` (`argv`, `env`, `exit`, `exitCode`, `cwd`, `platform`, …) и `node:process` ([process](docs/process.md));
+  - цикл событий: `setTimeout`/`setInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` ([host APIs](docs/host-apis.md));
+  - глобальный `process` и `node:process` на всех восьми платформах (`version`, `versions.nona`, `argv`, изменяемое нативное `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `getBuiltinModule`, `abort`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
   - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, отмена, освобождаемые подписки на отмену и асинхронный контекст; сохранённое хранилище переживает смену контекста без копирования Map для каждой реакции, а сигналы с таймером не удерживают процесс запущенным ([API хоста](docs/host-apis.md#events));
 
   - глобальные `Buffer`, `Blob` и `File`, импорты `node:buffer`/`buffer`/`nona:buffer`, кодировки и числовые операции ([двоичные данные, англ.](docs/host-apis.md#buffer-and-binary-data));
@@ -106,7 +109,7 @@ nona --help | --version
 - Большинство возможностей после ES2020 (`WeakRef`, top-level `await`, …) не поддерживаются. Поддержаны: поля классов, приватные методы и static-блоки (ES2022), разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у ошибок.
 - Модули Node.js, кроме встроенных подмножеств `fs`, `path`, `process` и `buffer`, пакеты npm и браузерные API недоступны. Доступны потоки Blob и регистрация объектных URL; разбор произвольных URL пока не поддерживается.
 - Ещё не закрыты: прототипы по умолчанию для конструкторов из другой realm, производительность Map/Set на очень больших коллекциях, скорость движка RegExp.
-- API process и fs недоступны на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
+- API fs недоступно на Darwin/BSD; см. [поддержку платформ](docs/native-platforms.md).
 
 Неподдерживаемый синтаксис отклоняется при компиляции. Точное поведение и покрытие тестами — в [матрице поддержки](docs/language-support.md).
 
@@ -149,3 +152,5 @@ examples           примеры программ
 ## Лицензия
 
 [MIT](LICENSE). Сторонние лицензии — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The original Node-compatible stream modules share constructors with process standard I/O and support queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](docs/host-apis.md#streams).

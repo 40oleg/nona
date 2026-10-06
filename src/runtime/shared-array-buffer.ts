@@ -19,6 +19,7 @@ export function emitSharedArrayBufferPrototype(b:RuntimeBuilder):void {
 }
 
 export function emitSharedArrayBuffer(b:RuntimeBuilder):void {
+ b.data('rt.sharedArrayBufferBytes',new Uint8Array(8),'.data');
  const prototype=b.bundle.fragments.find(f=>f.name==='rt.sharedarraybufferPrototype')!;
  b.bundle.fragments.push(stringLiteral('rt.sharedArrayBufferTag','SharedArrayBuffer'));
  const tag=new Uint8Array(P.size);tag[P.value]=4;tag[P.attributes]=A.configurable;
@@ -71,6 +72,9 @@ export function emitSharedArrayBuffer(b:RuntimeBuilder):void {
   // them, so they are zero-initialized raw blocks that are never reclaimed.
   a.load('r8',slot(72));a.add('r8',8);a.load('rcx',{rip:'rt.heap'});a.mov('rdx',8);a.callImport('HeapAlloc');a.test('rax','rax');failIf(a,'e');
   a.store(slot(64),'rax');
+  // Shared backing allocations outlive their GC owners and agent aliases.
+  // Count successfully allocated requested bytes independently of GC headers.
+  a.load('r10',slot(72));a.atomicXadd({rip:'rt.sharedArrayBufferBytes'},'r10',64);
   a.load('r8',slot(72));a.load('rdx',slot(64));a.mov('r10',0);
   const fill=a.unique('fill'),filled=a.unique('filled');a.label(fill);a.test('r8','r8');a.jcc('e',filled);
   a.store({base:'rdx'},'r10',8);a.add('rdx',1);a.sub('r8',1);a.jmp(fill);a.label(filled);

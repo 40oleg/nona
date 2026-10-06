@@ -24,7 +24,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | Area | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: `argv[1]` is the first argument | `[node, script, ...arguments]` |
-| `process` | `argv`, `env`, `exit`, `exitCode`, `execPath`, `cwd`, `platform`, `arch`, `pid` | An EventEmitter with streams, `nextTick`, `hrtime`, … |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Timer ids | Numbers | `Timeout` objects |
 | `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
 | Encodings | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) only | Many |
@@ -58,7 +58,7 @@ Built-in libraries written in JavaScript that only install globals or methods (a
 | --- | --- |
 | `Proxy` | `Proxy` |
 | `TextEncoder`, `TextDecoder` | `TextEncoder`, `TextDecoder` (also linked with `process`) |
-| `process` | `process` |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Timers, the event loop, `queueMicrotask` and `performance` | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
 | `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any` | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables` |
 | Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names |
@@ -76,9 +76,9 @@ A program can still reach an omitted part through a name computed at run time, f
 
 ## Platforms
 
-- macOS ARM64 is not yet enabled; optional process/filesystem APIs remain unavailable on Darwin/BSD.
-- Windows executables import only `KERNEL32.dll`, `KERNELBASE.dll` and DLLs declared through FFI; Linux executables are static and use system calls directly.
-- FFI to DLLs is Windows-only; raw system calls are Linux-only.
+- Process APIs are available on all eight targets; filesystem APIs require Windows or Linux.
+- Windows executables use OS DLLs (including NTDLL for parent process metadata) and declared FFI imports; POSIX executables use native OS services.
+- FFI DLL calls require Windows; raw system calls use the selected Linux, Darwin or BSD kernel.
 
 ## Native platforms
 

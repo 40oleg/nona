@@ -24,7 +24,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | المجال | Nona | Node.js |
 | --- | --- | --- |
 | `process.argv` | `[execPath, ...arguments]`: ‏`argv[1]` هو الوسيط الأول | `[node, script, ...arguments]` |
-| `process` | `argv` و`env` و`exit` و`exitCode` و`execPath` و`cwd` و`platform` و`arch` و`pid` | ‏EventEmitter مع تدفقات و`nextTick` و`hrtime` وغيرها |
+| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | معرّفات المؤقتات | أعداد | كائنات `Timeout` |
 | `readFileSync(path)` | يعيد `Uint8Array` | يعيد `Buffer` |
 | الترميزات | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) فقط | كثيرة |

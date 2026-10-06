@@ -16,6 +16,7 @@ for(const target of targets){
   writeFileSync(join(directory,target+(target.startsWith('win32-')?'.exe':'')),loaderProbe(target),{mode:0o755});
 }
 writeFileSync(join(directory,'expected.txt'),loaderProbeOutput);
+writeFileSync(join(directory,'process.env'),"export NONA_PLATFORM_ENV_QUOTED=' value # bytes '\nNONA_PLATFORM_ENV_MULTILINE='first\nsecond'\nNONA_PLATFORM_ENV_KEEP=changed\n");
 const runtime={};
 const eventsProbeSource=`import {EventEmitter, once, errorMonitor} from 'node:events';
 const emitter=new EventEmitter();const seen=[];const key=Symbol('ready');
@@ -44,11 +45,15 @@ for(const target of ['freebsd-x64','openbsd-x64','linux-arm64','darwin-x64','dar
   const eventsFile=`${target}-events${target.startsWith('win32-')?'.exe':''}`;
   writeFileSync(join(directory,eventsFile),eventsProbe.image,{mode:0o755});
   writeFileSync(join(directory,eventsFile+'.expected'),eventsProbeExpected);
+  writeFileSync(join(directory,eventsFile+'.status'),'0\n');
+  writeFileSync(join(directory,eventsFile+'.minimal-environment'),'0\n');
   runtime[target]=[...(runtime[target]??[]),{file:eventsFile,expected:eventsProbeExpected}];
   runtime[target]=[...(runtime[target]??[]),...[...runtimeProbes(target),...eventProbes(target)].map(probe=>{
     const file=`${target}-${probe.name}${target.startsWith('win32-')?'.exe':''}`;writeFileSync(join(directory,file),probe.image,{mode:0o755});
     writeFileSync(join(directory,file+'.expected'),probe.expected);
-    return {file,expected:probe.expected,...('timeoutMs' in probe?{timeoutMs:probe.timeoutMs}:{})};
+    writeFileSync(join(directory,file+'.status'),String(probe.status??0)+'\n');
+    writeFileSync(join(directory,file+'.minimal-environment'),probe.minimalEnvironment?'1\n':'0\n');
+    return {file,expected:probe.expected,status:probe.status??0,...(probe.signal?{signal:probe.signal}:{}),minimalEnvironment:probe.minimalEnvironment??false,...('timeoutMs' in probe?{timeoutMs:probe.timeoutMs}:{})};
   })];
 }
 writeFileSync(join(directory,'manifest.json'),JSON.stringify({kind:'loader',targets,expected:loaderProbeOutput,runtime},null,2)+'\n');

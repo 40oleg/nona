@@ -32,7 +32,7 @@ console.log(Object.getOwnPropertyDescriptor(globalThis, 'process').enumerable, t
  const lines=r.stdout.split('\n');
  assert.deepEqual(JSON.parse(lines[0]!),args);
  assert.equal(lines[1],'värde=1 true undefined object');
- assert.equal(lines[2],`true true ${process.platform==='win32'?'win32':'linux'} ${process.arch} true`);
+ assert.equal(lines[2],`true true ${process.platform} ${process.arch} true`);
  assert.equal(lines[3]!.toLowerCase(),r.directory.toLowerCase());
  assert.equal(lines[4],'false function');
 });

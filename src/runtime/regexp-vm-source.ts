@@ -1463,6 +1463,8 @@ __nonaRegexpVm.byteArrayConstructor=Uint8Array;
 __nonaRegexpVm.byteArrayFill=Uint8Array.prototype.fill;
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
 __nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
+__nonaRegexpVm.isRejectionError=Error.__nonaIsRejectionErrorInternal;
+delete Error.__nonaIsRejectionErrorInternal;
 __nonaRegexpVm.arrayBufferConstructor=ArrayBuffer;
 __nonaRegexpVm.arrayBufferNumber=Number;
 __nonaRegexpVm.arrayBufferTrunc=Math.trunc;

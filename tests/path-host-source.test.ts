@@ -70,7 +70,10 @@ test('Path-only native images link cwd adapters without process argument/environ
  for(const target of supportedNativeTargets){
   const {result:ir,usage}=collectSourceUsage(()=>compileModuleToIR('import path from "node:path";console.log(path.resolve("x"))','path.mjs',undefined,'',target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage}));
-  assert.ok(!program.imports.some(item=>item.name==='GetCommandLineW'||item.name==='GetEnvironmentStringsW'),target+' must not link full process startup');
+  assert.equal(usage.preludes.process,false,target+' must not select process startup');
+  // GetCommandLineW can identify the native host for emergency diagnostics;
+  // argument parsing and environment capture must remain absent.
+  assert.ok(!program.imports.some(item=>item.name==='CommandLineToArgvW'||item.name==='GetEnvironmentStringsW'),target+' must not link full process startup');
   assert.ok(!program.fragments.some(item=>/^hostffi\.\d+\.code$/.test(item.name)),target+' must not emit process host thunks');
  }
 });

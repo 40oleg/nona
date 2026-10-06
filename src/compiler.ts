@@ -15,7 +15,7 @@ import {linkWindowsArm64} from './backend/arm64/windows.js';
 import {linkDarwin} from './backend/darwin/index.js';
 import { linkLinux } from './backend/linux/index.js';
 import {linkBsd} from './backend/bsd/index.js';
-import {loadModuleGraph,moduleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
+import {loadModuleGraph,moduleRequests,builtinModuleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
 import {readFileSync} from 'node:fs';
 import {withBuiltinModules} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
@@ -49,9 +49,9 @@ export const fileModuleHost:ModuleHost={
 /** Frontend and lowering for a module graph rooted at the entry source. */
 export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=fileModuleHost,scriptPrelude='',target:Target=requireHostTarget()):ModuleIR {
   host=withBuiltinModules(host,target);
-  const records=loadModuleGraph(modulePath(fileName),source,host);
   // An optional classic script (such as a test harness) runs before the graph.
   const script=lowerDynamicFunctions(parse(lex(scriptPrelude)));
+  const records=loadModuleGraph(modulePath(fileName),source,host,builtinModuleRequests(script,host));
   const main:Program={...script,module:true,source:scriptPrelude};
   return {...lower(bind(main,records)),runtimePrelude:true};
 }
@@ -61,10 +61,10 @@ export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileM
   host=withBuiltinModules(host,target);
   const script=lowerLiteralEval(lowerDynamicFunctions(parse(lex(source))));
   const requests=fileName===undefined?undefined:moduleRequests(script);
-  const dynamic=requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])].filter((s,i,all)=>all.indexOf(s)===i);
+  const dynamic=[...(requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])]),...builtinModuleRequests(script,host)].filter((s,i,all)=>all.indexOf(s)===i);
   if(!dynamic.length)return {...lower(bind(script)),runtimePrelude:true};
   // Scripts may import() modules; the statically named targets are compiled in.
-  const path=modulePath(fileName!),records=loadModuleGraph(path,null,host,dynamic);
+  const path=modulePath(fileName??'builtin-script.js'),records=loadModuleGraph(path,null,host,dynamic);
   const scriptRequests=dynamic.flatMap(specifier=>{
     const resolved=host.resolve(specifier,path),index=records.findIndex(record=>record.path===resolved);
     return index<0?[]:[[specifier,index] as [string,number]];
@@ -93,7 +93,6 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
   try {
     if(options.target===undefined||!getTarget(options.target)||!supportedNativeTargets.includes(options.target))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Unsupported native target'}]);
     const descriptor=getTarget(options.target)!;
-    const unavailableProcess=descriptor.os==='freebsd'||descriptor.os==='openbsd'||descriptor.os==='darwin';
     if(options.subsystem!==undefined&&(options.subsystem!=='console'&&options.subsystem!=='windows'||options.target!=='win32-x64'))throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'The subsystem option requires --target win32-x64 and is console or windows'}]);
     // Test262 agents: each source becomes its own thread program in the image.
     // Every source lexed by the frontend (the program, its modules, agents and
@@ -102,9 +101,8 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     const {result:{ir,agentIRs},usage}=collectSourceUsage(()=>({
       agentIRs:(options.agents??[]).map(agent=>compileToIR(agentHarness+agent,undefined,undefined,options.target)),
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
-    }),{unavailableReflectivePreludes:unavailableProcess?['process']:[]});
+    }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    if(unavailableProcess&&link.preludes.process)throw new CompileError([{code:'E_HOST_MODULE',file:options.fileName,span:{start:0,end:0},message:`Process adapter is not implemented for ${options.target}`}]);
     const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const ffi=ir.ffi??[];
     // DLL imports exist in Windows images; other OS targets use raw kernel calls.

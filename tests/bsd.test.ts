@@ -12,8 +12,7 @@ test('BSD targets compile arithmetic and strings into native ELF images',()=>{
   }
 });
 
-test('unfinished BSD process adapters cannot emit Linux procfs calls silently',()=>{
+test('BSD process adapters compile with their target host boundary',()=>{
   const result=compile('console.log(process.platform,process.arch)',{fileName:'process.js',target:'openbsd-x64'});
-  assert.equal(result.ok,false);if(result.ok)return;
-  assert.equal(result.diagnostics[0]?.code,'E_HOST_MODULE');
+  assert.equal(result.ok,true,result.ok?'':JSON.stringify(result.diagnostics));
 });

@@ -4,18 +4,9 @@
 Это перевод английской страницы [Process API](/reference/process), созданной из [`docs/process.md`](https://github.com/40oleg/nona/blob/main/docs/process.md). Английская версия — основная и может быть новее.
 :::
 
-`process` — глобальный объект (как в Node.js), также доступный как экспорт по умолчанию модулей `node:process` и `nona:process`, которые дополнительно экспортируют `argv`, `env`, `platform`, `arch`, `pid`, `execPath`, `exit` и `cwd`.
 
-| Член | Примечания |
-| --- | --- |
-| `argv` | `[execPath, ...arguments]`. Пути к скрипту нет: `argv[1]` — первый аргумент (Node.js помещает туда путь к скрипту). На Windows командная строка разбивается по правилам `CommandLineToArgvW`. |
-| `env` | Обычный объект со снимком окружения на момент первого обращения. Изменения не передаются операционной системе. На Windows скрытые записи вида `=C:` пропускаются. |
-| `exit(code?)` | Немедленно завершает процесс с кодом `code` или `process.exitCode` (по умолчанию 0). |
-| `exitCode` | Используется как код выхода, когда программа завершается обычным образом. |
-| `execPath` | Абсолютный путь запущенного исполняемого файла. |
-| `cwd()` | Текущий рабочий каталог. |
-| `platform`, `arch`, `pid` | `'win32'` или `'linux'`, `'x64'`, идентификатор процесса. |
+<!--@include: ../../../generated/process.md-->
 
-`process` создаётся лениво при первом обращении, поэтому программы, которые его не используют, ничего не платят при запуске. В отличие от Node.js, это не EventEmitter, и у него нет потоков `stdout`/`stdin`, `nextTick`, `hrtime` и `memoryUsage`.
+## Stream integration
 
-Реализация: каждый образ содержит функции хоста для обеих целей, поэтому одну сгенерированную программу можно собрать и как PE, и как ELF; каждый линковщик привязывает импорты другой цели к заглушке, возвращающей 0. На Windows `GetCommandLineW`, `GetEnvironmentStringsW`, `GetModuleFileNameW` и `GetCurrentDirectoryW` читаются через FFI-переходники, которые компилятор устанавливает для своей прелюдии; на Linux читаются `/proc/self/cmdline`, `/proc/self/environ` и `/proc/self/exe`, а `getcwd`/`exit_group` вызываются напрямую.
+Stream constructors and standard I/O are initialized on first use and share canonical EventEmitter/Readable/Writable identities. See [Streams](https://github.com/40oleg/nona/blob/main/docs/host-apis.md#streams).

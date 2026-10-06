@@ -2,6 +2,77 @@
 
 ## Unreleased
 
+- Integrate Process and public Stream providers with the merged HTTP/network loop, preserving its private fast transport provider and target-supported builtin inventory ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Preserve allocation-free native coverage output on fatal runtime failures; match report properties for stackless plain objects and keep complete Path stress vectors in bounded batches ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Pair native Process account and memory GC-stress scenarios with ordinary-allocation oracle runs and bound the new ARM64 Process stress suite at 180 seconds ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Initialize the canonical EventEmitter only when Events, Stream or process uses it, reducing full-runtime GC-stress startup work without extending Blob deadlines ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Keep type-only observations of the lazy process descriptor from linking unrelated builtin providers, while retaining inventory for callable or escaping descriptors ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Validate complete native Stream compositions with ordinary allocation and focused per-API GC-stress cases; use untouched private virtual reservations for genuine macOS allocation-failure reports ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Preserve native exception messages and error properties in diagnostic reports when stack capture is unavailable, and emit complete BSD probe metadata ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Preserve native ARM64 condition/parity registers and the link register when returning from OS signal callbacks ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Isolate Linux ARM64 kernel signal frames on an original native alternate stack to protect the logical JavaScript stack ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add an original Immediate check queue with cancellation, ref/unref/disposal, asynchronous context propagation and process reference protocols, required by native Stream pipelines ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Validate full Stream and builtin-registry GC-stress probes with the standard 60-second oracle budget and preserve failure diagnostics for native pipelines ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Keep literal calls through immutable local builtin getters selective, retain stream dependencies for folded standard-I/O access, and avoid per-field network snapshot allocations ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Initialize Stream constructors and process standard I/O on first use so process metadata does not allocate unused stream state ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Preserve Node 26 read-only native process identity descriptors for platform, architecture, PID and immutable argv0 ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add independently authored Node Stream modules and connect process standard I/O to canonical EventEmitter/Readable/Writable constructors, preserving next-tick asynchronous storage and lazy process default lookup ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Verify emergency process reports through genuine OS-limited allocation failures in isolated native CI children, including absence of JavaScript exit callbacks after unrecoverable failure ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add original native process signal registration, restoration and console delivery, plus Nona diagnostic reports with actual network enumeration and an allocation-free emergency writer ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Instantiated built-in module namespaces only when their reachable graph is requested, preserving cyclic hoisted exports and avoiding eager inventory allocation; unrelated scalar and constructor global reads keep optional runtimes omitted ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add immediate OS process.abort termination with real POSIX SIGABRT and Windows status134, bypassing JavaScript lifecycle hooks ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add a compiler-linked lazy process.getBuiltinModule registry with real provider defaults, aliases and target capabilities ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Resolve named initgroups memberships directly from local group records and preserve native permission errors without requiring a passwd entry ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Publish genuine build-generated Nona process metadata and share its version with the CLI ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add process lifecycle finalization with original native weak-key tracking and callback release; match `execve` function reflection ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Use native bounded copies for process OS file buffers under GC stress, and expose Windows `process.execve` with Node 26's coded platform error ([#141](https://github.com/40oleg/nona/issues/141)).
+- Add original OS-backed process.title operations and independently observable native probes on all eight targets ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Preserve Nona's logical call ABI for Windows ARM64 process helpers and unavailable syscall stubs; retain native marshaling for actual Windows imports ([#141](https://github.com/40oleg/nona/issues/141)).
+- Dispatch process exception monitors/capture callbacks and promise rejection lifecycle events from original native entry and job boundaries; preserve Node fatal statuses and promise identities ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Use bounded original scanners for process account IDs and Linux memory fields under GC stress; keep source boundary fixtures current with native environment ownership ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add real POSIX process.execve with original UTF-8 argv/envp ownership, coded nonfatal syscall errors and safe native self-reexecution probes ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add actual Windows, Linux/BSD and Darwin current-thread CPU reporting with Node26 previous-value validation ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Resolve process credential names through original Linux/BSD local account scanners and Darwin OS account services; implement native/local supplementary initgroups ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Synchronize process.env assignments, deletion and descriptors with an original owned native envp vector on every target; preserve Node CString boundaries and Darwin OS environment consistency ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Add current native RSS and original allocator-backed process.memoryUsage on all eight targets, including real ArrayBuffer backing accounting and separate retained SharedArrayBuffer allocation counts ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Added original process dotenv loading, numeric POSIX credentials/groups, active resource/ref APIs and native available/constrained memory queries on all eight targets. Darwin process images use native libSystem Mach bindings; FreeBSD startup vectors use the kernel's RDI entry ABI ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Fixed reentrant process once listeners, final exit-listener status updates, polling of unreferenced stdin while timers keep the process alive, and the OpenBSD 7.8 `kill` syscall mapping ([#141](https://github.com/40oleg/nona/issues/141)).
+
+- Extended the original `process` adapter to all eight native targets; added `chdir`, `ppid`, `argv0`, `execArgv`, `hrtime`, `uptime`, `nextTick`, validated exit statuses, real standard streams, lifecycle/warning events, environment mutation and native CPU/resource/process control ([#141](https://github.com/40oleg/nona/issues/141)).
+
+
 ## v0.9.0 — 2026-10-06
 
 Highlights since v0.8.0:

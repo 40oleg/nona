@@ -443,7 +443,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(extensible);a.load('r10',slot(72));bumpEpochIfPrototype(a,'r10');a.load('rcx',slot(72));a.call('rt.allocPropertyNode');
     a.mov('r10',0);for(const offset of [P.value,P.value+8,P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
     a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
-    
+
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.properties});a.store({base:'rax',disp:P.next},'r11');a.store({base:'r10',disp:O.properties},'rax');
     a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:P.key},'r10');
     a.load('rcx',slot(72));a.mov('rdx','rax');a.call('rt.propIndexAdd');

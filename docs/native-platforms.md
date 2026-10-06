@@ -51,13 +51,15 @@ garbage collection, generators, async functions, timers and Atomics. The
 platform layer implements memory mapping/protection, output, process exit,
 wall/monotonic clocks, sleeping, thread creation and wait/wake operations.
 
-`process`, `node:process`, `nona:process`, `node:fs` and `nona:fs` are available
-on Windows and Linux x64/ARM64. Their syscall numbers, flags and structure
-layouts follow the selected target. Darwin and BSD optional process/filesystem
-adapters remain unavailable and produce `E_HOST_MODULE`; `--full-runtime`
-also requests the process adapter and is therefore unavailable on those ports.
-Object reflection links the available preludes without requesting that
-unavailable adapter; ordinary `getOwnPropertyNames`/`Reflect.ownKeys` work.
+`process`, `node:process` and `nona:process` are available on all eight targets,
+including `chdir`, `ppid`, `hrtime`, `uptime` and `nextTick`; see the
+[process API](process.md) for compatibility boundaries. `node:fs` and `nona:fs`
+require Windows or Linux x64/ARM64 and produce `E_HOST_MODULE` on Darwin/BSD.
+Syscall numbers, flags and structure layouts follow the selected target.
+Darwin process memory queries use the OS's libSystem Mach APIs. Intel images
+with those imports use dyld/LC_MAIN and preserve argv/env through the system C
+entry ABI; Intel images without imports retain direct kernel startup.
+`--full-runtime` is available on all eight targets.
 
 Raw `nona:ffi` syscall declarations use the **target kernel's actual syscall
 number** (on Darwin, the BSD number without its class prefix). They are not

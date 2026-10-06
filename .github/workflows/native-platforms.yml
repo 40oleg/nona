@@ -83,8 +83,24 @@ jobs:
       - run: npm run build
       - name: Build native probes
         run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
+      - name: Record isolated Windows Node abort behavior
+        if: matrix.target == 'win32-arm64'
+        shell: pwsh
+        run: ./scripts/process-abort-oracle.ps1
       - name: Execute native loader and runtime probes
+        if: matrix.target == 'win32-arm64'
         run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Record Node process signal behavior
+        if: matrix.target != 'win32-arm64'
+        run: node scripts/process-signals-oracle.mjs
+      - name: Execute native POSIX loader and runtime probes
+        if: matrix.target != 'win32-arm64'
+        shell: bash
+        run: |
+          ulimit -c 0
+          node scripts/run-platform-probes.mjs ${{ matrix.target }}
+      - name: Verify native process report files
+        run: node scripts/verify-process-reports.mjs
       - name: Events module oracle suite
         run: node --test dist/tests/events.test.js dist/tests/event-target.test.js dist/tests/event-probes.test.js
       - name: Core runtime oracle suites
@@ -95,9 +111,11 @@ jobs:
       # preludes in addition to the CPU, math, GC and coroutine probes.
       - name: Portable language and built-in oracle suites
         run: node --test dist/tests/date.test.js dist/tests/array-builtins.test.js dist/tests/array-buffer.test.js dist/tests/typed-array-fast-path.test.js dist/tests/string-builtins.test.js dist/tests/string-search.test.js dist/tests/string-split.test.js dist/tests/string-replace.test.js dist/tests/string-replace-all.test.js dist/tests/string-match.test.js dist/tests/regexp-vm.test.js dist/tests/regexp-construction.test.js dist/tests/regexp-split.test.js dist/tests/regexp-replace.test.js dist/tests/regexp-match-all.test.js dist/tests/map.test.js dist/tests/set.test.js dist/tests/weak-collections.test.js dist/tests/proxy.test.js dist/tests/reflect.test.js dist/tests/symbols.test.js dist/tests/json.test.js dist/tests/uri.test.js dist/tests/classes.test.js dist/tests/class-fields.test.js dist/tests/exceptions.test.js dist/tests/objects.test.js dist/tests/object-integrity.test.js dist/tests/object-introspection.test.js dist/tests/property-descriptors.test.js dist/tests/property-index-elements.test.js
-      - name: Process and filesystem oracle suites
-        run: node --test dist/tests/process.test.js dist/tests/fs.test.js
+      - name: Filesystem oracle suite
+        run: node --test dist/tests/fs.test.js
         if: matrix.target == 'linux-x64' || matrix.target == 'linux-arm64' || matrix.target == 'win32-arm64'
+      - name: Portable process oracle suite
+        run: node --test dist/tests/process.test.js dist/tests/process-portable.test.js dist/tests/process-io.test.js
       - name: Compare Linux examples with Node.js
         run: npm run compare:linux
         if: matrix.target == 'linux-arm64'
@@ -127,11 +145,20 @@ jobs:
           mkdir -p work/distro-results
           docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
             set -eu
+            ulimit -c 0
+            cd /results
             /probes/linux-x64 > /results/loader.actual
             for expected in /probes/linux-x64-*.expected; do
               binary=${expected%.expected}
               echo "Running $binary"
-              "$binary" > "/results/${binary##*/}.actual"
+              status=0
+              if [ "$(cat "$binary.minimal-environment")" = 1 ]; then env -i "$binary" > "/results/${binary##*/}.actual" || status=$?; else "$binary" > "/results/${binary##*/}.actual" || status=$?; fi
+              expected_status=0
+              if [ -f "$binary.status" ]; then expected_status=$(cat "$binary.status"); fi
+              if [ "$status" -ne "$expected_status" ]; then
+                echo "Unexpected exit status $status (expected $expected_status)"
+                exit 1
+              fi
             done
             cat /etc/os-release
           '
@@ -140,6 +167,7 @@ jobs:
             binary=${expected%.expected}
             cmp "$expected" "work/distro-results/${binary##*/}.actual"
           done
+      - run: node scripts/verify-process-reports.mjs work/distro-results
   bsd-loaders:
     name: ${{ matrix.os }} x64 guest VM on Ubuntu host
     runs-on: ubuntu-24.04
@@ -163,6 +191,7 @@ jobs:
           usesh: true
           run: |
             set -eu
+            ulimit -c 0
             uname -a
             test "$(uname -s)" = FreeBSD
             test "$(uname -m)" = amd64
@@ -173,14 +202,18 @@ jobs:
               binary=${probe%.expected}
               echo "Running $binary"
               chmod 755 "$binary"
-              if "$binary" > "$binary.actual"; then
-                :
+              minimal=$(cat "$binary.minimal-environment")
+              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then
+                status=0
               else
                 status=$?
+              fi
+              expected_status=$(cat "$binary.status")
+              if [ "$status" -ne "$expected_status" ]; then
                 if command -v lldb >/dev/null 2>&1; then
                   lldb --batch -o run -o 'thread backtrace all' -o 'register read' -o 'disassemble --frame --count 12' "$binary" || true
                 fi
-                exit "$status"
+                exit 1
               fi
               cmp "$probe" "$binary.actual"
             done
@@ -192,6 +225,7 @@ jobs:
           usesh: true
           run: |
             set -eu
+            ulimit -c 0
             uname -a
             test "$(uname -s)" = OpenBSD
             test "$(uname -m)" = amd64
@@ -202,7 +236,10 @@ jobs:
               binary=${probe%.expected}
               echo "Running $binary"
               chmod 755 "$binary"
-              "$binary" > "$binary.actual"
+              minimal=$(cat "$binary.minimal-environment")
+              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then status=0; else status=$?; fi
+              expected_status=$(cat "$binary.status")
+              if [ "$status" -ne "$expected_status" ]; then exit 1; fi
               cmp "$probe" "$binary.actual"
             done
             uname -a
@@ -211,3 +248,4 @@ jobs:
         with:
           name: loader-${{ matrix.os }}-x64
           path: work/platform-probes
+      - run: node scripts/verify-process-reports.mjs

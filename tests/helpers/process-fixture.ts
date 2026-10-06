@@ -1,0 +1,57 @@
+export const processExtendedOracle=String.raw`
+process.stdout.write('stdout\n');process.stderr.write('stderr\n');
+console.log(process.stdin.fd,process.stdout.fd,process.stderr.fd);
+let count=0;function listener(x){count+=x};process.on('test',listener);process.once('test',listener);console.log(process.emit('test',2),process.emit('test',3),count,process.listenerCount('test'));process.removeListener('test',listener);console.log(process.emit('test',1));
+process.env.NONA_PROCESS_TEST=123;console.log(process.env.NONA_PROCESS_TEST,typeof process.env.NONA_PROCESS_TEST);delete process.env.NONA_PROCESS_TEST;console.log(process.env.NONA_PROCESS_TEST);
+let cpu=process.cpuUsage();let diff=process.cpuUsage(cpu);console.log(cpu.user>=0,cpu.system>=0,diff.user>=0,diff.system>=0);
+console.log(process.kill(process.pid,0));
+process.once('warning',w=>console.log(w.name,w.message,w.code,w.detail));process.emitWarning('message',{type:'TestWarning',code:'NONA_TEST',detail:'detail'});
+process.on('beforeExit',code=>console.log('beforeExit',code));process.on('exit',code=>console.log('exit',code));
+let inventory=setTimeout(()=>{},10);console.log(process.getActiveResourcesInfo().filter(name=>name==='Timeout').length);clearTimeout(inventory);
+if(typeof process.getgroups==='function'){console.log(process.getgroups().includes(process.getegid()));if(process.getuid()===process.geteuid()&&process.getgid()===process.getegid()){process.setuid(process.getuid());process.seteuid(process.geteuid());process.setgid(process.getgid());process.setegid(process.getegid());console.log('same identities')}}
+console.log(typeof process.loadEnvFile,typeof process.constrainedMemory,typeof process.availableMemory);
+let memoryBuffer=new ArrayBuffer(262144),sharedMemoryBuffer=new SharedArrayBuffer(1024),memory=process.memoryUsage();
+console.log(Object.keys(memory).join(','),memory.rss>0,memory.heapTotal>=memory.heapUsed,memory.external>=memory.arrayBuffers,memory.arrayBuffers>=memoryBuffer.byteLength+sharedMemoryBuffer.byteLength,process.memoryUsage.rss()>0);
+`;
+
+export const processReviewOracle=String.raw`
+let n=0;process.on('x',()=>{if(++n===1)process.emit('x')});process.once('x',()=>console.log('once'));process.emit('x');
+process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>console.log('data',chunk));process.stdin.unref();
+setTimeout(()=>console.log('timer'),50);
+process.on('exit',code=>{console.log('exit',code);process.exitCode=7});
+`;
+export const processEnvironmentOracle=String.raw`
+Object.assign(process.env,{NONA_ASSIGN:42});
+Object.defineProperty(process.env,'NONA_DEFINE',{value:73,writable:true,enumerable:true,configurable:true});
+try{Object.defineProperty(process.env,'NONA_INVALID',{value:1})}catch(error){console.log(error.code)}
+process.env['NONA_NUL\0suffix']='a\0b';process.env['NONA=INVALID']='ignored';process.env['']='ignored';
+console.log(JSON.stringify([process.env.NONA_ASSIGN,process.env.NONA_DEFINE,process.env.NONA_NUL,process.env['NONA_NUL\0suffix'],process.env['NONA=INVALID'],process.env[''],'NONA_NUL\0suffix' in process.env,Object.getOwnPropertyDescriptor(process.env,'NONA_NUL\0suffix').value]));
+delete process.env['NONA_NUL\0suffix'];console.log(process.env.NONA_NUL===undefined);
+`;
+export const processAccountOracle=String.raw`
+if(typeof process.getuid==='function'){
+console.log(typeof process.initgroups);
+for(let call of [()=>process.setuid('nona_account_missing_981763'),()=>process.setgid('nona_group_missing_981763'),()=>process.setgroups(['nona_group_missing_981763']),()=>process.initgroups('nona_account_missing_981763',process.getgid())])try{call()}catch(error){console.log(error.code)}
+}else console.log('no POSIX credentials');
+`;
+export const processThreadOracle=String.raw`
+let threadUsage=process.threadCpuUsage(),threadDelta=process.threadCpuUsage(threadUsage);console.log(Object.keys(threadUsage).join(','),threadUsage.user>=0,threadUsage.system>=0,threadDelta.user>=0,threadDelta.system>=0);
+for(let previous of [null,false,0,{},{user:-1,system:0},{user:NaN,system:0},{user:Infinity,system:0},{user:1.5,system:0},{user:Number.MAX_SAFE_INTEGER+1,system:0}])try{console.log(Number.isFinite(process.threadCpuUsage(previous).user))}catch(error){console.log(error.name,error.code)}
+`;
+export const processExecErrorOracle=String.raw`
+if(typeof process.execve==='function'){process.env.NONA_EXEC_ERROR='preserved';try{process.execve('/nona_missing_exec_971683',[],{VALUE:'replacement'})}catch(error){console.log(error.code,error.syscall,error.path,process.env.NONA_EXEC_ERROR)}}else console.log('no execve');
+`;
+
+export const processExceptionOracle=String.raw`
+process.on('uncaughtExceptionMonitor',(error,origin)=>console.log('monitor',error.message,origin));
+process.on('uncaughtException',(error,origin)=>console.log('caught',error.message,origin));
+process.nextTick(()=>{throw Error('tick')});process.nextTick(()=>console.log('next tick'));
+queueMicrotask(()=>{throw Error('microtask')});
+`;
+export const processRejectionOracle=String.raw`
+let rejected=Promise.reject('reason');
+process.on('unhandledRejection',(reason,promise)=>{console.log('unhandled',reason,promise===rejected);setTimeout(()=>promise.catch(()=>console.log('catch')),1)});
+process.on('rejectionHandled',promise=>console.log('handled',promise===rejected));
+Promise.reject('same turn').catch(()=>console.log('same turn caught'));
+`;
+

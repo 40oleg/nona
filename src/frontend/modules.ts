@@ -3,7 +3,7 @@ import {lowerLiteralEval} from './eval-aot.js';
 import {boundNames} from './declarations.js';
 import {CompileError} from '../diagnostics.js';
 import type * as A from './ast.js';
-import {lex} from './lexer.js';
+import {lex,requireRuntimePrelude} from './lexer.js';
 import {parse} from './parser.js';
 
 /** A parsed module in the statically known graph. Index 0 is the entry. */
@@ -17,6 +17,8 @@ export interface ModuleRecord {
   requests:Map<string,number>;
   /** Modules this one imports statically, in source order (for evaluation). */
   staticRequests:number[];
+  /** Exact registry names for an implemented builtin; absent for user modules. */
+  builtinAliases?:string[];
 }
 
 /** Host hooks. Paths are canonical, '/'-separated strings chosen by the host. */
@@ -25,6 +27,8 @@ export interface ModuleHost {
   read(path:string):string|undefined;
   /** Specifiers a computed import() in the referrer may name; these modules are compiled in. */
   candidates?(referrer:string):string[];
+  builtinAliases?(path:string):string[]|undefined;
+  builtinCandidates?():string[];
 }
 
 function fail(message:string,path:string,node?:A.Node):never {
@@ -42,12 +46,139 @@ export function resolveRelative(specifier:string,referrer:string):string|undefin
   return '/'+parts.join('/');
 }
 
-function walk(node:unknown,visit:(node:A.Node)=>void):void {
-  if(Array.isArray(node)){for(const item of node)walk(item,visit);return;}
+function walk(node:unknown,visit:(node:A.Node,parent?:A.Node)=>void,parent?:A.Node):void {
+  if(Array.isArray(node)){for(const item of node)walk(item,visit,parent);return;}
   if(!node||typeof node!=='object')return;
   const record=node as Record<string,unknown>;
-  if(typeof record.kind==='string'&&typeof record.span==='object')visit(record as unknown as A.Node);
-  for(const [key,value] of Object.entries(record))if(key!=='span'&&key!=='source')walk(value,visit);
+  const current=typeof record.kind==='string'&&typeof record.span==='object'?record as unknown as A.Node:parent;
+  if(current!==parent)visit(current!,parent);
+  for(const [key,value] of Object.entries(record))if(key!=='span'&&key!=='source')walk(value,visit,current);
+}
+
+/** Plan only user AST requests; provider exports must not recursively select inventory. */
+export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost):string[] {
+ const literals=new Set<string>(),processNames=new Set(['process']),globalNames=new Set(['globalThis']),getterNames=new Set<string>();let computed=false,lookup=false;
+ const text=(expression:A.Expression):string|undefined=>{
+  if(expression.kind==='Literal'&&typeof expression.value==='string')return expression.value;
+  if(expression.kind==='Template'&&!expression.expressions.length)return expression.quasis[0];
+  if(expression.kind==='Binary'&&expression.operator==='+'){const left=text(expression.left),right=text(expression.right);if(left!==undefined&&right!==undefined)return left+right}
+  return undefined;
+ };
+ for(const statement of ast.body)if(statement.kind==='Import'&&['process','node:process','nona:process'].includes(statement.source))for(const specifier of statement.specifiers){
+  if(specifier.kind==='named'&&specifier.imported==='getBuiltinModule')getterNames.add(specifier.local.name);
+  else if(specifier.kind==='default'||specifier.kind==='namespace')processNames.add(specifier.local.name);
+ }
+ const globalObject=(expression:A.Expression)=>expression.kind==='Identifier'&&globalNames.has(expression.name);
+ const processObject=(expression:A.Expression):boolean=>{
+  if(expression.kind==='Identifier')return processNames.has(expression.name);
+  if(expression.kind==='Member')return globalObject(expression.object)&&text(expression.property)==='process';
+  if(expression.kind==='Call'){
+   const first=expression.arguments[0],key=expression.arguments[1],callee=expression.callee;
+   if(callee.kind==='Member'&&text(callee.property)==='get'&&first?.kind!=='SpreadElement'&&first&&globalObject(first)&&key?.kind!=='SpreadElement'&&key&&text(key)==='process')return true;
+   if(first?.kind!=='SpreadElement'&&first&&['process','node:process','nona:process'].includes(text(first)??''))return callee.kind==='Member'&&text(callee.property)==='getBuiltinModule'||callee.kind==='Identifier'&&getterNames.has(callee.name);
+  }
+  return false;
+ };
+ const getterObject=(expression:A.Expression):boolean=>expression.kind==='Identifier'&&getterNames.has(expression.name)||expression.kind==='Member'&&processObject(expression.object)&&text(expression.property)==='getBuiltinModule';
+ const getterDeclaration=(parent:A.Node|undefined,node:A.Node):boolean=>parent?.kind==='Var'&&(parent as A.Var).declarationKind==='const'&&(parent as A.Var).declarations.some(d=>d.id.kind==='Identifier'&&getterNames.has(d.id.name)&&(d.id===node||d.init===node));
+ // An immutable descriptor inspected only for identity or member types cannot
+ // invoke its getter. Any escape, reassignment or callable use stays conservative.
+ const observedDescriptors=new Set<A.Call>();
+ walk(ast.body,node=>{
+  if(node.kind!=='Var'||(node as A.Var).declarationKind!=='const')return;
+  for(const declaration of (node as A.Var).declarations){
+   if(declaration.id.kind!=='Identifier'||declaration.init?.kind!=='Call')continue;
+   const call=declaration.init,callee=call.callee,object=call.arguments[0],key=call.arguments[1];
+   if(callee.kind!=='Member'||callee.object.kind!=='Identifier'||callee.object.name!=='Object'||text(callee.property)!=='getOwnPropertyDescriptor'||!object||object.kind==='SpreadElement'||!globalObject(object)||!key||key.kind==='SpreadElement'||text(key)!=='process')continue;
+   const name=declaration.id.name;let safe=true;
+   walk(ast.body,(use,parent)=>{
+    if(use.kind!=='Identifier'||(use as A.Identifier).name!==name||use===declaration.id)return;
+    if(parent?.kind==='Unary'&&(parent as A.Unary).operator==='typeof')return;
+    if(parent?.kind==='Binary'){
+     const binary=parent as A.Binary,other=binary.left===use?binary.right:binary.left;
+     if(['===','!==','==','!='].includes(binary.operator)&&other.kind==='Identifier'&&other.name==='undefined')return;
+    }
+    if(parent?.kind==='Member'&&(parent as A.Member).object===use){
+     let typeOnly=false;walk(ast.body,(member,owner)=>{if(member===parent&&owner?.kind==='Unary'&&(owner as A.Unary).operator==='typeof')typeOnly=true});
+     if(typeOnly)return;
+    }
+    safe=false;
+   });
+   if(safe)observedDescriptors.add(call);
+  }
+ });
+ // Follow simple object aliases so computed access through them is conservative.
+ let changed=true;
+ while(changed){changed=false;walk(ast.body,node=>{
+  const add=(id:A.Expression,init:A.Expression|null)=>{if(id.kind!=='Identifier'||!init)return;
+   for(const [matches,names] of [[processObject(init),processNames],[globalObject(init),globalNames]] as const)if(matches&&!names.has(id.name)){names.add(id.name);changed=true}
+  };
+  if(node.kind==='Var'){for(const declaration of (node as A.Var).declarations)if(declaration.id.kind==='Identifier'){add(declaration.id,declaration.init);if((node as A.Var).declarationKind==='const'&&declaration.init&&getterObject(declaration.init)&&!getterNames.has(declaration.id.name)){getterNames.add(declaration.id.name);changed=true}}}
+  else if(node.kind==='Assignment'){const assignment=node as A.Assignment;if(assignment.operator==='='&&assignment.left.kind==='Identifier')add(assignment.left,assignment.right)}
+ })}
+ const ioNames=new Set(['stdin','stdout','stderr','openStdin','emitWarning']);
+ const selectIO=(object:A.Expression,key:string|undefined)=>{if(processObject(object)&&key!==undefined&&ioNames.has(key))requireRuntimePrelude('stream')};
+ const request=(arguments_:A.Argument[])=>{
+  lookup=true;
+  const first=arguments_[0];
+  if(!first)return;
+  const literal=first.kind==='SpreadElement'?undefined:text(first);
+  if(literal!==undefined)literals.add(literal);
+  else if(first.kind!=='Literal')computed=true;
+ };
+ walk(ast.body,(node,parent)=>{
+  if(['Identifier','Member','Call'].includes(node.kind)&&processObject(node as A.Expression))requireRuntimePrelude('process');
+  if(['Identifier','Member','Call'].includes(node.kind)&&(processObject(node as A.Expression)||globalObject(node as A.Expression))){
+   // Simple local aliases are tracked; other object escapes may invoke the API
+   // through unknown parameters, returned objects or aggregate contents.
+   const receiver=parent?.kind==='Member'&&(parent as A.Member).object===node||parent?.kind==='OptionalChain'&&(parent as A.OptionalChain).base===node;
+   const local=parent?.kind==='Var'&&(parent as A.Var).declarations.some(d=>d.id===node||d.id.kind==='Identifier'&&d.init===node)||parent?.kind==='Assignment'&&(parent as A.Assignment).left.kind==='Identifier';
+   const declaration=parent?.kind==='Import'||parent?.kind==='Function'||parent?.kind==='FunctionExpression';
+   const scalar=parent?.kind==='ExpressionStatement'||parent?.kind==='Unary'||parent?.kind==='Binary'&&!['&&','||','??',','].includes((parent as A.Binary).operator);
+   const call=parent?.kind==='Call'?parent as A.Call:undefined,callee=call?.callee;
+   const reflected=globalObject(node as A.Expression)&&call?.arguments[0]===node&&callee?.kind==='Member'&&callee.object.kind==='Identifier'&&['Reflect','Object'].includes(callee.object.name)&&['get','getOwnPropertyDescriptor'].includes(text(callee.property)??'');
+   if(!receiver&&!local&&!declaration&&!scalar&&!reflected)computed=true;
+  }
+  if(node.kind==='Member'){
+   const member=node as A.Member,key=text(member.property);selectIO(member.object,key);
+   if(key==='getBuiltinModule'){
+    lookup=true;
+    if(parent?.kind==='Call'&&(parent as A.Call).callee===member)request((parent as A.Call).arguments);
+    else if(!getterDeclaration(parent,node))computed=true;
+   }else if(key===undefined&&(processObject(member.object)||globalObject(member.object))){
+    // A scalar global read or constructor call cannot use the process object.
+    // Keep inventory selection for escaping values and nested API lookups.
+    const scalarGlobal=globalObject(member.object)&&(parent?.kind==='Unary'||parent?.kind==='New'&&(parent as A.New).callee===member);
+    if(!scalarGlobal)computed=true;
+   }
+  }else if(node.kind==='Identifier'&&getterNames.has((node as A.Identifier).name)&&parent?.kind!=='Import'){
+   lookup=true;
+   if(parent?.kind==='Call'&&(parent as A.Call).callee===node)request((parent as A.Call).arguments);else if(!getterDeclaration(parent,node))computed=true;
+  }else if(node.kind==='ObjectPattern'){
+   if((node as A.ObjectPattern).properties.some(property=>text(property.key)==='getBuiltinModule'))computed=lookup=true;
+  }else if(node.kind==='Call'){
+   const call=node as A.Call,object=call.arguments[0];
+   if(call.callee.kind==='Member'&&['get','getOwnPropertyDescriptor'].includes(text(call.callee.property)??'')&&object?.kind!=='SpreadElement'&&object){
+    const key=call.arguments[1],unknown=!key||key.kind==='SpreadElement'||text(key)===undefined;
+    selectIO(object,unknown?undefined:text(key as A.Expression));
+    if(processObject(object)&&(unknown||text(key as A.Expression)==='getBuiltinModule'))computed=true;
+    if(globalObject(object)&&(unknown||text(call.callee.property)==='getOwnPropertyDescriptor'&&text(key as A.Expression)==='process'&&!observedDescriptors.has(call)))computed=true;
+   }
+  }else if(node.kind==='OptionalChain'){
+   const chain=node as A.OptionalChain;
+   for(let i=0;i<chain.links.length;i++){const link=chain.links[i]!;
+    if(i===0&&link.kind==='property')selectIO(chain.base,text(link.property));
+    if(link.kind==='property'&&text(link.property)==='getBuiltinModule'){
+     lookup=true;
+     const next=chain.links[i+1];if(next?.kind==='call')request(next.arguments);else computed=true;
+    }else if(link.kind==='property'&&text(link.property)===undefined&&(processObject(chain.base)||globalObject(chain.base)))computed=true;
+   }
+  }
+ });
+ if(lookup||computed)requireRuntimePrelude('process');
+ const candidates=host.builtinCandidates?.()??[];
+ if(computed)return candidates;
+ return candidates.filter(path=>(host.builtinAliases?.(path)??[]).some(alias=>literals.has(alias)));
 }
 
 /**
@@ -109,7 +240,7 @@ export function moduleRequests(ast:Pick<A.Program,'body'>):{static:string[];dyna
 
 /**
  * Load the module graph reachable from the entry through static imports and
- * string-literal dynamic imports. A missing static dependency is a compile error;
+ * string-literal dynamic imports and planned builtin lookups. A missing static dependency is a compile error;
  * a missing dynamic one rejects at run time.
  */
 export function loadModuleGraph(entryPath:string,entrySource:string|null,host:ModuleHost,scriptRequests:string[]=[]):ModuleRecord[] {
@@ -123,10 +254,11 @@ export function loadModuleGraph(entryPath:string,entrySource:string|null,host:Mo
       if(!dynamic)throw new CompileError(error.diagnostics.map(d=>({...d,file:path})));
       ast={kind:'Program',body:[],module:true,source:'',span:{start:0,end:0}};loadError=error.diagnostics[0]?.message??'Invalid module';
     }
-    const record:ModuleRecord={index:records.length,path,ast,requests:new Map(),staticRequests:[],...(loadError===undefined?{}:{loadError})};
+    const builtinAliases=host.builtinAliases?.(path);
+    const record:ModuleRecord={index:records.length,path,ast,requests:new Map(),staticRequests:[],...(builtinAliases?{builtinAliases}:{}),...(loadError===undefined?{}:{loadError})};
     records.push(record);byPath.set(path,record);
     const requests=moduleRequests(ast);
-    const dynamics=[...requests.dynamic,...(requests.computed?host.candidates?.(path)??[]:[])].filter((s,i,all)=>all.indexOf(s)===i);
+    const dynamics=[...requests.dynamic,...(requests.computed?host.candidates?.(path)??[]:[]),...(builtinAliases?[]:builtinModuleRequests(ast,host))].filter((s,i,all)=>all.indexOf(s)===i);
     for(const [specifier,isStatic] of [...requests.static.map(s=>[s,true] as const),...dynamics.map(s=>[s,false] as const)]){
       const resolved=host.resolve(specifier,path);
       if(resolved===undefined){if(isStatic)fail(`Cannot resolve module '${specifier}'`,path);continue;}
@@ -141,8 +273,8 @@ export function loadModuleGraph(entryPath:string,entrySource:string|null,host:Mo
     }
     return record;
   };
-  if(entrySource!==null){load(entryPath,entrySource);return records;}
-  // A classic script entry: only its string-literal import() targets are loaded.
+  if(entrySource!==null)load(entryPath,entrySource);
+  // Supplemental targets for a classic script or module harness stay lazy.
   for(const specifier of scriptRequests){
     const resolved=host.resolve(specifier,entryPath);if(resolved===undefined||byPath.has(resolved))continue;
     const text=host.read(resolved);if(text!==undefined)load(resolved,text,true);

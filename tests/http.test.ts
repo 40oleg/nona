@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {runModulesOnHost} from './helpers/host.js';
+import {processNetworkProbe} from '../src/runtime/process-network-probe.js';
 
 // Each program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical. Programs print no ports or dates. Programs that
@@ -14,6 +15,8 @@ function expectNode(source:string,gcStress:boolean):void {
  assert.ok(oracle.length>0);
  assert.equal(native.stdout,oracle);
 }
+
+test('HTTP, Process streams and Immediates share a live native event loop',()=>expectNode(processNetworkProbe,false));
 
 test('node:http: an HTTP server answers GET and POST requests from http.get and http.request',()=>expectNode(String.raw`import http from 'node:http';
 const server = http.createServer((req, res) => {

@@ -5,6 +5,7 @@ import {withNativeTarget} from '../machine/context.js';
 import type {Assembler} from '../x64/assembler.js';
 import type {NativeProgram} from '../pe/model.js';
 import {linkDarwinArm64} from './arm64.js';
+import {darwinProcessSystemAdapters} from './system.js';
 
 function nativeCall(a:Assembler,number:number):void {
   a.syscall(0x2000000+number);const done=a.unique('syscallDone');a.jcc('ae',done);a.neg('rax');a.label(done);
@@ -78,6 +79,7 @@ export function linkDarwin(program:NativeProgram,arch:'x64'|'arm64'='x64'):Uint8
       a.mov('r10','rax');a.mov('r8',0x01000000);a.load('rdi',slot(56));a.load('rsi',slot(64));nativeCall(a,360);
       a.cmp('rax',-4095);a.jcc('b',done);a.label(bad);a.mov('rax',0);a.label(done);a.load('rsi',slot(40));a.load('rdi',slot(48));
     });
-    return linkMachO({...program,imports:[],fragments:[...program.fragments,...fragments,...b.bundle.fragments]});
+    const system=darwinProcessSystemAdapters(program,'x64');
+    return linkMachO({...program,imports:system.imports,fragments:[...system.fragments,...fragments,...b.bundle.fragments]});
   });
 }

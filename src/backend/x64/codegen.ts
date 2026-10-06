@@ -15,15 +15,19 @@ import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
-import {fullRuntimeLink,optionalPreludes,preludeDependencies,runtimeRegExpLink,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
+import {runtimeRegExpLink,fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
 import {bufferPreludeSource} from '../../runtime/buffer-source.js';
 import {processPreludeForTarget,processHostDeclarations} from '../../runtime/process-source.js';
+import {processNativeHelpers,captureProcessStartup} from '../../runtime/process-host.js';
+import {ffiImportSymbol} from '../../ffi.js';
 import {eventsPreludeSource} from '../../runtime/events-source.js';
 import {asyncHooksPreludeSource} from '../../runtime/async-hooks-source.js';
+import {eventEmitterPreludeSource} from '../../runtime/event-emitter-source.js';
+import {streamPreludeForTarget} from '../../runtime/stream-source.js';
 import {timersPreludeSource} from '../../runtime/timers-source.js';
 import {objectAnnexBPreludeSource} from '../../runtime/object-annexb-source.js';
 import {arraySortPreludeSource} from '../../runtime/array-sort-source.js';
@@ -85,7 +89,7 @@ export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRej
 /** The optional preludes `link` selects, with their dependencies, in declaration order. */
 function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   const selected=new Set(optionalPreludes.filter(name=>link.preludes[name]));
-  for(const name of [...selected])for(const dependency of preludeDependencies[name]??[])selected.add(dependency);
+  for(const name of selected)for(const dependency of preludeDependencies[name]??[])selected.add(dependency);
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
@@ -93,8 +97,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
-  const regexpLink=runtimeRegExpLink(link);
   const linked=linkedPreludes(link);
+  const regexpLink=runtimeRegExpLink(link,linked);
   const hasPrelude=!!module.runtimePrelude;
   const realms=hasPrelude?options.realms??0:0;
   const baseKey=JSON.stringify({target:currentNativeTarget(),prelude:hasPrelude,rejectionPolicy,gcStress:!!options.gcStress,realms,regexpLink,unicodeNormalization:link.unicodeNormalization,linked});
@@ -113,7 +117,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       // Order matters: later preludes capture intrinsics installed by earlier ones.
       const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
         ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
-        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+        ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
       prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
       cachedRuntimePreludes.set(preludeKey,prelude);
     }
@@ -725,18 +729,28 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     fragments.push({name:base+'.fnValue',section:'.rdata',alignment:8,bytes:fnValue,symbols:{},fixups:[{offset:8,kind:'va64',target:base+'.fn',addend:0}]});
     hostGlobals.push(base);
   };
-  // Host functions for the process prelude are FFI thunks for the target:
-  // KERNEL32 exports on Windows, system calls on Linux.
-  // Both targets' declarations are compiled into every image, so one program
-  // can be linked as PE and ELF; each linker binds the other target's imports
-  // to an "unavailable" stub (see emitFfi, linkPe and the Linux shims).
-  const hostFfi=hasPrelude&&linked.includes('process')?[...processHostDeclarations('win32-x64'),...processHostDeclarations(currentNativeTarget()==='linux-arm64'?'linux-arm64':'linux-x64')]:[];
+  // Windows APIs and the selected POSIX syscalls share the prelude boundary.
+  // On x64, Windows/Linux declarations retain dual PE/ELF linking. Private
+  // memory/vector helpers bind directly to original code in the image.
+  const hostFfi=hasPrelude&&linked.includes('process')?processHostDeclarations(currentNativeTarget()??'win32-x64'):[];
   if(module.ffi?.length||hostFfi.length){
     const ffi=emitFfi(module.ffi??[]).bundle;
     fragments.push(...ffi.fragments);functions.push(...ffi.functions);runtime.imports.push(...ffi.imports);
     if(module.ffi?.length)hostGlobal('__nonaFfiLastError','rt.ffiLastError.code',0);
     const host=emitFfi(hostFfi.map(h=>h.declaration),{prefix:'hostffi',support:false}).bundle;
-    fragments.push(...host.fragments);functions.push(...host.functions);runtime.imports.push(...host.imports);
+    const internal=hostFfi.filter(h=>h.declaration.dll==='nona.internal');
+    const internalSymbols=new Set(internal.map(h=>'hostffi'+ffiImportSymbol(h.declaration).slice(3)));
+    const externalFragment=(name:string)=>!internalSymbols.has(name.replace(/^linux\./,'').replace(/\.code$/,''));
+    fragments.push(...host.fragments.filter(f=>externalFragment(f.name)));functions.push(...host.functions.filter(f=>externalFragment(f.begin)));
+    runtime.imports.push(...host.imports.filter(i=>!internalSymbols.has(i.symbol)));
+    if(internal.length){
+      const helpers=processNativeHelpers().bundle;fragments.push(...helpers.fragments);functions.push(...helpers.functions);
+      for(const imported of helpers.imports)if(!runtime.imports.some(existing=>existing.symbol===imported.symbol&&existing.dll===imported.dll&&existing.name===imported.name))runtime.imports.push(imported);
+      for(const h of internal)fragments.push({name:'hostffi'+ffiImportSymbol(h.declaration).slice(3),section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[{offset:0,kind:'va64',target:'process.'+h.declaration.name+'.code',addend:0}]});
+      hostGlobal('__nonaProcessNow','rt.hostNow.code',0);
+      hostGlobal('__nonaProcessFinalization','process.finalization.code',3);
+      hostGlobal('__nonaProcessUnits','process.units.code',2);
+    }
     hostFfi.forEach((h,index)=>hostGlobal('__nonaHost_'+h.name,'hostffi.'+index+'.code',0));
   }
   if(hasPrelude&&linked.includes('timers')){
@@ -804,9 +818,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   entriesFragment.bytes=new Uint8Array(Math.max(8,8*agentPrograms.length));
   entriesFragment.fixups=agentPrograms.map((_,agent)=>({offset:8*agent,kind:'va64' as const,target:agentSymbol(agent,'entry'),addend:0}));
   mergeAgentPrograms(fragments,functions,runtime.imports,agentPrograms);
-  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();entry.sub('rsp',72);const p=entry.offset;
+  const entry=createAssembler('entry');if(!options.agent)entry.initializeStack();
+  if(!options.agent&&hostFfi.length)captureProcessStartup(entry,currentNativeTarget()??'win32-x64');
+  const processBoundary=hasPrelude&&linked.includes('process'),entryFrame=processBoundary?424:72;
+  if(processBoundary){const bytes=new Uint8Array(16);bytes[0]=4;fragments.push({name:'process.dispatchKey',section:'.rdata',alignment:8,bytes,symbols:{},fixups:[{offset:8,kind:'va64',target:literal('dispatchUncaught'),addend:0}]})}
+  entry.sub('rsp',entryFrame);const p=entry.offset;
   entry.lea('rax',{base:'rsp',disp:-StackBudget.main});entry.store({rip:'rt.stackLimit'},'rax');
   entry.call('rt.init');
+  if(!options.agent)entry.call('rt.processSignalDefaults');
   // GC stress: freed cells are poisoned so a missing root fails at once.
   if(options.gcStress){entry.mov('rax',1);entry.store({rip:'rt.gcPoison'},'rax');}
   entry.lea('rax',{rip:'js.globals'});entry.store({rip:'rt.gcGlobals'},'rax');
@@ -829,14 +848,42 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   callArguments();
   if(hasPrelude){entry.call('js.regexpVm.main');callArguments();}
   entry.mov('rax',globalProperties.length);entry.store({rip:'rt.globalBindingCount'},'rax');
+  // The outer boundary catches JS throws only, after rt.throw restores the
+  // stack, precise roots and cleanup chain. Runtime failures remain rt.fail.
+  const uncaught=entry.unique('uncaught'),drainStart=entry.unique('drainStart'),drained=entry.unique('drained');
+  const pushEntryHandler=()=>{
+    entry.load('rax',{rip:'rt.exceptionHandler'});entry.store(stack(96+H.next),'rax');entry.mov('rax','rsp');entry.store(stack(96+H.stack),'rax');
+    entry.lea('rax',{rip:uncaught});entry.store(stack(96+H.target),'rax');entry.load('rax',{rip:'rt.gcRoots'});entry.store(stack(96+H.roots),'rax');
+    entry.lea('rax',stack(80));entry.store(stack(96+H.value),'rax');entry.load('rax',{rip:'rt.cleanupHead'});entry.store(stack(96+H.cleanup),'rax');
+    preservedGp.forEach((reg,i)=>entry.store(stack(96+H.gp+8*i),reg));preservedXmm.forEach((reg,i)=>entry.storeXmm128(stack(96+H.xmm+16*i),reg));
+    entry.mov('rax',0);entry.store(stack(96+H.kind),'rax');entry.lea('rax',stack(96));entry.store({rip:'rt.exceptionHandler'},'rax');
+  };
+  const popEntryHandler=()=>{entry.load('rax',stack(96+H.next));entry.store({rip:'rt.exceptionHandler'},'rax')};
+  if(processBoundary){
+    entry.mov('rax',0);for(const offset of [64,72,80,88])entry.store(stack(offset),'rax');
+    entry.load('rax',{rip:'rt.gcRoots'});entry.store(stack(384+R.next),'rax');entry.lea('rax',stack(64));entry.store(stack(384+R.values),'rax');
+    entry.mov('rax',2);entry.store(stack(384+R.count),'rax');entry.lea('rax',stack(384));entry.store({rip:'rt.gcRoots'},'rax');pushEntryHandler();
+  }
   entry.call('js.main');
+  if(processBoundary)popEntryHandler();
+  entry.label(drainStart);
+  if(processBoundary)pushEntryHandler();
   if(hasPrelude)drain();
+  if(processBoundary){
+    popEntryHandler();entry.jmp(drained);entry.label(uncaught);
+    entry.lea('rcx',stack(64));entry.lea('rdx',{rip:'rt.preludeGlobals'});entry.lea('r8',{rip:'process.dispatchKey'});entry.call('rt.getProperty');
+    entry.load('rax',stack(64));entry.cmp('rax',5);failIf(entry,'ne');
+    entry.lea('rax',{rip:'rt.undefinedValue'});entry.store(stack(32),'rax');entry.store(stack(40),'rax');
+    entry.lea('rcx',stack(48));entry.lea('rdx',stack(64));entry.mov('r8',1);entry.lea('r9',stack(80));entry.call('rt.invoke');
+    entry.mov('rax',0);for(const offset of [64,72,80,88])entry.store(stack(offset),'rax');entry.jmp(drainStart);entry.label(drained);
+    entry.load('rax',stack(384+R.next));entry.store({rip:'rt.gcRoots'},'rax');
+  }
   if(options.agent){
     // An agent thread handles one broadcast, runs its jobs and returns.
     entry.call('rt.agentAwaitBroadcast');if(hasPrelude)drain();
-    entry.mov('rax',0);entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    entry.mov('rax',0);entry.add('rsp',entryFrame);entry.ret();finish(entry,'entry',entryFrame,p);
   }else{
-    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',72);entry.ret();finish(entry,'entry',72,p);
+    if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',entryFrame);entry.ret();finish(entry,'entry',entryFrame,p);
   }
   return {fragments,imports:runtime.imports,entry:'entry',functions};
 }
