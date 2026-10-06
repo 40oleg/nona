@@ -66,6 +66,18 @@ test('Blob asynchronous prelude oracle',async()=>{
  assert.equal(stdout,runOracle(body).stdout);
 });
 
+test('reader release preserves pending closed promises and shares one release error',async()=>{
+ const body=`(async function(){for(var done of [false,true]){var reader=new Blob(['x']).stream().getReader();if(done){await reader.read();await reader.read()}var before=reader.closed;reader.releaseLock();var after=reader.closed,result=await Promise.allSettled([before,after]);console.log(done,before===after,result.map(function(value){return value.status}).join(','),result[0].reason===result[1].reason)}})()`;
+ let stdout='';await runInNewContext(encodingPreludeSource+bufferPreludeSource+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n'}}});
+ assert.equal(stdout,streamOracle(body));
+});
+
+test('Blob asynchronous methods retain the startup Promise constructor',async()=>{
+ const body=`(async function(){var original=Promise,blob=new Blob(['ok']);globalThis.Promise={resolve:function(){throw Error('resolve trap')},reject:function(){throw Error('reject trap')}};var result=blob.text();console.log(result instanceof original,await result);var reader=blob.stream().getReader();console.log((await reader.read()).done);reader.releaseLock()})()`;
+ let stdout='';await runInNewContext(encodingPreludeSource+bufferPreludeSource+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n'}}});
+ assert.equal(stdout,streamOracle(body));
+});
+
 test('Blob stream compile only: every native target',()=>{for(const {target} of nativeTargets){const result=compile(`import {resolveObjectURL} from 'node:buffer';`+blobStreamCases.join(';'),{fileName:'blob-stream.mjs',target,module:true});assert.equal(result.ok,true,target+': '+JSON.stringify(result))}});
 for(const [index,body] of blobStreamCases.entries()){
  test('Blob stream and object URL prelude oracle '+index,async()=>{let stdout='';await runInNewContext(encodingPreludeSource+'\n'+bufferPreludeSource+'\nvar {resolveObjectURL}=__nonaRegexpVm.bufferModule;'+body,{__nonaRegexpVm:{},console:{log:(...values:unknown[])=>{stdout+=values.map(String).join(' ')+'\n';}}});assert.equal(stdout,streamOracle(body))});
