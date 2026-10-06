@@ -114,7 +114,12 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
     lookup=true;
     if(parent?.kind==='Call'&&(parent as A.Call).callee===member)request((parent as A.Call).arguments);
     else computed=true;
-   }else if(key===undefined&&(processObject(member.object)||globalObject(member.object)))computed=true;
+   }else if(key===undefined&&(processObject(member.object)||globalObject(member.object))){
+    // A scalar global read or constructor call cannot use the process object.
+    // Keep inventory selection for escaping values and nested API lookups.
+    const scalarGlobal=globalObject(member.object)&&(parent?.kind==='Unary'||parent?.kind==='New'&&(parent as A.New).callee===member);
+    if(!scalarGlobal)computed=true;
+   }
   }else if(node.kind==='Identifier'&&getterNames.has((node as A.Identifier).name)&&parent?.kind!=='Import'){
    lookup=true;
    if(parent?.kind==='Call'&&(parent as A.Call).callee===node)request((parent as A.Call).arguments);else computed=true;

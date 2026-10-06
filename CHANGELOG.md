@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Instantiated built-in module namespaces only when their reachable graph is requested, preserving cyclic hoisted exports and avoiding eager inventory allocation; unrelated scalar and constructor global reads keep optional runtimes omitted ([#141](https://github.com/40oleg/nona/issues/141)).
+
 - Add immediate OS process.abort termination with real POSIX SIGABRT and Windows status134, bypassing JavaScript lifecycle hooks ([#141](https://github.com/40oleg/nona/issues/141)).
 
 - Add a compiler-linked lazy process.getBuiltinModule registry with real provider defaults, aliases and target capabilities ([#141](https://github.com/40oleg/nona/issues/141)).

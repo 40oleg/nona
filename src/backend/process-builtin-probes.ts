@@ -8,9 +8,10 @@ import {linkWindowsArm64} from './arm64/windows.js';
 import {linkLinux} from './linux/index.js';
 import {linkDarwin} from './darwin/index.js';
 import {linkBsd} from './bsd/index.js';
+import {resolveRelative,type ModuleHost} from '../frontend/modules.js';
 
 /** Real provider defaults and namespace identity through the public process API. */
-export function processBuiltinProbeCases(target:Target):{name:string;source:string;module:boolean;expected:string}[] {
+export function processBuiltinProbeCases(target:Target):{name:string;source:string;module:boolean;expected:string;fileName?:string;host?:ModuleHost}[] {
  const os=getTarget(target)!.os,filesystem=os==='win32'||os==='linux';
  const literal=String.raw`
 import p,{getBuiltinModule as get} from 'node:process';
@@ -46,12 +47,13 @@ console.log('reflected',Reflect.get(globalThis,rootKey)[key]('process')===proces
   {name:'process-builtin-dynamic',source:dynamic,module:false,expected:'dynamic true true '+(filesystem?'object':'undefined')+'\nnamespace true function function\nvalidation 7 true true\nwin32 true\n'},
  {name:'process-builtin-escaped',source:escaped,module:false,expected:'escaped true true\naggregate true true\nreflected true\n'},
   {name:'process-builtin-folded',source:"console.log('folded',typeof globalThis['pro'+'cess']['get'+'BuiltinModule']('fs'),globalThis['pro'+'cess']['get'+'BuiltinModule']('fs')===globalThis['pro'+'cess']['get'+'BuiltinModule']('fs'));",module:false,expected:'folded '+(filesystem?'object':'undefined')+' true\n'},
+  {name:'process-builtin-cycle',source:'import {seen,seenValue} from "./b.mjs";import * as c from "./c.mjs";export * as sibling from "./c.mjs";console.log("cycle",seen===c,seenValue===1);',module:true,expected:'cycle true true\n',fileName:'/process-cycle/a.mjs',host:{resolve:resolveRelative,read(path){return path.replaceAll('\\','/').endsWith('/process-cycle/b.mjs')?'import * as a from "./a.mjs";export const seen=a.sibling,seenValue=a.sibling.value();':path.replaceAll('\\','/').endsWith('/process-cycle/c.mjs')?'export function value(){return 1}':undefined}}},
  ];
 }
 
 export function processBuiltinProbes(target:Target):{name:string;image:Uint8Array;expected:string;minimalEnvironment:boolean}[] {
  return processBuiltinProbeCases(target).map(probe=>{
-  const {result:ir,usage}=collectSourceUsage(()=>probe.module?compileModuleToIR(probe.source,probe.name+'.mjs',undefined,'',target):compileToIR(probe.source,probe.name+'.js',undefined,target));
+  const {result:ir,usage}=collectSourceUsage(()=>probe.module?compileModuleToIR(probe.source,probe.fileName??probe.name+'.mjs',probe.host,'',target):compileToIR(probe.source,probe.name+'.js',undefined,target));
   const program=withNativeTarget(target,()=>generate(ir,{gcStress:true,link:usage})),descriptor=getTarget(target)!;
   const image=descriptor.os==='win32'?(target==='win32-arm64'?linkWindowsArm64(program):linkPe(program)):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):linkBsd(program,descriptor.os);
   return {name:probe.name,image,expected:probe.expected,minimalEnvironment:true};

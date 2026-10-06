@@ -41,7 +41,7 @@ test('BSD cross-compilation under an ARM64 emission scope also scopes OS service
   assert.ok(images.some((probe:{name:string})=>probe.name==='process-core'));
   for(const name of ['process-abort','process-builtin-literal','process-builtin-dynamic','process-builtin-escaped','process-builtin-folded'])assert.ok(images.some((probe:{name:string})=>probe.name===name),name);
   for(const probe of images){
-    if(['process-finalization','process-builtin-literal','process-builtin-dynamic','process-builtin-escaped','process-builtin-folded'].includes(probe.name))assert.equal(probe.minimalEnvironment,true,probe.name);
+    if(probe.name==='process-finalization'||probe.name.startsWith('process-builtin-'))assert.equal(probe.minimalEnvironment,true,probe.name);
     else assert.notEqual(probe.minimalEnvironment,true,probe.name);
     if(probe.name==='process-abort'){assert.equal(probe.status,134);assert.equal(probe.signal,'SIGABRT')}
   }

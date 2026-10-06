@@ -28,6 +28,7 @@ export function lower(bound:BoundProgram):ModuleIR {
   const templateCaches={next:bound.globals.length,ffi:[] as FfiDeclarationIR[]};
   const functions=[new Lowerer(bound,null,templateCaches,bound.modules?-1:undefined).run(bound.ast.body)];
   for(const module of bound.modules??[])functions.push(new Lowerer(bound,null,templateCaches,module.record.index).run(module.record.ast.body));
+  for(const module of bound.modules??[])functions.push(new Lowerer(bound,null,templateCaches,module.record.index).namespaceFunction());
   // Source ranges for coverage (V8 reports the script itself as an unnamed function).
   if(!bound.modules)functions[0]={...functions[0]!,source:{script:0,name:'',start:0,end:bound.ast.span.end}};
   (bound.modules??[]).forEach((module,i)=>{functions[i+1]={...functions[i+1]!,source:{script:module.record.index+1,name:'',start:0,end:module.record.ast.span.end}};});
@@ -267,23 +268,31 @@ class Lowerer {
     values.forEach((value,index)=>this.emit({kind:'setProperty',strict:true,object:array,key:this.constant(index),source:value,define:true}));
     return array;
   }
-  /** Module program entry: namespaces, import.meta, registration, then evaluation. */
+  /** Materialize a namespace only when its evaluation graph is requested. */
+  namespaceFunction():FunctionIR {
+    const module=this.bound.modules![this.moduleIndex!]!;
+    this.enterScope(module.record.ast);
+    for(const fn of this.bound.declarations)if(fn.module===module.record.index)this.store(this.binding(fn.declaration.id!),this.closure(fn));
+    this.store(module.meta,this.preludeCall('createImportMeta',[]));
+    const names=this.arrayOf(module.exportNames.map(name=>this.constant(name)));
+    const getters=this.arrayOf(module.getters.map(getter=>this.closure(getter,'')));
+    this.store(module.namespace,this.preludeCall('createNamespace',[names,getters]));
+    this.end({kind:'return',value:this.readStorage(module.namespace)});
+    return {id:`js.namespace.${module.record.index}`,name:'<namespace>',parameterCount:0,localCount:0,slotCount:this.slots,maxArguments:this.maxArguments,handlerCount:0,derivedConstructor:false,generator:false,blocks:this.blocks};
+  }
+  /** Register graph factories before evaluating any module. */
   private moduleMain():void {
     const modules=this.bound.modules!;
     for(const module of modules){
-      this.store(module.meta,this.preludeCall('createImportMeta',[]));
-      const names=this.arrayOf(module.exportNames.map(name=>this.constant(name)));
-      const getters=this.arrayOf(module.getters.map(getter=>this.closure(getter,'')));
-      this.store(module.namespace,this.preludeCall('createNamespace',[names,getters]));
-    }
-    for(const module of modules){
       const body=this.slot();
       this.emit({kind:'newFunction',strict:true,dest:body,target:`js.module.${module.record.index}`,captures:[],parameterCount:0,name:''});
+      const namespaceFactory=this.slot();
+      this.emit({kind:'newFunction',strict:true,dest:namespaceFactory,target:`js.namespace.${module.record.index}`,captures:[],parameterCount:0,name:''});
       const requests=this.arrayOf(module.record.staticRequests.map(index=>this.constant(index)));
       const specifiers=this.arrayOf([...module.record.requests.keys()].map(key=>this.constant(key)));
       const targets=this.arrayOf([...module.record.requests.values()].map(index=>this.constant(index)));
       const builtinAliases=this.arrayOf((module.record.builtinAliases??[]).map(alias=>this.constant(alias)));
-      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.readStorage(module.namespace),specifiers,targets,module.linkError===undefined?this.constant(undefined):this.constant(module.linkError),builtinAliases]);
+      this.preludeCall('registerModule',[this.constant(module.record.index),this.constant(module.record.path),body,requests,this.constant(undefined),specifiers,targets,module.linkError===undefined?this.constant(undefined):this.constant(module.linkError),builtinAliases,namespaceFactory]);
     }
     const script=this.bound.ast;
     if(!script.module){
@@ -396,6 +405,7 @@ class Lowerer {
   }
   private enterScope(owner:A.Node):void {
     for(const b of this.bound.lexicalScopes.get(owner)??[]){
+      if(this.moduleIndex===-1&&b.module)continue;
       const dest=this.slot();this.emit({kind:'uninitialized',dest});
       if(b.kind==='local'&&b.captured)this.emit({kind:'newCell',dest:b.index,source:dest});
       else this.store(b,dest);
@@ -1266,6 +1276,7 @@ class Lowerer {
     const moduleBody=this.moduleIndex!==undefined&&this.moduleIndex>=0;
     if(!moduleBody)this.enterScope(this.fn?.declaration.body??this.bound.ast);
     for(const fn of moduleBody?[]:this.fn?.declarations??this.bound.declarations){
+      if(this.moduleIndex===-1&&fn.module!==undefined)continue;
       const binding=this.binding(fn.declaration.id!),source=this.closure(fn);
       // Script declarations replace configurable host globals after the
       // runtime prelude, with writable, enumerable, nonconfigurable data properties.

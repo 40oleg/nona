@@ -2,6 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createContext,runInContext} from 'node:vm';
 import {spawnSync} from 'node:child_process';
+import {mkdtempSync,writeFileSync,unlinkSync,rmdirSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {compileToIR,compileModuleToIR} from '../src/compiler.js';
 import {withBuiltinModules} from '../src/frontend/builtin-modules.js';
 import {promisePreludeSource} from '../src/runtime/promise-source.js';
@@ -24,6 +27,48 @@ function boundary(){
  runInContext('Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};Function.prototype.__nonaProxyCreateInternal=function(target,handler){return new Proxy(target,handler)};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;'+promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__','true'),context);
  return context;
 }
+test('scalar and constructor reads of unknown globals do not select builtin inventory',()=>{
+ for(const source of ['console.log(typeof globalThis[["Pro","xy"].join("")])','const name=["Reg","Exp"].join("");new globalThis[name]("a")']){
+  const selected=collectSourceUsage(()=>compileToIR(source,'unrelated.js',emptyHost,'linux-x64'));
+  assert.ok(!selected.result.scripts?.includes('node:process'));assert.equal(selected.usage.preludes.process,false);assert.equal(selected.usage.preludes.buffer,false);
+ }
+});
+test('inventory namespaces materialize only for a requested graph and keep failure identity',()=>{
+ const context=boundary();
+ runInContext(`var made=0,ran=0,unused=0,object={},fault=Error('namespace failure');
+ __nonaRegexpVm.registerModule(0,'node:process',function(){ran++},[],undefined,[],[],undefined,['process','node:process'],function(){made++;return __nonaRegexpVm.createNamespace(['default'],[function(){return object}])});
+ __nonaRegexpVm.registerModule(1,'node:unused',function(){unused++},[],undefined,[],[],undefined,['unused'],function(){unused++;return {}});
+ __nonaRegexpVm.registerModule(2,'node:failed',function(){unused++},[],undefined,[],[],undefined,['failed'],function(){throw fault});`,context);
+ assert.equal(runInContext('made+ran+unused',context),0);
+ assert.equal(runInContext('__nonaRegexpVm.getBuiltinModule("process")===object&&__nonaRegexpVm.getBuiltinModule("node:process")===object&&made===1&&ran===1&&unused===0',context),true);
+ assert.equal(runInContext('var first,second;try{__nonaRegexpVm.getBuiltinModule("failed")}catch(e){first=e}try{__nonaRegexpVm.getBuiltinModule("failed")}catch(e){second=e}first===fault&&second===fault&&unused===0',context),true);
+});
+test('inventory namespace creation is outside the eager module registration function',()=>{
+ const ir=compileToIR('const lookup=process.getBuiltinModule;console.log(lookup("process")===process)','lazy-builtins.js',emptyHost,'linux-x64');
+ const factories=ir.functions.filter(fn=>fn.id.startsWith('js.namespace.'));
+ assert.equal(factories.length,ir.scripts!.length-1);
+ assert.ok(factories.length>2);
+ const moduleFunctions=new Set(ir.functions.filter(fn=>fn.id.startsWith("js.fn.")&&(fn.source?.script??0)>0).map(fn=>fn.id));
+ assert.ok(!ir.functions[0]!.blocks.flatMap(block=>block.operations).some(op=>op.kind==="newFunction"&&moduleFunctions.has(op.target)));
+});
+test('lazy namespace instantiation completes the whole static graph before cyclic bodies',()=>{
+ const context=boundary();
+ runInContext(`var spaces=[],seen,created=0;
+ __nonaRegexpVm.registerModule(0,'a',function(){},[1,2],undefined,[],[],undefined,[],function(){created++;return spaces[0]=__nonaRegexpVm.createNamespace(['sibling'],[function(){return spaces[2]}])});
+ __nonaRegexpVm.registerModule(1,'b',function(){seen=spaces[0].sibling},[0],undefined,[],[],undefined,[],function(){created++;return spaces[1]={}});
+ __nonaRegexpVm.registerModule(2,'c',function(){},[],undefined,[],[],undefined,[],function(){created++;return spaces[2]={}});
+ __nonaRegexpVm.evaluateModule(0);`,context);
+ assert.equal(runInContext('seen===spaces[2]&&created===3',context),true);
+});
+test('cyclic namespace sibling probe agrees with the Node26 module oracle',()=>{
+ const probe=processBuiltinProbeCases('linux-x64').find(probe=>probe.name==='process-builtin-cycle')!,directory=mkdtempSync(join(tmpdir(),'nona-process-cycle-'));
+ const names=['a.mjs','b.mjs','c.mjs'];
+ try{
+  writeFileSync(join(directory,names[0]!),probe.source);
+  for(const name of names.slice(1))writeFileSync(join(directory,name),probe.host!.read('/process-cycle/'+name)!);
+  const oracle=spawnSync(process.execPath,[join(directory,names[0]!)],{encoding:'utf8',windowsHide:true});assert.equal(oracle.status,0,oracle.stderr);assert.equal(oracle.stdout,probe.expected);
+ }finally{for(const name of names)try{unlinkSync(join(directory,name))}catch{}rmdirSync(directory)}
+});
 
 test('getBuiltinModule literal names select actual builtin providers without unrelated adapters',()=>{
  const ir=compileToIR('process.getBuiltinModule("fs")','builtin.js',emptyHost,'linux-x64');
@@ -167,7 +212,7 @@ for(const target of supportedNativeTargets)test('actual public builtin GC-stress
  const unlinked=collectSourceUsage(()=>compileToIR('console.log(1)',undefined,emptyHost,target));
  const bare=withNativeTarget(target,()=>generate(unlinked.result,{gcStress:true,link:unlinked.usage}));
  assert.ok(!bare.fragments.some(fragment=>fragment.name==='process.finalization.code'),target+' must retain independent cached runtime selection');
- const probes=processBuiltinProbes(target);assert.equal(probes.length,6);
+ const probes=processBuiltinProbes(target);assert.equal(probes.length,7);
  for(const probe of probes){assert.ok(probe.image.length>1024);assert.ok(probe.expected.endsWith('\n'))}
  const image=probes[0]!.image;
  if(target.startsWith('win32-'))assert.deepEqual(Array.from(image.subarray(0,2)),[0x4d,0x5a]);

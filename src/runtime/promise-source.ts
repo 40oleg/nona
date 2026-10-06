@@ -547,9 +547,9 @@ var __nonaPromiseDrainJobs=(function(){
     })
   };
   var moduleTable=[],modulePaths=objectCreate(null),builtinModules=objectCreate(null);
-  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError,aliases){
+  __nonaRegexpVm.registerModule=function(index,path,body,requests,namespace,specifiers,targets,linkError,aliases,namespaceFactory){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
-    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
+    moduleTable[index]={path:path,body:body,requests:requests,namespace:namespace,namespaceFactory:namespaceFactory,instantiated:false,resolved:resolved,status:0,error:undefined,failed:false,linkError:linkError};
     modulePaths[path]=index;
     if(aliases)for(var i=0;i<aliases.length;i++)builtinModules[aliases[i]]=index
   };
@@ -558,12 +558,24 @@ var __nonaPromiseDrainJobs=(function(){
     var resolved=objectCreate(null);for(var i=0;i<specifiers.length;i++)resolved[specifiers[i]]=targets[i];
     scriptRecord={path:path,resolved:resolved}
   };
+  function instantiateModule(index){
+    var record=moduleTable[index];
+    if(record.instantiated)return;
+    if(record.failed)throw record.error;
+    try{if(record.namespaceFactory){record.namespace=record.namespaceFactory();record.namespaceFactory=undefined}}
+    catch(error){record.status=2;record.failed=true;record.error=error;throw error}
+    record.instantiated=true;
+    // The whole static graph must exist before bodies run, including siblings
+    // that a cyclic dependency can reach through a re-exported namespace.
+    for(var i=0;i<record.requests.length;i++)instantiateModule(record.requests[i])
+  }
   function evaluateModule(index){
     var record=moduleTable[index];
     if(record.status===2){if(record.failed)throw record.error;return}
     if(record.status===1)return;
     record.status=1;
     try{
+      instantiateModule(index);
       for(var i=0;i<record.requests.length;i++)evaluateModule(record.requests[i]);
       record.body.call(undefined)
     }catch(error){record.status=2;record.failed=true;record.error=error;throw error}
