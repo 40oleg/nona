@@ -1,6 +1,6 @@
 # Native compiler bootstrap
 
-Work in progress for [#143](https://github.com/40oleg/nona/issues/143).
+Native compiler build and distribution for [#143](https://github.com/40oleg/nona/issues/143).
 
 `scripts/bootstrap-selfhost.mjs` uses the development Node.js compiler to
 compile the compiler's emitted JavaScript into a native stage 1 image. It
@@ -32,14 +32,14 @@ a native compiler runtime dependency.
 The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe.
 Passing `--cli` to the bootstrap and verifier instead builds the original CLI,
 with private original SHA-256/UUID/file-URL adapters and an embedded fingerprint
-of the prepared compiler sources. This mode is under native validation; it is
-not yet a replacement distribution CLI. The verifier checks help, version,
+of the prepared compiler sources. This builds the standalone distribution CLI.
+The verifier checks help, version,
 warm cache, executable permissions and source overwrite refusal as well as
 stage 2. Additional jobs execute the complete native CLI on Windows/Linux ARM64,
 both macOS CPUs and both BSD guests. BSD smoke checks run without Node installed,
 including module/RegExp output, hard-link/symlink overwrite refusal and warm
-cache image identity. These new full CLI and host checks are pending; distribution
-integration is still required before completion.
+cache image identity. Distribution artifacts are published only after the
+corresponding host validation succeeds.
 
 Successful native CLI jobs package `nona-<target>` artifacts containing only
 the executable, license, version and usage notes. The verifier relocates the
