@@ -6,6 +6,8 @@ on:
       - 'src/**'
       - 'scripts/bootstrap-selfhost.mjs'
       - 'scripts/verify-selfhost.mjs'
+      - 'tests/selfhost-liveness.test.ts'
+      - 'tests/fixtures/selfhost-regexp-run-ir.json'
       - '.github/workflows/self-hosting.yml'
 permissions:
   contents: read
@@ -34,6 +36,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Verify compiler liveness on the native host
+        run: node --test dist/tests/selfhost-liveness.test.js
       - name: Build native stage 1 with the development bootstrap
         run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
       - name: Verify native regressions and stage 1 builds stage 2
