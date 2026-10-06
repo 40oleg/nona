@@ -30,6 +30,7 @@ var __nonaPromiseDrainJobs=(function(){
     for(var i=0;i<handled.length;i++)if(typeof __nonaRegexpVm.reportRejectionHandled==='function')__nonaRegexpVm.reportRejectionHandled(handled[i].promise)
   }
   function markHandled(state){if(state.handled)return;state.handled=true;if(state.reported)append(handledLater,state)}
+  __nonaRegexpVm.markPromiseHandled=function(promise){markHandled(record(promise))};
   function record(value){
     var state=getState(value);
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');

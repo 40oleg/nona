@@ -240,3 +240,5 @@ See the [runnable Stream sample](../site/samples/stream.mjs).
 Blob piping retains its startup Promise constructor. Releasing a reader preserves a pending closed Promise and uses one shared release error; a reader that was already closed receives a new rejected closed Promise. This matches Node 26 identity and avoids redundant cleanup allocations under GC stress.
 
 Stream constructors and process standard I/O are initialized on first use. Reading process metadata does not create stream queues or standard-stream instances; direct standard-I/O access and warning output retain the canonical Stream constructors.
+
+Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
