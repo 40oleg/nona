@@ -45,7 +45,7 @@ __nonaPromiseDrainJobs=(function(drain){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
     var context=__nonaRegexpVm.asyncContext;
     var d=delayOf(delay),id=nextId++;
-    var timer={id:id,when:hostNow()+d,seq:++seq,delay:d,callback:callback,args:args,repeat:repeat,cancelled:false,referenced:!unreferenced,context:context?context.captureRecord():undefined};
+    var timer={id:id,when:hostNow()+d,seq:++seq,delay:d,callback:callback,args:args,repeat:repeat,cancelled:false,referenced:!unreferenced,context:context?context.activeRecord:undefined};
     setTimer(id,timer);count++;if(timer.referenced)referenced++;push(timer);
     return id
   }
@@ -63,8 +63,8 @@ __nonaPromiseDrainJobs=(function(drain){
   __nonaRegexpVm.scheduleUnreferencedTimeout=function(callback,delay){return schedule(callback,delay,[],false,true)};
   function queueMicrotask(callback){
     if(typeof callback!=='function')throw new TypeError('The "callback" argument must be of type function');
-    var context=__nonaRegexpVm.asyncContext,snapshot=context?context.captureRecord():undefined;
-    enqueueJob(function(){if(context)context.runCapturedNullary(snapshot,callback);else callback()})
+    var context=__nonaRegexpVm.asyncContext,snapshot=context?context.activeRecord:undefined;
+    enqueueJob(function(){var previous=context?context.activeRecord:undefined;try{if(context&&snapshot!==previous)context.runCapturedNullary(snapshot,callback);else callback()}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}})
   }
   function now(){return hostNow()-origin}
   var performance={};
@@ -76,8 +76,8 @@ __nonaPromiseDrainJobs=(function(drain){
   function run(timer){
     if(timer.repeat){timer.when=hostNow()+timer.delay;timer.seq=++seq;push(timer)}
     else{deleteTimer(timer.id);count--;if(timer.referenced)referenced--}
-    var context=__nonaRegexpVm.asyncContext;
-    if(context&&timer.context)context.runCaptured(timer.context,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)
+    var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
+    try{if(context&&timer.context&&timer.context!==previous)context.runCaptured(timer.context,timer.callback,undefined,timer.args);else reflectApply(timer.callback,undefined,timer.args)}finally{if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}
   }
   return function eventLoop(){
     drain();

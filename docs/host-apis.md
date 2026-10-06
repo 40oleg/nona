@@ -118,6 +118,8 @@ Registration reuses immutable context records rather than copying a Map for
 every Promise reaction; scope changes create a new record and store map.
 Promise reactions, timers and microtasks retain the record directly and restore
 the calling context after success or failure, without creating extra callback wrappers.
+Callbacks already in their captured context bypass redundant scope calls.
+If a callback changes its store, the calling context is still restored.
 
 Boundaries: hooks describe explicitly created resources; native Promise and timer
 resource creation, Promise resolution hooks, GC-triggered destruction and Node's
