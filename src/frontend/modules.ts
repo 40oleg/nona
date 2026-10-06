@@ -88,6 +88,8 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
   if(node.kind==='Var'){for(const declaration of (node as A.Var).declarations)if(declaration.id.kind==='Identifier')add(declaration.id,declaration.init)}
   else if(node.kind==='Assignment'){const assignment=node as A.Assignment;if(assignment.operator==='='&&assignment.left.kind==='Identifier')add(assignment.left,assignment.right)}
  })}
+ const ioNames=new Set(['stdin','stdout','stderr','openStdin','emitWarning']);
+ const selectIO=(object:A.Expression,key:string|undefined)=>{if(processObject(object)&&key!==undefined&&ioNames.has(key))requireRuntimePrelude('stream')};
  const request=(arguments_:A.Argument[])=>{
   lookup=true;
   const first=arguments_[0];
@@ -97,6 +99,7 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
   else if(first.kind!=='Literal')computed=true;
  };
  walk(ast.body,(node,parent)=>{
+  if(['Identifier','Member','Call'].includes(node.kind)&&processObject(node as A.Expression))requireRuntimePrelude('process');
   if(['Identifier','Member','Call'].includes(node.kind)&&(processObject(node as A.Expression)||globalObject(node as A.Expression))){
    // Simple local aliases are tracked; other object escapes may invoke the API
    // through unknown parameters, returned objects or aggregate contents.
@@ -109,7 +112,7 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
    if(!receiver&&!local&&!declaration&&!scalar&&!reflected)computed=true;
   }
   if(node.kind==='Member'){
-   const member=node as A.Member,key=text(member.property);
+   const member=node as A.Member,key=text(member.property);selectIO(member.object,key);
    if(key==='getBuiltinModule'){
     lookup=true;
     if(parent?.kind==='Call'&&(parent as A.Call).callee===member)request((parent as A.Call).arguments);
@@ -129,12 +132,14 @@ export function builtinModuleRequests(ast:Pick<A.Program,'body'>,host:ModuleHost
    const call=node as A.Call,object=call.arguments[0];
    if(call.callee.kind==='Member'&&['get','getOwnPropertyDescriptor'].includes(text(call.callee.property)??'')&&object?.kind!=='SpreadElement'&&object){
     const key=call.arguments[1],unknown=!key||key.kind==='SpreadElement'||text(key)===undefined;
+    selectIO(object,unknown?undefined:text(key as A.Expression));
     if(processObject(object)&&(unknown||text(key as A.Expression)==='getBuiltinModule'))computed=true;
     if(globalObject(object)&&(unknown||text(call.callee.property)==='getOwnPropertyDescriptor'&&text(key as A.Expression)==='process'))computed=true;
    }
   }else if(node.kind==='OptionalChain'){
    const chain=node as A.OptionalChain;
    for(let i=0;i<chain.links.length;i++){const link=chain.links[i]!;
+    if(i===0&&link.kind==='property')selectIO(chain.base,text(link.property));
     if(link.kind==='property'&&text(link.property)==='getBuiltinModule'){
      lookup=true;
      const next=chain.links[i+1];if(next?.kind==='call')request(next.arguments);else computed=true;

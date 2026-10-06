@@ -230,3 +230,12 @@ test('escaped-object native fixture matches the Node26 oracle',()=>{
  const probe=processBuiltinProbeCases('linux-x64').find(item=>item.name==='process-builtin-escaped')!;
  const result=spawnSync(process.execPath,['-e',probe.source],{encoding:'utf8',windowsHide:true});assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,probe.expected);
 });
+
+test('folded process stdio access selects streams while metadata stays trimmed',()=>{
+ for(const source of ['process["std"+"out"].write("x")','const p=process;p["std"+"in"].resume()','Reflect.get(process,"std"+"err").write("x")','process?.["open"+"Stdin"]()']){
+  const {usage}=collectSourceUsage(()=>compileToIR(source,'folded-stdio.js',emptyHost,'linux-x64'));
+  assert.equal(usage.preludes.stream,true,source);
+ }
+ const {usage}=collectSourceUsage(()=>compileToIR('console.log(globalThis["pro"+"cess"].pid)','metadata.js',emptyHost,'linux-x64'));
+ assert.equal(usage.preludes.process,true);assert.equal(usage.preludes.stream,false);
+});
