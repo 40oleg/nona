@@ -10,13 +10,19 @@ const output=resolve(process.argv[3]||'out/selfhost/stage1');
 const sources=resolve(dirname(output),'sources');
 cpSync(resolve('dist/src'),sources,{recursive:true});
 const entry=resolve(sources,'selfhost-entry.mjs');
-const source=`import {compile} from './compiler.js';
+const source=`import {compile,compileToIR,compileModuleToIR} from './compiler.js';
 import {readFileSync,writeFileSync} from 'node:fs';
 const args=process.argv.slice(1);
 if(args.length!==3)throw new Error('Usage: stage1 <input> <output> <target>');
-const result=compile(readFileSync(args[0],'utf8'),{fileName:args[0],target:args[2],module:args[0].endsWith('.mjs')});
-if(!result.ok){console.error(JSON.stringify(result.diagnostics));process.exitCode=1}
-else writeFileSync(args[1],result.image);
+const text=readFileSync(args[0],'utf8'),module=args[0].endsWith('.mjs');
+if(process.env.NONA_SELFHOST_DUMP_IR){
+ const ir=module?compileModuleToIR(text,args[0],undefined,'',args[2]):compileToIR(text,args[0],undefined,args[2]);
+ writeFileSync(process.env.NONA_SELFHOST_DUMP_IR,JSON.stringify(ir));
+}else{
+ const result=compile(text,{fileName:args[0],target:args[2],module});
+ if(!result.ok){console.error(JSON.stringify(result.diagnostics));process.exitCode=1}
+ else writeFileSync(args[1],result.image);
+}
 `;
 const lexer=resolve(sources,'frontend/lexer.js');
 let text=readFileSync(lexer,'utf8');
