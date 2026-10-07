@@ -1,37 +1,137 @@
 # Nona
 
-Native compiler self-hosting is being verified separately; see [bootstrap status](docs/self-hosting.md). The development compiler still uses Node.js until native stage 1, stage 2 and the complete CLI pass validation.
+**Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into small standalone native executables for Windows, Linux, macOS, FreeBSD and OpenBSD.**
 
-The process adapter includes native OS signals and diagnostic reports with
-actual allocator, resource and network snapshots. See [Process API](docs/process.md).
+[Documentation](https://40oleg.github.io/nona/) · [Playground](https://40oleg.github.io/nona/playground) · [Releases](https://github.com/40oleg/nona/releases) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md) · [All docs](docs/README.md)
 
-**Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into standalone native executables for Windows, Linux, macOS (Intel and Apple Silicon), FreeBSD and OpenBSD.**
+```sh
+$ nona build hello.js -o hello
+$ ./hello
+Hello, from Nona!
+```
 
-[Documentation](https://40oleg.github.io/nona/) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [ES2020 status](docs/v0.17-v0.20-status.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md)
+The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-Nona parses JavaScript, lowers it to its own intermediate representation, emits x86-64 or AArch64 machine code and links a PE32+ (Windows), ELF64 (Linux/BSD) or Mach-O64 (macOS) executable. The output does not embed Node.js, V8 or any interpreter and needs no C/C++ toolchain or LLVM: Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI), Linux, BSD and Intel macOS executables use direct kernel calls and no libc. Apple Silicon output uses the OS-provided dyld and libSystem for startup, clocks and native threads.
+> **Status:** `v0.10.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
-> **Status:** `v0.10.0`. In the Test262 audit of v0.8.0 the full pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status): `eval` of source text computed at run time, other realms, and semantics newer than ES2020. Nona is experimental: it is not a drop-in replacement for Node.js and has not had a security audit.
+## Why Nona
 
-## What you get
+- **Small and fast to start.** A hello world is about 2.2 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 2 ms and peaks at about 11 MB of memory (Node.js: 28 ms and 45 MB; measured on v0.7.0, see [PERFORMANCE.md](PERFORMANCE.md#14-startup-executable-size-build-time-memory)).
+- **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc. Apple Silicon output uses the system dyld and libSystem.
+- **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
+- **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
+- **Real programs.** Besides the language and its standard library: `process`, `fs`, `path`, `Buffer`, events, streams, timers, HTTP servers and clients, TCP sockets and Windows FFI.
 
-- **The ES2020 language.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with`, and Annex B web-compatibility semantics.
-- **ES modules.** Static `import`/`export`, cycles and live bindings, `import.meta`, and dynamic `import()` of modules known at compile time. `.mjs` inputs are compiled as modules.
-- **The ES2020 standard library.** Object/Function/Array/String/Number/Math, Date, JSON, RegExp (named groups, lookbehind, `s` and `u` flags, Unicode property escapes), Map/Set/WeakMap/WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy and Reflect, and Promise with a job queue.
-- **`eval` and `Function` with source known at compile time.** A string literal, a concatenation of literals, or a variable only ever given such constants is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception.
-- **A native runtime.** A precise non-moving mark-and-sweep garbage collector, UTF-16 strings, real exceptions, and a catchable `RangeError` on stack overflow.
-- **Host APIs** for real programs:
-  - an event loop with `setTimeout`/`setInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask` and `performance.now()` ([host APIs](docs/host-apis.md));
-  - a global `process` and `node:process` on all eight targets (`version`, `versions.nona`, `argv`, mutable native `env`, `cwd`, `chdir`, `pid`, `ppid`, `exit`, `exitCode`, `hrtime`, `uptime`, `nextTick`, `stdin`, `stdout`, `stderr`, `cpuUsage`, `threadCpuUsage`, `title`, `setUncaughtExceptionCaptureCallback`, `finalization`, `getBuiltinModule`, `abort`, `kill`, `loadEnvFile`, `availableMemory`, `memoryUsage`, `getgroups`, `initgroups`, `execve` (POSIX), …; [process](docs/process.md));
-  - `node:events` / `events` / `nona:events`: EventEmitter, EventTarget, cancellation, disposable abort subscriptions and asynchronous context helpers; captured storage survives later scope changes without copying a Map per reaction, and timeout signals do not keep the process alive ([host APIs](docs/host-apis.md#events));
-  - synchronous `node:fs`/`nona:fs`, plus `TextEncoder`/`TextDecoder` ([file system](docs/fs.md));
-  - `node:path` / `path` with POSIX and Windows variants, parsing, resolution and glob matching; working directories are read on demand ([paths](docs/path.md));
-  - global `Buffer`, `Blob` and `File`, with `node:buffer`/`buffer`/`nona:buffer` imports, byte encodings and numeric access ([binary data](docs/host-apis.md#buffer-and-binary-data));
-  - HTTP/1.1 servers and clients with `node:http`, TCP sockets with `node:net`, and `node:events` and `node:string_decoder` ([networking](docs/network.md));
-  - calls to any DLL export on Windows through `nona:ffi`, with ready-made `nona:win32` declarations ([FFI](docs/ffi.md)).
-- **Windows x64 executables.** GUI programs without a console (`--subsystem windows`), plus an icon, manifest and version information embedded as resources ([Windows executables](docs/windows-executables.md)).
+## Install
 
-Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
+Download the build for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive contains the executable, the license and a version file; nothing else needs to be installed.
+
+| OS | Release build | Target name | Output format |
+| --- | --- | --- | --- |
+| Windows x64 / ARM64 | `nona-win32-x64.zip`, `nona-win32-arm64.zip` | `win32-x64`, `win32-arm64` | PE32+ |
+| Linux x64 / ARM64 | `nona-linux-x64.zip`, `nona-linux-arm64.zip` | `linux-x64`, `linux-arm64` | ELF64 |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64 |
+| FreeBSD / OpenBSD x64 | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64 |
+
+On POSIX systems, run `chmod +x nona` if your archive tool drops the permission. The [browser playground](https://40oleg.github.io/nona/playground) compiles and downloads programs for all eight targets without installing anything.
+
+To build from source instead, you need Node.js 26 or newer and npm:
+
+```sh
+git clone https://github.com/40oleg/nona.git
+cd nona
+npm ci
+npm run build
+node dist/cli.js --help
+```
+
+## Quick start
+
+```js
+// hello.js
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+setTimeout(() => console.log(greet("from Nona")), 10);
+```
+
+```sh
+nona build hello.js -o hello.exe                        # for the host system
+nona build hello.js -o hello --target linux-x64         # cross-compile for Linux
+nona build hello.js -o hello --target darwin-arm64      # cross-compile for Apple Silicon
+```
+
+A small HTTP server:
+
+```js
+// server.mjs
+import http from 'node:http';
+
+http.createServer((req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({ path: req.url, time: Date.now() }));
+}).listen(8080, () => console.log('listening on http://localhost:8080'));
+```
+
+```sh
+nona build server.mjs -o server
+```
+
+Command line:
+
+```text
+nona build <input.js> -o <output> [--target <target>] [--module]
+           [--full-runtime] [--call-stats] [--coverage dir]
+           [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
+           [--version-info version.json]
+nona --help | --version
+```
+
+`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. `--full-runtime` links every runtime part instead of only the reachable ones. The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+
+## What is supported
+
+**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
+
+**Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s` and `u` flags, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
+
+**`eval` and `Function`** work when their source text is known at compile time: a string literal, a concatenation of literals, or a variable only ever given such constants. That source is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception ([contract](docs/es2020-contract.md)).
+
+**Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages:
+
+| Module or global | What it covers | Docs |
+| --- | --- | --- |
+| `process`, `node:process` | `argv`, `env`, `cwd`/`chdir`, `exit`, `nextTick`, standard I/O streams, `hrtime`, `cpuUsage`, `memoryUsage`, signals, `kill`, `abort`, `execve` (POSIX), `title`, credentials and groups, diagnostic reports, `getBuiltinModule`, `loadEnvFile`; all eight targets | [process](docs/process.md) |
+| timers | `setTimeout`, `setInterval`, `setImmediate` and their `clear*`, `queueMicrotask`, `performance.now()` | [host APIs](docs/host-apis.md) |
+| `node:events` | EventEmitter, EventTarget, `AbortController`/`AbortSignal`, asynchronous context helpers | [events](docs/host-apis.md#events) |
+| `node:async_hooks` | `AsyncLocalStorage` and `AsyncResource`, carried through promises, timers and microtasks | [host APIs](docs/host-apis.md) |
+| `node:stream` | Readable, Writable, Duplex, Transform, pipelines, backpressure, async iteration, Web stream adapters | [streams](docs/host-apis.md#streams) |
+| `node:fs` | synchronous file and directory operations on all eight targets | [file system](docs/fs.md) |
+| `node:path` | POSIX and Windows variants, parsing, resolution, glob matching | [paths](docs/path.md) |
+| `Buffer`, `Blob`, `File`, `node:buffer` | byte storage, standard encodings, numeric access; `TextEncoder`/`TextDecoder` | [binary data](docs/host-apis.md#buffer-and-binary-data) |
+| `node:http`, `node:net`, `node:string_decoder` | HTTP/1.1 servers, clients and keep-alive agents; TCP sockets and servers (Linux and Windows) | [networking](docs/network.md) |
+| `nona:ffi`, `nona:win32` | calls to any DLL export on Windows | [FFI](docs/ffi.md) |
+
+**Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
+
+The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
+
+## Performance
+
+Nona wins where an executable without a runtime should: startup, size and memory. Inside the program, plain computation is still several times to tens of times slower than V8's JIT, and closing that gap is the main line of the [roadmap](docs/roadmap.md).
+
+Nona's own HTTP server against Node.js on the same program ([bench/http](bench/http/server.mjs), Linux x64, measured for v0.9.0):
+
+| Case | Node.js req/s | Nona req/s | Memory, Node.js / Nona |
+| --- | --- | --- | --- |
+| hello (keep-alive) | 71–72k | 61–70k | 80 / 16 MB |
+| JSON response | 66–68k | 55–61k | 79 / 16 MB |
+| new connection per request | 25–27k | 22–26k | 70 / 18 MB |
+| 64 KiB response | 20–21k | **33–38k** | 91 / 16 MB |
+| 16 KiB request body | 49–54k | 41k | 78 / 16 MB |
+
+[PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots.
 
 ## How it works
 
@@ -48,104 +148,36 @@ JavaScript source (script or module graph)
                        runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
-The compiler is written in TypeScript. Its development bootstrap runs on Node.js; the standalone native CLI runs on Nona's own runtime. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
-
-## Requirements
-
-- To develop or bootstrap the compiler: Node.js 26 or newer and npm.
-- To use the standalone compiler: download the `nona-<target>` artifact from a successful [self-hosting workflow](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml), extract it and run `nona --help` (`./nona` on POSIX). It contains no Node.js runtime or compiler source tree. See [native compiler bootstrap](docs/self-hosting.md) for building and validation.
-- Targets: Windows/Linux/macOS x64 and ARM64, FreeBSD/OpenBSD x64. The default follows the host OS and CPU; see [native platforms](docs/native-platforms.md) for verification and API limits.
-
-| OS | Targets | Format |
-| --- | --- | --- |
-| Windows | `win32-x64`, `win32-arm64` | PE32+ |
-| Linux | `linux-x64`, `linux-arm64` | ELF64 |
-| macOS | `darwin-x64`, `darwin-arm64` | Mach-O64 |
-| FreeBSD / OpenBSD | `freebsd-x64`, `openbsd-x64` | ELF64 |
-
-The [browser playground](https://40oleg.github.io/nona/playground) can compile and download a program for any of these eight targets without installing Nona.
-
-Linux uses one binary per CPU for Mint, Ubuntu, Debian, Fedora and Alpine; separate distribution builds are unnecessary.
-
-## Build Nona
-
-```sh
-git clone https://github.com/40oleg/nona.git
-cd nona
-npm ci
-npm run build
-```
-
-The compiler entry point is `dist/cli.js`.
-
-## Compile a program
-
-```js
-// hello.js
-function greet(name) {
-  return `Hello, ${name}!`;
-}
-
-setTimeout(() => console.log(greet("from Nona")), 10);
-```
-
-```sh
-node dist/cli.js build hello.js -o build/hello.exe                     # Windows
-node dist/cli.js build hello.js -o build/hello --target linux-x64      # Linux
-node dist/cli.js build hello.js -o build/hello --target darwin-arm64   # Apple Silicon
-```
-
-```text
-nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-           [--full-runtime] [--call-stats] [--coverage dir]
-           [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
-           [--version-info version.json]
-nona --help | --version
-```
-
-`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. The RegExp engine, the Unicode tables and built-in libraries such as `Proxy`, timers or `process` are linked only when the program can reach them, so a hello world is about 2.2 MB instead of 7 MB; `--full-runtime` links everything ([details](https://40oleg.github.io/nona/guide/compatibility#linked-runtime-parts)). The `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+The compiler is written in TypeScript. It is developed and bootstrapped on Node.js, and the released compiler is that same code compiled by Nona. The runtime is written in an assembler DSL plus JavaScript preludes: values and objects with inline caches, a precise non-moving mark-and-sweep garbage collector with lazy sweeping, UTF-16 strings, exceptions with a catchable `RangeError` on stack overflow, the job queue, an event loop that waits on timers and sockets, and the host APIs.
 
 ## Limitations
 
-- `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time. Computed strings throw `EvalError` ([contract](docs/es2020-contract.md)).
-- Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
-- Node.js modules other than the built-in `fs`, `path`, `process` and `buffer` subsets, npm packages, and browser APIs are not available. Blob byte/text streams and object URL registration/resolution are available; general URL parsing remains unsupported.
-- Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
-- Synchronous filesystem adapters cover all eight native targets, including exclusive writes, canonical paths and file identities used by the native compiler; see [native platforms](docs/native-platforms.md).
-
-Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
-
-## Roadmap
-
-The full plan, based on a review of the V8 blog, is in [docs/roadmap.md](docs/roadmap.md). In short:
-
-- **Targets:** Windows/Linux/macOS x64 and ARM64 and BSD x64 are implemented. Apple Silicon uses the system dyld/libSystem startup path. Future targets include `wasm32-wasi` and `linux-riscv64`.
-- **Quick wins:** inline number operators, per-block safepoints, RegExp cache and number formatting are done; seeded hashing, collector fixes, fast array iteration, cheaper `await` and small post-ES2020 features are in progress.
-- **Medium:** RegExp bytecode with a linear-time fallback, linking only the preludes a program uses, native JSON, static type inference, direct calls, real-world benchmarks, coverage builds.
-- **Foundation:** shapes with in-object slots, a startup snapshot in the executable, a page-based heap, an SSA IR with register allocation, a builtins DSL, native RegExp matchers.
+- `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
+- Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
+- Node.js modules outside the table above, npm packages that need them, and browser APIs are not available. Networking runs on Linux and Windows.
+- Plain computation is much slower than in a JIT; some default prototypes for constructors from another realm are still open work.
 
 ## Development
 
 ```sh
-npm run check      # build and run the unit suite
-npm run check:programs # compare 1,000 standalone programs with Node.js
-npm run compare    # compile the compatibility examples and compare with Node.js
+npm run check            # build and run the unit suite
+npm run check:programs   # compare 1,000 standalone programs with Node.js
+npm run compare          # compile the compatibility examples and compare with Node.js
 ```
 
-The tests compile and run real PE and ELF executables, many of them under GC stress, and compare their output with Node.js. Pinned Test262 audits are run with `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). Contribution rules for people and agents are in [AGENTS.md](AGENTS.md).
-
-The separate [program corpus](programs/README.md) contains 1,000 individually authored small applications that combine language features. Each program has a recorded expected result and is compared with Node.js in normal and GC-stress execution; these checks also run as part of `npm run check`.
+The tests compile and run real executables, many of them under GC stress (a collection at every allocation), and compare their output with Node.js. CI runs them on all eight targets, including FreeBSD and OpenBSD guests, and checks that the native compiler rebuilds itself. Test262 audits use `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). The [program corpus](programs/README.md) holds 1,000 small applications with recorded results.
 
 ```text
-src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
+src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function, built-in modules
 src/ir             intermediate representation, lowering and liveness
-src/backend/x64    x86-64 encoding and code generation
-src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
-src/runtime        native runtime and JavaScript preludes emitted into every executable
+src/backend        x86-64 and AArch64 code generation; PE32+, ELF64 and Mach-O64 linkers; OS adapters
+src/runtime        native runtime and the JavaScript preludes emitted into executables
 tests              unit, integration, native-execution and compatibility tests
+programs           the 1,000-program corpus
 examples           sample programs
 ```
+
+Contribution rules for people and agents are in [AGENTS.md](AGENTS.md).
 
 ## Security
 
@@ -154,5 +186,3 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 ## License
 
 [MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-The original Node-compatible stream modules share constructors with process standard I/O and support queues, backpressure, pipelines, asynchronous iterators and Web adapters. See [Streams](docs/host-apis.md#streams).

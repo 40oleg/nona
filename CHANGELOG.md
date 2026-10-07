@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
+
 ## v0.10.0 — 2026-10-07
 
 Highlights since v0.9.0:
