@@ -2,6 +2,7 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
+import {ObjectLayout as O} from './object-layout.js';
 
 export const arraySpliceRoots=['rt.arraySplice.fn'];
 export const arraySplicePropertyRoots=builtinPropertyRoots('rt.arraySplice.fn','splice','rt.arrayPrototype');
@@ -79,6 +80,12 @@ export function emitArraySplice(b:RuntimeBuilder):void {
   a.mov('rax',3);a.store(slot(112),'rax');a.load('rax',slot(320));a.cvtsi2sd('xmm0','rax');a.storesd(slot(120),'xmm0');
   a.lea('rcx',slot(128));a.lea('rdx',slot(96));a.lea('r8',slot(112));a.mov('r9',2);a.call('rt.setProperty');
   const moveRight=a.unique('moveRight'),insert=a.unique('insert'),left=a.unique('left'),leftDelete=a.unique('leftDelete'),right=a.unique('right');
+  // An array still holding exactly `len` dense elements (the species
+  // constructor above may have changed it) moves its tail in one step.
+  {const generic=a.unique('moveGeneric');
+   a.load('rax',slot(80));a.cmp('rax',5);a.jcc('ne',generic);a.load('r10',slot(88));a.load('rax',{base:'r10',disp:O.length});a.load('r11',slot(64));a.cmp('rax','r11');a.jcc('ne',generic);
+   a.lea('rcx',slot(80));a.load('rdx',slot(72));a.load('r8',slot(320));a.load('r9',slot(312));a.call('rt.elementsSpliceDense');a.test('rax','rax');a.jcc('ne',insert);
+   a.label(generic);}
   a.load('rax',slot(312));a.load('r10',slot(320));a.cmp('rax','r10');a.jcc('a',moveRight);a.jcc('e',insert);
   a.load('rax',slot(72));a.store(slot(336),'rax');a.label(left);
   a.load('rax',slot(64));a.load('r10',slot(320));a.sub('rax','r10');a.load('r10',slot(336));a.cmp('r10','rax');a.jcc('ae',leftDelete);

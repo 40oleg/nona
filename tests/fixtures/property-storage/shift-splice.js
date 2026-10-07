@@ -1,0 +1,38 @@
+const show = a => JSON.stringify(a) + ' ' + a.length + ' ' + Object.keys(a).length;
+let a = [1, 2, 3, 4, 5];
+console.log(a.shift(), show(a));
+a = [1, , 3]; console.log(a.shift(), show(a), 0 in a, 1 in a);
+a = []; console.log(a.shift(), show(a));
+a = [1, 2, 3]; a[100] = 9; console.log(a.shift(), show(a), a[99]);
+a = Object.freeze([1, 2]); try { a.shift(); } catch (e) { console.log(e.constructor.name); } console.log(show(a));
+a = [1, 2, 3]; Object.defineProperty(a, 'length', {writable: false}); try { a.shift(); } catch (e) { console.log(e.constructor.name); } console.log(show(a));
+a = [1, 2, 3]; Object.preventExtensions(a); console.log(a.shift(), show(a));
+const like = {length: 3, 0: 'a', 1: 'b', 2: 'c'}; console.log(Array.prototype.shift.call(like), JSON.stringify(like));
+a = [1, 2, 3]; Object.defineProperty(a, 2, {get() { return 'g'; }, configurable: true}); try { a.shift(); } catch (e) { console.log(e.constructor.name); } console.log(show(a));
+a = [{x: 1}, {x: 2}, {x: 3}]; while (a.length) console.log(a.shift().x);
+// splice
+const sp = (arr, ...args) => { const r = arr.splice(...args); return JSON.stringify(r) + ' -> ' + show(arr); };
+console.log(sp([1, 2, 3, 4, 5], 1, 2));
+console.log(sp([1, 2, 3, 4, 5], 1, 2, 'a', 'b', 'c', 'd'));
+console.log(sp([1, 2, 3, 4, 5], 1, 2, 'a'));
+console.log(sp([1, 2, 3, 4, 5], 1, 2, 'a', 'b'));
+console.log(sp([1, 2, 3, 4, 5], -2, 1));
+console.log(sp([1, 2, 3, 4, 5], 10, 1, 'z'));
+console.log(sp([1, 2, 3, 4, 5], 0, 0, 'z'));
+console.log(sp([1, 2, 3, 4, 5], 0));
+console.log(sp([1, 2, 3, 4, 5]));
+console.log(sp([1, , 3, 4], 0, 1));
+let big = []; for (let i = 0; i < 4; i++) big.push(i); console.log(sp(big, 2, 0, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'));
+a = [1, 2, 3]; Object.preventExtensions(a); try { a.splice(1, 0, 'x'); } catch (e) { console.log(e.constructor.name); } console.log(show(a));
+a = [1, 2, 3]; Object.preventExtensions(a); console.log(sp(a, 0, 1));
+a = [1, 2, 3]; Object.defineProperty(a, 'length', {writable: false}); try { a.splice(0, 1); } catch (e) { console.log(e.constructor.name); } console.log(show(a));
+class Sub extends Array {} const s = Sub.from([1, 2, 3, 4]); const r = s.splice(1, 2); console.log(r instanceof Sub, show(r), show(s));
+a = [1, 2, 3, 4, 5]; a.constructor = function (n) { a.length = 1; return []; }; a.constructor[Symbol.species] = a.constructor;
+try { console.log(sp(a, 1, 1, 'x', 'y')); } catch (e) { console.log(e.constructor.name); }
+a = [1, 2, 3, 4, 5]; a.constructor = {[Symbol.species]: function (n) { a.push(99); return []; }}; console.log(sp(a, 1, 2, 'q'));
+let q = []; for (let i = 0; i < 300; i++) q.push({i}); let sum = 0; while (q.length > 1) { sum += q.shift().i; q.splice(q.length >> 1, 1); q.splice(q.length >> 2, 0, {i: 1}, {i: 2}); q.splice(0, 3); } console.log(sum, q.length);
+const log = [];
+Object.defineProperty(Array.prototype, 7, {set(v) { log.push('set' + v); }, get() { return 'proto'; }, configurable: true});
+a = [1, 2, 3, 4, 5]; console.log(sp(a, 1, 0, 'a', 'b', 'c'), log.join());
+a = [1, 2, 3]; console.log(a.shift(), show(a), a[7]);
+delete Array.prototype[7];

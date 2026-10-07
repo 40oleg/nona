@@ -509,7 +509,22 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.label(done);a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(80+offset));a.store({base:'rcx',disp:offset},'rax');}
  });
  rootedFn(b,'rt.arrayShift.fn.code',280,[{kind:'output',register:'rcx'},{kind:'locals',offset:80,count:12}],(a,frame)=>{
-  a.store(slot(40),'rcx');a.load('rdx',slot(frame+40));a.lea('rcx',slot(80));a.call('rt.toObject');
+  a.store(slot(40),'rcx');
+  // A non-empty array whose elements are all dense slots: the first value is
+  // taken and the rest move down one slot at once (rt.elementsSpliceDense),
+  // instead of a Get, Set and HasProperty per element. Shifting a whole
+  // array one element at a time was quadratic.
+  const shiftDone=a.unique('shiftDone');
+  {const generic=a.unique('shiftGeneric');
+   a.load('rdx',slot(frame+40));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',generic);a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',generic);
+   a.load('rax',{base:'r10',disp:O.length});a.test('rax','rax');a.jcc('e',generic);a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('e',generic);
+   for(const n of [0,8]){a.load('rax',{base:'r11',disp:E.values+n});a.store(slot(144+n),'rax');}
+   a.load('rax',slot(144));a.cmp('rax',HoleTag);a.jcc('e',generic);
+   a.mov('rcx','rdx');a.mov('rdx',0);a.mov('r8',1);a.mov('r9',0);a.call('rt.elementsSpliceDense');a.test('rax','rax');a.jcc('e',generic);
+   a.load('rdx',slot(frame+40));a.load('r10',{base:'rdx',disp:8});a.load('rax',{base:'r10',disp:O.length});a.sub('rax',1);a.store({base:'r10',disp:O.length},'rax');
+   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(144+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(shiftDone);
+   a.label(generic);}
+  a.load('rdx',slot(frame+40));a.lea('rcx',slot(80));a.call('rt.toObject');
   a.mov('rax',4);a.store(slot(96),'rax');a.lea('rax',{rip:'rt.arrayPush.length'});a.store(slot(104),'rax');
   a.lea('rcx',slot(112));a.lea('rdx',slot(80));a.lea('r8',slot(96));a.call('rt.getProperty');
   a.lea('rcx',slot(128));a.lea('rdx',slot(112));a.call('rt.toNumber');a.movsd('xmm0',slot(136));
@@ -542,6 +557,7 @@ export function emitArrayBuiltins(b:RuntimeBuilder):void {
   a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store(slot(240),'rax');a.storesd(slot(248),'xmm0');
   a.lea('rcx',slot(80));a.lea('rdx',slot(96));a.lea('r8',slot(240));a.mov('r9',2);a.call('rt.setProperty');
   a.load('rcx',slot(40));for(const offset of [0,8]){a.load('rax',slot(144+offset));a.store({base:'rcx',disp:offset},'rax');}
+  a.label(shiftDone);
  });
  rootedFn(b,'rt.arrayUnshift.fn.code',296,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:13}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');

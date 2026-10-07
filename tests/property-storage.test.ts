@@ -5,12 +5,13 @@ import {spawnSync} from 'node:child_process';
 import {runOnHost} from './helpers/host.js';
 
 // #13: deleting an object's oldest keys was quadratic (a list walk from the
-// newest key per deletion). The programs compare every
+// newest key per deletion), and so were Array.prototype.shift and splice on
+// large arrays (a generic Get, Set and HasProperty per moved element). The programs compare every
 // observable result with Node.js, under GC stress where they stay small.
 const fixture=(name:string)=>readFileSync(new URL('../../tests/fixtures/property-storage/'+name,import.meta.url),'utf8');
 const oracle=(source:string)=>spawnSync(process.execPath,['-e',source],{encoding:'utf8',timeout:20_000}).stdout;
 
-for(const name of ['delete-churn.js'])test('property storage under GC stress: '+name,()=>{
+for(const name of ['delete-churn.js','shift-splice.js'])test('property storage under GC stress: '+name,()=>{
  const source=fixture(name);
  const run=runOnHost(source);
  assert.equal(run.status,0,run.stderr);
@@ -25,5 +26,18 @@ console.log(Object.keys(o).length);`;
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,oracle(source));
  // Quadratic, this took about a minute; linear, a fraction of a second.
+ assert.ok(Date.now()-started<20_000,'took '+(Date.now()-started)+' ms');
+});
+
+test('shift and splice of large dense arrays move their elements at once',()=>{
+ const source=`const a = []; for (let i = 0; i < 50000; i++) a.push(i); let s = 0; while (a.length) s += a.shift();
+const b = []; for (let i = 0; i < 50000; i++) b.push(i); for (let i = 0; i < 25000; i++) b.splice(b.length >> 1, 1);
+for (let i = 0; i < 2000; i++) b.splice(i, 0, -i - 1);
+console.log(s, b.length, b[0], b[1], b[2001], b[b.length - 1]);`;
+ const started=Date.now();
+ const run=runOnHost(source,{gcStress:false});
+ assert.equal(run.status,0,run.stderr);
+ assert.equal(run.stdout,oracle(source));
+ // Element by element this took about a minute; as slot moves, about a second.
  assert.ok(Date.now()-started<20_000,'took '+(Date.now()-started)+' ms');
 });
