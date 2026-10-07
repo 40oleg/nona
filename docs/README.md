@@ -43,3 +43,5 @@
    примеров. Отдельно фиксировать покрытие Test262 и оставшиеся расхождения.
 
 - [Native platforms](native-platforms.md): target names, capabilities and native verification.
+
+- [Formal verification prototype](formal-verification.md): Lean proofs, counterexamples, local commands and the trusted boundary.

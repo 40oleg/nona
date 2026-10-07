@@ -1,0 +1,9 @@
+name = "nona-verification"
+version = "0.1.0"
+defaultTargets = ["Nona"]
+
+[leanOptions]
+warningAsError = true
+
+[[lean_lib]]
+name = "Nona"
