@@ -36,7 +36,7 @@ Windows पर सभी "अन्य" फ़ेल्योर वर्गी
 
 ## विस्तृत रिपोर्ट
 
-- [0.17–0.20 के लिए ES2020 स्थिति](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md) (रूसी में)
-- [v0.6 स्थिति](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md) (अंग्रेज़ी में)
+- [0.17–0.20 के लिए ES2020 स्थिति](https://github.com/40oleg/nona/blob/main/docs/status.md) (रूसी में)
+- [v0.6 स्थिति](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md) (अंग्रेज़ी में)
 - [रोडमैप: V8 से प्रेरित योजना और लक्ष्य आर्किटेक्चर (अंग्रेज़ी में)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
-- [रिलीज़ रोडमैप 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md) (रूसी में)
+- [रिलीज़ रोडमैप 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (रूसी में)

@@ -9,7 +9,7 @@ IR operations, вне внутренних runtime-вызовов. Цепочк�
 tagged Value, liveness очищает мёртвые корни; globals и статические prototype
 objects — отдельные корни. Аллокации имеют header с размером, mark и типом графа.
 **Tech Stack:** TypeScript, собственный x64/PE, Windows HeapAlloc/HeapFree.
-**Spec:** `docs/superpowers/specs/2026-09-20-language-expansion-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-09-20-language-expansion-design.md`.
 
 ## Global Constraints
 

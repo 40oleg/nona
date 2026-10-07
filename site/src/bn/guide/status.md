@@ -36,7 +36,7 @@ Windows-এ সব «অন্যান্য» ব্যর্থতা শ্�
 
 ## বিস্তারিত রিপোর্ট
 
-- [0.17–0.20-এর ES2020 অবস্থা](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md) (রুশ ভাষায়)
-- [v0.6-এর অবস্থা](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md)
+- [0.17–0.20-এর ES2020 অবস্থা](https://github.com/40oleg/nona/blob/main/docs/status.md) (রুশ ভাষায়)
+- [v0.6-এর অবস্থা](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md)
 - [রোডম্যাপ: V8-অনুপ্রাণিত পরিকল্পনা ও লক্ষ্য আর্কিটেকচার (ইংরেজিতে)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
-- [রিলিজ রোডম্যাপ 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md) (রুশ ভাষায়)
+- [রিলিজ রোডম্যাপ 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (রুশ ভাষায়)

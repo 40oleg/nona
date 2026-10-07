@@ -114,5 +114,5 @@ Ubuntu runner to build the images and host the VM; the probe commands verify
 the guest's `uname -s` and `uname -m` before executing binaries.
 
 The exact evidence and development failures are recorded in the
-[implementation ledger](superpowers/plans/2026-10-04-native-platforms-ledger.md).
+[implementation ledger](history/superpowers/plans/2026-10-04-native-platforms-ledger.md).
 All eight native targets passed at 5391c47 in [native CI](https://github.com/40oleg/nona/actions/runs/37267747072). Intel and Apple Silicon macOS each passed 142 core plus 734 portable tests; Linux/Windows ARM64 also passed 10 host API tests. The [required check](https://github.com/40oleg/nona/actions/runs/37267746992) passed, including 2320 Windows tests, 65 skips, zero failures, example comparisons and the selected Test262 groups. These are the tested OS versions, not a promise of support for every older kernel. Whole-branch review and the subsequent Apple Silicon review are recorded in the ledger.

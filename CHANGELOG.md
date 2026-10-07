@@ -20,6 +20,8 @@
 
 - Delete an own property of an object with a property hash index without walking its list: the index records the word that links each node, so deleting the oldest keys first is no longer quadratic (20,000 keys deleted oldest first: 2 s → 22 ms) ([#13](https://github.com/40oleg/nona/issues/13)).
 
+- Moved per-release status files, deferred Test262 lists, plans, the development log and agent session notes from `docs/` to `docs/history/`; the current status is `docs/status.md`, rewritten per release ([#172](https://github.com/40oleg/nona/issues/172)).
+
 - Add a Lean 4 proof prototype for slot substitution, dead writes, destination coalescing and a modeled straight-line dead-move optimizer, with checked counterexamples, axiom auditing, production IR regressions and proof CI ([#160](https://github.com/40oleg/nona/issues/160)).
 
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
@@ -207,9 +209,9 @@ Highlights since v0.7.0:
 - Deep recursion throws `RangeError` ("Maximum call stack size exceeded") instead of terminating the process.
 - Objects with long property lists get a hash index; Linux heap allocations use a size-class allocator instead of one `mmap` per object.
 - Annex B call-expression assignment targets and RegExp `\c` escapes; TypedArray element writes and descriptors on detached or invalid targets follow the pinned Test262.
-- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/v0.17-v0.20-status.md).
+- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/status.md).
 
-This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/v0.17-v0.20-status.md).
+This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/status.md).
 
 ## v0.6.0 — 2026-09-30
 
@@ -218,20 +220,20 @@ This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions:
 - Expanded native Windows/Linux and pinned Test262 coverage, and cached the runtime/prelude code-generation image.
 - Updated package and CLI versions together, and corrected sort tests to verify effects without requiring Node.js's implementation-specific comparator call count.
 
-This is an experimental subset release. It does not close the full ES2020 conformance gate. See [v0.6 status](docs/v0.6-status.md) for validation, dynamic-source exceptions, cross-realm gaps, and large-array performance limits.
+This is an experimental subset release. It does not close the full ES2020 conformance gate. See [v0.6 status](docs/history/v0.6-status.md) for validation, dynamic-source exceptions, cross-realm gaps, and large-array performance limits.
 
 ## v0.5.0 — 2026-09-30
 
 - Added independent String operations, Unicode 17 normalization, and canonical-aware locale comparison.
 - Added Number formatting, ES2020 Math methods, and URI encoding/decoding globals on Windows/Linux x64.
-- Verified compatible examples on both targets, Unicode normalization, and pinned String/Number/Math catalogs. See [v0.5 status](docs/v0.5-status.md).
+- Verified compatible examples on both targets, Unicode normalization, and pinned String/Number/Math catalogs. See [v0.5 status](docs/history/v0.5-status.md).
 
 ## v0.4.0 — 2026-09-26
 
 - Extended the ES2020 Array methods for the supported runtime types, including `concat`, `flat`, `flatMap`, stable `sort`, `toLocaleString`, species handling, and `Symbol.unscopables`.
 - Added global `parseInt` and `parseFloat` with Number aliases, and fixed Array iterator completion after source growth.
 - Reduced numeric index formatting allocations so million-element sparse Array operations complete without the previous timeouts.
-- Expanded pinned Test262 coverage and Windows/Linux native examples. See [v0.4 status](docs/v0.4-status.md) for results and deferred dependencies.
+- Expanded pinned Test262 coverage and Windows/Linux native examples. See [v0.4 status](docs/history/v0.4-status.md) for results and deferred dependencies.
 
 This remains an experimental subset release, with the remaining ES2020 work scheduled through v0.20.
 
@@ -241,14 +243,14 @@ This remains an experimental subset release, with the remaining ES2020 work sche
 - Extended the supported language subset with default and destructuring parameters, array/object/call spread, classes and inheritance, generators and `yield*`, and tagged templates.
 - Added selected Math, String, Array, and global numeric built-ins; expanded Symbol, iterator, and object behavior.
 - Extended precise GC to suspended generator stacks and new runtime objects, with native stress tests.
-- Expanded Windows regression and pinned Test262 smoke coverage. See [v0.3 status](docs/v0.3-status.md) for measured results and remaining gaps.
+- Expanded Windows regression and pinned Test262 smoke coverage. See [v0.3 status](docs/history/v0.3-status.md) for measured results and remaining gaps.
 
 This is an experimental subset release. It does not complete ES2020; `eval` and dynamic Function constructors remain documented exceptions.
 
 ## v0.2.0 — 2026-09-26
 
 - Added arrows, rest parameters, untagged templates, Symbols, `for...in`, `for...of`, iterators, and selected built-ins for the Windows x64 target.
-- Established the [ES2020 completion contract](docs/es2020-contract.md) and a pinned Test262 smoke baseline. See [v0.2 status](docs/v0.2-status.md).
+- Established the [ES2020 completion contract](docs/es2020-contract.md) and a pinned Test262 smoke baseline. See [v0.2 status](docs/history/v0.2-status.md).
 
 ## v0.1 — 2026-09-24
 

@@ -9,7 +9,7 @@ This is **not** a claim that Nona currently conforms. The current implementation
 is documented in [language-support.md](language-support.md). This contract is the
 completion checklist and must be reviewed whenever a feature is added.
 The concrete conformance gaps after the merged PR #5 are tracked in
-[pr5-es2020-remaining-work.md](pr5-es2020-remaining-work.md).
+[pr5-es2020-remaining-work.md](history/pr5-es2020-remaining-work.md).
 
 ## Scope decisions
 

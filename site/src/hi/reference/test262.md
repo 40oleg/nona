@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - `String.prototype.{replace,split,match,matchAll,search}` प्रिमिटिव आर्ग्युमेंट पर Symbol-key वाले मेथड नहीं खोजते (ES2025)।
 - Annex B के call-expression असाइनमेंट टार्गेट sloppy कोड में रनटाइम पर ReferenceError फेंकते हैं और strict कोड में early error होते हैं (ES2022 web reality)।
 
-ES2020 पर रखा गया (विफलताएँ `post` के रूप में वर्गीकृत): class fields और private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp `v` फ़्लैग और match indices, top-level await, और `postEs2020Features` में अन्य फ़ीचर। बाकी ज्ञात विचलन हर कैटलॉग के लिए `docs/pr5-es2020-remaining-work.md` और रिलीज़ स्थिति में सूचीबद्ध हैं।
+ES2020 पर रखा गया (विफलताएँ `post` के रूप में वर्गीकृत): class fields और private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp `v` फ़्लैग और match indices, top-level await, और `postEs2020Features` में अन्य फ़ीचर। बाकी ज्ञात विचलन हर कैटलॉग के लिए `docs/history/pr5-es2020-remaining-work.md` और रिलीज़ स्थिति में सूचीबद्ध हैं।
 
 ES2020 गेट के लिए रनर में जोड़े गए फ़ीचर (2026-09):
 
@@ -55,7 +55,7 @@ ES2020 गेट के लिए रनर में जोड़े गए फ
 
 2026-09-25 को `language/expressions/coalesce` समूह ने 21 पास, 3 फ़ेल, 0 स्किप दिए। एक विफलता को अनुपस्थित `Symbol` टाइप चाहिए; दो strict कोड में proper tail calls का परीक्षण करती हैं और नेटिव स्टैक को ओवरफ़्लो करती हैं। चार पार्स-नेगेटिव मामले कंपाइलर द्वारा अस्वीकार किए जाने से पास हुए। ये ट्रैक की जा रही अनुपस्थित क्षमताएँ हैं, इस बात का प्रमाण नहीं कि `??` आम तौर पर टूटा हुआ है।
 
-2026-09-26 को पिन किए गए पूरे `built-ins/parseInt` और `built-ins/parseFloat` समूह 55/55 और 54/54 पास हुए। पहले पूर्ण `built-ins/Array` रन में 3082 में से 2632 पास, 360 फ़ेल, 90 स्किप थे; सभी 90 स्किप `Array.fromAsync` टेस्ट हैं (ES2020 के बाद का API); इसने एक iterator completion बग और पाँच sparse-array टाइमआउट उजागर किए, जिन्हें बाद में ठीक कर दिया गया। दोहराए गए पूर्ण Array रन में 2640 पास, 352 फ़ेल, 90 स्किप हैं। हर बाकी विफलता की एक दर्ज पूर्व-शर्त [v0.4 की स्थगन सूची](https://github.com/40oleg/nona/blob/main/docs/v0.4-array-deferred.json) में है: ES2020 के बाद के API के 150 मामले, resizable-buffer के 72 मामले, और अन्य भविष्य की निर्भरताओं या दस्तावेज़ित `eval` अपवाद के 130 मामले। पॉज़िटिव मैनिफ़ेस्ट 100/100 पास करता है।
+2026-09-26 को पिन किए गए पूरे `built-ins/parseInt` और `built-ins/parseFloat` समूह 55/55 और 54/54 पास हुए। पहले पूर्ण `built-ins/Array` रन में 3082 में से 2632 पास, 360 फ़ेल, 90 स्किप थे; सभी 90 स्किप `Array.fromAsync` टेस्ट हैं (ES2020 के बाद का API); इसने एक iterator completion बग और पाँच sparse-array टाइमआउट उजागर किए, जिन्हें बाद में ठीक कर दिया गया। दोहराए गए पूर्ण Array रन में 2640 पास, 352 फ़ेल, 90 स्किप हैं। हर बाकी विफलता की एक दर्ज पूर्व-शर्त [v0.4 की स्थगन सूची](https://github.com/40oleg/nona/blob/main/docs/history/v0.4-array-deferred.json) में है: ES2020 के बाद के API के 150 मामले, resizable-buffer के 72 मामले, और अन्य भविष्य की निर्भरताओं या दस्तावेज़ित `eval` अपवाद के 130 मामले। पॉज़िटिव मैनिफ़ेस्ट 100/100 पास करता है।
 
 v0.4.0 के बाद पूरा `built-ins/String/fromCodePoint` समूह 11/11 पास करता है। एक मामला पिन किए गए स्मोक मैनिफ़ेस्ट में रखा गया है; उस चेकपॉइंट पर मैनिफ़ेस्ट 101/101 पास हुआ।
 
