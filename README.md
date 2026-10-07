@@ -167,6 +167,8 @@ npm run compare          # compile the compatibility examples and compare with N
 
 The tests compile and run real executables, many of them under GC stress (a collection at every allocation), and compare their output with Node.js. CI runs them on all eight targets, including FreeBSD and OpenBSD guests, and checks that the native compiler rebuilds itself. Test262 audits use `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). The [program corpus](programs/README.md) holds 1,000 small applications with recorded results.
 
+A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. This proves the specified pure IR fragment; the production compiler is not yet formally verified.
+
 ```text
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function, built-in modules
 src/ir             intermediate representation, lowering and liveness
