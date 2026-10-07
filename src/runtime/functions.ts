@@ -131,7 +131,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.label(notArrow);
   a.load('r10',{base:'rax',disp:FunctionLayout.rawThis});a.test('r10','r10');a.jcc('ne',ready);
   a.load('rdx',slot(72));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',ready);a.cmp('rax',1);a.jcc('a',box);
-  a.lea('rax',{rip:'rt.globalValue'});a.store(slot(72),'rax');a.jmp(ready);
+  // OrdinaryCallBindThis: the global this value of the callee's realm.
+  a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:FunctionLayout.realm});a.and('rax',255);a.shl('rax',3);
+  a.lea('r10',{rip:realmTable('rt.globalValue')});a.add('r10','rax');a.load('rax',{base:'r10'});a.store(slot(72),'rax');a.jmp(ready);
   a.label(box);a.lea('rcx',slot(80));a.call('rt.boxReceiver');a.lea('rax',slot(80));a.store(slot(72),'rax');
   // The fresh box is copied into the JS frame root before its first safepoint.
   a.label(ready);a.load('rax',slot(72));a.store(slot(32),'rax');

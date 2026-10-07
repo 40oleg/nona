@@ -36,7 +36,8 @@ console.log(Object.getPrototypeOf(new Promise(function () {})) === Promise.proto
 test('functions created from another realm\'s Function run in that realm',()=>check(`
 var shadow = 'main';
 var other = __nonaCreateRealm();
-var f = new other.Function('return 1;');
+var f = new other.Function('return this;');
+console.log(f() === other, f.call(undefined) === other, f.call(null) === other, f.call(1) instanceof other.Number);
 console.log(Object.getPrototypeOf(f) === other.Function.prototype, Object.getPrototypeOf(f.prototype) === other.Object.prototype, f.name);
 var g = other.Function('a', 'b', 'return a + b;'); console.log(g(2, 3), g.length, g instanceof other.Function, g instanceof Function);
 other.counter = 0; var inc = new other.Function('counter += 1; return typeof shadow;');
