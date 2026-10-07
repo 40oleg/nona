@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed collections in programs with several realms: every realm's runtime now shares the allocator, lazy sweep, weak collection list and the caches the collector invalidates, so objects created by another realm's code are marked and swept with the rest of the heap instead of being freed while still referenced ([#7](https://github.com/40oleg/nona/issues/7)).
+
 - `Promise` instances constructed with a `newTarget` whose `prototype` is not an object get `%Promise.prototype%` of `newTarget`'s realm instead of `%Object.prototype%` ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - `new Function()` and `Reflect.construct(Function, [], newTarget)` take their prototype from `newTarget` (GetPrototypeFromConstructor), falling back to `%Function.prototype%` of `newTarget`'s realm ([#7](https://github.com/40oleg/nona/issues/7)).
