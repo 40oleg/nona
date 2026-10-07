@@ -167,6 +167,8 @@ npm run compare          # компиляция примеров совмест�
 
 Тесты компилируют и запускают настоящие исполняемые файлы, многие в режиме GC stress (сборка мусора при каждом выделении памяти), и сравнивают вывод с Node.js. CI прогоняет их на всех восьми целях, включая гостевые FreeBSD и OpenBSD, и проверяет, что нативный компилятор пересобирает сам себя. Аудиты Test262 запускаются через `scripts/test262-audit.ps1` (Windows) и `scripts/test262-audit.sh` (Linux); см. [Test262](docs/test262.md). [Корпус программ](programs/README.md) содержит 1000 небольших приложений с записанными результатами.
 
+A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer (`npm run check:proofs`, Lean/elan required). The production compiler is not yet formally verified.
+
 ```text
 src/frontend       лексер, парсер, ранние ошибки, связывание областей, eval/Function при компиляции, встроенные модули
 src/ir             промежуточное представление, понижение и анализ живости
