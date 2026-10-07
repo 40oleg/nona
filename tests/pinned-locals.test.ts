@@ -7,9 +7,11 @@ import {runOracle} from './helpers/oracle.js';
 // locals live everywhere (bundles such as typescript.js wrap thousands of
 // declarations in one function; tracking them per operation made liveness,
 // slot assignment, initialization and Number inference quadratic). These
-// programs exercise such functions against Node.js under GC stress.
-const agree=(source:string)=>{
- const run=runOnHost(source);
+// programs exercise such functions against Node.js (the first under GC
+// stress; the second without, as a collection before each of its operations
+// scans thousands of slots).
+const agree=(source:string,gcStress=true)=>{
+ const run=runOnHost(source,{gcStress});
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,runOracle(source).stdout);
 };
@@ -40,4 +42,4 @@ var api = {};
   __export(api, {${Array.from({length:3000},(_,i)=>`K${i}: () => v${i}`).join(', ')}});
 })({});
 console.log(Object.keys(api).length, api.K0, api.K1234, api.K2999);
-`));
+`,false));
