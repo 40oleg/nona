@@ -19,10 +19,15 @@ test('private native compiler hashes and UUIDs agree with the Node API contract'
  assert.equal(native.status,0,String(native.error??native.stderr));assert.equal(native.stdout,oracle);
 });
 
+// The cache-home and file-URL adapters read process (environment, platform,
+// working directory). The first process access runs the whole process
+// prelude, which takes about a minute when every allocation forces a
+// collection, past the 60 s per-program limit on Windows CI. Those adapters
+// run without forced collections; process-io covers process under gcStress.
 test('private compiler cache home falls back to the native account profile',()=>{
  const body=`const key=process.platform==='win32'?'USERPROFILE':'HOME',saved=process.env[key];delete process.env[key];try{console.log(homedir());}finally{if(saved!==undefined)process.env[key]=saved;}`;
  const {native,oracle}=runModulesOnHost({'main.mjs':"import {homedir} from './home.mjs';"+body,'home.mjs':compilerHomeSource(requireHostTarget())},'main.mjs',{
-  gcStress:true,oracleSource:"import {homedir} from 'node:os';"+body,
+  gcStress:false,oracleSource:"import {homedir} from 'node:os';"+body,
  });
  assert.equal(native.status,0,String(native.error??native.stderr));assert.equal(native.stdout,oracle);
 });
@@ -30,7 +35,7 @@ test('private compiler cache home falls back to the native account profile',()=>
 test('private compiler file URLs preserve coverage file names',()=>{
  const body=`for(const path of ['input.js','a #?%.js','кириллица.js',"a !'()*.js",'a@b$d&e=f+g,h;i[j].js']){console.log(pathToFileURL(path).href);}`;
  const {native,oracle}=runModulesOnHost({'main.mjs':"import {pathToFileURL} from './url.mjs';"+body,'url.mjs':compilerUrlSource},'main.mjs',{
-  gcStress:true,oracleSource:"import {pathToFileURL} from 'node:url';"+body,
+  gcStress:false,oracleSource:"import {pathToFileURL} from 'node:url';"+body,
  });
  assert.equal(native.status,0,String(native.error??native.stderr));assert.equal(native.stdout,oracle);
 });
