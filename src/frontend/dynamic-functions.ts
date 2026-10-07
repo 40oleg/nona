@@ -152,6 +152,29 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
       replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[call.callee,{kind:'ArrayLiteral',elements:args.map(a=>a as A.Expression),span}],span} as A.Call);
       return;
     }
+    // x.Function(...) / new x.Function(...): often another realm's %Function%
+    // (Test262 `$262.createRealm().global.Function`). The function is compiled
+    // into a realm-local maker, which codegen clones with every realm's
+    // runtime: called through the realm of the actual constructor, it creates
+    // the function there (its global scope, intrinsics and errors). Any other
+    // callee is called as written.
+    else if(call.callee.kind==='Member'&&call.callee.object.kind!=='Super'&&call.callee.property.kind==='Literal'&&call.callee.property.value==='Function'&&!args.some(a=>a.kind==='SpreadElement')){
+      const values=args.map(stringValue);if(values.some(value=>value===undefined))return;
+      const strings=values as string[],span=call.span;
+      const result=compileSource(strings.slice(0,-1).join(','),strings.at(-1)??''),name=dynamicFactoryPrefix+factories.length;
+      const made:A.Statement='expression'in result
+        ?{kind:'Return',argument:result.expression,span}
+        :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
+      const maker=(parse(lex('(function(){})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      maker.body.body=[made];maker.dynamic=true;maker.realmLocal=true;
+      // The member's object is passed on so that a call keeps it as `this`.
+      const guard=(parse(lex(`(function(object,args){var ctor=object.Function;var made=__nonaRealmMaker;if(made!==undefined)return made();return ${call.kind==='New'?'new ctor(...args)':'Reflect.apply(ctor,object,args)'}})`)).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      const declaration=(guard.body.body[1] as A.Var).declarations[0]!;
+      declaration.init={kind:'Call',callee:{kind:'Identifier',name:'\u0001realmFunction',span},arguments:[{kind:'Identifier',name:'ctor',span},maker],span} as A.Call;
+      factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:guard.parameters,body:{kind:'Block',body:guard.body.body,span},span} as A.FunctionDeclaration);
+      replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[call.callee.object,{kind:'ArrayLiteral',elements:args.map(a=>a as A.Expression),span}],span} as A.Call);
+      return;
+    }
     else if(!isFunction(call.callee)&&!(call.callee.kind==='Identifier'&&(Object.hasOwn(kinds,call.callee.name)||aliases.has(call.callee.name))))return;
     const alias=call.callee.kind==='Identifier'&&!Object.hasOwn(kinds,call.callee.name)?aliases.get(call.callee.name):undefined;
     const kindPrefix=alias??(call.callee.kind==='Identifier'&&Object.hasOwn(kinds,call.callee.name)?kinds[call.callee.name]!:'function');

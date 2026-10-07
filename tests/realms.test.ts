@@ -33,6 +33,27 @@ console.log(Object.getPrototypeOf(new Fn()) === Fn.prototype, Object.getPrototyp
 console.log(Object.getPrototypeOf(new Promise(function () {})) === Promise.prototype);
 `));
 
+test('functions created from another realm\'s Function run in that realm',()=>check(`
+var shadow = 'main';
+var other = __nonaCreateRealm();
+var f = new other.Function('return 1;');
+console.log(Object.getPrototypeOf(f) === other.Function.prototype, Object.getPrototypeOf(f.prototype) === other.Object.prototype, f.name);
+var g = other.Function('a', 'b', 'return a + b;'); console.log(g(2, 3), g.length, g instanceof other.Function, g instanceof Function);
+other.counter = 0; var inc = new other.Function('counter += 1; return typeof shadow;');
+console.log(inc(), other.counter, typeof counter);
+var made = new other.Function('return [{}, [], function () {}];')();
+console.log(made instanceof other.Array, made[0] instanceof other.Object, made[2] instanceof other.Function);
+var localArgs = function () { 'use strict'; return arguments; }();
+var otherArgs = new other.Function('"use strict"; return arguments;')();
+var otherArgs2 = new other.Function('"use strict"; return arguments;')();
+var t1 = Object.getOwnPropertyDescriptor(localArgs, 'callee').get, t2 = Object.getOwnPropertyDescriptor(otherArgs, 'callee').get;
+console.log(t1 !== t2, t2 === Object.getOwnPropertyDescriptor(otherArgs2, 'callee').get);
+try { t2(); } catch (e) { console.log(e instanceof other.TypeError, e instanceof TypeError); }
+try { new other.Function('return ('); } catch (e) { console.log(e instanceof other.SyntaxError, e instanceof SyntaxError); }
+var host = { Function: function (x) { return [this === host, x]; } }; console.log(host.Function('x').join());
+console.log(globalThis.Function('return 40 + 2')());
+`));
+
 test('objects of another realm survive and are collected with this realm\'s',()=>check(`
 var other = __nonaCreateRealm();
 // JSON.parse, Array.from and the collections of the other realm allocate with that realm's runtime.

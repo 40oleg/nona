@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `x.Function(...)` and `new x.Function(...)` with literal source text compile ahead of time like `Function(...)`; when `x.Function` is another realm's `Function`, the function is created in that realm, with its global object, intrinsics and errors ([#7](https://github.com/40oleg/nona/issues/7)).
+
 - Fixed collections in programs with several realms: every realm's runtime now shares the allocator, lazy sweep, weak collection list and the caches the collector invalidates, so objects created by another realm's code are marked and swept with the rest of the heap instead of being freed while still referenced ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - `Promise` instances constructed with a `newTarget` whose `prototype` is not an object get `%Promise.prototype%` of `newTarget`'s realm instead of `%Object.prototype%` ([#7](https://github.com/40oleg/nona/issues/7)).

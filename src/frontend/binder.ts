@@ -23,6 +23,7 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   let classCode=0; // > 0 while analyzing class heritage and element names (strict mode code)
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
     const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||classCode>0||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
+    if(node.kind==='FunctionExpression'&&node.realmLocal||parent?.realmLocal)entry.realmLocal=true;
     functions.push(entry);functionNodes.set(node,entry);return entry;
   };
   let currentModule:number|undefined;
@@ -176,7 +177,9 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
       if(strict&&mode==='write'&&(id.name==='eval'||id.name==='arguments'))fail(id,'Restricted strict assignment');
       let b:Binding|undefined;const withs:StorageBinding[]=[];
       for(let i=scopes.length-1;i>=0&&!b;i--){const scope=scopes[i]!;if(scope instanceof EvalScope){if(scope.names.has(id.name))withs.push(scope.binding);}else if(scope instanceof WithScope)withs.push(scope.binding);else b=scope.get(id.name);}
-      b??=globalNames.get(id.name);
+      // Realm-local code runs in another realm's global scope: the program's
+      // global declarations are not visible there.
+      if(!fn?.realmLocal)b??=globalNames.get(id.name);
       if(!b)b={kind:'globalProperty',name:id.name};
       const result=b!;
       if(mode==='write'&&result.kind!=='globalProperty')result.assigned=true;

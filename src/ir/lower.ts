@@ -110,7 +110,7 @@ class Lowerer {
     const name=override?.nameOverride??(declared==='*default*'?'default':declared??inferredName??'');
     const sourceText=fn.module!==undefined?this.bound.modules![fn.module]!.record.ast.source:this.bound.ast.source;
     const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
-    this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`js.fn.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
+    this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`${fn.realmLocal?'js.rfn':'js.fn'}.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
       sourceText:override?.sourceText??(fn.declaration.kind==='Function'?fn.declaration.sourceText:undefined)??sourceText?.slice(sourceSpan.start,sourceSpan.end),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
@@ -873,6 +873,12 @@ class Lowerer {
       }
       case 'Call': {
         // Runtime helpers called by transformed code (eval-aot): \u0001name(args).
+        // \u0001realmFunction(ctor, function(){...}): the realm-local maker's
+        // closure in the realm of ctor when ctor is that realm's %Function%.
+        if(e.callee.kind==='Identifier'&&e.callee.name==='\u0001realmFunction'){
+          const maker=this.bound.functionNodes.get(e.arguments[1] as A.FunctionExpression)!,dest=this.slot();
+          this.emit({kind:'realmFunction',dest,ctor:this.expression(e.arguments[0] as A.Expression),target:`js.rfn.${maker.index}`});return dest;
+        }
         if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001'))
           return this.preludeCall(e.callee.name.slice(1),e.arguments.map(arg=>this.expression(arg as A.Expression)));
         if(e.callee.kind==='Identifier'){
@@ -1317,6 +1323,6 @@ class Lowerer {
     body.forEach(s=>this.statement(s));
     if(this.moduleIndex===-1&&this.bound.ast.module&&!this.terminated)this.preludeCall('evaluateModule',[this.constant(0)]);
     if(!this.terminated)this.end({kind:'return',value:this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor?this.currentThis():this.constant(undefined)});
-    return {id:this.fn?`js.fn.${this.fn.index}`:this.moduleIndex!==undefined&&this.moduleIndex>=0?`js.module.${this.moduleIndex}`:'js.main',name:this.fn?.declaration.id?.name??(this.fn?'<anonymous>':'<main>'),parameterCount:this.fn?.parameters.length??0,localCount:this.fn?.locals.length??this.bound.mainLocals.length,slotCount:this.slots,maxArguments:this.maxArguments,handlerCount:this.handlerCount,derivedConstructor:this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor===true,generator:this.fn?.declaration.generator===true||this.fn?.declaration.async===true,blocks:this.blocks};
+    return {id:this.fn?`${this.fn.realmLocal?'js.rfn':'js.fn'}.${this.fn.index}`:this.moduleIndex!==undefined&&this.moduleIndex>=0?`js.module.${this.moduleIndex}`:'js.main',name:this.fn?.declaration.id?.name??(this.fn?'<anonymous>':'<main>'),parameterCount:this.fn?.parameters.length??0,localCount:this.fn?.locals.length??this.bound.mainLocals.length,slotCount:this.slots,maxArguments:this.maxArguments,handlerCount:this.handlerCount,derivedConstructor:this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor===true,generator:this.fn?.declaration.generator===true||this.fn?.declaration.async===true,blocks:this.blocks};
   }
 }
