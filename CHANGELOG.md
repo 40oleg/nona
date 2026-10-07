@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Skip nodejs.org API documentation links in the pages link check: nodejs.org currently answers 404 for its HTML API pages, which failed the check on every branch ([#190](https://github.com/40oleg/nona/issues/190)).
+
 - Add a Lean 4 proof prototype for slot substitution, dead writes, destination coalescing and a modeled straight-line dead-move optimizer, with checked counterexamples, axiom auditing, production IR regressions and proof CI ([#160](https://github.com/40oleg/nona/issues/160)).
 
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
