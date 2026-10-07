@@ -82,6 +82,62 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   a.label(copied);a.load('r8',slot(48));a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
   a.load('rcx',slot(40));a.load('rax',slot(56));a.store({base:'rcx',disp:O.elements},'rax');
  });
+ // RCX object Value*, RDX start, R8 delete count, R9 item count, with
+ // start + delete count <= length: the element moves and tail deletions of
+ // Array.prototype.splice (and shift: 0, 1, 0) done as one move of the slots.
+ // Only for an array whose elements 0..length-1 are all dense slots, with a
+ // writable length and no index-keyed node: every source index is then an
+ // own plain data property, so each spec step (HasProperty, Get, Set or
+ // DeletePropertyOrThrow) is a slot copy or a hole. Growing also needs an
+ // extensible array whose Set of a new index cannot meet a setter (the
+ // untouched Array.prototype -> Object.prototype chain, as rt.arraySetFast).
+ // Afterwards elements 0..new length-1 are dense; a grown array's length is
+ // the new length (Set past the end extends it), a shrunk one keeps the old
+ // length for the caller's final Set of "length". RAX 1 when done; 0 leaves
+ // the array untouched for the generic path.
+ b.fn('rt.elementsSpliceDense',104,a=>{
+  const no=a.unique('no'),done=a.unique('done'),fits=a.unique('fits'),moved=a.unique('moved'),backward=a.unique('backward'),shrunk=a.unique('shrunk');
+  a.load('rax',{base:'rcx'});a.cmp('rax',5);a.jcc('ne',no);a.load('r10',{base:'rcx',disp:8});a.store(slot(40),'r10');
+  a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',no);
+  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ObjectFlags.lengthReadonly);a.jcc('ne',no);
+  a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('e',no);
+  a.load('rax',{base:'r11',disp:E.nodes});a.test('rax','rax');a.jcc('ne',no);
+  a.load('rax',{base:'r10',disp:O.length});a.store(slot(72),'rax');a.load('r9',{base:'r11',disp:E.count});a.cmp('rax','r9');a.jcc('ne',no);
+  a.load('r9',{base:'r11',disp:E.capacity});a.cmp('rax','r9');a.jcc('a',no);
+  // New length = length - delete count + item count.
+  a.sub('rax','r8');a.load('r9',slot(64));a.add('rax','r9');a.store(slot(80),'rax');
+  a.load('r9',slot(64));a.cmp('r9','r8');a.jcc('be',fits);
+  a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ObjectFlags.nonExtensible);a.jcc('ne',no);
+  a.load('rax',{base:'r10',disp:O.prototype});a.lea('r9',{rip:'rt.arrayPrototype'});a.cmp('rax','r9');a.jcc('ne',no);
+  a.load('rax',{base:'r9',disp:O.prototype});a.lea('r9',{rip:'rt.objectPrototype'});a.cmp('rax','r9');a.jcc('ne',no);
+  a.load('rax',{base:'r9',disp:O.prototype});a.test('rax','rax');a.jcc('ne',no);
+  a.load('rax',{rip:'rt.indexedPrototypes'});a.test('rax','rax');a.jcc('ne',no);
+  a.load('rax',slot(80));a.load('r9',{base:'r11',disp:E.capacity});a.cmp('rax','r9');a.jcc('be',fits);
+  a.mov('rcx','r10');a.mov('rdx','rax');a.call('rt.elementsGrow');a.load('r10',slot(40));a.load('r11',{base:'r10',disp:O.elements});
+  a.label(fits);
+  // Move length - start - delete count slots from start + delete count to
+  // start + item count; R8 source, R9 destination, RAX bytes.
+  a.load('rax',slot(72));a.load('rdx',slot(48));a.sub('rax','rdx');a.load('r8',slot(56));a.sub('rax','r8');a.shl('rax',4);
+  a.add('r8','rdx');a.shl('r8',4);a.lea('r8',{base:'r8',disp:E.values});a.add('r8','r11');
+  a.load('r9',slot(64));a.add('r9','rdx');a.shl('r9',4);a.lea('r9',{base:'r9',disp:E.values});a.add('r9','r11');
+  a.cmp('r9','r8');a.jcc('a',backward);
+  // Downward (or in place): a forward byte copy never reads a byte it wrote.
+  a.mov('rcx','r9');a.mov('rdx','r8');a.mov('r8','rax');a.call('rt.copyBytes');a.load('r10',slot(40));a.load('r11',{base:'r10',disp:O.elements});a.jmp(moved);
+  a.label(backward);
+  {const loop=a.unique('backwardLoop');a.add('r8','rax');a.add('r9','rax');a.label(loop);a.test('rax','rax');a.jcc('e',moved);
+   a.sub('r8',16);a.sub('r9',16);a.sub('rax',16);
+   a.load('rcx',{base:'r8'});a.store({base:'r9'},'rcx');a.load('rcx',{base:'r8',disp:8});a.store({base:'r9',disp:8},'rcx');a.jmp(loop);}
+  a.label(moved);
+  // Shrinking: the slots from the new length to the old one become holes.
+  a.load('rax',slot(80));a.load('r9',slot(72));a.cmp('rax','r9');a.jcc('b',shrunk);
+  a.store({base:'r10',disp:O.length},'rax');a.jmp(done);
+  a.label(shrunk);
+  {const loop=a.unique('holes');a.mov('rdx','rax');a.shl('rdx',4);a.add('rdx','r11');a.add('rdx',E.values);a.shl('r9',4);a.add('r9','r11');a.add('r9',E.values);a.mov('rcx',HoleTag);
+   a.label(loop);a.cmp('rdx','r9');a.jcc('ae',done);a.store({base:'rdx'},'rcx');a.add('rdx',16);a.jmp(loop);}
+  a.label(done);a.load('rax',slot(80));a.store({base:'r11',disp:E.count},'rax');a.mov('rax',1);const end=a.unique('end');a.jmp(end);
+  a.label(no);a.mov('rax',0);a.label(end);
+ });
  // RCX object, RDX index of a dense element -> RAX its new property node,
  // linked at the head of the list; the slot is a hole afterwards.
  b.fn('rt.elementsMaterialize',104,a=>{
