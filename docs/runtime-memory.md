@@ -100,8 +100,14 @@ payload. Перед каждой сборкой создаётся индекс 
 в callee. Результат копируется в caller до снятия callee root frame.
 
 Receiver передаётся пятым аргументом Windows x64 ABI (caller stack+32).
-Каждый JS frame копирует его до первой safepoint в дополнительный tagged Value
-после обычных slots. Этот this root живёт до return и не очищается liveness.
+JS frame, который читает `this` (а также `new.target` и super receiver — три
+дополнительных tagged Value после обычных slots), копирует его до первой
+safepoint и включает в count своего root frame; эти roots живут до return и не
+очищаются liveness. Функция, которая ничего из этого не читает (`frameUses` в
+`src/ir/calls.ts`), не копирует и не регистрирует их, а её прямые вызывающие
+даже не передают указатели. Так же по требованию сохраняются argc/argv (только
+для `arguments` и rest) и объект функции (только для замыканий, `super` и
+`arguments.callee`).
 Script var/function properties глобального объекта ссылаются на те же global
 Values через static key/Value* table; lexical globals в неё не входят.
 Два статических property nodes Function.prototype (name/length) трассируются

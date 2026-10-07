@@ -39,7 +39,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
 /** Then the key's bit in object key filters (rt.keyFilterBit), also 0 until first use. */
 /** Then 1 + the inline node index (ObjectLayout.slots) where the key was last found as an own property, or 0. */
-export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,slot:8+16*4+16,size:8+16*4+24} as const;
+/** Then the one object (flagged ObjectFlags.ownCached) whose own node outside its inline nodes answered last, and that node; valid at the record's epoch. */
+export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,slot:8+16*4+16,own:8+16*4+24,ownNode:8+16*4+32,size:8+16*4+40} as const;
 
 /** Record of an `object.name = value` site (rt.setPropertyCached). */
 export const SetCacheLayout={slot:0,prototype:8,epoch:16,bit:24,failed:32,size:40} as const;
@@ -53,6 +54,12 @@ export function cacheableName(name:string):boolean {
 export function bumpEpochIfPrototype(a:Assembler,reg:'rcx'|'rdx'|'r8'|'r9'|'r10'|'r11'):void {
  const skip=a.unique('noEpoch');
  a.load('rax',{base:reg,disp:O.flags});a.and('rax',ObjectFlags.cachedPrototype);a.test('rax','rax');a.jcc('e',skip);
+ a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');a.label(skip);
+}
+/** Advances the shape epoch when the object header at REG is a flagged prototype or has a cached own node (a property is removed or redefined). Clobbers RAX. */
+export function bumpEpochIfCached(a:Assembler,reg:'rcx'|'rdx'|'r8'|'r9'|'r10'|'r11'):void {
+ const skip=a.unique('noEpoch');
+ a.load('rax',{base:reg,disp:O.flags});a.and('rax',ObjectFlags.cachedPrototype|ObjectFlags.ownCached);a.test('rax','rax');a.jcc('e',skip);
  a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');a.label(skip);
 }
 /** Advances the shape epoch unconditionally. Clobbers RAX. */
@@ -72,6 +79,8 @@ export function bumpEpoch(a:Assembler):void {
 // module free of import cycles (tests/fast-paths.test.ts checks them).
 export const namedPropertyKinds=[0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
 export const namedTypedArrayKind=13;
+/** Kinds 0 (object), 1 (array) and 2 (function) are the ordinary receivers of the hot inline-cache path. */
+const FunctionKindNumber=2;
 /** Jumps to MISS unless the object header in REG has a kind of namedPropertyKinds. Leaves the kind in RAX; clobbers R11. */
 export function emitNamedKindCheck(a:Assembler,reg:'r10'|'r11'|'rcx',miss:string):void {
  a.load('rax',{base:reg,disp:O.kind});a.cmp('rax',32);a.jcc('ae',miss);
@@ -123,6 +132,11 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.load('r9',{base:'rdx',disp:8});a.store({base:'rax',disp:P.key},'r9');a.mov('r9',A.ordinary);a.store({base:'rax',disp:P.attributes},'r9');
   a.load('r8',slot(56));a.load('r9',{base:'r8'});a.store({base:'rax',disp:P.value},'r9');a.load('r9',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r9');
   a.load('r9',{base:'r11',disp:O.properties});a.store({base:'rax',disp:P.next},'r9');a.store({base:'r11',disp:O.properties},'rax');
+  // The key is a plain name and its filter bit is in the record: the filter
+  // is updated here; only an object that already has a property index (not
+  // a fresh instance) goes through rt.propIndexAdd.
+  a.load('r9',{base:'r11',disp:O.keys});a.load('r8',{base:'r10',disp:S.bit});a.or('r9','r8');a.store({base:'r11',disp:O.keys},'r9');
+  a.load('r9',{base:'r11',disp:O.index});a.test('r9','r9');a.jcc('e',done);
   a.mov('rcx','r11');a.mov('rdx','rax');a.call('rt.propIndexAdd');a.jmp(done);
   a.label(slow);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.setProperty');
   // Remember the inline node now holding the key, if the base has one.
@@ -185,6 +199,33 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
  for(const withReceiver of [false,true])b.fn(withReceiver?'rt.superGetCached':'rt.getPropertyCached',104,a=>{
   if(withReceiver){a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');}
   const L=PropertyCacheLayout,ownFound=a.unique('ownFound'),getter=a.unique('getter'),generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),ready=a.unique('ready'),scan=a.unique('scan'),inherited=a.unique('inherited'),read=a.unique('read'),fill=a.unique('fill'),flag=a.unique('flag'),flagged=a.unique('flagged');
+  if(!withReceiver){
+   // The two hot hits first, touching no stack slot and only RAX, R10 and
+   // R11 (the arguments stay in their registers for the general code below):
+   // an own property in the inline node the record remembers, and a
+   // property inherited through the record's first prototype entry by a
+   // plain object, array or function whose complete key filter rules out an
+   // own property of the key. Both end at `read` with the node in RAX.
+   const general=a.unique('general'),noSlot=a.unique('noSlot'),fastRead=a.unique('fastRead');
+   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',general);a.load('r10',{base:'rdx',disp:8});
+   a.load('rax',{base:'r9',disp:L.slot});a.test('rax','rax');a.jcc('e',noSlot);a.sub('rax',1);
+   a.load('r11',{base:'r10',disp:O.slots});a.shr('r11',32);a.cmp('rax','r11');a.jcc('ae',noSlot);
+   a.mov('r11',P.size);a.imul('rax','r11');a.add('rax','r10');a.add('rax',O.size);
+   a.load('r11',{base:'rax',disp:P.key});a.cmpMem('r11',{base:'r8',disp:8});a.jcc('e',fastRead);
+   a.label(noSlot);
+   a.load('rax',{base:'r9',disp:L.epoch});a.cmpMem('rax',{rip:'rt.shapeEpoch'});a.jcc('ne',general);
+   {const inherited=a.unique('inherited');a.cmpMem('r10',{base:'r9',disp:L.own});a.jcc('ne',inherited);a.load('rax',{base:'r9',disp:L.ownNode});a.jmp(fastRead);a.label(inherited);}
+   a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKindNumber);a.jcc('a',general);
+   a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',general);
+   a.load('r11',{base:'r9',disp:L.bit});a.test('r11','r11');a.jcc('e',general);
+   a.load('rax',{base:'r10',disp:O.keys});a.test('rax','rax');a.jcc('ns',general);a.test('rax','r11');a.jcc('ne',general);
+   a.load('rax',{base:'r10',disp:O.prototype});a.cmpMem('rax',{base:'r9',disp:L.prototype});a.jcc('ne',general);
+   a.load('rax',{base:'r9',disp:L.node});
+   a.label(fastRead);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',general);
+   a.load('r11',{base:'rax',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',general);
+   a.store({base:'rcx'},'r11');a.load('r11',{base:'rax',disp:P.value+8});a.store({base:'rcx',disp:8},'r11');a.jmp(done);
+   a.label(general);
+  }
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
   // The receiver: an ordinary object, array or function, or the prototype
   // of a string, number or boolean.
@@ -225,10 +266,23 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNodeScan');a.test('rax','rax');a.jcc('ne',ownFound);
    a.jmp(probed);
    // RAX = an own node of the receiver (slot 72): an inline one is remembered.
-   a.label(ownFound);{const remembered=a.unique('remembered');
-    a.load('r10',slot(72));a.mov('r11','rax');a.sub('r11','r10');a.sub('r11',O.size);a.jcc('b',remembered);
-    a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.mov('rcx',P.size);a.imul('r10','rcx');a.cmp('r11','r10');a.jcc('ae',remembered);
+   // A node outside the inline ones (a builtin object such as Math, or an
+   // object with many properties) is remembered with its object, which is
+   // flagged so that deleting or redefining a property invalidates the entry
+   // (the value and attributes are read at hit time). Only the ordinary
+   // kinds of the fast prefix are remembered; the global object never is.
+   a.label(ownFound);{const remembered=a.unique('remembered'),outside=a.unique('outsideInline'),sameEpoch=a.unique('ownSameEpoch');
+    a.load('r10',slot(72));a.mov('r11','rax');a.sub('r11','r10');a.sub('r11',O.size);a.jcc('b',outside);
+    a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.mov('rcx',P.size);a.imul('r10','rcx');a.cmp('r11','r10');a.jcc('ae',outside);
     a.store(slot(80),'rax');a.mov('rax','r11');a.mov('rdx',0);a.div('rcx');a.add('rax',1);a.load('r9',slot(64));a.store({base:'r9',disp:L.slot},'rax');a.load('rax',slot(80));
+    a.jmp(remembered);
+    a.label(outside);a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.kind});a.cmp('r11',FunctionKindNumber);a.jcc('a',remembered);
+    a.lea('r11',{rip:'rt.globalObject'});a.cmp('r11','r10');a.jcc('e',remembered);
+    a.load('r9',slot(64));a.load('r11',{rip:'rt.shapeEpoch'});a.cmpMem('r11',{base:'r9',disp:L.epoch});a.jcc('e',sameEpoch);
+    // A stale record: the prototype entries go before the epoch moves on.
+    a.store({base:'r9',disp:L.epoch},'r11');a.mov('r11',0);for(let i=0;i<L.entries;i++){a.store({base:'r9',disp:L.prototype+L.entry*i},'r11');a.store({base:'r9',disp:L.node+L.entry*i},'r11');}
+    a.label(sameEpoch);a.store({base:'r9',disp:L.own},'r10');a.store({base:'r9',disp:L.ownNode},'rax');
+    a.load('r11',{base:'r10',disp:O.flags});a.or('r11',ObjectFlags.ownCached);a.store({base:'r10',disp:O.flags},'r11');
     a.label(remembered);a.jmp(read);}
    a.label(probed);}
   // Otherwise the entry for the receiver's prototype, at the current epoch.
@@ -254,7 +308,7 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.load('r11',{rip:'rt.shapeEpoch'});
   {const sameEpoch=a.unique('sameEpoch'),shifted=a.unique('shifted');a.load('rcx',{base:'r9',disp:L.epoch});a.cmp('rcx','r11');a.jcc('e',sameEpoch);
    // A stale record is emptied before the new entry goes in.
-   a.mov('rcx',0);for(let i=1;i<L.entries;i++){a.store({base:'r9',disp:L.prototype+L.entry*i},'rcx');a.store({base:'r9',disp:L.node+L.entry*i},'rcx');}a.jmp(shifted);
+   a.mov('rcx',0);for(let i=1;i<L.entries;i++){a.store({base:'r9',disp:L.prototype+L.entry*i},'rcx');a.store({base:'r9',disp:L.node+L.entry*i},'rcx');}a.store({base:'r9',disp:L.own},'rcx');a.jmp(shifted);
    a.label(sameEpoch);for(let i=L.entries-1;i>0;i--){a.load('rcx',{base:'r9',disp:L.prototype+L.entry*(i-1)});a.store({base:'r9',disp:L.prototype+L.entry*i},'rcx');a.load('rcx',{base:'r9',disp:L.node+L.entry*(i-1)});a.store({base:'r9',disp:L.node+L.entry*i},'rcx');}
    a.label(shifted);}
   a.store({base:'r9',disp:L.epoch},'r11');a.store({base:'r9',disp:L.prototype},'r10');a.store({base:'r9',disp:L.node},'rax');

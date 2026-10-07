@@ -18,6 +18,7 @@ import {descriptorRoots,descriptorPropertyRoots} from './property-descriptors.js
 import {inspectionRoots,inspectionPropertyRoots} from './object-introspection.js';
 import {constructorRoots,constructorPropertyRoots} from './builtin-constructors.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import type {Assembler} from '../backend/x64/assembler.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {ChunkLayout as C,LargeLayout as L,FreeKind,classCount} from './memory.js';
@@ -68,6 +69,11 @@ import {stringReplaceRoots,stringReplacePropertyRoots} from './string-replace.js
  * kilobytes of garbage.
  */
 export const minimumGcThreshold=8<<20;
+
+/** Recomputes rt.gcLimit (defined with rt.generatorStackBytes in generator-stack.ts) after rt.gcThreshold changed. Clobbers R10 and R11. */
+export function storeGcLimit(a:Assembler):void {
+ a.load('r11',{rip:'rt.gcThreshold'});a.load('r10',{rip:'rt.generatorStackBytes'});a.sub('r11','r10');a.store({rip:'rt.gcLimit'},'r11');
+}
 
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 /** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
@@ -401,10 +407,10 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.call('rt.keyHashCacheClear');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
   const thresholdReady=a.unique('thresholdReady');a.cmp('rax',minimumGcThreshold);a.jcc('ae',thresholdReady);a.mov('rax',minimumGcThreshold);
-  a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');
+  a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');storeGcLimit(a);
  });
  b.fn('rt.safepoint',40,a=>{
-  const done=a.unique('done');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',done);
+  const done=a.unique('done');a.load('rax',{rip:'rt.liveBytes'});a.cmpMem('rax',{rip:'rt.gcLimit'});a.jcc('l',done);
   a.call('rt.collect');a.label(done);
  });
 }

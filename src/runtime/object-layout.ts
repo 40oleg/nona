@@ -14,7 +14,7 @@ export const PropertyLayout={next:0,key:8,value:16,attributes:32,getter:40,sette
 export const PropertyAttributes={writable:1,enumerable:2,configurable:4,ordinary:7,accessor:8} as const;
 
 /** Zero is extensible with writable array length. */
-export const ObjectFlags={nonExtensible:1,lengthReadonly:2,defaultPrototypeFallback:4,deferredConstructPrototype:32,/** Some inline cache depends on this object's properties and prototype (property-cache.ts). */cachedPrototype:64} as const;
+export const ObjectFlags={nonExtensible:1,lengthReadonly:2,defaultPrototypeFallback:4,deferredConstructPrototype:32,/** Some inline cache depends on this object's properties and prototype (property-cache.ts). */cachedPrototype:64,/** Some inline cache remembers one of this object's own property nodes: deleting or redefining a property advances the epoch (property-cache.ts). */ownCached:128} as const;
 export const ProxyKind=21;
 export const ProxyCallable=8;
 export const ProxyConstructable=16;

@@ -13,7 +13,31 @@ import type {FunctionIR,ModuleIR,Operation} from './model.js';
  * fills with the same function declaration. Arrow functions (lexical this),
  * generators, async functions and class constructors are never annotated.
  */
-type Target={target:string;strict:boolean};
+type Target={target:string;strict:boolean;arrow:boolean;ignoresThis:boolean};
+
+/**
+ * What a function's prologue has to set up from its caller's registers and
+ * stack arguments: the frame slots of this, new.target and the super
+ * receiver are filled (and rooted) only when an operation reads them, the
+ * argument count and vector are kept only for the operations that read them
+ * after the parameters are in place, and the function object only when
+ * something reads it. Shared by the code generator and the direct-call
+ * annotation (a caller skips passing what the callee never reads).
+ */
+export function frameUses(fn:FunctionIR):{this:boolean;newTarget:boolean;superReceiver:boolean;fn:boolean;args:boolean} {
+ const uses={this:!!fn.derivedConstructor,newTarget:false,superReceiver:false,fn:false,args:false};
+ for(const block of fn.blocks)for(const op of block.operations)switch(op.kind){
+  case 'currentThis':case 'setCurrentThis':case 'derivedReturn':uses.this=true;break;
+  case 'superReceiver':uses.superReceiver=true;break;
+  case 'newTarget':uses.newTarget=true;break;
+  case 'newFunction':if(op.arrow){uses.this=true;uses.newTarget=true;uses.fn=true;}break;
+  case 'loadCapture':case 'superBase':case 'currentFunction':uses.fn=true;break;
+  case 'superConstructor':if(op.func===undefined)uses.fn=true;break;
+  case 'newArguments':uses.fn=true;uses.args=true;break;
+  case 'newRestArray':case 'constructForward':uses.args=true;break;
+ }
+ return uses;
+}
 
 export function annotateDirectCalls(module:ModuleIR):ModuleIR {
  const callable=new Map<string,Target|null>();
@@ -28,9 +52,13 @@ export function annotateDirectCalls(module:ModuleIR):ModuleIR {
    }
   }
  };
+ const byId=new Map(module.functions.map(fn=>[fn.id,fn]));
  for(const fn of module.functions)for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='newFunction'){
-  const plain=!op.arrow&&!op.generator&&!op.async&&!op.classConstructor;
-  callable.set(op.target,plain?{target:op.target,strict:!!op.strict}:null);
+  // Arrows take the direct path too: their lexical this and new.target are
+  // read from the function object.
+  const plain=!op.generator&&!op.async&&!op.classConstructor,target=byId.get(op.target);
+  const uses=target?frameUses(target):undefined,ignoresThis=!!uses&&!uses.this&&!uses.newTarget&&!uses.superReceiver;
+  callable.set(op.target,plain?{target:op.target,strict:!!op.strict||!!op.arrow,arrow:!!op.arrow,ignoresThis}:null);
  }
  // Global index -> the one declaration every store puts there (null: anything else).
  const globals=new Map<number,string|null>();
@@ -48,7 +76,7 @@ export function annotateDirectCalls(module:ModuleIR):ModuleIR {
     let result=op;
     if(op.kind==='invoke'&&!op.construct&&!op.tail&&op.newTarget===undefined){
      const target=known.get(op.callee),info=target===undefined?undefined:callable.get(target);
-     if(info){result={...op,direct:info.target,directStrict:info.strict};blockChanged=true;}
+     if(info){result={...op,direct:info.target,directStrict:info.strict,...(info.arrow?{directArrow:true}:{}),...(info.ignoresThis?{directIgnoresThis:true}:{})};blockChanged=true;}
     }
     if('dest' in op)known.delete(op.dest);
     if(op.kind==='newFunction')known.set(op.dest,op.target);

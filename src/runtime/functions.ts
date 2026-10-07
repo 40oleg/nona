@@ -1,7 +1,8 @@
 import {rootedFn} from './root-scope.js';
 import {bumpEpochIfPrototype} from './property-cache.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable,keyFilterValid} from './object-layout.js';
+import {keyFilterBitOf} from './property-index.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
@@ -10,7 +11,11 @@ import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
 /** Inline property nodes of a constructor's first instances. */
 export const defaultInstanceSlots=4;
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,/** Inline property nodes for this constructor's next instances (0: the default); rt.allocPropertyNode raises it when one outgrows them. */instanceSlots:O.size+120,size:O.size+128} as const;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,/** Inline property nodes for this constructor's next instances (0: the default); rt.allocPropertyNode raises it when one outgrows them. */instanceSlots:O.size+120,/** Bits of FunctionSpecial: nonzero when a call cannot take the ordinary path (bound, arrow, generator or async, class constructor). */special:O.size+128,size:O.size+136} as const;
+/** Record of a `new C(...)` site (rt.newInstanceCached). */
+export const NewCacheLayout={fn:0,node:8,epoch:16,size:24} as const;
+/** FunctionLayout.special bits. */
+export const FunctionSpecial={bound:1,arrow:2,generator:4,classConstructor:8} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -70,6 +75,8 @@ export function emitFunctions(b:RuntimeBuilder):void {
   node('rt.str.name');a.mov('r10',4);a.store({base:'rax',disp:P.value},'r10');a.load('r10',slot(48));a.store({base:'rax',disp:P.value+8},'r10');
   a.load('r10',slot(64));a.store({base:'rax',disp:P.next},'r10');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.load('r11',{base:'rcx',disp:O.properties});
+  // The two keys join the function's key filter (see rt.keyFilterBit).
+  {a.load('r9',{base:'rcx',disp:O.keys});a.mov('r8',keyFilterBitOf('length')|keyFilterBitOf('name'));a.or('r9','r8');a.store({base:'rcx',disp:O.keys},'r9');}
   const behind=a.unique('behindPrototype'),done=a.unique('done');a.test('r11','r11');a.jcc('ne',behind);
   a.store({base:'rcx',disp:O.properties},'rax');a.jmp(done);
   a.label(behind);a.load('r9',{base:'r11',disp:P.next});a.store({base:'r10',disp:P.next},'r9');a.store({base:'r11',disp:P.next},'rax');
@@ -97,8 +104,11 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator,FunctionLayout.special])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',{rip:'rt.realmIndex'});a.store({base:'rax',disp:FunctionLayout.realm},'r10');
+  // The key filter starts complete and empty; rt.initFunctionMetadata adds
+  // length and name, rt.setProperty whatever follows.
+  a.mov('r10',keyFilterValid);a.store({base:'rax',disp:O.keys},'r10');
   a.lea('r10',{rip:'rt.functionPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
   a.load('r10',slot(48));a.store({base:'rax',disp:FunctionLayout.code},'r10');
@@ -204,6 +214,38 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('r11','rax');a.shl('r11',RealmFlagShift);a.or('r11',OF.defaultPrototypeFallback);a.load('rcx',{base:'r10',disp:O.flags});a.or('rcx','r11');a.store({base:'r10',disp:O.flags},'rcx');
   a.shl('rax',3);a.lea('r11',{rip:realmTable('rt.objectPrototype')});a.add('r11','rax');a.load('r11',{base:'r11'});a.store({base:'r10',disp:O.prototype},'r11');
   a.label(done);a.label(complete);
+ });
+ // `new C(...)` sites: RCX result, RDX callee Value*, R8 the site's record
+ // (NewCacheLayout), R9 the first argument Value* or 0. The record remembers
+ // the callee function and the node of its own `prototype` data property
+ // (never deletable: the property is non-configurable on every function
+ // that has one), valid while the shape epoch stands (a collection, which
+ // could free the function, advances it). A hit skips the Promise executor
+ // check (the remembered function is not %Promise%), the `prototype` lookup
+ // and the cycle check of rt.setPrototype: a fresh object is on no chain.
+ b.fn('rt.newInstanceCached',72,a=>{
+  const N=NewCacheLayout,miss=a.unique('miss'),done=a.unique('done'),hinted=a.unique('hinted'),noFill=a.unique('noFill');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');
+  a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',miss);a.load('r10',{base:'rdx',disp:8});
+  a.cmpMem('r10',{base:'r8',disp:N.fn});a.jcc('ne',miss);
+  a.load('rax',{base:'r8',disp:N.epoch});a.cmpMem('rax',{rip:'rt.shapeEpoch'});a.jcc('ne',miss);
+  a.load('r11',{base:'r8',disp:N.node});a.load('rax',{base:'r11',disp:P.value});a.cmp('rax',5);a.jcc('ne',miss);
+  a.load('r9',{base:'r10',disp:FunctionLayout.instanceSlots});a.test('r9','r9');a.jcc('ne',hinted);a.mov('r9',defaultInstanceSlots);a.label(hinted);
+  a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObjectSlots');
+  a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.store({base:'rax',disp:O.site},'r10');
+  a.load('r11',slot(56));a.load('r11',{base:'r11',disp:N.node});a.load('r11',{base:'r11',disp:P.value+8});a.store({base:'rax',disp:O.prototype},'r11');a.jmp(done);
+  a.label(miss);
+  {const executor=a.unique('executor');a.load('rdx',slot(64));a.test('rdx','rdx');a.jcc('ne',executor);a.lea('rdx',{rip:'rt.undefinedValue'});a.label(executor);}
+  a.load('rcx',slot(48));a.call('rt.validatePromiseExecutor');
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.call('rt.newInstance');
+  // Remember an unbound function whose own `prototype` is a data property.
+  a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',done);a.load('rcx',{base:'rdx',disp:8});
+  a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',done);a.load('rax',{base:'rcx',disp:FunctionLayout.bound});a.test('rax','rax');a.jcc('ne',done);
+  a.lea('rdx',{rip:'rt.str.prototype'});a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('e',done);
+  a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('ne',done);
+  a.load('r8',slot(56));a.store({base:'r8',disp:N.node},'rax');a.load('rdx',slot(48));a.load('r10',{base:'rdx',disp:8});a.store({base:'r8',disp:N.fn},'r10');
+  a.load('r10',{rip:'rt.shapeEpoch'});a.store({base:'r8',disp:N.epoch},'r10');
+  a.label(noFill);a.label(done);
  });
  b.fn('rt.constructorResult',40,a=>{
   const copy=a.unique('copy');a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',copy);a.mov('rdx','r8');

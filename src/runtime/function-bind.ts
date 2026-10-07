@@ -2,7 +2,7 @@ import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O,PropertyAttributes as A} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
-import {FunctionKind,FunctionLayout as F} from './functions.js';
+import {FunctionKind,FunctionLayout as F,FunctionSpecial} from './functions.js';
 import {BoundDataLayout as B,maxBoundArguments} from './bound-layout.js';
 import {emitFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
@@ -31,7 +31,7 @@ export function emitFunctionBind(b:RuntimeBuilder):void {
   for(const offset of [O.properties,O.length,O.stringifying,O.flags,F.environment,F.constructCode,F.homeObject])a.store({base:'rax',disp:offset},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:F.rawThis},'r10');a.lea('r10',{rip:'rt.emptyFunction'});a.store({base:'rax',disp:F.code},'r10');
   a.lea('r10',{rip:'rt.str.nativeFunction'});a.store({base:'rax',disp:F.sourceText},'r10');
-  a.load('r10',slot(80));a.store({base:'rax',disp:F.bound},'r10');a.load('rdx',slot(64));a.load('rdx',{base:'rdx',disp:8});
+  a.load('r10',slot(80));a.store({base:'rax',disp:F.bound},'r10');a.mov('r10',FunctionSpecial.bound);a.store({base:'rax',disp:F.special},'r10');a.load('rdx',slot(64));a.load('rdx',{base:'rdx',disp:8});
   for(const offset of [O.prototype,F.constructable]){a.load('r10',{base:'rdx',disp:offset});a.store({base:'rax',disp:offset},'r10');}
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
   a.load('rdx',slot(64));a.load('r8',slot(72));a.call('rt.initBoundMetadata');

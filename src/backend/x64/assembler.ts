@@ -221,6 +221,10 @@ export class Assembler {
   cmp(d: Reg, s: Reg | number): void {
     this.binary(d, s, 0x39, 7);
   }
+  /** cmp d, qword [s]: compares a register with memory without a load. */
+  cmpMem(d: Reg, s: Mem): void {
+    this.instruction([0x3b], regCode(d), s);
+  }
   test(l: Reg, r: Reg): void {
     this.instruction([0x85], regCode(r), l);
   }
@@ -289,6 +293,10 @@ export class Assembler {
   storeXmm128(d:Mem,s:Xmm):void {this.instruction([0x0f,0x11],regCode(s),d,false);}
   callRegister(register:Reg):void {
     this.instruction([0xff],2,register,false);
+  }
+  /** call qword [m]: an indirect call through a code pointer in memory. */
+  callMem(m:Mem):void {
+    this.instruction([0xff],2,m,false);
   }
   callImport(s: string, _parameters?:readonly NativeArgumentKind[]): void {
     this.rel32([0xff, 0x15], s);

@@ -101,6 +101,10 @@ export class Arm64Assembler extends Assembler {
   override add(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,false);}
   override sub(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,true);}
   override cmp(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,true,true);}
+  override cmpMem(dst:Reg,src:Mem):void {
+    this.nativeMemory(true,13,src,64);
+    this.nativeWord((0xeb000000|(13<<16)|(arm64Registers[dst]<<5)|12)>>>0);this.flags(12,true);
+  }
   private logical(dst:Reg,src:Reg|number,opcode:number):void {
     const d=arm64Registers[dst],s=this.operand(src);
     this.nativeWord((opcode|(s<<16)|(d<<5)|d)>>>0);this.nativeWord((0xea00001f|(d<<16)|(d<<5))>>>0);this.flags(d);
@@ -279,6 +283,9 @@ export class Arm64Assembler extends Assembler {
   }
   override callRegister(reg:Reg):void {
     const after=this.returnSlot();this.jumpRegister(reg);this.label(after);
+  }
+  override callMem(mem:Mem):void {
+    this.nativeMemory(true,13,mem,64);const after=this.returnSlot();this.nativeWord((0xd61f0000|(13<<5))>>>0);this.label(after);
   }
   override jumpRegister(reg:Reg):void {this.nativeWord((0xd61f0000|(arm64Registers[reg]<<5))>>>0);}
   override jmp(target:string):void {this.relocated(0x14000000,'arm64-branch26',target);}

@@ -7,10 +7,11 @@ import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
 import { analyzeLiveness } from '../../ir/liveness.js';
+import { frameUses } from '../../ir/calls.js';
 import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
-import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
+import { FunctionLayout,FunctionKind,FunctionSpecial,NewCacheLayout } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
@@ -49,7 +50,11 @@ const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',ty
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 /** Operations that only move values: no runtime call, no collection, no user code. */
-const movesOnly=new Set<string>(['constant','copy','uninitialized','loadGlobal']);
+// Operations that only move values between frame slots, globals, cells and
+// environments: they cannot allocate or run user code.
+/** Moves with no effect besides their destination: skipped when the destination is dead. */
+const deadMoves=new Set<string>(['constant','copy','loadGlobal','readCell','loadCapture']);
+const movesOnly=new Set<string>(['constant','copy','uninitialized','loadGlobal','readCell','writeCell','loadCapture','constructorResult']);
 const cachedRuntimePreludes=new Map<string,ModuleIR>();
 /**
  * Runtime and prelude code are identical for equal options: generate them
@@ -193,6 +198,11 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
     }
     const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
+    // What the prologue has to set up (src/ir/calls.ts frameUses).
+    const uses=frameUses(fn);
+    // The rooted frame slots: the values, then as many of this, new.target
+    // and the super receiver (in that order) as the function reads.
+    const extraRoots=uses.superReceiver?3:uses.newTarget?2:uses.this?1:0;
     const savedFrameBase=rootBase+R.size,frameBias=valueBase+128;
     const stack=(disp:number):Mem=>({base:'rbp',disp:disp-frameBias});
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
@@ -200,7 +210,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
     // Coverage: one call count per function of the program (not the preludes).
     if(options.coverage&&fn.source&&!fn.id.startsWith('js.regexpVm.'))a.incrementMemory({rip:'cov.'+fn.id});
-    {const fits=a.unique('stackFits');a.lea('r11',{base:'rsp',disp:-allocation});a.load('r10',{rip:'rt.stackLimit'});a.cmp('r11','r10');a.jcc('ae',fits);
+    {const fits=a.unique('stackFits');a.lea('r11',{base:'rsp',disp:-allocation});a.cmpMem('r11',{rip:'rt.stackLimit'});a.jcc('ae',fits);
      a.sub('rsp',8);a.call('rt.throwStackOverflow');a.label(fits);}
     if(allocation>=4096){
       a.mov('r11','rsp');a.mov('rax',Math.floor(allocation/4096));
@@ -217,7 +227,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // other preserved registers.
     a.sub('rsp',allocation);const allocated=a.offset;a.store({base:'rsp',disp:savedFrameBase},'rbp');const prologSize=a.offset;
     a.lea('rbp',{base:'rsp',disp:frameBias});
-    a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
+    a.store(stack(72),'rcx');if(uses.args){a.store(stack(48),'rdx');a.store(stack(56),'r8');}if(uses.fn)a.store(stack(64),'r9');
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
     // A temporary whose only definition is a constant needs no frame
     // location: its Value lives once in .rdata (constantValue) and operations
@@ -299,7 +309,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const emitKnownNumberUnary=(dest:number,operator:string,argument:number):boolean=>{
       if(!['numeric','increment','decrement','-','+'].includes(operator))return false;
       a.movsd('xmm0',payload(argument));
-      if(operator==='increment'||operator==='decrement'){a.mov('rax',1);a.cvtsi2sd('xmm1','rax');if(operator==='increment')a.addsd('xmm0','xmm1');else a.subsd('xmm0','xmm1');}
+      if(operator==='increment')a.addsd('xmm0',{rip:constantValue(1),addend:8});else if(operator==='decrement')a.subsd('xmm0',{rip:constantValue(1),addend:8});
       else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
       setNumber(dest);return true;
     };
@@ -311,7 +321,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         a.cmp('rax',2);a.jcc('ne',slow);a.load('rax',payload(argument));a.xor('rax',1);setBoolean(dest);
       }else{
         a.cmp('rax',3);a.jcc('ne',slow);a.movsd('xmm0',payload(argument));
-        if(operator==='increment'||operator==='decrement'){a.mov('rax',1);a.cvtsi2sd('xmm1','rax');if(operator==='increment')a.addsd('xmm0','xmm1');else a.subsd('xmm0','xmm1');}
+        if(operator==='increment')a.addsd('xmm0',{rip:constantValue(1),addend:8});else if(operator==='decrement')a.subsd('xmm0',{rip:constantValue(1),addend:8});
         else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
         setNumber(dest);
       }
@@ -321,24 +331,44 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // store each: unrolled for small frames, a loop of two stores per turn
     // for larger ones (`rep stosq` cost a microcode start-up of tens of
     // cycles on every call). The argument registers are already saved.
+    // Parameter locations are filled by the parameter copies below (every
+    // parameter gets a value, undefined when the argument is missing), so
+    // only the other locations are cleared when they are stored one by one.
+    const parameterLocations=new Set(Array.from({length:fn.parameterCount},(_,i)=>location(i)));
+    const cleared=locations.count<=8?Array.from({length:locations.count},(_,i)=>i).filter(l=>!parameterLocations.has(l)):[];
     if(locations.count>0){a.mov('rax',0);a.movqToXmm('xmm0','rax');}
-    if(locations.count<=8){for(let i=0;i<locations.count;i++)a.storeXmm128(stack(valueBase+16*i),'xmm0');}
+    if(locations.count<=8){for(const l of cleared)a.storeXmm128(stack(valueBase+16*l),'xmm0');}
     else{
      const odd=locations.count%2;if(odd)a.storeXmm128(stack(valueBase),'xmm0');
      const clear=a.unique('clear');a.lea('r10',stack(valueBase+16*odd));a.mov('rcx',locations.count>>1);
      a.label(clear);a.storeXmm128({base:'r10'},'xmm0');a.storeXmm128({base:'r10',disp:16},'xmm0');a.add('r10',32);a.sub('rcx',1);a.jcc('ne',clear);
     }
-    a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
-    copy(stack(superReceiverBase),stack(thisBase));
+    if(extraRoots>=1){a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});}
+    if(extraRoots>=3)copy(stack(superReceiverBase),stack(thisBase));
     if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
-    a.load('r10',stack(allocation+48));copy(stack(newTargetBase),{base:'r10'});
-    for(let i=0;i<fn.parameterCount;i++){
-      const skip=a.unique('missing');a.load('rax',stack(48));a.cmp('rax',i);a.jcc('be',skip);
-      a.load('r10',stack(56));copy(value(i),{base:'r10',disp:16*i});a.label(skip);
+    if(extraRoots>=2){a.load('r10',stack(allocation+48));copy(stack(newTargetBase),{base:'r10'});}
+    // Parameters: RDX is the argument count and R8 the arguments. A call
+    // with every parameter supplied (the common case) copies them straight;
+    // fewer arguments take the out-of-line path, which copies the ones that
+    // exist and writes undefined to the rest.
+    if(fn.parameterCount>0){
+      const partial=a.unique('partialArguments'),ready=a.unique('parametersReady');
+      a.cmp('rdx',fn.parameterCount);a.jcc('b',partial);
+      for(let i=0;i<fn.parameterCount;i++)copy(value(i),{base:'r8',disp:16*i});
+      a.label(ready);
+      cold.push(()=>{
+        a.label(partial);
+        for(let i=0;i<fn.parameterCount;i++){
+          const missing=a.unique('missing'),next=a.unique('parameter');a.cmp('rdx',i);a.jcc('be',missing);
+          copy(value(i),{base:'r8',disp:16*i});a.jmp(next);
+          a.label(missing);a.mov('rax',0);a.store(value(i),'rax');a.store(payload(i),'rax');a.label(next);
+        }
+        a.jmp(ready);
+      });
     }
     a.load('rax',{rip:'rt.gcRoots'});a.store(stack(rootBase+R.next),'rax');
     a.lea('rax',stack(valueBase));a.store(stack(rootBase+R.values),'rax');
-    a.mov('rax',locations.count+3);a.store(stack(rootBase+R.count),'rax');
+    a.mov('rax',locations.count+extraRoots);a.store(stack(rootBase+R.count),'rax');
     a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
     if(fn.derivedConstructor){a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');}
     // Slots that may hold stale values when a block starts: whatever its
@@ -399,6 +429,11 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         possible=new Set(live);
        }else possible=new Set(possible);
        for(const d of destinations(op))possible.add(d);
+       // A move whose result nothing reads (the value of an assignment
+       // expression used as a statement, for one) is not emitted. The
+       // safepoint and clearing above are unaffected: a skipped move changes
+       // no slot and allocates nothing.
+       if(deadMoves.has(op.kind)&&'dest' in op&&!liveness.get(block.id)!.beforeTerminator.has(op.dest)&&!(index+1<block.operations.length?liveness.get(block.id)!.before[index+1]!:liveness.get(block.id)!.beforeTerminator).has(op.dest))continue;
        // Safepoint at the start of every block (every loop iteration passes
        // one): the check of rt.safepoint inline, so that only a collection
        // costs a call. Every slot is rooted and every dead one cleared at
@@ -406,7 +441,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
        // per block bounds the garbage a block can accumulate by its length.
        // GC stress collects before every operation to catch rooting errors.
        if(options.gcStress)a.call('rt.collect');
-       else if(index===0&&needsSafepoint(block)){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
+       else if(index===0&&needsSafepoint(block)){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.cmpMem('rax',{rip:'rt.gcLimit'});a.jcc('l',noGc);a.call('rt.collect');a.label(noGc);}
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':{
@@ -420,6 +455,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
           pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');
+          {const special=(op.classConstructor?FunctionSpecial.classConstructor:0)|(op.arrow?FunctionSpecial.arrow:0)|(op.async||op.generator?FunctionSpecial.generator:0);
+           if(special){a.load('r10',payload(op.dest));a.mov('rax',special);a.store({base:'r10',disp:FunctionLayout.special},'rax');}}
           if(op.classConstructor){a.load('r10',payload(op.dest));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
           if(op.async){
             a.load('r10',payload(op.dest));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
@@ -445,8 +482,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
         case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.setter?1:0)|(op.nonEnumerable?2:0));a.call('rt.defineLiteralAccessor');break;
         case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
-        case 'readCell':pointer('rcx',op.dest);pointer('rdx',op.cell);a.call('rt.readCell');break;
-        case 'writeCell':pointer('rcx',op.cell);pointer('rdx',op.source);a.call('rt.writeCell');break;
+        // Cells are internal: the tag check guards the compiler's own
+        // bookkeeping, so it fails to rt.fail out of line.
+        case 'readCell':a.load('rax',value(op.cell));a.cmp('rax',CellTag);failIf(a,'ne');a.load('r10',payload(op.cell));copy(value(op.dest),{base:'r10'});break;
+        case 'writeCell':a.load('rax',value(op.cell));a.cmp('rax',CellTag);failIf(a,'ne');a.load('r10',payload(op.cell));copy({base:'r10'},value(op.source));break;
         case 'loadCapture':
           a.load('r10',stack(64));a.load('r10',{base:'r10',disp:FunctionLayout.environment});
           copy(value(op.dest),{base:'r10',disp:E.cells+E.entry*op.index});break;
@@ -512,17 +551,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           break;
         }
         case 'newInstance':
-          pointer('rcx',op.callee);
-          if(op.argumentArray!==undefined){pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');}
-          else{if(op.firstArgument!==undefined)pointer('rdx',op.firstArgument);else a.lea('rdx',{rip:'rt.undefinedValue'});a.call('rt.validatePromiseExecutor');}
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+          if(op.argumentArray!==undefined){
+            pointer('rcx',op.callee);pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');
+            pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+          }
+          // A per-site record remembers the constructor and its prototype node (functions.ts).
+          {const cache='nc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(NewCacheLayout.size),fixups:[],symbols:{}});
+           pointer('rcx',op.dest);pointer('rdx',op.callee);a.lea('r8',{rip:cache});if(op.firstArgument!==undefined)pointer('r9',op.firstArgument);else a.mov('r9',0);a.call('rt.newInstanceCached');}
+          break;
         case 'newArguments':
           // Bit 62 of the formal count marks an unmapped (non-simple parameter list) object.
           a.mov('rax',BigInt(op.parameters.length)|(op.unmapped?1n<<62n:0n));a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
           pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
         case 'newRestArray':pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.mov('r9',op.start);a.call('rt.newRestArray');break;
-        case 'constructorResult':pointer('rcx',op.dest);pointer('rdx',op.result);pointer('r8',op.instance);a.call('rt.constructorResult');break;
+        case 'constructorResult':{
+          // The constructor's result when it returned an object, else the instance.
+          const instance=a.unique('instanceResult'),done=a.unique('constructorResultDone');
+          a.load('rax',value(op.result));a.cmp('rax',5);a.jcc('ne',instance);copy(value(op.dest),value(op.result));a.jmp(done);
+          a.label(instance);copy(value(op.dest),value(op.instance));a.label(done);break;
+        }
         case 'derivedReturn':{
           const object=a.unique('derivedReturnObject'),receiver=a.unique('derivedReturnReceiver'),done=a.unique('derivedReturnDone');
           a.load('rax',value(op.source));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',0);a.jcc('e',receiver);
@@ -545,16 +593,65 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.load('rax',{base:'r9',disp:FunctionLayout.code});a.lea('r10',{rip:op.direct});a.cmp('rax','r10');a.jcc('ne',general);
             // this: unchanged for strict code; sloppy code gets the global
             // object for undefined/null and an object receiver as is
-            // (primitives, which need boxing, take the general path).
-            if(op.receiver===undefined)a.lea('rax',{rip:op.directStrict?'rt.undefinedValue':'rt.globalValue'});
-            else if(op.directStrict)a.lea('rax',value(op.receiver));
-            else{const object=a.unique('objectThis'),ready=a.unique('thisReady');a.load('rax',value(op.receiver));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',1);a.jcc('a',general);
-             a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
-            a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+            // (primitives, which need boxing, take the general path). An
+            // arrow reads its lexical this and new.target from the function
+            // object. A callee that reads neither gets neither.
+            if(op.directIgnoresThis){}
+            else if(op.directArrow){
+              a.lea('rax',{base:'r9',disp:FunctionLayout.lexicalThis});a.store(stack(32),'rax');a.lea('rax',{base:'r9',disp:FunctionLayout.lexicalNewTarget});a.store(stack(40),'rax');
+            }else{
+              if(op.receiver===undefined)a.lea('rax',{rip:op.directStrict?'rt.undefinedValue':'rt.globalValue'});
+              else if(op.directStrict)a.lea('rax',value(op.receiver));
+              else{const object=a.unique('objectThis'),ready=a.unique('thisReady');a.load('rax',value(op.receiver));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',1);a.jcc('a',general);
+               a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
+              a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+            }
             pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
             // A tail call made by the callee comes back as a marker (rt.invoke
             // does the same); it and the general call are out of line.
             const tail=a.unique('tailMarker'),dest=op.dest;
+            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
+            cold.push(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
+          }
+          else if(!op.construct&&!op.tail&&op.newTarget===undefined){
+            // An ordinary call of a function object (not bound, not an
+            // arrow, generator or class constructor: FunctionLayout.special)
+            // with an object receiver, or a strict callee with any receiver,
+            // runs its code directly with rt.invoke's calling convention;
+            // an arrow passes its lexical this and new.target. Everything
+            // else is rt.invoke, out of line.
+            const ready=a.unique('callReady'),arrow=a.unique('arrowCallee'),tail=a.unique('tailMarker'),dest=op.dest,receiver=op.receiver;
+            a.load('rax',value(op.callee));a.cmp('rax',5);a.jcc('ne',general);
+            a.load('r9',payload(op.callee));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',general);
+            a.load('rax',{base:'r9',disp:FunctionLayout.special});a.test('rax','rax');a.jcc('ne',arrow);
+            if(receiver===undefined){
+              const strict=a.unique('strictThis');a.load('r10',{base:'r9',disp:FunctionLayout.rawThis});a.test('r10','r10');a.lea('rax',{rip:'rt.undefinedValue'});a.jcc('ne',strict);a.lea('rax',{rip:'rt.globalValue'});a.label(strict);
+            }else{
+              const object=a.unique('objectThis');a.load('rax',value(receiver));a.cmp('rax',5);a.jcc('e',object);
+              a.load('r10',{base:'r9',disp:FunctionLayout.rawThis});a.test('r10','r10');a.jcc('e',general);a.label(object);a.lea('rax',value(receiver));
+            }
+            a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+            a.label(ready);pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.callMem({base:'r9',disp:FunctionLayout.code});
+            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
+            cold.push(()=>{
+              a.label(arrow);a.cmp('rax',FunctionSpecial.arrow);a.jcc('ne',general);
+              a.lea('rax',{base:'r9',disp:FunctionLayout.lexicalThis});a.store(stack(32),'rax');a.lea('rax',{base:'r9',disp:FunctionLayout.lexicalNewTarget});a.store(stack(40),'rax');a.jmp(ready);
+              a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);
+            });
+          }
+          else if(op.construct&&!op.tail&&op.receiver!==undefined){
+            // `new C(...)` of a script function (not bound, no native
+            // construct entry) runs its code with the prepared instance as
+            // this and new.target the given one or the callee itself.
+            const tail=a.unique('tailMarker'),dest=op.dest;
+            a.load('rax',value(op.callee));a.cmp('rax',5);a.jcc('ne',general);
+            a.load('r9',payload(op.callee));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',general);
+            a.load('rax',{base:'r9',disp:FunctionLayout.constructable});a.test('rax','rax');a.jcc('e',general);
+            a.load('rax',{base:'r9',disp:FunctionLayout.special});a.and('rax',FunctionSpecial.bound);a.jcc('ne',general);
+            a.load('rax',{base:'r9',disp:FunctionLayout.constructCode});a.test('rax','rax');a.jcc('ne',general);
+            a.lea('rax',value(op.receiver));a.store(stack(32),'rax');
+            if(op.newTarget===undefined)a.lea('rax',value(op.callee));else a.lea('rax',value(op.newTarget));a.store(stack(40),'rax');
+            pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.callMem({base:'r9',disp:FunctionLayout.code});
             a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
             cold.push(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
           }
@@ -566,7 +663,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.store(stack(40),'rax');
             pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
           };
-          if(op.direct){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
+          if(op.direct||!op.construct&&!op.tail&&op.newTarget===undefined||op.construct&&!op.tail&&op.receiver!==undefined){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
           a.label(called);break;
         }
         case 'constructForward':

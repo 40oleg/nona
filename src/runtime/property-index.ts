@@ -29,6 +29,21 @@ const keyHashCacheEntries=1024;
 /** R10 = the rt.keyHashCache entry {record, hash} for the key record in RCX. Clobbers R11. */
 const keyHashEntry=(a:Assembler)=>{a.mov('r10','rcx');a.shr('r10',4);a.and('r10',keyHashCacheEntries-1);a.shl('r10',4);a.lea('r11',{rip:'rt.keyHashCache'});a.add('r10','r11');};
 
+
+/** The key filter bit of a string key, computed as rt.keyFilterBit computes it (compile-time keys of static property nodes). */
+export function keyFilterBitOf(name:string):bigint {
+ const K=0x9E3779B1n,mask=(1n<<64n)-1n;
+ let h=BigInt(name.length);
+ if(name.length){
+  h=(h*K)&mask;
+  h=((h^BigInt(name.charCodeAt(0)))*K)&mask;
+  h=((h^BigInt(name.charCodeAt(name.length-1)))*K)&mask;
+  h=((h^BigInt(name.charCodeAt(name.length>>1)))*K)&mask;
+ }
+ let bit=Number((h>>20n)&63n);if(bit===63)bit=62;
+ return 1n<<BigInt(bit);
+}
+
 export function emitPropertyIndex(b:RuntimeBuilder):void {
  // RCX key (string or symbol record) -> RAX hash. Pure, no calls.
  // String keys remember their hash in rt.keyHashCache, a direct-mapped table

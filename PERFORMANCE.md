@@ -200,6 +200,27 @@ lookup every time. `apply` with a fresh array per call is the exception that
 grows faster than linear (×72 at 100k, ×369 at 1M), as does `new` with a
 million live instances (777 MB RSS).
 
+Measured again on 2026-10-08 (Linux x64, 2 cores, Node.js 22.22.0, scale 0.1,
+best of 3) before and after #47, which trims the prologue, runs ordinary
+calls, `new` and arrow calls inline and remembers own property nodes and
+constructor prototypes at the call sites:
+
+| Operation (N = 100k) | Node | Nona before #47 | Nona after #47 | After / Node |
+| --- | --- | --- | --- | --- |
+| Call `add(a, b)` × 10N | 5.4 | 50.3 | 29.3 | ×5.1 |
+| Create and call N closures | 22.7 | 80.9 | 74.8 | ×3.3 |
+| `call` + `apply` × 4N | 8.6 | 83.7 | 62.2 | ×7.9 |
+| Method through an inheritance chain × 5N | 5.5 | 39.0 | 27.4 | ×5.4 |
+| Polymorphic call, 3 classes × 5N | 5.6 | 45.5 | 36.6 | ×6.8 |
+| `new Square(i)` × N | 13.7 | 61.1 | 54.3 | ×4.3 |
+
+In instructions (callgrind), one `add(s, i)` iteration went from 160 to 118,
+one `sq.scaled()` (two method calls, two field reads) from 589 to 418. What
+remains is the Value traffic through stack slots: a two-line function still
+costs about 50 instructions of prologue, root record, safepoint and epilogue,
+and every operand is loaded from and stored to a 16-byte slot. Registers for
+locals (roadmap item 24) are the next step.
+
 ## Real-world code
 
 The scripts above are micro-benchmarks written for Nona. [`bench/real/`](bench/real/)

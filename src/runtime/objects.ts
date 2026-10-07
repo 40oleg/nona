@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {bumpEpochIfPrototype} from './property-cache.js';
+import {bumpEpochIfPrototype,bumpEpochIfCached} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {propertyIndexThreshold} from './property-index.js';
 import {stringLiteral} from './value.js';
@@ -492,7 +492,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rcx',slot(40));a.load('rdx',slot(48));a.lea('r8',slot(80));a.call('rt.proxyDelete');a.jmp(proxyDone);
     a.label(ordinaryDelete);
     // Only a flagged prototype can be on a cached chain (property-cache.ts).
-    {const unflagged=a.unique('unflagged');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',unflagged);a.load('r10',{base:'r10',disp:8});bumpEpochIfPrototype(a,'r10');a.label(unflagged);}
+    {const unflagged=a.unique('unflagged');a.load('r10',slot(48));a.load('rax',{base:'r10'});a.cmp('rax',5);a.jcc('ne',unflagged);a.load('r10',{base:'r10',disp:8});bumpEpochIfCached(a,'r10');a.label(unflagged);}
     a.load('rax',slot(64));
     a.load('rcx',slot(48));a.mov('rdx','rax');a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',no);
     a.load('rdx',slot(48));a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',4);a.jcc('ne',yes);
