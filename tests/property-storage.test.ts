@@ -18,26 +18,25 @@ for(const name of ['delete-churn.js','shift-splice.js'])test('property storage u
  assert.equal(run.stdout,oracle(source));
 });
 
+// The programs time themselves, so compilation and a busy machine do not count.
 test('deleting the oldest keys of a large object stays linear',()=>{
- const source=`const o = {}; for (let i = 0; i < 100000; i++) o['p' + i] = i; for (let i = 0; i < 100000; i++) delete o['p' + i];
-console.log(Object.keys(o).length);`;
- const started=Date.now();
+ // Quadratic, this took about a minute; linear, a fraction of a second.
+ const source=`const started = Date.now();
+const o = {}; for (let i = 0; i < 100000; i++) o['p' + i] = i; for (let i = 0; i < 100000; i++) delete o['p' + i];
+console.log(Object.keys(o).length, Date.now() - started < 10000);`;
  const run=runOnHost(source,{gcStress:false});
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,oracle(source));
- // Quadratic, this took about a minute; linear, a fraction of a second.
- assert.ok(Date.now()-started<20_000,'took '+(Date.now()-started)+' ms');
 });
 
 test('shift and splice of large dense arrays move their elements at once',()=>{
- const source=`const a = []; for (let i = 0; i < 50000; i++) a.push(i); let s = 0; while (a.length) s += a.shift();
+ // Element by element this took about a minute; as slot moves, about a second.
+ const source=`const started = Date.now();
+const a = []; for (let i = 0; i < 50000; i++) a.push(i); let s = 0; while (a.length) s += a.shift();
 const b = []; for (let i = 0; i < 50000; i++) b.push(i); for (let i = 0; i < 25000; i++) b.splice(b.length >> 1, 1);
 for (let i = 0; i < 2000; i++) b.splice(i, 0, -i - 1);
-console.log(s, b.length, b[0], b[1], b[2001], b[b.length - 1]);`;
- const started=Date.now();
+console.log(s, b.length, b[0], b[1], b[2001], b[b.length - 1], Date.now() - started < 15000);`;
  const run=runOnHost(source,{gcStress:false});
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,oracle(source));
- // Element by element this took about a minute; as slot moves, about a second.
- assert.ok(Date.now()-started<20_000,'took '+(Date.now()-started)+' ms');
 });
