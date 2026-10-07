@@ -41,7 +41,7 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   const bytes=new Uint8Array(F.size);bytes[O.kind]=FunctionKind;bytes[F.rawThis]=1;bytes[F.constructable]=1;
   b.bundle.fragments.push({name:symbol,section:'.data',alignment:8,bytes,symbols:{},fixups:[
    pointer(O.properties,symbol+'.prototype'),pointer(O.prototype,errorConstructorNames.some(n=>n===name)&&name!=='Error'?'rt.Error':'rt.functionPrototype'),pointer(F.code,symbol+'.code'),
-   pointer(F.constructCode,symbol+(['Object','Boolean','Number','String','Array','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
+   pointer(F.constructCode,symbol+(['Object','Function','Boolean','Number','String','Array','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array'].includes(name)||errorConstructorNames.some(n=>n===name)?'.construct':name==='Symbol'||name==='BigInt'?'.construct':'.code')),pointer(F.sourceText,symbol+'.source'),
   ]});
   for(const [i,key] of ['prototype','name','length'].entries()){
    const data=new Uint8Array(P.size);data[P.value]=key==='name'?4:key==='length'?3:5;data[P.attributes]=key==='prototype'?0:A.configurable;
@@ -96,6 +96,14 @@ export function emitBuiltinConstructors(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.lea('rdx',{rip:'rt.emptyFunction'});a.mov('r8',0);a.mov('r9',0);a.call('rt.newFunction');
   a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.Function.anonymous'});a.mov('r8',0);a.call('rt.initFunctionMetadata');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.lea('rax',{rip:'rt.Function.emptySource'});a.store({base:'rcx',disp:F.sourceText},'rax');
+ });
+ // new Function() / Reflect.construct(Function, [], newTarget): the function
+ // takes GetPrototypeFromConstructor(newTarget, %Function.prototype%) — the
+ // receiver's prototype, or %Function.prototype% of newTarget's realm when
+ // newTarget.prototype is not an object.
+ rootedFn(b,'rt.Function.construct',72,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'}],(a,frame)=>{
+  a.store(slot(40),'rcx');a.call('rt.Function.code');
+  selectNativeConstructPrototype(a,frame,'rt.functionPrototype');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.store({base:'rcx',disp:O.prototype},'r10');
  });
  b.fn('rt.Symbol.construct',40,a=>a.call('rt.throwTypeError'));
  rootedFn(b,'rt.Symbol.code',88,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
