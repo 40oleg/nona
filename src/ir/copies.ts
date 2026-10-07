@@ -1,5 +1,5 @@
 import type {FunctionIR,Operation,Terminator} from './model.js';
-import {analyzeLiveness} from './liveness.js';
+import {analyzeLiveness,isLive,liveFloor} from './liveness.js';
 
 /**
  * Block-local copy propagation and dead-move elimination. Lowering reads a
@@ -68,7 +68,7 @@ export function propagateCopies(fn:FunctionIR):FunctionIR {
    const before=liveness.get(block.id)!.before,operations:Operation[]=[];
    block.operations.forEach((op,i)=>{
     const after=i+1<block.operations.length?before[i+1]!:liveness.get(block.id)!.beforeTerminator;
-    if(removable.has(op.kind)&&'dest' in op&&!after.has(op.dest)){removed=true;return;}
+    if(removable.has(op.kind)&&'dest' in op&&!isLive(after,op.dest,liveFloor(result))){removed=true;return;}
     operations.push(op);
    });
    return operations.length===block.operations.length?block:{...block,operations};
@@ -94,7 +94,7 @@ export function coalesceMoves(fn:FunctionIR):FunctionIR {
    const op=ops[i]!,next=ops[i+1];
    if(next&&next.kind==='copy'&&target(op)&&'dest' in op&&next.source===op.dest&&next.dest!==op.dest){
     const after=i+2<ops.length?before[i+2]!:liveness.get(block.id)!.beforeTerminator;
-    if(!after.has(op.dest)){operations.push({...op,dest:next.dest} as Operation);i++;changed=true;continue;}
+    if(!isLive(after,op.dest,liveFloor(fn))){operations.push({...op,dest:next.dest} as Operation);i++;changed=true;continue;}
    }
    operations.push(op);
   }

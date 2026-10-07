@@ -1,4 +1,5 @@
 import type {FunctionIR,Operation} from './model.js';
+import {analyzeLiveness,isLive,liveFloor} from './liveness.js';
 
 /**
  * Number type inference (roadmap item 15, first step): a forward
@@ -12,6 +13,10 @@ import type {FunctionIR,Operation} from './model.js';
  * numeric/increment/decrement/negation unary operators on Numbers. BigInt
  * operands never qualify (their arithmetic allocates), and nothing read
  * from a global, a cell, a property or a call is assumed to be a Number.
+ *
+ * A block's entry state keeps only slots live there: a temporary that held a
+ * Number stays a Number forever, so without pruning every block of a large
+ * function carried every such temporary (time and memory blocks × slots).
  */
 const arithmetic=new Set(['+','-','*','/']);
 const relation=new Set(['<','<=','>','>=','==','===','!=','!==']);
@@ -44,6 +49,12 @@ function step(operation:Operation,state:Set<number>):void {
 export function markNumericOperations(fn:FunctionIR):FunctionIR {
  if(!fn.blocks.some(block=>block.operations.some(op=>op.kind==='binary'||op.kind==='unary')))return fn;
  const index=new Map(fn.blocks.map((block,i)=>[block.id,i]));
+ const liveness=analyzeLiveness(fn),floor=liveFloor(fn);
+ const liveAt=(j:number,state:ReadonlySet<number>):Set<number>=>{
+  const liveIn=liveness.get(fn.blocks[j]!.id)!.liveIn,kept=new Set<number>();
+  for(const slot of state)if(isLive(liveIn,slot,floor))kept.add(slot);
+  return kept;
+ };
  const entry:State[]=fn.blocks.map((_,i)=>i===0?new Set<number>():null);
  const successors=(i:number):number[]=>{const t=fn.blocks[i]!.terminator;return t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[];};
  let changed=true;
@@ -55,7 +66,7 @@ export function markNumericOperations(fn:FunctionIR):FunctionIR {
    for(const operation of block.operations){step(operation,state);everywhere=intersect(everywhere,state);}
    const flow=(target:number,out:ReadonlySet<number>)=>{
     const j=index.get(target);if(j===undefined)return;
-    const before=entry[j]===null?-1:entry[j]!.size,next=intersect(entry[j]===null?null:new Set(entry[j]!),out);
+    const before=entry[j]===null?-1:entry[j]!.size,next=intersect(entry[j]===null?null:new Set(entry[j]!),liveAt(j,out));
     if(entry[j]===null||next.size!==before){entry[j]=next;changed=true;}
    };
    for(const target of successors(i))flow(target,state);
