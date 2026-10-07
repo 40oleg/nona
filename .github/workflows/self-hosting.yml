@@ -1,0 +1,149 @@
+name: self-hosting
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/bootstrap-selfhost.mjs'
+      - 'scripts/verify-selfhost.mjs'
+      - 'scripts/native-cli-smoke.sh'
+      - 'scripts/package-native-cli.mjs'
+      - 'tests/selfhost-liveness.test.ts'
+      - 'tests/selfhost-traversal.test.ts'
+      - 'tests/selfhost-filesystem.test.ts'
+      - 'tests/selfhost-adapters.test.ts'
+      - 'tests/fixtures/selfhost-regexp-run-ir.json'
+      - '.github/workflows/self-hosting.yml'
+permissions:
+  contents: read
+concurrency:
+  group: self-hosting-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-x64
+            image: stage1
+          - os: windows-latest
+            target: win32-x64
+            image: stage1.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Verify compiler liveness on the native host
+        run: node --test dist/tests/selfhost-liveness.test.js dist/tests/selfhost-traversal.test.js dist/tests/selfhost-filesystem.test.js dist/tests/selfhost-adapters.test.js
+      - name: Build native stage 1 with the development bootstrap
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
+      - name: Verify native regressions and stage 1 builds stage 2
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
+      - name: Build the full native CLI
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
+      - name: Verify full CLI self-hosting, cache and output protections
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.image }} --cli
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.target }} work/selfhost-cli/${{ matrix.os == 'windows-latest' && 'stage2.exe' || 'stage2' }} work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.target }}
+          path: work/distribution
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfhost-${{ matrix.target }}
+          path: |
+            work/selfhost
+            work/selfhost-cli
+  native-cli-platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04-arm, target: linux-arm64, image: compiler}
+          - {os: windows-11-arm, target: win32-arm64, image: compiler.exe}
+          - {os: macos-15-intel, target: darwin-x64, image: compiler}
+          - {os: macos-15, target: darwin-arm64, image: compiler}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Bootstrap native CLI for the actual CPU and OS
+        run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli
+      - name: Run native compiler, executable, cache and output checks
+        run: node scripts/verify-selfhost.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} --cli --platform-smoke
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.target }} work/native-cli/${{ matrix.image }} work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.target }}
+          path: work/distribution
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-cli-${{ matrix.target }}
+          path: work/native-cli
+  native-cli-bsd:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.9.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/bootstrap-selfhost.mjs ${{ matrix.os }}-x64 work/native-cli-${{ matrix.os }}-x64/compiler --cli
+      - uses: vmactions/freebsd-vm@v1
+        if: matrix.os == 'freebsd'
+        with:
+          release: '14.3'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -s)" = FreeBSD
+            test "$(uname -m)" = amd64
+            sh scripts/native-cli-smoke.sh freebsd-x64
+      - uses: vmactions/openbsd-vm@v1
+        if: matrix.os == 'openbsd'
+        with:
+          release: '7.8'
+          usesh: true
+          run: |
+            set -eu
+            test "$(uname -s)" = OpenBSD
+            test "$(uname -m)" = amd64
+            sh scripts/native-cli-smoke.sh openbsd-x64
+      - name: Package the standalone native compiler
+        run: node scripts/package-native-cli.mjs ${{ matrix.os }}-x64 work/native-cli-${{ matrix.os }}-x64/compiler work/distribution
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nona-${{ matrix.os }}-x64
+          path: work/distribution
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-cli-${{ matrix.os }}-x64
+          path: work/native-cli-${{ matrix.os }}-x64

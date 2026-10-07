@@ -9,11 +9,12 @@ Um subconjunto síncrono do módulo `fs` do Node.js vem embutido. Os dois especi
 | Função | Observações |
 | --- | --- |
 | `readFileSync(path, options?)` | Sem codificação, retorna um `Uint8Array` (o Node.js retorna um `Buffer`); com `'utf8'`, retorna uma string. |
-| `writeFileSync(path, data, options?)` | `data`: string (UTF-8), typed array, DataView ou ArrayBuffer. `{flag: 'a'}` acrescenta ao final. |
+| `writeFileSync(path, data, options?)` | `data`: string (UTF-8), typed array, DataView ou ArrayBuffer. `{flag: 'a'}` acrescenta ao final. `flag`: `w` / `a` / `wx`; POSIX `mode`. |
 | `appendFileSync(path, data)` | |
 | `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`. |
-| `readdirSync(path)` | Nomes sem `.` e `..`, na ordem do sistema de arquivos. `withFileTypes` não é suportado. |
+| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`; `{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)` | Caminho absoluto canônico com links simbólicos resolvidos. |
+| `readdirSync(path, options?)` | Nomes sem `.` e `..`; `{withFileTypes: true}` retorna entradas com `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()`. |
 | `mkdirSync(path, {recursive}?)` | Com `recursive`, retorna o primeiro diretório criado. |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` é suportado. |
 
@@ -24,3 +25,5 @@ Implementação: no Windows, o módulo chama o KERNEL32 (`CreateFileW`, `ReadFil
 ## TextEncoder e TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` e `TextDecoder` são globais e implementam UTF-8 conforme o padrão WHATWG Encoding: `encode(string)`, `decode(bufferSource)`, as opções `fatal` e `ignoreBOM` e a substituição por U+FFFD de sequências inválidas e surrogates isolados. Outras codificações lançam `RangeError`.
+
+Disponível no Windows, Linux e macOS (x64 e ARM64), FreeBSD e OpenBSD (x64).

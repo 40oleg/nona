@@ -87,3 +87,5 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+
+सफल [self-hosting workflow](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml) से `nona-<target>` मिलता है। निष्पादन योग्य फ़ाइल निकालकर `nona build app.js -o app` (POSIX पर `./nona`) चलाएँ; Node.js या कंपाइलर JavaScript स्रोत आवश्यक नहीं हैं। विकास CLI और प्रारंभिक bootstrap Node.js 26 का उपयोग करते हैं।

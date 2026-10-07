@@ -23,8 +23,9 @@ class Parser {
   private take(): Token {
     const t=this.tokens[this.index++]!;
     // Bracket depth lets the for-initializer [~In] restriction end inside nested brackets.
-    if(t.kind==='punct'&&(t.text==='('||t.text==='['||t.text==='{')||t.kind==='templateHead')this.depth++;
-    else if(t.kind==='punct'&&(t.text===')'||t.text===']'||t.text==='}')||t.kind==='templateTail')this.depth--;
+    // Each head/middle includes the next ${; its explicit } token closes it.
+    if(t.kind==='punct'&&(t.text==='('||t.text==='['||t.text==='{')||t.kind==='templateHead'||t.kind==='templateMiddle')this.depth++;
+    else if(t.kind==='punct'&&(t.text===')'||t.text===']'||t.text==='}'))this.depth--;
     return t;
   }
   private depth=0;

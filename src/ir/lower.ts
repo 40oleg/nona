@@ -904,6 +904,18 @@ class Lowerer {
         this.invokeWithArguments(dest,callee,args,receiver,false,undefined,this.tailCalls.has(e));return dest;
       }
       case 'Binary': {
+        if(e.operator==='+'){
+          // Generated Unicode tables contain thousands of literal chunks.
+          // Fold only strings, preserving coercion and operand side effects
+          // for every nonliteral expression.
+          const chunks:string[]=[];let part:A.Expression=e;
+          while(part.kind==='Binary'&&part.operator==='+'&&part.right.kind==='Literal'&&typeof part.right.value==='string'){
+            chunks.push(part.right.value);part=part.left;
+          }
+          if(part.kind==='Literal'&&typeof part.value==='string'){
+            chunks.push(part.value);return this.constant(chunks.reverse().join(''));
+          }
+        }
         if(e.operator==='in'&&e.left.kind==='PrivateName'){const name=this.privateName(e.left);return this.preludeCall('privateIn',[name,this.expression(e.right)]);}
         const left=this.expression(e.left);
         if(e.operator===',')return this.expression(e.right);

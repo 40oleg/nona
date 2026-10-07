@@ -6,6 +6,7 @@ import {CompileError} from '../diagnostics.js';
  * through raw system calls) sits under a shared JavaScript implementation.
  */
 const common=String.raw`
+import {resolve,join,dirname} from 'node:path';
 const encoder = new TextEncoder(), decoder = new TextDecoder();
 const descriptions = {
   ENOENT: 'no such file or directory', EEXIST: 'file already exists', EACCES: 'permission denied',
@@ -81,8 +82,10 @@ export function readFileSync(path, options) {
 }
 export function writeFileSync(path, data, options) {
   path = pathString(path, 'path');
-  const flag = options !== null && typeof options === 'object' && options.flag === 'a';
-  sys.writeAll(path, bytesOf(data), flag);
+  const flag = options !== null && typeof options === 'object' ? options.flag || 'w' : 'w';
+  if(flag!=='w'&&flag!=='a'&&flag!=='wx')throw new TypeError('Unsupported file flag: '+flag);
+  const mode=options !== null && typeof options === 'object' && options.mode!==undefined?options.mode:0o666;
+  sys.writeAll(path, bytesOf(data), flag==='a',flag==='wx',mode);
 }
 export function appendFileSync(path, data) { sys.writeAll(pathString(path, 'path'), bytesOf(data), true); }
 export function existsSync(path) {
@@ -95,13 +98,19 @@ export function statSync(path, options) {
     if (options && options.throwIfNoEntry === false) return undefined;
     fail('ENOENT', 'stat', path);
   }
-  return new Stats(result.kind, result.size, result.mtimeMs, result.mode);
+  const value=new Stats(result.kind, result.size, result.mtimeMs, result.mode);
+  value.dev=options&&options.bigint?result.dev:Number(result.dev);
+  value.ino=options&&options.bigint?result.ino:Number(result.ino);
+  return value;
 }
+export function realpathSync(path) {return sys.realpath(resolve(pathString(path,'path')));}
 export function readdirSync(path, options) {
   path = pathString(path, 'path');
   const names = sys.readdir(path);
-  if (options && typeof options === 'object' && options.withFileTypes)
-    throw new TypeError('readdirSync withFileTypes is not supported');
+  if (options && typeof options === 'object' && options.withFileTypes)return names.map(name=>{
+    const info=sys.lstat(join(path,name));
+    return {name,isDirectory(){return info.kind==='dir'},isFile(){return info.kind==='file'},isSymbolicLink(){return info.kind==='link'}};
+  });
   return names;
 }
 export function mkdirSync(path, options) {
@@ -136,7 +145,7 @@ export function copyFileSync(from, to, mode) {
   sys.copy(from, to);
 }
 export const constants = { COPYFILE_EXCL: 1, F_OK: 0, R_OK: 4, W_OK: 2, X_OK: 1 };
-export default { readFileSync, writeFileSync, appendFileSync, existsSync, statSync, readdirSync, mkdirSync, rmdirSync, unlinkSync, renameSync, copyFileSync, constants };
+export default { readFileSync, writeFileSync, appendFileSync, existsSync, statSync, realpathSync, readdirSync, mkdirSync, rmdirSync, unlinkSync, renameSync, copyFileSync, constants };
 `;
 
 const win32=String.raw`
@@ -145,6 +154,9 @@ const CreateFileW = define('kernel32.dll', 'CreateFileW', 'ptr(wstr,u32,u32,ptr,
 const ReadFile = define('kernel32.dll', 'ReadFile', 'bool(ptr,buf,u32,buf,ptr)');
 const WriteFile = define('kernel32.dll', 'WriteFile', 'bool(ptr,buf,u32,buf,ptr)');
 const GetFileSizeEx = define('kernel32.dll', 'GetFileSizeEx', 'bool(ptr,buf)');
+const GetFileInformationByHandle = define('kernel32.dll','GetFileInformationByHandle','bool(ptr,buf)');
+const GetFileInformationByHandleEx = define('kernel32.dll','GetFileInformationByHandleEx','bool(ptr,u32,buf,u32)');
+const GetFinalPathNameByHandleW = define('kernel32.dll','GetFinalPathNameByHandleW','u32(ptr,buf,u32,u32)');
 const CloseHandle = define('kernel32.dll', 'CloseHandle', 'bool(ptr)');
 const GetFileAttributesExW = define('kernel32.dll', 'GetFileAttributesExW', 'bool(wstr,u32,buf)');
 const CreateDirectoryW = define('kernel32.dll', 'CreateDirectoryW', 'bool(wstr,ptr)');
@@ -198,8 +210,8 @@ const sys = {
       });
     } finally { CloseHandle(handle); }
   },
-  writeAll(path, bytes, append) {
-    const handle = append ? CreateFileW(path, 0x4, 7, null, 4, 0x80, null) : CreateFileW(path, 0x40000000, 7, null, 2, 0x80, null);
+  writeAll(path, bytes, append,exclusive=false,mode=0o666) {
+    const handle = CreateFileW(path,append?0x4:0x40000000,7,null,exclusive?1:append?4:2,0x80,null);
     if (handle === INVALID_HANDLE) error('open', path);
     try {
       let offset = 0;
@@ -220,8 +232,29 @@ const sys = {
     const size = attributeView.getUint32(32, true) + attributeView.getUint32(28, true) * 4294967296;
     const ticks = attributeView.getUint32(20, true) + attributeView.getUint32(24, true) * 4294967296;
     const directory = (a & DIRECTORY) !== 0;
-    return { kind: directory ? 'dir' : (a & REPARSE_POINT) ? 'link' : 'file', size: directory ? 0 : size,
-      mtimeMs: (ticks - 116444736000000000) / 10000, mode: directory ? 0o40666 : 0o100666 };
+    const handle=CreateFileW(path,0,7,null,3,0x02000000,null);
+    if(handle===INVALID_HANDLE)error('stat',path);
+    const identity=new Uint8Array(52),identityView=new DataView(identity.buffer),fileId=new Uint8Array(24),idView=new DataView(fileId.buffer);let extended=false;
+    try{if(!GetFileInformationByHandle(handle,identity))error('stat',path);extended=GetFileInformationByHandleEx(handle,18,fileId,fileId.length);}finally{CloseHandle(handle);}
+    const targetDirectory=(identityView.getUint32(0,true)&DIRECTORY)!==0;
+    const targetSize=identityView.getUint32(36,true)+identityView.getUint32(32,true)*4294967296;
+    const targetTicks=identityView.getUint32(20,true)+identityView.getUint32(24,true)*4294967296;
+    return { kind: targetDirectory ? 'dir' : 'file', size: targetDirectory ? 0 : targetSize,
+      dev:extended?idView.getBigUint64(0,true):BigInt(identityView.getUint32(28,true)),
+      ino:extended?idView.getBigUint64(8,true)|(idView.getBigUint64(16,true)<<64n):(BigInt(identityView.getUint32(44,true))<<32n)|BigInt(identityView.getUint32(48,true)),
+      mtimeMs: (targetTicks - 116444736000000000) / 10000, mode: targetDirectory ? 0o40666 : 0o100666 };
+  },
+  lstat(path){const result=this.stat(path);if(result&&(attributes(path)&REPARSE_POINT))result.kind='link';return result;},
+  realpath(path){
+    const handle=CreateFileW(path,0,7,null,3,0x02000000,null);
+    if(handle===INVALID_HANDLE)error('realpath',path);
+    try{
+      let data=new Uint16Array(1024),length=GetFinalPathNameByHandleW(handle,data,data.length,0);
+      if(!length)error('realpath',path);
+      if(length>=data.length){data=new Uint16Array(length+1);length=GetFinalPathNameByHandleW(handle,data,data.length,0);if(!length||length>=data.length)error('realpath',path);}
+      let value='';for(let i=0;i<length;i++)value+=String.fromCharCode(data[i]);
+      return value.startsWith('\\\\?\\UNC\\')?'\\\\'+value.slice(8):value.startsWith('\\\\?\\')?value.slice(4):value;
+    }finally{CloseHandle(handle);}
   },
   readdir(path) {
     const data = new Uint8Array(592), view = new DataView(data.buffer);
@@ -262,6 +295,8 @@ const sysWrite = define('syscall', '1', 'i64(i64,buf,i64)');
 const sysOpen = define('syscall', '2', 'i64(buf,i64,i64)');
 const sysClose = define('syscall', '3', 'i64(i64)');
 const sysStat = define('syscall', '4', 'i64(buf,buf)');
+const sysLstat = define('syscall', '6', 'i64(buf,buf)');
+const sysReadlink = define('syscall','89','i64(buf,buf,i64)');
 const sysFstat = define('syscall', '5', 'i64(i64,buf)');
 const sysRename = define('syscall', '82', 'i64(buf,buf)');
 const sysMkdir = define('syscall', '83', 'i64(buf,i64)');
@@ -285,7 +320,8 @@ function statResult() {
   const size = statView.getUint32(48, true) + statView.getUint32(52, true) * 4294967296;
   const seconds = statView.getUint32(88, true) + statView.getInt32(92, true) * 4294967296;
   const nanos = statView.getUint32(96, true);
-  return { kind: type === 0o040000 ? 'dir' : type === 0o100000 ? 'file' : type === 0o120000 ? 'link' : 'other', size, mtimeMs: seconds * 1000 + nanos / 1e6, mode };
+  return { kind: type === 0o040000 ? 'dir' : type === 0o100000 ? 'file' : type === 0o120000 ? 'link' : 'other', size, mtimeMs: seconds * 1000 + nanos / 1e6, mode,
+    dev:statView.getBigUint64(0,true),ino:statView.getBigUint64(8,true) };
 }
 function readAllFd(fd, path) {
   check(sysFstat(fd, statBuffer), 'read', path);
@@ -301,8 +337,8 @@ const sys = {
     const fd = check(sysOpen(cpath(path), O_CLOEXEC, 0), 'open', path);
     try { return readAllFd(fd, path); } finally { sysClose(fd); }
   },
-  writeAll(path, bytes, append) {
-    const fd = check(sysOpen(cpath(path), O_WRONLY | O_CREAT | O_CLOEXEC | (append ? O_APPEND : O_TRUNC), 0o666), 'open', path);
+  writeAll(path, bytes, append,exclusive=false,mode=0o666) {
+    const fd = check(sysOpen(cpath(path), O_WRONLY | O_CREAT | O_CLOEXEC | (exclusive?0x80:0) | (append ? O_APPEND : O_TRUNC), mode), 'open', path);
     try { writeAllFd(fd, bytes, path); } finally { sysClose(fd); }
   },
   stat(path) {
@@ -310,6 +346,22 @@ const sys = {
     if (result === -2 || result === -20) return null;
     check(result, 'stat', path);
     return statResult();
+  },
+  lstat(path){const result=sysLstat(cpath(path),statBuffer);check(result,'lstat',path);return statResult();},
+  realpath(path){
+    let parts=path.split('/').filter(Boolean),resolved='/',links=0;
+    while(parts.length){
+      const part=parts.shift();if(part==='.')continue;if(part==='..'){resolved=dirname(resolved);continue;}
+      const candidate=join(resolved,part),data=new Uint8Array(65536),length=sysReadlink(cpath(candidate),data,data.length);
+      if(length===-22){if(this.stat(candidate)===null)fail('ENOENT','realpath',path);resolved=candidate;continue;}
+      check(length,'realpath',path);if(length===data.length)fail('EINVAL','realpath',path);
+      if(++links>40)fail('ELOOP','realpath',path);
+      const destination=decoder.decode(data.subarray(0,length));
+      if(destination.startsWith('/'))resolved='/';
+      parts=destination.split('/').filter(Boolean).concat(parts);
+    }
+    if(this.stat(resolved)===null)fail('ENOENT','realpath',path);
+    return resolved;
   },
   readdir(path) {
     const fd = check(sysOpen(cpath(path), O_DIRECTORY | O_CLOEXEC, 0), 'scandir', path);
@@ -354,6 +406,8 @@ function linuxArm64Source():string {
   "const sysGetdents = define('syscall', '217'":"const sysGetdents = define('syscall', '61'",
   "const sysOpen = define('syscall', '2', 'i64(buf,i64,i64)');":"const openat = define('syscall', '56', 'i64(i64,buf,i64,i64)');function sysOpen(path,flags,mode){return openat(-100,path,flags,mode)}",
   "const sysStat = define('syscall', '4', 'i64(buf,buf)');":"const statat = define('syscall', '79', 'i64(i64,buf,buf,i64)');function sysStat(path,buffer){return statat(-100,path,buffer,0)}",
+  "const sysLstat = define('syscall', '6', 'i64(buf,buf)');":"function sysLstat(path,buffer){return statat(-100,path,buffer,256)}",
+  "const sysReadlink = define('syscall','89','i64(buf,buf,i64)');":"const readlinkat=define('syscall','78','i64(i64,buf,buf,i64)');function sysReadlink(path,buffer,size){return readlinkat(-100,path,buffer,size)}",
   "const sysRename = define('syscall', '82', 'i64(buf,buf)');":"const renameat = define('syscall', '276', 'i64(i64,buf,i64,buf,i64)');function sysRename(from,to){return renameat(-100,from,-100,to,0)}",
   "const sysMkdir = define('syscall', '83', 'i64(buf,i64)');":"const mkdirat = define('syscall', '34', 'i64(i64,buf,i64)');function sysMkdir(path,mode){return mkdirat(-100,path,mode)}",
   "const sysRmdir = define('syscall', '84', 'i64(buf)');":"const unlinkat = define('syscall', '35', 'i64(i64,buf,i64)');function sysRmdir(path){return unlinkat(-100,path,512)}",
@@ -364,7 +418,43 @@ function linuxArm64Source():string {
  let source=linux;for(const [from,to] of Object.entries(replacements))source=source.replace(from,to);return source;
 }
 
+/** Native 64-bit BSD/Darwin ABIs; filesystem algorithms remain our own. */
+function bsdSource(target:Target):string {
+ const darwin=target.startsWith('darwin-'),freebsd=target==='freebsd-x64';
+ const calls:Record<string,string>={sysRead:'3',sysWrite:'4',sysOpen:'5',sysClose:'6',sysFstat:darwin?'339':freebsd?'551':'53',sysRename:'128',sysMkdir:'136',sysRmdir:'137',sysUnlink:'10',sysReadlink:'58'};
+ let source=linux;
+ for(const [name,number] of Object.entries(calls))source=source.replace(new RegExp("const "+name+" =? ?define\\('syscall', ?'\\d+'"),"const "+name+" = define('syscall', '"+number+"'");
+ if(freebsd){
+  source=source.replace("const sysStat = define('syscall', '4', 'i64(buf,buf)');","const statat=define('syscall','552','i64(i64,buf,buf,i64)');function sysStat(path,buffer){return statat(-100,path,buffer,0)}");
+  source=source.replace("const sysLstat = define('syscall', '6', 'i64(buf,buf)');","function sysLstat(path,buffer){return statat(-100,path,buffer,512)}");
+ }else{
+  source=source.replace("const sysStat = define('syscall', '4'","const sysStat = define('syscall', '"+(darwin?'338':'38')+"'");
+  source=source.replace("const sysLstat = define('syscall', '6'","const sysLstat = define('syscall', '"+(darwin?'340':'40')+"'");
+ }
+ source=source.replace("const sysGetdents = define('syscall', '217', 'i64(i64,buf,i64)');",darwin||freebsd?
+  "const getdirentries=define('syscall','"+(darwin?'344':'554')+"','i64(i64,buf,i64,buf)');const directoryPosition=new Uint8Array(8);function sysGetdents(fd,buffer,size){return getdirentries(fd,buffer,size,directoryPosition)}":
+  "const sysGetdents=define('syscall','99','i64(i64,buf,i64)');");
+ source=source.replace('O_CREAT = 0x40, O_TRUNC = 0x200, O_APPEND = 0x400, O_DIRECTORY = 0x10000, O_CLOEXEC = 0x80000',
+  'O_CREAT = 0x200, O_TRUNC = 0x400, O_APPEND = 8, O_DIRECTORY = '+(darwin?'0x100000':'0x20000')+', O_CLOEXEC = '+(darwin?'0x1000000':freebsd?'0x100000':'0x10000'));
+ source=source.replace('exclusive?0x80:0','exclusive?0x800:0').replace("39: 'ENOTEMPTY'","66: 'ENOTEMPTY'");
+ source=source.replace('const statBuffer = new Uint8Array(144)','const statBuffer = new Uint8Array(256)');
+ const modeOffset=darwin?4:freebsd?24:0,sizeOffset=darwin?96:freebsd?112:80,timeOffset=freebsd?64:48;
+ const modeRead=darwin||freebsd?'getUint16':'getUint32';
+ source=source.replace(/function statResult\(\) \{[\s\S]*?\n\}/,`function statResult(){
+  const mode=statView.${modeRead}(${modeOffset},true),type=mode&0o170000;
+  return {kind:type===0o040000?'dir':type===0o100000?'file':type===0o120000?'link':'other',
+   size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:Number(statView.getBigInt64(${timeOffset},true))*1000+Number(statView.getBigInt64(${timeOffset+8},true))/1e6,mode,
+   dev:${freebsd?'statView.getBigUint64(0,true)':'BigInt(statView.getUint32('+(darwin?0:4)+',true))'},ino:statView.getBigUint64(8,true)};
+ }`);
+ // d_name starts after the ABI-specific directory entry header, not Linux's.
+ const nameOffset=darwin?21:24;
+ source=source.replaceAll('offset + 19','offset + '+nameOffset);
+ return source;
+}
+
 export function fsModuleSource(target:Target):string {
-  if(target!=='win32-x64'&&target!=='win32-arm64'&&target!=='linux-x64'&&target!=='linux-arm64')throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
+  if(target.startsWith('darwin-')||target==='freebsd-x64'||target==='openbsd-x64')return bsdSource(target)+common;
+  const supported:string[]=['win32-x64','win32-arm64','linux-x64','linux-arm64','darwin-x64','darwin-arm64','freebsd-x64','openbsd-x64'];
+  if(!supported.includes(target))throw new CompileError([{code:'E_HOST_MODULE',file:'node:fs',span:{start:0,end:0},message:`Filesystem adapter is not implemented for ${target}`}]);
   return (target==='linux-arm64'?linuxArm64Source():target==='linux-x64'?linux:win32)+common;
 }

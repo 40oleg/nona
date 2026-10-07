@@ -5,6 +5,21 @@ import { parse } from '../src/frontend/parser.js';
 import { bind } from '../src/frontend/binder.js';
 import { lower } from '../src/ir/lower.js';
 
+test('long literal data concatenations lower without recursive expression frames',()=>{
+ const chunks=Array.from({length:1850},(_,i)=>String(i%10));
+ const ir=lower(bind(parse(lex('var data='+chunks.map(chunk=>JSON.stringify(chunk)).join('+')+';'))));
+ const operations=ir.functions[0]!.blocks.flatMap(block=>block.operations);
+ assert.ok(operations.some(op=>op.kind==='constant'&&op.value===chunks.join('')));
+ assert.ok(!operations.some(op=>op.kind==='binary'&&op.operator==='+'));
+});
+
+test('literal string folding retains numeric additions and operand calls',()=>{
+ const ir=lower(bind(parse(lex('var numeric=1+2+"3";var effect="a"+value()+"b";'))));
+ const operations=ir.functions[0]!.blocks.flatMap(block=>block.operations);
+ assert.equal(operations.filter(op=>op.kind==='binary'&&op.operator==='+').length,4);
+ assert.ok(operations.some(op=>op.kind==='invoke'));
+});
+
 test('lowerer keeps top-level initialization separate from function declarations', () => {
   const ir = lower(bind(parse(lex('var g=1;function f(x){return x+g;}console.log(f(2));'))));
   assert.equal(ir.functions.length, 2);

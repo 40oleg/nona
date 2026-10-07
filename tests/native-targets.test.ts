@@ -41,9 +41,15 @@ test('unknown native target produces a positioned diagnostic',()=>{
   assert.deepEqual(result.diagnostics[0]?.span,{start:0,end:0});
 });
 
-test('unfinished filesystem adapters fail explicitly instead of importing Windows services',()=>{
-  const host=withBuiltinModules({resolve:()=>undefined,read:()=>undefined},'darwin-arm64' as never);
-  assert.throws(()=>host.read('node:fs'),/Filesystem adapter.*darwin-arm64/);
+test('Darwin and BSD filesystem adapters declare only their native kernel services',()=>{
+  for(const target of ['darwin-x64','darwin-arm64','freebsd-x64','openbsd-x64'] as const){
+    const host=withBuiltinModules({resolve:()=>undefined,read:()=>undefined},target);
+    const source=host.read('node:fs')!;
+    assert.match(source,/define\('syscall'/);
+    assert.doesNotMatch(source,/kernel32\.dll|CreateFileW/);
+    assert.match(source,/realpathSync/);
+    if(target==='openbsd-x64')assert.match(source,/const sysFstat = define\('syscall', '53'/);
+  }
 });
 
 test('existing targets keep their x64 native executable identity',()=>{

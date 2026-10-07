@@ -1,5 +1,7 @@
 # Nona
 
+Native compiler self-hosting is being verified separately; see [bootstrap status](docs/self-hosting.md). The development compiler still uses Node.js until native stage 1, stage 2 and the complete CLI pass validation.
+
 The process adapter includes native OS signals and diagnostic reports with
 actual allocator, resource and network snapshots. See [Process API](docs/process.md).
 
@@ -46,11 +48,12 @@ JavaScript source (script or module graph)
                        runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
 ```
 
-The compiler is written in TypeScript and runs on Node.js. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
+The compiler is written in TypeScript. Its development bootstrap runs on Node.js; the standalone native CLI runs on Nona's own runtime. A generated executable contains your program's machine code and Nona's runtime: values, objects, the garbage collector, built-ins, the job queue and host APIs.
 
 ## Requirements
 
-- To run the compiler: Node.js 26 or newer and npm.
+- To develop or bootstrap the compiler: Node.js 26 or newer and npm.
+- To use the standalone compiler: download the `nona-<target>` artifact from a successful [self-hosting workflow](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml), extract it and run `nona --help` (`./nona` on POSIX). It contains no Node.js runtime or compiler source tree. See [native compiler bootstrap](docs/self-hosting.md) for building and validation.
 - Targets: Windows/Linux/macOS x64 and ARM64, FreeBSD/OpenBSD x64. The default follows the host OS and CPU; see [native platforms](docs/native-platforms.md) for verification and API limits.
 
 | OS | Targets | Format |
@@ -108,7 +111,7 @@ nona --help | --version
 - Most language and library features added after ES2020 (`WeakRef`, top-level `await`, …) are not supported. Supported additions: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 - Node.js modules other than the built-in `fs`, `path`, `process` and `buffer` subsets, npm packages, and browser APIs are not available. Blob byte/text streams and object URL registration/resolution are available; general URL parsing remains unsupported.
 - Some default prototypes for constructors from another realm, Map/Set performance on very large collections, and the RegExp engine's speed are still open work.
-- Optional filesystem APIs are unavailable on Darwin/BSD; see [native platforms](docs/native-platforms.md).
+- Synchronous filesystem adapters cover all eight native targets, including exclusive writes, canonical paths and file identities used by the native compiler; see [native platforms](docs/native-platforms.md).
 
 Unsupported syntax is rejected at compile time. The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage.
 

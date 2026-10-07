@@ -101,7 +101,10 @@ export function emitMapIndex(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done'),room=a.unique('room');
   a.load('r10',{base:'rcx',disp:MapLayout.index});a.test('r10','r10');a.jcc('e',done);
   a.load('rdx',{base:'r10',disp:T.used});a.add('rdx',1);a.shl('rdx',1);a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rdx','r11');a.jcc('be',room);
-  a.load('rdx',{base:'r10',disp:T.live});a.call('rt.mapIndexResize');
+  // Resize walks the collection's list, which already includes the new entry.
+  // Placing it again would leave two slots pointing at that entry; deletion
+  // would tombstone only one and a later add would find the inactive duplicate.
+  a.load('rdx',{base:'r10',disp:T.live});a.call('rt.mapIndexResize');a.jmp(done);
   a.label(room);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:MapLayout.index});a.load('r8',slot(48));a.call('rt.mapIndexPlace');
   a.label(done);
  });

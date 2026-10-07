@@ -12,7 +12,7 @@ import {resolveRelative,type ModuleHost} from '../frontend/modules.js';
 
 /** Real provider defaults and namespace identity through the public process API. */
 export function processBuiltinProbeCases(target:Target):{name:string;source:string;module:boolean;expected:string;fileName?:string;host?:ModuleHost}[] {
- const os=getTarget(target)!.os,filesystem=os==='win32'||os==='linux';
+ const os=getTarget(target)!.os,filesystem=true;
  const literal=String.raw`
 import p,{getBuiltinModule as get} from 'node:process';
 import * as nodeProcess from 'node:process';

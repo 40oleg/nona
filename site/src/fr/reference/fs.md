@@ -9,11 +9,12 @@ Un sous-ensemble synchrone du module `fs` de Node.js est intégré. Les deux sp�
 | Fonction | Remarques |
 | --- | --- |
 | `readFileSync(path, options?)` | Sans encodage, renvoie un `Uint8Array` (Node.js renvoie un `Buffer`) ; avec `'utf8'`, renvoie une chaîne. |
-| `writeFileSync(path, data, options?)` | `data` : chaîne (UTF-8), tableau typé, DataView ou ArrayBuffer. `{flag: 'a'}` ajoute à la fin. |
+| `writeFileSync(path, data, options?)` | `data` : chaîne (UTF-8), tableau typé, DataView ou ArrayBuffer. `{flag: 'a'}` ajoute à la fin. `flag`: `w` / `a` / `wx`; POSIX `mode`. |
 | `appendFileSync(path, data)` | |
 | `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode` ; `{throwIfNoEntry: false}`. |
-| `readdirSync(path)` | Noms sans `.` ni `..`, dans l’ordre du système de fichiers. `withFileTypes` n’est pas pris en charge. |
+| `statSync(path, options?)` | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode` ; `{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)` | Chemin absolu canonique après résolution des liens symboliques. |
+| `readdirSync(path, options?)` | Noms sans `.` ni `..` ; `{withFileTypes: true}` renvoie des entrées avec `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()`. |
 | `mkdirSync(path, {recursive}?)` | Avec `recursive`, renvoie le premier répertoire créé. |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` est pris en charge. |
 
@@ -24,3 +25,5 @@ Implémentation : sous Windows, le module appelle KERNEL32 (`CreateFileW`, `Read
 ## TextEncoder et TextDecoder {#textencoder-and-textdecoder}
 
 `TextEncoder` et `TextDecoder` sont globaux et implémentent l’UTF-8 conformément au standard WHATWG Encoding : `encode(string)`, `decode(bufferSource)`, les options `fatal` et `ignoreBOM`, et le remplacement par U+FFFD des séquences invalides et des surrogates isolés. Les autres encodages lèvent `RangeError`.
+
+Disponible sur Windows, Linux et macOS (x64 et ARM64), FreeBSD et OpenBSD (x64).
