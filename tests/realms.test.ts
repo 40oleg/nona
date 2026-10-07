@@ -17,10 +17,18 @@ test('constructors fall back to the prototype intrinsic of new.target realm',()=
 var other = __nonaCreateRealm();
 // A bound function has no prototype property; its realm is its target's.
 var C = other.Object.bind();
+var p = Reflect.construct(Promise, [function () {}], C);
+console.log(Object.getPrototypeOf(p) === other.Promise.prototype, Object.getPrototypeOf(p) === Promise.prototype);
 var f = Reflect.construct(Function, [], C);
 console.log(Object.getPrototypeOf(f) === other.Function.prototype, typeof f, f.name, f());
 var a = Reflect.construct(Array, [], C);
 console.log(Object.getPrototypeOf(a) === other.Array.prototype);
+class Sub extends Promise {}
+var s = Reflect.construct(Sub, [function () {}], C);
+console.log(Object.getPrototypeOf(s) === other.Promise.prototype);
+var D = function () {}; D.prototype = Object.prototype;
+console.log(Object.getPrototypeOf(Reflect.construct(Promise, [function () {}], D)) === Object.prototype);
 class Fn extends Function {}
 console.log(Object.getPrototypeOf(new Fn()) === Fn.prototype, Object.getPrototypeOf(new Function()) === Function.prototype);
+console.log(Object.getPrototypeOf(new Promise(function () {})) === Promise.prototype);
 `));

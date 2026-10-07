@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `Promise` instances constructed with a `newTarget` whose `prototype` is not an object get `%Promise.prototype%` of `newTarget`'s realm instead of `%Object.prototype%` ([#7](https://github.com/40oleg/nona/issues/7)).
+
 - `new Function()` and `Reflect.construct(Function, [], newTarget)` take their prototype from `newTarget` (GetPrototypeFromConstructor), falling back to `%Function.prototype%` of `newTarget`'s realm ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).

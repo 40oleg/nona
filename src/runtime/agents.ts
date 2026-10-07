@@ -37,8 +37,9 @@ export function emitAgents(b:RuntimeBuilder):void {
  b.bundle.imports.push({dll:'KERNEL32.dll',name:'Sleep',symbol:'Sleep'});
  // This agent's receiveBroadcast callback (a GC root of this program).
  b.data('rt.agentCallback',new Uint8Array(16),'.data');
- // The two bindings of the JS runtime prelude, kept apart from user globals.
- b.data('rt.preludeGlobals',new Uint8Array(32),'.data');
+ // The two bindings of the JS runtime prelude, kept apart from user globals,
+ // then this realm's intrinsic %Promise.prototype% (function-source.ts).
+ b.data('rt.preludeGlobals',new Uint8Array(48),'.data');
  // RCX output; argv[0] callback.
  b.fn('rt.agentReceiveBroadcast.code',40,a=>{
   a.test('rdx','rdx');failIf(a,'e','rt.throwTypeError');

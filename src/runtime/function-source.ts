@@ -5,17 +5,20 @@ import {emitFunctionBuiltin,prependFunctionBuiltin,builtinPropertyRoots} from '.
 import {rootedFn} from './root-scope.js';
 import {BoundDataLayout as B} from './bound-layout.js';
 import {stringLiteral} from './value.js';
+import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
 const PromiseConstructorFlag=0x10000;
 
 export const sourceStaticProperties=[...builtinPropertyRoots('rt.functionToString','toString'),
  ...builtinPropertyRoots('rt.markNativeBuiltin','__nonaMarkNativeInternal'),
  ...builtinPropertyRoots('rt.markPromiseBuiltin','__nonaMarkPromiseInternal'),
+ ...builtinPropertyRoots('rt.promiseRealmBuiltin','__nonaPromiseRealmInternal'),
  ...builtinPropertyRoots('rt.reflectConstructInternal','__nonaReflectConstructInternal')];
 export function emitFunctionSource(b:RuntimeBuilder):void {
  emitFunctionBuiltin(b,'rt.functionToString','toString',0,'rt.functionPrototype.bind');
  prependFunctionBuiltin(b,'rt.markNativeBuiltin','__nonaMarkNativeInternal',1,'rt.functionPrototype');
  prependFunctionBuiltin(b,'rt.markPromiseBuiltin','__nonaMarkPromiseInternal',1,'rt.functionPrototype');
+ prependFunctionBuiltin(b,'rt.promiseRealmBuiltin','__nonaPromiseRealmInternal',2,'rt.functionPrototype');
  prependFunctionBuiltin(b,'rt.reflectConstructInternal','__nonaReflectConstructInternal',3,'rt.functionPrototype');
  b.bundle.fragments.push(stringLiteral('rt.promiseIndexZero','0'));
  // The JS bootstrap validates constructors and builds a private dense list.
@@ -71,6 +74,25 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.load('rax',{base:'r8',disp:8});a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',FunctionKind);failIf(a,'ne','rt.throwTypeError');
   a.load('r10',{base:'rax',disp:O.flags});a.or('r10',PromiseConstructorFlag);a.store({base:'rax',disp:O.flags},'r10');
   a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+ });
+ // __nonaPromiseRealmInternal(object, register). With register true the
+ // prelude records this realm's intrinsic %Promise.prototype% (third prelude
+ // global, a GC root of the realm). Otherwise object is a receiver that the
+ // ordinary [[Construct]] of Promise created: when new.target.prototype was
+ // not an object it got %Object.prototype% of new.target's realm
+ // (rt.newInstance records that realm in its flags), and it takes that
+ // realm's %Promise.prototype% instead (GetPrototypeFromConstructor,
+ // ES2020 25.6.3.1 step 3).
+ b.fn('rt.promiseRealmBuiltin.code',40,a=>{
+  const done=a.unique('done'),adjust=a.unique('adjust');
+  a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+  a.cmp('rdx',2);a.jcc('b',done);a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',done);
+  a.load('rax',{base:'r8',disp:24});a.test('rax','rax');a.jcc('e',adjust);
+  for(const part of [0,8]){a.load('rax',{base:'r8',disp:part});a.store({rip:'rt.preludeGlobals',addend:32+part},'rax');}a.jmp(done);
+  a.label(adjust);a.load('r10',{base:'r8',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.mov('rax','r11');a.and('rax',OF.defaultPrototypeFallback);a.jcc('e',done);
+  a.shr('r11',RealmFlagShift);a.and('r11',255);a.shl('r11',3);a.lea('r9',{rip:realmTable('rt.preludeGlobals')});a.add('r9','r11');a.load('r9',{base:'r9'});
+  a.load('rax',{base:'r9',disp:32});a.cmp('rax',5);a.jcc('ne',done);a.load('rax',{base:'r9',disp:40});a.store({base:'r10',disp:O.prototype},'rax');
+  a.label(done);
  });
  b.fn('rt.isPromiseConstructor',40,a=>{
   const no=a.unique('no'),done=a.unique('done'),unwrap=a.unique('unwrap'),target=a.unique('target');a.label(unwrap);

@@ -89,9 +89,11 @@ var __nonaPromiseDrainJobs=(function(){
     ];
     return {resolve:functions[0],reject:functions[1]}
   }
+  var promiseRealm=Function.prototype.__nonaPromiseRealmInternal;
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
+    promiseRealm(this,false);
     setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false,reported:false,promise:this});
     var functions=resolving(this);
     try{executor(functions.resolve,functions.reject)}catch(error){functions.reject(error)}
@@ -201,6 +203,7 @@ var __nonaPromiseDrainJobs=(function(){
   Function.prototype.__nonaMarkNativeInternal(Promise);
   Function.prototype.__nonaMarkNativeInternal(speciesGetter);
   Function.prototype.__nonaMarkPromiseInternal(Promise);
+  promiseRealm(Promise.prototype,true);
 
   // Async functions and generators run on internal generator coroutines.
   // Each await suspends the coroutine with an own "await" flag in its result.
