@@ -3,7 +3,7 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {stringLiteral} from './value.js';
-import {unicodeUpperCount,unicodeUpperData,unicodeLowerCount,unicodeLowerData,unicodeCasedCount,unicodeCasedData,unicodeCaseIgnorableCount,unicodeCaseIgnorableData} from './unicode-upper-data.js';
+import {unicodeUpperCount,unicodeUpperData,unicodeLowerCount,unicodeLowerData,unicodeCasedCount,unicodeCasedData,unicodeCaseIgnorableCount,unicodeCaseIgnorableData} from './data/unicode-upper-data.js';
 
 const searchMethods=['includes','startsWith','endsWith'] as const;
 const positionMethods=['indexOf','lastIndexOf'] as const;

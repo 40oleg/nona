@@ -3,7 +3,7 @@ import {rootedFn} from './root-scope.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {fullRuntimeHint} from './link.js';
-import {unicodeNormalizeCanonicalCount,unicodeNormalizeCanonicalData,unicodeNormalizeCompatibilityCount,unicodeNormalizeCompatibilityData,unicodeNormalizeCccCount,unicodeNormalizeCccData,unicodeNormalizeComposeCount,unicodeNormalizeComposeData} from './unicode-normalize-data.js';
+import {unicodeNormalizeCanonicalCount,unicodeNormalizeCanonicalData,unicodeNormalizeCompatibilityCount,unicodeNormalizeCompatibilityData,unicodeNormalizeCccCount,unicodeNormalizeCccData,unicodeNormalizeComposeCount,unicodeNormalizeComposeData} from './data/unicode-normalize-data.js';
 
 export const stringNormalizeRoots=['rt.stringNormalize.fn'];
 export const stringNormalizePropertyRoots=builtinPropertyRoots('rt.stringNormalize.fn','normalize','rt.stringPrototype');

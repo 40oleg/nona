@@ -41,8 +41,8 @@
 
 ## 2026-09-23 — C++-версия матричного калькулятора
 
-- Добавлен `matrix-cpp/matrix-calculator.cpp` с теми же операциями и входными
-  матрицами; инструкция сборки сохранена в `matrix-cpp/README.md`.
+- Добавлен `examples/matrix-calculator/cpp/matrix-calculator.cpp` с теми же операциями и входными
+  матрицами; инструкция сборки сохранена в `examples/matrix-calculator/cpp/README.md`.
 - Собран GCC 16.2.0 UCRT64 с `-std=c++17 -O2 -s -static -Wall -Wextra
   -Wpedantic -ffp-contract=off`. Предупреждений нет.
 - C++ EXE и исходный JS запущены: оба завершились кодом 0, stderr пуст,
