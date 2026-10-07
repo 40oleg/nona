@@ -95,7 +95,9 @@ Runner features added for the ES2020 gate (2026-09):
   introduced after ES2020 (see `postEs2020Features` in the script), plus
   `error-stack-accessor` and the non-standard `caller` extension.
 - `$262.createRealm` is compiled in when the test mentions it (up to three
-  realms); `$262.agent` programs are extracted from static templates (loop
+  realms). Functions made with `other.Function("literal source")` run in
+  `other`'s realm (realm-local code cloned per realm, see
+  `src/frontend/dynamic-functions.ts`); `other.eval(...)` is not compiled yet; `$262.agent` programs are extracted from static templates (loop
   counters, top-level constants and `$262.agent.timeouts` are folded) and
   compiled into the image as agent threads. `CanBlockIsFalse` tests are skipped
   because the main agent can block.
