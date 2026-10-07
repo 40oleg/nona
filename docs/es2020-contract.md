@@ -50,8 +50,8 @@ The concrete conformance gaps after the merged PR #5 are tracked in
     holds the intrinsic. Calls with no arguments create empty functions at run
     time. Any other source throws `EvalError` with the message above.
   * Issue #11 tracks the remaining run-time sources (an embedded evaluator).
-* `with` is part of the language target in sloppy script code. Its implementation
-  is outstanding. Strict-mode rejection is also required.
+* `with` is implemented in sloppy script code (`tests/with.test.ts`); strict mode code
+  rejects it with an early error.
 * Annex B web-compatibility features are tracked separately. Implement the
   portions applicable to a script host, or publish each deviation explicitly.
 * ECMA-402 internationalization, browser APIs, and Node.js APIs are separate

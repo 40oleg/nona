@@ -20,6 +20,8 @@
 
 - Delete an own property of an object with a property hash index without walking its list: the index records the word that links each node, so deleting the oldest keys first is no longer quadratic (20,000 keys deleted oldest first: 2 s → 22 ms) ([#13](https://github.com/40oleg/nona/issues/13)).
 
+- Added `docs/architecture.md` (pipeline, layouts, calling convention, machine model, runtime linking) with a test that checks its layout tables against the source, corrected stale statements in `runtime-memory.md`, `es2020-contract.md` and `language-support.md`, and made `docs/README.md` a complete English index ([#171](https://github.com/40oleg/nona/issues/171)).
+
 - Moved per-release status files, deferred Test262 lists, plans, the development log and agent session notes from `docs/` to `docs/history/`; the current status is `docs/status.md`, rewritten per release ([#172](https://github.com/40oleg/nona/issues/172)).
 
 - Add a Lean 4 proof prototype for slot substitution, dead writes, destination coalescing and a modeled straight-line dead-move optimizer, with checked counterexamples, axiom auditing, production IR regressions and proof CI ([#160](https://github.com/40oleg/nona/issues/160)).

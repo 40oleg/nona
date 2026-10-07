@@ -1,47 +1,27 @@
-# Документация Nona
+# Nona documentation
 
-Документация разделяет фактическую поддержку, запрошенные возможности и историю
-работ. Наличие функции в плане не означает, что она реализована.
+This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
-| Документ | Назначение |
-| --- | --- |
-| [Матричный калькулятор](matrix-calculator.md) | Пример программы, изменение матриц и самостоятельная сборка EXE |
-| [Текущее состояние](language-support.md) | Возможности компилятора и доказательства проверки |
-| [Статус 0.17–0.20](status.md) | Итоговый аудит ES2020: полный Test262 на Windows, `eval` времени компиляции, оставшиеся отказы |
-| [Статус v0.6](history/v0.6-status.md) | Релиз после PR #5, проверки Windows/Linux и открытые ограничения ES2020 |
-| [Статус v0.4](history/v0.4-status.md) | Проверки Array/числовых API и оставшиеся зависимости |
-| [Статус v0.3](history/v0.3-status.md) | Предыдущий релиз и оставшиеся области ES2020 |
-| [Статус v0.5](history/v0.5-status.md) | Проверки String, Number, Math и URI и отложенные зависимости |
-| [Контракт завершения ES2020](es2020-contract.md) | Граница цели, исключения и критерии закрытия разделов стандарта |
-| [Аудит операций runtime](history/runtime-operations-audit.md) | Общие операции и граница платформенного backend |
-| [Test262](test262.md) | Закреплённая ревизия, запуск групп и ограничения адаптера |
-| [Журнал разработки](history/development-log.md) | Изменения, команды проверок, результаты и незавершённая работа |
-| [Расширение языка: проект решения](history/superpowers/specs/2026-09-20-language-expansion-design.md) | Границы следующей работы и архитектурные решения |
-| [Базовые конструкции](history/superpowers/plans/2026-09-20-core-language.md) | План и отметки первого этапа расширения |
-| [Лексические объявления](history/superpowers/plans/2026-09-20-lexical-bindings.md) | let/const, TDZ и ограничения промежуточного runtime |
-| [Объекты и массивы](history/superpowers/plans/2026-09-21-objects-arrays.md) | Свойства, прототипы, sparse arrays и сравнение отдельных программ с Node |
-| [Сборка мусора](history/superpowers/plans/2026-09-21-garbage-collection.md) | План проверенного GC для текущего поднабора языка |
-| [Память runtime](runtime-memory.md) | Реальный ABI аллокаций/корней, safepoints и требования к будущим callbacks |
-| [Функции и замыкания](history/superpowers/plans/2026-09-21-functions-closures.md) | Callable objects, environments и протокол вызовов; этап в работе |
-| [Спецификация v0.1](history/superpowers/specs/2026-09-20-js-aot-win64-design.md) | Исходные требования и ограничения первой версии |
-| [План v0.1](history/superpowers/plans/2026-09-20-js-aot-win64.md) | Исторический план первой реализации |
+| Document | Contents | Language |
+| --- | --- | --- |
+| [architecture.md](architecture.md) | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking | English |
+| [roadmap.md](roadmap.md) | Performance and platform plan derived from the V8 blog, with status | English |
+| [status.md](status.md) | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures | Russian |
+| [es2020-contract.md](es2020-contract.md) | The ES2020 completion contract: scope, documented exceptions, how completion is judged | English |
+| [language-support.md](language-support.md) | Language feature matrix (checked for Nona 0.5.0; see its note) | Russian |
+| [test262.md](test262.md) | The Test262 baseline and how it is run | English |
+| [runtime-memory.md](runtime-memory.md) | Allocation, rooting, safepoints and exception rules of the runtime | Russian |
+| [host-apis.md](host-apis.md) | Host APIs available to programs (timers, `process`, `fs`, FFI and more) | English |
+| [process.md](process.md) | The `process` API on all targets | English |
+| [fs.md](fs.md) | `node:fs` and `nona:fs` | English |
+| [path.md](path.md) | `node:path` and `path` | English |
+| [network.md](network.md) | `node:http` and `node:net` | English |
+| [ffi.md](ffi.md) | Native functions (`nona:ffi`, `nona:win32`) | English |
+| [windows-executables.md](windows-executables.md) | Windows subsystem, icons, manifests and version information | English |
+| [native-platforms.md](native-platforms.md) | The eight native targets and their execution evidence | English |
+| [self-hosting.md](self-hosting.md) | Building the compiler as a native executable | English |
+| [program-corpus.md](program-corpus.md) | The combination program regression corpus | English |
+| [formal-verification.md](formal-verification.md) | The Lean proof prototype for IR move rules | English |
+| [matrix-calculator.md](matrix-calculator.md) | Example program: matrix operations and a standalone EXE | Russian |
 
-## Правила сопровождения
-
-1. Для каждого законченного изменения обновлять журнал и соответствующую строку
-   матрицы языка. Записывать конкретные возможности, ограничения и тесты.
-2. Статус «проверено» требует реального запуска тестов. Для функций языка нужен
-   запуск полученного EXE, а не только проверка AST или успешная сборка TypeScript.
-3. Частичная реализация остаётся частичной: синтаксис, runtime и стандартные методы
-   могут иметь разные степени готовности.
-4. Для тестовых запусков указывать команду, дату, число успешных, ошибочных и
-   пропущенных тестов. Объяснять каждый пропуск.
-5. README содержит короткую актуальную сводку; эта папка — подробности.
-6. Проект решения не заменяет текущую матрицу поддержки. Изменения архитектуры
-   записывать с причиной и последствиями для существующих программ.
-7. Не утверждать совместимость с полным ES5/ES2015/ES2020 по результатам нескольких
-   примеров. Отдельно фиксировать покрытие Test262 и оставшиеся расхождения.
-
-- [Native platforms](native-platforms.md): target names, capabilities and native verification.
-
-- [Formal verification prototype](formal-verification.md): Lean proofs, counterexamples, local commands and the trusted boundary.
+The user documentation is on the site (`site/`); pages that mirror documents from this directory are generated by `site/scripts/sync-docs.mjs`. [`../CHANGELOG.md`](../CHANGELOG.md) lists the changes per release and [`../PERFORMANCE.md`](../PERFORMANCE.md) the measurements.
