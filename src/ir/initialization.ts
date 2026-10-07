@@ -1,4 +1,5 @@
 import type {FunctionIR,Operation} from './model.js';
+import {analyzeLiveness,isLive,liveFloor} from './liveness.js';
 
 /**
  * Removes checkInitialized operations whose slot is definitely initialized
@@ -14,6 +15,10 @@ import type {FunctionIR,Operation} from './model.js';
  * function initialized the binding; reads of cells and captures may observe
  * the marker and initialize nothing. An exception handler starts
  * with what holds at every point of the blocks it protects.
+ *
+ * A block's entry state keeps only slots live there and globals this
+ * function reads: everything else can no longer be checked, and keeping it
+ * made the analysis of a large function cost blocks × slots.
  */
 const producesValue=new Set<Operation['kind']>(['constant','binary','unary','newFunction','newObject','newArguments','newRestArray',
  'invoke','invokeArray','constructForward','property','newInstance','constructorResult','forInKeys','forInHas','forOfValue','globalObject','currentFunction',
@@ -30,9 +35,9 @@ function intersect(a:State,b:ReadonlySet<number>):Set<number> {
 // Global bindings are tracked as -1-index: once initialized, a binding never
 // returns to its dead zone, so a later read in this function is initialized.
 const global=(index:number)=>-1-index;
-function step(operation:Operation,state:Set<number>):void {
+function step(operation:Operation,state:Set<number>,readGlobals:ReadonlySet<number>):void {
  if(operation.kind==='checkInitialized'){state.add(operation.slot);return;}
- if(operation.kind==='storeGlobal'&&!operation.prelude){if(state.has(operation.source))state.add(global(operation.index));else state.delete(global(operation.index));return;}
+ if(operation.kind==='storeGlobal'&&!operation.prelude){if(!readGlobals.has(operation.index))return;if(state.has(operation.source))state.add(global(operation.index));else state.delete(global(operation.index));return;}
  if(operation.kind==='loadGlobal'&&!operation.prelude){if(state.has(global(operation.index)))state.add(operation.dest);else state.delete(operation.dest);return;}
  if(operation.kind==='copy'){if(state.has(operation.source))state.add(operation.dest);else state.delete(operation.dest);return;}
  if(operation.kind==='getIterator'){state.add(operation.iterator);state.add(operation.next);return;}
@@ -44,6 +49,14 @@ function step(operation:Operation,state:Set<number>):void {
 export function removeRedundantInitializationChecks(fn:FunctionIR):FunctionIR {
  if(!fn.blocks.some(block=>block.operations.some(op=>op.kind==='checkInitialized')))return fn;
  const index=new Map(fn.blocks.map((block,i)=>[block.id,i]));
+ const readGlobals=new Set<number>();
+ for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='loadGlobal'&&!op.prelude)readGlobals.add(op.index);
+ const liveness=analyzeLiveness(fn),floor=liveFloor(fn);
+ const liveAt=(j:number,state:ReadonlySet<number>):Set<number>=>{
+  const liveIn=liveness.get(fn.blocks[j]!.id)!.liveIn,kept=new Set<number>();
+  for(const slot of state)if(slot<0||isLive(liveIn,slot,floor))kept.add(slot);
+  return kept;
+ };
  const entry:State[]=fn.blocks.map((_,i)=>i===0?new Set<number>():null);
  const successors=(i:number):number[]=>{
   const t=fn.blocks[i]!.terminator;
@@ -57,10 +70,10 @@ export function removeRedundantInitializationChecks(fn:FunctionIR):FunctionIR {
    const start=entry[i];
    if(start===null)return;
    const state=new Set(start);let everywhere=new Set(start);
-   for(const operation of block.operations){step(operation,state);everywhere=intersect(everywhere,state);}
+   for(const operation of block.operations){step(operation,state,readGlobals);everywhere=intersect(everywhere,state);}
    const flow=(target:number,out:ReadonlySet<number>)=>{
     const j=index.get(target);if(j===undefined)return;
-    const before=entry[j]===null?-1:entry[j]!.size,next=intersect(entry[j]===null?null:new Set(entry[j]!),out);
+    const before=entry[j]===null?-1:entry[j]!.size,next=intersect(entry[j]===null?null:new Set(entry[j]!),liveAt(j,out));
     if(entry[j]===null||next.size!==before){entry[j]=next;changed=true;}
    };
    for(const target of successors(i))flow(target,state);
@@ -73,7 +86,7 @@ export function removeRedundantInitializationChecks(fn:FunctionIR):FunctionIR {
   const state=new Set(start),operations:Operation[]=[];
   for(const operation of block.operations){
    if(operation.kind==='checkInitialized'&&state.has(operation.slot))continue;
-   operations.push(operation);step(operation,state);
+   operations.push(operation);step(operation,state,readGlobals);
   }
   return operations.length===block.operations.length?block:{...block,operations};
  })};

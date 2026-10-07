@@ -6,7 +6,7 @@ import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.j
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
-import { analyzeLiveness } from '../../ir/liveness.js';
+import { analyzeLiveness, isLive, liveFloor } from '../../ir/liveness.js';
 import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
@@ -344,7 +344,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // Slots that may hold stale values when a block starts: whatever its
     // predecessors left (live slots and their last destination). Handler
     // targets can be entered from any operation, so they assume every slot.
-    const allSlots=Array.from({length:fn.slotCount},(_,i)=>i);
+    // Slots below the live floor (locals of a function with very many) are
+    // live everywhere: they are never cleared, so they are not tracked here.
+    const floor=liveFloor(fn),allSlots=Array.from({length:fn.slotCount-floor},(_,i)=>i+floor);
     const handlerTargets=new Set<number>();for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='pushHandler')handlerTargets.add(op.target);
     const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
     for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
@@ -369,7 +371,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       let possible=entry;
       for(const [index,op] of block.operations.entries()){
         if(clearsBefore(block,index))possible=new Set(liveness.get(block.id)!.before[index]!);else possible=new Set(possible);
-        for(const d of destinations(op))possible.add(d);
+        for(const d of destinations(op))if(d>=floor)possible.add(d);
       }
       return possible;
     };
@@ -378,7 +380,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       for(const [index,block] of fn.blocks.entries()){
         let entry:Set<number>;
         if(handlerTargets.has(block.id))entry=new Set(allSlots);
-        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i));
+        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i).filter(i=>i>=floor));
         else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
         const previous=entrySets.get(block.id);
         if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
@@ -398,7 +400,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
         possible=new Set(live);
        }else possible=new Set(possible);
-       for(const d of destinations(op))possible.add(d);
+       for(const d of destinations(op))if(d>=floor)possible.add(d);
        // Safepoint at the start of every block (every loop iteration passes
        // one): the check of rt.safepoint inline, so that only a collection
        // costs a call. Every slot is rooted and every dead one cleared at
@@ -652,7 +654,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'binary':{
           // A comparison of Numbers that only decides this block's branch is
           // fused into it: no boolean is materialized.
-          if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!liveness.get(block.id)!.liveOut.has(op.dest)){fused=op;break;}
+          if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!isLive(liveness.get(block.id)!.liveOut,op.dest,floor)){fused=op;break;}
           if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
           // Strict equality of values whose types are not known is one call
           // to rt.strictEquals: inline tag dispatch made each site several

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Functions with more than 256 locals (a bundle's top-level scope wrapped in one function, such as typescript.js) treat their locals as live everywhere: liveness, frame slot assignment, the initialization check and Number inference no longer grow with locals × operations. typescript.js (9 MB) compiles in 95 s and 2.7 GB instead of running out of memory, and runs ([#156](https://github.com/40oleg/nona/issues/156)).
+- Added `examples/angular`: a builder for standard Angular applications that Nona compiles, with the TypeScript compiler, into a native executable; it builds `ng new` into a page that renders like the `ng build` output ([#156](https://github.com/40oleg/nona/issues/156)).
 ## v0.10.0 — 2026-10-07
 
 Highlights since v0.9.0:
