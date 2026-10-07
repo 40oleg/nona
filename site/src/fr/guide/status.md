@@ -2,7 +2,7 @@
 
 ## Version actuelle
 
-**v0.9.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
+**v0.10.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
 
 ## Audit Test262
 
