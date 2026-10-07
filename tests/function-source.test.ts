@@ -36,3 +36,20 @@ test('source descriptors and callable methods survive GC',()=>{
  const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
 });
+test('functions keep ranges of one stored module text',()=>{
+ // One byte per character for Latin-1 text (é), two bytes otherwise.
+ for(const source of [
+  'function outer(é){var inner=(x)=>x*1;class K{m(){return "é";}static s(){}get g(){return 1;}}function* g(){yield 1;}return [inner,K,K.prototype.m,K.s,Object.getOwnPropertyDescriptor(K.prototype,"g").get,g];}\nconsole.log(outer.toString());for(const f of outer(1))console.log(String(f));',
+  'var o={meth(){return "日本";},["k"+1]:function(){},a:()=>"✓"};for(const k in o)console.log(o[k].toString());console.log(o.meth.toString()===o.meth.toString());',
+ ]){
+  const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
+  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
+ }
+ // Nested functions do not repeat their enclosing text.
+ const body=Array.from({length:40},(_,i)=>`function f${i}(){ return ${'"padding".length+'.repeat(20)}${i}; }`).join('\n');
+ const nested=`function a(){ function b(){ function c(){ ${body} return f1; } return c; } return b; }\nconsole.log(a()()().toString());`;
+ const program=generate(lower(bind(parse(lex(nested)))));
+ const stored=program.fragments.filter(f=>f.name.startsWith('source.')||f.name.startsWith('literal.')).reduce((sum,f)=>sum+f.bytes.length,0);
+ const flat=generate(lower(bind(parse(lex('console.log(1);'))))).fragments.filter(f=>f.name.startsWith('source.')||f.name.startsWith('literal.')).reduce((sum,f)=>sum+f.bytes.length,0);
+ assert.ok(stored-flat<2*nested.length,`${stored-flat} bytes of text for ${nested.length} characters`);
+});

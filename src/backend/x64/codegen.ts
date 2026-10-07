@@ -166,6 +166,23 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     v.setBigUint64(0,BigInt(value.length),true);for(let i=0;i<value.length;i++)v.setUint16(8+2*i,value.charCodeAt(i),true);
     literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
   };
+  // Each module's text is emitted once (one byte per character when it
+  // fits); a function's source is a static descriptor {text, start, length}
+  // that rt.sourceSlice turns into a string (Function.prototype.toString).
+  const sources=new Map<string,string>();
+  const sourceRange=(range:{source:string;start:number;end:number}):string=>{
+    let text=sources.get(range.source);
+    if(!text){
+      const source=range.source,wide=/[^\u0000-\u00ff]/.test(source),bytes=new Uint8Array(16+source.length*(wide?2:1)),view=new DataView(bytes.buffer);
+      view.setBigUint64(0,BigInt(source.length),true);view.setBigUint64(8,wide?1n:0n,true);
+      if(wide)for(let i=0;i<source.length;i++)view.setUint16(16+2*i,source.charCodeAt(i),true);
+      else for(let i=0;i<source.length;i++)bytes[16+i]=source.charCodeAt(i);
+      text='source.'+fragments.length;sources.set(source,text);fragments.push({name:text,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});
+    }
+    const name='sourceRange.'+fragments.length,bytes=new Uint8Array(24),view=new DataView(bytes.buffer);
+    view.setBigUint64(8,BigInt(range.start),true);view.setBigUint64(16,BigInt(range.end-range.start),true);
+    fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[{offset:0,kind:'va64',target:text,addend:0}],symbols:{}});return name;
+  };
   if(!base){
     preludeFunctions().forEach(fn=>emitFunction(fn));
     const image:BaseImage={fragments:copyFragments(fragments),functions:functions.map(fn=>({...fn})),imports:[...imports],literals:new Map(literals),serial:assemblerSerial()};
@@ -457,6 +474,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           }
           if(op.homeObject!==undefined){a.load('r10',payload(op.dest));a.load('rax',payload(op.homeObject));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
           if(op.sourceText!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
+          else if(op.sourceRange!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:sourceRange(op.sourceRange)});a.or('rax',1);a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
           pointer('rcx',op.dest);
           if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',payload(op.nameSlot));
           a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Function source text (for `Function.prototype.toString`) is stored once per module, one byte per character when it fits, and each function keeps only its range; the string is created when `toString` is called. Nested functions no longer repeat their enclosing function's text: the Angular builder with typescript.js shrinks from 146 MB to 87 MB ([#164](https://github.com/40oleg/nona/issues/164)).
 - `Reflect.construct(F, [literals], newTarget)` with `F` written as `Function` or `x.Function` compiles the source ahead of time, creates the function in `F`'s realm and gives it the prototype `newTarget` selects ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - A sloppy-mode function called with an undefined or null `this` gets the global object of its own realm, not the caller's (OrdinaryCallBindThis) ([#7](https://github.com/40oleg/nona/issues/7)).
