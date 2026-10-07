@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Check the same-phase unreferenced timer case in the timers prelude against its fixed expected output instead of a timing-dependent Node.js run ([#151](https://github.com/40oleg/nona/issues/151)).
+
 - Begin native compiler bootstrap validation with Nona's directly compiled RegExp engine; correct template-substitution bracket depth and fold long literal Unicode data concatenations without recursive lowering ([#143](https://github.com/40oleg/nona/issues/143)).
 
 - Keep Map and Set hash-index growth from inserting an entry twice, preserving deletion and reinsertion during native compiler liveness analysis ([#143](https://github.com/40oleg/nona/issues/143)).
