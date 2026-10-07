@@ -23,6 +23,7 @@
     "build": "node scripts/build.mjs",
     "test": "node --test dist/tests/*.test.js",
     "check": "npm run build && npm test",
+    "check:proofs": "lake -d verification build",
     "check:programs": "npm run build && node --test --test-concurrency=4 dist/tests/program-corpus*.test.js",
     "compare": "npm run build && node scripts/compare-examples.mjs",
     "compare:linux": "npm run build && node scripts/compare-linux.mjs",

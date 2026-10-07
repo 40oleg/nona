@@ -81,3 +81,7 @@ site               this documentation site
 Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
 
 [OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+
+## Formal verification prototype
+
+[Lean proofs](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) cover selected slot move rules and a modeled straight-line dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. The production compiler, CFG analysis and native runtime are outside the current formal guarantee.
