@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {streamProbeCases} from '../src/backend/stream-probes.js';
+import {streamProbeCases} from './probes/stream-probes.js';
 import {supportedNativeTargets} from '../src/target.js';
 
 const cases=streamProbeCases('win32-x64');

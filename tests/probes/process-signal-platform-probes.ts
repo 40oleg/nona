@@ -1,14 +1,14 @@
-import {compileModuleToIR,compileToIR} from '../compiler.js';
-import {collectSourceUsage} from '../frontend/lexer.js';
-import {getTarget,type Target} from '../target.js';
-import {generate} from './x64/codegen.js';
-import {withNativeTarget} from './machine/context.js';
-import {linkPe} from './pe/writer.js';
-import {linkWindowsArm64} from './arm64/windows.js';
-import {linkLinux} from './linux/index.js';
-import {linkDarwin} from './darwin/index.js';
-import {linkBsd} from './bsd/index.js';
-import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe,processConsoleSignalProbe} from '../runtime/process-signals-probe.js';
+import {compileModuleToIR,compileToIR} from '../../src/compiler.js';
+import {collectSourceUsage} from '../../src/frontend/lexer.js';
+import {getTarget,type Target} from '../../src/target.js';
+import {generate} from '../../src/backend/x64/codegen.js';
+import {withNativeTarget} from '../../src/backend/machine/context.js';
+import {linkPe} from '../../src/backend/pe/writer.js';
+import {linkWindowsArm64} from '../../src/backend/arm64/windows.js';
+import {linkLinux} from '../../src/backend/linux/index.js';
+import {linkDarwin} from '../../src/backend/darwin/index.js';
+import {linkBsd} from '../../src/backend/bsd/index.js';
+import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe,processConsoleSignalProbe} from './process-signals-probe.js';
 
 /** Independent OS delivery and lifetime checks; multiplicity is recorded by Node CI. */
 export function processSignalPlatformProbes(target:Target):{name:string;image:Uint8Array;expected:string;status?:number;signal?:string;minimalEnvironment:boolean;timeoutMs:number}[]{

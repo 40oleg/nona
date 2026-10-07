@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {runModulesOnHost} from './helpers/host.js';
-import {processNetworkProbe} from '../src/runtime/process-network-probe.js';
+import {processNetworkProbe} from './probes/process-network-probe.js';
 
 // Each program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical. Programs print no ports or dates. Programs that

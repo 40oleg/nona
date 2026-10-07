@@ -1,4 +1,4 @@
-import type {Target} from '../target.js';
+import type {Target} from '../../src/target.js';
 
 /** Query independent OS title state, so a cached JavaScript value cannot pass. */
 export function processTitleProbe(target:Target):{source:string;expected:string} {

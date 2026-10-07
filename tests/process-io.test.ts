@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {runOnHost} from './helpers/host.js';
 import {runProcess} from './helpers/process.js';
 import {runOracle} from './helpers/oracle.js';
-import {processExceptionProbes} from '../src/backend/platform-probes.js';
+import {processExceptionProbes} from './probes/platform-probes.js';
 for(const probe of processExceptionProbes)test(`process native ${probe.name} matches Node26`,()=>{
  const result=runProcess(probe.source);assert.equal(result.status,probe.status,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));assert.equal(result.stdout,probe.expected);
 });

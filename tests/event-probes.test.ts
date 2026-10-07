@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {requireHostTarget} from '../src/target.js';
-import {eventProbes} from '../src/backend/event-probes.js';
+import {eventProbes} from './probes/event-probes.js';
 import {runNative} from './helpers/native.js';
 
 test('event platform probes execute on the native host under gcStress',()=>{
