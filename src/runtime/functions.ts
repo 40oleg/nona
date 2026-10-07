@@ -1,4 +1,5 @@
 import {rootedFn} from './root-scope.js';
+import {defaultConstructorCapacity} from './shapes.js';
 import {bumpEpochIfPrototype} from './property-cache.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable,ProxyConstructable} from './object-layout.js';
@@ -9,8 +10,7 @@ import {TailCallTag} from './tail-calls.js';
 import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
 /** Inline property nodes of a constructor's first instances. */
-export const defaultInstanceSlots=4;
-export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,/** Inline property nodes for this constructor's next instances (0: the default); rt.allocPropertyNode raises it when one outgrows them. */instanceSlots:O.size+120,size:O.size+128} as const;
+export const FunctionLayout={code:O.size,environment:O.size+8,constructable:O.size+16,rawThis:O.size+24,bound:O.size+32,sourceText:O.size+40,constructCode:O.size+48,homeObject:O.size+56,arrow:O.size+64,lexicalThis:O.size+72,lexicalNewTarget:O.size+88,generator:O.size+104,realm:O.size+112,/** The root shape this constructor's next instances start from (shapes.ts), or 0 before the first. */instanceShape:O.size+120,size:O.size+128} as const;
 export const FunctionKind=2;
 
 export function emitFunctions(b:RuntimeBuilder):void {
@@ -97,7 +97,7 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags,FunctionLayout.rawThis,FunctionLayout.bound,FunctionLayout.constructCode,FunctionLayout.homeObject,FunctionLayout.arrow,FunctionLayout.lexicalThis,FunctionLayout.lexicalThis+8,FunctionLayout.lexicalNewTarget,FunctionLayout.lexicalNewTarget+8,FunctionLayout.generator])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',{rip:'rt.realmIndex'});a.store({base:'rax',disp:FunctionLayout.realm},'r10');
   a.lea('r10',{rip:'rt.functionPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:FunctionLayout.constructable},'r10');
@@ -186,16 +186,14 @@ export function emitFunctions(b:RuntimeBuilder):void {
   if(!raw){a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('e',unwrapped);a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',unwrapped);
    a.lea('rdx',{base:'r10',disp:B.target});a.jmp(unwrap);}a.label(unwrapped);
   a.store(slot(88),'rdx');a.lea('rcx',slot(64));a.lea('r8',{rip:'rt.key.prototype'});a.call('rt.getProperty');
-  // Instances of a function get as many inline property nodes as its
-  // earlier instances ended up needing (defaultInstanceSlots at first), and
-  // remember it as their site so that an instance that outgrows them raises
-  // the hint (rt.allocPropertyNode).
-  {const plain=a.unique('plainCallee'),create=a.unique('create'),hinted=a.unique('hinted');
-   a.mov('r9',0);a.load('r10',slot(88));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',create);
-   a.load('r9',{base:'r10',disp:FunctionLayout.instanceSlots});a.test('r9','r9');a.jcc('ne',hinted);a.mov('r9',defaultInstanceSlots);a.label(hinted);
-   a.label(create);a.load('rcx',slot(40));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObjectSlots');
+  // Instances of a function start from its root shape, whose inline slots
+  // grow when earlier instances outgrew them (rt.shapeConstructorRoot).
+  {const plain=a.unique('plainCallee'),create=a.unique('create');
    a.load('r10',slot(88));a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',plain);
-   a.load('rax',slot(40));a.load('rax',{base:'rax',disp:8});a.store({base:'rax',disp:O.site},'r10');a.label(plain);}
+   a.load('rcx',{base:'r10',disp:FunctionLayout.instanceShape});a.call('rt.shapeConstructorRoot');
+   a.load('r10',slot(88));a.load('r10',{base:'r10',disp:8});a.store({base:'r10',disp:FunctionLayout.instanceShape},'rax');a.mov('rdx','rax');a.jmp(create);
+   a.label(plain);a.mov('rcx',defaultConstructorCapacity);a.call('rt.shapeLiteralRoot');a.mov('rdx','rax');
+   a.label(create);a.load('rcx',slot(40));a.call('rt.newShapedObject');}
   const done=a.unique('done'),fallback=a.unique('fallback');a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',fallback);
   a.load('rcx',slot(40));a.lea('rdx',slot(64));a.call('rt.setPrototype');a.jmp(done);
   // GetPrototypeFromConstructor falls back to the intrinsic of new.target's realm.

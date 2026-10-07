@@ -30,7 +30,7 @@ export function emitBoxing(b:RuntimeBuilder):void {
   a.mov('rcx','rdx');a.call('rt.propertyBase');a.store(slot(56),'rax');
   a.mov('rcx',BoxLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',BoxKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',slot(56));a.store({base:'rax',disp:O.prototype},'r10');
   a.load('rdx',slot(48));a.load('r10',{base:'rdx'});a.store({base:'rax',disp:BoxLayout.value},'r10');
   a.load('r10',{base:'rdx',disp:8});a.store({base:'rax',disp:BoxLayout.value+8},'r10');

@@ -1,4 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {ShapeLayout,emitSlotAddress} from './shapes.js';
+import {emitShapeGuard} from './shapes.js';
 import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {propertyIndexThreshold} from './property-index.js';
@@ -30,14 +32,31 @@ export function emitObjects(b:RuntimeBuilder):void {
   // rt.newObject: RCX result, RDX 1 for an array, R8 array length.
   // rt.newObjectSlots: also R9 inline property nodes, which
   // rt.allocPropertyNode hands out before it allocates nodes on the heap.
-  for(const withSlots of [false,true])b.fn(withSlots?'rt.newObjectSlots':'rt.newObject',72,a=>{
+  // rt.newObjectSlots: a plain object (RDX 0) whose literal has R9
+  // properties starts shaped (shapes.ts), from the literal root with that
+  // many inline slots; an array is an ordinary rt.newObject.
+  b.fn('rt.newObjectSlots',56,a=>{
+    const array=a.unique('array');a.test('rdx','rdx');a.jcc('ne',array);
+    a.store(slot(40),'rcx');a.mov('rcx','r9');a.call('rt.shapeLiteralRoot');a.mov('rdx','rax');a.load('rcx',slot(40));a.call('rt.newShapedObject');a.jmp('rt.newObjectSlots.done');
+    a.label(array);a.call('rt.newObject');a.label('rt.newObjectSlots.done');
+  });
+  // RCX result Value*, RDX root shape -> a plain object with that shape and
+  // its inline slots, whose prototype is Object.prototype.
+  b.fn('rt.newShapedObject',56,a=>{
+    a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+    a.load('rcx',{base:'rdx',disp:ShapeLayout.capacity});a.shl('rcx',4);a.add('rcx',O.size);a.call('rt.alloc');
+    a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
+    a.load('r10',slot(48));a.store({base:'rax',disp:O.shape},'r10');
+    a.lea('r10',{rip:'rt.objectPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+    a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
+  });
+  for(const withSlots of [false])b.fn('rt.newObject',72,a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
-    if(withSlots){a.store(slot(64),'r9');a.mov('rcx',P.size);a.imul('rcx','r9');a.add('rcx',O.size);}else a.mov('rcx',O.size);
+    a.mov('rcx',O.size);
     a.call('rt.alloc');
-    if(withSlots){a.load('r10',slot(64));a.store({base:'rax',disp:O.slots},'r10');}
     a.mov('r10',0);
     a.mov('r11',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r11');
-    for(const offset of [O.properties,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+    for(const offset of [O.properties,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
     a.load('r10',slot(48));a.store({base:'rax',disp:O.kind},'r10');
     a.load('r11',slot(56));a.store({base:'rax',disp:O.length},'r11');
     // An empty object: its key filter is complete from the start.
@@ -82,6 +101,7 @@ export function emitObjects(b:RuntimeBuilder):void {
   // Objects with an index table (property-index.ts) look keys up there; a
   // long linear scan builds one.
   b.fn('rt.findOwnProperty',88,a=>{
+    emitShapeGuard(a,'rcx');
     a.store(slot(40),'rdx');a.store(slot(56),'rcx');a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');a.mov('rax',0);a.store(slot(64),'rax');
     const loop=a.unique('loop'),done=a.unique('done'),scan=a.unique('scan'),finish=a.unique('finish');
     // A dense element (array-elements.ts) becomes a node for whoever needs one.
@@ -130,6 +150,11 @@ export function emitObjects(b:RuntimeBuilder):void {
     const data=a.unique('data');a.test('rax','rax');a.jcc('e',data);a.store(slot(48),'rax');a.mov('rax',3);a.jmp(done);
     a.label(data);const scanOwn=a.unique('scanOwn'),afterOwn=a.unique('afterOwn');
     {const noDense=a.unique('noDense');a.load('rcx',slot(48));a.load('rdx',slot(40));a.call('rt.denseFind');a.test('rax','rax');a.jcc('e',noDense);a.mov('r8','rax');a.mov('rax',7);a.jmp(done);a.label(noDense);}
+    // A shaped object (shapes.ts) answers from its slots like a dense element.
+    {const unshaped=a.unique('unshaped');a.load('r10',slot(48));a.load('rcx',{base:'r10',disp:O.shape});a.test('rcx','rcx');a.jcc('e',unshaped);
+     a.load('rdx',slot(40));a.call('rt.shapeLookup');a.test('rax','rax');a.mov('rcx','rax');a.mov('rax',0);a.jcc('s',afterOwn);
+     a.load('r10',slot(48));a.mov('r9','rcx');emitSlotAddress(a,'r10','r9','r8');a.mov('rax',7);a.jmp(done);
+     a.label(unshaped);}
     a.load('r10',slot(48));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',scanOwn);
     a.load('rcx',slot(40));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',scanOwn);
     a.load('r10',slot(48));a.load('r10',{base:'r10',disp:O.length});a.cmp('rax','r10');a.jcc('b',scanOwn);
@@ -320,6 +345,8 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.label(checkTyped);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',TypedArrayKind);const checkOwn=a.unique('checkOwn');a.jcc('ne',checkOwn);
     a.load('rcx',slot(64));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('ne',ordinaryLookup);
     a.label(checkOwn);a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.denseFind');a.test('rax','rax');a.jcc('ne',ordinaryLookup);
+    {const unshaped=a.unique('unshaped');a.load('r10',slot(72));a.load('rcx',{base:'r10',disp:O.shape});a.test('rcx','rcx');a.jcc('e',unshaped);
+     a.load('rdx',slot(64));a.call('rt.shapeLookup');a.test('rax','rax');a.jcc('ns',ordinaryLookup);a.jmp(nextAncestor);a.label(unshaped);}
     a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.findOwnProperty');a.test('rax','rax');a.jcc('ne',ordinaryLookup);
     a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.findGlobalBinding');a.test('rax','rax');a.jcc('ne',ordinaryLookup);
     a.label(nextAncestor);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.prototype});a.store(slot(72),'rax');a.jmp(ancestor);
@@ -377,7 +404,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     const ordinarySet=a.unique('ordinarySet');a.load('r10',{base:'rcx',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',ProxyKind);a.jcc('ne',ordinarySet);
     a.load('r10',slot(40));for(const part of [0,8]){a.load('rax',{base:'r10',disp:part});a.store(slot(96+part),'rax');}
     a.load('rax',slot(88));a.store(slot(112),'rax');
-    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(96));a.call('rt.proxySet');a.jmp(finish);a.label(ordinarySet);
+    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(96));a.call('rt.proxySet');a.jmp(finish);a.label(ordinarySet);emitShapeGuard(a,'r10');
     a.load('rdx',{base:'rdx',disp:8});a.call('rt.isStringOwn');a.test('rax','rax');a.jcc('ne',rejected);
     a.load('rcx',slot(40));a.load('rdx',slot(48));
     a.load('rax',{base:'rcx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',1);a.jcc('ne',normal);
@@ -470,7 +497,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.lea('rcx',slot(96));a.load('rdx',slot(48));a.load('r8',slot(56));a.lea('r9',slot(112));a.call('rt.proxySet');a.jmp(finish);
     a.label(lookupPrimitive);}
     a.load('rcx',slot(40));a.call('rt.propertyBase');a.mov('rcx','rax');a.load('rdx',slot(48));a.load('rdx',{base:'rdx',disp:8});a.call('rt.lookupProperty');
-    a.cmp('rax',5);a.jcc('be',rejected);a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',rejected);
+    a.cmp('rax',5);a.jcc('be',rejected);a.cmp('rax',7);a.jcc('e',rejected);a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',rejected);
     a.label(setter);a.load('r10',slot(64));a.test('r10','r10');const invokeSetter=a.unique('invokeSetter');a.jcc('e',invokeSetter);
     // Internal CreateDataProperty replaces a configurable accessor instead of
     // invoking it. Public descriptor validation is implemented separately.
@@ -499,7 +526,7 @@ export function emitObjects(b:RuntimeBuilder):void {
     a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');
     a.load('rcx',slot(64));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',no);
     a.load('rcx',slot(64));a.call('rt.arrayIndex');a.cmp('rax',-1);a.jcc('e',yes);a.load('r10',slot(72));a.load('r10',{base:'r10'});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);
-    a.label(object);a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.load('r10',{base:'rax',disp:O.kind});
+    a.label(object);a.load('rax',{base:'rdx',disp:8});a.store(slot(72),'rax');a.mov('r10','rax');emitShapeGuard(a,'r10');a.load('r10',{base:'r10',disp:O.kind});
     const notTyped=a.unique('notTyped');a.cmp('r10',TypedArrayKind);a.jcc('ne',notTyped);
     a.load('rcx',slot(64));a.call('rt.typedArrayNumericIndex');a.cmp('rax',-1);a.jcc('e',notTyped);a.cmp('rax',-2);a.jcc('e',yes);
     a.load('r10',slot(72));a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('r11',{base:'r11',disp:ArrayBufferLayout.detached});a.test('r11','r11');a.jcc('ne',yes);a.load('r10',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r10');a.jcc('b',no);a.jmp(yes);

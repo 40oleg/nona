@@ -64,7 +64,7 @@ export function emitIterators(b:RuntimeBuilder):void {
  rootedFn(b,'rt.newIterator',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',IteratorSize);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',IteratorKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying])a.store({base:'rax',disp:offset},'r10');a.load('r10',slot(56));a.store({base:'rax',disp:O.flags},'r10');
+  for(const offset of [O.properties,O.length,O.shape])a.store({base:'rax',disp:offset},'r10');a.load('r10',slot(56));a.store({base:'rax',disp:O.flags},'r10');
   a.lea('r10',{rip:'rt.arrayIteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('rdx',slot(48));for(const n of [0,8]){a.load('r10',{base:'rdx',disp:n});a.store({base:'rax',disp:Source+n},'r10');}
   a.mov('r10',3);a.store({base:'rax',disp:Index},'r10');a.mov('r10',0);a.store({base:'rax',disp:Index+8},'r10');

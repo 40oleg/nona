@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {emitShapeGuard} from './shapes.js';
 import {bumpEpochIfPrototype} from './property-cache.js';
 import {rootedFn} from './root-scope.js';
 import {DescriptorLayout as D,DescriptorFields as F} from './descriptor-layout.js';
@@ -67,6 +68,7 @@ export function emitDefineProperty(b:RuntimeBuilder):void {
  // length normalization may call JS, so all records and temporaries are roots.
  rootedFn(b,'rt.defineOwnProperty',280,[{kind:'value',register:'rcx'},{kind:'value',register:'rdx'},{kind:'range',register:'r8',count:6},{kind:'locals',offset:80,count:6},{kind:'locals',offset:184,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.load('rax',{base:'rcx',disp:8});a.store(slot(64),'rax');
+  {const object=a.unique('object');a.load('r10',{base:'rcx'});a.cmp('r10',5);a.jcc('ne',object);a.load('r10',slot(64));emitShapeGuard(a,'r10');a.label(object);}
   // A Number key (rt.arrayIndexKey) with a complete ordinary data descriptor
   // is CreateDataProperty of an element: the indexed fast path creates it
   // when the object is a plain extensible array or object; otherwise the key

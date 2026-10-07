@@ -20,6 +20,7 @@ import {constructorRoots,constructorPropertyRoots} from './builtin-constructors.
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
+import {ShapeLayout} from './shapes.js';
 import {ChunkLayout as C,LargeLayout as L,FreeKind,classCount} from './memory.js';
 import {FunctionLayout,FunctionKind} from './functions.js';
 import {ContextLayout} from './context-switch.js';
@@ -132,16 +133,18 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
  });
  b.fn('rt.gcTraceObject',56,a=>{
   a.store(slot(40),'rcx');a.call('rt.elementsTrace');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.properties});a.call('rt.gcMarkPointer');
-  // Inline property nodes live inside the object's block, so marking a
-  // pointer to one only reaches the object: their references are traced
-  // here (a deleted node is cleared and traces nothing).
-  {const loop=a.unique('inlineNodes'),traced=a.unique('inlineTraced');
-   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.site});a.call('rt.gcMarkPointer');
+  // A shaped object (shapes.ts): its inline slots, and the out-of-line
+  // value list in ObjectLayout.keys (traced as a value list).
+  {const unshaped=a.unique('unshaped'),loop=a.unique('slotLoop'),traced=a.unique('slotsTraced');
+   a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.shape});a.test('rax','rax');a.jcc('e',unshaped);
+   a.load('rcx',{base:'rcx',disp:O.keys});a.call('rt.gcMarkPointer');
    a.mov('rax',0);a.store(slot(48),'rax');
-   a.label(loop);a.load('r10',slot(40));a.load('r10',{base:'r10',disp:O.slots});a.shr('r10',32);a.load('rax',slot(48));a.cmp('rax','r10');a.jcc('ae',traced);
-   a.mov('r9',P.size);a.imul('rax','r9');a.load('rcx',slot(40));a.add('rcx','rax');a.add('rcx',O.size);a.call('rt.gcTraceProperty');
+   a.label(loop);a.load('r10',slot(40));a.load('r10',{base:'r10',disp:O.shape});a.load('r11',{base:'r10',disp:ShapeLayout.count});a.load('r10',{base:'r10',disp:ShapeLayout.capacity});
+   a.cmp('r11','r10');{const fewer=a.unique('fewer');a.jcc('b',fewer);a.mov('r11','r10');a.label(fewer);}
+   a.load('rax',slot(48));a.cmp('rax','r11');a.jcc('ae',traced);
+   a.shl('rax',4);a.load('rcx',slot(40));a.add('rcx','rax');a.add('rcx',O.size);a.call('rt.gcMarkValue');
    a.load('rax',slot(48));a.add('rax',1);a.store(slot(48),'rax');a.jmp(loop);
-   a.label(traced);}
+   a.label(traced);a.label(unshaped);}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.prototype});a.call('rt.gcMarkPointer');
   const done=a.unique('done'),box=a.unique('box'),iterator=a.unique('iterator'),generator=a.unique('generator');a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',box);
   a.load('rcx',{base:'rcx',disp:FunctionLayout.environment});a.call('rt.gcMarkPointer');
@@ -361,7 +364,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.lea('rcx',{rip:'rt.tailPending'});a.mov('rdx',3);a.call('rt.gcMarkRange');
   a.lea('rcx',{rip:'rt.tailStaging'});a.mov('rdx',tailStagingCapacity);a.call('rt.gcMarkRange');
   a.lea('rcx',{rip:'rt.sharedJobQueue'});a.mov('rdx',1);a.call('rt.gcMarkRange');
-  a.call('rt.gcMarkRealm');
+  a.call('rt.gcMarkRealm');a.call('rt.gcMarkShapes');
   for(let realm=1;realm<=extraRealms;realm++){
    const skip=a.unique('realmSkip');a.load('rax',{rip:`R${realm}$rt.realmReady`});a.test('rax','rax');a.jcc('e',skip);
    a.call(`R${realm}$rt.gcMarkRealm`);a.label(skip);

@@ -121,7 +121,7 @@ export function emitAgents(b:RuntimeBuilder):void {
   a.mov('rcx',ArrayBufferLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',SharedArrayBufferKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,ArrayBufferLayout.detached])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags,ArrayBufferLayout.detached])a.store({base:'rax',disp:offset},'r10');
   a.lea('r10',{rip:'rt.sharedarraybufferPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',{rip:'agent.mailbox',addend:8});a.store({base:'rax',disp:ArrayBufferLayout.bytes},'r10');
   a.load('r10',{rip:'agent.mailbox',addend:16});a.store({base:'rax',disp:ArrayBufferLayout.byteLength},'r10');

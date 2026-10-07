@@ -39,7 +39,7 @@ Tout se déroule dans le processus du compilateur ; il n’y a ni assembleur, ni
 Chaque exécutable contient le runtime de [`src/runtime`](https://github.com/40oleg/nona/tree/main/src/runtime) :
 
 - Les **valeurs** sont des paires étiquetées de 16 octets : undefined, null, booléens, nombres binary64, chaînes UTF-16, objets, symboles et BigInt.
-- Les **objets** conservent leurs propriétés dans l’ordre d’insertion ; les objets d’au moins 32 propriétés reçoivent un index de hachage.
+- Les **objets** créés par des littéraux et des constructeurs partagent des *shapes* (classes cachées) : leurs propriétés vivent dans des emplacements de 16 octets décrits par la shape, et les caches en ligne du code généré les lisent et les écrivent après une seule comparaison de shape. Ce qu’une shape ne peut pas décrire (accesseurs, suppression, autres attributs, clés symboles) transforme l’objet en une liste ordonnée de propriétés, qui reçoit un index de hachage quand elle s’allonge.
 - Le **code natif** des objets intégrés est émis en x86-64 par un petit constructeur (`RuntimeBuilder`).
 - Les **préludes JavaScript** (`*-source.ts`) implémentent une partie de la bibliothèque en JavaScript et sont compilés dans chaque exécutable : le moteur RegExp, les pilotes de Promise et d’async, les utilitaires Proxy et Reflect, les minuteurs et la boucle d’événements, `process`, `TextEncoder`/`TextDecoder` et les objets intégrés de l’Annex B.
 

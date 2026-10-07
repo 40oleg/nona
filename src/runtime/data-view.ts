@@ -191,7 +191,7 @@ export function emitDataView(b:RuntimeBuilder):void {
   a.mov('rcx',DataViewLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DataViewKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
   a.load('r10',slot(frame+40));a.load('r10',{base:'r10',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.and('r11',OF.deferredConstructPrototype);const deferredPrototype=a.unique('deferredPrototype'),prototypeReady=a.unique('prototypeReady');a.test('r11','r11');a.jcc('ne',deferredPrototype);
   selectNativeConstructPrototype(a,frame,'rt.dataviewPrototype');a.jmp(prototypeReady);
   a.label(deferredPrototype);a.load('r10',slot(88));a.cmp('r10',5);const intrinsicPrototype=a.unique('intrinsicPrototype');a.jcc('ne',intrinsicPrototype);a.load('r10',slot(96));a.jmp(prototypeReady);
