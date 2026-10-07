@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Delete an own property of an object with a property hash index without walking its list: the index records the word that links each node, so deleting the oldest keys first is no longer quadratic (20,000 keys deleted oldest first: 2 s → 22 ms) ([#13](https://github.com/40oleg/nona/issues/13)).
+
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
 
 ## v0.10.0 — 2026-10-07
