@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `Reflect.construct(F, [literals], newTarget)` with `F` written as `Function` or `x.Function` compiles the source ahead of time, creates the function in `F`'s realm and gives it the prototype `newTarget` selects ([#7](https://github.com/40oleg/nona/issues/7)).
+
 - A sloppy-mode function called with an undefined or null `this` gets the global object of its own realm, not the caller's (OrdinaryCallBindThis) ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - `x.Function(...)` and `new x.Function(...)` with literal source text compile ahead of time like `Function(...)`; when `x.Function` is another realm's `Function`, the function is created in that realm, with its global object, intrinsics and errors ([#7](https://github.com/40oleg/nona/issues/7)).

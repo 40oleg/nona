@@ -52,6 +52,11 @@ console.log(t1 !== t2, t2 === Object.getOwnPropertyDescriptor(otherArgs2, 'calle
 try { t2(); } catch (e) { console.log(e instanceof other.TypeError, e instanceof TypeError); }
 try { new other.Function('return ('); } catch (e) { console.log(e instanceof other.SyntaxError, e instanceof SyntaxError); }
 var host = { Function: function (x) { return [this === host, x]; } }; console.log(host.Function('x').join());
+var C = other.Object.bind(); C.prototype = null;
+var r = Reflect.construct(other.Function, ['return 7'], C);
+console.log(r(), Object.getPrototypeOf(r) === other.Function.prototype, Object.getPrototypeOf(r.prototype) === other.Object.prototype);
+var D = function () {}; D.prototype = Object.create(Function.prototype, {mark: {value: 'D'}});
+var s = Reflect.construct(Function, ['return 8'], D); console.log(s(), s.mark);
 console.log(globalThis.Function('return 40 + 2')());
 `));
 
