@@ -86,6 +86,7 @@ delete big.hot;out.push(String(readHot()));
 big.hot=3;out.push(readHot());
 Object.defineProperty(big,'hot',{get(){return 'getter'},configurable:true});out.push(readHot());
 Object.defineProperty(big,'hot',{value:4,writable:true,configurable:true});out.push(readHot());
+const bare=Object.create(null);bare.own=1;const reads=[];for(let i=0;i<3;i++)reads.push(bare.own,bare.missing===undefined,Object.create(null).missing===undefined);out.push(reads.join());
 const math=[];for(let i=0;i<3;i++)math.push(Math.round(1.5));
 Math.round=x=>'patched';math.push(Math.round(1.5));delete Math.round;math.push(typeof Math.round);
 out.push(math.join());

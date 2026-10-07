@@ -219,7 +219,8 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.lea('rax',{rip:'rt.globalObject'});a.cmp('rax','r10');a.jcc('e',general);
    a.load('r11',{base:'r9',disp:L.bit});a.test('r11','r11');a.jcc('e',general);
    a.load('rax',{base:'r10',disp:O.keys});a.test('rax','rax');a.jcc('ns',general);a.test('rax','r11');a.jcc('ne',general);
-   a.load('rax',{base:'r10',disp:O.prototype});a.cmpMem('rax',{base:'r9',disp:L.prototype});a.jcc('ne',general);
+   // (a null prototype would match an empty entry)
+   a.load('rax',{base:'r10',disp:O.prototype});a.test('rax','rax');a.jcc('e',general);a.cmpMem('rax',{base:'r9',disp:L.prototype});a.jcc('ne',general);
    a.load('rax',{base:'r9',disp:L.node});
    a.label(fastRead);a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor);a.test('r11','r11');a.jcc('ne',general);
    a.load('r11',{base:'rax',disp:P.value});a.cmp('r11',CellTag);a.jcc('e',general);
