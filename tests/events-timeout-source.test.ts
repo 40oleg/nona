@@ -30,8 +30,12 @@ test('cancelling the last referenced timer leaves only unreferenced cancellation
  assert.equal(run(body),oracle(body));
 });
 test('the last referenced callback does not skip unreferenced timers already due in its phase',()=>{
+ // Both timers are due at exactly 10 ms on the test clock, so the unreferenced
+ // one runs in the same phase. Node.js is not a usable oracle here: on a real
+ // clock it prints "ref" or "ref abort" depending on whether the second timer
+ // has expired when the list is processed.
  const body=`setTimeout(function(){console.log('ref')},10);AbortSignal.timeout(10).addEventListener('abort',function(){console.log('abort')});`;
- assert.equal(run(body),oracle(body));
+ assert.equal(run(body),'ref\nabort\n');
 });
 test('AbortSignal timeout validation follows Node26 error types and codes',()=>{
  const body=`for(var value of [undefined,null,'3',NaN,Infinity,-1,0.5,4294967296])try{AbortSignal.timeout(value)}catch(error){console.log(error.name,error.code)}`;
