@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Skip nodejs.org API documentation links in the pages link check: nodejs.org currently answers 404 for its HTML API pages, which failed the check on every branch ([#190](https://github.com/40oleg/nona/issues/190)).
+
 - Made `Array.prototype.shift` and `splice` move the elements of a dense array in one step instead of a Get, Set and HasProperty per element; shifting 20,000 elements one by one went from 6.6 s to 70 ms, and 10,000 middle deletions from 3.5 s to 0.2 s ([#13](https://github.com/40oleg/nona/issues/13)).
 
 - Delete an own property of an object with a property hash index without walking its list: the index records the word that links each node, so deleting the oldest keys first is no longer quadratic (20,000 keys deleted oldest first: 2 s → 22 ms) ([#13](https://github.com/40oleg/nona/issues/13)).
