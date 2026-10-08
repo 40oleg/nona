@@ -10,10 +10,12 @@ import {runOracle} from './helpers/oracle.js';
 // programs exercise such functions against Node.js (the first under GC
 // stress; the second without, as a collection before each of its operations
 // scans thousands of slots).
-const agree=(source:string,gcStress=true)=>{
+// The oracle passes the source on Node's command line, which Windows limits
+// to 32K characters: larger programs give their expected output instead.
+const agree=(source:string,gcStress=true,expected?:string)=>{
  const run=runOnHost(source,{gcStress});
  assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(source).stdout);
+ assert.equal(run.stdout,expected??runOracle(source).stdout);
 };
 const locals=(count:number)=>Array.from({length:count},(_,i)=>`var v${i} = ${i};`).join('\n');
 
@@ -42,4 +44,4 @@ var api = {};
   __export(api, {${Array.from({length:3000},(_,i)=>`K${i}: () => v${i}`).join(', ')}});
 })({});
 console.log(Object.keys(api).length, api.K0, api.K1234, api.K2999);
-`,false));
+`,false,'3000 0 1234 2999\n'));
