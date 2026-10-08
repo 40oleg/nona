@@ -1,5 +1,5 @@
 import type {FunctionIR,Operation} from './model.js';
-import type {BlockLiveness} from './liveness.js';
+import {liveFloor,type BlockLiveness} from './liveness.js';
 
 /** Frame locations of a function's IR slots: slots with disjoint live ranges share one. */
 export interface SlotLocations {
@@ -36,8 +36,10 @@ export function destinations(operation:Operation):number[] {
 export function assignLocations(fn:FunctionIR,liveness:ReadonlyMap<number,BlockLiveness>):SlotLocations {
  const n=fn.slotCount,edges:Set<number>[]=Array.from({length:n},()=>new Set<number>());
  const link=(x:number,y:number)=>{if(x!==y){edges[x]!.add(y);edges[y]!.add(x);}};
- const pinned=new Set<number>();
- for(let i=0;i<fn.parameterCount;i++)pinned.add(i);
+ // Parameters, and every local of a function whose locals are always live
+ // (liveness.ts liveFloor), keep locations of their own.
+ const pinned=new Set<number>(),floor=liveFloor(fn);
+ for(let i=0;i<Math.max(fn.parameterCount,floor);i++)pinned.add(i);
  const order:number[]=[];
  for(const block of fn.blocks){
   const before=liveness.get(block.id)!.before;
@@ -45,6 +47,7 @@ export function assignLocations(fn:FunctionIR,liveness:ReadonlyMap<number,BlockL
    if(op.kind==='pushHandler')pinned.add(op.error);
    const dests=destinations(op);
    for(const d of dests){
+    if(d<floor)continue;
     order.push(d);
     for(const s of before[index]!)link(d,s);
     for(const e of dests)link(d,e);
@@ -58,11 +61,13 @@ export function assignLocations(fn:FunctionIR,liveness:ReadonlyMap<number,BlockL
  for(const slot of pinned){location[slot]=count;reserved.add(count);count++;}
  const seen=new Set<number>();
  const ordered=[...order.filter(slot=>!seen.has(slot)&&(seen.add(slot),true)),...Array.from({length:n},(_,i)=>i)];
+ // Reserved locations are 0..count-1: shared locations start after them.
+ const firstShared=count;
  for(const slot of ordered){
   if(location[slot]!>=0)continue;
-  const taken=new Set<number>(reserved);
+  const taken=new Set<number>();
   for(const other of edges[slot]!)if(location[other]!>=0)taken.add(location[other]!);
-  let candidate=0;while(taken.has(candidate))candidate++;
+  let candidate=firstShared;while(taken.has(candidate))candidate++;
   location[slot]=candidate;if(candidate>=count)count=candidate+1;
  }
  return {location,count};

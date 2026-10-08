@@ -9,7 +9,7 @@
 вызов сохраняет callee до вычисления аргументов. Heap environments/cells разделяются
 между замыканиями и прослеживаются GC. Runtime callbacks требуют runtime roots.
 **Tech Stack:** TypeScript → собственный x64/PE, native object/GC runtime.
-**Spec:** `docs/superpowers/specs/2026-09-20-language-expansion-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-09-20-language-expansion-design.md`.
 
 ## Constraints
 

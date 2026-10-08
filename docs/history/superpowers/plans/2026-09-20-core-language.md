@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, собственный x64 emitter, Windows PE32+, Node test runner.
 
-**Spec:** `docs/superpowers/specs/2026-09-20-language-expansion-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-09-20-language-expansion-design.md`.
 
 ## Global Constraints
 

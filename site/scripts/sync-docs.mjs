@@ -38,7 +38,7 @@ const pages = {
   'docs/test262.md': '/reference/test262',
   'docs/language-support.md': '/guide/language-support',
   'docs/es2020-contract.md': '/guide/compatibility',
-  'docs/v0.17-v0.20-status.md': '/guide/status',
+  'docs/status.md': '/guide/status',
   'docs/matrix-calculator.md': '/examples/matrix-calculator',
   'CHANGELOG.md': '/changelog',
   'PERFORMANCE.md': '/guide/performance',

@@ -5,7 +5,7 @@
 **Goal:** Нативная основа объектов и массивов для дальнейшего полного runtime.
 **Architecture:** Object Value tag с pointer на header (kind, property list, length, prototype, flags). Строковые ключи и data-property nodes; общие get/set/has/delete операции. Runtime пока использует существующую арену; GC и descriptors остаются следующими этапами, не исключаются из цели.
 **Tech Stack:** TypeScript → собственный x64 → PE32+.
-**Spec:** `docs/superpowers/specs/2026-09-20-language-expansion-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-09-20-language-expansion-design.md`.
 
 ## Global Constraints
 

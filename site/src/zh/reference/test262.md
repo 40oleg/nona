@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - `String.prototype.{replace,split,match,matchAll,search}` 不会在原始值参数上查找以 Symbol 为键的方法（ES2025）。
 - Annex B 中以调用表达式作为赋值目标时，在非严格代码中于运行时抛出 ReferenceError，在严格代码中是早期错误（ES2022 的 Web 现实）。
 
-保持 ES2020 行为（失败归类为 `post`）：类字段和私有方法、数字分隔符、逻辑赋值、`Promise.any`/`AggregateError`、`Error.prototype.stack`/`cause`、RegExp 的 `v` 标志和匹配索引、顶层 await，以及 `postEs2020Features` 中的其他特性。剩余的已知偏差按目录列在 `docs/pr5-es2020-remaining-work.md` 和版本状态中。
+保持 ES2020 行为（失败归类为 `post`）：类字段和私有方法、数字分隔符、逻辑赋值、`Promise.any`/`AggregateError`、`Error.prototype.stack`/`cause`、RegExp 的 `v` 标志和匹配索引、顶层 await，以及 `postEs2020Features` 中的其他特性。剩余的已知偏差按目录列在 `docs/history/pr5-es2020-remaining-work.md` 和版本状态中。
 
 为 ES2020 关卡添加的运行器功能（2026-09）：
 
@@ -55,7 +55,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 
 2026-09-25，`language/expressions/coalesce` 分组的结果为 21 pass、3 fail、0 skip。一个失败需要尚未实现的 `Symbol` 类型；两个在严格代码中测试尾调用并导致原生栈溢出。四个解析负向用例因编译器拒绝而通过。这些是已跟踪的缺失能力，并不说明 `??` 本身普遍有问题。
 
-2026-09-26，完整的固定版本 `built-ins/parseInt` 和 `built-ins/parseFloat` 分组分别通过 55/55 和 54/54。最初完整运行 `built-ins/Array` 的结果是 3082 个中 2632 pass、360 fail、90 skip；全部 90 个跳过都是 `Array.fromAsync` 测试（ES2020 之后的 API）；这次运行暴露了一个迭代器完成相关的缺陷和五个稀疏数组超时，均已修复。重复的完整 Array 运行为 2640 pass、352 fail、90 skip。每个剩余失败的前置条件都记录在 [v0.4 延期列表](https://github.com/40oleg/nona/blob/main/docs/v0.4-array-deferred.json)中：150 个 ES2020 之后的 API 用例、72 个可调整大小缓冲区用例，以及 130 个其他未来依赖或已记录的 `eval` 例外。正向清单通过 100/100。
+2026-09-26，完整的固定版本 `built-ins/parseInt` 和 `built-ins/parseFloat` 分组分别通过 55/55 和 54/54。最初完整运行 `built-ins/Array` 的结果是 3082 个中 2632 pass、360 fail、90 skip；全部 90 个跳过都是 `Array.fromAsync` 测试（ES2020 之后的 API）；这次运行暴露了一个迭代器完成相关的缺陷和五个稀疏数组超时，均已修复。重复的完整 Array 运行为 2640 pass、352 fail、90 skip。每个剩余失败的前置条件都记录在 [v0.4 延期列表](https://github.com/40oleg/nona/blob/main/docs/history/v0.4-array-deferred.json)中：150 个 ES2020 之后的 API 用例、72 个可调整大小缓冲区用例，以及 130 个其他未来依赖或已记录的 `eval` 例外。正向清单通过 100/100。
 
 v0.4.0 之后，完整的 `built-ins/String/fromCodePoint` 分组通过 11/11。其中一个用例保留在固定的冒烟清单中；在那个检查点，清单通过 101/101。
 

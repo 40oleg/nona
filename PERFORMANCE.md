@@ -300,9 +300,45 @@ call and closure benchmarks above.
 
 marked compiles since class fields (#106). Its lexer matches anchored regular
 expressions against the rest of the document, which was quadratic before #107
-(162 s for the five renders). The remaining gap, as for acorn, is mostly
-property lookup: the object model keeps properties in linked nodes, so
-`rt.findOwnProperty`, `rt.ownNamedNode` and string comparison lead the profile.
+(162 s for the five renders). Before #114 the remaining gap, as for acorn,
+was led by property lookup in linked property nodes; see the next section for
+what shapes changed and what leads the profile now.
+
+### Shapes and inline caches (#114)
+
+Plain objects now keep their named properties in slots described by shared
+hidden classes, and every `object.name` site has an inline cache keyed by
+shape ([docs/object-model.md](docs/object-model.md)). Measured on 2026-10-07
+on the same benchmarks, `main` (`ea6934b`) against the branch, interleaved,
+best of 3 (2-core shared machine, so differences under ~5% are noise):
+
+| Benchmark | main | #114 | Change |
+| --- | --- | --- | --- |
+| acorn, first parse (ms) | 1 111 | 970 | −13% |
+| acorn, 10 more parses (ms) | 8 718 | 8 227 | −6% |
+| acorn, peak RSS (MB) | 229 | 99 | −57% |
+| marked, first render (ms) | 1 345 | 1 291 | −4% |
+| marked, 5 more renders (ms) | 6 940 | 6 747 | −3% |
+| marked, peak RSS (MB) | 53 | 43 | −19% |
+| self-hosted compiler, stage 1 → stage 2 peak RSS | > 5.8 GB (killed) | 3.6 GB | |
+
+A plain object with five properties is now one 192-byte block (40-byte heap
+header, 72-byte object header, five 16-byte slots) instead of a header plus
+five 72-byte property nodes; a million such objects take 209 MB of RSS
+instead of 514 MB (Node.js: 93 MB). Executables grow by 2–4% (the cache
+records and the shape runtime).
+
+The issue asked for acorn and marked to run twice as fast; they do not.
+Property lookup in plain objects is no longer what leads the profile; what
+remains is outside the object model of plain objects:
+
+- receivers that are still dictionary objects: function objects (62% of the
+  dictionary-receiver cache lookups in acorn) and typed arrays (`.length`,
+  28%);
+- element access `a[i]`, which still goes through `rt.getProperty` and
+  `rt.setProperty` and dominates the RegExp VM that marked spends its time in;
+- variable cells (`readCell`), calls and the collector, which account for
+  most of the rest, as in the call and closure benchmarks.
 
 ## HTTP server
 
@@ -348,6 +384,7 @@ Grouping the ratios against Node by their cause:
 4. **RegExp VM** ×13 000: a bytecode interpreter written in JavaScript and
    itself compiled by Nona, so it pays the ×30 call overhead per instruction.
 5. **No JIT**: calls ×70, closures ×41, classes ×50–100, allocation ×93–213,
-   `fib` ×25, typed arrays ×17–20, array traversal ×18–37. Inline caches,
-   shape-based property access and unboxed number arithmetic are the usual
-   answers in an AOT setting.
+   `fib` ×25, typed arrays ×17–20, array traversal ×18–37. Shape-based
+   property access with inline caches (#114, [above](#shapes-and-inline-caches-114))
+   covers plain objects; unboxed number arithmetic is the other usual answer
+   in an AOT setting.
