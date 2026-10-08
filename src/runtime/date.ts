@@ -152,7 +152,7 @@ export function emitDate(b:RuntimeBuilder):void {
   a.mov('rcx',DateLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DateKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
   a.lea('r10',{rip:'rt.datePrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(48));a.cvtsi2sd('xmm0','r10');a.storesd({base:'rax',disp:DateLayout.time},'xmm0');
   a.store(slot(72),'rax');a.mov('rax',5);a.store(slot(64),'rax');
@@ -180,7 +180,7 @@ export function emitDate(b:RuntimeBuilder):void {
   a.label(ready);a.mov('rcx',DateLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',DateKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
   selectNativeConstructPrototype(a,frame,'rt.datePrototype');a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(88));a.store({base:'rax',disp:DateLayout.time},'r10');
   a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');

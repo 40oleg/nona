@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Functions with more than 256 locals (a bundle's top-level scope wrapped in one function, such as typescript.js) treat their locals as live everywhere: liveness, frame slot assignment, the dead-zone check and Number inference no longer grow with locals × operations. A function with 4000 captured locals compiles in 3 s and 239 MB instead of 39 s and 5.2 GB, and typescript.js (9 MB) compiles in 95 s instead of running out of memory ([#162](https://github.com/40oleg/nona/issues/162)).
+- Function source text (for `Function.prototype.toString`) is stored once per module, one byte per character when it fits, and each function keeps only its range; the string is created when `toString` is called. Nested functions no longer repeat their enclosing function's text: the Angular builder with typescript.js shrinks from 146 MB to 87 MB ([#164](https://github.com/40oleg/nona/issues/164)).
 - `Reflect.construct(F, [literals], newTarget)` with `F` written as `Function` or `x.Function` compiles the source ahead of time, creates the function in `F`'s realm and gives it the prototype `newTarget` selects ([#7](https://github.com/40oleg/nona/issues/7)).
 
 - A sloppy-mode function called with an undefined or null `this` gets the global object of its own realm, not the caller's (OrdinaryCallBindThis) ([#7](https://github.com/40oleg/nona/issues/7)).
@@ -25,6 +27,8 @@
 - Add a Lean 4 proof prototype for slot substitution, dead writes, destination coalescing and a modeled straight-line dead-move optimizer, with checked counterexamples, axiom auditing, production IR regressions and proof CI ([#160](https://github.com/40oleg/nona/issues/160)).
 
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
+
+- Plain objects use shapes (hidden classes): object literals, `new` with ordinary constructors and `JSON.parse` make objects whose named properties are 16-byte slots described by a shared shape, and `object.name` reads, writes and method calls are answered by inline caches after one shape comparison. A five-property object takes 192 bytes instead of about 500; acorn parses 6–13% faster with less than half the peak memory (99 MB instead of 229 MB), and the native compiler's stage 2 build peaks at 3.6 GB. Objects that need more than a shape describes (accessors, `delete`, other attributes, symbol keys) keep using property lists ([#114](https://github.com/40oleg/nona/issues/114)). See [docs/object-model.md](docs/object-model.md).
 
 ## v0.10.0 — 2026-10-07
 

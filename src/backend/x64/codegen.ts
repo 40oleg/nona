@@ -1,12 +1,13 @@
 import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,maxInlineSlots} from '../../runtime/object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
+import {maxInlineCapacity,emptyLiteralCapacity} from '../../runtime/shapes.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
-import { analyzeLiveness } from '../../ir/liveness.js';
+import { analyzeLiveness, isLive, liveFloor } from '../../ir/liveness.js';
 import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import {StackBudget} from '../../runtime/context-switch.js';
@@ -165,6 +166,23 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     const name='literal.'+literals.size, bytes=new Uint8Array(8+value.length*2),v=new DataView(bytes.buffer);
     v.setBigUint64(0,BigInt(value.length),true);for(let i=0;i<value.length;i++)v.setUint16(8+2*i,value.charCodeAt(i),true);
     literals.set(value,name);fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});return name;
+  };
+  // Each module's text is emitted once (one byte per character when it
+  // fits); a function's source is a static descriptor {text, start, length}
+  // that rt.sourceSlice turns into a string (Function.prototype.toString).
+  const sources=new Map<string,string>();
+  const sourceRange=(range:{source:string;start:number;end:number}):string=>{
+    let text=sources.get(range.source);
+    if(!text){
+      const source=range.source,wide=/[^\u0000-\u00ff]/.test(source),bytes=new Uint8Array(16+source.length*(wide?2:1)),view=new DataView(bytes.buffer);
+      view.setBigUint64(0,BigInt(source.length),true);view.setBigUint64(8,wide?1n:0n,true);
+      if(wide)for(let i=0;i<source.length;i++)view.setUint16(16+2*i,source.charCodeAt(i),true);
+      else for(let i=0;i<source.length;i++)bytes[16+i]=source.charCodeAt(i);
+      text='source.'+fragments.length;sources.set(source,text);fragments.push({name:text,section:'.rdata',alignment:8,bytes,fixups:[],symbols:{}});
+    }
+    const name='sourceRange.'+fragments.length,bytes=new Uint8Array(24),view=new DataView(bytes.buffer);
+    view.setBigUint64(8,BigInt(range.start),true);view.setBigUint64(16,BigInt(range.end-range.start),true);
+    fragments.push({name,section:'.rdata',alignment:8,bytes,fixups:[{offset:0,kind:'va64',target:text,addend:0}],symbols:{}});return name;
   };
   if(!base){
     preludeFunctions().forEach(fn=>emitFunction(fn));
@@ -345,7 +363,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // Slots that may hold stale values when a block starts: whatever its
     // predecessors left (live slots and their last destination). Handler
     // targets can be entered from any operation, so they assume every slot.
-    const allSlots=Array.from({length:fn.slotCount},(_,i)=>i);
+    // Slots below the live floor (locals of a function with very many) are
+    // live everywhere: they are never cleared, so they are not tracked here.
+    const floor=liveFloor(fn),allSlots=Array.from({length:fn.slotCount-floor},(_,i)=>i+floor);
     const handlerTargets=new Set<number>();for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='pushHandler')handlerTargets.add(op.target);
     const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
     for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
@@ -370,7 +390,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       let possible=entry;
       for(const [index,op] of block.operations.entries()){
         if(clearsBefore(block,index))possible=new Set(liveness.get(block.id)!.before[index]!);else possible=new Set(possible);
-        for(const d of destinations(op))possible.add(d);
+        for(const d of destinations(op))if(d>=floor)possible.add(d);
       }
       return possible;
     };
@@ -379,7 +399,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       for(const [index,block] of fn.blocks.entries()){
         let entry:Set<number>;
         if(handlerTargets.has(block.id))entry=new Set(allSlots);
-        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i));
+        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i).filter(i=>i>=floor));
         else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
         const previous=entrySets.get(block.id);
         if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
@@ -399,7 +419,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
         possible=new Set(live);
        }else possible=new Set(possible);
-       for(const d of destinations(op))possible.add(d);
+       for(const d of destinations(op))if(d>=floor)possible.add(d);
        // Safepoint at the start of every block (every loop iteration passes
        // one): the check of rt.safepoint inline, so that only a collection
        // costs a call. Every slot is rooted and every dead one cleared at
@@ -457,6 +477,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           }
           if(op.homeObject!==undefined){a.load('r10',payload(op.dest));a.load('rax',payload(op.homeObject));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
           if(op.sourceText!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
+          else if(op.sourceRange!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:sourceRange(op.sourceRange)});a.or('rax',1);a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
           pointer('rcx',op.dest);
           if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',payload(op.nameSlot));
           a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
@@ -601,7 +622,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
-        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots){a.mov('r9',Math.min(op.slots,maxInlineSlots));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
+        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots!==undefined&&!op.array){a.mov('r9',Math.min(Math.max(op.slots,emptyLiteralCapacity),maxInlineCapacity));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
         case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
         case 'forInHas':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.forInHas');break;
         case 'getIterator':pointer('rcx',op.iterator);pointer('rdx',op.next);pointer('r8',op.object);a.call('rt.getIterator');break;
@@ -615,7 +636,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // property-cache.ts) when the name can only be a named property.
           if(op.operation==='get'&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
-            a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
+            a.lea('r9',{rip:cache});a.call('rt.icGet');break;
           }
           if(op.operation==='get'&&op.keyName==='length'){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
@@ -627,7 +648,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // remembers the inline node holding the property (property-cache.ts).
           if(!op.define&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
-            a.lea('r10',{rip:cache});a.call('rt.setPropertyCached');break;
+            a.lea('r10',{rip:cache});a.call('rt.icSet');break;
           }
           a.call('rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;
@@ -669,7 +690,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'binary':{
           // A comparison of Numbers that only decides this block's branch is
           // fused into it: no boolean is materialized.
-          if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!liveness.get(block.id)!.liveOut.has(op.dest)){fused=op;break;}
+          if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!isLive(liveness.get(block.id)!.liveOut,op.dest,floor)){fused=op;break;}
           if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
           // Strict equality of values whose types are not known is one call
           // to rt.strictEquals: inline tag dispatch made each site several

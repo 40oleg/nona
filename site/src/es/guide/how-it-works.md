@@ -39,7 +39,7 @@ Todo se ejecuta dentro del proceso del compilador; no hay ensamblador, enlazador
 Cada ejecutable contiene el runtime de [`src/runtime`](https://github.com/40oleg/nona/tree/main/src/runtime):
 
 - Los **valores** son pares etiquetados de 16 bytes: undefined, null, booleanos, números binary64, cadenas UTF-16, objetos, símbolos y BigInts.
-- Los **objetos** guardan sus propiedades en orden de inserción; los objetos con 32 o más propiedades obtienen un índice hash.
+- Los **objetos** creados por literales y constructores comparten *shapes* (clases ocultas): sus propiedades viven en ranuras de 16 bytes que describe la shape, y las cachés en línea del código generado las leen y escriben tras una sola comparación de shape. Lo que una shape no puede describir (accesores, borrado, otros atributos, claves símbolo) convierte el objeto en una lista ordenada de propiedades, que obtiene un índice hash cuando crece.
 - El **código nativo** de los objetos integrados se emite como x86-64 con un pequeño constructor (`RuntimeBuilder`).
 - Los **preludios de JavaScript** (`*-source.ts`) implementan partes de la biblioteca en JavaScript y se compilan en cada ejecutable: el motor de RegExp, los controladores de Promise y async, los auxiliares de Proxy y Reflect, los temporizadores y el bucle de eventos, `process`, `TextEncoder`/`TextDecoder` y los objetos integrados del Annex B.
 

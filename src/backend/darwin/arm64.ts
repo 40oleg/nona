@@ -50,6 +50,9 @@ export function linkDarwinArm64(program:NativeProgram):Uint8Array {
   });
   b.fn('linux.CreateThread.code',168,a=>{
    a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
+   // As on Linux, the shared heap allocator takes its lock once a second
+   // thread exists (linux.HeapAlloc.code).
+   a.mov('rax',1);a.store({rip:'linux.threaded'},'rax');
    const bad=a.unique('bad'),destroy=a.unique('destroy'),free=a.unique('free'),done=a.unique('done');
    a.mov('rcx',1);a.mov('rdx',0);a.mov('r8',16);a.call('linux.HeapAlloc.code');a.store(slot(72),'rax');a.test('rax','rax');a.jcc('e',bad);
    a.load('r10',slot(56));a.store({base:'rax'},'r10');a.load('r10',slot(64));a.store({base:'rax',disp:8},'r10');

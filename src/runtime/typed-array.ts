@@ -397,7 +397,7 @@ export function emitTypedArray(b:RuntimeBuilder):void {
   a.mov('rcx',TypedArrayLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',TypedArrayKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
   selectNativeConstructPrototype(a,frame,'rt.'+name.toLowerCase()+'Prototype');a.store({base:'rax',disp:O.prototype},'r10');
   a.load('r10',slot(80));a.store({base:'rax',disp:TypedArrayLayout.buffer},'r10');
   a.load('r10',slot(64));a.store({base:'rax',disp:TypedArrayLayout.byteOffset},'r10');

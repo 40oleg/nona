@@ -58,7 +58,7 @@ Runtime register and frame names are logical roles shared by the x64 and ARM64 e
 
 | # | Idea | V8 source |
 | --- | --- | --- |
-| 21 | Shapes (hidden classes) with in-object slots. Shapes of object literals and of `this.x = …` in constructors are known at compile time, so a static inline cache (`cmp [obj+shape], K`) needs no feedback. | Fast properties, slack tracking |
+| 21 | Shapes (hidden classes) with in-object slots. Shapes of object literals and of `this.x = …` in constructors are known at compile time, so a static inline cache (`cmp [obj+shape], K`) needs no feedback. **Done in #114** with feedback-based caches: shapes, slot storage, inline caches in the generated code ([object model](object-model.md)); shapes known at compile time are not used yet. | Fast properties, slack tracking |
 | 22 | Startup snapshot: run the preludes at build time and write the resulting heap into the executable's data section, re-seeding hashes and `Math.random` at start. | Custom startup snapshots, static roots |
 | 23 | Page-based heap with mark bitmaps, bump allocation and lazy sweeping; then parallel marking. | Orinoco, Oilpan |
 | 24 | SSA mid-level IR on the control-flow graph (not Sea of Nodes) with constant folding, DCE, GVN and LICM; then linear-scan register allocation, escape analysis and inlining. | Leaving the Sea of Nodes, Maglev |

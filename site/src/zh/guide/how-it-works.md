@@ -39,7 +39,7 @@ JavaScript source (script or module graph)
 每个可执行文件都包含来自 [`src/runtime`](https://github.com/40oleg/nona/tree/main/src/runtime) 的运行时：
 
 - **值**是 16 字节的带标签对：undefined、null、布尔值、binary64 数字、UTF-16 字符串、对象、Symbol 和 BigInt。
-- **对象**按插入顺序保存属性；拥有 32 个及以上属性的对象会建立哈希索引。
+- 由字面量和构造函数创建的**对象**共享 *shape*（隐藏类）：属性保存在由 shape 描述的 16 字节槽中，生成代码中的内联缓存只需一次 shape 比较即可读写它们。shape 无法描述的情况（访问器、删除、其他特性、符号键）会把对象转换为按顺序排列的属性列表，列表变长时会建立哈希索引。
 - 内置对象的**原生代码**由一个小型构建器（`RuntimeBuilder`）以 x86-64 形式生成。
 - **JavaScript 前导代码（prelude）**（`*-source.ts`）用 JavaScript 实现库的一部分，并编译进每个可执行文件：RegExp 引擎、Promise 和 async 驱动、Proxy 和 Reflect 辅助函数、定时器和事件循环、`process`、`TextEncoder`/`TextDecoder` 以及 Annex B 内置对象。
 
