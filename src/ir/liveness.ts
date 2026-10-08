@@ -7,6 +7,28 @@ export interface BlockLiveness {
  readonly beforeTerminator:ReadonlySet<number>;
 }
 
+/**
+ * Functions with very many locals (a bundle's top-level scope wrapped in one
+ * function, such as typescript.js with tens of thousands of declarations)
+ * treat their locals as live everywhere: tracking them per operation needs
+ * memory and time proportional to locals times operations. Below the returned
+ * floor every slot counts as live; liveness sets only hold slots at or above
+ * it (temporaries). Ordinary functions track every slot (floor 0).
+ */
+// NONA_PINNED_LOCALS overrides the threshold (tests run the suite with 0 to
+// exercise always-live locals in every function).
+export const pinnedLocalThreshold=Number(globalThis.process?.env?.NONA_PINNED_LOCALS??256);
+export function liveFloor(fn:FunctionIR):number {return fn.localCount>pinnedLocalThreshold?fn.localCount:0;}
+/** Whether slot is live in a set computed for fn (see liveFloor). */
+export function isLive(set:ReadonlySet<number>,slot:number,floor:number):boolean {return slot<floor||set.has(slot);}
+/** A work set that ignores slots below the floor. */
+class FloorSet extends Set<number> {
+ // (Set's constructor calls add before fields are set: values are added after.)
+ readonly floor:number;
+ constructor(floor:number,values?:Iterable<number>){super();this.floor=floor;if(values)for(const value of values)this.add(value);}
+ override add(value:number):this {return value>=this.floor?super.add(value):this;}
+}
+
 function unreachable(value:never):never {
  throw new Error(`Unknown IR variant: ${JSON.stringify(value)}`);
 }
@@ -89,6 +111,7 @@ function equal(a:ReadonlySet<number>,b:ReadonlySet<number>):boolean {
  * Globals are roots independently; only local Value slots are represented here.
  * Returned sets are separate snapshots, never aliases of the mutable work set. */
 export function analyzeLiveness(fn:FunctionIR):ReadonlyMap<number,BlockLiveness> {
+ const floor=liveFloor(fn),work=(values?:Iterable<number>)=>floor?new FloorSet(floor,values):new Set<number>(values);
  const entries=new Map<number,Set<number>>();
  const exits=new Map<number,Set<number>>();
  for(const block of fn.blocks){
@@ -105,7 +128,7 @@ export function analyzeLiveness(fn:FunctionIR):ReadonlyMap<number,BlockLiveness>
     if(!next)throw new Error(`Missing IR successor ${target}`);
     for(const slot of next)out.add(slot);
    }
-   const live=new Set(out);readTerminator(block.terminator,live);
+   const live=work(out);readTerminator(block.terminator,live);
    for(let i=block.operations.length-1;i>=0;i--){transfer(block.operations[i]!,live);if(block.exceptionTarget!==undefined)for(const slot of entries.get(block.exceptionTarget)!)live.add(slot);}
    if(!equal(live,entries.get(block.id)!)){entries.set(block.id,live);changed=true;}
    exits.set(block.id,out);
@@ -114,7 +137,7 @@ export function analyzeLiveness(fn:FunctionIR):ReadonlyMap<number,BlockLiveness>
 
  const result=new Map<number,BlockLiveness>();
  for(const block of fn.blocks){
-  const liveOut=exits.get(block.id)!,live=new Set(liveOut);
+  const liveOut=exits.get(block.id)!,live=work(liveOut);
   readTerminator(block.terminator,live);
   const beforeTerminator=new Set(live),before:Set<number>[]=[];
   for(let i=block.operations.length-1;i>=0;i--){

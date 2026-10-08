@@ -36,7 +36,7 @@ La lista completa está en [GitHub](https://github.com/40oleg/nona/issues).
 
 ## Informes detallados
 
-- [Estado de ES2020 para 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/v0.17-v0.20-status.md) (en ruso)
-- [Estado de v0.6](https://github.com/40oleg/nona/blob/main/docs/v0.6-status.md) (en inglés)
+- [Estado de ES2020 para 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/status.md) (en ruso)
+- [Estado de v0.6](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md) (en inglés)
 - [Hoja de ruta: plan inspirado en V8 y arquitecturas objetivo (en inglés)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
-- [Hoja de ruta de versiones 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/release-roadmap-0.4-0.20.md) (en ruso)
+- [Hoja de ruta de versiones 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (en ruso)

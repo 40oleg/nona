@@ -17,8 +17,8 @@ import {generate} from '../src/backend/x64/codegen.js';
 import {supportedNativeTargets} from '../src/target.js';
 import {createContext,runInContext} from 'node:vm';
 import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/process-source.js';
-import {runtimeProbes,processExceptionProbes,processFinalizationProbeImage} from '../src/backend/platform-probes.js';
-import {processTitleProbe} from '../src/backend/process-title-probe.js';
+import {runtimeProbes,processExceptionProbes,processFinalizationProbeImage} from './probes/platform-probes.js';
+import {processTitleProbe} from './probes/process-title-probe.js';
 
 import {emitRuntime} from '../src/runtime/index.js';
 import {processExtendedOracle,processReviewOracle,processEnvironmentOracle,processAccountOracle,processThreadOracle,processExecErrorOracle,processExceptionOracle,processRejectionOracle} from './helpers/process-fixture.js';
@@ -31,7 +31,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 test('native probes do not read the private prelude binding as a public global',()=>{
- const source=readFileSync(new URL('../../src/backend/platform-probes.ts',import.meta.url),'utf8');
+ const source=readFileSync(new URL('../../tests/probes/platform-probes.ts',import.meta.url),'utf8');
  assert.doesNotMatch(source,/\b__nonaRegexpVm\b/);
  const result=compileToIR('let p=process;console.log(typeof __nonaRegexpVm)','private-prelude.js');
  assert.ok(result.functions.some(fn=>fn.blocks.some(block=>block.operations.some(op=>op.kind==='readGlobalProperty'&&op.name==='__nonaRegexpVm'))));

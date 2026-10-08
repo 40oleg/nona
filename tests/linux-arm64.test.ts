@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {compile} from '../src/compiler.js';
-import {runtimeProbes,runtimeProbeSources} from '../src/backend/platform-probes.js';
+import {runtimeProbes,runtimeProbeSources} from './probes/platform-probes.js';
 
 test('Linux ARM64 compiles the language runtime into an AArch64 ELF image',()=>{
   const result=compile('console.log(6*7,"a"+"b",Math.sin(.5))',{fileName:'probe.js',target:'linux-arm64'});

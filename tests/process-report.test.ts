@@ -10,7 +10,7 @@ import {compileModuleToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {requireHostTarget} from '../src/target.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
-import {processReportAllocationFailureProbe} from '../src/runtime/process-report-probe.js';
+import {processReportAllocationFailureProbe} from './probes/process-report-probe.js';
 
 test('native process reports write valid JSON with genuine OS and allocator data',()=>{
  const directory=resolve(mkdtempSync(join(tmpdir(),'nona-report-'))),filename=join(directory,'api.json');

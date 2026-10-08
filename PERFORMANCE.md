@@ -1,9 +1,78 @@
 # Performance: Nona vs Node.js, Deno and Bun
 
-Measured on 2026-10-01 against Nona `v0.7.0` (commit `b31c4d6`). The scripts
-live in [`bench/`](bench/); `node bench/run.mjs` reproduces every table below.
+Measured on 2026-10-01 against Nona `v0.7.0` (commit `b31c4d6`); sections that
+carry their own date were measured later. Nona and Node.js were measured again
+on 2026-10-08 for v0.10.0, see [the v0.10.0 update](#update-current-release-against-node).
+The v0.7.0 tables below are kept for the record and are marked *superseded*
+where the update replaces them. The scripts live in [`bench/`](bench/);
+`node bench/run.mjs` reproduces every table (protocol in [`bench/README.md`](bench/README.md)).
 
-## Summary
+## Update: current release against Node
+
+Measured on 2026-10-08 at `main` 6c4b396 (v0.10.0 plus the Lean proofs PR) on
+Windows x64 with Node.js 22.23.2: `node bench/run.mjs --scale 0.1 --runs 3
+--runtimes node,nona --only 05,06,07,08,09,10,11,13,14,15`, median of 3 runs.
+`--scale 0.1` is a tenth of the nominal size in each script, which is the
+N = 100 000 of sections 5–7 and 14–15. Deno and Bun are not installed on the
+measuring machine, so only Node is compared. The machine was a desktop in
+normal use with other Node processes running: treat differences of about ×1.5
+or less as noise. `12_fs.mjs` is not re-measured because it writes to `/tmp`,
+which does not exist on Windows.
+
+| Operation | Node, ms | Nona, ms | Nona / Node | v0.7.0 |
+| --- | --- | --- | --- | --- |
+| `push` × N | 5.75 | 4.84 | ×0.8 | ×37 |
+| `Array.from({length: N})` | 7.83 | 31.6 | ×4.0 | ×36 |
+| `new Array(N)` + fill | 2.13 | 2.63 | ×1.2 | ×143 |
+| Sum with a `for` loop | 2.46 | 1.02 | ×0.4 | ×18 |
+| `map` → `filter` → `reduce` | 4.52 | 10.7 | ×2.4 | ×27 |
+| `sort` N numbers with a comparator | 47.7 | 179 | ×3.8 | ×523 |
+| Create N objects `{id, x, y, name}` | 18.5 | 39.5 | ×2.1 | ×33 |
+| Read 3 properties × N | 8.85 | 4.72 | ×0.5 | ×9 |
+| `Map.set` × N | 16.2 | 17.5 | ×1.1 | ×6 700 |
+| `Map.get` × N | 5.92 | 14.0 | ×2.4 | ×18 000 |
+| `Set.add` + `Set.has` × N | 14.8 | 41.6 | ×2.8 | ×15 000 |
+| `s += "abc" + i` × 20 000 | 4.50 | 1 070 | ×237 | ×156 (2 000 iterations) |
+| `split("1")` + `join("-")` | 2.06 | 4.25 | ×2.1 | ×470 (N = 10 000) |
+| `indexOf` in a loop | 0.21 | 0.31 | ×1.5 | ×3 |
+| `/abc(\d{3})-/g.exec` in a loop | 0.26 | 59.4 | ×227 | ×13 000 |
+| `fib(32)` recursive | 29.2 | 82.8 | ×2.8 | ×25 |
+| 200×200 matrix multiply | 35.4 | 284 | ×8.0 | ×857 |
+| BigInt factorial 3000! | 0.17 | 1.12 | ×6.4 | > 10 min |
+| 500k short-lived `{a, b: [..], c: {..}}` | 23.5 | 315 | ×13 | ×93 |
+| Promise chain, `.then` × 100 000 | 32.1 | 1 256 | ×39 | ×53 000 (10 000) |
+| 1 000 sequential `setTimeout(fn, 0)` | 15 242 | 15 654 | ×1.0 | ×1.0 |
+| `JSON.stringify`, 30 000 objects, 2.9 MB | 23.8 | 33.5 | ×1.4 | ×900 (3 000 objects) |
+| `JSON.parse`, 2.9 MB | 37.6 | 51.3 | ×1.4 | ×45 (280 KB) |
+| `Float64Array`: fill, sum, map, 1M | 14.5 | 48.2 | ×3.3 | ×17 |
+| Call `add(a, b)` × 10N | 3.66 | 44.0 | ×12 | ×71 |
+| Create and call N closures | 13.96 | 70.5 | ×5.1 | ×41 |
+| `call` + `apply` × 4N | 8.49 | 69.5 | ×8.2 | ×72 |
+| Method through an inheritance chain × 5N | 6.32 | 66.0 | ×10 | ×67 |
+| Polymorphic call, 3 classes × 5N | 7.33 | 75.8 | ×10 | ×96 |
+| `new Square(i)` × N | 14.97 | 69.9 | ×4.7 | ×52 |
+
+The checksums printed by every script were identical on both runtimes.
+
+What changed since v0.7.0: the quadratic cases are gone. `Map`/`Set` use a hash
+index and arrays have dense elements (#41), number arithmetic and branches are
+inline (#41, #94),
+the RegExp engine is a bytecode VM with a literal-prefix search (#14, #107),
+and JSON is parsed and written iteratively (#41, #88). What remains is mostly
+the cost of the generic path and of copying strings:
+
+- `s += …` is still quadratic (×237 at 20 000 iterations): ropes are tracked in #46 and #83.
+- RegExp is ×227 on this scan-heavy case.
+- Calls, closures and classes are ×4–12, and short-lived objects ×13: call-site caches (#47), inline slots for short-lived objects (#48) and shapes (#114).
+- `JSON.stringify` still builds a string first (#45, #155).
+
+Sections 1–4 (startup, size, build time, memory), the executable size, the
+real-world code and the HTTP server tables are not covered by this update and
+keep the date and version they state.
+
+## Summary (v0.7.0, superseded)
+
+*Measured against v0.7.0. The operations in the table below are re-measured in [the v0.10.0 update](#update-current-release-against-node): in that re-measurement the Map/Set, sort, Promise and JSON rows are no longer quadratic and string concatenation still is; `readFileSync` was not re-measured.*
 
 Nona wins on everything that happens before and around the program: a
 compiled hello world starts in **1.8 ms** (Bun 4.5, Deno 15, Node 28), the
@@ -101,7 +170,9 @@ when the program can reach them. Measured on 2026-10-02 at the merge commit of
 Startup time and peak RSS do not change: the omitted parts were never
 touched by a program that does not use them.
 
-## 5–7. Arrays, objects and Map/Set, strings and RegExp
+## 5–7. Arrays, objects and Map/Set, strings and RegExp (v0.7.0, superseded)
+
+*v0.7.0 numbers, superseded by [the v0.10.0 update](#update-current-release-against-node) (all rows except where it says otherwise).*
 
 N = 100 000, median, ms:
 
@@ -139,7 +210,9 @@ parts builds intermediate strings and its memory grows quadratically (4k parts
 At such small N the Node/Deno/Bun figures are mostly JIT warm-up, so the
 ratios in this table are, if anything, understated.
 
-## 8–10. Numeric work, GC pressure, async
+## 8–10. Numeric work, GC pressure, async (v0.7.0, superseded)
+
+*v0.7.0 numbers, superseded by [the v0.10.0 update](#update-current-release-against-node) (all rows except where it says otherwise).*
 
 | Operation | Size | Node | Deno | Bun | Nona | Nona / Node |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -164,7 +237,9 @@ with the job queue being rescanned from the start on every job. Timers are
 fine: `setTimeout(fn, 0)` costs about 1.2 ms everywhere because every runtime
 clamps the delay to 1 ms.
 
-## 11–13. JSON, file I/O, typed arrays
+## 11–13. JSON, file I/O, typed arrays (v0.7.0, superseded)
+
+*v0.7.0 numbers, superseded by [the v0.10.0 update](#update-current-release-against-node) (all rows except where it says otherwise).*
 
 | Operation | Size | Node | Deno | Bun | Nona | Nona / Node |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -181,7 +256,9 @@ building: `JSON.stringify` of 3 000 objects takes 1.4 s and 1.7 GB; the full
 300k-object / 30 MB scenario and the 100 MB file did not finish in 10
 minutes, where Node, Deno and Bun take 0.1–0.7 s.
 
-## 14–15. Function calls, closures, classes
+## 14–15. Function calls, closures, classes (v0.7.0, superseded)
+
+*v0.7.0 numbers, superseded by [the v0.10.0 update](#update-current-release-against-node) (all rows except where it says otherwise).*
 
 | Operation | N = 100k | | | | | N = 1M | |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -289,7 +366,9 @@ instruction (values live in stack slots, and allocation and collection touch
 more memory). How the server and the runtime got here is described in the
 pull request of #115 and the commits it lists.
 
-## Where the time goes
+## Where the time goes (v0.7.0 analysis)
+
+*This is the v0.7.0 analysis. Causes 1 and 3 were fixed and 4 largely (see [the update](#update-current-release-against-node)); string copying, call overhead and allocation remain.*
 
 Grouping the ratios against Node by their cause:
 

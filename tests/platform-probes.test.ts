@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {withNativeTarget} from '../src/backend/machine/context.js';
-const probePath='../src/backend/platform-probes.js';
+const probePath='../tests/probes/platform-probes.js';
 const probes=await import(probePath).catch(()=>undefined);
 
 test('loader probes contain the matching native OS and CPU image',()=>{

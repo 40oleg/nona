@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {processReportPlatformProbes} from '../src/backend/process-report-platform-probes.js';
+import {processReportPlatformProbes} from './probes/process-report-platform-probes.js';
 import {supportedNativeTargets} from '../src/target.js';
 
 for(const target of supportedNativeTargets)test('real report fixtures compile and link for '+target,()=>{

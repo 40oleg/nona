@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {requireHostTarget} from '../src/target.js';
-import {processBuiltinProbes} from '../src/backend/process-builtin-probes.js';
+import {processBuiltinProbes} from './probes/process-builtin-probes.js';
 import {removeTemporaryDirectory} from './helpers/cleanup.js';
 
 // Native CI only. A focused environment isolates registry/GC behavior;

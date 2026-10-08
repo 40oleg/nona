@@ -83,7 +83,7 @@ Following Test262:
 
 Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
 await, and the other features in `postEs2020Features`. Remaining known
-deviations are listed per catalog in `docs/pr5-es2020-remaining-work.md` and
+deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
 the release status.
 
 Runner features added for the ES2020 gate (2026-09):
@@ -192,7 +192,7 @@ all 90 skips are `Array.fromAsync` tests (an API after ES2020);
 it exposed an iterator completion bug and five sparse-array timeouts,
 which have since been fixed. The repeat full Array run has 2640 pass,
 352 fail, 90 skip. Each remaining failure has a recorded prerequisite in
-[the v0.4 deferral list](v0.4-array-deferred.json): 150 post-ES2020 API
+[the v0.4 deferral list](history/v0.4-array-deferred.json): 150 post-ES2020 API
 cases, 72 resizable-buffer cases, and 130 other future dependencies or
 the documented `eval` exception. The positive manifest passes 100/100.
 
