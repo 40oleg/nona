@@ -29,7 +29,7 @@ export function emitMapIterators(b:RuntimeBuilder):void {
  ]});head.target='rt.mapPrototype.@@iterator';
  rootedFn(b,'rt.newMapIterator',104,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'locals',offset:64,count:1}],a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',MapIteratorLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',MapIteratorKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapIteratorLayout.current,MapIteratorLayout.started])a.store({base:'rax',disp:offset},'r10');a.lea('r10',{rip:'rt.mapIteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags,MapIteratorLayout.current,MapIteratorLayout.started])a.store({base:'rax',disp:offset},'r10');a.lea('r10',{rip:'rt.mapIteratorPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
   a.load('rdx',slot(48));for(const n of [0,8]){a.load('r10',{base:'rdx',disp:n});a.store({base:'rax',disp:MapIteratorLayout.map+n},'r10');}a.load('r10',slot(56));a.store({base:'rax',disp:MapIteratorLayout.mode},'r10');
   a.load('rcx',slot(40));a.mov('r10',5);a.store({base:'rcx'},'r10');a.store({base:'rcx',disp:8},'rax');
  });

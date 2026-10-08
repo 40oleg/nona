@@ -111,7 +111,12 @@ class Lowerer {
     const sourceText=fn.module!==undefined?this.bound.modules![fn.module]!.record.ast.source:this.bound.ast.source;
     const sourceSpan=fn.declaration.kind==='FunctionExpression'?(fn.declaration.sourceSpan??fn.declaration.span):fn.declaration.span;
     this.emit({kind:'newFunction',strict:fn.strict,dest,...(homeObject===undefined?{}:{homeObject}),method:fn.declaration.kind==='FunctionExpression'&&fn.declaration.method===true,classConstructor:fn.declaration.kind==='FunctionExpression'&&fn.declaration.classConstructor===true,arrow:fn.declaration.kind==='FunctionExpression'&&fn.declaration.arrow===true,generator:fn.declaration.generator===true,...(fn.declaration.async?{async:true}:{}),target:`${fn.realmLocal?'js.rfn':'js.fn'}.${fn.index}`,captures,parameterCount:(fn.declaration.defaults?.findIndex(init=>init!==null)??-1)<0?fn.parameters.length:fn.declaration.defaults!.findIndex(init=>init!==null),
-      sourceText:override?.sourceText??(fn.declaration.kind==='Function'?fn.declaration.sourceText:undefined)??sourceText?.slice(sourceSpan.start,sourceSpan.end),
+      ...(()=>{
+        const text=override?.sourceText??(fn.declaration.kind==='Function'?fn.declaration.sourceText:undefined);
+        if(text!==undefined)return {sourceText:text};
+        // Nested functions share their module's text: each keeps a range of it.
+        return sourceText===undefined?{}:{sourceRange:{source:sourceText,start:sourceSpan.start,end:sourceSpan.end}};
+      })(),
       ...(typeof name==='number'?{nameSlot:name}:{name})});return dest;
   }
   private globalObject():number {const dest=this.slot();this.emit({kind:'globalObject',dest});return dest;}

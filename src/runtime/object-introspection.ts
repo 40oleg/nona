@@ -47,7 +47,14 @@ export function emitObjectIntrospection(b:RuntimeBuilder):void {
   a.mov('rax',A.ordinary);a.jmp(done);
   a.label(notTyped);a.cmp('r10',1);a.jcc('ne',ordinary);
   a.load('rcx',slot(48));a.lea('rdx',{rip:'rt.str.length'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',ordinary);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.flags});a.and('rax',2);a.shr('rax',1);a.xor('rax',1);a.jmp(done);
-  a.label(ordinary);a.load('rcx',slot(56));a.load('rdx',slot(48));a.call('rt.findGlobalBinding');a.test('rax','rax');
+  a.label(ordinary);
+  // A shaped object (shapes.ts): every own named property is ordinary; a
+  // key it lacks is missing unless it may be an element.
+  {const unshaped=a.unique('unshaped');a.load('r10',slot(56));a.load('rcx',{base:'r10',disp:O.shape});a.test('rcx','rcx');a.jcc('e',unshaped);
+   a.load('rdx',slot(48));a.call('rt.shapeLookup');a.test('rax','rax');{const absent=a.unique('absent');a.jcc('s',absent);a.mov('rax',A.ordinary);a.jmp(done);a.label(absent);}
+   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.elements});a.test('rax','rax');a.jcc('e',missing);
+   a.label(unshaped);}
+  a.load('rcx',slot(56));a.load('rdx',slot(48));a.call('rt.findGlobalBinding');a.test('rax','rax');
   const data=a.unique('data');a.jcc('e',data);a.load('rax',{base:'rdx'});a.jmp(done);
   a.label(data);a.load('rcx',slot(56));a.load('rdx',slot(48));a.call('rt.findOwnProperty');a.test('rax','rax');
   const virtual=a.unique('virtual');a.jcc('e',virtual);a.load('rax',{base:'rax',disp:P.attributes});a.jmp(done);

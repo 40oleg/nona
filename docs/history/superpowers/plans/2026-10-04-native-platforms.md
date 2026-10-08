@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Node.js 26, direct machine-code emission, GitHub native runners and BSD VM actions.
 
-**Spec:** `docs/superpowers/specs/2026-10-04-native-platforms-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-10-04-native-platforms-design.md`.
 
 ## Global Constraints
 

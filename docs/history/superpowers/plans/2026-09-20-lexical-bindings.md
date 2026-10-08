@@ -5,7 +5,7 @@
 **Goal:** let/const с блочными окружениями, TDZ и проверками записи для текущих нефункциональных значений.
 **Architecture:** Binding получает признаки lexical/mutable; BoundProgram сохраняет bindings каждой lexical scope. IR явно сбрасывает binding в TDZ на входе в scope, проверяет чтение и запись. До реализации JS exceptions ошибки runtime используют существующий fatal-канал; это ограничение документируется.
 **Tech Stack:** TypeScript, x64 emitter, Windows.
-**Spec:** `docs/superpowers/specs/2026-09-20-language-expansion-design.md`.
+**Spec:** `docs/history/superpowers/specs/2026-09-20-language-expansion-design.md`.
 
 ## Global Constraints
 

@@ -30,7 +30,7 @@ export function emitProxy(b:RuntimeBuilder):void {
   a.mov('rcx',ProxyLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',ProxyKind);a.store({base:'rax',disp:O.kind},'r10');
-  a.mov('r10',0);for(const offset of [O.properties,O.length,O.stringifying,O.flags,ProxyLayout.revoked])a.store({base:'rax',disp:offset},'r10');
+  a.mov('r10',0);for(const offset of [O.properties,O.length,O.shape,O.flags,ProxyLayout.revoked])a.store({base:'rax',disp:offset},'r10');
   a.load('r11',slot(56));a.load('r11',{base:'r11',disp:8});a.load('r10',{base:'r11',disp:O.kind});
   const targetProxy=a.unique('targetProxy'),targetReady=a.unique('targetReady');a.cmp('r10',FunctionKind);a.jcc('ne',targetProxy);
   a.mov('r10',ProxyCallable);a.load('r11',{base:'r11',disp:FunctionLayout.constructable});a.test('r11','r11');a.jcc('e',targetReady);a.or('r10',ProxyConstructable);a.jmp(targetReady);
@@ -268,6 +268,8 @@ export function emitProxy(b:RuntimeBuilder):void {
   const regularForward=a.unique('regularForward'),setterMissing=a.unique('setterMissing'),dataReceiver=a.unique('dataReceiver'),specialForward=a.unique('specialForward');
   // 6: a valid element of a TypedArray other than the receiver -> OrdinarySet on the receiver.
   a.test('rax','rax');a.jcc('e',dataReceiver);a.cmp('rax',6);a.jcc('e',dataReceiver);a.cmp('rax',5);a.jcc('be',specialForward);
+  // 7: a dense element or a shaped object's slot, a writable data property.
+  a.cmp('rax',7);a.jcc('e',dataReceiver);
   a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.test('r10','r10');a.jcc('e',regularForward);
   for(const part of [0,8]){a.load('r10',{base:'rax',disp:P.setter+part});a.store(slot(144+part),'r10');}
   a.load('rax',slot(144));a.test('rax','rax');a.jcc('e',setterMissing);

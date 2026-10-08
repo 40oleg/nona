@@ -28,7 +28,7 @@ export function emitFunctionBind(b:RuntimeBuilder):void {
   a.add('rdx',16);a.add('r9',16);a.sub('r8',1);a.jmp(loop);a.label(copied);
   a.mov('rcx',F.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
-  for(const offset of [O.properties,O.length,O.stringifying,O.flags,F.environment,F.constructCode,F.homeObject])a.store({base:'rax',disp:offset},'r10');
+  for(const offset of [O.properties,O.length,O.shape,O.flags,F.environment,F.constructCode,F.homeObject])a.store({base:'rax',disp:offset},'r10');
   a.mov('r10',1);a.store({base:'rax',disp:F.rawThis},'r10');a.lea('r10',{rip:'rt.emptyFunction'});a.store({base:'rax',disp:F.code},'r10');
   a.lea('r10',{rip:'rt.str.nativeFunction'});a.store({base:'rax',disp:F.sourceText},'r10');
   a.load('r10',slot(80));a.store({base:'rax',disp:F.bound},'r10');a.load('rdx',slot(64));a.load('rdx',{base:'rdx',disp:8});

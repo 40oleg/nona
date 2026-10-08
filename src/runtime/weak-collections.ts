@@ -38,7 +38,7 @@ export function emitWeakCollections(b:RuntimeBuilder):void {
   rootedFn(b,prefix+'.construct',952,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:14}],(a,frame)=>{
    a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('rcx',spec.name==='WeakMap'?WeakFinalizationLayout.size:MapLayout.size);a.call('rt.alloc');a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');a.mov('r10',spec.kind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
    if(spec.name==='WeakMap')for(const offset of [WeakFinalizationLayout.callback,WeakFinalizationLayout.callback+8])a.store({base:'rax',disp:offset},'r10');
-   for(const offset of [O.properties,O.length,O.stringifying,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index])a.store({base:'rax',disp:offset},'r10');
+   for(const offset of [O.properties,O.length,O.shape,O.flags,MapLayout.head,MapLayout.tail,MapLayout.count,MapLayout.index])a.store({base:'rax',disp:offset},'r10');
    // Listed for the collector, which prunes dead keys of every live weak collection.
    a.load('r10',{rip:'rt.weakList'});a.store({base:'rax',disp:MapLayout.weakNext},'r10');a.store({rip:'rt.weakList'},'rax');
    selectNativeConstructPrototype(a,frame,prototypeName);a.store({base:'rax',disp:O.prototype},'r10');

@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 7, Node test runner, собственные x64 emitter/PE32+ linker/runtime, Windows x64.
 
-**Spec:** `docs/superpowers/specs/2026-09-23-scope-name-resolution-design.md`
+**Spec:** `docs/history/superpowers/specs/2026-09-23-scope-name-resolution-design.md`
 
 ## Global Constraints
 
@@ -516,10 +516,10 @@ Expected: all suites pass; core sloppy outside visibility is `undefined`.
 - Create: `examples/compat/scope-resolution.cjs`
 - Modify: `docs/language-support.md`
 - Modify: `README.md`
-- Modify: `docs/development-log.md`
-- Modify: `docs/continuation-checkpoint.md`
-- Modify: `docs/superpowers/specs/2026-09-23-scope-name-resolution-design.md`
-- Modify: `docs/superpowers/plans/2026-09-23-scope-name-resolution.md`
+- Modify: `docs/history/development-log.md`
+- Modify: `docs/history/continuation-checkpoint.md`
+- Modify: `docs/history/superpowers/specs/2026-09-23-scope-name-resolution-design.md`
+- Modify: `docs/history/superpowers/plans/2026-09-23-scope-name-resolution.md`
 
 **Interfaces:**
 - Consumes: completed Tasks 1–4 and `scripts/compare-examples.mjs`.
