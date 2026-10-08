@@ -7,24 +7,24 @@
 | --- | --- |
 | [Матричный калькулятор](matrix-calculator.md) | Пример программы, изменение матриц и самостоятельная сборка EXE |
 | [Текущее состояние](language-support.md) | Возможности компилятора и доказательства проверки |
-| [Статус 0.17–0.20](v0.17-v0.20-status.md) | Итоговый аудит ES2020: полный Test262 на Windows, `eval` времени компиляции, оставшиеся отказы |
-| [Статус v0.6](v0.6-status.md) | Релиз после PR #5, проверки Windows/Linux и открытые ограничения ES2020 |
-| [Статус v0.4](v0.4-status.md) | Проверки Array/числовых API и оставшиеся зависимости |
-| [Статус v0.3](v0.3-status.md) | Предыдущий релиз и оставшиеся области ES2020 |
-| [Статус v0.5](v0.5-status.md) | Проверки String, Number, Math и URI и отложенные зависимости |
+| [Статус 0.17–0.20](status.md) | Итоговый аудит ES2020: полный Test262 на Windows, `eval` времени компиляции, оставшиеся отказы |
+| [Статус v0.6](history/v0.6-status.md) | Релиз после PR #5, проверки Windows/Linux и открытые ограничения ES2020 |
+| [Статус v0.4](history/v0.4-status.md) | Проверки Array/числовых API и оставшиеся зависимости |
+| [Статус v0.3](history/v0.3-status.md) | Предыдущий релиз и оставшиеся области ES2020 |
+| [Статус v0.5](history/v0.5-status.md) | Проверки String, Number, Math и URI и отложенные зависимости |
 | [Контракт завершения ES2020](es2020-contract.md) | Граница цели, исключения и критерии закрытия разделов стандарта |
-| [Аудит операций runtime](runtime-operations-audit.md) | Общие операции и граница платформенного backend |
+| [Аудит операций runtime](history/runtime-operations-audit.md) | Общие операции и граница платформенного backend |
 | [Test262](test262.md) | Закреплённая ревизия, запуск групп и ограничения адаптера |
-| [Журнал разработки](development-log.md) | Изменения, команды проверок, результаты и незавершённая работа |
-| [Расширение языка: проект решения](superpowers/specs/2026-09-20-language-expansion-design.md) | Границы следующей работы и архитектурные решения |
-| [Базовые конструкции](superpowers/plans/2026-09-20-core-language.md) | План и отметки первого этапа расширения |
-| [Лексические объявления](superpowers/plans/2026-09-20-lexical-bindings.md) | let/const, TDZ и ограничения промежуточного runtime |
-| [Объекты и массивы](superpowers/plans/2026-09-21-objects-arrays.md) | Свойства, прототипы, sparse arrays и сравнение отдельных программ с Node |
-| [Сборка мусора](superpowers/plans/2026-09-21-garbage-collection.md) | План проверенного GC для текущего поднабора языка |
+| [Журнал разработки](history/development-log.md) | Изменения, команды проверок, результаты и незавершённая работа |
+| [Расширение языка: проект решения](history/superpowers/specs/2026-09-20-language-expansion-design.md) | Границы следующей работы и архитектурные решения |
+| [Базовые конструкции](history/superpowers/plans/2026-09-20-core-language.md) | План и отметки первого этапа расширения |
+| [Лексические объявления](history/superpowers/plans/2026-09-20-lexical-bindings.md) | let/const, TDZ и ограничения промежуточного runtime |
+| [Объекты и массивы](history/superpowers/plans/2026-09-21-objects-arrays.md) | Свойства, прототипы, sparse arrays и сравнение отдельных программ с Node |
+| [Сборка мусора](history/superpowers/plans/2026-09-21-garbage-collection.md) | План проверенного GC для текущего поднабора языка |
 | [Память runtime](runtime-memory.md) | Реальный ABI аллокаций/корней, safepoints и требования к будущим callbacks |
-| [Функции и замыкания](superpowers/plans/2026-09-21-functions-closures.md) | Callable objects, environments и протокол вызовов; этап в работе |
-| [Спецификация v0.1](superpowers/specs/2026-09-20-js-aot-win64-design.md) | Исходные требования и ограничения первой версии |
-| [План v0.1](superpowers/plans/2026-09-20-js-aot-win64.md) | Исторический план первой реализации |
+| [Функции и замыкания](history/superpowers/plans/2026-09-21-functions-closures.md) | Callable objects, environments и протокол вызовов; этап в работе |
+| [Спецификация v0.1](history/superpowers/specs/2026-09-20-js-aot-win64-design.md) | Исходные требования и ограничения первой версии |
+| [План v0.1](history/superpowers/plans/2026-09-20-js-aot-win64.md) | Исторический план первой реализации |
 
 ## Правила сопровождения
 

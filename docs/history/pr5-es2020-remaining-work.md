@@ -2,8 +2,8 @@
 
 Snapshot: 2026-09-28, branch `work/v0.6-v0.14`. This is a work list, not a
 claim of conformance. The normative target and exceptions are in
-[`es2020-contract.md`](es2020-contract.md); the implementation matrix is in
-[`language-support.md`](language-support.md). PR #5 has been merged for the
+[`es2020-contract.md`](../es2020-contract.md); the implementation matrix is in
+[`language-support.md`](../language-support.md). PR #5 has been merged for the
 experimental v0.6.0 subset release. The dated sections below preserve the
 implementation/audit history; the full ES2020 gate remains open until every
 applicable item has implementation and conformance evidence. See
@@ -12,7 +12,7 @@ applicable item has implementation and conformance evidence. See
 ## Test262 audit 2026-09-30 (Linux x64 and Windows x64)
 
 Full catalogs at the pinned revision with `TEST262_EXCLUDE_FEATURES=post-es2020`
-(see [test262.md](test262.md)). "eval" = the documented `eval`/dynamic-source
+(see [test262.md](../test262.md)). "eval" = the documented `eval`/dynamic-source
 exception (files that call `eval`, `$262.evalScript`, or build Function/
 generator sources from non-literal strings); "post" = post-ES2020 semantics
 that Test262 still tags with older features (for example the ES2021 typed
@@ -206,7 +206,7 @@ pinned revision; "eval" means the documented exception.
   requires another realm. Cover Number/BigInt mixed operators, shifts,
   boundary values, error order, JSON and GC on both targets.
 - Audit remaining Number/Math accuracy and formatting boundaries called out
-  in [the support matrix](language-support.md), including very large finite
+  in [the support matrix](../language-support.md), including very large finite
   inputs and side effects of conversion.
 
 ## 0.9 — RegExp engine

@@ -17,7 +17,7 @@ their cost are recorded in
 
 **Tech Stack:** TypeScript 7, Node test runner, Nona IR, custom Windows x64/SSE2 assembler and PE linker.
 
-**Spec:** `docs/superpowers/specs/2026-09-23-exponentiation-optional-chaining-design.md`
+**Spec:** `docs/history/superpowers/specs/2026-09-23-exponentiation-optional-chaining-design.md`
 
 ## Global Constraints
 
@@ -619,10 +619,10 @@ Expected: all suites pass under normal and stress collection, including skipped 
 - Create: `examples/compat/modern-expressions.cjs`
 - Modify: `README.md`
 - Modify: `docs/language-support.md`
-- Modify: `docs/development-log.md`
-- Modify: `docs/continuation-checkpoint.md`
-- Modify: `docs/superpowers/specs/2026-09-23-exponentiation-optional-chaining-design.md`
-- Modify: `docs/superpowers/plans/2026-09-23-exponentiation-optional-chaining.md`
+- Modify: `docs/history/development-log.md`
+- Modify: `docs/history/continuation-checkpoint.md`
+- Modify: `docs/history/superpowers/specs/2026-09-23-exponentiation-optional-chaining-design.md`
+- Modify: `docs/history/superpowers/plans/2026-09-23-exponentiation-optional-chaining.md`
 
 **Interfaces:**
 - Consumes: Tasks 1–4, `npm run check`, `scripts/compare-examples.mjs`, and the independent review workflow.
