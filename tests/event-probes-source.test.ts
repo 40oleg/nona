@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {eventProbeSources,eventProbes} from '../src/backend/event-probes.js';
+import {eventProbeSources,eventProbes} from './probes/event-probes.js';
 
 for(const probe of eventProbeSources)test('event platform probe Node oracle: '+probe.name,()=>{
  const result=spawnSync(process.execPath,['--input-type=module','-e',probe.source],{encoding:'utf8'});

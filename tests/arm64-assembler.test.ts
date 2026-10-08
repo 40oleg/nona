@@ -42,7 +42,7 @@ test('ARM64 binary64 arithmetic uses native FP registers and instructions',()=>{
 });
 
 test('ARM64 CPU execution probe links arithmetic, flags, division, FP and atomic checks',async()=>{
-  const path='../src/backend/arm64/cpu-probe.js';
+  const path='../tests/probes/arm64-cpu-probe.js';
   const {arm64CpuProbe}=await import(path),image=arm64CpuProbe();
   assert.equal(new DataView(image.buffer).getUint16(18,true),183);
 });

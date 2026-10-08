@@ -1,6 +1,6 @@
 // CI-only same-OS Node behavior recorder; never signals the harness process.
 import {spawnSync} from 'node:child_process';
-import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe,processSignalBurstProbe} from '../dist/src/runtime/process-signals-probe.js';
+import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe,processSignalBurstProbe} from '../dist/tests/probes/process-signals-probe.js';
 if(process.env.GITHUB_ACTIONS!=='true'||!['linux','darwin'].includes(process.platform))throw new Error('Signal oracle requires isolated POSIX GitHub CI');
 for(const [name,source,expected,signal] of [
  ['delivery',processSignalDeliveryProbe,'SIGTERM 1 0\ndone 1\n',null],

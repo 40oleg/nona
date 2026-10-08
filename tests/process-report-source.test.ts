@@ -8,7 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {emitProcessFatalReport} from '../src/runtime/process-report-fatal.js';
-import {processReportAllocationFailureProbe} from '../src/runtime/process-report-probe.js';
+import {processReportAllocationFailureProbe} from './probes/process-report-probe.js';
 
 const fixture=String.raw`
 var files=[],closed=[],writes=[],attempt=0,failOpen=false,partial=false;

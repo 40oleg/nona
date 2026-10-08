@@ -5,7 +5,7 @@ import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {emitPosixProcessAbort} from '../src/runtime/process-abort.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import type {Target} from '../src/target.js';
-import {processAbortProbeSource} from '../src/backend/process-abort-probe.js';
+import {processAbortProbeSource} from './probes/process-abort-probe.js';
 import {compile,compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkDarwin} from '../src/backend/darwin/index.js';

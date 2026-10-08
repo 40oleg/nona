@@ -9,7 +9,7 @@ import {bind} from '../src/frontend/binder.js';
 import {lower} from '../src/ir/lower.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
-import {streamProbeCases} from '../src/backend/stream-probes.js';
+import {streamProbeCases} from './probes/stream-probes.js';
 
 const emptyHost={resolve:()=>undefined,read:()=>undefined};
 for(const target of supportedNativeTargets)test('original stream prelude lowers and emits instructions for '+target,()=>{

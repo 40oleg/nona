@@ -9,7 +9,7 @@ import {compileToIR,compileModuleToIR} from '../src/compiler.js';
 import {withBuiltinModules} from '../src/frontend/builtin-modules.js';
 import {promisePreludeSource} from '../src/runtime/promise-source.js';
 import {supportedNativeTargets} from '../src/target.js';
-import {processBuiltinProbeCases,processBuiltinProbes} from '../src/backend/process-builtin-probes.js';
+import {processBuiltinProbeCases,processBuiltinProbes} from './probes/process-builtin-probes.js';
 import {collectSourceUsage} from '../src/frontend/lexer.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';

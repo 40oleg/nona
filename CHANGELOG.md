@@ -22,6 +22,8 @@
 
 - Delete an own property of an object with a property hash index without walking its list: the index records the word that links each node, so deleting the oldest keys first is no longer quadratic (20,000 keys deleted oldest first: 2 s → 22 ms) ([#13](https://github.com/40oleg/nona/issues/13)).
 
+- Moved the 15 probe program sources (platform, process, stream, event, arm64 and self-host probes) from `src/` to `tests/probes/`, so they no longer ship in `dist/src` or in the self-host source tree ([#175](https://github.com/40oleg/nona/issues/175)).
+
 - Re-measured the v0.7.0 micro-benchmark tables for v0.10.0 against Node.js in `PERFORMANCE.md` (Map/Set, sort, Promise and JSON are no longer quadratic; string concatenation and RegExp are the largest remaining gaps), marked the old tables as superseded and documented the measurement protocol in `bench/README.md` ([#180](https://github.com/40oleg/nona/issues/180)).
 
 - Added `docs/architecture.md` (pipeline, layouts, calling convention, machine model, runtime linking) with a test that checks its layout tables against the source, corrected stale statements in `runtime-memory.md`, `es2020-contract.md` and `language-support.md`, and made `docs/README.md` a complete English index ([#171](https://github.com/40oleg/nona/issues/171)).

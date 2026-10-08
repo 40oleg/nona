@@ -6,7 +6,7 @@ import {processPreludeForTarget,processHostDeclarations} from '../src/runtime/pr
 import {timersPreludeSource} from '../src/runtime/timers-source.js';
 import {compile,compileToIR} from '../src/compiler.js';
 import {supportedNativeTargets} from '../src/target.js';
-import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe} from '../src/runtime/process-signals-probe.js';
+import {processSignalDeliveryProbe,processSignalUnreferencedProbe,processSignalRestorationProbe} from './probes/process-signals-probe.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkLinux} from '../src/backend/linux/index.js';

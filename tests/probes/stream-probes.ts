@@ -1,13 +1,13 @@
-import {compileModuleToIR} from '../compiler.js';
-import {collectSourceUsage} from '../frontend/lexer.js';
-import {getTarget,type Target} from '../target.js';
-import {generate} from './x64/codegen.js';
-import {withNativeTarget} from './machine/context.js';
-import {linkPe} from './pe/writer.js';
-import {linkWindowsArm64} from './arm64/windows.js';
-import {linkLinux} from './linux/index.js';
-import {linkDarwin} from './darwin/index.js';
-import {linkBsd} from './bsd/index.js';
+import {compileModuleToIR} from '../../src/compiler.js';
+import {collectSourceUsage} from '../../src/frontend/lexer.js';
+import {getTarget,type Target} from '../../src/target.js';
+import {generate} from '../../src/backend/x64/codegen.js';
+import {withNativeTarget} from '../../src/backend/machine/context.js';
+import {linkPe} from '../../src/backend/pe/writer.js';
+import {linkWindowsArm64} from '../../src/backend/arm64/windows.js';
+import {linkLinux} from '../../src/backend/linux/index.js';
+import {linkDarwin} from '../../src/backend/darwin/index.js';
+import {linkBsd} from '../../src/backend/bsd/index.js';
 
 export type StreamProbeCase={name:string;source:string;expected:string;gcStress?:boolean};
 

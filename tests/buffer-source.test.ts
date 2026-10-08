@@ -7,7 +7,7 @@ import {promisePreludeSource} from '../src/runtime/promise-source.js';
 import {bufferPreludeSource} from '../src/runtime/buffer-source.js';
 import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {nativeTargets} from '../src/target.js';
-import {runtimeProbeSources} from '../src/backend/platform-probes.js';
+import {runtimeProbeSources} from './probes/platform-probes.js';
 import {cases,blobStreamCases,streamOracle} from './helpers/buffer-cases.js';
 import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {runtimeRegExpLink} from '../src/runtime/link.js';

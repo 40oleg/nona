@@ -4,7 +4,7 @@ import {compile,compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {withNativeTarget} from '../src/backend/machine/context.js';
 import {linkHost} from './helpers/program.js';
-import {runtimeProbes,runtimeProbeSources} from '../src/backend/platform-probes.js';
+import {runtimeProbes,runtimeProbeSources} from './probes/platform-probes.js';
 const nativeServiceProbeNames=['path-lazy-startup','gc-stress','agents','atomic-contention','ffi-syscall'];
 function assertProbeInventory(probes:{name:string}[]):void {
  const expected=[...runtimeProbeSources.map(probe=>probe.name),...nativeServiceProbeNames];

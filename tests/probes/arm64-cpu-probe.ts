@@ -1,6 +1,6 @@
-import {Arm64Assembler} from './assembler.js';
-import {linkElf} from '../elf/writer.js';
-import type {Condition,Reg} from '../x64/assembler.js';
+import {Arm64Assembler} from '../../src/backend/arm64/assembler.js';
+import {linkElf} from '../../src/backend/elf/writer.js';
+import type {Condition,Reg} from '../../src/backend/x64/assembler.js';
 
 /** Native A64 execution checks; expected arithmetic is computed by Node BigInt. */
 export function arm64CpuProbe():Uint8Array {

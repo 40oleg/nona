@@ -1,7 +1,7 @@
 import {readFileSync,chmodSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {assertNativeHost} from '../dist/src/backend/platform-probes.js';
+import {assertNativeHost} from '../dist/tests/probes/platform-probes.js';
 
 const target=process.argv[2],directory=resolve(process.argv[3]??'work/platform-probes');
 assertNativeHost(target);

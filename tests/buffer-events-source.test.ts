@@ -5,7 +5,7 @@ import {encodingPreludeSource} from '../src/runtime/encoding-source.js';
 import {bufferPreludeSource} from '../src/runtime/buffer-source.js';
 import {eventsPreludeSource} from '../src/runtime/events-source.js';
 import {runOracle} from './helpers/oracle.js';
-import {bufferCancellationProbeSource} from '../src/backend/event-probes.js';
+import {bufferCancellationProbeSource} from './probes/event-probes.js';
 
 test('Blob piping protects native AbortSignal cancellation against stopped propagation',async()=>{
  let stdout='';

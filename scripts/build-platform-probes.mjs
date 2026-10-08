@@ -1,12 +1,12 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {compile} from '../dist/src/compiler.js';
-import {loaderProbe,loaderProbeOutput,runtimeProbes} from '../dist/src/backend/platform-probes.js';
-import {eventProbes} from '../dist/src/backend/event-probes.js';
-import {arm64BridgeProbe} from '../dist/src/backend/arm64/bridge-probe.js';
-import {arm64CpuProbe} from '../dist/src/backend/arm64/cpu-probe.js';
+import {loaderProbe,loaderProbeOutput,runtimeProbes} from '../dist/tests/probes/platform-probes.js';
+import {eventProbes} from '../dist/tests/probes/event-probes.js';
+import {arm64BridgeProbe} from '../dist/tests/probes/arm64-bridge-probe.js';
+import {arm64CpuProbe} from '../dist/tests/probes/arm64-cpu-probe.js';
 import {arm64MathProbe,arm64MathCases} from '../dist/src/backend/arm64/math.js';
-import {selfhostFsProbeSource,selfhostFsProbeExpected} from '../dist/src/backend/selfhost-fs-probe.js';
+import {selfhostFsProbeSource,selfhostFsProbeExpected} from '../dist/tests/probes/selfhost-fs-probe.js';
 
 const allTargets=['linux-x64','linux-arm64','freebsd-x64','openbsd-x64','darwin-x64','darwin-arm64','win32-arm64'];
 const targets=process.argv[3]?.split(',')??allTargets;

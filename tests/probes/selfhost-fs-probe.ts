@@ -1,4 +1,4 @@
-import type {Target} from '../target.js';
+import type {Target} from '../../src/target.js';
 
 export function selfhostFsProbeSource(target:Target):string {
  return `import {mkdirSync,rmdirSync,writeFileSync,readFileSync,statSync,realpathSync,readdirSync,renameSync,unlinkSync} from 'node:fs';
