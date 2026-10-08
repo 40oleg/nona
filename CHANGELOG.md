@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `Function` calls with literal source are compiled ahead of time also in programs where some function declares its own `Function`: only the calls inside that function are left as written. lodash's top-level `Function('return this')()` threw EvalError because its `runInContext` declares `var Function` ([#196](https://github.com/40oleg/nona/issues/196)).
+- A global `RegExp` replace and `String.prototype.replaceAll` join their result once instead of appending to one string, which was quadratic in the number of matches: 20 000 matches of `/ /g` take 0.2 s instead of 3.6 s ([#196](https://github.com/40oleg/nona/issues/196)).
+- `examples/lodash`: lodash 4.17.21 and its own test suite compiled by Nona. Everything passes except `_.template`, which compiles code at run time ([#196](https://github.com/40oleg/nona/issues/196)).
+
 - Functions with more than 256 locals (a bundle's top-level scope wrapped in one function, such as typescript.js) treat their locals as live everywhere: liveness, frame slot assignment, the dead-zone check and Number inference no longer grow with locals × operations. A function with 4000 captured locals compiles in 3 s and 239 MB instead of 39 s and 5.2 GB, and typescript.js (9 MB) compiles in 95 s instead of running out of memory ([#162](https://github.com/40oleg/nona/issues/162)).
 - Function source text (for `Function.prototype.toString`) is stored once per module, one byte per character when it fits, and each function keeps only its range; the string is created when `toString` is called. Nested functions no longer repeat their enclosing function's text: the Angular builder with typescript.js shrinks from 146 MB to 87 MB ([#164](https://github.com/40oleg/nona/issues/164)).
 - `Reflect.construct(F, [literals], newTarget)` with `F` written as `Function` or `x.Function` compiles the source ahead of time, creates the function in `F`'s realm and gives it the prototype `newTarget` selects ([#7](https://github.com/40oleg/nona/issues/7)).

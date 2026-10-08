@@ -12,7 +12,8 @@ import {bind} from './binder.js';
  * returns a fresh `anonymous` function created in global scope (CreateDynamicFunction,
  * ECMA-262 20.2.1.1.1). Sources that fail to parse throw SyntaxError when the
  * call is evaluated, as they would at run time. Programs that declare their
- * own `Function` binding are left unchanged.
+ * own `Function` binding at the top level are left unchanged, and so are
+ * the calls inside functions that bind it (lodash's runInContext does).
  */
 export const dynamicFactoryPrefix='__nonaDynamicFunction$';
 const kinds:Record<string,string>={GeneratorFunction:'function*',AsyncFunction:'async function',AsyncGeneratorFunction:'async function*'};
@@ -37,19 +38,42 @@ function walk(node:unknown,visit:(node:A.Node,replace:(next:A.Node)=>void)=>void
   }
 }
 
-/** Whether the program binds its own `Function` (then calls may not reach %Function%). */
-function declaresFunction(program:A.Program):boolean {
+const named=(value:unknown)=>JSON.stringify(value,(key,item)=>key==='span'||key==='body'||key==='defaults'?undefined:item)?.includes('"name":"Function"')??false;
+const isFunctionNode=(node:A.Node):node is A.FunctionDeclaration|A.FunctionExpression=>node.kind==='Function'||node.kind==='FunctionExpression';
+
+/**
+ * Whether a scope binds its own `Function`: the program's top level, or a
+ * function (its parameters and body). Nested functions are their own scopes;
+ * a block's let/const/class counts for the whole function.
+ */
+function declaresFunction(root:A.Program|A.FunctionDeclaration|A.FunctionExpression):boolean {
+  if(root.kind!=='Program'&&named([root.parameters,root.rest??null]))return true;
   let found=false;
-  const named=(value:unknown)=>JSON.stringify(value,(key,item)=>key==='span'||key==='body'||key==='defaults'?undefined:item)?.includes('"name":"Function"')??false;
-  walk(program.body,node=>{
-    if(found)return;
-    if(node.kind==='Var')found=(node as A.Var).declarations.some(d=>named(d.id));
-    else if(node.kind==='Function'||node.kind==='Class')found=(node as A.FunctionDeclaration).id?.name==='Function'||node.kind==='Function'&&named([(node as A.FunctionDeclaration).parameters,(node as A.FunctionDeclaration).rest??null]);
-    else if(node.kind==='FunctionExpression')found=named([(node as A.FunctionExpression).parameters,(node as A.FunctionExpression).rest??null]);
-    else if(node.kind==='Import')found=(node as A.ImportDeclaration).specifiers.some(specifier=>specifier.local.name==='Function');
-    else if(node.kind==='Try')found=named((node as A.Try).parameter);
-  });
+  const visit=(node:unknown):void=>{
+    if(found||!node||typeof node!=='object')return;
+    if(Array.isArray(node)){for(const item of node)visit(item);return;}
+    const n=node as A.Node;
+    if('kind'in n){
+      if(n.kind==='Var'&&(n as A.Var).declarations.some(d=>named(d.id))){found=true;return;}
+      if((n.kind==='Function'||n.kind==='Class')&&(n as A.FunctionDeclaration).id?.name==='Function'){found=true;return;}
+      if(isFunctionNode(n))return;
+      if(n.kind==='Import'&&(n as A.ImportDeclaration).specifiers.some(specifier=>specifier.local.name==='Function')){found=true;return;}
+      if(n.kind==='Try'&&named((n as A.Try).parameter)){found=true;return;}
+    }
+    for(const [key,value] of Object.entries(n))if(key!=='span'&&key!=='sourceSpan')visit(value);
+  };
+  visit(root.kind==='Program'?root.body:root.body.body);
   return found;
+}
+
+/** Calls inside functions that bind their own `Function`: they may not reach %Function%. */
+function shadowedCalls(program:A.Program):Set<A.Node> {
+  const calls=new Set<A.Node>();
+  walk(program.body,node=>{
+    if(!isFunctionNode(node)||!declaresFunction(node))return;
+    walk([node.parameters,node.defaults??[],node.body],inner=>{if(inner.kind==='Call'||inner.kind==='New')calls.add(inner);});
+  });
+  return calls;
 }
 
 /** Parse CreateDynamicFunction source; undefined when it is not valid. */
@@ -112,7 +136,7 @@ function constructorAliases(program:A.Program):Map<string,string> {
 
 export function lowerDynamicFunctions(program:A.Program):A.Program {
   if(!program.source||!/Function\b|\.constructor\b/.test(program.source)||declaresFunction(program))return program;
-  const aliases=constructorAliases(program);
+  const aliases=constructorAliases(program),shadowed=shadowedCalls(program);
   // class C extends Function {} (or a dynamic constructor alias) without its
   // own constructor: new C(literals) is CreateDynamicFunction with new.target C.
   const subclasses=new Map<string,string>();
@@ -128,7 +152,7 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
   });
   const factories:A.Statement[]=[];
   walk(program.body,(node,replace)=>{
-    if(node.kind!=='Call'&&node.kind!=='New')return;
+    if(node.kind!=='Call'&&node.kind!=='New'||shadowed.has(node))return;
     const call=node as A.Call|A.New;
     // Function(...), new Function(...) and Function.call(thisArg, ...): thisArg is evaluated and ignored.
     const isFunction=(e:A.Expression)=>e.kind==='Identifier'&&e.name==='Function';
