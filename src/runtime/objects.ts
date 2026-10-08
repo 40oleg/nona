@@ -513,6 +513,10 @@ export function emitObjects(b:RuntimeBuilder):void {
     {const notDense=a.unique('notDense');a.load('rcx',slot(72));a.load('rdx',slot(64));a.call('rt.denseFind');a.test('rax','rax');a.jcc('e',notDense);
     a.mov('r10',HoleTag);a.store({base:'rax'},'r10');a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.elements});a.load('r11',{base:'r10',disp:E.count});a.sub('r11',1);a.store({base:'r10',disp:E.count},'r11');a.jmp(yes);a.label(notDense);}
     a.load('rax',slot(72));a.add('rax',O.properties);a.store(slot(104),'rax');
+    // With a hash index the key's node and the word that links it are known:
+    // an absent key needs no walk, and a present one starts at its link.
+    {const walk=a.unique('walk');a.load('rcx',slot(72));a.load('rax',{base:'rcx',disp:O.index});a.test('rax','rax');a.jcc('e',walk);
+     a.load('rdx',slot(64));a.call('rt.propIndexLink');a.test('r10','r10');a.jcc('e',yes);a.test('rax','rax');a.jcc('e',walk);a.store(slot(104),'rax');a.label(walk);}
     a.label(loop);a.load('r10',slot(104));a.load('rax',{base:'r10'});a.test('rax','rax');a.jcc('e',yes);a.store(slot(112),'rax');
     a.load('rcx',{base:'rax',disp:P.key});a.load('rdx',slot(64));a.call('rt.compareStrings');a.test('rax','rax');a.jcc('ne',next);
     a.load('rax',slot(112));a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.configurable);a.test('r10','r10');a.jcc('e',no);

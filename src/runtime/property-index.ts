@@ -16,11 +16,22 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * with its object.
  *
  * Table: capacity (power of two), live entries, used slots (live +
- * tombstones), then capacity entries of {hash, node}. Hash 0 marks an empty
- * slot and -1 a removed one; key hashes are odd and non-negative. Used slots
- * stay at most half the capacity, so probing terminates.
+ * tombstones), then capacity entries of {hash, node, link, 0}. Hash 0 marks
+ * an empty slot and -1 a removed one; key hashes are odd and non-negative.
+ * Used slots stay at most half the capacity, so probing terminates.
+ *
+ * link is the address of the word that points at the node: the object's
+ * ObjectLayout.properties for the head, otherwise the next field of the node
+ * before it, or 0 when unknown. It lets rt.deleteProperty unlink a node
+ * without walking the list from the head; deleting the oldest keys first
+ * used to be quadratic. Every list change keeps it right: nodes are only
+ * linked at the head (rt.propIndexAdd updates the old head's link) and an
+ * unlinked node's successor inherits its link (rt.propIndexDrop). A user
+ * still checks that the word holds the node and walks the list otherwise.
  */
 export const PropertyIndexLayout={capacity:0,live:8,used:16,entries:24} as const;
+/** Entries are 32 bytes: a slot number shifted by this is its offset. */
+const entryShift=5;
 const T=PropertyIndexLayout;
 /** Linear scans at least this long build a table for the object. */
 export const propertyIndexThreshold=32;
@@ -76,7 +87,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),found=a.unique('found'),empty=a.unique('empty'),next=a.unique('next'),done=a.unique('done');
   // RCX table, RDX hash, R8 key, R9 mask, RAX slot, R11 entry address.
   a.load('r9',{base:'rcx',disp:T.capacity});a.sub('r9',1);a.mov('rax','rdx');a.shr('rax',7);a.and('rax','r9');
-  a.label(loop);a.mov('r11','rax');a.shl('r11',4);a.add('r11','rcx');
+  a.label(loop);a.mov('r11','rax');a.shl('r11',entryShift);a.add('r11','rcx');
   a.load('r10',{base:'r11',disp:T.entries});a.test('r10','r10');a.jcc('e',empty);
   a.test('r8','r8');a.jcc('e',next);a.cmp('r10','rdx');a.jcc('ne',next);
   // Same hash: the same key record (the usual case), else compare contents.
@@ -96,10 +107,11 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexProbe');a.test('r10','r10');a.jcc('e',missing);
   a.load('rax',{base:'rax',disp:8});a.jmp(done);a.label(missing);a.mov('rax',0);a.label(done);
  });
- // RCX table, RDX hash, R8 node whose key is absent from the table.
+ // RCX table, RDX hash, R8 node whose key is absent from the table, R9 its
+ // link (0 when unknown).
  b.fn('rt.propIndexPlace',72,a=>{
-  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.mov('r8',0);a.call('rt.propIndexProbe');
-  a.load('rdx',slot(48));a.store({base:'rax'},'rdx');a.load('r8',slot(56));a.store({base:'rax',disp:8},'r8');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');a.store(slot(64),'r9');a.mov('r8',0);a.call('rt.propIndexProbe');
+  a.load('rdx',slot(48));a.store({base:'rax'},'rdx');a.load('r8',slot(56));a.store({base:'rax',disp:8},'r8');a.load('r9',slot(64));a.store({base:'rax',disp:16},'r9');
   a.load('rcx',slot(40));a.load('r11',{base:'rcx',disp:T.live});a.add('r11',1);a.store({base:'rcx',disp:T.live},'r11');
   a.load('r11',{base:'rcx',disp:T.used});a.add('r11',1);a.store({base:'rcx',disp:T.used},'r11');
  });
@@ -108,7 +120,7 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
  b.fn('rt.propIndexResize',104,a=>{
   a.store(slot(40),'rcx');a.add('rdx',1);a.shl('rdx',2);a.mov('rax',16);
   const grow=a.unique('grow'),sized=a.unique('sized');a.label(grow);a.cmp('rax','rdx');a.jcc('ae',sized);a.shl('rax',1);a.jmp(grow);a.label(sized);
-  a.store(slot(48),'rax');a.mov('r8','rax');a.shl('r8',4);a.add('r8',T.entries);
+  a.store(slot(48),'rax');a.mov('r8','rax');a.shl('r8',entryShift);a.add('r8',T.entries);
   a.load('rcx',{rip:'rt.heap'});a.mov('rdx',8);a.callImport('HeapAlloc');a.test('rax','rax');const ok=a.unique('ok');a.jcc('ne',ok);a.call('rt.fail');a.label(ok);
   a.load('r10',slot(48));a.store({base:'rax',disp:T.capacity},'r10');a.mov('r10',0);a.store({base:'rax',disp:T.live},'r10');a.store({base:'rax',disp:T.used},'r10');
   a.store(slot(56),'rax');
@@ -116,9 +128,9 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));a.load('r10',{base:'rcx',disp:O.index});a.store(slot(64),'r10');a.test('r10','r10');a.jcc('e',noOld);
   a.mov('rax',0);a.store(slot(72),'rax');
   a.label(loop);a.load('r10',slot(64));a.load('rax',slot(72));a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rax','r11');a.jcc('ae',moved);
-  a.shl('rax',4);a.add('rax','r10');a.load('rdx',{base:'rax',disp:T.entries});
+  a.shl('rax',entryShift);a.add('rax','r10');a.load('rdx',{base:'rax',disp:T.entries});
   a.test('rdx','rdx');a.jcc('e',skip);a.cmp('rdx',-1);a.jcc('e',skip);
-  a.load('r8',{base:'rax',disp:T.entries+8});a.load('rcx',slot(56));a.call('rt.propIndexPlace');
+  a.load('r8',{base:'rax',disp:T.entries+8});a.load('r9',{base:'rax',disp:T.entries+16});a.load('rcx',slot(56));a.call('rt.propIndexPlace');
   a.label(skip);a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
   a.label(moved);a.load('r8',slot(64));a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
   a.label(noOld);a.load('rcx',slot(40));a.load('rax',slot(56));a.store({base:'rcx',disp:O.index},'rax');
@@ -135,7 +147,14 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.load('rdx',{base:'r10',disp:T.used});a.add('rdx',1);a.shl('rdx',1);a.load('r11',{base:'r10',disp:T.capacity});a.cmp('rdx','r11');a.jcc('be',room);
   a.load('rdx',{base:'r10',disp:T.live});a.call('rt.propIndexResize');
   a.label(room);a.load('rcx',slot(48));a.load('rcx',{base:'rcx',disp:P.key});a.call('rt.propKeyHash');
-  a.mov('rdx','rax');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexPlace');
+  // Linked at the head: its link is the object's list word, and the old head
+  // now hangs from its next field.
+  {const head=a.unique('head'),placed=a.unique('placed');
+   a.mov('r9',0);a.load('rcx',slot(40));a.load('r8',{base:'rcx',disp:O.properties});a.load('r10',slot(48));a.cmp('r8','r10');a.jcc('ne',head);a.lea('r9',{base:'rcx',disp:O.properties});a.label(head);
+   a.mov('rdx','rax');a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexPlace');
+   a.load('rcx',slot(40));a.load('r10',slot(48));a.load('r8',{base:'rcx',disp:O.properties});a.cmp('r8','r10');a.jcc('ne',placed);
+   a.load('r8',{base:'r10',disp:P.next});a.test('r8','r8');a.jcc('e',placed);a.lea('rdx',{base:'r10',disp:P.next});a.call('rt.propIndexSetLink');
+   a.label(placed);}
   a.label(done);a.load('rax',slot(48));
  });
  // RCX object, RDX key of a node being unlinked.
@@ -146,8 +165,36 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.mov('rcx','rdx');a.call('rt.propKeyHash');a.mov('rdx','rax');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexProbe');
   a.test('r10','r10');a.jcc('e',done);
-  a.mov('r10',-1);a.store({base:'rax'},'r10');a.mov('r10',0);a.store({base:'rax',disp:8},'r10');
+  // The unlinked node's successor (its next field is still intact) now hangs
+  // from the word that held the node.
+  a.load('r10',{base:'rax',disp:8});a.load('r11',{base:'rax',disp:16});a.store(slot(56),'r11');a.load('r8',{base:'r10',disp:P.next});a.store(slot(64),'r8');
+  a.mov('r10',-1);a.store({base:'rax'},'r10');a.mov('r10',0);a.store({base:'rax',disp:8},'r10');a.store({base:'rax',disp:16},'r10');
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r10',{base:'rcx',disp:T.live});a.sub('r10',1);a.store({base:'rcx',disp:T.live},'r10');
+  a.load('r8',slot(64));a.test('r8','r8');a.jcc('e',done);a.load('rcx',slot(40));a.load('rdx',slot(56));a.call('rt.propIndexSetLink');
+  a.label(done);
+ });
+ // RCX object with a table, RDX link (or 0), R8 node in its list: records the
+ // node's link. Nothing happens when the node's key is not in the table.
+ b.fn('rt.propIndexSetLink',72,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');const done=a.unique('done');
+  a.load('rcx',{base:'r8',disp:P.key});a.call('rt.propKeyHash');a.mov('rdx','rax');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(56));a.load('r8',{base:'r8',disp:P.key});a.call('rt.propIndexProbe');
+  a.test('r10','r10');a.jcc('e',done);a.load('r10',{base:'rax',disp:8});a.load('r11',slot(56));a.cmp('r10','r11');a.jcc('ne',done);
+  a.load('rdx',slot(48));a.store({base:'rax',disp:16},'rdx');
+  a.label(done);
+ });
+ // RCX object with a table, RDX key. RAX the verified link of the key's node
+ // (the word holding it), or 0 when the link is unknown; R10 is 0 when the
+ // key is not an own key at all.
+ b.fn('rt.propIndexLink',56,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');const done=a.unique('done'),unknown=a.unique('unknown');
+  a.mov('rcx','rdx');a.call('rt.propKeyHash');a.mov('rdx','rax');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexProbe');
+  a.test('r10','r10');const missing=a.unique('missing');a.jcc('e',missing);
+  a.load('r11',{base:'rax',disp:8});a.load('rax',{base:'rax',disp:16});a.mov('r10',1);a.test('rax','rax');a.jcc('e',done);
+  a.load('r8',{base:'rax'});a.cmp('r8','r11');a.jcc('e',done);
+  a.label(unknown);a.mov('rax',0);a.mov('r10',1);a.jmp(done);
+  a.label(missing);a.mov('rax',0);a.mov('r10',0);
   a.label(done);
  });
  // RCX object: build a table from the whole property list.
@@ -157,11 +204,11 @@ export function emitPropertyIndex(b:RuntimeBuilder):void {
   a.load('rax',{base:'rcx',disp:O.properties});a.mov('rdx',0);
   a.label(count);a.test('rax','rax');a.jcc('e',counted);a.add('rdx',1);a.load('rax',{base:'rax',disp:P.next});a.jmp(count);
   a.label(counted);a.load('rcx',slot(40));a.call('rt.propIndexResize');
-  a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');
+  a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:O.properties});a.store(slot(48),'rax');a.lea('rax',{base:'rcx',disp:O.properties});a.store(slot(56),'rax');
   a.label(fill);a.load('rax',slot(48));a.test('rax','rax');a.jcc('e',filled);
   a.load('rcx',{base:'rax',disp:P.key});a.call('rt.propKeyHash');
-  a.mov('rdx','rax');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.call('rt.propIndexPlace');
-  a.load('rax',slot(48));a.load('rax',{base:'rax',disp:P.next});a.store(slot(48),'rax');a.jmp(fill);
+  a.mov('rdx','rax');a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:O.index});a.load('r8',slot(48));a.load('r9',slot(56));a.call('rt.propIndexPlace');
+  a.load('rax',slot(48));a.lea('r10',{base:'rax',disp:P.next});a.store(slot(56),'r10');a.load('rax',{base:'rax',disp:P.next});a.store(slot(48),'rax');a.jmp(fill);
   a.label(filled);
  });
 }
