@@ -58,6 +58,9 @@ function linkBsdOnTarget(program:NativeProgram,os:BsdOS):Uint8Array {
   });
   b.fn('linux.CreateThread.code',232,a=>{
     a.store(slot(40),'rsi');a.store(slot(48),'rdi');a.store(slot(56),'r8');a.store(slot(64),'r9');
+    // As on Linux, the shared heap allocator takes its lock once a second
+    // thread exists (linux.HeapAlloc.code).
+    a.mov('rax',1);a.store({rip:'linux.threaded'},'rax');
     const bad=a.unique('bad'),done=a.unique('done'),failed=a.unique('failed');
     // FreeBSD MAP_STACK puts a non-shrinkable guard at the returned address.
     // This fixed-size allocation owns all its pages, including entry metadata.

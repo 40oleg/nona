@@ -14,7 +14,10 @@ const sharedData=new Set(['rt.heap','rt.blocks','rt.liveBytes','rt.exceptionHand
  'rt.gcPending','rt.gcPendingCapacity','rt.gcPendingUsed','rt.weakList',
  // Caches the collector invalidates: inline caches and global read caches
  // compare rt.shapeEpoch, key hashes are remembered by key record address.
- 'rt.shapeEpoch','rt.keyHashCache']);
+ 'rt.shapeEpoch','rt.keyHashCache',
+ // Shapes (shapes.ts) describe no realm-specific state; one shape list lets
+ // the shared collector mark every realm's shape keys.
+ 'rt.shapeList','rt.shapeCount','rt.shapeLiteralRoots']);
 const isShared=(name:string):boolean=>sharedData.has(name)||/^rt\.Symbol\.[A-Za-z]+\.value$/.test(name)||name.startsWith('realm.')||name.startsWith('host.')||name.startsWith('agent.')
  ||name==='js.main'||name.startsWith('js.fn.')||name.startsWith('js.module.');
 
