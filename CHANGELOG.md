@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- `Reflect.construct(F, [literals], newTarget)` with `F` written as `Function` or `x.Function` compiles the source ahead of time, creates the function in `F`'s realm and gives it the prototype `newTarget` selects ([#7](https://github.com/40oleg/nona/issues/7)).
+
+- A sloppy-mode function called with an undefined or null `this` gets the global object of its own realm, not the caller's (OrdinaryCallBindThis) ([#7](https://github.com/40oleg/nona/issues/7)).
+
+- `x.Function(...)` and `new x.Function(...)` with literal source text compile ahead of time like `Function(...)`; when `x.Function` is another realm's `Function`, the function is created in that realm, with its global object, intrinsics and errors ([#7](https://github.com/40oleg/nona/issues/7)).
+
+- Fixed collections in programs with several realms: every realm's runtime now shares the allocator, lazy sweep, weak collection list and the caches the collector invalidates, so objects created by another realm's code are marked and swept with the rest of the heap instead of being freed while still referenced ([#7](https://github.com/40oleg/nona/issues/7)).
+
+- `Promise` instances constructed with a `newTarget` whose `prototype` is not an object get `%Promise.prototype%` of `newTarget`'s realm instead of `%Object.prototype%` ([#7](https://github.com/40oleg/nona/issues/7)).
+
+- `new Function()` and `Reflect.construct(Function, [], newTarget)` take their prototype from `newTarget` (GetPrototypeFromConstructor), falling back to `%Function.prototype%` of `newTarget`'s realm ([#7](https://github.com/40oleg/nona/issues/7)).
+
 - Skip nodejs.org API documentation links in the pages link check: nodejs.org currently answers 404 for its HTML API pages, which failed the check on every branch ([#190](https://github.com/40oleg/nona/issues/190)).
 
 - Made `Array.prototype.shift` and `splice` move the elements of a dense array in one step instead of a Get, Set and HasProperty per element; shifting 20,000 elements one by one went from 6.6 s to 70 ms, and 10,000 middle deletions from 3.5 s to 0.2 s ([#13](https://github.com/40oleg/nona/issues/13)).

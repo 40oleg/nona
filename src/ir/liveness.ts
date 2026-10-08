@@ -46,6 +46,7 @@ function transfer(operation:Operation,live:Set<number>):void {
   case 'validateClassPrototype':live.add(operation.prototype);return;
   case 'checkInitialized':case 'checkResolvable':live.add(operation.slot);return;
   case 'copy':case 'storeGlobal':case 'newCell':live.add(operation.source);return;
+  case 'realmFunction':live.add(operation.ctor);return;
   case 'newFunction':if(operation.homeObject!==undefined)live.add(operation.homeObject);for(const capture of operation.captures??[])live.add(capture);if(operation.nameSlot!==undefined)live.add(operation.nameSlot);return;
   case 'readCell':live.add(operation.cell);return;
   case 'writeCell':live.add(operation.cell);live.add(operation.source);return;

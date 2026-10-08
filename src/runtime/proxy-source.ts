@@ -35,6 +35,7 @@ export const preludeCleanupSource=String.raw`;(function(){
   delete Function.prototype.__nonaReflectOwnKeysInternal;
   delete Function.prototype.__nonaMarkNativeInternal;
   delete Function.prototype.__nonaMarkPromiseInternal;
+  delete Function.prototype.__nonaPromiseRealmInternal;
   delete Function.prototype.__nonaSharedQueueInternal;
   delete Function.prototype.__nonaRegExpCopyInternal;
 })()`;

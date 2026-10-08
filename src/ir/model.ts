@@ -1,5 +1,7 @@
 export type Constant = undefined|null|boolean|number|bigint|string;
 export type Operation =
+  /** The closure of realm-local function `target` (compiled per realm) in the realm of `ctor`, when `ctor` is that realm's %Function%; otherwise undefined. */
+  | {kind:'realmFunction';dest:number;ctor:number;target:string}
   | {kind:'newFunction';strict?:boolean;dest:number;target:string;method?:boolean;classConstructor?:boolean;arrow?:boolean;generator?:boolean;async?:boolean;homeObject?:number;captures?:number[];name?:string;nameSlot?:number;parameterCount?:number;sourceText?:string}
   | {kind:'defineDataProperty';object:number;key:number;source:number;attributes:number}
   /** CreateDataPropertyOrThrow (class fields): key is a property key. */

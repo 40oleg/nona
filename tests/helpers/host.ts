@@ -12,8 +12,8 @@ import {linkLinux} from '../../src/backend/linux/index.js';
 
 export interface HostRun {status:number|null;stdout:string;stderr:string;error?:Error}
 /** Compile with the runtime prelude for the host's native target and run it. */
-export function runOnHost(source:string,options:{gcStress?:boolean}={gcStress:true}):HostRun {
- const program=generate(compileToIR(source),{gcStress:options.gcStress});
+export function runOnHost(source:string,options:{gcStress?:boolean;realms?:number}={gcStress:true}):HostRun {
+ const program=generate(compileToIR(source),{gcStress:options.gcStress,...(options.realms?{realms:options.realms}:{})});
  if(process.platform!=='linux'){
   const result=runNative(linkHost(program));
   return {status:result.status,stdout:result.stdout.toString(),stderr:result.stderr.toString(),error:result.error};

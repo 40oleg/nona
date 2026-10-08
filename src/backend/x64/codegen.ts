@@ -133,6 +133,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         return op;
       }),
     }))}));
+  const realmCodeTables=new Set<string>();
   let fragments:NamedFragment[],functions:UnwindFunction[],imports:NativeProgram['imports'],literals:Map<string,string>;
   const copyFragments=(list:NamedFragment[])=>list.map(f=>({...f,bytes:f.bytes.slice(),fixups:f.fixups.map(fixup=>({...fixup})),symbols:{...f.symbols}}));
   if(base){fragments=copyFragments(base.fragments);functions=base.functions.map(fn=>({...fn}));imports=[...base.imports];literals=new Map(base.literals);}
@@ -416,6 +417,22 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           pointer('rcx',op.dest);a.lea('rdx',{rip:literal(op.name)});a.mov('r8',(op.allowMissing?1:0)|(notBinding?2:0));
           if(notBinding){const cache='gc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(16),fixups:[],symbols:{}});a.lea('r9',{rip:cache});a.call('rt.readGlobalCached');}
           else a.call('rt.readGlobalProperty');break;
+        }
+        case 'realmFunction':{
+          // ctor is a %Function% intrinsic: its realm's copy of the realm-local
+          // maker (cloned with that realm's runtime) becomes a closure there.
+          const no=a.unique('realmFunctionNo'),done=a.unique('realmFunctionDone');
+          const table=(symbol:string)=>{realmCodeTables.add(symbol);return 'realm.code.'+symbol;};
+          a.mov('rax',0);a.store(value(op.dest),'rax');
+          a.load('rax',value(op.ctor));a.cmp('rax',5);a.jcc('ne',no);
+          a.load('rcx',payload(op.ctor));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',no);
+          a.load('rax',{base:'rcx',disp:FunctionLayout.realm});a.and('rax',255);a.shl('rax',3);a.store(payload(op.dest),'rax');
+          a.lea('r11',{rip:table('rt.Function')});a.add('r11','rax');a.load('r11',{base:'r11'});a.cmp('r11','rcx');a.jcc('ne',no);
+          a.lea('r11',{rip:table(op.target)});a.add('r11','rax');a.load('rdx',{base:'r11'});
+          a.lea('r11',{rip:table('rt.newFunction')});a.add('r11','rax');a.load('r11',{base:'r11'});
+          pointer('rcx',op.dest);a.mov('r8',0);a.lea('r9',stack(argsBase));a.callRegister('r11');a.jmp(done);
+          a.label(no);a.mov('rax',0);a.store(payload(op.dest),'rax');
+          a.label(done);break;
         }
         case 'newFunction':
           (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
@@ -707,6 +724,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));
+  // Per-realm addresses of the code and intrinsics realmFunction uses.
+  for(const symbol of realmCodeTables)fragments.push({name:'realm.code.'+symbol,section:'.rdata',alignment:8,bytes:new Uint8Array(8*(realms+1)),symbols:{},
+    fixups:Array.from({length:realms+1},(_,realm)=>({offset:8*realm,kind:'va64' as const,target:realm===0?symbol:realmSymbol(realm,symbol),addend:0}))});
   // Host functions installed as properties of the global object before the prelude.
   const hostGlobals:string[]=[];
   const hostGlobal=(name:string,code:string,length:number):void=>{

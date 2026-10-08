@@ -15,7 +15,7 @@ import type {FunctionIR,Operation} from './model.js';
  * the marker and initialize nothing. An exception handler starts
  * with what holds at every point of the blocks it protects.
  */
-const producesValue=new Set<Operation['kind']>(['constant','binary','unary','newFunction','newObject','newArguments','newRestArray',
+const producesValue=new Set<Operation['kind']>(['constant','binary','unary','newFunction','realmFunction','newObject','newArguments','newRestArray',
  'invoke','invokeArray','constructForward','property','newInstance','constructorResult','forInKeys','forInHas','forOfValue','globalObject','currentFunction',
  'newCell','superGet','newTarget','iteratorStep','call']);
 
