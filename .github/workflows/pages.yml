@@ -47,6 +47,7 @@ jobs:
             --exclude '^https://github\.com/40oleg/nona/(blob|tree|edit)/'
             --exclude '^https?://localhost'
             --exclude '^https://40oleg\.github\.io/'
+            --exclude '^https://nodejs\.org/(api|docs)/'
             'site/.vitepress/dist/**/*.html'
           fail: true
       - uses: actions/configure-pages@v5
