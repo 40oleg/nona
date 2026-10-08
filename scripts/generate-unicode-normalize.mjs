@@ -42,5 +42,5 @@ for(const k of ['Canonical','Compatibility'])out+=emit(k,decomp[k],80,(b,[cp,d],
 out+=emit('Ccc',ccc,8,(b,[cp,cls],o)=>{b.writeUInt32LE(cp,o);b.writeUInt32LE(cls,o+4);});
 pairs.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
 out+=emit('Compose',pairs,12,(b,[x,y,z],o)=>{b.writeUInt32LE(x,o);b.writeUInt32LE(y,o+4);b.writeUInt32LE(z,o+8);});
-writeFileSync(new URL('../src/runtime/unicode-normalize-data.ts',import.meta.url),out);
+writeFileSync(new URL('../src/runtime/data/unicode-normalize-data.ts',import.meta.url),out);
 console.log({canonical:decomp.Canonical.length,compatibility:decomp.Compatibility.length,ccc:ccc.length,pairs:pairs.length,bytes:out.length});

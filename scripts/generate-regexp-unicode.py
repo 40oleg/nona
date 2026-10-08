@@ -1,4 +1,4 @@
-"""Generate the RegExp VM's Unicode 17 property tables from the official UCD.
+﻿"""Generate the RegExp VM's Unicode 17 property tables from the official UCD.
 
 Usage: python scripts/generate-regexp-unicode.py work/unicode17
 The input files are published at https://www.unicode.org/Public/17.0.0/ucd/.
@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 
 source = Path(sys.argv[1])
-out = Path(__file__).resolve().parents[1] / 'src/runtime/regexp-unicode-data.ts'
+out = Path(__file__).resolve().parents[1] / 'src/runtime/data/regexp-unicode-data.ts'
 ranges = {}
 aliases = {}
 script_aliases = {}

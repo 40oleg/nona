@@ -47,4 +47,4 @@ for(const [name,pattern] of [['Cased',/\p{Cased}/u],['CaseIgnorable',/\p{Case_Ig
     `,\n  'base64',\n);\n`;
   console.log(`Generated ${ranges.length} ${name} ranges`);
 }
-writeFileSync(new URL('../src/runtime/unicode-upper-data.ts',import.meta.url),source);
+writeFileSync(new URL('../src/runtime/data/unicode-upper-data.ts',import.meta.url),source);

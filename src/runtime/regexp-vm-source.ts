@@ -1,6 +1,6 @@
 // This source is compiled by Nona itself for the native RegExp fallback.
 // It deliberately uses only language features implemented by the frontend.
-import {regexpUnicodeData} from './regexp-unicode-data.js';
+import {regexpUnicodeData} from './data/regexp-unicode-data.js';
 import {fullRuntimeHint} from './link.js';
 
 const regexpVmTemplate=String.raw`(function(){
