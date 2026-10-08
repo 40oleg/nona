@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot} from './abi.js';
+import {emitShapeGuard,ShapeLayout} from './shapes.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {ValueListLayout as L} from './heap-layout.js';
@@ -25,6 +26,21 @@ export function emitOwnKeys(b:RuntimeBuilder):void {
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.load('rax',{base:'rdx',disp:8});a.store(slot(56),'rax');
   const ordinaryKeys=a.unique('ordinaryKeys'),proxyDone=a.unique('proxyDone');a.load('r10',{base:'rax',disp:O.kind});a.cmp('r10',ProxyKind);a.jcc('ne',ordinaryKeys);
   a.call('rt.proxyOwnKeys');a.jmp(proxyDone);a.label(ordinaryKeys);
+  // A shaped object without elements (shapes.ts): its keys are strings that
+  // are not indices, so their creation order - the shape's slots - is the
+  // order of the result.
+  {const general=a.unique('general'),loop=a.unique('shapeKeys'),filled=a.unique('shapeKeysFilled');
+   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('e',general);
+   a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('ne',general);
+   a.load('rdx',{base:'rax',disp:ShapeLayout.count});a.lea('rcx',slot(128));a.call('rt.newValueList');
+   a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.shape});a.load('r11',slot(136));
+   a.label(loop);a.load('r9',{base:'rax',disp:ShapeLayout.parent});a.test('r9','r9');a.jcc('e',filled);
+   a.load('r8',{base:'rax',disp:ShapeLayout.count});a.sub('r8',1);a.shl('r8',4);a.add('r8','r11');
+   a.mov('r10',4);a.store({base:'r8',disp:L.values},'r10');a.load('r10',{base:'rax',disp:ShapeLayout.key});a.store({base:'r8',disp:L.values+8},'r10');
+   a.mov('rax','r9');a.jmp(loop);
+   a.label(filled);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(128+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(proxyDone);
+   a.label(general);}
+  a.load('r10',slot(56));emitShapeGuard(a,'r10');
   a.load('rcx',slot(56));a.call('rt.elementsMaterializeAll');
   a.load('rax',slot(56));a.load('rax',{base:'rax',disp:O.properties});a.store(slot(112),'rax');
   a.mov('rax',0);for(const n of [64,72,80,88,96,104,120,208])a.store(slot(n),'rax');

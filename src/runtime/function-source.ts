@@ -126,11 +126,30 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
  b.fn('rt.functionToString.code',40,a=>{a.load('rdx',slot(80));a.call('rt.functionSource');});
  // RCX output, RDX receiver Value*. Source descriptors are immutable static
  // literals; neither name mutation nor deletion changes this representation.
- b.fn('rt.functionSource',40,a=>{
+ b.fn('rt.functionSource',56,a=>{
   a.load('rax',{base:'rdx'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('rdx',{base:'rdx',disp:8});
   a.load('rax',{base:'rdx',disp:O.kind});const ordinary=a.unique('ordinary');a.cmp('rax',ProxyKind);a.jcc('ne',ordinary);
   a.load('rax',{base:'rdx',disp:O.flags});a.and('rax',ProxyCallable);a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.lea('rax',{rip:'rt.str.nativeFunction'});const save=a.unique('save');a.jmp(save);
   a.label(ordinary);a.cmp('rax',FunctionKind);failIf(a,'ne','rt.throwTypeError');
-  a.load('rax',{base:'rdx',disp:F.sourceText});a.label(save);a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');
+  // A user function's source is a range of its module's text (a static
+  // descriptor, tagged with bit 0): the string is created on each call.
+  a.load('rax',{base:'rdx',disp:F.sourceText});a.mov('r10','rax');a.and('r10',1);a.test('r10','r10');a.jcc('e',save);
+  a.store(slot(40),'rcx');a.mov('rcx','rax');a.call('rt.sourceSlice');a.load('rcx',slot(40));
+  a.label(save);a.store({base:'rcx',disp:8},'rax');a.mov('rax',4);a.store({base:'rcx'},'rax');
+ });
+ // RCX tagged descriptor {source, start, length}; the source is
+ // {length, wide, characters} with one byte per character unless wide.
+ // -> RAX new string.
+ b.fn('rt.sourceSlice',56,a=>{
+  a.and('rcx',-2);a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:16});a.shl('rcx',1);a.add('rcx',8);a.call('rt.allocRaw');
+  a.load('r10',slot(40));a.load('r8',{base:'r10',disp:16});a.store({base:'rax'},'r8');
+  a.load('r9',{base:'r10'});a.load('r11',{base:'r10',disp:8});a.lea('rdx',{base:'rax',disp:8});
+  const wide=a.unique('wide'),narrow=a.unique('narrow'),done=a.unique('done');
+  a.load('r10',{base:'r9',disp:8});a.add('r9',16);a.test('r10','r10');a.jcc('ne',wide);
+  a.add('r9','r11');
+  a.label(narrow);a.test('r8','r8');a.jcc('e',done);a.load('r10',{base:'r9'},8);a.store({base:'rdx'},'r10',16);a.add('r9',1);a.add('rdx',2);a.sub('r8',1);a.jmp(narrow);
+  a.label(wide);a.add('r9','r11');a.add('r9','r11');const loop=a.unique('loop');
+  a.label(loop);a.test('r8','r8');a.jcc('e',done);a.load('r10',{base:'r9'},16);a.store({base:'rdx'},'r10',16);a.add('r9',2);a.add('rdx',2);a.sub('r8',1);a.jmp(loop);
+  a.label(done);
  });
 }

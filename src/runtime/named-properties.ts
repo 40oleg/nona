@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags,maxInlineSlots} from './object-layout.js';
-import {FunctionLayout,defaultInstanceSlots} from './functions.js';
+import {emitShapeGuard,emitSlotAddress} from './shapes.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {BoxKind} from './boxing.js';
 import {bumpEpochIfPrototype,emitNamedKindCheck,namedTypedArrayKind} from './property-cache.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
@@ -39,26 +39,14 @@ import type {Assembler} from '../backend/x64/assembler.js';
 export const ownIndexThreshold=16;
 
 export function emitNamedProperties(b:RuntimeBuilder):void {
- // RCX object header -> RAX a cleared property node for it, not yet linked:
- // the next of its inline nodes (ObjectLayout.slots) while there are any,
- // else a heap block. An object that outgrows its inline nodes raises its
- // constructor's hint for later instances (FunctionLayout.instanceSlots).
- // Inline nodes are never reused: a deleted one stays cleared and unlinked.
+ // RCX object header -> RAX a cleared property node for it, not yet linked.
  b.fn('rt.allocPropertyNode',40,a=>{
-  const heap=a.unique('heap'),fresh=a.unique('fresh'),done=a.unique('done');
-  a.load('r10',{base:'rcx',disp:O.slots});a.mov('r11','r10');a.shr('r11',32);a.mov('rax','r10');a.shl('rax',32);a.shr('rax',32);
-  a.cmp('r11','rax');a.jcc('ae',heap);
-  a.mov('rax','r11');a.mov('r9',P.size);a.imul('rax','r9');a.add('rax','rcx');a.add('rax',O.size);
-  a.mov('r9',1);a.shl('r9',32);a.add('r10','r9');a.store({base:'rcx',disp:O.slots},'r10');a.jmp(done);
-  a.label(heap);a.test('rax','rax');a.jcc('e',fresh);a.load('r9',{base:'rcx',disp:O.site});a.test('r9','r9');a.jcc('e',fresh);
-  a.load('r8',{base:'r9',disp:FunctionLayout.instanceSlots});{const set=a.unique('set');a.test('r8','r8');a.jcc('ne',set);a.mov('r8',defaultInstanceSlots);a.label(set);}
-  a.cmp('r8',maxInlineSlots);a.jcc('ae',fresh);a.add('r8',1);a.store({base:'r9',disp:FunctionLayout.instanceSlots},'r8');
-  a.label(fresh);a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
-  a.label(done);
+  a.mov('rcx',P.size);a.call('rt.alloc');a.mov('r10',HeapKind.property);a.store({base:'rax',disp:H.kind-H.size},'r10');
  });
  // RCX object payload, RDX key record -> RAX own property node or 0.
  b.fn('rt.ownNamedNode',72,a=>{
   const done=a.unique('done');
+  emitShapeGuard(a,'rcx');
   // A complete key filter without the key's bit: the key is not an own key.
   {const unknown=a.unique('unfiltered');a.load('rax',{base:'rcx',disp:O.keys});a.test('rax','rax');a.jcc('ns',unknown);
    a.store(slot(48),'rcx');a.store(slot(56),'rdx');a.mov('rcx','rdx');a.call('rt.keyFilterBit');a.load('rcx',slot(48));a.load('rdx',slot(56));
@@ -69,6 +57,7 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
  });
  // The same without consulting the key filter (the caller already did).
  b.fn('rt.ownNamedNodeScan',72,a=>{
+  emitShapeGuard(a,'rcx');
   const scan=a.unique('scan'),loop=a.unique('loop'),next=a.unique('next'),done=a.unique('done'),chars=a.unique('chars'),scanned=a.unique('scanned');
   a.load('r10',{base:'rcx',disp:O.index});a.test('r10','r10');a.jcc('e',scan);a.call('rt.propIndexFind');a.jmp(done);
   a.label(scan);a.store(slot(48),'rcx');a.mov('r10',0);a.store(slot(56),'r10');a.load('rax',{base:'rcx',disp:O.properties});a.load('r9',{base:'rdx'});a.store(slot(40),'r9');
@@ -117,7 +106,7 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
  // rt.namedGetFastGlobal also accepts the global object: rt.readGlobalProperty
  // uses it for a name the compiler knows is not a script binding.
  for(const [name,allowGlobal] of [['rt.namedGetFast',false],['rt.namedGetFastGlobal',true]] as const)b.fn(name,88,a=>{
-  const miss=a.unique('miss'),done=a.unique('done'),chain=a.unique('chain'),missing=a.unique('missing'),found=a.unique('found'),object=a.unique('object'),primitive=a.unique('primitive');
+  const miss=a.unique('miss'),done=a.unique('done'),chain=a.unique('chain'),missing=a.unique('missing'),found=a.unique('found'),object=a.unique('object'),primitive=a.unique('primitive'),shapedMiss=a.unique('shapedMiss');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
   // rt.namedGetNode is 0 on every miss but an accessor's (see below).
   a.mov('rax',0);a.store({rip:'rt.namedGetNode'},'rax');
@@ -134,7 +123,17 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.label(primitive);a.mov('rcx','rdx');a.call('rt.propertyBase');a.mov('r10','rax');a.load('r8',slot(56));a.load('r9',{base:'r8',disp:8});a.jmp(chain);
   a.label(object);a.load('r10',{base:'rdx',disp:8});
   a.label(chain);ordinaryObject(a,miss,getKey,allowGlobal);notLengthOfExotic(a,miss);
-  a.store(slot(72),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('ne',found);
+  a.store(slot(72),'r10');
+  // A shaped object (shapes.ts) answers from its slots; nothing is reported
+  // for the inline caches, which keep their own (shape -> slot) entries.
+  {const unshaped=a.unique('unshaped'),absent=a.unique('absent');
+   a.load('rcx',{base:'r10',disp:O.shape});a.test('rcx','rcx');a.jcc('e',unshaped);
+   a.mov('rdx','r9');a.call('rt.shapeLookup');a.test('rax','rax');a.jcc('s',absent);
+   a.load('r10',slot(72));a.mov('r9','rax');emitSlotAddress(a,'r10','r9','rax');
+   a.load('rcx',slot(40));a.load('r11',{base:'rax'});a.store({base:'rcx'},'r11');a.load('r11',{base:'rax',disp:8});a.store({base:'rcx',disp:8},'r11');a.jmp(done);
+   a.label(absent);a.mov('rax',0);a.jmp(shapedMiss);
+   a.label(unshaped);}
+  a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.label(shapedMiss);a.test('rax','rax');a.jcc('ne',found);
   a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.prototype});a.test('r10','r10');a.jcc('e',missing);a.load('r8',slot(56));a.load('r9',{base:'r8',disp:8});a.jmp(chain);
   // An accessor is not answered here, but its node and holder are reported
   // (rt.namedGetNode stays 0 on every other miss) so that an inline cache
@@ -159,7 +158,17 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.load('r10',{base:'rcx',disp:8});ordinaryObject(a,miss,setKey);
   a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('e',notArray);a.cmp('rax',BoxKind);a.jcc('ne','rt.namedSetFast.plainReceiver');
   a.label(notArray);a.load('rax',slot(72));a.test('rax','rax');a.jcc('ne',miss);
-  a.label('rt.namedSetFast.plainReceiver');a.store(slot(88),'r10');a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('e',create);
+  a.label('rt.namedSetFast.plainReceiver');a.store(slot(88),'r10');
+  // A shaped receiver: an own key is a slot (every property of a shaped
+  // object is a writable data property, and redefining one with the
+  // attributes it has only sets its value); a new key is a transition.
+  {const unshaped=a.unique('unshaped');
+   a.load('rcx',{base:'r10',disp:O.shape});a.test('rcx','rcx');a.jcc('e',unshaped);
+   a.mov('rdx','r9');a.call('rt.shapeLookup');a.test('rax','rax');a.jcc('s',create);
+   a.load('r10',slot(88));a.mov('r9','rax');emitSlotAddress(a,'r10','r9','rax');
+   a.load('r8',slot(56));a.load('r11',{base:'r8'});a.store({base:'rax'},'r11');a.load('r11',{base:'r8',disp:8});a.store({base:'rax',disp:8},'r11');a.jmp(done);
+   a.label(unshaped);}
+  a.mov('rcx','r10');a.mov('rdx','r9');a.call('rt.ownNamedNode');a.test('rax','rax');a.jcc('e',create);
   // Own property: a plain write of a writable data property.
   a.load('r11',slot(64));a.and('r11',1);a.test('r11','r11');a.jcc('ne',miss);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);
@@ -176,7 +185,13 @@ export function emitNamedProperties(b:RuntimeBuilder):void {
   a.label(inherited);a.store(slot(96),'r10');a.mov('rcx','r10');a.load('rdx',slot(80));a.call('rt.ownNamedNode');a.test('rax','rax');const nextProto=a.unique('nextProto');a.jcc('e',nextProto);
   a.load('r11',{base:'rax',disp:P.attributes});a.and('r11',A.accessor|A.writable);a.cmp('r11',A.writable);a.jcc('ne',miss);a.jmp(own);
   a.label(nextProto);a.load('r10',slot(96));a.load('r10',{base:'r10',disp:O.prototype});a.jmp(chain);
-  a.label(own);a.load('r10',slot(88));bumpEpochIfPrototype(a,'r10');a.load('rcx',slot(88));a.call('rt.allocPropertyNode');
+  a.label(own);a.load('r10',slot(88));bumpEpochIfPrototype(a,'r10');
+  // A shaped receiver takes the key as a transition, or becomes a dictionary
+  // when it cannot (rt.shapeAddProperty) and gets a node like any other.
+  {const unshaped=a.unique('unshaped');a.load('rcx',slot(88));a.load('rax',{base:'rcx',disp:O.shape});a.test('rax','rax');a.jcc('e',unshaped);
+   a.load('rdx',slot(80));a.load('r8',slot(56));a.call('rt.shapeAddProperty');a.test('rax','rax');a.jcc('ne',done);
+   a.load('rcx',slot(88));a.call('rt.shapeMaterialize');a.label(unshaped);}
+  a.load('rcx',slot(88));a.call('rt.allocPropertyNode');
   a.load('r10',slot(80));a.store({base:'rax',disp:P.key},'r10');a.mov('r10',A.ordinary);a.store({base:'rax',disp:P.attributes},'r10');
   a.mov('r10',0);for(const offset of [P.getter,P.getter+8,P.setter,P.setter+8])a.store({base:'rax',disp:offset},'r10');
   a.load('r8',slot(56));a.load('r11',{base:'r8'});a.store({base:'rax',disp:P.value},'r11');a.load('r11',{base:'r8',disp:8});a.store({base:'rax',disp:P.value+8},'r11');

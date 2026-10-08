@@ -1,6 +1,6 @@
 import {rootedFn} from './root-scope.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags} from './object-layout.js';
 import {stringLiteral} from './value.js';
 import {FunctionKind} from './functions.js';
 
@@ -62,8 +62,8 @@ export function emitObjectCoercion(b:RuntimeBuilder):void {
     a.lea('rcx',slot(160));a.call('rt.toString');a.label(separatorReady);
     // Convert the separator before entering the cycle guard: a.join(a) must
     // stringify a as the separator, not mistake it for a recursive element.
-    a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.stringifying});a.test('rax','rax');a.jcc('ne',finish);
-    a.mov('rax',1);a.store({base:'r10',disp:O.stringifying},'rax');
+    a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ObjectFlags.stringifying);a.test('rax','rax');a.jcc('ne',finish);
+    a.load('rax',{base:'r10',disp:O.flags});a.or('rax',ObjectFlags.stringifying);a.store({base:'r10',disp:O.flags},'rax');
     a.load('rax',{rip:'rt.cleanupHead'});a.store(slot(200),'rax');a.store(slot(208),'r10');a.lea('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');
     a.mov('rax',0);a.store(slot(72),'rax');
     a.label(loop);a.call('rt.safepoint');a.load('rax',slot(72));a.load('r10',slot(64));a.cmp('rax','r10');a.jcc('ae',clear);
@@ -75,7 +75,7 @@ export function emitObjectCoercion(b:RuntimeBuilder):void {
     a.lea('rcx',slot(144));a.lea('rdx',slot(128));a.call('rt.toString');
     a.lea('rcx',slot(216));a.load('rdx',slot(152));a.call('rt.builderAppend');
     a.label(next);a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(loop);
-    a.label(clear);a.lea('rcx',slot(216));a.lea('rdx',slot(80));a.call('rt.builderFinish');a.load('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(56));a.mov('rax',0);a.store({base:'r10',disp:O.stringifying},'rax');
+    a.label(clear);a.lea('rcx',slot(216));a.lea('rdx',slot(80));a.call('rt.builderFinish');a.load('rax',slot(200));a.store({rip:'rt.cleanupHead'},'rax');a.load('r10',slot(56));a.load('rax',{base:'r10',disp:O.flags});a.and('rax',~ObjectFlags.stringifying);a.store({base:'r10',disp:O.flags},'rax');
     a.label(finish);a.load('rcx',slot(40));a.load('rax',slot(80));a.store({base:'rcx'},'rax');a.load('rax',slot(88));a.store({base:'rcx',disp:8},'rax');
   });
 }

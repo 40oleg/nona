@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {ShapeLayout} from './shapes.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O,PropertyAttributes as A,PropertyLayout as P} from './object-layout.js';
 import {ElementsLayout as E} from './array-elements.js';
@@ -96,6 +97,18 @@ export function emitObjectCollections(b:RuntimeBuilder):void {
    const generic=a.unique('generic'),count=a.unique('count'),skip=a.unique('skip'),counted=a.unique('counted'),fill=a.unique('fill'),fillSkip=a.unique('fillSkip'),filled=a.unique('filled');
    a.load('rax',slot(64));a.cmp('rax',5);a.jcc('ne',generic);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',generic);
    a.load('rax',{base:'r10',disp:O.elements});a.test('rax','rax');a.jcc('ne',generic);a.lea('rax',{rip:'rt.globalObject'});a.cmp('r10','rax');a.jcc('e',generic);
+   // A shaped object (shapes.ts): its keys, all enumerable, in slot order.
+   {const unshaped=a.unique('unshaped'),walk=a.unique('shapeWalk');
+    a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('e',unshaped);
+    a.load('rdx',{base:'rax',disp:ShapeLayout.count});a.store(slot(280),'rdx');a.lea('rcx',slot(112));a.mov('rdx',1);a.mov('r8',0);a.call('rt.newObject');
+    a.load('rcx',slot(280));a.test('rcx','rcx');a.jcc('e',finished);a.call('rt.elementsAlloc');
+    a.load('r10',slot(120));a.store({base:'r10',disp:O.elements},'rax');a.load('rcx',slot(280));a.store({base:'r10',disp:O.length},'rcx');a.store({base:'rax',disp:E.count},'rcx');
+    a.mov('r11','rax');a.load('r10',slot(72));a.load('r10',{base:'r10',disp:O.shape});
+    a.label(walk);a.load('r9',{base:'r10',disp:ShapeLayout.parent});a.test('r9','r9');a.jcc('e',finished);
+    a.load('r8',{base:'r10',disp:ShapeLayout.count});a.sub('r8',1);a.shl('r8',4);a.add('r8','r11');
+    a.mov('rax',4);a.store({base:'r8',disp:E.values},'rax');a.load('rax',{base:'r10',disp:ShapeLayout.key});a.store({base:'r8',disp:E.values+8},'rax');
+    a.mov('r10','r9');a.jmp(walk);
+    a.label(unshaped);}
    a.mov('rdx',0);a.load('r10',{base:'r10',disp:O.properties});
    a.label(count);a.test('r10','r10');a.jcc('e',counted);a.load('r11',{base:'r10',disp:P.key});a.load('rax',{base:'r11'});a.cmp('rax',-1);a.jcc('e',skip);
    a.test('rax','rax');const nonEmpty=a.unique('nonEmpty');a.jcc('e',nonEmpty);a.load('rax',{base:'r11',disp:8},16);a.sub('rax',48);a.cmp('rax',9);a.jcc('be',generic);a.label(nonEmpty);
