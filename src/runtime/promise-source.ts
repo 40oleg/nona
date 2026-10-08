@@ -89,7 +89,8 @@ var __nonaPromiseDrainJobs=(function(){
     ];
     return {resolve:functions[0],reject:functions[1]}
   }
-  var promiseRealm=Function.prototype.__nonaPromiseRealmInternal;
+  // Absent when the prelude is evaluated by Node.js in source tests.
+  var promiseRealm=Function.prototype.__nonaPromiseRealmInternal||function(){};
   function Promise(executor){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
