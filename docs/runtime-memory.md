@@ -15,8 +15,8 @@ Kind raw не содержит ссылок; object указывает на prop
 указывает на next/key и содержит tagged Value. Numeric scratch и UTF8 output
 buffers — raw, не сканируются как произвольная память.
 
-Object payload сейчас 88 bytes (`ObjectLayout.size`, см. [architecture.md](architecture.md)): kind/properties/length/prototype/stringifying
-на прежних offsets 0/8/16/24/32, flags at 40. Flags не содержат pointers;
+Object payload сейчас 72 bytes (`ObjectLayout.size`, см. [architecture.md](architecture.md)): kind/properties/length/prototype/shape
+на offsets 0/8/16/24/32, flags at 40. Flags не содержат pointers;
 bit 1 — nonExtensible (подготовлен для следующих APIs), bit 2 — array length
 readonly. Zero означает extensible + writable length. Все allocators и static
 payloads инициализируют flags; function/box поля сдвинуты относительно O.size.
@@ -36,7 +36,7 @@ Callable object использует тот же object prefix и trace kind; а
 captured cells; каждая cell содержит один tagged Value. Callee остаётся tagged
 Value в caller root slots на всё время косвенного вызова.
 Поле constructable отделяет обычные source functions от callable, но
-неконструируемого Function.prototype. Native code/environment/constructable идут первыми после object prefix (offsets 88/96/104); полный function payload — 216 bytes (`FunctionLayout.size`), все смещения — в [architecture.md](architecture.md). GC трассирует оба лексических Value.
+неконструируемого Function.prototype. Native code/environment/constructable идут первыми после object prefix (offsets 72/80/88); полный function payload — 200 bytes (`FunctionLayout.size`), все смещения — в [architecture.md](architecture.md). GC трассирует оба лексических Value.
 Стрелка хранит receiver и new.target при создании, а при вызове игнорирует
 переданный thisArg. HomeObject наследуется от окружающего метода/стрелки.
 ConstructCode — static code pointer, не managed edge. Ноль означает обычный

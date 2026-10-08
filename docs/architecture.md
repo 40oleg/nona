@@ -83,7 +83,7 @@ The collector is a precise, non-moving mark and sweep (`src/runtime/gc.ts`). Eve
 | `HeapKind.mapEntry` | 8 |
 | `HeapKind.weakEntry` | 9 |
 
-Objects (`src/runtime/object-layout.ts`) keep their own properties as a linked list of property nodes; an optional index, an element table and a key filter speed up lookups, and a constructor's first instances get inline property nodes allocated behind the header (`slots`). Property and element storage is the subject of issues #13, #36 and #114.
+Objects (`src/runtime/object-layout.ts`) come in two representations ([`object-model.md`](object-model.md)): plain objects made by literals, ordinary constructors and `JSON.parse` keep their named properties in 16-byte slots described by a shared shape (`shape`; the slots follow the header, the rest are in a value list in `keys`), and every other object keeps a linked list of property nodes with an optional index, an element table and a key filter. Property and element storage is the subject of issues #13, #36 and #114.
 
 | Object payload | Offset |
 | --- | --- |
@@ -91,14 +91,12 @@ Objects (`src/runtime/object-layout.ts`) keep their own properties as a linked l
 | `ObjectLayout.properties` | 8 |
 | `ObjectLayout.length` | 16 |
 | `ObjectLayout.prototype` | 24 |
-| `ObjectLayout.stringifying` | 32 |
+| `ObjectLayout.shape` | 32 |
 | `ObjectLayout.flags` | 40 |
 | `ObjectLayout.index` | 48 |
 | `ObjectLayout.elements` | 56 |
 | `ObjectLayout.keys` | 64 |
-| `ObjectLayout.slots` | 72 |
-| `ObjectLayout.site` | 80 |
-| `ObjectLayout.size` | 88 |
+| `ObjectLayout.size` | 72 |
 
 | Property node | Offset |
 | --- | --- |
@@ -114,21 +112,21 @@ A function object is an object followed by the fields below (`src/runtime/functi
 
 | Function payload | Offset |
 | --- | --- |
-| `FunctionLayout.code` | 88 |
-| `FunctionLayout.environment` | 96 |
-| `FunctionLayout.constructable` | 104 |
-| `FunctionLayout.rawThis` | 112 |
-| `FunctionLayout.bound` | 120 |
-| `FunctionLayout.sourceText` | 128 |
-| `FunctionLayout.constructCode` | 136 |
-| `FunctionLayout.homeObject` | 144 |
-| `FunctionLayout.arrow` | 152 |
-| `FunctionLayout.lexicalThis` | 160 |
-| `FunctionLayout.lexicalNewTarget` | 176 |
-| `FunctionLayout.generator` | 192 |
-| `FunctionLayout.realm` | 200 |
-| `FunctionLayout.instanceSlots` | 208 |
-| `FunctionLayout.size` | 216 |
+| `FunctionLayout.code` | 72 |
+| `FunctionLayout.environment` | 80 |
+| `FunctionLayout.constructable` | 88 |
+| `FunctionLayout.rawThis` | 96 |
+| `FunctionLayout.bound` | 104 |
+| `FunctionLayout.sourceText` | 112 |
+| `FunctionLayout.constructCode` | 120 |
+| `FunctionLayout.homeObject` | 128 |
+| `FunctionLayout.arrow` | 136 |
+| `FunctionLayout.lexicalThis` | 144 |
+| `FunctionLayout.lexicalNewTarget` | 160 |
+| `FunctionLayout.generator` | 176 |
+| `FunctionLayout.realm` | 184 |
+| `FunctionLayout.instanceShape` | 192 |
+| `FunctionLayout.size` | 200 |
 
 [`runtime-memory.md`](runtime-memory.md) (Russian) describes the allocation, rooting and exception rules in detail; where its byte numbers differ from the tables above, the tables are right.
 

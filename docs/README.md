@@ -10,6 +10,7 @@ This directory holds the reference documents. Snapshots written for a particular
 | [es2020-contract.md](es2020-contract.md) | The ES2020 completion contract: scope, documented exceptions, how completion is judged | English |
 | [language-support.md](language-support.md) | Language feature matrix (checked for Nona 0.5.0; see its note) | Russian |
 | [test262.md](test262.md) | The Test262 baseline and how it is run | English |
+| [object-model.md](object-model.md) | Object header, shapes, slots and property lists, inline caches | English |
 | [runtime-memory.md](runtime-memory.md) | Allocation, rooting, safepoints and exception rules of the runtime | Russian |
 | [host-apis.md](host-apis.md) | Host APIs available to programs (timers, `process`, `fs`, FFI and more) | English |
 | [process.md](process.md) | The `process` API on all targets | English |
