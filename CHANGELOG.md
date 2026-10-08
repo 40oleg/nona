@@ -25,6 +25,8 @@
 
 - Rewrote the English and Russian READMEs: why Nona, installation from the release builds, a quick start, the supported Node.js APIs as a table, HTTP performance figures, and current development notes ([#153](https://github.com/40oleg/nona/issues/153)).
 
+- Plain objects use shapes (hidden classes): object literals, `new` with ordinary constructors and `JSON.parse` make objects whose named properties are 16-byte slots described by a shared shape, and `object.name` reads, writes and method calls are answered by inline caches after one shape comparison. A five-property object takes 192 bytes instead of about 500; acorn parses 6–13% faster with less than half the peak memory (99 MB instead of 229 MB), and the native compiler's stage 2 build peaks at 3.6 GB. Objects that need more than a shape describes (accessors, `delete`, other attributes, symbol keys) keep using property lists ([#114](https://github.com/40oleg/nona/issues/114)). See [docs/object-model.md](docs/object-model.md).
+
 ## v0.10.0 — 2026-10-07
 
 Highlights since v0.9.0:

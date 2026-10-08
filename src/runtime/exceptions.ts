@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from './exception-layout.js';
-import {ObjectLayout as O} from './object-layout.js';
+import {ObjectLayout as O,ObjectFlags} from './object-layout.js';
 
 export function emitExceptions(b:RuntimeBuilder):void {
  b.data('rt.exceptionHandler',new Uint8Array(8),'.data');
@@ -14,7 +14,7 @@ export function emitExceptions(b:RuntimeBuilder):void {
   a.load('r8',{base:'r11',disp:H.value});for(const n of [0,8]){a.load('rax',{base:'rcx',disp:n});a.store({base:'r8',disp:n},'rax');}
   a.load('r10',{rip:'rt.cleanupHead'});a.load('r9',{base:'r11',disp:H.cleanup});
   const cleanup=a.unique('cleanup'),restored=a.unique('restored');a.label(cleanup);a.cmp('r10','r9');a.jcc('e',restored);
-  a.load('r8',{base:'r10',disp:8});a.mov('rax',0);a.store({base:'r8',disp:O.stringifying},'rax');a.load('r10',{base:'r10'});a.jmp(cleanup);
+  a.load('r8',{base:'r10',disp:8});a.load('rax',{base:'r8',disp:O.flags});a.and('rax',~ObjectFlags.stringifying);a.store({base:'r8',disp:O.flags},'rax');a.load('r10',{base:'r10'});a.jmp(cleanup);
   a.label(restored);a.store({rip:'rt.cleanupHead'},'r9');a.load('rax',{base:'r11',disp:H.next});a.store({rip:'rt.exceptionHandler'},'rax');
   a.load('rax',{base:'r11',disp:H.roots});a.store({rip:'rt.gcRoots'},'rax');
   preservedGp.forEach((reg,i)=>a.load(reg,{base:'r11',disp:H.gp+8*i}));

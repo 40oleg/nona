@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot} from './abi.js';
+import {emptyLiteralCapacity} from './shapes.js';
 import {rootedFn} from './root-scope.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 
@@ -53,7 +54,8 @@ export function emitJsonParser(b:RuntimeBuilder):void {
   a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(96+n));a.store({base:'rcx',disp:n},'rax');}a.jmp(done);
 
   // Objects.
-  a.label(object);advance();a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
+  // A parsed object starts shaped (shapes.ts) like an empty literal.
+  a.label(object);advance();a.lea('rcx',slot(80));a.mov('rdx',0);a.mov('r8',0);a.mov('r9',emptyLiteralCapacity);a.call('rt.newObjectSlots');
   {const member=a.unique('member'),first=a.unique('firstMember'),close=a.unique('objectClose');
    skipWhitespace();a.cmp('r11',125);a.jcc('e',close);a.jmp(first);
    a.label(member);skipWhitespace();a.cmp('r11',44);a.jcc('e','rt.jsonParseAt.nextMember');a.cmp('r11',125);a.jcc('ne',invalid);a.jmp(close);

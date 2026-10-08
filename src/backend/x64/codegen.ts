@@ -1,6 +1,7 @@
 import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,maxInlineSlots} from '../../runtime/object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
+import {maxInlineCapacity,emptyLiteralCapacity} from '../../runtime/shapes.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
@@ -619,7 +620,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
-        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots){a.mov('r9',Math.min(op.slots,maxInlineSlots));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
+        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots!==undefined&&!op.array){a.mov('r9',Math.min(Math.max(op.slots,emptyLiteralCapacity),maxInlineCapacity));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
         case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
         case 'forInHas':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.forInHas');break;
         case 'getIterator':pointer('rcx',op.iterator);pointer('rdx',op.next);pointer('r8',op.object);a.call('rt.getIterator');break;
@@ -633,7 +634,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // property-cache.ts) when the name can only be a named property.
           if(op.operation==='get'&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
-            a.lea('r9',{rip:cache});a.call('rt.getPropertyCached');break;
+            a.lea('r9',{rip:cache});a.call('rt.icGet');break;
           }
           if(op.operation==='get'&&op.keyName==='length'){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
@@ -645,7 +646,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // remembers the inline node holding the property (property-cache.ts).
           if(!op.define&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
-            a.lea('r10',{rip:cache});a.call('rt.setPropertyCached');break;
+            a.lea('r10',{rip:cache});a.call('rt.icSet');break;
           }
           a.call('rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;

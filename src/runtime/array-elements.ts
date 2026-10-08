@@ -1,4 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
+import {emitShapeGuard} from './shapes.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 
@@ -58,6 +59,7 @@ export function emitArrayElements(b:RuntimeBuilder):void {
  // RCX object without a table, RDX minimum capacity. Counts the index-keyed
  // nodes already in the list so that creation knows whether any exist.
  b.fn('rt.elementsBuild',72,a=>{
+  emitShapeGuard(a,'rcx');
   a.store(slot(40),'rcx');a.mov('rax',4);const grow=a.unique('grow'),sized=a.unique('sized');
   a.label(grow);a.cmp('rax','rdx');a.jcc('ae',sized);a.shl('rax',1);a.jmp(grow);a.label(sized);
   a.mov('rcx','rax');a.call('rt.elementsAlloc');a.store(slot(48),'rax');
@@ -141,6 +143,7 @@ export function emitArrayElements(b:RuntimeBuilder):void {
  // RCX object, RDX index of a dense element -> RAX its new property node,
  // linked at the head of the list; the slot is a hole afterwards.
  b.fn('rt.elementsMaterialize',104,a=>{
+  emitShapeGuard(a,'rcx');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
   a.load('r10',{base:'rcx',disp:O.elements});a.mov('rax','rdx');a.shl('rax',4);a.add('rax','r10');a.add('rax',E.values);
   a.load('r11',{base:'rax'});a.store(slot(56),'r11');a.load('r11',{base:'rax',disp:8});a.store(slot(64),'r11');
