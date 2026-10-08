@@ -1210,7 +1210,9 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
       }else this.lastIndex=index+1
     }
   }
-  var accumulated='',nextSourcePosition=0;
+  // The result is joined from its pieces once: appending to one string
+  // copied it for every match (quadratic in the number of matches).
+  var pieces=[],nextSourcePosition=0;
   for(var i=0;i<results.length;i++){
     var item=results[i],match=String(item[0]),position=Number(item.index);
     if(position!==position||position<0)position=0;
@@ -1270,11 +1272,13 @@ Object.defineProperty(RegExp.prototype,Symbol.replace,{value:({[Symbol.replace](
       }
     }
     if(position>=nextSourcePosition){
-      accumulated+=safe.replaceSlice.call(input,nextSourcePosition,position)+value;
+      Object.defineProperty(pieces,pieces.length,{value:safe.replaceSlice.call(input,nextSourcePosition,position),writable:true,enumerable:true,configurable:true});
+      Object.defineProperty(pieces,pieces.length,{value:value,writable:true,enumerable:true,configurable:true});
       nextSourcePosition=position+match.length
     }
   }
-  return accumulated+safe.replaceSlice.call(input,nextSourcePosition)
+  Object.defineProperty(pieces,pieces.length,{value:safe.replaceSlice.call(input,nextSourcePosition),writable:true,enumerable:true,configurable:true});
+  return safe.replaceJoin.call(pieces,'')
 }})[Symbol.replace],writable:true,configurable:true});
 Object.defineProperty(RegExp.prototype,Symbol.split,{value:({[Symbol.split](string,limit){
   'use strict';
@@ -1431,9 +1435,10 @@ Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchVa
     if(typeof replaceValue==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
     replacement=String(replaceValue)
   }
-  var result='',end=0,position=input.indexOf(search,0);
+  var pieces=[],end=0,position=input.indexOf(search,0);
+  var add=function(piece){Object.defineProperty(pieces,pieces.length,{value:piece,writable:true,enumerable:true,configurable:true})};
   while(position>=0){
-    result+=input.slice(end,position);
+    add(input.slice(end,position));
     var value='';
     if(functional)value=String(replaceValue(search,position,input));
     else{
@@ -1448,16 +1453,18 @@ Object.defineProperty(String.prototype,'replaceAll',{value:({replaceAll(searchVa
         value+='$'
       }
     }
-    result+=value;
+    add(value);
     end=position+search.length;
     var nextPosition=position+(search.length===0?1:search.length);
     position=nextPosition>input.length?-1:input.indexOf(search,nextPosition)
   }
-  return result+input.slice(end)
+  add(input.slice(end));
+  return __nonaRegexpVm.replaceJoin.call(pieces,'')
 }}).replaceAll,writable:true,configurable:true});
 __nonaRegexpVm.replaceSlice=String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf=String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt=String.prototype.charCodeAt;
+__nonaRegexpVm.replaceJoin=Array.prototype.join;
 __nonaRegexpVm.positionArrayConstructor=Uint32Array;
 __nonaRegexpVm.byteArrayConstructor=Uint8Array;
 __nonaRegexpVm.byteArrayFill=Uint8Array.prototype.fill;

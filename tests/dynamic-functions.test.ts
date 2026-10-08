@@ -22,6 +22,26 @@ try { Function(String("return 1")); } catch (e) { console.log(e.name); }
  assert.equal(run.stdout, 'true\n5 anonymous 2 true\ntrue true\n7 undefined undefined\ntrue\ntrue\ntrue\nEvalError\n');
 });
 
+test('a function that binds its own Function leaves only its own calls alone', () => {
+ // lodash: the top level reads Function('return this')() and runInContext
+ // declares var Function = context.Function.
+ const run = runOnHost(`;(function () {
+  var root = Function('return this')();
+  function runInContext(context) {
+    var Function = context.Function;
+    return [typeof Function, (function () { return Function('return 1'); })()];
+  }
+  function parameter(Function) { return Function('p'); }
+  function catches() { try { throw function () { return 'caught'; }; } catch (Function) { return Function('c'); } }
+  function blocks() { { let Function = function (s) { return 'let ' + s; }; return Function('b'); } }
+  console.log(root === globalThis, runInContext({Function: function (s) { return 'context ' + s; }}).join(),
+    parameter(function (s) { return 'parameter ' + s; }), catches(), blocks(), Function('return 2')());
+}());
+`);
+ assert.equal(run.status, 0, run.stderr);
+ assert.equal(run.stdout, 'true function,context return 1 parameter p caught let b 2\n');
+});
+
 test('a program that binds its own Function is left alone', () => {
  const run = runOnHost(`function Function(s) { return 'shadowed ' + s; }
 console.log(Function("x"));
