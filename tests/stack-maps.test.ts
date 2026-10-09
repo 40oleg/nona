@@ -36,7 +36,7 @@ test('every function has a sorted stack map table that its frame descriptor refe
  }
  // f's temporaries die one after the other: some map lists fewer locations than another.
  const f=program.fragments.find(f=>f.name==='js.fn.0.maps')!,view=new DataView(f.bytes.buffer,f.bytes.byteOffset);
- const count=view.getUint32(M.count,true),width=f.bytes[M.fieldWidth]!,bitmapBytes=f.bytes[M.bitmapBytes]!,base=M.entries+2*width*count;
+ const count=view.getUint32(M.count,true),width=f.bytes[M.fieldWidth]!,bitmapBytes=view.getUint16(M.bitmapBytes,true),base=M.entries+2*width*count;
  const popcounts=new Set<number>();
  for(let at=base;at<f.bytes.length;at+=bitmapBytes){let bits=0;for(let b=0;b<bitmapBytes;b++)bits+=f.bytes[at+b]!.toString(2).split('1').length-1;popcounts.add(bits);}
  assert.ok(popcounts.size>1,'maps differ in the slots they list: '+[...popcounts].join());

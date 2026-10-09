@@ -396,12 +396,15 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // many) are live everywhere. A slot kept as a static constant has no
     // frame storage: its location belongs to other slots.
     const floor=liveFloor(fn);
-    const mapIndex=new Map<string,number>(),maps:boolean[][]=[],entries:StackMapEntry[]=[];
+    // A map is keyed and stored by its locations at or above the floor (sorted),
+    // so that its cost is the size of the live set, not of the frame.
+    const alwaysLive=Math.min(floor,locations.count);
+    const mapIndex=new Map<string,number>(),maps:number[][]=[],entries:StackMapEntry[]=[];
     const mapOf=(slots:Iterable<number>):number=>{
-      const bits:boolean[]=Array.from({length:locations.count},(_,l)=>l<floor);
-      for(const n of slots)if(n>=floor&&!staticConstant(n))bits[location(n)]=true;
-      const key=bits.map(b=>b?'1':'0').join('');let index=mapIndex.get(key);
-      if(index===undefined){index=maps.length;maps.push(bits);mapIndex.set(key,index);}
+      const above=new Set<number>();
+      for(const n of slots)if(n>=floor&&!staticConstant(n)){const l=location(n);if(l>=alwaysLive)above.add(l);}
+      const list=[...above].sort((x,y)=>x-y),key=list.join(',');let index=mapIndex.get(key);
+      if(index===undefined){index=maps.length;maps.push(list);mapIndex.set(key,index);}
       return index;
     };
     // The map in force while code is emitted: every call records its return
@@ -830,7 +833,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
     }
     for(const {map,emit} of cold.sort((x,y)=>x.map-y.map)){currentMap=map;emit();}
-    fragments.push(stackMapFragment(fn.id+'.maps',fn.id,entries,maps,locations.count));
+    fragments.push(stackMapFragment(fn.id+'.maps',fn.id,entries,maps,locations.count,alwaysLive));
     finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));

@@ -148,7 +148,7 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   // Wait: the map index is the second field of the entry.
   a.mov('rdx','r10');a.sub('rdx',1);a.imul('rdx','rcx');a.add('rdx','rdx');a.add('rdx','r8');a.add('rdx','rcx');field('rdx','rdx',0);
   // The bitmap: after the entries, map index times the bitmap bytes.
-  a.load('r9',{base:'r8',disp:M.bitmapBytes},8);a.imul('rdx','r9');
+  a.load('r9',{base:'r8',disp:M.bitmapBytes},16);a.imul('rdx','r9');
   a.load('r11',{base:'r8',disp:M.count},32);a.imul('r11','rcx');a.add('r11','r11');a.add('rdx','r11');a.add('rdx','r8');a.add('rdx',M.entries);a.store(slot(64),'rdx');
   a.mov('rax',0);a.store(slot(72),'rax');
   a.label(slots);a.load('rax',slot(72));a.load('r10',slot(48));a.sub('r10',3);a.cmp('rax','r10');a.jcc('ae',rest);
