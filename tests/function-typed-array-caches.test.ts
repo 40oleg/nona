@@ -72,6 +72,11 @@ console.log(out.join(' | '));`],
 const arrays = [new Uint8Array(3), new Float64Array(5), new Int32Array(new ArrayBuffer(16), 4, 2), new BigInt64Array(1), new Uint8ClampedArray(0)];
 class Mine extends Uint16Array {} arrays.push(new Mine(9));
 const out = [];
+// Rounds 4 and 5 redefine %TypedArray%.prototype.length and
+// Float64Array.prototype.length; both are restored before printing, because
+// Node.js writes stdout through Buffer (a Uint8Array) and asserts on its length.
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+const savedLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, 'length');
 for (let round = 0; round < 7; round++) {
   out.push(arrays.map(a => a.length).join(','));
   if (round === 1) Object.defineProperty(arrays[0], 'length', {value: 'own'});
@@ -80,6 +85,9 @@ for (let round = 0; round < 7; round++) {
   if (round === 4) Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), 'length', {get() { return 'redefined:' + this.byteLength; }, configurable: true});
   if (round === 5) Object.defineProperty(Float64Array.prototype, 'length', {get() { return 'f64'; }, configurable: true});
 }
+Object.defineProperty(typedArrayPrototype, 'length', savedLength);
+delete Float64Array.prototype.length;
+out.push(arrays.map(a => a.length).join(','));
 console.log(out.join(' | '));
 let total = 0; const big = new Uint8Array(64); for (let r = 0; r < 2000; r++) for (let i = 0; i < big.length; i += 8) total += big.length;
 console.log(total);`],
