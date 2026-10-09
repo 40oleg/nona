@@ -84,16 +84,25 @@ export function emitFunctions(b:RuntimeBuilder):void {
  });
  // RCX result, RDX code, R8 capture count, R9 array of internal Cell Values:
  // an ordinary function with its own `prototype` object.
- b.fn('rt.newFunction',72,a=>{
-  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');
+ b.fn('rt.newFunction',56,a=>{
+  a.store(slot(40),'rcx');a.call('rt.newFunctionBare');a.load('rcx',slot(40));a.call('rt.installFunctionPrototype');
+ });
+ // RCX a fresh function Value*: its own `prototype` object, whose `constructor` is the function.
+ b.fn('rt.installFunctionPrototype',72,a=>{
+  a.store(slot(40),'rcx');
   a.lea('rcx',slot(48));a.mov('rdx',0);a.mov('r8',0);a.call('rt.newObject');
   a.load('rcx',slot(40));a.lea('rdx',{rip:'rt.key.prototype'});a.lea('r8',slot(48));a.mov('r9',A.writable);a.call('rt.initFunctionProperty');
   a.lea('rcx',slot(48));a.lea('rdx',{rip:'rt.key.constructor'});a.load('r8',slot(40));a.mov('r9',A.writable|A.configurable);a.call('rt.initFunctionProperty');
  });
  // The same without the prototype object.
- b.fn('rt.newFunctionBare',104,a=>{
+ b.fn('rt.newFunctionBare',56,a=>{
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
-  a.mov('rcx','r8');a.mov('rdx','r9');a.call('rt.newEnvironment');a.store(slot(72),'rax');
+  a.mov('rcx','r8');a.mov('rdx','r9');a.call('rt.newEnvironment');
+  a.load('rcx',slot(40));a.load('rdx',slot(48));a.mov('r8','rax');a.call('rt.newFunctionWithEnvironment');
+ });
+ // RCX result, RDX code, R8 a raw environment (or 0): the function object itself.
+ b.fn('rt.newFunctionWithEnvironment',104,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(72),'r8');
   a.mov('rcx',FunctionLayout.size);a.call('rt.alloc');
   a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
   a.mov('r10',FunctionKind);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);

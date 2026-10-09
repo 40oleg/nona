@@ -49,6 +49,7 @@ import {stringLiteral} from '../../runtime/value.js';
 import {emitFfi} from '../../runtime/ffi.js';
 import {PropertyCacheLayout,SetCacheLayout,cacheableName} from '../../runtime/property-cache.js';
 import {HasCacheLayout} from '../../runtime/has-cache.js';
+import {ClosureDescriptor as CD,ClosureFlags as CF,CallSiteDescriptor as SD,SiteNone,callSiteStub,closureStub,writeSiteEntry} from '../../runtime/call-sites.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -224,11 +225,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
     const a=createAssembler(fn.id),rootBase=JF.roots,valueBase=JF.values,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
-    let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
-      if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
-      if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
+    let argumentsObjectCount=0;for(const block of fn.blocks)for(const op of block.operations){
+      if(op.kind==='newArguments')argumentsObjectCount=Math.max(argumentsObjectCount,op.parameters.length+1);
     }
-    const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
+    const handlerBase=argsBase+16*Math.max(fn.maxArguments,argumentsObjectCount);
     const savedFrameBase=JF.savedFrame,frameBias=JF.bias;
     if(savedFrameBase!==rootBase+R.size||frameBias!==valueBase+128)throw new Error('Frame layout mismatch');
     const stack=(disp:number):Mem=>({base:'rbp',disp:disp-frameBias});
@@ -495,33 +495,27 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.label(no);a.mov('rax',0);a.store(payload(op.dest),'rax');
           a.label(done);break;
         }
-        case 'newFunction':
-          (op.captures??[]).forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
-          pointer('rcx',op.dest);a.lea('rdx',{rip:op.target});a.mov('r8',op.captures?.length??0);a.lea('r9',stack(argsBase));a.call(op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator?'rt.newMethod':'rt.newFunction');
-          if(op.classConstructor){a.load('r10',payload(op.dest));a.mov('rax',2);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');}
-          if(op.async){
-            a.load('r10',payload(op.dest));a.mov('rax',op.generator?3:2);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');
-            if(op.generator){pointer('rcx',op.dest);a.call('rt.initializeAsyncGeneratorFunction');}
-            else{a.lea('rax',{rip:'rt.asyncFunctionPrototype'});a.store({base:'r10',disp:O.prototype},'rax');}
-          }
-          else if(op.generator){a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.generator},'rax');a.mov('rax',0);a.store({base:'r10',disp:FunctionLayout.constructable},'rax');pointer('rcx',op.dest);a.call('rt.initializeGeneratorFunction');}
-          if(op.strict||op.arrow){a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.rawThis},'rax');}
-          if(op.arrow){
-            a.load('r10',payload(op.dest));a.mov('rax',1);a.store({base:'r10',disp:FunctionLayout.arrow},'rax');
-            for(const [target,source] of [[FunctionLayout.lexicalThis,thisBase],[FunctionLayout.lexicalNewTarget,newTargetBase]] as const){
-              a.load('rax',stack(source));a.store({base:'r10',disp:target},'rax');
-              a.load('rax',stack(source+8));a.store({base:'r10',disp:target+8},'rax');
-            }
-            if(fn.id!=='js.main'){
-              a.load('rax',stack(64));a.load('rax',{base:'rax',disp:FunctionLayout.homeObject});a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');
-            }
-          }
-          if(op.homeObject!==undefined){a.load('r10',payload(op.dest));a.load('rax',payload(op.homeObject));a.store({base:'r10',disp:FunctionLayout.homeObject},'rax');}
-          if(op.sourceText!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:literal(op.sourceText)});a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
-          else if(op.sourceRange!==undefined){a.load('r10',payload(op.dest));a.lea('rax',{rip:sourceRange(op.sourceRange)});a.or('rax',1);a.store({base:'r10',disp:FunctionLayout.sourceText},'rax');}
-          pointer('rcx',op.dest);
-          if(op.nameSlot===undefined)a.lea('rdx',{rip:literal(op.name??'')});else a.load('rdx',payload(op.nameSlot));
-          a.mov('r8',op.parameterCount??0);a.call('rt.initFunctionMetadata');break;
+        case 'newFunction':{
+          // One static descriptor per site (call-sites.ts) and one call:
+          // rt.newClosure reads the captures, the home object and a computed
+          // name from this frame through RBP, sets the flags, the lexical
+          // this/new.target of an arrow and the source text, and installs
+          // length and name.
+          const bare=op.method&&!op.classConstructor&&!op.generator||op.arrow||op.async&&!op.generator;
+          const flags=(bare?CF.bare:0)|(op.classConstructor?CF.classConstructor:0)|(op.arrow?CF.arrow:0)|(op.generator?CF.generator:0)|(op.async?CF.async:0)|(op.strict?CF.strict:0)
+            |(op.arrow&&fn.id!=='js.main'?CF.inheritHomeObject:0)|(op.sourceText!==undefined?CF.sourceText:op.sourceRange!==undefined?CF.sourceRange:0)
+            |(op.homeObject!==undefined?CF.homeObject:0)|(op.nameSlot!==undefined?CF.computedName:0);
+          const captures=op.captures??[],bytes=new Uint8Array(CD.entries+4*captures.length),view=new DataView(bytes.buffer),fixups:NamedFragment['fixups']=[{offset:CD.code,kind:'va64',target:op.target,addend:0}];
+          view.setUint32(CD.flags,flags,true);view.setUint32(CD.parameters,op.parameterCount??0,true);view.setUint32(CD.captures,captures.length,true);
+          writeSiteEntry(view,fixups,CD.name,op.nameSlot===undefined?{rip:literal(op.name??'')}:value(op.nameSlot));
+          if(op.sourceText!==undefined)writeSiteEntry(view,fixups,CD.sourceText,{rip:literal(op.sourceText)});
+          else if(op.sourceRange!==undefined)writeSiteEntry(view,fixups,CD.sourceText,{rip:sourceRange(op.sourceRange)});
+          if(op.homeObject!==undefined)writeSiteEntry(view,fixups,CD.homeObject,value(op.homeObject));
+          view.setInt32(CD.thisSlot,thisBase-frameBias,true);view.setInt32(CD.newTargetSlot,newTargetBase-frameBias,true);view.setInt32(CD.functionSlot,JF.callee-frameBias,true);
+          captures.forEach((n,i)=>writeSiteEntry(view,fixups,CD.entries+4*i,value(n)));
+          const descriptor='closure.'+fragments.length;fragments.push({name:descriptor,section:'.rdata',alignment:8,bytes,fixups,symbols:{}});
+          pointer('rcx',op.dest);a.lea('rdx',{rip:descriptor});a.call(closureStub(flags));break;
+        }
         case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.setter?1:0)|(op.nonEnumerable?2:0));a.call('rt.defineLiteralAccessor');break;
         case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
         case 'readCell':pointer('rcx',op.dest);pointer('rdx',op.cell);a.call('rt.readCell');break;
@@ -612,8 +606,24 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.label(done);break;
         }
         case 'invoke':{
-          op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
-          const general=a.unique('generalCall'),called=a.unique('called');
+          // A general call is one static descriptor (call-sites.ts) and a
+          // stub that copies the arguments into this frame's argument area
+          // and calls rt.invoke with the callee, receiver and new.target it
+          // names.
+          const callSite=(op:Extract<Operation,{kind:'invoke'}>)=>{
+            // rt.invoke and rt.prepareTailCall take no new.target; a construct
+            // site ends with its new.target entry (SiteNone: the callee).
+            const construct=!!op.construct&&!op.tail;
+            const operands=[value(op.callee),op.receiver===undefined?{rip:'rt.undefinedValue'}:value(op.receiver),...op.arguments.map(n=>value(n))];
+            const bytes=new Uint8Array(SD.callee+4*operands.length+(construct?4:0)),view=new DataView(bytes.buffer),fixups:NamedFragment['fixups']=[];
+            view.setUint32(SD.argc,op.arguments.length,true);view.setInt32(SD.area,argsBase-frameBias,true);
+            operands.forEach((mem,i)=>writeSiteEntry(view,fixups,SD.callee+4*i,mem));
+            if(construct){const at=SD.callee+4*operands.length;if(op.newTarget===undefined)view.setInt32(at,SiteNone,true);else writeSiteEntry(view,fixups,at,value(op.newTarget));}
+            const site='site.'+fragments.length;fragments.push({name:site,section:'.rdata',alignment:8,bytes,fixups,symbols:{}});
+            pointer('rcx',op.dest);a.lea('rdx',{rip:site});a.call(callSiteStub(op.tail?'tail':construct?'construct':'invoke',op.arguments.length));
+          };
+          if(op.hasOwn&&!op.direct&&!op.construct&&op.receiver!==undefined){
+            const general=a.unique('generalCall'),called=a.unique('called');
           if(op.hasOwn&&!op.direct&&!op.construct&&op.receiver!==undefined){
             // %Object.prototype.hasOwnProperty% called on a shaped object
             // with a string key: answered by the site's cache (has-cache.ts).
@@ -624,38 +634,33 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             if(call){check(op.callee,'rt.functionCall');check(op.receiver,'rt.objectHasOwn');}else check(op.callee,'rt.objectHasOwn');
             pointer('rcx',op.dest);pointer('rdx',self);pointer('r8',key);a.lea('r9',{rip:cache});a.call('rt.icHasOwn');a.test('rax','rax');a.jcc('ne',called);
           }
-          if(op.direct){
-            // A callee known at compile time (src/ir/calls.ts): if it is a
-            // function running that code, call the code directly with the
-            // calling convention rt.invoke uses (RCX result, RDX argc, R8 argv,
-            // R9 function, then this and new.target Value pointers).
-            a.load('rax',value(op.callee));a.cmp('rax',5);a.jcc('ne',general);
-            a.load('r9',payload(op.callee));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',general);
-            a.load('rax',{base:'r9',disp:FunctionLayout.code});a.lea('r10',{rip:op.direct});a.cmp('rax','r10');a.jcc('ne',general);
-            // this: unchanged for strict code; sloppy code gets the global
-            // object for undefined/null and an object receiver as is
-            // (primitives, which need boxing, take the general path).
-            if(op.receiver===undefined)a.lea('rax',{rip:op.directStrict?'rt.undefinedValue':'rt.globalValue'});
-            else if(op.directStrict)a.lea('rax',value(op.receiver));
-            else{const object=a.unique('objectThis'),ready=a.unique('thisReady');a.load('rax',value(op.receiver));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',1);a.jcc('a',general);
-             a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
-            a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
-            pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
-            // A tail call made by the callee comes back as a marker (rt.invoke
-            // does the same); it and the general call are out of line.
-            const tail=a.unique('tailMarker'),dest=op.dest;
-            a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
-            pushCold(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
+            a.label(general);callSite(op);a.label(called);break;
           }
-          const generalCall=(op:Extract<Operation,{kind:'invoke'}>)=>{
-            a.label(general);
-            if(op.receiver===undefined)a.lea('rax',{rip:'rt.undefinedValue'});else a.lea('rax',value(op.receiver));
-            a.store(stack(32),'rax');
-            if(op.newTarget===undefined)a.mov('rax',0);else a.lea('rax',value(op.newTarget));
-            a.store(stack(40),'rax');
-            pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
-          };
-          if(op.direct){const call=op;pushCold(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
+          if(!op.direct){callSite(op);break;}
+          // A callee known at compile time (src/ir/calls.ts): if it is a
+          // function running that code, call the code directly with the
+          // calling convention rt.invoke uses (RCX result, RDX argc, R8 argv,
+          // R9 function, then this and new.target Value pointers).
+          op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
+          const general=a.unique('generalCall'),called=a.unique('called');
+          a.load('rax',value(op.callee));a.cmp('rax',5);a.jcc('ne',general);
+          a.load('r9',payload(op.callee));a.load('rax',{base:'r9',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',general);
+          a.load('rax',{base:'r9',disp:FunctionLayout.code});a.lea('r10',{rip:op.direct});a.cmp('rax','r10');a.jcc('ne',general);
+          // this: unchanged for strict code; sloppy code gets the global
+          // object for undefined/null and an object receiver as is
+          // (primitives, which need boxing, take the general path).
+          if(op.receiver===undefined)a.lea('rax',{rip:op.directStrict?'rt.undefinedValue':'rt.globalValue'});
+          else if(op.directStrict)a.lea('rax',value(op.receiver));
+          else{const object=a.unique('objectThis'),ready=a.unique('thisReady');a.load('rax',value(op.receiver));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',1);a.jcc('a',general);
+           a.lea('rax',{rip:'rt.globalValue'});a.jmp(ready);a.label(object);a.lea('rax',value(op.receiver));a.label(ready);}
+          a.store(stack(32),'rax');a.lea('rax',{rip:'rt.undefinedValue'});a.store(stack(40),'rax');
+          pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.direct);
+          // A tail call made by the callee comes back as a marker (rt.invoke
+          // does the same); it and the general call are out of line.
+          const tail=a.unique('tailMarker'),call=op;
+          a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
+          pushCold(()=>{a.label(tail);pointer('rcx',call.dest);a.call('rt.tailDispatch');a.jmp(called);});
+          pushCold(()=>{a.label(general);callSite(call);a.jmp(called);});
           a.label(called);break;
         }
         case 'constructForward':
