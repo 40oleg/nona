@@ -101,6 +101,26 @@ export class Arm64Assembler extends Assembler {
   override add(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,false);}
   override sub(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,true);}
   override cmp(dst:Reg,src:Reg|number):void {this.arithmetic(dst,src,true,true);}
+  // Memory right operands are loaded into scratch x16 first.
+  private memoryArithmetic(dst:Reg,src:Mem,subtract:boolean,compare=false):void {
+    this.nativeMemory(true,16,src,64);const d=arm64Registers[dst],result=compare?12:d;
+    this.nativeWord(((subtract?0xeb000000:0xab000000)|(16<<16)|(d<<5)|result)>>>0);this.flags(result,subtract);
+  }
+  override addMemory(dst:Reg,src:Mem):void {this.memoryArithmetic(dst,src,false);}
+  override subMemory(dst:Reg,src:Mem):void {this.memoryArithmetic(dst,src,true);}
+  override cmpMemory(dst:Reg,src:Mem):void {this.memoryArithmetic(dst,src,true,true);}
+  override cmpByte(m:Mem,value:number):void {
+    if(!Number.isInteger(value)||value<0||value>255)throw Error('Invalid byte');
+    this.nativeMemory(true,16,m,8);this.nativeImmediate(13,value);
+    this.nativeWord((0xeb000000|(13<<16)|(16<<5)|12)>>>0);this.flags(12,true);
+  }
+  override storeByte(m:Mem,value:number):void {
+    if(!Number.isInteger(value)||value<0||value>255)throw Error('Invalid byte');
+    this.nativeImmediate(16,value);this.nativeMemory(false,16,m,8);
+  }
+  override callUnless(c:Condition,s:string):void {
+    const skip=this.unique('skipCall');this.jcc(c,skip);this.call(s);this.label(skip);
+  }
   private logical(dst:Reg,src:Reg|number,opcode:number):void {
     const d=arm64Registers[dst],s=this.operand(src);
     this.nativeWord((opcode|(s<<16)|(d<<5)|d)>>>0);this.nativeWord((0xea00001f|(d<<16)|(d<<5))>>>0);this.flags(d);

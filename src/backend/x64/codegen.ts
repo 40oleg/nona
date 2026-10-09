@@ -13,6 +13,7 @@ import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
 import { ropeTag } from '../../runtime/strings.js';
 import {StackBudget} from '../../runtime/context-switch.js';
+import {JsFrame as JF,FrameDescriptor as FD} from '../../runtime/frame-layout.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
@@ -223,37 +224,36 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='newObject'&&op.array&&op.elements)arrayLiterals.add(op.dest);
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
-    const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
+    const a=createAssembler(fn.id),rootBase=JF.roots,valueBase=JF.values,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
     let captureCount=0;for(const block of fn.blocks)for(const op of block.operations){
       if(op.kind==='newFunction')captureCount=Math.max(captureCount,op.captures?.length??0);
       if(op.kind==='newArguments')captureCount=Math.max(captureCount,op.parameters.length+1);
     }
     const handlerBase=argsBase+16*Math.max(fn.maxArguments,captureCount);
-    const savedFrameBase=rootBase+R.size,frameBias=valueBase+128;
+    const savedFrameBase=JF.savedFrame,frameBias=JF.bias;
+    if(savedFrameBase!==rootBase+R.size||frameBias!==valueBase+128)throw new Error('Frame layout mismatch');
     const stack=(disp:number):Mem=>({base:'rbp',disp:disp-frameBias});
     const allocation=alignedFrame(handlerBase+H.size*(fn.handlerCount??0));
     if(!Number.isSafeInteger(allocation)||allocation>0x7ffffff0)throw new RangeError('Function stack frame exceeds supported range');
-    // Stack overflow becomes a RangeError instead of a crash (rt.stackLimit).
     // Coverage: one call count per function of the program (not the preludes).
     if(options.coverage&&fn.source&&!fn.id.startsWith('js.regexpVm.'))a.incrementMemory({rip:'cov.'+fn.id});
-    {const fits=a.unique('stackFits');a.lea('r11',{base:'rsp',disp:-allocation});a.load('r10',{rip:'rt.stackLimit'});a.cmp('r11','r10');a.jcc('ae',fits);
-     a.sub('rsp',8);a.call('rt.throwStackOverflow');a.label(fits);}
-    if(allocation>=4096){
-      a.mov('r11','rsp');a.mov('rax',Math.floor(allocation/4096));
-      const probe=a.unique('probe');a.label(probe);a.sub('r11',4096);a.load('r10',{base:'r11'});a.sub('rax',1);a.jcc('ne',probe);
-      // Touch the last partial page before moving RSP, as Windows guard pages require.
-      if(allocation%4096){a.sub('r11',allocation%4096);a.load('r10',{base:'r11'});}
-    }
-    // RBP addresses the frame from the first value slot + 128, so that the
-    // first sixteen value slots (most of a function's traffic) are reached
-    // with 8-bit displacements; RSP-relative 32-bit ones made every load and
-    // store of the generated code three bytes longer. RBP is preserved: it is
-    // saved in the frame (stack+104, below the value slots) during the prolog
-    // and restored before returning; handlers and coroutines save it with the
-    // other preserved registers.
-    a.sub('rsp',allocation);const allocated=a.offset;a.store({base:'rsp',disp:savedFrameBase},'rbp');const prologSize=a.offset;
-    a.lea('rbp',{base:'rsp',disp:frameBias});
-    a.store(stack(72),'rcx');a.store(stack(48),'rdx');a.store(stack(56),'r8');a.store(stack(64),'r9');
+    // The frame is built by rt.enterFrame (src/runtime/prologue.ts) from a
+    // static descriptor: the stack-limit check, the page probes of a large
+    // frame, the saved RBP, the argument registers, the cleared value slots,
+    // this, new.target, the parameters and the root record. RBP addresses the
+    // frame from the first value slot + 128, so that the first sixteen value
+    // slots (most of a function's traffic) are reached with 8-bit
+    // displacements; RSP-relative 32-bit ones made every load and store of
+    // the generated code three bytes longer. RBP is preserved: it is saved in
+    // the frame (stack+104, below the value slots) and restored before
+    // returning; handlers and coroutines save it with the other preserved
+    // registers.
+    {const descriptor=new Uint8Array(FD.size),view=new DataView(descriptor.buffer);
+     view.setBigUint64(FD.allocation,BigInt(allocation),true);view.setBigUint64(FD.slots,BigInt(locations.count),true);view.setBigUint64(FD.parameters,BigInt(fn.parameterCount),true);
+     fragments.push({name:fn.id+'.frame',section:'.rdata',alignment:8,bytes:descriptor,fixups:[],symbols:{}});}
+    a.lea('r10',{rip:fn.id+'.frame'});a.call('rt.enterFrame');
+    // For the unwind information the frame exists once the stub has returned.
+    const allocated=a.offset,prologSize=a.offset;
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
     // A temporary whose only definition is a constant needs no frame
     // location: its Value lives once in .rdata (constantValue) and operations
@@ -391,30 +391,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
       a.jmp(done);cold.push(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
-    // Every value location starts cleared (the GC scans them), one 16-byte
-    // store each: unrolled for small frames, a loop of two stores per turn
-    // for larger ones (`rep stosq` cost a microcode start-up of tens of
-    // cycles on every call). The argument registers are already saved.
-    if(locations.count>0){a.mov('rax',0);a.movqToXmm('xmm0','rax');}
-    if(locations.count<=8){for(let i=0;i<locations.count;i++)a.storeXmm128(stack(valueBase+16*i),'xmm0');}
-    else{
-     const odd=locations.count%2;if(odd)a.storeXmm128(stack(valueBase),'xmm0');
-     const clear=a.unique('clear');a.lea('r10',stack(valueBase+16*odd));a.mov('rcx',locations.count>>1);
-     a.label(clear);a.storeXmm128({base:'r10'},'xmm0');a.storeXmm128({base:'r10',disp:16},'xmm0');a.add('r10',32);a.sub('rcx',1);a.jcc('ne',clear);
+    // A derived constructor's this starts uninitialized, in a cell that its
+    // arrow functions may share (the stub copied the receiver to the super
+    // receiver slot already).
+    if(fn.derivedConstructor){
+      a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');
+      a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');
     }
-    a.load('r10',stack(allocation+40));copy(stack(thisBase),{base:'r10'});
-    copy(stack(superReceiverBase),stack(thisBase));
-    if(fn.derivedConstructor){a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');}
-    a.load('r10',stack(allocation+48));copy(stack(newTargetBase),{base:'r10'});
-    for(let i=0;i<fn.parameterCount;i++){
-      const skip=a.unique('missing');a.load('rax',stack(48));a.cmp('rax',i);a.jcc('be',skip);
-      a.load('r10',stack(56));copy(value(i),{base:'r10',disp:16*i});a.label(skip);
-    }
-    a.load('rax',{rip:'rt.gcRoots'});a.store(stack(rootBase+R.next),'rax');
-    a.lea('rax',stack(valueBase));a.store(stack(rootBase+R.values),'rax');
-    a.mov('rax',locations.count+3);a.store(stack(rootBase+R.count),'rax');
-    a.lea('rax',stack(rootBase));a.store({rip:'rt.gcRoots'},'rax');
-    if(fn.derivedConstructor){a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');}
     // Slots that may hold stale values when a block starts: whatever its
     // predecessors left (live slots and their last destination). Handler
     // targets can be entered from any operation, so they assume every slot.
@@ -476,13 +459,13 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
        }else possible=new Set(possible);
        for(const d of destinations(op))if(d>=floor)possible.add(d);
        // Safepoint at the start of every block (every loop iteration passes
-       // one): the check of rt.safepoint inline, so that only a collection
-       // costs a call. Every slot is rooted and every dead one cleared at
+       // one): one flag test (rt.gcNeeded, set by the allocator when the
+       // threshold is passed), so that only a collection costs a call. Every slot is rooted and every dead one cleared at
        // every operation boundary, so any boundary is a valid safepoint; one
        // per block bounds the garbage a block can accumulate by its length.
        // GC stress collects before every operation to catch rooting errors.
        if(options.gcStress)a.call('rt.collect');
-       else if(index===0&&needsSafepoint(block)){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
+       else if(index===0&&needsSafepoint(block)){a.cmpByte({rip:'rt.gcNeeded'},0);a.callUnless('e','rt.collect');}
        // Ropes (strings.ts) may only reach `+`, copies, globals and the few
        // operations that read a string's length or tag; every other
        // operation first flattens the slots it reads.

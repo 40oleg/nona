@@ -224,6 +224,37 @@ export class Assembler {
   test(l: Reg, r: Reg): void {
     this.instruction([0x85], regCode(r), l);
   }
+  /** add/sub/cmp with a 64-bit memory operand on the right: dst op= [src]. */
+  addMemory(dst: Reg, src: Mem): void {
+    this.instruction([0x03], regCode(dst), src);
+  }
+  subMemory(dst: Reg, src: Mem): void {
+    this.instruction([0x2b], regCode(dst), src);
+  }
+  cmpMemory(dst: Reg, src: Mem): void {
+    this.instruction([0x3b], regCode(dst), src);
+  }
+  /** cmp byte [m], imm8: flags only, no register. */
+  cmpByte(m: Mem, value: number): void {
+    this.byteImmediate([0x80], 7, m, value);
+  }
+  /** mov byte [m], imm8: no register. */
+  storeByte(m: Mem, value: number): void {
+    this.byteImmediate([0xc6], 0, m, value);
+  }
+  private byteImmediate(op: number[], r: number, m: Mem, value: number): void {
+    if (!Number.isInteger(value) || value < 0 || value > 255) throw Error("Invalid byte");
+    // A RIP-relative displacement counts from the end of the instruction,
+    // one byte past the displacement because of the immediate.
+    this.instruction(op, r, "rip" in m ? { rip: m.rip, addend: (m.addend ?? 0) - 1 } : m, false);
+    this.emit([value]);
+  }
+  /** Calls `s` unless the condition holds: a short jump over the call. */
+  callUnless(c: Condition, s: string): void {
+    this.countCall(s);
+    this.emit([0x70 + conditionCodes[c], 5]);
+    this.rel32(0xe8, s);
+  }
   private shift(d: Reg, c: number | "cl", g: number): void {
     if (c !== "cl" && (!Number.isInteger(c) || c < 0 || c > 63))
       throw Error("Invalid shift count");

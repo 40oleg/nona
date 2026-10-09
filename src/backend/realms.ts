@@ -6,7 +6,7 @@ import type {NamedFragment,UnwindFunction} from './pe/model.js';
  */
 const sharedData=new Set(['rt.heap','rt.blocks','rt.liveBytes','rt.exceptionHandler','rt.cleanupHead','rt.contextChain','rt.currentGenerator',
  'rt.symbolRegistry','rt.tailPending','rt.sharedJobQueue','rt.Math.random.state','rt.gcIndex','rt.gcIndexCount','rt.gcRoots','rt.gcGrey','rt.gcCount','rt.callStatsTable','rt.exitHook','rt.gcThreshold',
- 'rt.collect','entry','rt.hashSeed','rt.gcPoison','rt.gcEpoch','rt.markedBytes','rt.markedBlocks',
+ 'rt.collect','entry','rt.hashSeed','rt.gcPoison','rt.gcNeeded','rt.generatorStackBytes','rt.gcEpoch','rt.markedBytes','rt.markedBlocks',
  // The size-class allocator and the lazy sweep: every realm's runtime code
  // allocates from and sweeps the same chunks the collector marks.
  'rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity',
