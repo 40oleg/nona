@@ -2,23 +2,40 @@
 // This is compiled by the same frontend as user code.
 export const promisePreludeSource=String.raw`
 var __nonaPromiseDrainJobs=(function(){
-  var jobs=[],head=0,unhandled=[],handledLater=[],states=new WeakMap(),defineProperty=Object.defineProperty;
+  // The job queue is a linked list of job records (next): a record's job
+  // function runs with the record as its argument. A reaction record is its
+  // own job, and a promise's pending reactions form a list that settling
+  // splices into the queue whole.
+  var queueHead,queueTail,unhandled=[],handledLater=[],states=new WeakMap(),defineProperty=Object.defineProperty;
   var failOnUnhandled=__NONA_FAIL_ON_UNHANDLED__;
   var getState=WeakMap.prototype.get.bind(states),setState=WeakMap.prototype.set.bind(states);
+  var objectCreate=Object.create,reflectApply=Reflect.apply;
   // CreateDataProperty at the end, natively (Array.__nonaAppendInternal).
   // Hosts without the intrinsic (source tests on Node) use one reused descriptor.
   var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
   var nativeAppend=__nonaRegexpVm.append||function(array,value){appendDescriptor.value=value;defineProperty(array,array.length,appendDescriptor);appendDescriptor.value=undefined};
   function append(array,value){nativeAppend(array,value)}
-  var noReactions=[];
-  function enqueue(job){append(jobs,job)}
+  // Appends the list first..last (linked through next) to the queue.
+  function enqueueList(first,last){
+    if(queueTail===undefined)queueHead=first;else queueTail.next=first;
+    queueTail=last
+  }
   // Realms created later reuse the first realm's queue and drain.
   var sharedQueue=Function.prototype.__nonaSharedQueueInternal,hostEnqueue=sharedQueue();
-  if(typeof hostEnqueue==='function')enqueue=function(job){hostEnqueue(job)};
-  else sharedQueue(enqueue);
+  if(typeof hostEnqueue==='function')enqueueList=function(first,last){hostEnqueue(first,last)};
+  else sharedQueue(enqueueList);
+  function enqueue(record){enqueueList(record,record)}
+  // A job without an argument (queueMicrotask, module evaluation).
+  function callJob(record){var callback=record.callback;callback()}
+  function CallbackJob(callback){this.job=callJob;this.next=undefined;this.callback=callback}
+  function enqueueCallback(callback){enqueue(new CallbackJob(callback))}
   function drain(){
-    while(head<jobs.length){var job=jobs[head++];try{job()}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}}
-    jobs=[];head=0;
+    while(queueHead!==undefined){
+      var node=queueHead,job=node.job;
+      queueHead=node.next;if(queueHead===undefined)queueTail=undefined;
+      node.next=undefined;
+      try{job(node)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}
+    }
     var handled=handledLater;handledLater=[];
     var pending=unhandled;unhandled=[];
     for(var i=0;i<pending.length;i++){
@@ -35,59 +52,81 @@ var __nonaPromiseDrainJobs=(function(){
     if(state===undefined)throw new TypeError('Incompatible Promise receiver');
     return state
   }
-  function settle(promise,kind,value){
-    var state=record(promise);
+  // The internal slots of a promise: kind 0 pending, 1 fulfilled, 2 rejected;
+  // first..last is the list of pending reactions.
+  // Records are built by constructors: their instances share one shape,
+  // which is cheaper to create than an object literal.
+  function PromiseState(promise){this.kind=0;this.value=undefined;this.first=undefined;this.last=undefined;this.handled=false;this.reported=false;this.promise=promise}
+  // One record per then: both handlers and either the derived promise's
+  // state (target) or a foreign capability's functions; source is the
+  // promise whose settlement the job delivers.
+  function Reaction(target,onFulfilled,onRejected,resolve,reject,context){
+    this.job=runReaction;this.next=undefined;this.target=target;this.onFulfilled=onFulfilled;this.onRejected=onRejected;
+    this.resolve=resolve;this.reject=reject;this.context=context;this.source=undefined
+  }
+  function addReaction(state,reaction){
+    reaction.source=state;
+    markHandled(state);
+    if(state.kind!==0)enqueue(reaction);
+    else{if(state.last===undefined)state.first=reaction;else state.last.next=reaction;state.last=reaction}
+  }
+  function settle(state,kind,value){
     if(state.kind!==0)return;
     state.kind=kind;state.value=value;
     if(kind===2&&!state.handled)append(unhandled,state);
-    var reactions=kind===1?state.fulfill:state.reject;
-    state.fulfill=noReactions;state.reject=noReactions;
-    for(let i=0;i<reactions.length;i++){
-      let reaction=reactions[i];
-      enqueue(function(){runReaction(reaction,kind,value)})
-    }
+    var first=state.first;
+    if(first===undefined)return;
+    enqueueList(first,state.last);
+    state.first=undefined;state.last=undefined
   }
-  function runReaction(reaction,kind,value){
+  // NewPromiseReactionJob.
+  function runReaction(reaction){
+    var source=reaction.source,kind=source.kind,value=source.value;
+    reaction.source=undefined;
     var context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined;
-    try{
-      var handler=kind===1?reaction.onFulfilled:reaction.onRejected;
-      var resolve=reaction.resolve,reject=reaction.reject;
-      if(typeof handler!=='function'){
-        if(kind===1)resolve(value);else reject(value)
-      }else{var snapshot=reaction.context||(context?context.defaultRecord:undefined);resolve(context&&snapshot&&snapshot!==context.activeRecord?context.runCapturedUnary(snapshot,handler,value):handler(value))}
-    }catch(error){
-      var reject=reaction.reject;
-      try{reject(error)}catch(rejectionError){if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous);throw rejectionError}
+    var handler=kind===1?reaction.onFulfilled:reaction.onRejected,result,failed=false;
+    if(typeof handler!=='function'){result=value;failed=kind===2}
+    else{
+      try{var snapshot=reaction.context||(context?context.defaultRecord:undefined);result=context&&snapshot&&snapshot!==context.activeRecord?context.runCapturedUnary(snapshot,handler,value):handler(value)}
+      catch(error){result=error;failed=true}
     }
+    try{
+      var target=reaction.target;
+      if(target!==undefined){if(failed)settle(target,2,result);else resolveState(target,result)}
+      else if(failed){var reject=reaction.reject;if(reject!==undefined)reject(result)}
+      else{var resolve=reaction.resolve;if(resolve!==undefined)resolve(result)}
+    }catch(error){restoreContext(context,previous);throw error}
+    restoreContext(context,previous)
+  }
+  function restoreContext(context,previous){
     if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}
     if(context&&context.activeRecord!==previous)context.restoreRecord(previous)
   }
-  function resolvePromise(promise,value){
-    if(promise===value){settle(promise,2,new TypeError('Promise self resolution'));return}
+  // The resolve function of a promise's resolving functions (the alreadyResolved check is the caller's).
+  function resolveState(state,value){
+    if(value===state.promise){settle(state,2,new TypeError('Promise self resolution'));return}
     if(value!==null&&(typeof value==='object'||typeof value==='function')){
       var then;
-      try{then=value.then}catch(error){settle(promise,2,error);return}
-      if(typeof then==='function'){
-        enqueue(function(){
-          var called=false;
-          try{then.call(value,next=>{if(called)return;called=true;resolvePromise(promise,next)},
-            reason=>{if(called)return;called=true;settle(promise,2,reason)})}
-          catch(error){if(!called)settle(promise,2,error)}
-        });
-        return
-      }
+      try{then=value.then}catch(error){settle(state,2,error);return}
+      if(typeof then==='function'){enqueue(new ThenableJob(state,value,then));return}
     }
-    settle(promise,1,value)
+    settle(state,1,value)
+  }
+  // NewPromiseResolveThenableJob: the thenable gets fresh resolving functions.
+  function ThenableJob(state,thenable,then){this.job=resolveThenableJob;this.next=undefined;this.state=state;this.thenable=thenable;this.then=then}
+  function resolveThenableJob(job){
+    var functions=resolving(job.state);
+    try{reflectApply(job.then,job.thenable,functions)}
+    catch(error){var reject=functions[1];reject(error)}
   }
   // The resolving functions are anonymous (name ""): arrows in an array
   // literal get no name, so nothing has to be redefined afterwards.
-  function resolving(promise){
+  function resolving(state){
     var called=false;
-    var functions=[
-      value=>{if(called)return;called=true;resolvePromise(promise,value)},
-      reason=>{if(called)return;called=true;settle(promise,2,reason)}
-    ];
-    return {resolve:functions[0],reject:functions[1]}
+    return [
+      value=>{if(called)return;called=true;resolveState(state,value)},
+      reason=>{if(called)return;called=true;settle(state,2,reason)}
+    ]
   }
   // Absent when the prelude is evaluated by Node.js in source tests.
   var promiseRealm=Function.prototype.__nonaPromiseRealmInternal||function(){};
@@ -95,9 +134,18 @@ var __nonaPromiseDrainJobs=(function(){
     if(new.target===undefined)throw new TypeError('Promise requires new');
     if(typeof executor!=='function')throw new TypeError('Promise executor must be callable');
     promiseRealm(this,false);
-    setState(this,{kind:0,value:undefined,fulfill:[],reject:[],handled:false,reported:false,promise:this});
-    var functions=resolving(this);
-    try{executor(functions.resolve,functions.reject)}catch(error){functions.reject(error)}
+    var state=new PromiseState(this);
+    setState(this,state);
+    var functions=resolving(state);
+    try{executor(functions[0],functions[1])}catch(error){var reject=functions[1];reject(error)}
+  }
+  var promisePrototype=Promise.prototype;
+  // new %Promise%(executor) whose resolving functions are never observable:
+  // the caller settles the returned state directly.
+  function newPromiseState(){
+    var promise=objectCreate(promisePrototype),state=new PromiseState(promise);
+    setState(promise,state);
+    return state
   }
   function species(value){
     var constructor=value.constructor;
@@ -116,23 +164,26 @@ var __nonaPromiseDrainJobs=(function(){
     if(typeof resolve!=='function'||typeof reject!=='function')throw new TypeError('Invalid Promise capability');
     return {promise:promise,resolve:resolve,reject:reject}
   }
+  function currentContext(){var context=__nonaRegexpVm.asyncContext;return context?context.activeRecord:undefined}
   var then=({then(onFulfilled,onRejected){
-    var state=record(this),C=species(this),next=capability(C);
-    var context=__nonaRegexpVm.asyncContext;
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:next.resolve,reject:next.reject,context:context?context.activeRecord:undefined};
-    markHandled(state);
-    if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
-    else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value));
+    var state=record(this),C=species(this);
+    if(C===Promise){
+      var target=newPromiseState();
+      addReaction(state,new Reaction(target,onFulfilled,onRejected,undefined,undefined,currentContext()));
+      return target.promise
+    }
+    var next=capability(C);
+    addReaction(state,new Reaction(undefined,onFulfilled,onRejected,next.resolve,next.reject,currentContext()));
     return next.promise
   }}).then;
   var caught=({catch(onRejected){return this.then(undefined,onRejected)}}).catch;
   var resolved=({resolve(value){
     var C=this;
     if(!__nonaRegexpVm.isConstructor(C))throw new TypeError('Promise.resolve receiver is not a constructor');
-    if(value!==null&&(typeof value==='object'||typeof value==='function')&&getState(value)!==undefined&&value.constructor===C)return value;
-    var next=capability(C),resolve=next.resolve;resolve(value);return next.promise
+    return promiseResolve(C,value)
   }}).resolve;
   var rejected=({reject(reason){
+    if(this===Promise){var state=newPromiseState();settle(state,2,reason);return state.promise}
     var next=capability(this),reject=next.reject;reject(reason);return next.promise
   }}).reject;
   var finallyMethod=({finally(onFinally){
@@ -143,6 +194,7 @@ var __nonaPromiseDrainJobs=(function(){
   }}).finally;
   function promiseResolve(C,value){
     if(value!==null&&(typeof value==='object'||typeof value==='function')&&getState(value)!==undefined&&value.constructor===C)return value;
+    if(C===Promise){var state=newPromiseState();resolveState(state,value);return state.promise}
     var next=capability(C),resolve=next.resolve;resolve(value);return next.promise
   }
   function combinator(C,iterable,mode){
@@ -210,15 +262,11 @@ var __nonaPromiseDrainJobs=(function(){
   // Each await suspends the coroutine with an own "await" flag in its result.
   var coroutinePrototype=Object.getPrototypeOf(function*(){}).prototype;
   var coroutineNext=coroutinePrototype.next,coroutineThrow=coroutinePrototype.throw,coroutineReturn=coroutinePrototype.return;
-  var hasOwn=Object.prototype.hasOwnProperty,objectCreate=Object.create,getPrototypeOf=Object.getPrototypeOf;
+  var hasOwn=Object.prototype.hasOwnProperty,getPrototypeOf=Object.getPrototypeOf;
   function noop(){}
+  // PerformPromiseThen without a result capability.
   function performThen(promise,onFulfilled,onRejected){
-    var state=record(promise);
-    var context=__nonaRegexpVm.asyncContext;
-    var reaction={onFulfilled:onFulfilled,onRejected:onRejected,resolve:noop,reject:noop,context:context?context.activeRecord:undefined};
-    markHandled(state);
-    if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
-    else enqueue((function(kind,value){return function(){runReaction(reaction,kind,value)}})(state.kind,state.value))
+    addReaction(record(promise),new Reaction(undefined,onFulfilled,onRejected,undefined,undefined,currentContext()))
   }
   // Await(value): PromiseResolve(%Promise%, value), then PerformPromiseThen.
   function awaitValue(value,onFulfilled,onRejected){performThen(promiseResolve(Promise,value),onFulfilled,onRejected)}
@@ -229,21 +277,21 @@ var __nonaPromiseDrainJobs=(function(){
   // on its fresh result object (see rt.generatorNext); nothing else can.
   function isAwait(result){return result.await===true}
   __nonaRegexpVm.asyncFunctionStart=function(coroutine){
-    var promise=new Promise(noop),functions=resolving(promise),resumeNext,resumeThrow;
+    var state=newPromiseState(),resumeNext,resumeThrow;
     function step(mode,value){
       var result;
       try{result=resume(coroutine,mode,value)}
-      catch(error){var reject=functions.reject;reject(error);return}
+      catch(error){settle(state,2,error);return}
       if(isAwait(result)){
         // The continuations exist only for functions that do await.
         if(resumeNext===undefined){resumeNext=function(value){step(0,value)};resumeThrow=function(error){step(1,error)}}
         try{awaitValue(result.value,resumeNext,resumeThrow)}catch(error){step(1,error)}
         return
       }
-      var resolve=functions.resolve;resolve(result.value)
+      resolveState(state,result.value)
     }
     step(0,undefined);
-    return promise
+    return state.promise
   };
 
   var asyncGeneratorStates=new WeakMap();
@@ -254,8 +302,8 @@ var __nonaPromiseDrainJobs=(function(){
     var state=getGeneratorState(generator),request=state.queue[state.head];
     state.queue[state.head++]=undefined;
     if(state.head===state.queue.length){state.queue=[];state.head=0}
-    if(rejected){var reject=request.reject;reject(value)}
-    else{var resolve=request.resolve;resolve(value)}
+    if(rejected)settle(request.state,2,value);
+    else resolveState(request.state,value)
   }
   // AsyncGeneratorResumeNext: states 0 suspendedStart, 1 suspendedYield,
   // 2 executing, 3 awaiting-return, 4 completed.
@@ -310,12 +358,12 @@ var __nonaPromiseDrainJobs=(function(){
     return generator
   };
   function enqueueRequest(generator,mode,value){
-    var promise=new Promise(noop),functions=resolving(promise);
+    var promise=newPromiseState();
     var state=generator!==null&&(typeof generator==='object'||typeof generator==='function')?getGeneratorState(generator):undefined;
-    if(state===undefined){var reject=functions.reject;reject(new TypeError('Not an async generator'));return promise}
-    append(state.queue,{mode:mode,value:value,resolve:functions.resolve,reject:functions.reject});
+    if(state===undefined){settle(promise,2,new TypeError('Not an async generator'));return promise.promise}
+    append(state.queue,{mode:mode,value:value,state:promise});
     if(state.state!==2)resumeNextRequest(generator);
-    return promise
+    return promise.promise
   }
   function define(target,name,value,writable){
     Object.defineProperty(target,name,{value:value,writable:writable,configurable:true})
@@ -354,41 +402,38 @@ var __nonaPromiseDrainJobs=(function(){
     var result=method.call(record.iterator);
     if(!isObject(result))throw new TypeError('Iterator result must be an object')
   }
-  function asyncFromSyncContinuation(result,functions,record,closeOnRejection){
+  function asyncFromSyncContinuation(result,promise,record,closeOnRejection){
     try{
       var done=!!result.done,value=result.value,wrapper;
       try{wrapper=promiseResolve(Promise,value)}
       catch(error){if(!done&&closeOnRejection)closeSyncIterator(record,true,error);throw error}
-      var state=record_(wrapper);markHandled(state);
       var onRejected=done||!closeOnRejection?undefined:function(error){closeSyncIterator(record,true,error)};
-      var reaction={onFulfilled:function(unwrapped){return iterResult(unwrapped,done)},onRejected:onRejected,resolve:functions.resolve,reject:functions.reject};
-      if(state.kind===0){append(state.fulfill,reaction);append(state.reject,reaction)}
-      else enqueue((function(kind,settled){return function(){runReaction(reaction,kind,settled)}})(state.kind,state.value))
-    }catch(error){var reject=functions.reject;reject(error)}
+      addReaction(record_(wrapper),new Reaction(promise,function(unwrapped){return iterResult(unwrapped,done)},onRejected,undefined,undefined,undefined))
+    }catch(error){settle(promise,2,error)}
   }
   var record_=record;
   function asyncFromSyncMethod(name,body){
     var method=({[name](value){
-      var promise=new Promise(noop),functions=resolving(promise);
-      try{var record=syncRecord(this);body(record,arguments.length>0,value,functions)}
-      catch(error){var reject=functions.reject;reject(error)}
-      return promise
+      var promise=newPromiseState();
+      try{var record=syncRecord(this);body(record,arguments.length>0,value,promise)}
+      catch(error){settle(promise,2,error)}
+      return promise.promise
     }})[name];
     nativeMethod(asyncFromSyncPrototype,name,method)
   }
-  asyncFromSyncMethod('next',function(record,present,value,functions){
+  asyncFromSyncMethod('next',function(record,present,value,promise){
     var result=present?record.next.call(record.iterator,value):record.next.call(record.iterator);
     if(!isObject(result))throw new TypeError('Iterator result must be an object');
-    asyncFromSyncContinuation(result,functions,record,true)
+    asyncFromSyncContinuation(result,promise,record,true)
   });
-  asyncFromSyncMethod('return',function(record,present,value,functions){
+  asyncFromSyncMethod('return',function(record,present,value,promise){
     var method=record.iterator.return;
-    if(method===undefined||method===null){var resolve=functions.resolve;resolve(iterResult(value,true));return}
+    if(method===undefined||method===null){resolveState(promise,iterResult(value,true));return}
     var result=present?method.call(record.iterator,value):method.call(record.iterator);
     if(!isObject(result))throw new TypeError('Iterator result must be an object');
-    asyncFromSyncContinuation(result,functions,record,false)
+    asyncFromSyncContinuation(result,promise,record,false)
   });
-  asyncFromSyncMethod('throw',function(record,present,value,functions){
+  asyncFromSyncMethod('throw',function(record,present,value,promise){
     var method=record.iterator.throw;
     if(method===undefined||method===null){
       closeSyncIterator(record,false);
@@ -396,7 +441,7 @@ var __nonaPromiseDrainJobs=(function(){
     }
     var result=present?method.call(record.iterator,value):method.call(record.iterator);
     if(!isObject(result))throw new TypeError('Iterator result must be an object');
-    asyncFromSyncContinuation(result,functions,record,true)
+    asyncFromSyncContinuation(result,promise,record,true)
   });
   __nonaRegexpVm.getAsyncIterator=function(object){
     var method=object[asyncIteratorSymbol];
@@ -625,7 +670,7 @@ var __nonaPromiseDrainJobs=(function(){
     return '/'+parts.join('/')
   }
   __nonaRegexpVm.dynamicImport=function(specifier,referrer){
-    var promise=new Promise(noop),functions=resolving(promise);
+    var promise=newPromiseState();
     try{
       if(typeof specifier==='symbol')throw new TypeError('Cannot convert a Symbol value to a string');
       var text=String(specifier);
@@ -635,12 +680,12 @@ var __nonaPromiseDrainJobs=(function(){
       if(target===undefined)throw new TypeError('Cannot find module \''+text+'\'');
       var failure=linkError(target,objectCreate(null));
       if(failure!==undefined)throw new SyntaxError(failure);
-      enqueue(function(){
-        try{evaluateModule(target)}catch(error){var reject=functions.reject;reject(error);return}
-        var resolve=functions.resolve;resolve(moduleTable[target].namespace)
+      enqueueCallback(function(){
+        try{evaluateModule(target)}catch(error){settle(promise,2,error);return}
+        resolveState(promise,moduleTable[target].namespace)
       })
-    }catch(error){var reject=functions.reject;reject(error)}
-    return promise
+    }catch(error){settle(promise,2,error)}
+    return promise.promise
   };
   // Dynamic async function constructors are part of the documented
   // eval/Function exception; they exist for reflection only.
@@ -684,8 +729,8 @@ var __nonaPromiseDrainJobs=(function(){
   if(!hasOwn.call(generatorFunctionPrototype,'constructor'))dynamicConstructor('GeneratorFunction',generatorFunctionPrototype,function(){return function*(){}});
   if(!hasOwn.call(generatorFunctionPrototype,Symbol.toStringTag))define(generatorFunctionPrototype,Symbol.toStringTag,'GeneratorFunction',false);
   // The timer prelude queues microtasks (queueMicrotask) on the same queue.
-  __nonaRegexpVm.enqueueJob=function(job){enqueue(job)};
-  __nonaRegexpVm.hasPendingPromiseJobs=function(){return head<jobs.length||handledLater.length>0||unhandled.length>0};
+  __nonaRegexpVm.enqueueJob=enqueueCallback;
+  __nonaRegexpVm.hasPendingPromiseJobs=function(){return queueHead!==undefined||handledLater.length>0||unhandled.length>0};
   return drain
 })();
 `;
