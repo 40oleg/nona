@@ -17,7 +17,18 @@ const sharedData=new Set(['rt.heap','rt.blocks','rt.liveBytes','rt.exceptionHand
  'rt.shapeEpoch','rt.keyHashCache',
  // Shapes (shapes.ts) describe no realm-specific state; one shape list lets
  // the shared collector mark every realm's shape keys.
- 'rt.shapeList','rt.shapeCount','rt.shapeLiteralRoots']);
+ 'rt.shapeList','rt.shapeCount','rt.shapeLiteralRoots',
+ // A tail call prepared by one realm's code is dispatched by whichever
+ // realm's rt.invoke called it, and the collector marks the staging area.
+ 'rt.tailStaging','rt.tailStagingCount',
+ // Coroutine stacks: the collector compares their bytes with its threshold
+ // and sweeps generator objects only while some stack is live.
+ 'rt.generatorStackBytes','rt.generatorStackPool','rt.generatorStackPoolCount',
+ // The stack limit belongs to the running stack, like rt.contextChain: any
+ // realm's rt.switchContext installs it for the shared JS prologues.
+ 'rt.stackLimit',
+ // One fatal exit per process, whichever realm fails.
+ 'rt.fatalActive','rt.fatalReportHook']);
 const isShared=(name:string):boolean=>sharedData.has(name)||/^rt\.Symbol\.[A-Za-z]+\.value$/.test(name)||name.startsWith('realm.')||name.startsWith('host.')||name.startsWith('agent.')
  ||name==='js.main'||name.startsWith('js.fn.')||name.startsWith('js.module.');
 

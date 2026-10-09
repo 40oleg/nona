@@ -2,6 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {runOnHost} from './helpers/host.js';
+import {compileToIR} from '../src/compiler.js';
+import {generate} from '../src/backend/x64/codegen.js';
+import type {NamedFragment} from '../src/backend/pe/model.js';
 
 // Programs compiled with extra realms get __nonaCreateRealm(), which returns
 // the global object of a fresh realm. Node's vm contexts are realms too, so
@@ -75,4 +78,45 @@ for (var w = 0; w < 30; w++) { var key = {w: w}; if (w % 3 === 0) keys.push(key)
 console.log(keys.every(function (key) { return weak.get(key)[0] === key.w; }));
 var map = new other.Map(); for (var m = 0; m < 50; m++) map.set('k' + m, {m: m});
 console.log(map.size, map.get('k49').m);
+`));
+
+// #198: realm cloning copies every runtime data fragment that is not listed as
+// shared (src/backend/realms.ts). Code that is not cloned - the collector and
+// the compiled JS functions, which every realm runs - must not use a realm's
+// own copy, or it misses state made by another realm's runtime: the shapes of
+// #157 were collected while in use this way.
+test('code shared by every realm uses no realm-specific runtime data',()=>{
+ const program=generate(compileToIR(`var other = __nonaCreateRealm();
+var g = new other.Function('"use strict"; return function* () { yield 1; };')();
+console.log(g().next().value);`),{realms:1});
+ const owner=new Map<string,NamedFragment>();
+ for(const fragment of program.fragments){owner.set(fragment.name,fragment);for(const symbol of Object.keys(fragment.symbols))owner.set(symbol,fragment);}
+ const perRealm=new Set(program.fragments.filter(f=>f.name.startsWith('R1$')).map(f=>f.name.slice(3)));
+ const realmData=(target:string)=>{const fragment=owner.get(target);return fragment&&fragment.section==='.data'&&perRealm.has(fragment.name)?fragment.name:undefined;};
+ // The collector, apart from the root marking it runs once per realm.
+ const reached=new Set<NamedFragment>(),collector=new Set<string>(),pending=['rt.collect'];
+ while(pending.length){
+  const fragment=owner.get(pending.pop()!);
+  if(!fragment||reached.has(fragment)||fragment.name==='rt.gcMarkRealm'||fragment.name.startsWith('R1$'))continue;
+  reached.add(fragment);
+  if(fragment.section!=='.text'){const name=realmData(fragment.name);if(name)collector.add(name);continue;}
+  for(const fixup of fragment.fixups)pending.push(fixup.target);
+ }
+ assert.deepEqual([...collector],[]);
+ const functions=new Set<string>();
+ for(const fragment of program.fragments)if(fragment.section==='.text'&&(fragment.name.startsWith('js.fn.')||fragment.name.startsWith('js.module.')))
+  for(const fixup of fragment.fixups){const name=realmData(fixup.target);if(name?.startsWith('rt.'))functions.add(name);}
+ assert.deepEqual([...functions],[]);
+});
+
+test('generators and tail calls of another realm run on the shared stacks',()=>check(`
+var other = __nonaCreateRealm();
+var make = other.Function('return function* (n) { for (var i = 0; i < n; i++) yield {i: i}; };')();
+var total = 0, live = [];
+for (var round = 0; round < 40; round++) { var it = make(3); total += it.next().value.i + it.next().value.i; if (round % 4 === 0) live.push(it); }
+for (var k = 0; k < live.length; k++) total += live[k].next().value.i;
+console.log(total, live.length, live[0] instanceof other.Object, Object.getPrototypeOf(make) === other.Function.prototype);
+var call = new other.Function('f', 'x', '"use strict"; return f({v: x}, [x], "x" + x);');
+var sum = 0; for (var c = 0; c < 200; c++) sum += call(function (o, a, s) { return o.v + a[0] + s.length; }, c);
+console.log(sum);
 `));
