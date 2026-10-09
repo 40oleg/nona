@@ -124,6 +124,28 @@ The shape epoch (`rt.shapeEpoch`) advances when a property is added to,
 removed from or redefined on an object that some cache uses as a prototype,
 when such an object's prototype changes, and at every collection.
 
+## Element sites
+
+`object[key]` reads and `object[key] = value` assignments whose key is not a
+literal name call `rt.elementGet` and `rt.elementSet`
+(`src/runtime/array-elements.ts`) instead of `rt.getProperty` and
+`rt.setProperty`. With a Number key that is an integer index they answer
+directly:
+
+- a dense slot of an array or plain object that is not a hole (an own data
+  property with ordinary attributes, so no prototype element, getter or
+  setter can be involved); a write only overwrites an existing slot;
+- an in-range element of a typed array whose buffer is not detached; a write
+  also needs a Number value and an element type that is neither
+  `Uint8Clamped` nor BigInt;
+- for a read, a code unit below 256 of a primitive string, answered with a
+  static one-unit string (`rt.charStrings`) instead of a new allocation.
+
+Everything else (holes, indices outside the table, string and symbol keys,
+proxies, arguments objects, string wrappers) is the generic call with the
+same arguments. As with the inline caches, the checks are one shared stub per
+direction, not code at every site.
+
 ## Development aids
 
 `NONA_SHAPE_STATS=1` at compile time adds a counter to every place that

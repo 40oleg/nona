@@ -261,6 +261,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='constant')constants.set(op.dest,op.value);
     }
     const staticConstant=(n:number):string|undefined=>definitions.get(n)===1&&constants.has(n)&&n>=fn.localCount?constantValue(constants.get(n)):undefined;
+    const stringConstant=(n:number):boolean=>definitions.get(n)===1&&typeof constants.get(n)==='string';
     const value=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c}:stack(valueBase+16*location(n));};
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
     const copy=(to:Mem,from:Mem)=>{
@@ -675,6 +676,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r9',{rip:cache});a.call('rt.getLengthCached');break;
           }
+          // `object[key]`: integer indices of dense arrays, typed arrays and
+          // strings are read by a shared stub (array-elements.ts).
+          if(op.operation==='get'&&op.keyName===undefined&&!stringConstant(op.key)){a.call('rt.elementGet');break;}
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':
           // A definition in an object literal with known keys stores its slot
@@ -694,7 +698,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r10',{rip:cache});a.call('rt.icSet');break;
           }
-          a.call('rt.setProperty');break;
+          // `object[key] = value`: dense and typed array elements (array-elements.ts).
+          a.call(!op.define&&op.keyName===undefined&&!stringConstant(op.key)?'rt.elementSet':'rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;
         case 'privateSet':pointer('rcx',op.object);pointer('rdx',op.name);pointer('r8',op.source);a.call('rt.privateSet');break;
         case 'defineField':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.call('rt.defineField');break;

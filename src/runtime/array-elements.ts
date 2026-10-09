@@ -2,6 +2,9 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {emitShapeGuard} from './shapes.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
+import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
+import {ArrayBufferLayout} from './array-buffer.js';
+import type {Assembler} from '../backend/x64/assembler.js';
 
 /**
  * Dense element storage for arrays and plain objects.
@@ -247,6 +250,7 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   a.store({base:'rcx'},'r9');a.load('r9',{base:'rax',disp:E.values+8});a.store({base:'rcx',disp:8},'r9');
   a.label(done);a.mov('rax',1);const end=a.unique('end');a.jmp(end);a.label(miss);a.mov('rax',0);a.label(end);
  });
+ emitElementSites(b,integerKey);
  // RCX base Value*, RDX key Value*, R8 source Value*, R9 flags (bit 0: define).
  // RAX 1 when the write was done, else 0 with every argument register preserved.
  b.fn('rt.arraySetFast',88,a=>{
@@ -292,5 +296,104 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   a.label(store);a.load('r9',{base:'r8'});a.store({base:'rax'},'r9');a.load('r9',{base:'r8',disp:8});a.store({base:'rax',disp:8},'r9');
   a.label(done);a.mov('rax',1);const end=a.unique('end');a.jmp(end);
   a.label(miss);a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.mov('rax',0);a.label(end);
+ });
+}
+
+/**
+ * Element sites (`object[key]` reads and plain `object[key] = value`
+ * assignments whose key is not a literal name) call these stubs instead of
+ * rt.getProperty / rt.setProperty. With a Number key that is an integer
+ * index they answer without a further call when the answer cannot depend on
+ * anything but the receiver:
+ *
+ * - a dense slot (not a hole) of an array or plain object: an own data
+ *   property with ordinary attributes, so nothing on the prototype chain,
+ *   no getter and no setter can be involved;
+ * - an in-range element of a typed array whose buffer is not detached
+ *   (integer-indexed exotic objects never consult their prototype for a
+ *   valid index); a write also needs a Number value and an element type
+ *   that is neither clamped nor BigInt;
+ * - for a read, a code unit below 256 of a primitive string, answered with
+ *   a static one-unit string (rt.charStrings) instead of a new allocation.
+ *
+ * Everything else (holes, indices past the table or the length, other keys,
+ * proxies, arguments objects, string wrappers, other code units) is the
+ * generic call with the same arguments. Same calling convention as the
+ * generic functions; no Value is held across a call.
+ */
+function emitElementSites(b:RuntimeBuilder,integerKey:(a:Assembler,key:'r8'|'rdx',miss:string)=>void):void {
+ // 256 string records {length 1, one UTF-16 unit}, 16 bytes apart.
+ {const bytes=new Uint8Array(256*16),view=new DataView(bytes.buffer);for(let i=0;i<256;i++){view.setBigUint64(i*16,1n,true);view.setUint16(i*16+8,i,true);}b.data('rt.charStrings',bytes);}
+ // R10 typed array header, RAX index -> R11 element address, R9 element
+ // type, or a jump to miss (detached, out of range, BigInt). Clobbers RAX.
+ const typedAddress=(a:Assembler,miss:string)=>{
+  a.load('r11',{base:'r10',disp:TypedArrayLayout.buffer});a.load('r9',{base:'r11',disp:ArrayBufferLayout.detached});a.test('r9','r9');a.jcc('ne',miss);
+  a.load('r9',{base:'r10',disp:TypedArrayLayout.length});a.cmp('rax','r9');a.jcc('ae',miss);
+  a.load('r9',{base:'r10',disp:TypedArrayLayout.elementType});a.cmp('r9',10);a.jcc('ae',miss);
+  const scaled=a.unique('scaled'),two=a.unique('two'),eight=a.unique('eight');
+  a.cmp('r9',4);a.jcc('b',scaled);a.cmp('r9',6);a.jcc('b',two);a.cmp('r9',9);a.jcc('e',eight);a.shl('rax',2);a.jmp(scaled);
+  a.label(eight);a.shl('rax',3);a.jmp(scaled);a.label(two);a.shl('rax',1);a.label(scaled);
+  a.load('r11',{base:'r11',disp:ArrayBufferLayout.bytes});a.add('r11','rax');a.load('rax',{base:'r10',disp:TypedArrayLayout.byteOffset});a.add('r11','rax');
+ };
+ // RCX result Value*, RDX base Value*, R8 key Value* (as rt.getProperty).
+ b.fn('rt.elementGet',40,a=>{
+  const generic=a.unique('generic'),done=a.unique('done'),object=a.unique('object'),typed=a.unique('typed'),number=a.unique('number');
+  a.load('rax',{base:'r8'});a.cmp('rax',3);a.jcc('ne',generic);
+  integerKey(a,'r8',generic);
+  a.load('r9',{base:'rdx'});a.cmp('r9',5);a.jcc('e',object);a.cmp('r9',4);a.jcc('ne',generic);
+  // A primitive string: an index below its length is a one-unit string.
+  a.load('r10',{base:'rdx',disp:8});a.load('r9',{base:'r10'});a.cmp('rax','r9');a.jcc('ae',generic);
+  a.add('rax','rax');a.add('r10','rax');a.load('r11',{base:'r10',disp:8},16);a.cmp('r11',256);a.jcc('ae',generic);
+  a.shl('r11',4);a.lea('r10',{rip:'rt.charStrings'});a.add('r10','r11');
+  a.mov('rax',4);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'r10');a.jmp(done);
+  a.label(object);a.load('r10',{base:'rdx',disp:8});a.load('r9',{base:'r10',disp:O.kind});a.cmp('r9',1);a.jcc('a',typed);
+  a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('e',generic);
+  a.load('r9',{base:'r11',disp:E.capacity});a.cmp('rax','r9');a.jcc('ae',generic);
+  a.shl('rax',4);a.add('rax','r11');a.load('r9',{base:'rax',disp:E.values});a.cmp('r9',HoleTag);a.jcc('e',generic);
+  a.store({base:'rcx'},'r9');a.load('r9',{base:'rax',disp:E.values+8});a.store({base:'rcx',disp:8},'r9');a.jmp(done);
+  a.label(typed);a.cmp('r9',TypedArrayKind);a.jcc('ne',generic);
+  typedAddress(a,generic);
+  const f32=a.unique('f32'),f64=a.unique('f64'),b16=a.unique('b16'),b32=a.unique('b32'),int=a.unique('int');
+  a.cmp('r9',8);a.jcc('e',f32);a.cmp('r9',9);a.jcc('e',f64);
+  a.cmp('r9',4);a.jcc('ae',b16);a.load('rax',{base:'r11'},8);a.cmp('r9',2);a.jcc('ne',int);a.shl('rax',56);a.sar('rax',56);a.jmp(int);
+  a.label(b16);a.cmp('r9',6);a.jcc('ae',b32);a.load('rax',{base:'r11'},16);a.cmp('r9',5);a.jcc('ne',int);a.shl('rax',48);a.sar('rax',48);a.jmp(int);
+  a.label(b32);a.load('rax',{base:'r11'},32);a.cmp('r9',7);a.jcc('ne',int);a.shl('rax',32);a.sar('rax',32);
+  a.label(int);a.cvtsi2sd('xmm0','rax');a.jmp(number);
+  a.label(f32);a.cvtss2sd('xmm0',{base:'r11'});a.jmp(number);
+  a.label(f64);a.movsd('xmm0',{base:'r11'});
+  a.label(number);a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');a.jmp(done);
+  a.label(generic);a.call('rt.getProperty');
+  a.label(done);
+ });
+ // RCX base Value*, RDX key Value*, R8 source Value*, R9 flags (as
+ // rt.setProperty; only [[Set]] sites, never definitions, call it).
+ b.fn('rt.elementSet',40,a=>{
+  const generic=a.unique('generic'),done=a.unique('done'),typed=a.unique('typed');
+  a.store(slot(32),'r9');
+  a.load('rax',{base:'rdx'});a.cmp('rax',3);a.jcc('ne',generic);
+  integerKey(a,'rdx',generic);
+  a.load('r9',{base:'rcx'});a.cmp('r9',5);a.jcc('ne',generic);
+  a.load('r10',{base:'rcx',disp:8});a.load('r9',{base:'r10',disp:O.kind});a.cmp('r9',1);a.jcc('a',typed);
+  // An existing dense slot is a writable own data property: overwrite it.
+  a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('e',generic);
+  a.load('r9',{base:'r11',disp:E.capacity});a.cmp('rax','r9');a.jcc('ae',generic);
+  a.shl('rax',4);a.add('rax','r11');a.load('r9',{base:'rax',disp:E.values});a.cmp('r9',HoleTag);a.jcc('e',generic);
+  a.load('r9',{base:'r8'});a.store({base:'rax',disp:E.values},'r9');a.load('r9',{base:'r8',disp:8});a.store({base:'rax',disp:E.values+8},'r9');a.jmp(done);
+  a.label(typed);a.cmp('r9',TypedArrayKind);a.jcc('ne',generic);
+  a.load('r9',{base:'r8'});a.cmp('r9',3);a.jcc('ne',generic);
+  typedAddress(a,generic);
+  a.movsd('xmm0',{base:'r8',disp:8});
+  const f32=a.unique('f32'),f64=a.unique('f64'),b16=a.unique('b16'),b32=a.unique('b32');
+  a.cmp('r9',3);a.jcc('e',generic);a.cmp('r9',8);a.jcc('e',f32);a.cmp('r9',9);a.jcc('e',f64);
+  // Integer elements: ToIntN keeps the low bits of the truncated value; NaN,
+  // infinities and magnitudes from 2^63 (the indefinite integer) go generic.
+  a.cvttsd2si('rax','xmm0');a.mov('r10',0x8000000000000000n);a.cmp('rax','r10');a.jcc('e',generic);
+  a.cmp('r9',4);a.jcc('ae',b16);a.store({base:'r11'},'rax',8);a.jmp(done);
+  a.label(b16);a.cmp('r9',6);a.jcc('ae',b32);a.store({base:'r11'},'rax',16);a.jmp(done);
+  a.label(b32);a.store({base:'r11'},'rax',32);a.jmp(done);
+  a.label(f32);a.cvtsd2ss('xmm0','xmm0');a.movqFromXmm('rax','xmm0');a.store({base:'r11'},'rax',32);a.jmp(done);
+  a.label(f64);a.storesd({base:'r11'},'xmm0');a.jmp(done);
+  a.label(generic);a.load('r9',slot(32));a.call('rt.setProperty');
+  a.label(done);
  });
 }
