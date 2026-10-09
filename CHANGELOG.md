@@ -3,6 +3,7 @@
 ## Unreleased
 
 - `'name' in object` and `hasOwnProperty` calls (`o.hasOwnProperty(k)`, `hasOwn.call(o, k)`) on shaped objects are answered by per-site caches keyed by the shape (and, for `in`, the prototype chain, validated by the shape epoch) instead of a walk through the shapes and an `rt.invoke` of the builtin: a loop of five such checks over 100 objects runs 6.6 times faster ([#195](https://github.com/40oleg/nona/issues/195)).
+- Programs with extra realms share the tail-call staging area, the coroutine stack pool and its byte count, the stack limit and the fatal-exit state between realms. Generators and strict tail calls created by another realm's `Function` crashed under GC stress because the collector and the shared JS code used only the main realm's copies; a new test checks that no code shared by all realms refers to a realm's own runtime data ([#198](https://github.com/40oleg/nona/issues/198)).
 
 - Added `examples/angular`: a builder for standard Angular applications that Nona compiles, with the TypeScript compiler, into a native executable; it builds `ng new` into a page that renders like the `ng build` output ([#156](https://github.com/40oleg/nona/issues/156)).
 
