@@ -264,9 +264,16 @@ class Lowerer {
     return !!this.fn&&this.fn.strict&&!!d&&!d.generator&&!d.async&&!(d.kind==='FunctionExpression'&&(d.classConstructor||d.derivedConstructor))
       &&this.handlers.length===0&&this.finalizers.length===0&&!this.controls.some(c=>c.iterator!==undefined);
   }
-  private invokeWithArguments(dest:number,callee:number,args:{fixed:number[]}|{array:number},receiver?:number,construct=false,newTarget?:number,tail=false):void {
+  private invokeWithArguments(dest:number,callee:number,args:{fixed:number[]}|{array:number},receiver?:number,construct=false,newTarget?:number,tail=false,hasOwn?:'method'|'call'):void {
     if('array'in args)this.emit({kind:'invokeArray',dest,callee,array:args.array,...(receiver===undefined?{}:{receiver}),construct,...(newTarget===undefined?{}:{newTarget})});
-    else{this.maxArguments=Math.max(this.maxArguments,args.fixed.length);this.emit({kind:'invoke',dest,callee,arguments:args.fixed,...(receiver===undefined?{}:{receiver}),construct,...(newTarget===undefined?{}:{newTarget}),...(tail?{tail:true}:{})});}
+    else{this.maxArguments=Math.max(this.maxArguments,args.fixed.length);this.emit({kind:'invoke',dest,callee,arguments:args.fixed,...(receiver===undefined?{}:{receiver}),construct,...(newTarget===undefined?{}:{newTarget}),...(tail?{tail:true}:{}),...(hasOwn?{hasOwn}:{})});}
+  }
+  /** `x.hasOwnProperty(key)` or `y.call(x, key)` (with `y` possibly hasOwnProperty): the call may be answered by a cache (has-cache.ts). */
+  private hasOwnCall(callee:A.Member,args:{fixed:number[]}|{array:number}):'method'|'call'|undefined {
+    if(!('fixed'in args)||callee.property.kind!=='Literal'||callee.object.kind==='Super')return undefined;
+    if(callee.property.value==='hasOwnProperty'&&args.fixed.length>=1)return 'method';
+    if(callee.property.value==='call'&&args.fixed.length>=2)return 'call';
+    return undefined;
   }
   private arrayOf(values:number[]):number {
     const array=this.slot();this.emit({kind:'newObject',dest:array,array:true,length:values.length});
@@ -912,7 +919,7 @@ class Lowerer {
         const receiver=optional?.receiver??(ref&&'object'in ref?(ref.receiver??ref.object):undefined);
         const callee=optional?.callee??(ref?this.getReference(ref):this.expression(e.callee));
         const args=this.lowerArguments(e.arguments),dest=this.slot();
-        this.invokeWithArguments(dest,callee,args,receiver,false,undefined,this.tailCalls.has(e));return dest;
+        this.invokeWithArguments(dest,callee,args,receiver,false,undefined,this.tailCalls.has(e),ref?this.hasOwnCall(e.callee as A.Member,args):undefined);return dest;
       }
       case 'Binary': {
         if(e.operator==='+'){
@@ -941,7 +948,7 @@ class Lowerer {
         const right=this.expression(e.right),dest=this.slot();
         if(e.operator==='in'){
           // The RHS must be checked before coercing the property key.
-          this.emit({kind:'property',operation:'has',dest,object:right,key:left});
+          this.emit({kind:'property',operation:'has',dest,object:right,key:left,...(e.left.kind==='Literal'&&typeof e.left.value==='string'?{keyName:e.left.value}:{})});
         }else this.emit({kind:'binary',dest,operator:e.operator,left,right});return dest;
       }
       case 'Conditional': {

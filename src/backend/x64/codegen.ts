@@ -44,6 +44,7 @@ import {mergeAgentPrograms,agentSymbol} from '../agents.js';
 import {stringLiteral} from '../../runtime/value.js';
 import {emitFfi} from '../../runtime/ffi.js';
 import {PropertyCacheLayout,SetCacheLayout,cacheableName} from '../../runtime/property-cache.js';
+import {HasCacheLayout} from '../../runtime/has-cache.js';
 
 const binary:Record<string,string>={'+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow','==':'eq','!=':'eq','===':'strictEq','!==':'strictEq','<':'lt','<=':'le','>':'gt','>=':'ge','&':'bitAnd','|':'bitOr','^':'bitXor','<<':'shiftLeft','>>':'shiftRight','>>>':'shiftUnsigned','instanceof':'instanceOf'};
 const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',typeof:'typeof',isNullish:'isNullish',propertyKey:'toPropertyKey',propertyKeyIndex:'toPropertyKeyIndex',string:'toString',numeric:'toNumeric',increment:'increment',decrement:'decrement'};
@@ -573,6 +574,16 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'invoke':{
           op.arguments.forEach((n,i)=>copy(stack(argsBase+16*i),value(n)));
           const general=a.unique('generalCall'),called=a.unique('called');
+          if(op.hasOwn&&!op.direct&&!op.construct&&op.receiver!==undefined){
+            // %Object.prototype.hasOwnProperty% called on a shaped object
+            // with a string key: answered by the site's cache (has-cache.ts).
+            // The callee is checked at every call; anything else is a call.
+            const call=op.hasOwn==='call',self=call?op.arguments[0]!:op.receiver,key=call?op.arguments[1]!:op.arguments[0]!,cache='hc.'+fragments.length;
+            fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(HasCacheLayout.size),fixups:[],symbols:{}});
+            const check=(n:number,symbol:string)=>{a.load('rax',value(n));a.cmp('rax',5);a.jcc('ne',general);a.load('rax',payload(n));a.lea('r10',{rip:symbol});a.cmp('rax','r10');a.jcc('ne',general);};
+            if(call){check(op.callee,'rt.functionCall');check(op.receiver,'rt.objectHasOwn');}else check(op.callee,'rt.objectHasOwn');
+            pointer('rcx',op.dest);pointer('rdx',self);pointer('r8',key);a.lea('r9',{rip:cache});a.call('rt.icHasOwn');a.test('rax','rax');a.jcc('ne',called);
+          }
           if(op.direct){
             // A callee known at compile time (src/ir/calls.ts): if it is a
             // function running that code, call the code directly with the
@@ -637,6 +648,11 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(op.operation==='get'&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r9',{rip:cache});a.call('rt.icGet');break;
+          }
+          // `'name' in object`: a per-site cache for shaped receivers (has-cache.ts).
+          if(op.operation==='has'&&op.keyName!==undefined&&cacheableName(op.keyName)){
+            const cache='hc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(HasCacheLayout.size),fixups:[],symbols:{}});
+            a.lea('r9',{rip:cache});a.call('rt.icHas');break;
           }
           if(op.operation==='get'&&op.keyName==='length'){
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});

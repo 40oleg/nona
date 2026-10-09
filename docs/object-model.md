@@ -91,6 +91,17 @@ plain name has a record in the data section.
 - Writes (`SetCacheLayout`): (shape, slot, byte offset) for an existing
   property, written by `rt.icSet`, and a transition (from, to, prototype,
   epoch) for a property the write adds, in `rt.setPropertyCached`.
+- `'name' in object` with a literal plain name and `hasOwnProperty` calls
+  (`object.hasOwnProperty(key)`, `f.call(object, key)`) have a record of two
+  entries (`HasCacheLayout` in `src/runtime/has-cache.ts`), valid for one
+  shape epoch. For `in` an entry is (shape, prototype, answer): a hit needs a
+  shaped receiver with that shape and prototype. A miss asks
+  `rt.hasProperty` and fills the entry only when the answer comes from the
+  shape, or from a chain of ordinary objects, arrays and functions (not the
+  global object), which it flags like a read cache. For `hasOwnProperty` an
+  entry is (shape, key record, answer); the generated code first checks that
+  the callee is %Object.prototype.hasOwnProperty% (or `call` with it as the
+  receiver), and keys that may be array indices take the call.
 
 The hit paths are shared functions rather than code at every site: inlining
 them made executables 12–16% larger (hello world from 1.9 to 2.2 MB) for no

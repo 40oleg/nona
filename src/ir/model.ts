@@ -30,7 +30,7 @@ export type Operation =
   | {kind:'currentThis';dest:number}
   | {kind:'globalObject';dest:number}
   | {kind:'readGlobalProperty';dest:number;name:string;allowMissing:boolean}
-  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean;/** Code label of the function the callee is expected to be (src/ir/calls.ts). */direct?:string;/** That function is strict (receives this unchanged). */directStrict?:boolean}
+  | {kind:'invoke';dest:number;callee:number;arguments:number[];receiver?:number;construct?:boolean;newTarget?:number;tail?:boolean;/** Code label of the function the callee is expected to be (src/ir/calls.ts). */direct?:string;/** That function is strict (receives this unchanged). */directStrict?:boolean;/** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */hasOwn?:'method'|'call'}
   | {kind:'invokeArray';dest:number;callee:number;array:number;receiver?:number;construct?:boolean;newTarget?:number}
   /** Constructs callee with the current function's own arguments (a default derived constructor's super(...args)). */
   | {kind:'constructForward';dest:number;callee:number;receiver:number;newTarget:number}

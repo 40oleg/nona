@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `'name' in object` and `hasOwnProperty` calls (`o.hasOwnProperty(k)`, `hasOwn.call(o, k)`) on shaped objects are answered by per-site caches keyed by the shape (and, for `in`, the prototype chain, validated by the shape epoch) instead of a walk through the shapes and an `rt.invoke` of the builtin: a loop of five such checks over 100 objects runs 6.6 times faster ([#195](https://github.com/40oleg/nona/issues/195)).
+
 - Added `examples/angular`: a builder for standard Angular applications that Nona compiles, with the TypeScript compiler, into a native executable; it builds `ng new` into a page that renders like the `ng build` output ([#156](https://github.com/40oleg/nona/issues/156)).
 
 - `Function` calls with literal source are compiled ahead of time also in programs where some function declares its own `Function`: only the calls inside that function are left as written. lodash's top-level `Function('return this')()` threw EvalError because its `runInContext` declares `var Function` ([#196](https://github.com/40oleg/nona/issues/196)).
