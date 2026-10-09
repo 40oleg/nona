@@ -100,7 +100,16 @@ plain name has a record in the data section.
   (prototype, node) entries for inherited properties, valid for one *shape
   epoch*. Every site calls `rt.icGet`, a short hit path: the first shape
   entry's inline slot, or a method found through the first prototype entry.
-  Everything else goes on to `rt.getPropertyCached`.
+  Everything else goes on to `rt.getPropertyCached`. Function objects are
+  not shaped: a read record also has an own entry (object, node, epoch) for
+  a function that has the key as an own property (static members,
+  `Ctor.prototype`), which `rt.icGet` and the `.length` sites check. Filling
+  it flags the function like a cached prototype, so deleting or redefining
+  the property advances the epoch.
+- `.length` of a typed array without own properties whose prototype has an
+  entry for the intrinsic `%TypedArray%.prototype.length` accessor is read
+  from the typed array (0 when its buffer is detached) without calling the
+  getter.
 - Writes (`SetCacheLayout`): (shape, slot, byte offset) for an existing
   property, written by `rt.icSet`, and a transition (from, to, prototype,
   epoch) for a property the write adds, in `rt.setPropertyCached`.

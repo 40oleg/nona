@@ -41,7 +41,8 @@ import type {Assembler} from '../backend/x64/assembler.js';
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
 /** Then the key's bit in object key filters (rt.keyFilterBit), also 0 until first use. */
 /** Then two entries of {shape, slot, offset} for shaped receivers (shapes.ts): the key's slot, or -1 when it is not an own key, and the slot's byte offset in the object when it is an inline slot (else 0), newest first. Generated code reads the first entry's inline slot itself. */
-export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,shape:8+16*4+16,slot:8+16*4+24,offset:8+16*4+32,shapeEntry:24,shapeEntries:2,size:8+16*4+16+24*2} as const;
+/** Then one {object, node, epoch} entry for a function object that has the key as an own property (#192): static members, `Ctor.prototype`, a function's `length` and `name`. Function objects are not shaped; the entry is valid at its own epoch (see emitOwnEntryHit). */
+export const PropertyCacheLayout={epoch:0,prototype:8,node:16,entry:16,entries:4,hash:8+16*4,bit:8+16*4+8,shape:8+16*4+16,slot:8+16*4+24,offset:8+16*4+32,shapeEntry:24,shapeEntries:2,ownObject:136,ownNode:144,ownEpoch:152,size:160} as const;
 
 /** Record of an `object.name = value` site (rt.setPropertyCached). */
 /** {shape, slot, offset}: the slot of the key in receivers of that shape, and its byte offset in the object when it is inline (else 0; generated code writes there itself); {from, to, prototype, epoch}: the transition that adds the key; failed: the epoch at which the chain check failed. */
@@ -50,6 +51,38 @@ export const SetCacheLayout={shape:0,slot:8,offset:16,from:24,to:32,prototype:40
 /** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
 export function cacheableName(name:string):boolean {
  return name.length>0&&!(name.charCodeAt(0)>=48&&name.charCodeAt(0)<=57)&&name!=='length'&&name!=='__proto__';
+}
+
+// FunctionKind and TypedArrayKind, and the typed array and buffer fields
+// that `length` reads, spelled out to keep this module free of import cycles
+// (tests/function-typed-array-caches.test.ts checks them).
+export const cachedFunctionKind=2;
+export const typedArrayFields={buffer:O.size,length:O.size+24,detached:O.size+16} as const;
+/** The getter function object of %TypedArray%.prototype.length (typed-array.ts). */
+export const typedArrayLengthGetter='rt.typedArrayLength.fn';
+
+/**
+ * Hit path of the own entry of a read record (R9) for the function object
+ * whose header is in R10: the node remembered for that object at the
+ * current epoch, if it is still a data property that is not an argument
+ * cell, is copied to the result (RCX) and control goes to DONE; otherwise
+ * it falls through. Clobbers RAX, R11.
+ *
+ * The entry stays right while the node is the object's own property for the
+ * key. The object is flagged ObjectFlags.cachedPrototype when the entry is
+ * filled, so deleting the property or redefining it (which may replace the
+ * node) advances the epoch, as does every collection (a freed object or node
+ * could otherwise be mistaken for a new one). Writes of the value change the
+ * node in place and are read at hit time.
+ */
+export function emitOwnEntryHit(a:Assembler,done:string):void {
+ const L=PropertyCacheLayout,miss=a.unique('ownMiss');
+ a.load('r11',{base:'r9',disp:L.ownObject});a.cmp('r11','r10');a.jcc('ne',miss);
+ a.load('rax',{base:'r9',disp:L.ownEpoch});a.load('r11',{rip:'rt.shapeEpoch'});a.cmp('rax','r11');a.jcc('ne',miss);
+ a.load('r11',{base:'r9',disp:L.ownNode});a.load('rax',{base:'r11',disp:P.attributes});a.and('rax',A.accessor);a.test('rax','rax');a.jcc('ne',miss);
+ a.load('rax',{base:'r11',disp:P.value});a.cmp('rax',CellTag);a.jcc('e',miss);
+ a.store({base:'rcx'},'rax');a.load('rax',{base:'r11',disp:P.value+8});a.store({base:'rcx',disp:8},'rax');a.jmp(done);
+ a.label(miss);
 }
 
 /** Advances the shape epoch when the object header at REG is a flagged prototype. Clobbers RAX. */
@@ -165,9 +198,9 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
  // property that the first prototype entry names at the current shape epoch
  // (a method of a class instance). Anything else is rt.getPropertyCached.
  b.fn('rt.icGet',40,a=>{
-  const L=PropertyCacheLayout,miss=a.unique('miss'),inherited=a.unique('inherited'),copy=a.unique('copy'),done=a.unique('done');
+  const L=PropertyCacheLayout,miss=a.unique('miss'),inherited=a.unique('inherited'),copy=a.unique('copy'),done=a.unique('done'),unshaped=a.unique('unshaped');
   a.load('rax',{base:'rdx'});a.cmp('rax',5);a.jcc('ne',miss);a.load('r10',{base:'rdx',disp:8});
-  a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('e',miss);a.load('r11',{base:'r9',disp:L.shape});a.cmp('rax','r11');a.jcc('ne',miss);
+  a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('e',unshaped);a.load('r11',{base:'r9',disp:L.shape});a.cmp('rax','r11');a.jcc('ne',miss);
   a.load('r11',{base:'r9',disp:L.offset});a.test('r11','r11');a.jcc('e',inherited);a.add('r11','r10');
   a.label(copy);a.load('rax',{base:'r11'});a.store({base:'rcx'},'rax');a.load('rax',{base:'r11',disp:8});a.store({base:'rcx',disp:8},'rax');a.jmp(done);
   a.label(inherited);a.load('r11',{base:'r9',disp:L.slot});a.test('r11','r11');a.jcc('ns',miss);
@@ -175,6 +208,8 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.load('rax',{base:'r9',disp:L.epoch});a.load('r11',{rip:'rt.shapeEpoch'});a.cmp('rax','r11');a.jcc('ne',miss);
   a.load('r11',{base:'r9',disp:L.node});a.load('rax',{base:'r11',disp:P.attributes});a.and('rax',A.accessor);a.test('rax','rax');a.jcc('ne',miss);
   a.load('rax',{base:'r11',disp:P.value});a.cmp('rax',CellTag);a.jcc('e',miss);a.add('r11',P.value);a.jmp(copy);
+  // Not shaped: a function object's own property remembered by the own entry.
+  a.label(unshaped);emitOwnEntryHit(a,done);
   a.label(miss);a.call('rt.getPropertyCached');
   a.label(done);
  });
@@ -202,10 +237,24 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
  // (string wrappers and other exotic objects have no node for it).
  // RCX result Value*, RDX base Value*, R8 key Value* ("length"), R9 cache record.
  b.fn('rt.getLengthCached',40,a=>{
-  const string=a.unique('string'),cached=a.unique('cached'),generic=a.unique('generic'),number=a.unique('number'),done=a.unique('done');
+  const L=PropertyCacheLayout,string=a.unique('string'),cached=a.unique('cached'),generic=a.unique('generic'),number=a.unique('number'),done=a.unique('done'),typed=a.unique('typed'),typedNode=a.unique('typedNode');
   a.load('rax',{base:'rdx'});a.load('r10',{base:'rdx',disp:8});a.cmp('rax',4);a.jcc('e',string);a.cmp('rax',5);a.jcc('ne',generic);
   a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',cached+'.kind');a.load('rax',{base:'r10',disp:O.length});a.jmp(number);
-  a.label(cached+'.kind');a.test('rax','rax');a.jcc('e',cached);a.cmp('rax',2);a.jcc('e',cached);a.cmp('rax',namedTypedArrayKind);a.jcc('e',cached);
+  a.label(cached+'.kind');a.test('rax','rax');a.jcc('e',cached);a.cmp('rax',namedTypedArrayKind);a.jcc('e',typed);a.cmp('rax',cachedFunctionKind);a.jcc('ne',generic);
+  // A function's own "length" through the own entry.
+  emitOwnEntryHit(a,done);a.jmp(cached);
+  // A typed array without own properties whose prototype has an entry at the
+  // current epoch for the intrinsic %TypedArray%.prototype.length accessor:
+  // its length (0 once the buffer is detached) without calling the getter.
+  a.label(typed);a.load('rax',{base:'r10',disp:O.properties});a.test('rax','rax');a.jcc('ne',cached);
+  a.load('rax',{base:'r9',disp:L.epoch});a.load('r11',{rip:'rt.shapeEpoch'});a.cmp('rax','r11');a.jcc('ne',cached);
+  a.load('rax',{base:'r10',disp:O.prototype});
+  for(let i=0;i<L.entries;i++){const next=a.unique('typedEntry');a.load('r11',{base:'r9',disp:L.prototype+L.entry*i});a.cmp('rax','r11');a.jcc('ne',next);a.load('r11',{base:'r9',disp:L.node+L.entry*i});a.jmp(typedNode);a.label(next);}
+  a.jmp(cached);
+  a.label(typedNode);a.load('rax',{base:'r11',disp:P.attributes});a.and('rax',A.accessor);a.test('rax','rax');a.jcc('e',cached);
+  a.load('rax',{base:'r11',disp:P.getter});a.cmp('rax',5);a.jcc('ne',cached);a.load('rax',{base:'r11',disp:P.getter+8});a.lea('r11',{rip:typedArrayLengthGetter});a.cmp('rax','r11');a.jcc('ne',cached);
+  a.load('r11',{base:'r10',disp:typedArrayFields.buffer});a.load('r11',{base:'r11',disp:typedArrayFields.detached});a.mov('rax',0);a.test('r11','r11');a.jcc('ne',number);
+  a.load('rax',{base:'r10',disp:typedArrayFields.length});a.jmp(number);
   a.label(generic);a.call('rt.getProperty');a.jmp(done);
   a.label(cached);a.call('rt.getPropertyCached');a.jmp(done);
   a.label(string);a.load('rax',{base:'r10'});
@@ -267,8 +316,14 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    a.load('rax',{base:'rax',disp:8});a.jmp(ownFound);
    a.label(listScan);a.mov('rcx','r10');a.load('rdx',{base:'r8',disp:8});a.call('rt.ownNamedNodeScan');a.test('rax','rax');a.jcc('ne',ownFound);
    a.jmp(probed);
-   // RAX = an own node of the receiver (slot 72).
-   a.label(ownFound);a.jmp(read);
+   // RAX = an own node of the receiver (slot 72). A function object's is
+   // remembered in the own entry (emitOwnEntryHit), and the function is
+   // flagged so that deleting or redefining the property advances the epoch.
+   a.label(ownFound);
+   a.load('r10',slot(72));a.load('r11',{base:'r10',disp:O.kind});a.cmp('r11',cachedFunctionKind);a.jcc('ne',read);
+   a.load('r11',{base:'r10',disp:O.flags});a.or('r11',ObjectFlags.cachedPrototype);a.store({base:'r10',disp:O.flags},'r11');
+   a.load('r9',slot(64));a.store({base:'r9',disp:L.ownObject},'r10');a.store({base:'r9',disp:L.ownNode},'rax');
+   a.load('r11',{rip:'rt.shapeEpoch'});a.store({base:'r9',disp:L.ownEpoch},'r11');a.jmp(read);
    a.label(probed);}
   a.label(prototypeEntries);
   // Otherwise the entry for the receiver's prototype, at the current epoch.
