@@ -645,7 +645,11 @@ var __nonaPromiseDrainJobs=(function(){
   // Dynamic async function constructors are part of the documented
   // eval/Function exception; they exist for reflection only.
   // An empty source needs no compiler: it yields a fresh anonymous function of that kind.
+  var realmVm=Function.prototype.__nonaRealmVmInternal||function(){};
+  var dynamicPrototypes=objectCreate(null);
+  __nonaRegexpVm.dynamicPrototypes=dynamicPrototypes;
   function dynamicConstructor(name,prototype,makeEmpty){
+    dynamicPrototypes[name]=prototype;
     var constructor=function(){
       // ToString of every argument first (observable), then the exception.
       for(var i=0,source=false;i<arguments.length;i++)if((''+arguments[i]).trim()!=='')source=true;
@@ -654,7 +658,9 @@ var __nonaPromiseDrainJobs=(function(){
       define(fn,'name','anonymous',false);
       if(new.target!==undefined&&new.target!==constructor){
         var proto=new.target.prototype;
-        if(proto!==null&&(typeof proto==='object'||typeof proto==='function'))Object.setPrototypeOf(fn,proto)
+        if(proto!==null&&(typeof proto==='object'||typeof proto==='function'))Object.setPrototypeOf(fn,proto);
+        // Otherwise the intrinsic prototype of new.target's realm.
+        else{var vm=realmVm(this),prototypes=vm?vm.dynamicPrototypes:undefined;if(prototypes)Object.setPrototypeOf(fn,prototypes[name])}
       }
       return fn
     };

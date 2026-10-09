@@ -25,11 +25,16 @@ export const es2021PreludeSource=String.raw`;(function(){
 
   // AggregateError ( errors, message [, options] ) (ES2021 20.5.7.1).
   var AggregateErrorPrototype;
+  // Absent when the prelude is evaluated by Node.js in source tests.
+  var realmVm=Function.prototype.__nonaRealmVmInternal||function(){};
   function Target(){}
   function AggregateError(errors,message){
     var newTarget=new.target===undefined?AggregateError:new.target;
     var proto=newTarget.prototype;
-    Target.prototype=isObject(proto)?proto:AggregateErrorPrototype;
+    // Not an object: %AggregateError.prototype% of new.target's realm, whose
+    // %Object.prototype% the receiver of this construct call got.
+    if(!isObject(proto)){var vm=new.target===undefined?undefined:realmVm(this);proto=vm&&vm.AggregateError?vm.AggregateError.prototype:AggregateErrorPrototype}
+    Target.prototype=proto;
     var O=construct(ErrorConstructor,[],Target);
     if(message!==undefined)defineProperty(O,'message',{value:toStr(message),writable:true,enumerable:false,configurable:true});
     var options=arguments[2];

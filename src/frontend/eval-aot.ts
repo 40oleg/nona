@@ -326,10 +326,16 @@ export function lowerLiteralEval(program:A.Program):A.Program {
   for(const [name,values] of constants)if(poisoned.has(name)||values.size>4)constants.delete(name);
   const factories:A.Statement[]=[];
   const globalInfo:FunctionInfo={node:null,strict:!!program.strict||!!program.module,arrow:false,varNames:staticVarNames(program),evalNames:new Set(),topLexicals:lexicalNames(program.body,false)};
+  const programGlobalInfo=globalInfo;
+  // The global code of another realm: none of this program's declarations.
+  const foreignGlobalInfo:FunctionInfo={node:null,strict:false,arrow:false,varNames:new Set(),evalNames:new Set(),topLexicals:new Set()};
   const touched=new Set<FunctionInfo>();
 
-  /** Compile one literal eval. Returns the replacement for the compiled branch. */
-  const compileEval=(source:string,ctx:Context,indirect:boolean,span:Span):A.Expression=>{
+  /** Compile one literal eval. Returns the replacement for the compiled branch.
+   * foreign: indirect eval code of another realm's %eval%, compiled into a
+   * realm-local maker, so the global code knows nothing of this program's globals. */
+  const compileEval=(source:string,ctx:Context,indirect:boolean,span:Span,foreign=false):A.Expression=>{
+    const globalInfo=foreign?foreignGlobalInfo:programGlobalInfo;
     const parsed=parseEval(source,ctx,indirect);
     if('error'in parsed)return throwSyntax(parsed.error,span);
     attachSourceText(parsed.body,parsed.text);
@@ -420,6 +426,8 @@ export function lowerLiteralEval(program:A.Program):A.Program {
       // Global code: a dynamic function (own strictness, global scope) called with the global object as this.
       const name=hiddenPrefix+'indirectEval'+n;
       const factory:A.FunctionExpression={kind:'FunctionExpression',id:null,dynamic:true,globalCode:true,nameOverride:'',parameters:[],body:thunkBody,span,noAnnexB:true} as A.FunctionExpression;
+      // Inside the realm-local maker, the helper is that realm's runtime's.
+      if(foreign)return helper('callWithGlobalThis',[factory],span);
       factories.push({kind:'Var',declarationKind:'var',declarations:[{id:id(name,span),init:factory}],span});
       return helper('callWithGlobalThis',[id(name,span)],span);
     }
@@ -441,6 +449,24 @@ export function lowerLiteralEval(program:A.Program):A.Program {
     const indirect=!direct&&(callee.kind==='Identifier'&&aliases.has(callee.name)||
       callee.kind==='Binary'&&callee.operator===','&&callee.right.kind==='Identifier'&&callee.right.name==='eval'&&(callee.left.kind==='Literal'||callee.left.kind==='Identifier')||
       callee.kind==='Member'&&callee.property.kind==='Literal'&&callee.property.value==='eval'&&(callee.object.kind==='Identifier'&&callee.object.name==='globalThis'||callee.object.kind==='This'));
+    // x.eval(literal), x not this realm's global object (often another
+    // realm's, Test262 $262.createRealm().global.eval): when x.eval is the
+    // %eval% of some realm, the code runs as global code of that realm, from
+    // a realm-local maker like x.Function (dynamic-functions.ts); any other
+    // function is called as written.
+    if(!direct&&!indirect&&source!==undefined&&e.arguments.length===1&&callee.kind==='Member'&&callee.object.kind!=='Super'
+      &&callee.property.kind==='Literal'&&callee.property.value==='eval'){
+      const span=e.span;
+      const maker=(parse(lex('(function(){})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      maker.body.body=[{kind:'Return',argument:compileEval(source,{fn:foreignGlobalInfo,strict:false,blocks:[],newTarget:false,superProperty:false,superCall:false,globalLexicals:new Set()},true,span,true),span}];
+      maker.dynamic=true;maker.realmLocal=true;
+      const guard=(parse(lex('(function(object,args){var ev=object.eval;var made=__nonaRealmMaker;if(made!==undefined)return made();return Reflect.apply(ev,object,args)})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      const declaration=(guard.body.body[1] as A.Var).declarations[0]!;
+      declaration.init=call(id('\u0001realmFunction',span),[id('ev',span),maker,literal('rt.global.eval.fn',span)],span);
+      const name=hiddenPrefix+'realmEval'+(counter++);
+      factories.push({kind:'Function',id:id(name,span),parameters:guard.parameters,body:{kind:'Block',body:guard.body.body,span},span} as A.FunctionDeclaration);
+      return call(id(name,span),[callee.object,array([literal(source,span)],span)],span);
+    }
     if(!direct&&!indirect)return undefined;
     const span=e.span;
     const rest=e.arguments.slice(1) as A.Expression[];

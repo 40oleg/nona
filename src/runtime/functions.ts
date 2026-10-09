@@ -125,7 +125,11 @@ export function emitFunctions(b:RuntimeBuilder):void {
   a.load('r10',{base:'rax',disp:FunctionLayout.bound});a.test('r10','r10');a.jcc('e',ordinary);
   a.mov('rax',0);a.store(slot(32),'rax');a.call('rt.invokeBound');a.jmp(done);
   a.label(ordinary);
-  if(!construct){a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.cmp('r10',2);failIf(a,'e','rt.throwTypeError');}
+  // Calling a class constructor throws a TypeError of the constructor's own
+  // realm ([[Call]] of a classConstructor runs in its callee context).
+  if(!construct){const callable=a.unique('callable');a.load('r10',{base:'rax',disp:FunctionLayout.constructable});a.cmp('r10',2);a.jcc('ne',callable);
+   a.load('r10',{base:'rax',disp:FunctionLayout.realm});a.and('r10',255);a.shl('r10',3);a.lea('r11',{rip:realmTable('rt.throwTypeError')});a.add('r11','r10');a.load('r11',{base:'r11'});a.callRegister('r11');
+   a.label(callable);}
   const notArrow=a.unique('notArrow');a.load('r10',{base:'rax',disp:FunctionLayout.arrow});a.test('r10','r10');a.jcc('e',notArrow);
   a.lea('r10',{base:'rax',disp:FunctionLayout.lexicalThis});a.store(slot(72),'r10');
   a.label(notArrow);
