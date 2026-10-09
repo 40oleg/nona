@@ -390,13 +390,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       }
       a.jmp(done);pushCold(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
-    // A derived constructor's this starts uninitialized, in a cell that its
-    // arrow functions may share (the stub copied the receiver to the super
-    // receiver slot already).
-    if(fn.derivedConstructor){
-      a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');
-      a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');
-    }
     // Stack maps (src/runtime/stack-maps.ts): for every call this function
     // makes, the locations live at that point, so that the collector scans
     // only those. Slots below the live floor (locals of a function with very
