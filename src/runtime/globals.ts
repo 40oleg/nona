@@ -87,7 +87,10 @@ export function emitGlobals(b:RuntimeBuilder):void {
   a.test('rax','rax');a.jcc('e',found);
   a.load('rax',slot(48));a.add('rax',24);a.store(slot(48),'rax');
   a.load('rax',slot(56));a.sub('rax',1);a.store(slot(56),'rax');a.jmp(loop);
-  a.label(found);a.load('rax',slot(48));a.lea('rdx',{base:'rax',disp:16});a.load('rax',{base:'rax',disp:8});a.jmp(done);
+  // A script-level binding may hold a rope (strings.ts): the caller reads
+  // the Value natively, so it is flattened first (the slot is a root).
+  a.label(found);a.load('rax',slot(48));a.load('rcx',{base:'rax',disp:8});a.call('rt.flattenValue');
+  a.load('rax',slot(48));a.lea('rdx',{base:'rax',disp:16});a.load('rax',{base:'rax',disp:8});a.jmp(done);
   a.label(missing);a.mov('rax',0);a.label(done);
  });
 }

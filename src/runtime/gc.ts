@@ -21,6 +21,7 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {ShapeLayout} from './shapes.js';
+import {RopeLayout} from './strings.js';
 import {ChunkLayout as C,LargeLayout as L,FreeKind,classCount} from './memory.js';
 import {FunctionLayout,FunctionKind} from './functions.js';
 import {ContextLayout} from './context-switch.js';
@@ -190,6 +191,12 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   for(const offset of [P.value,P.getter,P.setter]){const skip=a.unique('skip'),mark=a.unique('mark');
    a.load('rcx',slot(40));a.load('rax',{base:'rcx',disp:offset});a.cmp('rax',CellTag);a.jcc('e',mark);a.sub('rax',4);a.cmp('rax',3);a.jcc('a',skip);
    a.label(mark);a.load('rcx',{base:'rcx',disp:offset+8});a.call('rt.gcMarkPointer');a.label(skip);}
+ });
+ // A rope (strings.ts) points at its two halves; the right one is 0 once
+ // the rope has been flattened.
+ b.fn('rt.gcTraceRope',56,a=>{
+  a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:RopeLayout.left});a.call('rt.gcMarkPointer');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:RopeLayout.right});a.call('rt.gcMarkPointer');
  });
  b.fn('rt.gcTraceMapEntry',56,a=>{
   a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:MapEntryLayout.next});a.call('rt.gcMarkPointer');
@@ -390,9 +397,10 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.label(property);const cell=a.unique('cell'),environment=a.unique('environment');
   a.cmp('r10',HeapKind.property);a.jcc('ne',cell);a.call('rt.gcTraceProperty');a.jmp(mark);
   a.label(cell);a.cmp('r10',HeapKind.cell);a.jcc('ne',environment);a.call('rt.gcMarkValue');a.jmp(mark);
-  a.label(environment);const bound=a.unique('bound');a.cmp('r10',HeapKind.environment);a.jcc('ne',bound);a.call('rt.gcTraceEnvironment');a.jmp(mark);
-  a.label(bound);const values=a.unique('values'),symbol=a.unique('symbol'),mapEntry=a.unique('mapEntry'),weakEntry=a.unique('weakEntry');a.cmp('r10',HeapKind.mapEntry);a.jcc('e',mapEntry);a.cmp('r10',HeapKind.weakEntry);a.jcc('e',weakEntry);a.cmp('r10',HeapKind.symbol);a.jcc('e',symbol);a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
+  a.label(environment);const bound=a.unique('bound'),rope=a.unique('rope');a.cmp('r10',HeapKind.environment);a.jcc('ne',bound);a.call('rt.gcTraceEnvironment');a.jmp(mark);
+  a.label(bound);const values=a.unique('values'),symbol=a.unique('symbol'),mapEntry=a.unique('mapEntry'),weakEntry=a.unique('weakEntry');a.cmp('r10',HeapKind.mapEntry);a.jcc('e',mapEntry);a.cmp('r10',HeapKind.weakEntry);a.jcc('e',weakEntry);a.cmp('r10',HeapKind.symbol);a.jcc('e',symbol);a.cmp('r10',HeapKind.valueList);a.jcc('e',values);a.cmp('r10',HeapKind.rope);a.jcc('e',rope);a.cmp('r10',HeapKind.boundData);a.jcc('ne',mark);a.load('rdx',{base:'rcx',disp:B.count});a.add('rdx',2);a.add('rcx',B.target);a.call('rt.gcMarkRange');a.jmp(mark);
   a.label(mapEntry);a.call('rt.gcTraceMapEntry');a.jmp(mark);
+  a.label(rope);a.call('rt.gcTraceRope');a.jmp(mark);
   a.label(weakEntry);a.call('rt.gcTraceWeakEntry');a.jmp(mark);
   a.label(symbol);a.load('rcx',{base:'rcx',disp:8});a.call('rt.gcMarkPointer');a.jmp(mark);
   a.label(values);a.load('rdx',{base:'rcx'});a.add('rcx',8);a.call('rt.gcMarkRange');a.jmp(mark);
