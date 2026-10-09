@@ -53,6 +53,19 @@ only marks their keys.
 
 - Object literals share one root per inline capacity (the literal's property
   count; 4 for `{}`).
+- An object literal whose keys are all known at compile time (data properties
+  and methods with identifier, string or name-like keys; no spread, computed
+  key, accessor, `__proto__` or array-index key) has a per-site record
+  (`LiteralSiteLayout`, in `.data`) with its keys in order. Its first
+  evaluation resolves the shape the keys lead to from the literal root
+  (`rt.literalSiteResolve`); every evaluation allocates the object with that
+  shape (`rt.newLiteralObject`, slots undefined) and each definition stores its
+  value into its slot directly, without a transition lookup. The shape is the
+  one the key-by-key definitions would give, so these objects share shapes
+  and inline caches with objects built by assignments. When the shape cannot
+  be resolved (too many shapes or transitions), the site falls back to
+  ordinary definitions. A definition also falls back when the object no longer
+  has the site's shape.
 - Every constructor has its own root (`FunctionLayout.instanceShape`). When an
   instance outgrows the inline slots, the root gets a successor with as many
   slots as that instance now has properties, and later instances start from
