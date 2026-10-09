@@ -35,7 +35,9 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * instances outgrows the inline slots, the root gets a successor with more
  * of them, which later instances start from.
  */
-export const ShapeLayout={parent:0,key:8,count:16,capacity:24,root:32,child:40,sibling:48,children:56,successor:64,next:72,table:80,size:88} as const;
+export const ShapeLayout={parent:0,key:8,count:16,capacity:24,root:32,child:40,sibling:48,children:56,successor:64,next:72,table:80,toJSON:88,size:96} as const;
+/** ShapeLayout.toJSON: whether one of the shape's keys is "toJSON" (its chain is immutable, so the answer is cached): unknown, no, yes. */
+export const ShapeToJSON={unknown:0,no:1,yes:2} as const;
 /** A hash table of a shape's transitions once it has more than tableThreshold: capacity, then {key, child} entries (rt.propKeyHash of the key). */
 export const ShapeTableLayout={capacity:0,entries:8,entry:16} as const;
 const tableThreshold=8;

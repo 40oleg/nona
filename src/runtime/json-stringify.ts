@@ -4,6 +4,8 @@ import {ObjectLayout as O,ObjectFlags,PropertyLayout as P,PropertyAttributes as 
 import {CellTag} from './environment-layout.js';
 import {BoxKind,BoxLayout} from './boxing.js';
 import {stringLiteral} from './value.js';
+import {ShapeLayout,ShapeToJSON,emitSlotAddress} from './shapes.js';
+import {ElementsLayout as E,HoleTag} from './array-elements.js';
 
 export function emitJsonStringify(b:RuntimeBuilder):void {
  for(const [name,value] of [['openArray','['],['closeArray',']'],['openObject','{'],['closeObject','}'],['colon',':']] as const)b.bundle.fragments.push(stringLiteral('rt.json.'+name,value));
@@ -17,12 +19,26 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
  // (both are flagged, so a change to either advances it). Otherwise 0.
  b.data('rt.json.toJSONBit',new Uint8Array(8),'.data');
  b.data('rt.json.protoEpoch',new Uint8Array(8),'.data');
- b.fn('rt.jsonNoToJSON',56,a=>{
-  const no=a.unique('no'),yes=a.unique('yes'),haveBit=a.unique('haveBit'),protoOk=a.unique('protoOk'),done=a.unique('done');
+ b.fn('rt.jsonNoToJSON',72,a=>{
+  const no=a.unique('no'),yes=a.unique('yes'),haveBit=a.unique('haveBit'),protoOk=a.unique('protoOk'),done=a.unique('done'),unshaped=a.unique('unshaped'),ownKeysClear=a.unique('ownKeysClear');
   a.store(slot(40),'rcx');a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',1);a.jcc('a',no);
+  // A shaped object: whether its keys include "toJSON" is a fact about the
+  // (immutable) shape chain, found once and cached on the shape.
+  {const walk=a.unique('walk'),nextShape=a.unique('nextShape'),found=a.unique('found'),none=a.unique('none');
+   a.load('r10',{base:'rcx',disp:O.shape});a.test('r10','r10');a.jcc('e',unshaped);
+   a.store(slot(56),'r10');a.store(slot(48),'r10');a.load('rax',{base:'r10',disp:ShapeLayout.toJSON});a.cmp('rax',ShapeToJSON.yes);a.jcc('e',no);a.cmp('rax',ShapeToJSON.no);a.jcc('e',ownKeysClear);
+   a.label(walk);a.load('r11',slot(48));a.load('r9',{base:'r11',disp:ShapeLayout.parent});a.test('r9','r9');a.jcc('e',none);
+   a.load('r10',{base:'r11',disp:ShapeLayout.key});a.lea('rax',{rip:'rt.json.toJSON'});a.cmp('r10','rax');a.jcc('e',found);
+   a.load('rax',{base:'r10'});a.cmp('rax',6);a.jcc('ne',nextShape);
+   a.mov('rcx','r10');a.lea('rdx',{rip:'rt.json.toJSON'});a.call('rt.compareStrings');a.test('rax','rax');a.jcc('e',found);
+   a.label(nextShape);a.load('r11',slot(48));a.load('r11',{base:'r11',disp:ShapeLayout.parent});a.store(slot(48),'r11');a.jmp(walk);
+   a.label(found);a.load('r10',slot(56));a.mov('rax',ShapeToJSON.yes);a.store({base:'r10',disp:ShapeLayout.toJSON},'rax');a.jmp(no);
+   a.label(none);a.load('r10',slot(56));a.mov('rax',ShapeToJSON.no);a.store({base:'r10',disp:ShapeLayout.toJSON},'rax');a.jmp(ownKeysClear);}
+  a.label(unshaped);
   a.load('rax',{rip:'rt.json.toJSONBit'});a.test('rax','rax');a.jcc('ne',haveBit);
   a.lea('rcx',{rip:'rt.json.toJSON'});a.call('rt.keyFilterBit');a.store({rip:'rt.json.toJSONBit'},'rax');a.load('rcx',slot(40));
   a.label(haveBit);a.load('r10',{base:'rcx',disp:O.keys});a.test('r10','r10');a.jcc('ns',no);a.and('r10','rax');a.jcc('ne',no);
+  a.label(ownKeysClear);a.load('rcx',slot(40));
   a.load('r10',{base:'rcx',disp:O.prototype});a.lea('r11',{rip:'rt.objectPrototype'});a.cmp('r10','r11');a.jcc('e',protoOk);
   a.lea('r11',{rip:'rt.arrayPrototype'});a.cmp('r10','r11');a.jcc('ne',no);
   a.label(protoOk);a.load('rax',{rip:'rt.json.protoEpoch'});a.load('r10',{rip:'rt.shapeEpoch'});a.cmp('rax','r10');a.jcc('e',yes);
@@ -67,7 +83,14 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
  // Appends the serialization of the value to the builder of the state record
  // (fifth argument: replacer, gap, indent, builder) and returns true, or
  // returns undefined and appends nothing when the value is omitted.
- rootedFn(b,'rt.jsonStringifyValue',344,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1},{kind:'locals',offset:328,count:1}],(a,frame)=>{
+ // Plain data takes a direct path: a shaped object (shapes.ts) without
+ // elements and with at most shapedKeyLimit properties has its keys read
+ // off the shape chain into this frame (slot(shapedKeys) on) and its values
+ // read from the slots while the shape stays the same; a dense array element
+ // is read from the element table. Both go through the generic [[Get]] the
+ // moment the object changes under them (toJSON and replacers run user code).
+ const shapedKeyLimit=64,shapedKeys=344;
+ rootedFn(b,'rt.jsonStringifyValue',shapedKeys+8*shapedKeyLimit,[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'},{kind:'value',register:'r8'},{kind:'value',register:'r9'},{kind:'locals',offset:64,count:8},{kind:'locals',offset:248,count:2},{kind:'locals',offset:296,count:1},{kind:'locals',offset:328,count:1}],(a,frame)=>{
   a.store(slot(40),'rcx');a.store(slot(48),'r8');for(const n of [0,8]){a.load('rax',{base:'rdx',disp:n});a.store(slot(64+n),'rax');a.load('rax',{base:'r9',disp:n});a.store(slot(248+n),'rax');}
   // An array index arrives as a Number key (rt.arrayIndexKey); toJSON and the
   // replacer observe the key, so they get its string form.
@@ -107,12 +130,29 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.label(quote);builder();a.load('rdx',slot(72));a.call('rt.builderAppendQuoted');a.jmp(produced);
   a.label(nullValue);appendLiteral('rt.json.null');a.jmp(produced);
   a.label(composite);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',2);a.jcc('e',omitted);
+  // Nesting recurses here: past the stack budget it is a RangeError, as in
+  // a JS prologue (rt.stackLimit), not a crash.
+  {const fits=a.unique('stackFits');a.load('r11',{rip:'rt.stackLimit'});a.cmp('rsp','r11');a.jcc('ae',fits);a.call('rt.throwStackOverflow');a.label(fits);}
   a.load('rax',{base:'r10',disp:O.flags});a.and('rax',ObjectFlags.stringifying);a.test('rax','rax');const enter=a.unique('enter');a.jcc('e',enter);a.call('rt.throwTypeError');a.label(enter);
   a.load('rax',{base:'r10',disp:O.flags});a.or('rax',ObjectFlags.stringifying);a.store({base:'r10',disp:O.flags},'rax');a.load('rax',{rip:'rt.cleanupHead'});a.store(slot(224),'rax');a.store(slot(232),'r10');a.lea('rax',slot(224));a.store({rip:'rt.cleanupHead'},'rax');
-  a.lea('rcx',slot(64));a.call('rt.isArray');a.test('rax','rax');a.jcc('ne',array);a.mov('rax',1);a.store(slot(208),'rax');
-  const ordinaryKeys=a.unique('ordinaryKeys'),keysReady=a.unique('keysReady');a.load('rax',slot(264));a.cmp('rax',5);a.jcc('ne',ordinaryKeys);a.load('r10',slot(272));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',ordinaryKeys);
+  a.lea('rcx',slot(64));a.call('rt.isArray');a.test('rax','rax');a.jcc('ne',array);a.mov('rax',1);a.store(slot(208),'rax');a.store(slot(192),'rax');
+  const ordinaryKeys=a.unique('ordinaryKeys'),keysReady=a.unique('keysReady'),listKeys=a.unique('listKeys');a.load('rax',slot(264));a.cmp('rax',5);a.jcc('ne',ordinaryKeys);a.load('r10',slot(272));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',ordinaryKeys);
   for(const n of [0,8]){a.load('rax',slot(264+n));a.store(slot(144+n),'rax');}a.jmp(keysReady);
-  a.label(ordinaryKeys);a.lea('rcx',slot(144));a.mov('rdx',1);a.lea('r8',slot(64));a.call('rt.Object.keys.fn.code');
+  // Slot 192 is the member source: 1 a key list (slot 144), 2 the shape
+  // chain (keys in slot(shapedKeys), the shape in slot 288, its count in
+  // slot 216). A shaped object's keys are strings that are not indices,
+  // every one an enumerable own data property, in slot order.
+  a.label(ordinaryKeys);
+  {const fill=a.unique('fillKeys'),filled=a.unique('keysFilled');
+   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',listKeys);
+   a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('e',listKeys);a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('ne',listKeys);
+   a.load('rdx',{base:'rax',disp:ShapeLayout.count});a.cmp('rdx',shapedKeyLimit);a.jcc('a',listKeys);
+   a.store(slot(288),'rax');a.store(slot(216),'rdx');a.mov('r10',2);a.store(slot(192),'r10');
+   a.label(fill);a.load('r9',{base:'rax',disp:ShapeLayout.parent});a.test('r9','r9');a.jcc('e',filled);
+   a.load('r8',{base:'rax',disp:ShapeLayout.count});a.sub('r8',1);a.shl('r8',3);a.lea('r11',slot(shapedKeys));a.add('r11','r8');a.load('r10',{base:'rax',disp:ShapeLayout.key});a.store({base:'r11'},'r10');
+   a.mov('rax','r9');a.jmp(fill);
+   a.label(filled);appendLiteral('rt.json.openObject');a.jmp(loop);}
+  a.label(listKeys);a.lea('rcx',slot(144));a.mov('rdx',1);a.lea('r8',slot(64));a.call('rt.Object.keys.fn.code');
   a.label(keysReady);a.load('r10',slot(152));a.load('rax',{base:'r10',disp:O.length});a.store(slot(216),'rax');
   appendLiteral('rt.json.openObject');a.jmp(loop);
   a.label(array);a.mov('rax',0);a.store(slot(208),'rax');
@@ -131,14 +171,38 @@ export function emitJsonStringify(b:RuntimeBuilder):void {
   a.load('r10',slot(208));a.test('r10','r10');a.jcc('ne',objectKey);
   // Array elements are read with a Number key (the dense-element fast path);
   // toJSON and a replacer still receive its string form (see stringKey above).
-  a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');a.jmp('rt.jsonStringifyValue.keyReady');
-  a.label(objectKey);a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
+  a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
+  // A dense element (array-elements.ts) is read from the table; a hole, a
+  // sparse index and an array Proxy take the generic [[Get]].
+  {const generic='rt.jsonStringifyValue.keyReady';
+   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',1);a.jcc('ne',generic);
+   a.load('r11',{base:'r10',disp:O.elements});a.test('r11','r11');a.jcc('e',generic);
+   a.load('rax',slot(200));a.load('r9',{base:'r11',disp:E.capacity});a.cmp('rax','r9');a.jcc('ae',generic);
+   a.shl('rax',4);a.add('rax','r11');a.load('r9',{base:'rax',disp:E.values});a.cmp('r9',HoleTag);a.jcc('e',generic);
+   a.store(slot(112),'r9');a.load('r9',{base:'rax',disp:E.values+8});a.store(slot(120),'r9');a.jmp('rt.jsonStringifyValue.memberRead');}
+  a.label(objectKey);
+  // A shaped object's key comes from the snapshot and its value from the
+  // slot, as long as the object still has the shape the snapshot was taken
+  // from (a toJSON or replacer may have changed it; then the key goes
+  // through [[Get]], which also finds it deleted).
+  {const generic=a.unique('shapedGeneric'),listed=a.unique('listedKey');
+   a.load('rax',slot(192));a.cmp('rax',2);a.jcc('ne',listed);
+   a.load('rax',slot(200));a.shl('rax',3);a.lea('r11',slot(shapedKeys));a.add('r11','rax');a.load('r10',{base:'r11'});a.store(slot(104),'r10');a.mov('rax',4);a.store(slot(96),'rax');
+   a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.shape});a.load('r11',slot(288));a.cmp('rax','r11');a.jcc('ne',generic);
+   a.mov('rcx','r10');a.load('rdx',slot(200));emitSlotAddress(a,'rcx','rdx','rax');
+   a.load('r10',{base:'rax'});a.cmp('r10',CellTag);a.jcc('e',generic);
+   a.store(slot(112),'r10');a.load('r10',{base:'rax',disp:8});a.store(slot(120),'r10');a.jmp('rt.jsonStringifyValue.memberRead');
+   a.label(generic);a.jmp('rt.jsonStringifyValue.keyReady');
+   a.label(listed);}
+  a.load('rax',slot(200));a.cvtsi2sd('xmm0','rax');a.storesd(slot(104),'xmm0');a.mov('rax',3);a.store(slot(96),'rax');
   a.lea('rcx',slot(160));a.lea('rdx',slot(144));a.lea('r8',slot(96));a.call('rt.getProperty');for(const n of [0,8]){a.load('rax',slot(160+n));a.store(slot(96+n),'rax');}
-  // An ordinary object's member is usually still the data node the key came
-  // from: read it directly (a getter, a deleted or inherited member and any
-  // other holder take the generic [[Get]]).
-  {const generic=a.unique('memberGeneric'),read=a.unique('memberRead');
+  // A dictionary-mode object's member is usually still the data node the key
+  // came from: read it directly (a getter, a deleted or inherited member and
+  // any other holder take the generic [[Get]]; a shaped object is not
+  // materialized for the scan).
+  {const generic=a.unique('memberGeneric'),read='rt.jsonStringifyValue.memberRead';
    a.load('rax',slot(96));a.cmp('rax',4);a.jcc('ne',generic);a.load('r10',slot(72));a.load('rax',{base:'r10',disp:O.kind});a.test('rax','rax');a.jcc('ne',generic);
+   a.load('rax',{base:'r10',disp:O.shape});a.test('rax','rax');a.jcc('ne',generic);
    a.mov('rcx','r10');a.load('rdx',slot(104));a.call('rt.ownNamedNodeScan');a.test('rax','rax');a.jcc('e',generic);
    a.load('r10',{base:'rax',disp:P.attributes});a.and('r10',A.accessor);a.jcc('ne',generic);
    a.load('r10',{base:'rax',disp:P.value});a.cmp('r10',CellTag);a.jcc('e',generic);

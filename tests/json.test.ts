@@ -72,3 +72,60 @@ test('JSON fast paths agree with Node.js under GC stress',()=>{
  assert.equal(run.status,0,run.stderr);
  assert.equal(run.stdout,runOracle(fastPathSource).stdout);
 });
+
+// Plain data (issue #45): a shaped object's keys come off its shape chain and
+// its values off the slots, a dense array's elements off the element table;
+// everything that may observe or change the object on the way (toJSON,
+// replacers, getters, deletes, additions, Proxies, many properties, index
+// keys) goes through the generic path. Compared with Node.js under GC stress.
+const plainDataSource=String.raw`
+const log=(...a)=>console.log(a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' '));
+const items=[];for(let i=0;i<40;i++)items.push({id:i,name:'item'+i,tags:['a','b',i%3?'c':'\u00e9\ud83d\ude00'],price:i*1.5,nested:{ok:i%2===0,n:-i,empty:{},list:[]}});
+log(JSON.stringify(items));log(JSON.stringify(items,null,2).length,JSON.stringify(items,['id','nested','n']));
+// Shapes shared between objects, with and without toJSON, added later or on the prototype.
+const a={x:1,y:2},b={x:3,y:4};b.toJSON=function(k){return 'b:'+k};const c={x:5,y:6};
+log(JSON.stringify([a,b,c,{x:7,y:8,toJSON(){return {z:9}}}]));
+Object.prototype.toJSON=function(){return 'proto'};log(JSON.stringify([a,{q:1}]));delete Object.prototype.toJSON;log(JSON.stringify([a,{q:1}]));
+class P{constructor(){this.u=1;this.v=2}}P.prototype.toJSON=function(){return 'P'};log(JSON.stringify({p:new P(),a}));
+// A toJSON or replacer that changes the holder while it is being walked.
+const h={a:1,b:{toJSON(){delete h.c;h.e='added';h.d='changed';return 'B'}},c:3,d:4};log(JSON.stringify(h),Object.keys(h));
+const h2={a:1,b:2,c:3};log(JSON.stringify(h2,function(k,v){if(k==='a'){this.c=30;delete this.b;this.z=1}return v}));
+const arr=[1,{toJSON(){arr.length=1;arr.push('p');return 'T'}},3,4];log(JSON.stringify(arr));
+const arr2=[1,2,3];log(JSON.stringify(arr2,function(k,v){if(k==='0'){arr2[2]=undefined;delete arr2[1]}return v}));
+// Accessors, non-enumerable, symbol and index keys, __proto__, dictionaries.
+const g={get a(){return 'got'},b:1};log(JSON.stringify(g));
+const ne={a:1};Object.defineProperty(ne,'hidden',{value:2,enumerable:false});ne.b=3;log(JSON.stringify(ne));
+const sy={[Symbol('s')]:1,a:2,2:'two',1:'one','-1':'minus','01':'zero one'};log(JSON.stringify(sy));
+const pr={};pr['__proto__']=1;Object.defineProperty(pr,'__proto__',{value:'own',enumerable:true,configurable:true,writable:true});log(JSON.stringify(pr));
+const big={};for(let i=0;i<130;i++)big['k'+i]=i;log(JSON.stringify(big).length,Object.keys(JSON.parse(JSON.stringify(big))).slice(126).join());
+const mid={};for(let i=0;i<70;i++)mid['m'+i]=i%2?i:'s'+i;log(JSON.stringify(mid));
+const del={a:1,b:2,c:3};delete del.b;del.d=4;log(JSON.stringify(del));
+// Holes, sparse and exotic arrays, boxed primitives, undefined and functions in slots.
+const holes=[1,,3];holes.length=6;holes[5]=5;log(JSON.stringify(holes));
+const sparse=[];sparse[3]=1;sparse[100]=2;log(JSON.stringify(sparse));
+const named=[1,2];named.extra='x';log(JSON.stringify(named));
+Array.prototype[1]='inherited';log(JSON.stringify([0,,2]));delete Array.prototype[1];
+log(JSON.stringify([undefined,function(){},Symbol('x'),new Number(1),new String('s'),new Boolean(false),null,NaN,-0,1e21,2**53]));
+log(JSON.stringify({u:undefined,f(){},s:Symbol('x'),n:new Number(2),d:new Date(0),r:/re/,m:new Map([[1,2]])}));
+log(JSON.stringify(new Proxy([1,2],{})),JSON.stringify(new Proxy({a:1,b:2},{get(t,k){return typeof k==='string'&&k in t?t[k]*2:t[k]}})));
+// Cycles are TypeErrors whatever the path, and the object is usable afterwards.
+const cyc={a:{b:{}}};cyc.a.b.c=cyc;try{JSON.stringify(cyc)}catch(e){log(e.name)}cyc.a.b.c=1;log(JSON.stringify(cyc));
+const cya=[[[]]];cya[0][0].push(cya);try{JSON.stringify([cya])}catch(e){log(e.name)}
+`;
+test('JSON.stringify plain-data path agrees with Node.js under GC stress',()=>{
+ const run=runOnHost(plainDataSource);
+ assert.equal(run.status,0,run.stderr);
+ assert.equal(run.stdout,runOracle(plainDataSource).stdout);
+});
+// Nesting past the stack budget is a RangeError, not a crash, and the
+// serializer is usable afterwards (the cycle marks are cleaned up).
+const deepSource=String.raw`
+let deep=1;for(let i=0;i<100000;i++)deep=i%2?[deep]:{d:deep};
+for(let k=0;k<2;k++){try{JSON.stringify(deep)}catch(e){console.log(e.name)}}
+let shallow=1;for(let i=0;i<500;i++)shallow=i%2?[shallow]:{d:shallow};console.log(JSON.stringify(shallow).length,JSON.stringify({still:'works'}));
+`;
+test('JSON.stringify deep nesting is a RangeError',()=>{
+ const run=runOnHost(deepSource,{gcStress:false});
+ assert.equal(run.status,0,run.stderr);
+ assert.equal(run.stdout,runOracle(deepSource).stdout);
+});
