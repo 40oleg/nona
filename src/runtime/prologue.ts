@@ -57,10 +57,13 @@ export function emitPrologue(b:RuntimeBuilder):void {
   a.label(cleared);a.load('r11',{base:'r10',disp:D.allocation});a.add('r11','rax');
   a.load('rcx',{base:'r11',disp:F.incomingThis});a.load('r8',{base:'rcx'});a.load('rcx',{base:'rcx',disp:8});a.store({base:'r9'},'r8');a.store({base:'r9',disp:8},'rcx');a.store({base:'r9',disp:32},'r8');a.store({base:'r9',disp:40},'rcx');
   a.load('rcx',{base:'r11',disp:F.incomingNewTarget});a.load('r8',{base:'rcx'});a.load('rcx',{base:'rcx',disp:8});a.store({base:'r9',disp:16},'r8');a.store({base:'r9',disp:24},'rcx');
-  // The frame's precise root record: the value slots, this, new.target and the super receiver.
+  // The frame's precise root record: the value slots, this, new.target and
+  // the super receiver. The count is negative: the collector scans the
+  // slots the stack map of the current call lists (gc.ts, stack-maps.ts).
   a.load('r11',{rip:'rt.gcRoots'});a.store({base:'rax',disp:F.roots+R.next},'r11');
   a.lea('r11',frame(F.values));a.store({base:'rax',disp:F.roots+R.values},'r11');
-  a.load('r11',{base:'r10',disp:D.slots});a.add('r11',3);a.store({base:'rax',disp:F.roots+R.count},'r11');
+  a.load('r11',{base:'r10',disp:D.slots});a.add('r11',3);a.neg('r11');a.store({base:'rax',disp:F.roots+R.count},'r11');
+  a.load('r11',{base:'r10',disp:D.maps});a.store({base:'rax',disp:F.maps},'r11');
   a.lea('r11',{base:'rax',disp:F.roots});a.store({rip:'rt.gcRoots'},'r11');
   a.ret();
   // The frame was not allocated: the throw runs on the caller's aligned stack.

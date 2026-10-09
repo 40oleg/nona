@@ -95,8 +95,15 @@ payload. Перед каждой сборкой создаётся индекс 
 
 Корни: global Value array, static global object/Object/Array/Function prototypes и цепочка активных
 кадров. Root frame содержит previous, Value array, count (24 байта). Все slots
-инициализируются до регистрации; перед каждой IR operation мёртвые slots
-очищаются по backward liveness. Пролог общий: функция начинается с
+инициализируются до регистрации. У кадра JS-функции count отрицательный: какие
+slots сканировать, определяет stack map функции (`src/runtime/stack-maps.ts`) —
+для адреса возврата каждого вызова, который делает функция, битовая карта живых
+locations (backward liveness плюс destinations операции). Сборщик (`rt.gcMarkFrame`)
+читает адрес возврата под root frame, находит запись и сканирует только
+перечисленные locations и slots this/new.target/super receiver. Мёртвые slots
+не очищаются; только destination, мёртвый до операции, получает tag undefined
+(один байт), так как runtime может держать в нём результат через вложенный вызов.
+Пролог общий: функция начинается с
 `lea r10,[descriptor]; call rt.enterFrame` (`src/runtime/prologue.ts`), и stub
 по статическому дескриптору (размер кадра, число slots и параметров) проверяет
 лимит стека, строит кадр под адресом возврата функции, копирует this,
