@@ -289,8 +289,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         default:return false;
       }
     };
+    // The slots that may hold a rope: results of a string `+` and of a
+    // global read, and whatever a rope-transparent operation passes on from
+    // such a slot (copies, template string conversion). Every other result
+    // comes from the runtime or a call, which never return a rope, so only
+    // these slots need a test (flow-insensitive, to a fixed point).
+    const ropeSlots=new Set<number>();
+    const passesString=(op:Operation):boolean=>{
+      if(op.kind==='binary'||op.kind==='property'||op.kind==='constant'||op.kind==='uninitialized')return false;
+      if(op.kind==='unary')return op.operator==='string'&&!op.numeric;
+      return ropeTransparent(op);
+    };
+    for(let changed=true;changed;){
+      changed=false;
+      for(const block of fn.blocks)for(const op of block.operations){
+        const may=(op.kind==='binary'&&op.operator==='+'&&!op.numeric)||op.kind==='loadGlobal'||(passesString(op)&&operationUses(op).some(n=>ropeSlots.has(n)));
+        if(may)for(const d of destinations(op))if(!ropeSlots.has(d)){ropeSlots.add(d);changed=true;}
+      }
+    }
     const flattenSlot=(n:number)=>{
-      if(staticConstant(n))return;
+      if(staticConstant(n)||!ropeSlots.has(n))return;
       const flat=a.unique('flat'),check=a.unique('ropeCheck');
       a.load('rax',value(n));a.cmp('rax',4);a.jcc('e',check);a.label(flat);
       cold.push(()=>{a.label(check);a.load('r10',payload(n));a.load('rax',{base:'r10'});a.mov('r11',ropeTag);a.test('rax','r11');a.jcc('e',flat);pointer('rcx',n);a.call('rt.flattenValue');a.jmp(flat);});
