@@ -71,6 +71,9 @@ only marks their keys.
   at least four slots, the elements undefined), and each element is stored
   into its slot by the generated code, instead of a table built and grown by
   `rt.setProperty` definitions.
+- `rt.newShapedObject` (object literals and constructor instances) takes an
+  uncleared cell (`rt.allocRaw`) and writes every header field and inline
+  slot itself.
 - Every constructor has its own root (`FunctionLayout.instanceShape`). When an
   instance outgrows the inline slots, the root gets a successor with as many
   slots as that instance now has properties, and later instances start from
