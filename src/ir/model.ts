@@ -44,7 +44,7 @@ export type Operation =
   | {kind:'derivedReturn';dest:number;source:number}
   | {kind:'newArguments';dest:number;parameters:number[];/** Non-simple parameter list: unmapped, callee is %ThrowTypeError%. */unmapped?:boolean} // -1: earlier duplicate, no mapping
   | {kind:'newRestArray';dest:number;start:number}
-  | {kind:'newObject';dest:number;array:boolean;length:number;slots?:number;/** An object literal whose keys are all known (#194): its distinct keys in order. The final shape is resolved once per site. */keys?:string[]}
+  | {kind:'newObject';dest:number;array:boolean;length:number;slots?:number;/** An object literal whose keys are all known (#194): its distinct keys in order. The final shape is resolved once per site. */keys?:string[];/** An array literal of `length` elements without holes or spread (#48): created with its element table, every element undefined until its definition stores it. */elements?:boolean}
   | {kind:'forInKeys';dest:number;object:number}
   | {kind:'forInHas';dest:number;object:number;key:number}
   | {kind:'getIterator';iterator:number;next:number;object:number}
@@ -53,7 +53,7 @@ export type Operation =
   | {kind:'requireIterable';object:number}
   | {kind:'forOfValue';dest:number;iterable:number;index:number}
   | {kind:'property';strict?:boolean;operation:'get'|'delete'|'has';dest:number;object:number;key:number;/** The key is this literal name (`object.name`): the read may use an inline cache. */keyName?:string}
-  | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean;/** `object.name = value`: the write may use an inline cache. */keyName?:string;/** The initial definition of key `keys[literalSlot]` of the object literal `object` (a newObject with keys). */literalSlot?:number}
+  | {kind:'setProperty';strict?:boolean;object:number;key:number;source:number;define:boolean;/** `object.name = value`: the write may use an inline cache. */keyName?:string;/** The initial definition of key `keys[literalSlot]` of the object literal `object` (a newObject with keys). */literalSlot?:number;/** The initial definition of element `literalElement` of the array literal `object` (a newObject with elements). */literalElement?:number}
   | {kind:'defineAccessor';object:number;key:number;source:number;setter:boolean;nonEnumerable?:boolean}
   | {kind:'setPrototype';object:number;prototype:number}
   | {kind:'uninitialized';dest:number}

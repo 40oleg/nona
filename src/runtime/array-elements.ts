@@ -59,6 +59,22 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   const loop=a.unique('loop'),done=a.unique('done');a.lea('r11',{base:'rax',disp:E.values});a.shl('r10',4);a.add('r10','r11');a.mov('r9',HoleTag);
   a.label(loop);a.cmp('r11','r10');a.jcc('ae',done);a.store({base:'r11'},'r9');a.add('r11',16);a.jmp(loop);a.label(done);
  });
+ // RCX result Value*, RDX element count (at least 1): a new array of that
+ // length for an array literal without holes or spread (#48), with its
+ // element table (at least four slots, a power of two) and every element
+ // undefined: the literal's definitions store the values into the slots
+ // before anything can observe the array. One call instead of a table
+ // built and grown by the first definitions.
+ b.fn('rt.newArrayLiteral',56,a=>{
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.mov('r8','rdx');a.mov('rdx',1);a.call('rt.newObject');
+  a.load('rdx',slot(48));a.mov('rcx',4);{const grow=a.unique('grow'),sized=a.unique('sized');a.label(grow);a.cmp('rcx','rdx');a.jcc('ae',sized);a.shl('rcx',1);a.jmp(grow);a.label(sized);}
+  a.call('rt.elementsAlloc');
+  a.load('rdx',slot(48));a.store({base:'rax',disp:E.count},'rdx');
+  {const loop=a.unique('loop'),done=a.unique('done');a.lea('r10',{base:'rax',disp:E.values});a.shl('rdx',4);a.add('rdx','r10');a.mov('r11',0);
+   a.label(loop);a.cmp('r10','rdx');a.jcc('ae',done);a.store({base:'r10'},'r11');a.store({base:'r10',disp:8},'r11');a.add('r10',16);a.jmp(loop);a.label(done);}
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.store({base:'rcx',disp:O.elements},'rax');
+ });
  // RCX object without a table, RDX minimum capacity. Counts the index-keyed
  // nodes already in the list so that creation knows whether any exist.
  b.fn('rt.elementsBuild',72,a=>{

@@ -66,6 +66,11 @@ only marks their keys.
   be resolved (too many shapes or transitions), the site falls back to
   ordinary definitions. A definition also falls back when the object no longer
   has the site's shape.
+- An array literal without holes or spread (at most 4096 elements) is
+  created by `rt.newArrayLiteral` with its element table (a power of two of
+  at least four slots, the elements undefined), and each element is stored
+  into its slot by the generated code, instead of a table built and grown by
+  `rt.setProperty` definitions.
 - Every constructor has its own root (`FunctionLayout.instanceShape`). When an
   instance outgrows the inline slots, the root gets a successor with as many
   slots as that instance now has properties, and later instances start from

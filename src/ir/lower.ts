@@ -80,6 +80,8 @@ function staticLiteralKeys(e:A.ObjectLiteral):string[]|undefined {
   }
   return keys.length&&keys.length<=maxInlineCapacity?keys:undefined;
 }
+/** Most elements an array literal created with its element table has (#48); longer literals are built element by element. */
+const maxLiteralElements=4096;
 class Lowerer {
   private blocks:BlockIR[]=[];
   private handlers:number[]=[];
@@ -807,9 +809,12 @@ class Lowerer {
       case 'ObjectLiteral':case 'ArrayLiteral': {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
         const keys=e.kind==='ObjectLiteral'?staticLiteralKeys(e):undefined;
-        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{}),...(keys?{keys}:{})});
+        // An array literal without holes or spread is created with its
+        // element table, and its elements are stored into it (#48).
+        const elements=e.kind==='ArrayLiteral'&&!spread&&e.elements.length>0&&e.elements.length<=maxLiteralElements&&e.elements.every(item=>item!==null);
+        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{}),...(keys?{keys}:{}),...(elements?{elements:true}:{})});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
-          if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
+          if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true,...(elements?{literalElement:i}:{})});}
         });
         else if(e.kind==='ArrayLiteral'){
           const index=this.slot(),zero=this.constant(0),one=this.constant(1);this.emit({kind:'copy',dest:index,source:zero});
