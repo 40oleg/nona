@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {eventsPreludeSource} from '../src/runtime/events-source.js';
 import {asyncHooksPreludeSource} from '../src/runtime/async-hooks-source.js';
-import {eventsModuleSource} from '../src/frontend/events-module.js';
+import {eventsModuleSource} from '../src/runtime/events-module-source.js';
 import {asyncHooksModuleSource} from '../src/frontend/async-hooks-module.js';
 import {compile} from '../src/compiler.js';
 import {removeTemporaryDirectory} from './helpers/cleanup.js';

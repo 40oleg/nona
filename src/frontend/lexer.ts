@@ -1,14 +1,17 @@
 import { CompileError } from '../diagnostics.js';
-import {runInNewContext} from 'node:vm';
-import {regexpVmSource} from '../runtime/regexp-vm-source.js';
-import {type RuntimeLink,type OptionalPrelude,optionalPreludes,preludeSet,preludeTriggers,reflectiveNames} from '../runtime/link.js';
+import {type RuntimeLink,type OptionalPrelude,optionalPreludes,preludeSet,preludeTriggers,reflectiveNames} from '../link.js';
 import type { Token,TokenStream } from './token.js';
 
-let compileRegExpPattern:((pattern:string,flags:string)=>unknown)|undefined;
-function validateRegExpPattern(pattern:string,flags:string):void {
-  compileRegExpPattern??=(runInNewContext(regexpVmSource) as {compile:(pattern:string,flags:string)=>unknown}).compile;
-  compileRegExpPattern(pattern,flags);
-}
+/** Throws when a RegExp literal's pattern is invalid for the given (already checked) flags. */
+export type RegExpValidator=(pattern:string,flags:string)=>void;
+let regExpValidator:RegExpValidator|undefined;
+/**
+ * Installs the RegExp literal validator. The lexer does not depend on the
+ * runtime: compiler.ts installs the runtime's pattern compiler
+ * (src/regexp-validator.ts). Without a validator only the flags are checked.
+ */
+export function setRegExpValidator(validator:RegExpValidator|undefined):void {regExpValidator=validator;}
+function validateRegExpPattern(pattern:string,flags:string):void {regExpValidator?.(pattern,flags);}
 
 /**
  * What the lexed sources can reach of the optional runtime parts. A RegExp

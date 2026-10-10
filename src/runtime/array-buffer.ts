@@ -5,10 +5,9 @@ import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {emitNativeFunction,prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
-import {SharedArrayBufferKind} from './shared-array-buffer.js';
+import {ArrayBufferKind,ArrayBufferLayout,SharedArrayBufferKind} from './array-buffer-layout.js';
 
-export const ArrayBufferKind=11;
-export const ArrayBufferLayout={bytes:O.size,byteLength:O.size+8,detached:O.size+16,size:O.size+24} as const;
+export {ArrayBufferKind,ArrayBufferLayout};
 export const arrayBufferRoots=['rt.arrayBufferByteLength.fn','rt.ArrayBuffer.species.fn','rt.arrayBufferCopy.fn','rt.ArrayBuffer.isView.fn','rt.arrayBufferDetach.fn','rt.arrayBufferAlignment.fn'];
 export const arrayBufferPropertyRoots=['rt.arraybufferPrototype.byteLength','rt.arraybufferPrototype.@@toStringTag','rt.ArrayBuffer.@@species',...arrayBufferRoots.slice(0,2).flatMap(name=>[name+'.name',name+'.length']),...builtinPropertyRoots('rt.arrayBufferCopy.fn','__nonaCopyInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.ArrayBuffer.isView.fn','isView','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferDetach.fn','__nonaDetachInternal','rt.ArrayBuffer'),...builtinPropertyRoots('rt.arrayBufferAlignment.fn','__nonaAlignmentInternal','rt.ArrayBuffer')];
 

@@ -7,15 +7,9 @@ import {prependFunctionBuiltin,emitNativeFunction,builtinPropertyRoots} from './
 import {stringLiteral} from './value.js';
 import {HandlerLayout as EH,preservedGp,preservedXmm} from './exception-layout.js';
 import {FunctionKind} from './functions.js';
-import {mapIndexThreshold} from './map-index.js';
+import {MapKind,MapLayout,MapEntryLayout,mapIndexThreshold} from './map-layout.js';
 
-export const MapKind=15;
-/** index: raw-heap hash table from key to entry (map-index.ts), or 0.
- * weakNext: the next WeakMap or WeakSet on rt.weakList (gc.ts). */
-export const MapLayout={head:O.size,tail:O.size+8,count:O.size+16,index:O.size+24,weakNext:O.size+32,size:O.size+40} as const;
-/** hash: the key's rt.mapKeyHash, stored once at insertion. */
-/** weak: 1 for a WeakSet entry, whose value is its key and must not keep it alive. */
-export const MapEntryLayout={next:0,key:8,value:24,active:40,hash:48,weak:56,size:64} as const;
+export {MapKind,MapLayout,MapEntryLayout};
 const methods=['clear','delete','get','has','set'] as const;
 export const mapRoots=['rt.Map.species.fn','rt.mapSize.fn','rt.map.forEach.fn',...methods.map(name=>'rt.map.'+name+'.fn')];
 export const mapPropertyRoots=['rt.Map.@@species','rt.Map.species.fn.name','rt.Map.species.fn.length','rt.mapPrototype.size','rt.mapPrototype.@@toStringTag',...mapRoots.slice(1).flatMap(name=>name==='rt.mapSize.fn'?[name+'.name',name+'.length']:builtinPropertyRoots(name,name.slice(7,-3),'rt.mapPrototype'))];

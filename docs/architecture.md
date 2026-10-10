@@ -40,8 +40,11 @@ source text
 | `src/backend/machine/` | The target context: which assembler a compilation uses |
 | `src/backend/{pe,elf,macho}/` | File format writers |
 | `src/backend/{linux,darwin,bsd}/` | Operating system adapters: entry code, system-call shims, linking |
+| `src/*.ts` | The compiler driver (`compiler.ts`, `cli.ts`), targets, diagnostics, and data shared by the layers: the optional runtime parts and their triggers (`link.ts`), object model limits (`shape-limits.ts`), the lexer's RegExp literal validator (`regexp-validator.ts`) |
 | `tests/` | Unit and integration tests; probe programs are in `tests/probes/` |
 | `scripts/`, `bench/`, `site/`, `programs/`, `examples/` | Build and audit scripts, benchmarks, the documentation site, the program corpus and examples |
+
+Layer direction: `src/frontend/` and `src/ir/` import nothing from `src/runtime/` or `src/backend/`, `src/runtime/` imports nothing from `src/frontend/`, and value imports form no cycles (`tests/module-boundaries.test.ts`). The backend compiles the JavaScript preludes with the frontend.
 
 ## Values and memory
 
@@ -151,7 +154,7 @@ The operating system adapters supply what differs per OS: the entry code, the sy
 
 Large parts of the built-ins are JavaScript: the RegExp engine, Promise machinery, Proxy, Reflect, timers, Buffer, `process`, streams and the `node:*` modules (`src/runtime/*-source.ts`, `src/frontend/*-module.ts`). They are compiled by the same pipeline as the program and share its runtime. They talk to native code through the `__nonaRegexpVm` intrinsic object (see #183).
 
-Optional runtime parts are linked only when the program can reach them. The lexer records every identifier, property name and string literal it sees (`collectSourceUsage`), and `src/runtime/link.ts` maps trigger names to preludes; `--full-runtime` links everything. This is a lexical rule, documented in the site's compatibility guide and tracked in #182. The compiled runtime and prelude image is cached on disk (`BaseImageCache`, `src/cache.ts`), so a build only compiles the program.
+Optional runtime parts are linked only when the program can reach them. The lexer records every identifier, property name and string literal it sees (`collectSourceUsage`), and `src/link.ts` maps trigger names to preludes; `--full-runtime` links everything. This is a lexical rule, documented in the site's compatibility guide and tracked in #182. The compiled runtime and prelude image is cached on disk (`BaseImageCache`, `src/cache.ts`), so a build only compiles the program.
 
 ## Tests and verification
 

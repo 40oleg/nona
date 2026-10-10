@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot} from './abi.js';
-import {DateLayout} from './date.js';
+import {DateLayout} from './date-layout.js';
 import {stringLiteral} from './value.js';
 
 export const dateStringMethods=['toUTCString','toDateString','toTimeString','toString','toLocaleDateString','toLocaleTimeString','toLocaleString'] as const;

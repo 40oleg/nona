@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn} from './root-scope.js';
 import {ObjectLayout as O} from './object-layout.js';
-import {DateKind,DateLayout} from './date.js';
+import {DateKind,DateLayout} from './date-layout.js';
 
 export const dateMinuteSetters=['setMinutes','setUTCMinutes'] as const;
 

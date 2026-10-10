@@ -15,7 +15,7 @@ import {lex} from '../src/frontend/lexer.js';
 import {parse} from '../src/frontend/parser.js';
 
 async function originalEvents(){
- const provider=await import('../src/frontend/events-module.js');
+ const provider=await import('../src/runtime/events-module-source.js');
  const body=provider.eventsModuleSource.replace(/^import .*$/gm,'').replace('export default EventEmitter;','return EventEmitter;').replace(/\bexport /g,'');
  return new Function('AsyncResource','EventTarget',body)(AsyncResource,EventTarget);
 }

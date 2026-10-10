@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {eventsModuleSource} from '../src/frontend/events-module.js';
+import {eventsModuleSource} from '../src/runtime/events-module-source.js';
 import {compile} from '../src/compiler.js';
 import {removeTemporaryDirectory} from './helpers/cleanup.js';
 

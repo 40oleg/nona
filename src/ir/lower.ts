@@ -4,7 +4,7 @@ import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../front
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
 import {CompileError,internalError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
-import {maxInlineCapacity} from '../runtime/shapes.js';
+import {maxInlineCapacity} from '../shape-limits.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
 type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string;/** `object.#name`: key holds the private name record */privateName?:boolean;privateKind?:A.PrivateName['privateKind']};

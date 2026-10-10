@@ -13,8 +13,9 @@ import {dateMonthSetters} from './date-month-setters.js';
 import {dateYearSetters} from './date-year-setters.js';
 import {dateStringMethods} from './date-strings.js';
 
-export const DateKind=7;
-export const DateLayout={time:O.size,size:O.size+8} as const;
+import {DateKind,DateLayout} from './date-layout.js';
+
+export {DateKind,DateLayout};
 const timeParts=[
  ['getMilliseconds',1,1000],['getUTCMilliseconds',1,1000],
  ['getSeconds',1000,60],['getUTCSeconds',1000,60],

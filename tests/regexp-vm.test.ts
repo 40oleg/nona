@@ -2,9 +2,11 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {expectProgram} from './helpers/program.js';
 import {regexpVmSource} from '../src/runtime/regexp-vm-source.js';
-import {lex} from '../src/frontend/lexer.js';
+import {lex,setRegExpValidator} from '../src/frontend/lexer.js';
+import {validateRegExp} from '../src/regexp-validator.js';
 
 test('RegExp literals use the Nona grammar during lexing',()=>{
+  setRegExpValidator(validateRegExp);
   assert.equal(lex(String.raw`/\u{000000003f}/u`)[0]?.kind,'regexp');
   assert.equal(lex('/[𝌆]/u')[0]?.kind,'regexp');
   assert.throws(()=>lex('/(?<x>a)|(?<x>b)/'),/Invalid regular expression pattern/);

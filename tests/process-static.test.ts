@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {types} from 'node:util';
 import {compile,compileToIR} from '../src/compiler.js';
 import {collectSourceUsage} from '../src/frontend/lexer.js';
-import {runtimeRegExpLink} from '../src/runtime/link.js';
+import {runtimeRegExpLink} from '../src/link.js';
 import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
 import {captureProcessStartup} from '../src/runtime/process-host.js';
 import {Assembler} from '../src/backend/x64/assembler.js';
