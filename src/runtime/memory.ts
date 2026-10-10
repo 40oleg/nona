@@ -6,6 +6,9 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {ObjectLayout as O} from './object-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 
+/** The smallest collection threshold, in managed bytes. */
+export const minimumGcThreshold=8<<20;
+
 /**
  * Managed heap: size-classed cells carved from fixed chunks.
  *
@@ -66,6 +69,10 @@ export const largeCacheLimit=16,largeCacheMaxBytes=8<<20;
 const C=ChunkLayout,L=LargeLayout;
 /** Page map entry: granule, mapping base, large flag. */
 const T={key:0,base:8,large:16,size:24} as const;
+/** R11 holds the new rt.liveBytes (or rt.generatorStackBytes) total: raises rt.gcNeeded when the sum reaches the threshold. Clobbers R11. */
+export function noteManagedBytes(a:Assembler,other:'rt.generatorStackBytes'|'rt.liveBytes'):void {
+ const below=a.unique('belowThreshold');a.addMemory('r11',{rip:other});a.cmpMemory('r11',{rip:'rt.gcThreshold'});a.jcc('b',below);a.storeByte({rip:'rt.gcNeeded'},1);a.label(below);
+}
 const times24=(a:Assembler,dst:'r11'|'r10'|'rax',src:'rax'|'r11'|'r10'|'r9')=>{a.mov(dst,src);a.shl(dst,1);a.add(dst,src);a.shl(dst,3);};
 
 export function emitMemory(b:RuntimeBuilder):void {
@@ -76,6 +83,17 @@ export function emitMemory(b:RuntimeBuilder):void {
  b.data('rt.fatalActive',new Uint8Array(8),'.data');
  b.data('rt.heap',new Uint8Array(8),'.data');
  for(const name of ['rt.blocks','rt.liveBytes','rt.chunks','rt.largeList','rt.largeCache','rt.largeCacheCount','rt.chunkTable','rt.chunkCount','rt.chunkUsed','rt.chunkCapacity'])b.data(name,new Uint8Array(8),'.data');
+ // Nonzero once the managed bytes reach rt.gcThreshold: the safepoints of
+ // compiled code test this one byte (codegen.ts) and call rt.collect, which
+ // clears it with the new threshold.
+ b.data('rt.gcNeeded',new Uint8Array(8),'.data');
+ // The collection threshold (rt.collect raises it after each collection);
+ // the allocator compares the managed byte count with it.
+ const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,BigInt(minimumGcThreshold),true);
+ b.data('rt.gcThreshold',threshold,'.data');
+ // Generator stacks count toward the collection threshold with the heap
+ // (noteManagedBytes), so the allocator needs their byte count too.
+ b.data('rt.generatorStackBytes',new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
  b.data('rt.classState',new Uint8Array(4*8*classCount),'.data');
  // Per class: the first chunk not yet swept since the last collection.
@@ -245,7 +263,7 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.label(ready);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.greyNext])a.store({base:'rax',disp:offset},'r10');
   // Allocated marked: an unswept chunk keeps it (only the next collection decides).
   a.load('r10',{rip:'rt.gcEpoch'});a.store({base:'rax',disp:H.marked},'r10');
-  a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
+  a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');noteManagedBytes(a,'rt.generatorStackBytes');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);const done=a.unique('done');a.jmp(done);
   // Large: a mapping of its own, listed for the sweep; a cached mapping of
@@ -269,7 +287,7 @@ export function emitMemory(b:RuntimeBuilder):void {
   a.store(slot(56),'rax');a.mov('rcx','rax');a.load('rdx',slot(64));a.call('rt.largeMapPages');
   // The block header is written in full: a reused mapping still carries the old one.
   a.load('rax',slot(56));a.add('rax',L.size);a.load('r10',slot(40));a.store({base:'rax',disp:H.bytes},'r10');a.mov('r10',0);for(const offset of [H.next,H.kind,H.greyNext])a.store({base:'rax',disp:offset},'r10');a.load('r10',{rip:'rt.gcEpoch'});a.store({base:'rax',disp:H.marked},'r10');
-  a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');
+  a.load('r10',slot(64));a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r10');a.store({rip:'rt.liveBytes'},'r11');noteManagedBytes(a,'rt.generatorStackBytes');
   a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
   a.add('rax',H.size);a.label(done);
  });

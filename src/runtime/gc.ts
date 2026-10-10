@@ -69,7 +69,8 @@ import {stringReplaceRoots,stringReplacePropertyRoots} from './string-replace.js
  * buffers (a server receiving request bodies) collect every few hundred
  * kilobytes of garbage.
  */
-export const minimumGcThreshold=8<<20;
+import {minimumGcThreshold} from './memory.js';
+export {minimumGcThreshold};
 
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 /** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
@@ -78,8 +79,6 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   b.data('rt.'+name,new Uint8Array(8),'.data');
  // Nonzero once a cloned realm is initialized; the main realm is always live.
  b.data('rt.realmReady',new Uint8Array([1,0,0,0,0,0,0,0]),'.data');
- const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,BigInt(minimumGcThreshold),true);
- b.data('rt.gcThreshold',threshold,'.data');
 
  // Only typed pointers reach this function. A string descriptor can be interior
  // to a formatting buffer. Static literals are not in any mapping and are ignored.
@@ -412,10 +411,9 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.call('rt.keyHashCacheClear');a.load('rax',{rip:'rt.shapeEpoch'});a.add('rax',1);a.store({rip:'rt.shapeEpoch'},'rax');
   a.label(finish);a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.add('rax','rax');
   const thresholdReady=a.unique('thresholdReady');a.cmp('rax',minimumGcThreshold);a.jcc('ae',thresholdReady);a.mov('rax',minimumGcThreshold);
-  a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');
+  a.label(thresholdReady);a.store({rip:'rt.gcThreshold'},'rax');a.storeByte({rip:'rt.gcNeeded'},0);
  });
  b.fn('rt.safepoint',40,a=>{
-  const done=a.unique('done');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',done);
-  a.call('rt.collect');a.label(done);
+  a.cmpByte({rip:'rt.gcNeeded'},0);a.callUnless('e','rt.collect');
  });
 }

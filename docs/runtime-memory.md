@@ -96,7 +96,14 @@ payload. Перед каждой сборкой создаётся индекс 
 Корни: global Value array, static global object/Object/Array/Function prototypes и цепочка активных
 кадров. Root frame содержит previous, Value array, count (24 байта). Все slots
 инициализируются до регистрации; перед каждой IR operation мёртвые slots
-очищаются по backward liveness. Аргументы остаются в caller slots до копирования
+очищаются по backward liveness. Пролог общий: функция начинается с
+`lea r10,[descriptor]; call rt.enterFrame` (`src/runtime/prologue.ts`), и stub
+по статическому дескриптору (размер кадра, число slots и параметров) проверяет
+лимит стека, строит кадр под адресом возврата функции, копирует this,
+new.target и аргументы, регистрирует root frame и возвращается в функцию.
+Safepoint в начале блока — проверка одного байта `rt.gcNeeded`: аллокатор
+поднимает флаг, когда managed bytes (liveBytes + generator stacks) достигают
+`rt.gcThreshold`, `rt.collect` сбрасывает его вместе с новым порогом. Аргументы остаются в caller slots до копирования
 в callee. Результат копируется в caller до снятия callee root frame.
 
 Receiver передаётся пятым аргументом Windows x64 ABI (caller stack+32).
