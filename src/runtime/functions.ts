@@ -6,7 +6,7 @@ import {ObjectLayout as O,ObjectFlags as OF,PropertyLayout as P,PropertyAttribut
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {stringLiteral} from './value.js';
 import {BoundDataLayout as B} from './bound-layout.js';
-import {TailCallTag} from './tail-calls.js';
+import {TailCallTag,ConstructErrorTag} from './tail-calls.js';
 import {RealmFlagShift,realmTable} from './constructor-prototype.js';
 
 /** Inline property nodes of a constructor's first instances. */
@@ -154,14 +154,21 @@ export function emitFunctions(b:RuntimeBuilder):void {
    const ordinaryCall=a.unique('ordinaryCall');a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});
    a.load('r10',{base:'r10',disp:FunctionLayout.generator});a.test('r10','r10');a.jcc('e',ordinaryCall);
    // 2: async function, 3: async generator. The internal coroutine is handed
-   // to the Promise prelude, which returns the public promise or generator.
+   // to the Promise prelude of the callee's realm, which returns the public
+   // promise or generator (that realm's %Promise%, and the async generator
+   // state its own AsyncGenerator.prototype methods look up).
    const syncGenerator=a.unique('syncGenerator'),asyncGenerator=a.unique('asyncGenerator');
+   const startAsync=(mode:number)=>{
+    a.load('r10',slot(48));a.load('r10',{base:'r10',disp:8});a.load('r10',{base:'r10',disp:FunctionLayout.realm});a.and('r10',255);a.shl('r10',3);
+    a.lea('r11',{rip:realmTable('rt.startAsync')});a.add('r11','r10');a.load('r11',{base:'r11'});
+    a.load('rcx',slot(40));a.mov('rdx',mode);a.callRegister('r11');
+   };
    a.cmp('r10',1);a.jcc('e',syncGenerator);a.cmp('r10',3);a.jcc('e',asyncGenerator);
    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newAsyncCoroutine');
-   a.load('rcx',slot(40));a.mov('rdx',2);a.call('rt.startAsync');a.jmp(done);
+   startAsync(2);a.jmp(done);
    a.label(asyncGenerator);
    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newGenerator');
-   a.load('rcx',slot(40));a.mov('rdx',3);a.call('rt.startAsync');a.jmp(done);
+   startAsync(3);a.jmp(done);
    a.label(syncGenerator);
    a.load('rcx',slot(40));a.load('rdx',slot(48));a.load('r8',slot(56));a.load('r9',slot(64));a.call('rt.newGenerator');a.jmp(done);
    a.label(ordinaryCall);
@@ -183,6 +190,9 @@ export function emitFunctions(b:RuntimeBuilder):void {
   if(!tailTarget){
    const value=a.unique('value');a.load('rcx',slot(96));a.load('rax',{base:'rcx'});a.cmp('rax',TailCallTag);a.jcc('ne',value);
    a.call('rt.tailDispatch');a.label(value);
+   // A derived constructor's result error, thrown by the caller's realm.
+   if(construct){a.load('rcx',slot(96));a.load('rax',{base:'rcx'});a.cmp('rax',ConstructErrorTag);a.jcc('ne',done);
+    a.load('rax',{base:'rcx',disp:8});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.call('rt.throwReferenceError');}
   }
   a.label(done);
  });

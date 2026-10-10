@@ -1361,7 +1361,12 @@ class Lowerer {
     if(this.moduleIndex===-1)this.moduleMain();
     body.forEach(s=>this.statement(s));
     if(this.moduleIndex===-1&&this.bound.ast.module&&!this.terminated)this.preludeCall('evaluateModule',[this.constant(0)]);
-    if(!this.terminated)this.end({kind:'return',value:this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor?this.currentThis():this.constant(undefined)});
+    // A derived constructor that falls off its end returns its `this`; the
+    // ReferenceError of one never initialized is the caller's (derivedReturn).
+    if(!this.terminated&&this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor){
+      const checked=this.slot();this.emit({kind:'derivedReturn',dest:checked,source:this.constant(undefined)});this.end({kind:'return',value:checked});
+    }
+    if(!this.terminated)this.end({kind:'return',value:this.constant(undefined)});
     return {id:this.fn?`${this.fn.realmLocal?'js.rfn':'js.fn'}.${this.fn.index}`:this.moduleIndex!==undefined&&this.moduleIndex>=0?`js.module.${this.moduleIndex}`:'js.main',name:this.fn?.declaration.id?.name??(this.fn?'<anonymous>':'<main>'),parameterCount:this.fn?.parameters.length??0,localCount:this.fn?.locals.length??this.bound.mainLocals.length,slotCount:this.slots,maxArguments:this.maxArguments,handlerCount:this.handlerCount,derivedConstructor:this.fn?.declaration.kind==='FunctionExpression'&&this.fn.declaration.derivedConstructor===true,generator:this.fn?.declaration.generator===true||this.fn?.declaration.async===true,blocks:this.blocks};
   }
 }

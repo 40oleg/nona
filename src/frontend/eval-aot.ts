@@ -325,6 +325,13 @@ export function lowerLiteralEval(program:A.Program):A.Program {
   constantScan(program.body);
   for(const [name,values] of constants)if(poisoned.has(name)||values.size>4)constants.delete(name);
   const factories:A.Statement[]=[];
+  // While compiling another realm's eval code: helpers that are otherwise
+  // hoisted to the program's top level (Function(...) factories, nested
+  // indirect evals, x.eval/x.Function guards) are written inline instead, so
+  // that they are part of the realm-local maker (compiled per realm, running
+  // in that realm) and visible from its global code, which as dynamic code
+  // sees no enclosing scope.
+  let inForeign=false;
   const globalInfo:FunctionInfo={node:null,strict:!!program.strict||!!program.module,arrow:false,varNames:staticVarNames(program),evalNames:new Set(),topLexicals:lexicalNames(program.body,false)};
   const programGlobalInfo=globalInfo;
   // The global code of another realm: none of this program's declarations.
@@ -335,6 +342,8 @@ export function lowerLiteralEval(program:A.Program):A.Program {
    * foreign: indirect eval code of another realm's %eval%, compiled into a
    * realm-local maker, so the global code knows nothing of this program's globals. */
   const compileEval=(source:string,ctx:Context,indirect:boolean,span:Span,foreign=false):A.Expression=>{
+    // Eval code nested in another realm's eval code belongs to that realm too.
+    foreign||=inForeign;
     const globalInfo=foreign?foreignGlobalInfo:programGlobalInfo;
     const parsed=parseEval(source,ctx,indirect);
     if('error'in parsed)return throwSyntax(parsed.error,span);
@@ -349,8 +358,26 @@ export function lowerLiteralEval(program:A.Program):A.Program {
         if(n.kind==='Identifier'&&n.name?.startsWith(dynamicFactoryPrefix))n.name=n.name.replace(dynamicFactoryPrefix,tag);
         for(const [key,value] of Object.entries(n))if(key!=='span'&&key!=='sourceSpan')rename(value);
       };
-      rename(parsed.factories);rename(parsed.body);
-      factories.push(...parsed.factories);
+      if(foreign){
+        // Each factory has one call site: replace its name with the factory itself.
+        const inline=new Map(parsed.factories.map(f=>{const d=f as A.FunctionDeclaration;
+          return [d.id.name,{kind:'FunctionExpression',id:null,parameters:d.parameters,...(d.defaults?{defaults:d.defaults}:{}),rest:d.rest??null,body:d.body,span:d.span} as A.FunctionExpression];}));
+        const substitute=(node:unknown):void=>{
+          if(!node||typeof node!=='object')return;
+          const n=node as Record<string,unknown>;
+          for(const [key,value] of Object.entries(n)){
+            if(key==='span'||key==='sourceSpan'||!value||typeof value!=='object')continue;
+            if(Array.isArray(value)){value.forEach((item,i)=>{const name=(item as A.Node|null)?.kind==='Identifier'?(item as A.Identifier).name:undefined;
+              if(name!==undefined&&inline.has(name))value[i]=inline.get(name);else substitute(item);});continue;}
+            const v=value as A.Node;
+            if(v.kind==='Identifier'&&inline.has((v as A.Identifier).name))n[key]=inline.get((v as A.Identifier).name);else substitute(v);
+          }
+        };
+        substitute(parsed.body);
+      }else{
+        rename(parsed.factories);rename(parsed.body);
+        factories.push(...parsed.factories);
+      }
     }
     // Eval code may itself call eval: it runs in the context of this code.
     {
@@ -458,14 +485,19 @@ export function lowerLiteralEval(program:A.Program):A.Program {
       &&callee.property.kind==='Literal'&&callee.property.value==='eval'){
       const span=e.span;
       const maker=(parse(lex('(function(){})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
-      maker.body.body=[{kind:'Return',argument:compileEval(source,{fn:foreignGlobalInfo,strict:false,blocks:[],newTarget:false,superProperty:false,superCall:false,globalLexicals:new Set()},true,span,true),span}];
+      const outerForeign=inForeign;inForeign=true;
+      let compiled:A.Expression;
+      try{compiled=compileEval(source,{fn:foreignGlobalInfo,strict:false,blocks:[],newTarget:false,superProperty:false,superCall:false,globalLexicals:new Set()},true,span,true);}
+      finally{inForeign=outerForeign;}
+      maker.body.body=[{kind:'Return',argument:compiled,span}];
       maker.dynamic=true;maker.realmLocal=true;
       const guard=(parse(lex('(function(object,args){var ev=object.eval;var made=__nonaRealmMaker;if(made!==undefined)return made();return Reflect.apply(ev,object,args)})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
       const declaration=(guard.body.body[1] as A.Var).declarations[0]!;
       declaration.init=call(id('\u0001realmFunction',span),[id('ev',span),maker,literal('rt.global.eval.fn',span)],span);
-      const name=hiddenPrefix+'realmEval'+(counter++);
+      const name=hiddenPrefix+'realmEval'+(counter++),args=[callee.object,array([literal(source,span)],span)];
+      if(inForeign)return call({kind:'FunctionExpression',id:null,parameters:guard.parameters,body:guard.body,span} as A.FunctionExpression,args,span);
       factories.push({kind:'Function',id:id(name,span),parameters:guard.parameters,body:{kind:'Block',body:guard.body.body,span},span} as A.FunctionDeclaration);
-      return call(id(name,span),[callee.object,array([literal(source,span)],span)],span);
+      return call(id(name,span),args,span);
     }
     if(!direct&&!indirect)return undefined;
     const span=e.span;

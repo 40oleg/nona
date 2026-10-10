@@ -6,6 +6,14 @@ import {ValueListLayout as L} from './heap-layout.js';
 // call here and returns this marker; the rt.invoke that called it performs the
 // pending call from its own frame, so tail call chains use bounded stack.
 export const TailCallTag=253;
+/**
+ * A derived constructor whose result is not an object (payload 0) or whose
+ * `this` was never initialized (payload 1) returns this marker instead of
+ * throwing: ECMA-262 throws those errors after the callee context is popped,
+ * i.e. in the caller's realm, so rt.invokeSourceConstruct of the calling
+ * runtime throws them (#176).
+ */
+export const ConstructErrorTag=252;
 /** Pending tail-call arguments kept in rt.tailStaging rather than a managed list. */
 export const tailStagingCapacity=16;
 

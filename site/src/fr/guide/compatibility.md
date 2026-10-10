@@ -42,7 +42,7 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 
 ## Realms
 
-`$262.createRealm` est pris en charge pour Test262. Certains constructeurs implémentés dans des préludes JavaScript prennent encore leurs prototypes par défaut dans le mauvais realm lorsqu’ils sont appelés avec un `new.target` provenant d’un autre realm ([#7](https://github.com/40oleg/nona/issues/7)).
+`$262.createRealm` est pris en charge pour Test262. Les fonctions, classes et le code eval créés à partir d’une source littérale par `Function`, `eval` ou les constructeurs de fonctions dynamiques d’un autre realm s’exécutent dans ce realm, et les prototypes par défaut ainsi que les erreurs des constructeurs proviennent du realm que désigne ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## Plateformes
 
