@@ -65,6 +65,7 @@ the cost of the generic path and of copying strings:
 - RegExp is ×227 on this scan-heavy case.
 - Calls, closures and classes are ×4–12, and short-lived objects ×13: call-site caches (#47), inline slots for short-lived objects (#48) and shapes (#114).
 - `JSON.stringify` still builds a UTF-16 string first (#155). Since #45 it reads plain data (shaped objects, dense arrays) directly: 30 000 objects take 30 ms instead of 72 ms on the machine of the 2026-10-05 HTTP measurement (Node.js: 17 ms).
+- The Promise chain (×39) keeps one record per `.then` and a linked job queue since #44: on a Linux x64 VM the 100 000-reaction chain went from 1 450 ms to 460 ms (Node.js 31 ms) and 100 000 sequential `await`s from 1 070 ms to 230 ms. Promises are still ordinary objects whose state lives in a WeakMap; a dedicated native promise kind is the remaining step.
 
 Sections 1–4 (startup, size, build time, memory), the executable size, the
 real-world code and the HTTP server tables are not covered by this update and
