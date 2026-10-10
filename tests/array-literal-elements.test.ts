@@ -54,5 +54,20 @@ const long = [${Array.from({length:300},(_,i)=>i).join(',')}];
 let keep = null, sum = 0;
 for (let i = 0; i < 1500; i++) { const o = {a: i, b: [i, i + 1], c: {d: i}}; if (i % 100 === 0) keep = o; sum += o.b[1] - o.c.d; }
 console.log(long.length, long[299], long.reduce((x, y) => x + y, 0), sum, keep.b.join());`],
+ ['tables inside the array cell: capacity boundaries, growth and redefinition',`
+// Up to eight table slots live in the array's own cell (inlineElementCapacity).
+const sizes = [[1], [1, 2, 3, 4], [1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9]];
+const out = [];
+for (const a of sizes) { const n = a.length; a.push(n + 1); a.push(n + 2); for (let i = 0; i < 20; i++) a.push(i); out.push(a.length, a[n], a[a.length - 1]); }
+const d = [1, 2, 3]; Object.defineProperty(d, 1, {get() { return 'getter'; }, enumerable: true}); out.push(d.join(), Object.keys(d).join());
+const f = Object.freeze([1, 2]); try { 'use strict'; f[0] = 9; } catch (e) {} out.push(f.join(), Object.isFrozen(f));
+const p = [1, 2, 3]; const child = Object.create(p); out.push(child[1], child.length);
+const s = ['b', 'c', 'a']; s.sort(); s.length = 1; s[5] = 'z'; out.push(JSON.stringify(s));
+const sp = [1, 2, 3, 4]; sp.splice(1, 2, 'x', 'y', 'z', 'w', 'v'); out.push(sp.join());
+const shifted = [1, 2, 3]; shifted.shift(); shifted.unshift(0, 0, 0, 0, 0, 0, 0, 0); out.push(shifted.join());
+let kept = []; for (let i = 0; i < 3000; i++) { const t = [i, i * 2, [i]]; if (i % 500 === 0) kept.push(t); }
+for (const t of kept) t.push('later', 'more', 'still', 'grown', 'again', 'and', 'again');
+out.push(JSON.stringify(kept.map(t => [t[0], t[2][0], t.length])));
+console.log(out.join('|'));`],
 ];
 for(const [name,source] of cases)test(`array literals: ${name}`,()=>expectProgram(source));

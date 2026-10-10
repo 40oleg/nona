@@ -364,7 +364,10 @@ export function emitMemory(b:RuntimeBuilder):void {
    // Ordinary objects, arrays and functions without a property index or an
    // element table own no side table.
    a.load('rax',{base:'r10',disp:H.size+O.kind});a.cmp('rax',2);a.jcc('a',call);
-   a.load('rax',{base:'r10',disp:H.size+O.index});a.load('rcx',{base:'r10',disp:H.size+O.elements});a.or('rax','rcx');a.jcc('e',free);
+   // An element table inside the cell (array-elements.ts inlineElementCapacity) needs no release either.
+   a.load('rax',{base:'r10',disp:H.size+O.index});a.test('rax','rax');a.jcc('ne',call);
+   a.load('rcx',{base:'r10',disp:H.size+O.elements});a.test('rcx','rcx');a.jcc('e',free);
+   a.lea('rax',{base:'r10',disp:H.size+O.size});a.cmp('rcx','rax');a.jcc('e',free);
    a.label(call);for(const [r,o] of [['r10',48],['r11',56],['r9',64],['rdx',72],['r8',80]] as const)a.store(slot(o),r);
    a.mov('rcx','r10');a.load('rax',{rip:'rt.freeBlockHook'});a.callRegister('rax');
    for(const [r,o] of [['r10',48],['r11',56],['r9',64],['rdx',72],['r8',80]] as const)a.load(r,slot(o));

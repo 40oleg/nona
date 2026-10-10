@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {emitShapeGuard} from './shapes.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags,keyFilterValid} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
@@ -43,6 +43,13 @@ import type {Assembler} from '../backend/x64/assembler.js';
  * object keeps its dense elements but creates no more of them.
  */
 export const ElementsLayout={capacity:0,count:8,nodes:16,values:24} as const;
+/**
+ * Array literals of up to this many table slots keep the table inside the
+ * array's own cell, right after the header (rt.newArrayLiteral): the table
+ * of an object whose `elements` is its payload + ObjectLayout.size is never
+ * released on its own. Growing it moves the elements to a raw-heap table.
+ */
+export const inlineElementCapacity=8;
 const E=ElementsLayout;
 /** Value tag of an empty slot; never a JavaScript-observable value. */
 export const HoleTag=255;
@@ -63,17 +70,41 @@ export function emitArrayElements(b:RuntimeBuilder):void {
  // length for an array literal without holes or spread (#48), with its
  // element table (at least four slots, a power of two) and every element
  // undefined: the literal's definitions store the values into the slots
- // before anything can observe the array. One call instead of a table
- // built and grown by the first definitions.
- b.fn('rt.newArrayLiteral',56,a=>{
+ // before anything can observe the array. A table of up to
+ // inlineElementCapacity slots is part of the array's own cell, right after
+ // the header (inlineElements): one managed allocation, written once, and
+ // nothing to release when the array dies. A larger table is raw heap.
+ b.fn('rt.newArrayLiteral',72,a=>{
+  const heap=a.unique('heapTable'),done=a.unique('done');
   a.store(slot(40),'rcx');a.store(slot(48),'rdx');
-  a.mov('r8','rdx');a.mov('rdx',1);a.call('rt.newObject');
-  a.load('rdx',slot(48));a.mov('rcx',4);{const grow=a.unique('grow'),sized=a.unique('sized');a.label(grow);a.cmp('rcx','rdx');a.jcc('ae',sized);a.shl('rcx',1);a.jmp(grow);a.label(sized);}
-  a.call('rt.elementsAlloc');
+  a.mov('rcx',4);{const grow=a.unique('grow'),sized=a.unique('sized');a.label(grow);a.cmp('rcx','rdx');a.jcc('ae',sized);a.shl('rcx',1);a.jmp(grow);a.label(sized);}
+  a.cmp('rcx',inlineElementCapacity);a.jcc('a',heap);
+  // The cell is written completely before anything can reach a safepoint.
+  a.store(slot(56),'rcx');a.shl('rcx',4);a.add('rcx',O.size+E.values);a.call('rt.allocRaw');
+  a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
+  a.mov('r10',1);a.store({base:'rax',disp:O.kind},'r10');a.mov('r10',0);
+  for(const offset of [O.properties,O.shape,O.flags,O.index])a.store({base:'rax',disp:offset},'r10');
+  a.load('rdx',slot(48));a.store({base:'rax',disp:O.length},'rdx');
+  a.lea('r10',{rip:'rt.arrayPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+  a.mov('r10',keyFilterValid);a.store({base:'rax',disp:O.keys},'r10');
+  a.lea('r11',{base:'rax',disp:O.size});a.store({base:'rax',disp:O.elements},'r11');
+  a.load('r8',slot(56));a.store({base:'r11',disp:E.capacity},'r8');a.store({base:'r11',disp:E.count},'rdx');a.mov('r10',0);a.store({base:'r11',disp:E.nodes},'r10');
+  // count undefined values, then holes up to the capacity.
+  {const values=a.unique('values'),holes=a.unique('holes'),filled=a.unique('filled');
+   a.add('r11',E.values);a.shl('rdx',4);a.add('rdx','r11');a.shl('r8',4);a.add('r8','r11');
+   a.label(values);a.cmp('r11','rdx');a.jcc('ae',holes);a.store({base:'r11'},'r10');a.store({base:'r11',disp:8},'r10');a.add('r11',16);a.jmp(values);
+   a.label(holes);a.mov('r9',HoleTag);
+   a.label(filled);a.cmp('r11','r8');a.jcc('ae',done+'.cells');a.store({base:'r11'},'r9');a.store({base:'r11',disp:8},'r10');a.add('r11',16);a.jmp(filled);
+   a.label(done+'.cells');}
+  a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');a.jmp(done);
+  a.label(heap);a.store(slot(56),'rcx');
+  a.load('rcx',slot(40));a.mov('rdx',1);a.load('r8',slot(48));a.call('rt.newObject');
+  a.load('rcx',slot(56));a.call('rt.elementsAlloc');
   a.load('rdx',slot(48));a.store({base:'rax',disp:E.count},'rdx');
-  {const loop=a.unique('loop'),done=a.unique('done');a.lea('r10',{base:'rax',disp:E.values});a.shl('rdx',4);a.add('rdx','r10');a.mov('r11',0);
-   a.label(loop);a.cmp('r10','rdx');a.jcc('ae',done);a.store({base:'r10'},'r11');a.store({base:'r10',disp:8},'r11');a.add('r10',16);a.jmp(loop);a.label(done);}
+  {const loop=a.unique('loop'),filled=a.unique('filled');a.lea('r10',{base:'rax',disp:E.values});a.shl('rdx',4);a.add('rdx','r10');a.mov('r11',0);
+   a.label(loop);a.cmp('r10','rdx');a.jcc('ae',filled);a.store({base:'r10'},'r11');a.store({base:'r10',disp:8},'r11');a.add('r10',16);a.jmp(loop);a.label(filled);}
   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});a.store({base:'rcx',disp:O.elements},'rax');
+  a.label(done);
  });
  // RCX object without a table, RDX minimum capacity. Counts the index-keyed
  // nodes already in the list so that creation knows whether any exist.
@@ -100,7 +131,9 @@ export function emitArrayElements(b:RuntimeBuilder):void {
   a.load('r10',slot(48));for(const offset of [E.count,E.nodes]){a.load('r11',{base:'r10',disp:offset});a.store({base:'rax',disp:offset},'r11');}
   a.load('r9',{base:'r10',disp:E.capacity});a.shl('r9',4);a.lea('r10',{base:'r10',disp:E.values});a.add('r9','r10');a.lea('r11',{base:'rax',disp:E.values});
   a.label(copy);a.cmp('r10','r9');a.jcc('ae',copied);a.load('rax',{base:'r10'});a.store({base:'r11'},'rax');a.load('rax',{base:'r10',disp:8});a.store({base:'r11',disp:8},'rax');a.add('r10',16);a.add('r11',16);a.jmp(copy);
-  a.label(copied);a.load('r8',slot(48));a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
+  // An inline table (part of the object's cell) is left where it is.
+  {const inline=a.unique('inlineTable');a.label(copied);a.load('r8',slot(48));a.load('rcx',slot(40));a.add('rcx',O.size);a.cmp('r8','rcx');a.jcc('e',inline);
+   a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');a.label(inline);}
   a.load('rcx',slot(40));a.load('rax',slot(56));a.store({base:'rcx',disp:O.elements},'rax');
  });
  // RCX object Value*, RDX start, R8 delete count, R9 item count, with
@@ -218,7 +251,8 @@ export function emitArrayElements(b:RuntimeBuilder):void {
  // RCX object payload: releases its table. Safe inside the GC sweep.
  b.fn('rt.elementsFree',56,a=>{
   const done=a.unique('done');a.load('r8',{base:'rcx',disp:O.elements});a.test('r8','r8');a.jcc('e',done);
-  a.mov('r10',0);a.store({base:'rcx',disp:O.elements},'r10');a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
+  a.mov('r10',0);a.store({base:'rcx',disp:O.elements},'r10');a.add('rcx',O.size);a.cmp('r8','rcx');a.jcc('e',done);
+  a.load('rcx',{rip:'rt.heap'});a.mov('rdx',0);a.callImport('HeapFree');
   a.label(done);
  });
  // RCX object payload: marks every dense element (GC).
