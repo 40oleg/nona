@@ -45,8 +45,10 @@ exactly.
   - `Part of #N` when it does only part of it. After the merge, comment on the
     issue with the PR link, what was done and what remains, and remove
     `blocked` unless you continue with it.
-- GitHub closes issues only for PRs merged into `main`. Retarget a stacked PR
-  (based on another PR's branch) to `main` before merging it.
+- GitHub closes issues only for PRs merged into `main`, and it closes (not
+  retargets) a PR whose base branch is deleted. Before merging a PR, retarget
+  every PR stacked on its branch to `main`; merge stacked PRs into `main`, not
+  into each other's branches.
 - After a merge, check that every `Closes` issue is closed; if not, close it by
   hand with a link to the PR.
 - Keep `main` green: do not merge a PR whose `check` workflow fails.
