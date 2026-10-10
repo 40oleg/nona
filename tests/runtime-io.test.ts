@@ -7,8 +7,9 @@ import { emitMemory } from '../src/runtime/memory.js';
 import { emitIo } from '../src/runtime/io.js';
 import { emitStrings } from '../src/runtime/strings.js';
 // This fixture exercises raw OS output without the JS value/exception runtime.
-// Neither log nor concat is reachable from write; exclude their dependencies.
-function emitRuntime(_request?:unknown){const b=new RuntimeBuilder();emitMemory(b);emitStrings(b);emitIo(b);const omitted=new Set(['rt.log','rt.concat']);b.bundle.fragments=b.bundle.fragments.filter(f=>!omitted.has(f.name));b.bundle.functions=b.bundle.functions.filter(f=>!omitted.has(f.begin));return b.bundle;}
+// Neither log nor concat (nor the rope builder) is reachable from write;
+// exclude their dependencies.
+function emitRuntime(_request?:unknown){const b=new RuntimeBuilder();emitMemory(b);emitStrings(b);emitIo(b);const omitted=new Set(['rt.log','rt.concat','rt.concatLazy']);b.bundle.fragments=b.bundle.fragments.filter(f=>!omitted.has(f.name));b.bundle.functions=b.bundle.functions.filter(f=>!omitted.has(f.begin));return b.bundle;}
 import { stringLiteral } from '../src/runtime/value.js';
 import { runNative, replaceImport } from './helpers/native.js';
 test('runtime writes Unicode and embedded NUL as UTF8', () => {
