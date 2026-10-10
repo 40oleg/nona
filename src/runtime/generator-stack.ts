@@ -10,7 +10,6 @@ const poolCapacity=16;
 export function emitGeneratorStack(b:RuntimeBuilder):void {
  for(const name of ['VirtualAlloc','VirtualProtect','VirtualFree'])
   if(!b.bundle.imports.some(i=>i.symbol===name))b.bundle.imports.push({dll:'KERNEL32.dll',name,symbol:name});
- b.data('rt.generatorStackBytes',new Uint8Array(8),'.data');
  // Released stacks are kept for reuse (up to poolCapacity): mapping and
  // protecting a fresh megabyte for every async call cost two system calls
  // and fresh zero pages. Pooled stacks do not count as live memory.

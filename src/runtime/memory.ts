@@ -6,6 +6,9 @@ import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {ObjectLayout as O} from './object-layout.js';
 import type {Assembler} from '../backend/x64/assembler.js';
 
+/** The smallest collection threshold, in managed bytes. */
+export const minimumGcThreshold=8<<20;
+
 /**
  * Managed heap: size-classed cells carved from fixed chunks.
  *
@@ -84,6 +87,13 @@ export function emitMemory(b:RuntimeBuilder):void {
  // compiled code test this one byte (codegen.ts) and call rt.collect, which
  // clears it with the new threshold.
  b.data('rt.gcNeeded',new Uint8Array(8),'.data');
+ // The collection threshold (rt.collect raises it after each collection);
+ // the allocator compares the managed byte count with it.
+ const threshold=new Uint8Array(8);new DataView(threshold.buffer).setBigUint64(0,BigInt(minimumGcThreshold),true);
+ b.data('rt.gcThreshold',threshold,'.data');
+ // Generator stacks count toward the collection threshold with the heap
+ // (noteManagedBytes), so the allocator needs their byte count too.
+ b.data('rt.generatorStackBytes',new Uint8Array(8),'.data');
  // Per-class state, one blob: free list heads, carve cursors, carve limits, current chunks.
  b.data('rt.classState',new Uint8Array(4*8*classCount),'.data');
  // Per class: the first chunk not yet swept since the last collection.

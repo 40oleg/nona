@@ -15,7 +15,7 @@ import {runNative} from './helpers/native.js';
 function program():NativeProgram {
  const b=new RuntimeBuilder();emitGeneratorStack(b);
  // Stack accounting raises the collection flag against the threshold (memory.ts, gc.ts).
- for(const name of ['rt.liveBytes','rt.gcThreshold','rt.gcNeeded'])b.data(name,new Uint8Array(8),'.data');
+ for(const name of ['rt.liveBytes','rt.generatorStackBytes','rt.gcThreshold','rt.gcNeeded'])b.data(name,new Uint8Array(8),'.data');
  b.bundle.imports.push({dll:'KERNEL32.dll',name:'ExitProcess',symbol:'ExitProcess'});
  const a=new Assembler('entry');a.sub('rsp',40);a.call('rt.allocGeneratorStack');
  a.test('rax','rax');a.jcc('e','bad');a.mov('r12','rax');
