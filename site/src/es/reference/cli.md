@@ -62,6 +62,8 @@ El estado de salida es `0` si todo va bien y `1` ante cualquier error. Los error
 | `E_FFI_TARGET` | Una declaración de DLL compilada para `linux-x64`, o una declaración de llamada al sistema compilada para `win32-x64`. |
 | `E_RESOURCE` | Un icono o una información de versión no válidos, o recursos solicitados para `linux-x64`. |
 | `E_TARGET` | Un destino o subsistema no soportado. |
+| `E_HOST_MODULE` | Un módulo integrado (como `node:fs`) no está disponible para el destino. |
+| `E_INTERNAL` | Un error del compilador, no del programa: falló una comprobación interna en la fase que indica el mensaje (`parse`, `bind`, `lower`, `codegen`, `link`, …). Repórtelo junto con el programa que lo provoca. |
 
 Los errores de argumentos se muestran como `nona: <message>`, por ejemplo `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` o `--subsystem requires --target win32-x64`.
 

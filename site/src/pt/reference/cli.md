@@ -62,6 +62,8 @@ O status de saída é `0` em caso de sucesso e `1` em qualquer erro. Erros no c�
 | `E_FFI_TARGET` | Uma declaração de DLL compilada para `linux-x64`, ou uma declaração de chamada de sistema compilada para `win32-x64`. |
 | `E_RESOURCE` | Um ícone ou informações de versão inválidos, ou recursos solicitados para `linux-x64`. |
 | `E_TARGET` | Um alvo ou subsistema não suportado. |
+| `E_HOST_MODULE` | Um módulo embutido (como `node:fs`) não está disponível para o destino. |
+| `E_INTERNAL` | Um bug do compilador, não um erro do programa: uma verificação interna falhou na fase indicada na mensagem (`parse`, `bind`, `lower`, `codegen`, `link`, …). Relate-o junto com o programa que o provoca. |
 
 Erros de argumentos são exibidos como `nona: <message>`, por exemplo `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` ou `--subsystem requires --target win32-x64`.
 

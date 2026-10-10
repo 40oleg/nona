@@ -62,6 +62,8 @@ Le code de sortie vaut `0` en cas de succès et `1` pour toute erreur. Les erreu
 | `E_FFI_TARGET` | Une déclaration de DLL compilée pour `linux-x64`, ou une déclaration d’appel système compilée pour `win32-x64`. |
 | `E_RESOURCE` | Une icône ou des informations de version invalides, ou des ressources demandées pour `linux-x64`. |
 | `E_TARGET` | Une cible ou un sous-système non pris en charge. |
+| `E_HOST_MODULE` | Un module intégré (comme `node:fs`) n'est pas disponible pour la cible. |
+| `E_INTERNAL` | Un bogue du compilateur, pas une erreur du programme : une vérification interne a échoué dans la phase nommée par le message (`parse`, `bind`, `lower`, `codegen`, `link`, …). Signalez-le avec le programme qui le déclenche. |
 
 Les erreurs d’arguments s’affichent sous la forme `nona: <message>`, par exemple `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` ou `--subsystem requires --target win32-x64`.
 

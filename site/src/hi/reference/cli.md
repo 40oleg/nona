@@ -62,6 +62,8 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `E_FFI_TARGET` | `linux-x64` के लिए कंपाइल किया गया DLL डिक्लेरेशन, या `win32-x64` के लिए कंपाइल किया गया सिस्टम कॉल डिक्लेरेशन। |
 | `E_RESOURCE` | अमान्य आइकन या वर्ज़न जानकारी, या `linux-x64` के लिए माँगे गए रिसोर्स। |
 | `E_TARGET` | असमर्थित टार्गेट या सबसिस्टम। |
+| `E_HOST_MODULE` | कोई बिल्ट-इन मॉड्यूल (जैसे `node:fs`) इस टारगेट के लिए उपलब्ध नहीं है। |
+| `E_INTERNAL` | प्रोग्राम की नहीं, कंपाइलर की गलती: संदेश में बताए गए चरण (`parse`, `bind`, `lower`, `codegen`, `link`, …) में एक आंतरिक जाँच विफल हुई। इसे ट्रिगर करने वाले प्रोग्राम के साथ रिपोर्ट करें। |
 
 आर्ग्युमेंट एरर `nona: <message>` के रूप में छपते हैं, जैसे `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` या `--subsystem requires --target win32-x64`।
 

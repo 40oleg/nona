@@ -66,6 +66,8 @@ The exit status is `0` on success and `1` on any error. Source errors are printe
 | `E_FFI_TARGET` | A DLL declaration for a non-Windows target, or a syscall declaration for Windows. |
 | `E_RESOURCE` | An invalid icon or version information, or resources requested for a target other than `win32-x64`. |
 | `E_TARGET` | An unsupported target or subsystem. |
+| `E_HOST_MODULE` | A built-in module (such as `node:fs`) is not available for the target. |
+| `E_INTERNAL` | A compiler bug, not an error in the program: an internal check failed in the phase the message names (`parse`, `bind`, `lower`, `codegen`, `link`, …). Please report it with the program that triggers it. |
 
 Argument errors are printed as `nona: <message>`, for example `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` or `--subsystem requires --target win32-x64`.
 

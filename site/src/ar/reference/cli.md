@@ -62,6 +62,8 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `E_FFI_TARGET` | تصريح DLL مترجَم للمنصة `linux-x64`، أو تصريح استدعاء نظام مترجَم للمنصة `win32-x64`. |
 | `E_RESOURCE` | أيقونة أو معلومات إصدار غير صالحة، أو موارد مطلوبة للمنصة `linux-x64`. |
 | `E_TARGET` | منصة مستهدفة أو نظام فرعي غير مدعوم. |
+| `E_HOST_MODULE` | وحدة مدمجة (مثل `node:fs`) غير متاحة للهدف. |
+| `E_INTERNAL` | خلل في المترجم وليس خطأ في البرنامج: فشل فحص داخلي في المرحلة التي تذكرها الرسالة (`parse`، `bind`، `lower`، `codegen`، `link`، …). يرجى الإبلاغ عنه مع البرنامج الذي يسببه. |
 
 تُطبع أخطاء الوسائط بالشكل `nona: <message>`، مثل `Unknown option: --foo` و`Duplicate option: -o` و`Missing value for --target` و`Output is required (-o <output>)` و`Unsupported target: arm64` و`Unsupported subsystem: native` و`--subsystem requires --target win32-x64`.
 

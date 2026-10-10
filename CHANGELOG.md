@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A failed compiler invariant (a bug in Nona) is reported as an `E_INTERNAL` diagnostic positioned in the source and naming the phase (`parse`, `bind`, `lower`, `codegen`, `link`, …) instead of a bare `nona: Missing binding: x`; the native compiler reports it the same way, without the phase wrappers the self-hosting bootstrap used to patch in. Diagnostic codes are a closed `DiagnosticCode` type and all of them are listed in the CLI reference ([#177](https://github.com/40oleg/nona/issues/177)).
 - `'name' in object` and `hasOwnProperty` calls (`o.hasOwnProperty(k)`, `hasOwn.call(o, k)`) on shaped objects are answered by per-site caches keyed by the shape (and, for `in`, the prototype chain, validated by the shape epoch) instead of a walk through the shapes and an `rt.invoke` of the builtin: a loop of five such checks over 100 objects runs 6.6 times faster ([#195](https://github.com/40oleg/nona/issues/195)).
 - Programs with extra realms share the tail-call staging area, the coroutine stack pool and its byte count, the stack limit and the fatal-exit state between realms. Generators and strict tail calls created by another realm's `Function` crashed under GC stress because the collector and the shared JS code used only the main realm's copies; a new test checks that no code shared by all realms refers to a realm's own runtime data ([#198](https://github.com/40oleg/nona/issues/198)).
 
