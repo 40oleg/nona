@@ -4,6 +4,7 @@ import {FunctionLayout as F} from './functions.js';
 import {FunctionKind} from './functions.js';
 import {ObjectLayout as O,ProxyKind,ProxyConstructable} from './object-layout.js';
 import {BoundDataLayout as B,maxBoundArguments} from './bound-layout.js';
+import {TailCallTag,ConstructErrorTag} from './tail-calls.js';
 
 export function emitBoundCalls(b:RuntimeBuilder):void {
  // Prepared-constructor invoke has the normal invoke ABI. The receiver was
@@ -23,7 +24,19 @@ export function emitBoundCalls(b:RuntimeBuilder):void {
   // Native construct entry uses the builtin call ABI, with the prepared
   // receiver in the fifth argument. It must never infer new from thisArg.
   a.mov('r11','r9');a.mov('r9','rax');a.mov('rdx','r8');a.mov('r8','r11');a.callRegister('r10');a.jmp(done);
-  a.label(ordinary);a.call('rt.invokeSourceConstruct');a.label(done);a.label(doneProxy);
+  // A compiled constructor runs from this frame with the prepared receiver
+  // and new.target (the callee when the caller passed none); a tail call it
+  // makes comes back as a marker, which rt.tailDispatch completes.
+  a.label(ordinary);
+  {const target=a.unique('newTarget');a.load('r11',slot(40));a.test('r11','r11');a.jcc('ne',target);a.store(slot(40),'rdx');a.label(target);}
+  a.store(slot(48),'rcx');a.mov('r11','r9');a.mov('r9','rax');a.mov('rdx','r8');a.mov('r8','r11');
+  a.load('r10',{base:'r9',disp:F.code});a.callRegister('r10');
+  {const value=a.unique('constructValue');a.load('rcx',slot(48));a.load('rax',{base:'rcx'});a.cmp('rax',TailCallTag);a.jcc('ne',value);a.call('rt.tailDispatch');a.label(value);
+   // A derived constructor's result error (#176) comes back as a marker and
+   // is thrown here, in the caller's realm, as rt.invoke does.
+   a.load('rcx',slot(48));a.load('rax',{base:'rcx'});a.cmp('rax',ConstructErrorTag);a.jcc('ne',done);
+   a.load('rax',{base:'rcx',disp:8});a.test('rax','rax');failIf(a,'e','rt.throwTypeError');a.call('rt.throwReferenceError');}
+  a.label(done);a.label(doneProxy);
  });
  // RCX out, RDX bound Value*, R8 argc, R9 argv. Fifth argument is either
  // null (ordinary call) or the constructed receiver Value*. Root records

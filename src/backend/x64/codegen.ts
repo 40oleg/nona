@@ -15,7 +15,8 @@ import { ropeTag } from '../../runtime/strings.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import {JsFrame as JF,FrameDescriptor as FD} from '../../runtime/frame-layout.js';
 import {stackMapFragment,type StackMapEntry} from '../../runtime/stack-maps.js';
-import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
+import {enterFrameStub} from '../../runtime/prologue.js';
+import { FunctionLayout,FunctionKind,NewCacheLayout } from '../../runtime/functions.js';
 import { TailCallTag, ConstructErrorTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { renderListing } from './listing.js';
@@ -57,7 +58,9 @@ const unary:Record<string,string>={'+':'pos','-':'neg','!':'not','~':'bitNot',ty
 const stack=(disp:number):Mem=>({base:'rsp',disp});
 const alignedFrame=(n:number)=>Math.ceil((n+8)/16)*16-8;
 /** Operations that only move values: no runtime call, no collection, no user code. */
-const movesOnly=new Set<string>(['constant','copy','uninitialized','loadGlobal']);
+const movesOnly=new Set<string>(['constant','copy','uninitialized','loadGlobal','constructorResult','readCell','writeCell','loadCapture']);
+/** Moves with no effect besides their destination: not emitted when the destination is dead. */
+const deadMoves=new Set<string>(['constant','copy','loadGlobal','readCell','loadCapture']);
 const cachedRuntimePreludes=new Map<string,ModuleIR>();
 /**
  * Runtime and prelude code are identical for equal options: generate them
@@ -248,12 +251,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // the frame (stack+104, below the value slots) and restored before
     // returning; handlers and coroutines save it with the other preserved
     // registers.
-    {const descriptor=new Uint8Array(FD.size),view=new DataView(descriptor.buffer);
-     view.setBigUint64(FD.allocation,BigInt(allocation),true);view.setBigUint64(FD.slots,BigInt(locations.count),true);view.setBigUint64(FD.parameters,BigInt(fn.parameterCount),true);
-     fragments.push({name:fn.id+'.frame',section:'.rdata',alignment:8,bytes:descriptor,fixups:[{offset:FD.maps,kind:'va64',target:fn.id+'.maps',addend:0}],symbols:{}});}
-    a.lea('r10',{rip:fn.id+'.frame'});a.call('rt.enterFrame');
-    // For the unwind information the frame exists once the stub has returned.
-    const allocated=a.offset,prologSize=a.offset;
     const location=(n:number):number=>{if(n<0||n>=fn.slotCount)throw new RangeError('Invalid IR slot');return locations.location[n]!;};
     // A temporary whose only definition is a constant needs no frame
     // location: its Value lives once in .rdata (constantValue) and operations
@@ -267,6 +264,15 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='constant')constants.set(op.dest,op.value);
     }
     const staticConstant=(n:number):string|undefined=>definitions.get(n)===1&&constants.has(n)&&n>=fn.localCount?constantValue(constants.get(n)):undefined;
+    // Only the slots of locations live at entry (variables read before they
+    // are assigned), the always live ones (stack-maps.ts) and the parameters
+    // start as undefined: any other location is written before a stack map
+    // lists it (frame-layout.ts).
+    let clear=Math.max(Math.min(liveFloor(fn),locations.count),Math.min(fn.parameterCount,locations.count));
+    for(const n of liveness.get(fn.blocks[0]!.id)!.liveIn)if(!staticConstant(n))clear=Math.max(clear,location(n)+1);
+    a.lea('r10',{rip:fn.id+'.frame'});a.call(enterFrameStub(fn.parameterCount,clear,allocation));
+    // For the unwind information the frame exists once the stub has returned.
+    const allocated=a.offset,prologSize=a.offset;
     const stringConstant=(n:number):boolean=>definitions.get(n)===1&&typeof constants.get(n)==='string';
     const value=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c}:stack(valueBase+16*location(n));};
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
@@ -400,6 +406,12 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // A map is keyed and stored by its locations at or above the floor (sorted),
     // so that its cost is the size of the live set, not of the frame.
     const alwaysLive=Math.min(floor,locations.count);
+    // The frame descriptor (frame-layout.ts).
+    {const descriptor=new Uint8Array(FD.size),view=new DataView(descriptor.buffer);
+     view.setBigUint64(FD.allocation,BigInt(allocation),true);view.setBigUint64(FD.slots,BigInt(locations.count),true);view.setBigUint64(FD.parameters,BigInt(fn.parameterCount),true);
+     view.setBigUint64(FD.clear,BigInt(clear),true);
+     view.setBigInt64(FD.thisSlot,BigInt(JF.values-JF.bias+16*locations.count),true);view.setBigInt64(FD.rootCount,BigInt(-(locations.count+3)),true);
+     fragments.push({name:fn.id+'.frame',section:'.rdata',alignment:8,bytes:descriptor,fixups:[{offset:FD.maps,kind:'va64',target:fn.id+'.maps',addend:0}],symbols:{}});}
     const mapIndex=new Map<string,number>(),maps:number[][]=[],entries:StackMapEntry[]=[];
     const mapOf=(slots:Iterable<number>):number=>{
       const above=new Set<number>();
@@ -470,6 +482,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
        // operations that read a string's length or tag; every other
        // operation first flattens the slots it reads.
        if(!ropeTransparent(op))for(const n of operationUses(op))flattenSlot(n);
+       // A move whose result nothing reads (the value of an assignment
+       // expression used as a statement, for one) is not emitted.
+       if(deadMoves.has(op.kind)&&'dest' in op&&!isLive(index+1<block.operations.length?liveness.get(block.id)!.before[index+1]!:liveness.get(block.id)!.beforeTerminator,op.dest,floor))continue;
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':{
@@ -520,8 +535,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         }
         case 'defineAccessor':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.setter?1:0)|(op.nonEnumerable?2:0));a.call('rt.defineLiteralAccessor');break;
         case 'newCell':pointer('rcx',op.dest);pointer('rdx',op.source);a.call('rt.newCell');break;
-        case 'readCell':pointer('rcx',op.dest);pointer('rdx',op.cell);a.call('rt.readCell');break;
-        case 'writeCell':pointer('rcx',op.cell);pointer('rdx',op.source);a.call('rt.writeCell');break;
+        // Cells are internal: the tag check guards the compiler's own
+        // bookkeeping and fails to rt.fail.
+        case 'readCell':a.load('rax',value(op.cell));a.cmp('rax',CellTag);failIf(a,'ne');a.load('r10',payload(op.cell));copy(value(op.dest),{base:'r10'});break;
+        case 'writeCell':a.load('rax',value(op.cell));a.cmp('rax',CellTag);failIf(a,'ne');a.load('r10',payload(op.cell));copy({base:'r10'},value(op.source));break;
         case 'loadCapture':
           a.load('r10',stack(64));a.load('r10',{base:'r10',disp:FunctionLayout.environment});
           copy(value(op.dest),{base:'r10',disp:E.cells+E.entry*op.index});break;
@@ -587,17 +604,26 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           break;
         }
         case 'newInstance':
-          pointer('rcx',op.callee);
-          if(op.argumentArray!==undefined){pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');}
-          else{if(op.firstArgument!==undefined)pointer('rdx',op.firstArgument);else a.lea('rdx',{rip:'rt.undefinedValue'});a.call('rt.validatePromiseExecutor');}
-          pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+          if(op.argumentArray!==undefined){
+            pointer('rcx',op.callee);pointer('rdx',op.argumentArray);a.call('rt.validatePromiseExecutorArray');
+            pointer('rcx',op.dest);pointer('rdx',op.callee);a.call('rt.newInstance');break;
+          }
+          // A per-site record remembers the constructor and its `prototype` node (functions.ts).
+          {const cache='nc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(NewCacheLayout.size),fixups:[],symbols:{}});
+           pointer('rcx',op.dest);pointer('rdx',op.callee);a.lea('r8',{rip:cache});if(op.firstArgument!==undefined)pointer('r9',op.firstArgument);else a.mov('r9',0);a.call('rt.newInstanceCached');}
+          break;
         case 'newArguments':
           // Bit 62 of the formal count marks an unmapped (non-simple parameter list) object.
           a.mov('rax',BigInt(op.parameters.length)|(op.unmapped?1n<<62n:0n));a.store(stack(argsBase),'rax');a.load('rax',stack(64));a.store(stack(argsBase+8),'rax');
           op.parameters.forEach((n,i)=>copy(stack(argsBase+16+16*i),n<0?{rip:'rt.undefinedValue'}:value(n)));
           pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.lea('r9',stack(argsBase));a.call('rt.newArguments');break;
         case 'newRestArray':pointer('rcx',op.dest);a.load('rdx',stack(48));a.load('r8',stack(56));a.mov('r9',op.start);a.call('rt.newRestArray');break;
-        case 'constructorResult':pointer('rcx',op.dest);pointer('rdx',op.result);pointer('r8',op.instance);a.call('rt.constructorResult');break;
+        case 'constructorResult':{
+          // The constructor's result when it returned an object, else the instance.
+          const instance=a.unique('instanceResult'),done=a.unique('constructorResultDone');
+          a.load('rax',value(op.result));a.cmp('rax',5);a.jcc('ne',instance);copy(value(op.dest),value(op.result));a.jmp(done);
+          a.label(instance);copy(value(op.dest),value(op.instance));a.label(done);break;
+        }
         case 'derivedReturn':{
           const object=a.unique('derivedReturnObject'),receiver=a.unique('derivedReturnReceiver'),done=a.unique('derivedReturnDone');
           // The TypeError (result not an object) and ReferenceError (this

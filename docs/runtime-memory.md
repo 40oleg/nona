@@ -105,9 +105,15 @@ locations (backward liveness плюс destinations операции). Сборщ
 (один байт), так как runtime может держать в нём результат через вложенный вызов.
 Пролог общий: функция начинается с
 `lea r10,[descriptor]; call rt.enterFrame` (`src/runtime/prologue.ts`), и stub
-по статическому дескриптору (размер кадра, число slots и параметров) проверяет
-лимит стека, строит кадр под адресом возврата функции, копирует this,
-new.target и аргументы, регистрирует root frame и возвращается в функцию.
+по статическому дескриптору (размер кадра, число slots и параметров, число
+slots, которые начинаются с undefined) проверяет лимит стека, строит кадр под
+адресом возврата функции, копирует this, new.target и аргументы, регистрирует
+root frame и возвращается в функцию. Undefined получают только параметры и
+locations, живые на входе в функцию (переменная, читаемая до присваивания);
+остальные записываются раньше, чем их перечислит stack map. Функция с кадром
+меньше страницы, у которой это только параметры (не больше четырёх),
+использует `rt.enterFrame0`…`rt.enterFrame4`: они копируют параметры без
+цикла, если caller передал их все.
 Safepoint в начале блока — проверка одного байта `rt.gcNeeded`: аллокатор
 поднимает флаг, когда managed bytes (liveBytes + generator stacks) достигают
 `rt.gcThreshold`, `rt.collect` сбрасывает его вместе с новым порогом. Аргументы остаются в caller slots до копирования
@@ -335,8 +341,9 @@ value, complete и partial descriptors. Delete super вычисляет толь
 ## new.target ABI
 
 Source functions получают шестой stack argument: pointer на new.target Value.
-Обычный rt.invoke передаёт rt.undefinedValue, внутренний rt.invokeSourceConstruct
-передаёт callee Value после bound unwrapping. invokeConstruct по-прежнему отдельно
+Обычный rt.invoke передаёт rt.undefinedValue (стрелке — её lexical new.target);
+rt.invokeConstruct вызывает code source-конструктора напрямую и передаёт
+new.target caller'а или сам callee. invokeConstruct по-прежнему отдельно
 диспетчеризует native constructCode; native builtin ABI не изменён.
 Source prologue копирует this и new.target в два последовательных rooted Values
 после IR slots; root count=slotCount+2, argv scratch начинается после них.
