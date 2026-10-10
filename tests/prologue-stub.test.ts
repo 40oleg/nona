@@ -4,6 +4,7 @@ import {runOnHost} from './helpers/host.js';
 import {runOracle} from './helpers/oracle.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
+import {FrameDescriptor} from '../src/runtime/frame-layout.js';
 
 // Issue #167: every compiled function starts with `lea r10,[descriptor]; call
 // rt.enterFrame` instead of an inline prologue, and the safepoint at the start
@@ -21,7 +22,7 @@ test('functions share one prologue stub and keep a short inline prologue',()=>{
  assert.ok(functions.length>=4);
  for(const fragment of functions){
   const descriptor=program.fragments.find(f=>f.name===fragment.name+'.frame');
-  assert.ok(descriptor&&descriptor.section==='.rdata'&&descriptor.bytes.length===24,fragment.name+' has a frame descriptor');
+  assert.ok(descriptor&&descriptor.section==='.rdata'&&descriptor.bytes.length===FrameDescriptor.size,fragment.name+' has a frame descriptor');
   assert.ok(fragment.fixups.some(f=>f.target==='rt.enterFrame'),fragment.name+' calls the stub');
   const firstBlock=Math.min(...Object.entries(fragment.symbols).filter(([s])=>/\.block\.\d+$/.test(s)).map(([,o])=>o));
   // lea (7) + call (5); a derived constructor adds its this cell.

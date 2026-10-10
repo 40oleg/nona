@@ -19,6 +19,8 @@ import {inspectionRoots,inspectionPropertyRoots} from './object-introspection.js
 import {constructorRoots,constructorPropertyRoots} from './builtin-constructors.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {HeapLayout as H,HeapKind,RootLayout as R} from './heap-layout.js';
+import {JsFrame as JF} from './frame-layout.js';
+import {StackMapTable as M} from './stack-maps.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {ShapeLayout} from './shapes.js';
 import {RopeLayout} from './strings.js';
@@ -122,13 +124,53 @@ export function emitGc(b:RuntimeBuilder,extraRealms=0):void {
   a.load('rcx',slot(40));a.call('rt.gcMarkValue');a.load('rax',slot(40));a.add('rax',16);a.store(slot(40),'rax');
   a.load('rax',slot(48));a.sub('rax',1);a.store(slot(48),'rax');a.jmp(loop);a.label(done);
  });
+ // RCX a JS frame's root record (negative count, see frame-layout.ts): marks
+ // the locations the frame's stack map lists for its current return address
+ // (stack-maps.ts), then this, new.target and the super receiver. The entry
+ // is the last one at or before the return address; none before it means an
+ // unrecorded call: every slot is marked, and under GC stress it is a bug.
+ b.fn('rt.gcMarkFrame',104,a=>{
+  const search=a.unique('search'),searched=a.unique('searched'),missing=a.unique('missing'),slots=a.unique('slots'),above=a.unique('above'),rest=a.unique('rest'),done=a.unique('done');
+  a.store(slot(40),'rcx');a.load('rax',{base:'rcx',disp:R.count});a.neg('rax');a.store(slot(48),'rax');
+  a.load('r8',{base:'rcx',disp:JF.maps-JF.roots});a.store(slot(56),'r8');
+  a.load('rax',{base:'rcx',disp:-(JF.roots+8)});a.subMemory('rax',{base:'r8',disp:M.code});
+  // Binary search for the last entry whose offset is at most RAX: R10 low,
+  // R11 high (exclusive), R9 the candidate, RCX the field width in bytes.
+  a.load('rcx',{base:'r8',disp:M.fieldWidth},8);a.mov('r10',0);a.load('r11',{base:'r8',disp:M.count},32);
+  const entry=(index:'r9',dst:'rdx')=>{a.mov(dst,index);a.imul(dst,'rcx');a.add(dst,dst);a.add(dst,'r8');};
+  const field=(dst:'rdx'|'r9',at:'rdx',disp:number)=>{const narrow=a.unique('narrow'),read=a.unique('read');a.cmp('rcx',2);a.jcc('e',narrow);a.load(dst,{base:at,disp:M.entries+disp},32);a.jmp(read);a.label(narrow);a.load(dst,{base:at,disp:M.entries+disp},16);a.label(read);};
+  a.label(search);a.cmp('r10','r11');a.jcc('ae',searched);
+  a.mov('r9','r10');a.add('r9','r11');a.shr('r9',1);entry('r9','rdx');field('rdx','rdx',0);
+  a.cmp('rdx','rax');a.jcc('a',above);a.lea('r10',{base:'r9',disp:1});a.jmp(search);
+  a.label(above);a.mov('r11','r9');a.jmp(search);
+  // R10 is one past the last entry at or before the offset.
+  a.label(searched);a.test('r10','r10');a.jcc('e',missing);a.lea('r9',{base:'r10',disp:-1});entry('r9','rdx');a.mov('r9','rcx');field('rdx','rdx',0);a.mov('rcx','r9');
+  // Wait: the map index is the second field of the entry.
+  a.mov('rdx','r10');a.sub('rdx',1);a.imul('rdx','rcx');a.add('rdx','rdx');a.add('rdx','r8');a.add('rdx','rcx');field('rdx','rdx',0);
+  // The bitmap: after the entries, map index times the bitmap bytes.
+  a.load('r9',{base:'r8',disp:M.bitmapBytes},16);a.imul('rdx','r9');
+  a.load('r11',{base:'r8',disp:M.count},32);a.imul('r11','rcx');a.add('r11','r11');a.add('rdx','r11');a.add('rdx','r8');a.add('rdx',M.entries);a.store(slot(64),'rdx');
+  a.mov('rax',0);a.store(slot(72),'rax');
+  a.label(slots);a.load('rax',slot(72));a.load('r10',slot(48));a.sub('r10',3);a.cmp('rax','r10');a.jcc('ae',rest);
+  a.mov('r10','rax');a.shr('r10',3);a.load('r11',slot(64));a.add('r11','r10');a.load('r11',{base:'r11'},8);
+  a.mov('rcx','rax');a.and('rcx',7);a.shr('r11','cl');a.and('r11',1);{const skip=a.unique('dead');a.jcc('e',skip);
+   a.shl('rax',4);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:R.values});a.add('rcx','rax');a.call('rt.gcMarkValue');a.label(skip);}
+  a.load('rax',slot(72));a.add('rax',1);a.store(slot(72),'rax');a.jmp(slots);
+  a.label(rest);a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:R.values});a.load('rdx',slot(48));a.sub('rdx',3);a.shl('rdx',4);a.add('rcx','rdx');a.mov('rdx',3);a.call('rt.gcMarkRange');a.jmp(done);
+  a.label(missing);a.load('rax',{rip:'rt.gcPoison'});a.test('rax','rax');failIf(a,'ne');
+  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:R.values});a.load('rdx',slot(48));a.call('rt.gcMarkRange');
+  a.label(done);
+ });
  // May also be called on a suspended generator's saved root head once that
  // generator object is traced. Root records remain resident on its own stack.
+ // A negative count marks a compiled function's frame (rt.gcMarkFrame).
  b.fn('rt.gcMarkRootChain',56,a=>{
-  a.store(slot(40),'rcx');const loop=a.unique('loop'),done=a.unique('done');
+  a.store(slot(40),'rcx');const loop=a.unique('loop'),done=a.unique('done'),frame=a.unique('frame'),advance=a.unique('advance');
   a.label(loop);a.load('rax',slot(40));a.test('rax','rax');a.jcc('e',done);
-  a.load('rcx',{base:'rax',disp:R.values});a.load('rdx',{base:'rax',disp:R.count});a.call('rt.gcMarkRange');
-  a.load('rax',slot(40));a.load('rax',{base:'rax',disp:R.next});a.store(slot(40),'rax');a.jmp(loop);
+  a.load('rdx',{base:'rax',disp:R.count});a.test('rdx','rdx');a.jcc('s',frame);
+  a.load('rcx',{base:'rax',disp:R.values});a.call('rt.gcMarkRange');a.jmp(advance);
+  a.label(frame);a.mov('rcx','rax');a.call('rt.gcMarkFrame');
+  a.label(advance);a.load('rax',slot(40));a.load('rax',{base:'rax',disp:R.next});a.store(slot(40),'rax');a.jmp(loop);
   a.label(done);
  });
  b.fn('rt.gcTraceObject',56,a=>{

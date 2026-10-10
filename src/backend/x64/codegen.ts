@@ -3,7 +3,7 @@ import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/excepti
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
 import {ElementsLayout} from '../../runtime/array-elements.js';
-import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
+import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition, type Reg } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
@@ -14,6 +14,7 @@ import { RootLayout as R } from '../../runtime/heap-layout.js';
 import { ropeTag } from '../../runtime/strings.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import {JsFrame as JF,FrameDescriptor as FD} from '../../runtime/frame-layout.js';
+import {stackMapFragment,type StackMapEntry} from '../../runtime/stack-maps.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
@@ -206,8 +207,6 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     functions.push({begin:name,end:name+'.end',prologSize,allocationCodeOffset,stackAllocation:size,savedRegisters});
   }
   function emitFunction(fn:FunctionIR):void {
-    // Slow paths emitted after the blocks, so that the common paths stay dense.
-    const cold:(()=>void)[]=[];
     // Object literal sites with known keys (#194), by the slot of the object
     // they create (defined only by its newObject): {shape, count, capacity,
     // keys...} (LiteralSiteLayout).
@@ -250,7 +249,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     // registers.
     {const descriptor=new Uint8Array(FD.size),view=new DataView(descriptor.buffer);
      view.setBigUint64(FD.allocation,BigInt(allocation),true);view.setBigUint64(FD.slots,BigInt(locations.count),true);view.setBigUint64(FD.parameters,BigInt(fn.parameterCount),true);
-     fragments.push({name:fn.id+'.frame',section:'.rdata',alignment:8,bytes:descriptor,fixups:[],symbols:{}});}
+     fragments.push({name:fn.id+'.frame',section:'.rdata',alignment:8,bytes:descriptor,fixups:[{offset:FD.maps,kind:'va64',target:fn.id+'.maps',addend:0}],symbols:{}});}
     a.lea('r10',{rip:fn.id+'.frame'});a.call('rt.enterFrame');
     // For the unwind information the frame exists once the stub has returned.
     const allocated=a.offset,prologSize=a.offset;
@@ -311,7 +310,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(staticConstant(n)||!ropeSlots.has(n))return;
       const flat=a.unique('flat'),check=a.unique('ropeCheck');
       a.load('rax',value(n));a.cmp('rax',4);a.jcc('e',check);a.label(flat);
-      cold.push(()=>{a.label(check);a.load('r10',payload(n));a.load('rax',{base:'r10'});a.mov('r11',ropeTag);a.test('rax','r11');a.jcc('e',flat);pointer('rcx',n);a.call('rt.flattenValue');a.jmp(flat);});
+      pushCold(()=>{a.label(check);a.load('r10',payload(n));a.load('rax',{base:'r10'});a.mov('r11',ropeTag);a.test('rax','r11');a.jcc('e',flat);pointer('rcx',n);a.call('rt.flattenValue');a.jmp(flat);});
     };
     const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
     const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
@@ -389,8 +388,40 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         else if(operator==='-'){a.mov('rax',1n<<63n);a.movqToXmm('xmm1','rax');a.movqFromXmm('r10','xmm0');a.xor('r10','rax');a.movqToXmm('xmm0','r10');}
         setNumber(dest);
       }
-      a.jmp(done);cold.push(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
+      a.jmp(done);pushCold(()=>{a.label(slow);pointer('rcx',dest);pointer('rdx',argument);a.call('rt.'+unary[operator]);a.jmp(done);});a.label(done);return true;
     };
+    // Stack maps (src/runtime/stack-maps.ts): for every call this function
+    // makes, the locations live at that point, so that the collector scans
+    // only those. Slots below the live floor (locals of a function with very
+    // many) are live everywhere. A slot kept as a static constant has no
+    // frame storage: its location belongs to other slots.
+    const floor=liveFloor(fn);
+    // A map is keyed and stored by its locations at or above the floor (sorted),
+    // so that its cost is the size of the live set, not of the frame.
+    const alwaysLive=Math.min(floor,locations.count);
+    const mapIndex=new Map<string,number>(),maps:number[][]=[],entries:StackMapEntry[]=[];
+    const mapOf=(slots:Iterable<number>):number=>{
+      const above=new Set<number>();
+      for(const n of slots)if(n>=floor&&!staticConstant(n)){const l=location(n);if(l>=alwaysLive)above.add(l);}
+      const list=[...above].sort((x,y)=>x-y),key=list.join(',');let index=mapIndex.get(key);
+      if(index===undefined){index=maps.length;maps.push(list);mapIndex.set(key,index);}
+      return index;
+    };
+    // The map in force while code is emitted: every call records its return
+    // address under it, and an entry covers the calls that follow it under
+    // the same map. Cold code runs later under the map of its origin.
+    let currentMap=mapOf(liveness.get(fn.blocks[0]!.id)!.liveIn);
+    const record=()=>{const last=entries[entries.length-1];if(last&&(last.map===currentMap||last.offset===a.offset))return;entries.push({offset:a.offset,map:currentMap});};
+    const callUnderMap=(emit:()=>void)=>{emit();record();};
+    const assembler=a as {call(s:string):void;callRegister(r:Reg):void;callUnless(c:Condition,s:string):void};
+    const originalCall=assembler.call.bind(a),originalCallRegister=assembler.callRegister.bind(a),originalCallUnless=assembler.callUnless.bind(a);
+    assembler.call=(s:string)=>callUnderMap(()=>originalCall(s));
+    assembler.callRegister=(r:Reg)=>callUnderMap(()=>originalCallRegister(r));
+    assembler.callUnless=(c:Condition,s:string)=>callUnderMap(()=>originalCallUnless(c,s));
+    // Slow paths emitted after the blocks, so that the common paths stay
+    // dense; grouped by map, so that their calls share entries.
+    const cold:{map:number;emit:()=>void}[]=[];
+    const pushCold=(emit:()=>void)=>{cold.push({map:currentMap,emit});};
     // A derived constructor's this starts uninitialized, in a cell that its
     // arrow functions may share (the stub copied the receiver to the super
     // receiver slot already).
@@ -398,74 +429,42 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       a.mov('rax',255);a.store(stack(thisBase),'rax');a.mov('rax',0);a.store(stack(thisBase+8),'rax');
       a.lea('rcx',stack(thisBase));a.lea('rdx',stack(thisBase));a.call('rt.newCell');
     }
-    // Slots that may hold stale values when a block starts: whatever its
-    // predecessors left (live slots and their last destination). Handler
-    // targets can be entered from any operation, so they assume every slot.
-    // Slots below the live floor (locals of a function with very many) are
-    // live everywhere: they are never cleared, so they are not tracked here.
-    const floor=liveFloor(fn),allSlots=Array.from({length:fn.slotCount-floor},(_,i)=>i+floor);
-    const handlerTargets=new Set<number>();for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='pushHandler')handlerTargets.add(op.target);
-    const predecessors=new Map<number,number[]>(fn.blocks.map(block=>[block.id,[]]));
-    for(const block of fn.blocks){const t=block.terminator;for(const target of t.kind==='jump'?[t.target]:t.kind==='branch'?[t.yes,t.no]:[])predecessors.get(target)?.push(block.id);}
-    const entrySets=new Map<number,Set<number>>(),exitSets=new Map<number,Set<number>>();
-    // Dead locations are cleared (so a collection does not keep what they
-    // last held alive) at the start of every block, where the safepoint is,
-    // and before every operation that can reach the runtime. Operations that
-    // only move values between slots and globals cannot run a collection or
-    // user code, so clearing before them is deferred to the next boundary
-    // that needs it; a location rewritten in between is never cleared.
+    // Operations that only move values between slots and globals, and
+    // arithmetic, comparisons and updates on proven Numbers, cannot run a
+    // collection or user code.
     const inline=(op:Operation):boolean=>{
       if(movesOnly.has(op.kind))return true;
-      // Arithmetic, comparisons and updates on proven Numbers are inline.
       if(op.kind==='binary'&&op.numeric&&['+','-','*','/','<','<=','>','>=','==','===','!=','!=='].includes(op.operator))return true;
       return op.kind==='unary'&&!!op.numeric&&['numeric','increment','decrement','-','+'].includes(op.operator);
     };
-    // A block of inline operations allocates nothing: it needs no safepoint,
-    // and without one nothing has to be cleared at its start either.
+    // A block of inline operations allocates nothing: it needs no safepoint.
     const needsSafepoint=(block:BlockIR):boolean=>!block.operations.every(inline);
-    const clearsBefore=(block:BlockIR,index:number):boolean=>index===0?needsSafepoint(block):!inline(block.operations[index]!);
-    const exitOf=(block:BlockIR,entry:Set<number>):Set<number>=>{
-      let possible=entry;
-      for(const [index,op] of block.operations.entries()){
-        if(clearsBefore(block,index))possible=new Set(liveness.get(block.id)!.before[index]!);else possible=new Set(possible);
-        for(const d of destinations(op))if(d>=floor)possible.add(d);
-      }
-      return possible;
-    };
-    for(let changed=true;changed;){
-      changed=false;
-      for(const [index,block] of fn.blocks.entries()){
-        let entry:Set<number>;
-        if(handlerTargets.has(block.id))entry=new Set(allSlots);
-        else if(index===0)entry=new Set(Array.from({length:fn.parameterCount},(_,i)=>i).filter(i=>i>=floor));
-        else{entry=new Set();for(const pred of predecessors.get(block.id)!)for(const slot of exitSets.get(pred)??[])entry.add(slot);}
-        const previous=entrySets.get(block.id);
-        if(!previous||previous.size!==entry.size){entrySets.set(block.id,entry);exitSets.set(block.id,exitOf(block,entry));changed=true;}
-      }
-    }
     for(const block of fn.blocks){
       a.label(fn.id+'.block.'+block.id);
-      // After the first safepoint only previously live slots/new destinations need clearing.
-      let possible=new Set(entrySets.get(block.id)??allSlots);
       let fused:Extract<Operation,{kind:'binary'}>|undefined;
       for(const [index,op] of block.operations.entries()){
-       // A location is cleared when none of the slots sharing it is live.
-       const live=liveness.get(block.id)!.before[index]!;
-       if(clearsBefore(block,index)){
-        const liveLocations=new Set([...live].map(location));
-        const dead=[...new Set([...possible].map(location))].filter(l=>!liveLocations.has(l));
-        if(dead.length){a.mov('rax',0);for(const l of dead){a.store(stack(valueBase+16*l),'rax');a.store(stack(valueBase+16*l+8),'rax');}}
-        possible=new Set(live);
-       }else possible=new Set(possible);
-       for(const d of destinations(op))if(d>=floor)possible.add(d);
+       const live=liveness.get(block.id)!.before[index]!,dests=destinations(op).filter(d=>d>=floor&&!staticConstant(d));
        // Safepoint at the start of every block (every loop iteration passes
        // one): one flag test (rt.gcNeeded, set by the allocator when the
-       // threshold is passed), so that only a collection costs a call. Every slot is rooted and every dead one cleared at
-       // every operation boundary, so any boundary is a valid safepoint; one
-       // per block bounds the garbage a block can accumulate by its length.
-       // GC stress collects before every operation to catch rooting errors.
+       // threshold is passed), so that only a collection costs a call. Every
+       // live slot is rooted at every operation boundary, so any boundary is
+       // a valid safepoint; one per block bounds the garbage a block can
+       // accumulate by its length. GC stress collects before every operation
+       // to catch rooting errors.
+       currentMap=mapOf(live);
        if(options.gcStress)a.call('rt.collect');
        else if(index===0&&needsSafepoint(block)){a.cmpByte({rip:'rt.gcNeeded'},0);a.callUnless('e','rt.collect');}
+       if(!inline(op)){
+        // The map of this operation's calls: the live slots and the
+        // destinations, which the runtime may keep its result in across a
+        // nested call (construction keeps the instance there). A destination
+        // whose location is dead before the operation may hold a stale
+        // pointer: its tag becomes undefined first (tags are below 256, so
+        // one byte does it).
+        const liveLocations=new Set([...live].map(location));
+        for(const l of new Set(dests.map(location)))if(!liveLocations.has(l))a.storeByte(stack(valueBase+16*l),0);
+        currentMap=mapOf([...live,...dests]);
+       }
        // Ropes (strings.ts) may only reach `+`, copies, globals and the few
        // operations that read a string's length or tag; every other
        // operation first flattens the slots it reads.
@@ -587,7 +586,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           copy(value(op.dest),stack(thisBase));
           if(fn.derivedConstructor){a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');}
           a.label(done);
-          {const dest=op.dest;cold.push(()=>{a.label(cell);pointer('rcx',dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');
+          {const dest=op.dest;pushCold(()=>{a.label(cell);pointer('rcx',dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');
             a.load('rax',value(dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');a.jmp(done);});}
           break;
         }
@@ -646,7 +645,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             // does the same); it and the general call are out of line.
             const tail=a.unique('tailMarker'),dest=op.dest;
             a.load('rax',value(op.dest));a.cmp('rax',TailCallTag);a.jcc('e',tail);
-            cold.push(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
+            pushCold(()=>{a.label(tail);pointer('rcx',dest);a.call('rt.tailDispatch');a.jmp(called);});
           }
           const generalCall=(op:Extract<Operation,{kind:'invoke'}>)=>{
             a.label(general);
@@ -656,7 +655,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.store(stack(40),'rax');
             pointer('rcx',op.dest);pointer('rdx',op.callee);a.mov('r8',op.arguments.length);a.lea('r9',stack(argsBase));a.call(op.tail?'rt.prepareTailCall':op.construct?'rt.invokeConstruct':'rt.invoke');
           };
-          if(op.direct){const call=op;cold.push(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
+          if(op.direct){const call=op;pushCold(()=>{generalCall(call);a.jmp(called);});}else generalCall(op);
           a.label(called);break;
         }
         case 'constructForward':
@@ -720,7 +719,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.load('rax',{base:'r10',disp:ElementsLayout.capacity});a.cmp('rax',op.literalElement);a.jcc('be',slow);
             a.load('rax',value(op.source));a.store({base:'r10',disp:offset},'rax');
             a.load('rax',payload(op.source));a.store({base:'r10',disp:offset+8},'rax');
-            cold.push(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
+            pushCold(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
             a.label(done);break;
           }
           // A definition in an object literal with known keys stores its slot
@@ -730,7 +729,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             a.load('r10',payload(op.object));a.load('r11',{base:'r10',disp:O.shape});a.load('rax',{rip:site});a.cmp('r11','rax');a.jcc('ne',slow);
             a.load('rax',value(op.source));a.store({base:'r10',disp:O.size+16*op.literalSlot},'rax');
             a.load('rax',payload(op.source));a.store({base:'r10',disp:O.size+16*op.literalSlot+8},'rax');
-            cold.push(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
+            pushCold(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
             a.label(done);break;
           }
           pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
@@ -796,7 +795,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             if(op.operator==='!='||op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}};
           // The generic call is placed after the function's blocks, out of the
           // path that Numbers take.
-          if(fast){cold.push(()=>{a.label(fast.slow);generic();a.jmp(fast.done);});a.label(fast.done);}else generic();
+          if(fast){pushCold(()=>{a.label(fast.slow);generic();a.jmp(fast.done);});a.label(fast.done);}else generic();
           break;
         }
         case 'call':
@@ -804,7 +803,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           pointer('rcx',op.dest);a.mov('rdx',op.arguments.length);a.lea('r8',stack(argsBase));a.call(op.target);break;
        }
       }
-      const term=block.terminator;
+      const term=block.terminator;currentMap=mapOf(liveness.get(block.id)!.beforeTerminator);
       switch(term.kind){
         case 'jump':a.jmp(fn.id+'.block.'+term.target);break;
         case 'branch':{
@@ -820,7 +819,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           const slow=a.unique('branchSlow'),test=a.unique('branchTest'),yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no;
           a.load('rax',value(term.condition));a.load('r10',payload(term.condition));a.cmp('rax',2);a.jcc('e',test);a.cmp('rax',3);a.jcc('ne',slow);
           a.movqToXmm('xmm0','r10');a.xor('rax','rax');a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',no);a.jcc('e',no);a.jmp(yes);
-          {const condition=term.condition;cold.push(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
+          {const condition=term.condition;pushCold(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
           a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
         }
         case 'throw':flattenSlot(term.value);pointer('rcx',term.value);a.call('rt.throw');break;
@@ -833,7 +832,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.load('rbp',{base:'rsp',disp:savedFrameBase});a.add('rsp',allocation);a.ret();break;
       }
     }
-    for(const emit of cold)emit();
+    for(const {map,emit} of cold.sort((x,y)=>x.map-y.map)){currentMap=map;emit();}
+    fragments.push(stackMapFragment(fn.id+'.maps',fn.id,entries,maps,locations.count,alwaysLive));
     finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
   module.functions.forEach(fn=>emitFunction(fn));
