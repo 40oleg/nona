@@ -25,6 +25,8 @@ La suite compila y ejecuta ejecutables reales: las pruebas PE se ejecutan en Win
 
 Las pruebas están en `tests/*.test.ts`. Usa preferentemente `runOnHost` con el oráculo de Node.js (`runOracle`): así la misma prueba se ejecuta en ambos destinos, bajo estrés del GC, y compara la salida del programa con Node.js.
 
+Cada archivo de pruebas pertenece exactamente a una suite de `tests/suites.json`; añade un archivo nuevo a la suite cuyos trabajos de CI deban ejecutarlo (`windows-only` si solo la ejecución completa en Windows). `node scripts/run-suite.mjs <suite...>` ejecuta suites en local, y `tests/suites.test.ts` falla mientras un archivo no esté asignado.
+
 ## Convenciones de código
 
 - El compilador está escrito en TypeScript (`src/`). El código del runtime se emite como x86-64 mediante `RuntimeBuilder` (`src/runtime/*.ts`) o se escribe como preludios de JavaScript (`src/runtime/*-source.ts`) que se compilan en cada ejecutable.

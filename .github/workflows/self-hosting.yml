@@ -10,6 +10,8 @@ on:
       - 'scripts/verify-selfhost.mjs'
       - 'scripts/native-cli-smoke.sh'
       - 'scripts/package-native-cli.mjs'
+      - 'scripts/run-suite.mjs'
+      - 'tests/suites.json'
       - 'tests/selfhost-liveness.test.ts'
       - 'tests/selfhost-traversal.test.ts'
       - 'tests/selfhost-filesystem.test.ts'
@@ -47,7 +49,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Verify compiler liveness on the native host
-        run: node --test dist/tests/selfhost-liveness.test.js dist/tests/selfhost-traversal.test.js dist/tests/selfhost-filesystem.test.js dist/tests/selfhost-adapters.test.js
+        run: node scripts/run-suite.mjs selfhost
       - name: Build native stage 1 with the development bootstrap
         run: node scripts/bootstrap-selfhost.mjs ${{ matrix.target }} work/selfhost/${{ matrix.image }}
       - name: Verify native regressions and stage 1 builds stage 2
