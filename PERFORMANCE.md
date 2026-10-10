@@ -61,7 +61,7 @@ the RegExp engine is a bytecode VM with a literal-prefix search (#14, #107),
 and JSON is parsed and written iteratively (#41, #88). What remains is mostly
 the cost of the generic path and of copying strings:
 
-- `s += …` is still quadratic (×237 at 20 000 iterations): ropes are tracked in #46 and #83.
+- `s += …` was quadratic (×237 at 20 000 iterations) until ropes (#46, #83): 20 000 appends now take 5 ms (Node.js 4.3 ms) and 200 000 take 80 ms (Node.js 33 ms) on the machine of the 2026-10-05 HTTP measurement.
 - RegExp is ×227 on this scan-heavy case.
 - Calls, closures and classes are ×4–12, and short-lived objects ×13: call-site caches (#47), inline slots for short-lived objects (#48) and shapes (#114).
 - `JSON.stringify` still builds a UTF-16 string first (#155). Since #45 it reads plain data (shaped objects, dense arrays) directly: 30 000 objects take 30 ms instead of 72 ms on the machine of the 2026-10-05 HTTP measurement (Node.js: 17 ms).

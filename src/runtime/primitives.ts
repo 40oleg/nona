@@ -63,7 +63,7 @@ export function emitPrimitives(b:RuntimeBuilder):void {
   a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toNumber');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toNumber');
   a.movsd('xmm0',slot(72));a.movsd('xmm1',slot(88));if(op==='rem')a.call('rt.remainder');else if(op==='pow')a.call('rt.numberPow');else if(op==='add')a.addsd('xmm0','xmm1');else if(op==='sub')a.subsd('xmm0','xmm1');else if(op==='mul')a.mulsd('xmm0','xmm1');else a.divsd('xmm0','xmm1');
   a.load('rcx',slot(40));a.storesd({base:'rcx',disp:8},'xmm0');tag(a,3);
-  if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concat');a.label('rt.add.done');}
+  if(op==='add'){a.jmp('rt.add.done');a.label('rt.add.string');a.lea('rcx',slot(64));a.load('rdx',slot(48));a.call('rt.toString');a.lea('rcx',slot(80));a.load('rdx',slot(56));a.call('rt.toString');a.load('rcx',slot(40));a.lea('rdx',slot(64));a.lea('r8',slot(80));a.call('rt.concatLazy');a.label('rt.add.done');}
   if(op==='sub'||op==='mul'||op==='div'||op==='rem'||op==='pow')a.label(bigDone);
   a.label(fastDone);
  });

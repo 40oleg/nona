@@ -33,6 +33,9 @@ function unreachable(value:never):never {
  throw new Error(`Unknown IR variant: ${JSON.stringify(value)}`);
 }
 
+/** The slots an operation reads (its destination too when it reads it). */
+export function operationUses(operation:Operation):number[] {const uses=new Set<number>();transfer(operation,uses);return [...uses];}
+
 function transfer(operation:Operation,live:Set<number>):void {
  // Kill before adding uses: an operation may read its own destination.
  if('dest' in operation)live.delete(operation.dest);

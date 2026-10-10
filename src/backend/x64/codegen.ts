@@ -8,9 +8,10 @@ import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.j
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';
-import { analyzeLiveness, isLive, liveFloor } from '../../ir/liveness.js';
+import { analyzeLiveness, isLive, liveFloor, operationUses } from '../../ir/liveness.js';
 import { assignLocations, destinations } from '../../ir/locations.js';
 import { RootLayout as R } from '../../runtime/heap-layout.js';
+import { ropeTag } from '../../runtime/strings.js';
 import {StackBudget} from '../../runtime/context-switch.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
@@ -275,6 +276,43 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       a.load('rax',add(from));a.store(add(to),'rax');
     };
     const payload=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c,addend:8}:stack(valueBase+16*location(n)+8);};
+    // A rope (strings.ts) in a frame slot becomes its flat string before an
+    // operation that may read its units: the tag test is inline, the heap
+    // kind test and the call out of line. Constants are flat; proven Number
+    // operations never see a string.
+    const ropeTransparent=(op:Operation):boolean=>{
+      switch(op.kind){
+        case 'copy':case 'storeGlobal':case 'constant':case 'loadGlobal':case 'uninitialized':case 'checkInitialized':case 'checkResolvable':case 'pushHandler':case 'popHandler':case 'immutableWrite':case 'generatorInitialSuspend':return true;
+        case 'binary':return op.operator==='+'||!!op.numeric;
+        case 'unary':return !!op.numeric||op.operator==='typeof'||op.operator==='!'||op.operator==='isNullish'||op.operator==='string';
+        case 'property':return op.operation==='get'&&op.keyName==='length';
+        default:return false;
+      }
+    };
+    // The slots that may hold a rope: results of a string `+` and of a
+    // global read, and whatever a rope-transparent operation passes on from
+    // such a slot (copies, template string conversion). Every other result
+    // comes from the runtime or a call, which never return a rope, so only
+    // these slots need a test (flow-insensitive, to a fixed point).
+    const ropeSlots=new Set<number>();
+    const passesString=(op:Operation):boolean=>{
+      if(op.kind==='binary'||op.kind==='property'||op.kind==='constant'||op.kind==='uninitialized')return false;
+      if(op.kind==='unary')return op.operator==='string'&&!op.numeric;
+      return ropeTransparent(op);
+    };
+    for(let changed=true;changed;){
+      changed=false;
+      for(const block of fn.blocks)for(const op of block.operations){
+        const may=(op.kind==='binary'&&op.operator==='+'&&!op.numeric)||op.kind==='loadGlobal'||(passesString(op)&&operationUses(op).some(n=>ropeSlots.has(n)));
+        if(may)for(const d of destinations(op))if(!ropeSlots.has(d)){ropeSlots.add(d);changed=true;}
+      }
+    }
+    const flattenSlot=(n:number)=>{
+      if(staticConstant(n)||!ropeSlots.has(n))return;
+      const flat=a.unique('flat'),check=a.unique('ropeCheck');
+      a.load('rax',value(n));a.cmp('rax',4);a.jcc('e',check);a.label(flat);
+      cold.push(()=>{a.label(check);a.load('r10',payload(n));a.load('rax',{base:'r10'});a.mov('r11',ropeTag);a.test('rax','r11');a.jcc('e',flat);pointer('rcx',n);a.call('rt.flattenValue');a.jmp(flat);});
+    };
     const setNumber=(dest:number)=>{a.storesd(payload(dest),'xmm0');a.mov('rax',3);a.store(value(dest),'rax');};
     const setBoolean=(dest:number)=>{a.store(payload(dest),'rax');a.mov('rax',2);a.store(value(dest),'rax');};
     // Number operands are the common case of every arithmetic and relational
@@ -445,6 +483,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
        // GC stress collects before every operation to catch rooting errors.
        if(options.gcStress)a.call('rt.collect');
        else if(index===0&&needsSafepoint(block)){const noGc=a.unique('noGc');a.load('rax',{rip:'rt.liveBytes'});a.load('r10',{rip:'rt.generatorStackBytes'});a.add('rax','r10');a.load('r10',{rip:'rt.gcThreshold'});a.cmp('rax','r10');a.jcc('b',noGc);a.call('rt.collect');a.label(noGc);}
+       // Ropes (strings.ts) may only reach `+`, copies, globals and the few
+       // operations that read a string's length or tag; every other
+       // operation first flattens the slots it reads.
+       if(!ropeTransparent(op))for(const n of operationUses(op))flattenSlot(n);
        switch(op.kind){
         case 'globalObject':copy(value(op.dest),{rip:'rt.globalValue'});break;
         case 'readGlobalProperty':{
@@ -798,8 +840,9 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           {const condition=term.condition;cold.push(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
           a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
         }
-        case 'throw':pointer('rcx',term.value);a.call('rt.throw');break;
+        case 'throw':flattenSlot(term.value);pointer('rcx',term.value);a.call('rt.throw');break;
         case 'return':
+          if(term.value>=0)flattenSlot(term.value);
           a.load('r10',stack(72));
           if(term.value<0){a.mov('rax',0);a.store({base:'r10'},'rax');a.store({base:'r10',disp:8},'rax');}
           else copy({base:'r10'},value(term.value));

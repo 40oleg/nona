@@ -1,3 +1,4 @@
+import {lengthMask} from './strings.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ShapeLayout} from './shapes.js';
 import {ValueListLayout} from './heap-layout.js';
@@ -257,7 +258,8 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
   a.load('rax',{base:'r10',disp:typedArrayFields.length});a.jmp(number);
   a.label(generic);a.call('rt.getProperty');a.jmp(done);
   a.label(cached);a.call('rt.getPropertyCached');a.jmp(done);
-  a.label(string);a.load('rax',{base:'r10'});
+  // A rope (strings.ts) carries its length under ropeTag.
+  a.label(string);a.load('rax',{base:'r10'});a.mov('r10',lengthMask);a.and('rax','r10');
   a.label(number);a.cvtsi2sd('xmm0','rax');a.mov('rax',3);a.store({base:'rcx'},'rax');a.storesd({base:'rcx',disp:8},'xmm0');
   a.label(done);
  });

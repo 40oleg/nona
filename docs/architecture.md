@@ -47,6 +47,8 @@ source text
 
 A `Value` is 16 bytes: a tag and a payload. Numbers are unboxed doubles in the payload; strings and objects are pointers. Only String and Object payloads are GC roots.
 
+A string record is its length word followed by UTF-16 code units. A long `+` result is a *rope* (`src/runtime/strings.ts`): a record of heap kind `HeapKind.rope` whose length word carries bit 62 (`ropeTag`) and which points at its two halves instead of holding units. Ropes are confined to compiled code: a frame slot or a script-level global may hold one and pass it to `+`, a copy, `typeof`, `!` or a `.length` read; before any other operation reads a slot the code generator flattens it in place (`rt.flattenValue`), so the runtime, the preludes and the host only ever see flat records. The flat copy replaces the rope's left half (right becomes 0), so a rope shared by several slots is copied once.
+
 | Tag | Value |
 | --- | --- |
 | `ValueTag.Undefined` | 0 |
@@ -82,6 +84,7 @@ The collector is a precise, non-moving mark and sweep (`src/runtime/gc.ts`). Eve
 | `HeapKind.symbol` | 7 |
 | `HeapKind.mapEntry` | 8 |
 | `HeapKind.weakEntry` | 9 |
+| `HeapKind.rope` | 10 |
 
 Objects (`src/runtime/object-layout.ts`) come in two representations ([`object-model.md`](object-model.md)): plain objects made by literals, ordinary constructors and `JSON.parse` keep their named properties in 16-byte slots described by a shared shape (`shape`; the slots follow the header, the rest are in a value list in `keys`), and every other object keeps a linked list of property nodes with an optional index, an element table and a key filter. Property and element storage is the subject of issues #13, #36 and #114.
 
