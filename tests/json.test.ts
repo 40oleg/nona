@@ -124,8 +124,12 @@ let deep=1;for(let i=0;i<100000;i++)deep=i%2?[deep]:{d:deep};
 for(let k=0;k<2;k++){try{JSON.stringify(deep)}catch(e){console.log(e.name)}}
 let shallow=1;for(let i=0;i<500;i++)shallow=i%2?[shallow]:{d:shallow};console.log(JSON.stringify(shallow).length,JSON.stringify({still:'works'}));
 `;
+// The depth limit is implementation-defined (Node.js 26 on Windows serializes
+// this structure, Node.js 22 throws), so only the line after it is compared.
 test('JSON.stringify deep nesting is a RangeError',()=>{
  const run=runOnHost(deepSource,{gcStress:false});
  assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(deepSource).stdout);
+ const lines=run.stdout.trimEnd().split('\n'),expected=runOracle(deepSource).stdout.trimEnd().split('\n');
+ assert.deepEqual(lines.slice(0,-1),['RangeError','RangeError']);
+ assert.equal(lines.at(-1),expected.at(-1));
 });
