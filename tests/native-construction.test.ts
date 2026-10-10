@@ -20,19 +20,22 @@ for(const [name,source,expected] of [
 ] as const)test('native construct entry: '+name,()=>{
  const program=generate(lower(bind(parse(lex(source)))),{gcStress:true});
  const builder=new RuntimeBuilder();
- // Rename only the allocator entry, keeping its local labels/fixups intact.
- const original=program.fragments.find(f=>f.name==='rt.newFunction')!;
- original.name='test.originalNewFunction';
- original.symbols['test.originalNewFunction.end']=original.symbols['rt.newFunction.end']!;
- delete original.symbols['rt.newFunction.end'];
- const unwind=program.functions.find(f=>f.begin==='rt.newFunction')!;
- unwind.begin='test.originalNewFunction';
- unwind.end='test.originalNewFunction.end';
- builder.fn('rt.newFunction',56,a=>{
-  a.store(slot(40),'rcx');a.call('test.originalNewFunction');
-  a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});
-  a.lea('rax',{rip:'test.construct'});a.store({base:'rcx',disp:F.constructCode},'rax');
- });
+ // Rename only the closure entries (call-sites.ts), keeping their local
+ // labels/fixups intact, and wrap them: both take RCX result, RDX descriptor.
+ for(const entry of ['rt.newClosure','rt.newPlainClosure','rt.newArrowClosure']){
+  const renamed='test.original.'+entry,original=program.fragments.find(f=>f.name===entry)!;
+  original.name=renamed;
+  original.symbols[renamed+'.end']=original.symbols[entry+'.end']!;
+  delete original.symbols[entry+'.end'];
+  const unwind=program.functions.find(f=>f.begin===entry)!;
+  unwind.begin=renamed;
+  unwind.end=renamed+'.end';
+  builder.fn(entry,56,a=>{
+   a.store(slot(40),'rcx');a.call(renamed);
+   a.load('rcx',slot(40));a.load('rcx',{base:'rcx',disp:8});
+   a.lea('rax',{rip:'test.construct'});a.store({base:'rcx',disp:F.constructCode},'rax');
+  });
+ }
  builder.fn('test.construct',72,a=>{
   a.store(slot(40),'rcx');a.load('rax',slot(112));a.store(slot(48),'rax');
   // Native ABI: argc in RDX, argv in R8, header in R9, receiver on stack.

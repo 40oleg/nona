@@ -232,6 +232,16 @@ export class Arm64Assembler extends Assembler {
     }
   }
   override load(dst:Reg,src:Mem,width:8|16|32|64=64):void {this.nativeMemory(true,arm64Registers[dst],src,width);}
+  // LDRSW (unsigned scaled offset), LDURSW (signed 9-bit offset) or LDRSW from X11.
+  override loadSigned32(dst:Reg,src:Mem):void {
+    const register=arm64Registers[dst];
+    if('rip' in src){this.nativeAddress(11,src);this.nativeWord((0xb9800000|(11<<5)|register)>>>0);return;}
+    const base=arm64Registers[src.base],disp=src.disp??0;
+    if(!Number.isSafeInteger(disp))throw new RangeError('ARM64 memory displacement out of range');
+    if(disp>=0&&disp%4===0&&disp/4<4096)this.nativeWord((0xb9800000|((disp/4)<<10)|(base<<5)|register)>>>0);
+    else if(disp>=-256&&disp<=255)this.nativeWord((0xb8800000|((disp&511)<<12)|(base<<5)|register)>>>0);
+    else {this.nativeAddress(11,src);this.nativeWord((0xb9800000|(11<<5)|register)>>>0);}
+  }
   override store(dst:Mem,src:Reg,width:8|16|32|64=64):void {this.nativeMemory(false,arm64Registers[src],dst,width);}
   override push(reg:Reg):void {
     this.nativeWord(0xd100239c);this.nativeWord((0xf9000380|arm64Registers[reg])>>>0);

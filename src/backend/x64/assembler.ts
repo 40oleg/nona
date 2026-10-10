@@ -145,6 +145,10 @@ export class Assembler {
       width === 64,
     );
   }
+  /** movsxd: a signed 32-bit load into a 64-bit register. */
+  loadSigned32(dst: Reg, src: Mem): void {
+    this.instruction([0x63], regCode(dst), src, true);
+  }
   store(dst: Mem, src: Reg, width: 8 | 16 | 32 | 64 = 64): void {
     // A bare REX is required for SPL/BPL/SIL/DIL byte stores.
     if (
@@ -309,6 +313,11 @@ export class Assembler {
   call(s: string): void {
     this.countCall(s);
     this.rel32(0xe8, s);
+  }
+  /** A tail jump to `s`, counted like a call in call-statistics builds. */
+  tailJump(s: string): void {
+    this.countCall(s);
+    this.jmp(s);
   }
   protected countCall(s:string):void {
     const counter = callCounter?.(s);
