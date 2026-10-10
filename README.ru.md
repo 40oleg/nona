@@ -82,13 +82,13 @@ nona build server.mjs -o server
 
 ```text
 nona build <input.js> -o <output> [--target <target>] [--module]
-           [--full-runtime] [--call-stats] [--coverage dir]
+           [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. `--full-runtime` подключает всю среду выполнения, а не только достижимые части. Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
+Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. `--full-runtime` подключает всю среду выполнения, а не только достижимые части. `--print-asm` выводит ассемблер x86-64, сгенерированный для собственных функций программы (`-o` тогда можно не указывать). Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
 
 ## Что поддерживается
 

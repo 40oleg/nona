@@ -5,6 +5,7 @@
 ```text
 Nona 0.10.0 — JavaScript subset to native executables
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -20,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | 路径 | 输出文件。必填。缺失的目录会被创建。 |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。 |
+| `--print-asm` | — | 把为程序自身函数（不含运行时及其前导代码）生成的 x86-64 汇编输出到 stdout：每个函数的标签，然后每条指令一行，包含偏移、编码字节和 Intel 语法文本。使用此选项时可以省略 `-o`。仅限 x86-64 目标。 |
 | `--subsystem` | `console`（默认）、`windows` | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。 |
 | `--icon` | `.ico` 文件 | 嵌入图标文件中的所有图像。仅限 `win32-x64`。 |
 | `--manifest` | XML 文件 | 嵌入应用程序清单。清单必须有效：Windows 会拒绝启动清单格式错误的程序。仅限 `win32-x64`。 |

@@ -5,6 +5,7 @@
 ```text
 Nona 0.10.0 — JavaScript subset to native executables
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -20,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | পাথ | আউটপুট ফাইল। আবশ্যক। অনুপস্থিত ডিরেক্টরি তৈরি করা হয়। |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ইনপুটকে ES মডিউল হিসেবে কম্পাইল করে। `.mjs`-এ শেষ হওয়া ইনপুট স্বয়ংক্রিয়ভাবে মডিউল। |
+| `--print-asm` | — | প্রোগ্রামের নিজস্ব ফাংশনের (রানটাইম ও তার প্রিলিউড নয়) জন্য তৈরি x86-64 অ্যাসেম্বলি stdout-এ ছাপায়: প্রতিটি ফাংশনের লেবেল, তারপর প্রতিটি নির্দেশের জন্য একটি লাইন — অফসেট, এনকোড করা বাইট ও Intel সিনট্যাক্সে লেখা। এই অপশনের সঙ্গে `-o` বাদ দেওয়া যায়। কেবল x86-64 টার্গেট। |
 | `--subsystem` | `console` (ডিফল্ট), `windows` | কনসোল উইন্ডো ছাড়া Windows GUI প্রোগ্রাম। কেবল `win32-x64`। `--manifest` ছাড়া একটি GUI প্রোগ্রাম একটি ডিফল্ট ম্যানিফেস্ট পায়। |
 | `--icon` | `.ico` ফাইল | আইকন ফাইলের প্রতিটি ছবি যুক্ত করে। কেবল `win32-x64`। |
 | `--manifest` | XML ফাইল | একটি অ্যাপ্লিকেশন ম্যানিফেস্ট যুক্ত করে। এটি বৈধ হতে হবে: ত্রুটিপূর্ণ ম্যানিফেস্টসহ প্রোগ্রাম Windows চালু করতে অস্বীকার করে। কেবল `win32-x64`। |

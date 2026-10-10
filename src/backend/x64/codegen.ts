@@ -3,7 +3,7 @@ import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/excepti
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
 import {ElementsLayout} from '../../runtime/array-elements.js';
-import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition, type Reg } from './assembler.js';
+import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, setAssemblyListing, type Mem, type Condition, type Reg } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
@@ -18,6 +18,7 @@ import {stackMapFragment,type StackMapEntry} from '../../runtime/stack-maps.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
 import { TailCallTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
+import { renderListing } from './listing.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
 import {runtimeRegExpLink,fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
@@ -72,7 +73,7 @@ const baseImages=new Map<string,BaseImage>();
  * `callStats` counts every call by target and prints the counts when the
  * program ends (see call-stats.ts); otherwise this is generateImage.
  */
-export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions}={}):NativeProgram {
+export function generate(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions;listing?:boolean}={}):NativeProgram {
   if(!options.callStats&&!options.coverage)return generateImage(module,options);
   if(!options.callStats)return addCoverage(module,generateImage(module,options),options.coverage!);
   const counted=new Set<string>();
@@ -100,7 +101,7 @@ function linkedPreludes(link:RuntimeLink):OptionalPrelude[] {
   return optionalPreludes.filter(name=>selected.has(name));
 }
 /** `link` selects the optional runtime parts (all by default). */
-function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions}={}):NativeProgram {
+function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejections?:'throw'|'ignore';realms?:number;agent?:boolean;agentPrograms?:NativeProgram[];link?:RuntimeLink;baseCache?:BaseImageCache;callStats?:boolean;coverage?:CoverageOptions;listing?:boolean}={}):NativeProgram {
   const userGlobalCount=module.globalCount;
   const rejectionPolicy=options.unhandledRejections??'throw';
   const link=options.link??fullRuntimeLink;
@@ -841,7 +842,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
     fragments.push(stackMapFragment(fn.id+'.maps',fn.id,entries,maps,locations.count,alwaysLive));
     finish(a,fn.id,allocation,prologSize,allocated,[{register:5,codeOffset:prologSize,stackOffset:savedFrameBase}]);
   }
-  module.functions.forEach(fn=>emitFunction(fn));
+  // --print-asm lists the program's own functions only (not the runtime or preludes).
+  let assembly:string|undefined;
+  if(options.listing){
+    setAssemblyListing(true);
+    try{module.functions.forEach(fn=>emitFunction(fn));}finally{setAssemblyListing(false);}
+    const byName=new Map(fragments.map(f=>[f.name,f]));
+    assembly=module.functions.map(fn=>{const f=byName.get(fn.id)!;return renderListing(fn.id,f.bytes,f.listing??[]);}).join('\n');
+  }else module.functions.forEach(fn=>emitFunction(fn));
   // Per-realm addresses of the code and intrinsics realmFunction uses.
   for(const symbol of realmCodeTables)fragments.push({name:'realm.code.'+symbol,section:'.rdata',alignment:8,bytes:new Uint8Array(8*(realms+1)),symbols:{},
     fixups:Array.from({length:realms+1},(_,realm)=>({offset:8*realm,kind:'va64' as const,target:realm===0?symbol:realmSymbol(realm,symbol),addend:0}))});
@@ -1023,5 +1031,5 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   }else{
     if(options.callStats)entry.call('rt.callStatsReport');entry.call('rt.runExitHook');entry.call('rt.dispose');entry.mov('rcx',0);entry.callImport('ExitProcess');entry.add('rsp',entryFrame);entry.ret();finish(entry,'entry',entryFrame,p);
   }
-  return {fragments,imports:runtime.imports,entry:'entry',functions};
+  return {fragments,imports:runtime.imports,entry:'entry',functions,...(assembly!==undefined?{assembly}:{})};
 }

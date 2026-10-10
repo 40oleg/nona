@@ -5,6 +5,7 @@
 ```text
 Nona 0.10.0 — JavaScript subset to native executables
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -20,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | पाथ | आउटपुट फ़ाइल। ज़रूरी। ग़ायब डायरेक्टरी बना दी जाती हैं। |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | इनपुट को ES मॉड्यूल के रूप में कंपाइल करें। `.mjs` पर ख़त्म होने वाले इनपुट अपने आप मॉड्यूल होते हैं। |
+| `--print-asm` | — | प्रोग्राम के अपने फ़ंक्शनों (रनटाइम और उसके प्रील्यूड नहीं) के लिए बना x86-64 असेंबली stdout पर छापें: हर फ़ंक्शन का लेबल, फिर हर निर्देश की एक पंक्ति — ऑफ़सेट, एन्कोड किए बाइट और Intel सिंटैक्स में पाठ। इस विकल्प के साथ `-o` छोड़ा जा सकता है। केवल x86-64 टारगेट। |
 | `--subsystem` | `console` (डिफ़ॉल्ट), `windows` | कंसोल विंडो के बिना Windows GUI प्रोग्राम। केवल `win32-x64`। `--manifest` के बिना GUI प्रोग्राम को डिफ़ॉल्ट मैनिफ़ेस्ट मिलता है। |
 | `--icon` | `.ico` फ़ाइल | आइकन फ़ाइल की हर इमेज जोड़ें। केवल `win32-x64`। |
 | `--manifest` | XML फ़ाइल | ऐप्लिकेशन मैनिफ़ेस्ट जोड़ें। यह मान्य होना चाहिए: ख़राब मैनिफ़ेस्ट वाले प्रोग्राम को Windows शुरू करने से मना कर देता है। केवल `win32-x64`। |

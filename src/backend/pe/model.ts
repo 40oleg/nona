@@ -10,6 +10,8 @@ export interface CodeFragment {
   symbols: Record<string, number>;
   /** Native syscall instruction positions for OS loader registration. */
   syscalls?: {offset:number;number:number}[];
+  /** The instructions as assembly text (nona build --print-asm), by offset. */
+  listing?: {offset:number;text:string}[];
 }
 export type NamedFragment = CodeFragment & {
   name: string;
@@ -42,4 +44,6 @@ export interface NativeProgram {
   imports: ImportSymbol[];
   entry: string;
   functions: UnwindFunction[];
+  /** The program's own functions as x86-64 assembly text (nona build --print-asm). */
+  assembly?: string;
 }
