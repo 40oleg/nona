@@ -10,6 +10,10 @@ exactly.
   **English**.
 - Every piece of work starts from an issue. If there is none, create it first:
   motivation, proposal, acceptance criteria.
+- Before starting an issue, look at its Development box and the PRs that
+  mention it. If a merged PR already resolves it, close it with a link to that
+  PR instead of starting work; if a merged PR did part of it, continue from
+  what its PR description and the issue comments list as remaining.
 - **Claim an issue before you start**: add the `blocked` label ("Taken by an
   agent; do not start in parallel"). Never start an issue that already has the
   `blocked` label, even if it looks abandoned; ask the owner instead.
@@ -33,8 +37,18 @@ exactly.
 - Branch from `main`. If an issue really depends on an unmerged one, branch
   from that branch and say so in the PR description ("Depends on #N"); rebase
   once the dependency is merged.
-- The PR description contains `Closes #N`, a summary of the design, how it was
-  tested (Linux, Windows, which suites), and known limitations.
+- The PR description contains a summary of the design, how it was tested
+  (Linux, Windows, which suites), and known limitations, and links every issue
+  it works on, one line each:
+  - `Closes #N` when the PR completes the issue. GitHub then lists the PR in
+    the issue's Development box and closes the issue when the PR is merged.
+  - `Part of #N` when it does only part of it. After the merge, comment on the
+    issue with the PR link, what was done and what remains, and remove
+    `blocked` unless you continue with it.
+- GitHub closes issues only for PRs merged into `main`. Retarget a stacked PR
+  (based on another PR's branch) to `main` before merging it.
+- After a merge, check that every `Closes` issue is closed; if not, close it by
+  hand with a link to the PR.
 - Keep `main` green: do not merge a PR whose `check` workflow fails.
 - Do not push to `main` directly and do not rewrite published history of other
   people's branches.
