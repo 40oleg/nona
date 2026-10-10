@@ -54,6 +54,19 @@ export const emptyLiteralCapacity=4;
 /** Inline slots of the first instances of a constructor. */
 export const defaultConstructorCapacity=4;
 
+/**
+ * The per-site record of an object literal whose keys are known at compile
+ * time (#194), in .data: the shape its objects get (0 until the first
+ * evaluation resolves it, literalSiteGeneric when it cannot be resolved), the
+ * number of keys, the inline capacity of its literal root, then the key
+ * records in definition order. The shape is the one adding the keys one by
+ * one to an object from rt.shapeLiteralRoot would give, so literal objects
+ * share shapes (and inline caches) with objects built by assignments.
+ */
+export const LiteralSiteLayout={shape:0,count:8,capacity:16,keys:24} as const;
+/** A literal site whose shape could not be resolved: its objects are built key by key. */
+export const literalSiteGeneric=1;
+
 /** Turns the object header in REG into a dictionary when it is shaped (rt.shapeMaterialize). Clobbers RAX only. */
 export const shapeGuardSites:string[]=[];
 export function emitShapeGuard(a:Assembler,reg:'rcx'|'rdx'|'r8'|'r9'|'r10'|'r11'):void {
@@ -118,6 +131,37 @@ export function emitShapes(b:RuntimeBuilder):void {
   a.load('rax',{base:'r10'});a.test('rax','rax');a.jcc('ne',done);
   a.mov('r8','rcx');a.mov('rcx',0);a.mov('rdx',0);a.call('rt.shapeAllocate');a.load('r10',slot(40));a.store({base:'r10'},'rax');
   a.label(done);
+ });
+
+ // RCX literal site (LiteralSiteLayout) -> RAX the shape at the end of the
+ // transitions of its keys from its literal root, or literalSiteGeneric when
+ // a transition fails (too many shapes or transitions).
+ b.fn('rt.literalSiteResolve',72,a=>{
+  const L=LiteralSiteLayout,loop=a.unique('loop'),fail=a.unique('fail'),resolved=a.unique('resolved'),done=a.unique('done');
+  a.store(slot(40),'rcx');a.load('rcx',{base:'rcx',disp:L.capacity});a.call('rt.shapeLiteralRoot');a.store(slot(48),'rax');
+  a.mov('rax',0);a.store(slot(56),'rax');
+  a.label(loop);a.load('r10',slot(40));a.load('r11',{base:'r10',disp:L.count});a.load('rax',slot(56));a.cmp('rax','r11');a.jcc('ae',resolved);
+  a.shl('rax',3);a.add('rax','r10');a.load('rdx',{base:'rax',disp:L.keys});a.load('rcx',slot(48));a.call('rt.shapeTransition');
+  a.test('rax','rax');a.jcc('e',fail);a.store(slot(48),'rax');
+  a.load('rax',slot(56));a.add('rax',1);a.store(slot(56),'rax');a.jmp(loop);
+  a.label(resolved);a.load('rax',slot(48));a.jmp(done);
+  a.label(fail);a.mov('rax',literalSiteGeneric);
+  a.label(done);
+ });
+
+ // RCX result Value*, RDX literal site: a new object for the site, before
+ // its properties are defined. Its shape is the site's (resolved by the
+ // first evaluation), with every slot undefined until the literal's
+ // definitions store them; a generic site gets an empty object from the
+ // literal root, whose definitions are ordinary rt.setProperty calls.
+ b.fn('rt.newLiteralObject',56,a=>{
+  const L=LiteralSiteLayout,ready=a.unique('ready'),shaped=a.unique('shaped');
+  a.store(slot(40),'rcx');a.store(slot(48),'rdx');
+  a.load('rax',{base:'rdx',disp:L.shape});a.test('rax','rax');a.jcc('ne',ready);
+  a.mov('rcx','rdx');a.call('rt.literalSiteResolve');a.load('rdx',slot(48));a.store({base:'rdx',disp:L.shape},'rax');
+  a.label(ready);a.cmp('rax',literalSiteGeneric);a.jcc('ne',shaped);
+  a.load('rdx',slot(48));a.load('rcx',{base:'rdx',disp:L.capacity});a.call('rt.shapeLiteralRoot');
+  a.label(shaped);a.mov('rdx','rax');a.load('rcx',slot(40));a.call('rt.newShapedObject');
  });
 
  // RCX root shape of a constructor (or 0 for its first instance) -> RAX the

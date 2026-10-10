@@ -1,7 +1,7 @@
 import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
-import {maxInlineCapacity,emptyLiteralCapacity} from '../../runtime/shapes.js';
+import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
@@ -205,6 +205,16 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
   function emitFunction(fn:FunctionIR):void {
     // Slow paths emitted after the blocks, so that the common paths stay dense.
     const cold:(()=>void)[]=[];
+    // Object literal sites with known keys (#194), by the slot of the object
+    // they create (defined only by its newObject): {shape, count, capacity,
+    // keys...} (LiteralSiteLayout).
+    const literalSites=new Map<number,string>();
+    for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='newObject'&&op.keys&&!op.array){
+      const site='ls.'+fragments.length,L=LiteralSiteLayout,bytes=new Uint8Array(L.keys+8*op.keys.length),view=new DataView(bytes.buffer);
+      view.setBigUint64(L.count,BigInt(op.keys.length),true);view.setBigUint64(L.capacity,BigInt(Math.min(Math.max(op.slots??0,emptyLiteralCapacity),maxInlineCapacity)),true);
+      fragments.push({name:site,section:'.data',alignment:8,bytes,symbols:{},fixups:op.keys.map((key,i)=>({offset:L.keys+8*i,kind:'va64' as const,target:literal(key),addend:0}))});
+      literalSites.set(op.dest,site);
+    }
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
     const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
@@ -251,6 +261,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       if(op.kind==='constant')constants.set(op.dest,op.value);
     }
     const staticConstant=(n:number):string|undefined=>definitions.get(n)===1&&constants.has(n)&&n>=fn.localCount?constantValue(constants.get(n)):undefined;
+    const stringConstant=(n:number):boolean=>definitions.get(n)===1&&typeof constants.get(n)==='string';
     const value=(n:number):Mem=>{const c=staticConstant(n);return c?{rip:c}:stack(valueBase+16*location(n));};
     const pointer=(reg:'rcx'|'rdx'|'r8'|'r9',n:number)=>a.lea(reg,value(n));
     const copy=(to:Mem,from:Mem)=>{
@@ -633,7 +644,14 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'yieldDelegated':pointer('rcx',op.dest);pointer('rdx',op.source);pointer('r8',op.mode);a.call(op.value?'rt.generatorYieldDelegatedValue':'rt.generatorYieldDelegated');break;
         case 'generatorInitialSuspend':a.call('rt.generatorInitialSuspend');break;
         case 'requireObject':a.load('rax',value(op.source));a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');break;
-        case 'newObject':pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots!==undefined&&!op.array){a.mov('r9',Math.min(Math.max(op.slots,emptyLiteralCapacity),maxInlineCapacity));a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
+        case 'newObject':{
+          const capacity=Math.min(Math.max(op.slots??0,emptyLiteralCapacity),maxInlineCapacity);
+          // An object literal with known keys (#194): a per-site record whose
+          // shape the first evaluation resolves; its objects start with it.
+          const site=literalSites.get(op.dest);
+          if(site&&op.keys&&!op.array){pointer('rcx',op.dest);a.lea('rdx',{rip:site});a.call('rt.newLiteralObject');break;}
+          pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots!==undefined&&!op.array){a.mov('r9',capacity);a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
+        }
         case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
         case 'forInHas':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.key);a.call('rt.forInHas');break;
         case 'getIterator':pointer('rcx',op.iterator);pointer('rdx',op.next);pointer('r8',op.object);a.call('rt.getIterator');break;
@@ -658,15 +676,30 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             const cache='ic.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(PropertyCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r9',{rip:cache});a.call('rt.getLengthCached');break;
           }
+          // `object[key]`: integer indices of dense arrays, typed arrays and
+          // strings are read by a shared stub (array-elements.ts).
+          if(op.operation==='get'&&op.keyName===undefined&&!stringConstant(op.key)){a.call('rt.elementGet');break;}
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
-        case 'setProperty':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
+        case 'setProperty':
+          // A definition in an object literal with known keys stores its slot
+          // directly while the object still has the site's shape.
+          if(op.literalSlot!==undefined&&literalSites.has(op.object)){
+            const site=literalSites.get(op.object)!,slow=a.unique('literalSlow'),done=a.unique('literalDone'),generic=op;
+            a.load('r10',payload(op.object));a.load('r11',{base:'r10',disp:O.shape});a.load('rax',{rip:site});a.cmp('r11','rax');a.jcc('ne',slow);
+            a.load('rax',value(op.source));a.store({base:'r10',disp:O.size+16*op.literalSlot},'rax');
+            a.load('rax',payload(op.source));a.store({base:'r10',disp:O.size+16*op.literalSlot+8},'rax');
+            cold.push(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
+            a.label(done);break;
+          }
+          pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.mov('r9',(op.define?1:0)|(op.strict?2:0));
           // `object.name = value` writes go through a per-site record that
           // remembers the inline node holding the property (property-cache.ts).
           if(!op.define&&op.keyName!==undefined&&cacheableName(op.keyName)){
             const cache='sc.'+fragments.length;fragments.push({name:cache,section:'.data',alignment:8,bytes:new Uint8Array(SetCacheLayout.size),fixups:[],symbols:{}});
             a.lea('r10',{rip:cache});a.call('rt.icSet');break;
           }
-          a.call('rt.setProperty');break;
+          // `object[key] = value`: dense and typed array elements (array-elements.ts).
+          a.call(!op.define&&op.keyName===undefined&&!stringConstant(op.key)?'rt.elementSet':'rt.setProperty');break;
         case 'privateGet':pointer('rcx',op.dest);pointer('rdx',op.object);pointer('r8',op.name);a.call('rt.privateGet');break;
         case 'privateSet':pointer('rcx',op.object);pointer('rdx',op.name);pointer('r8',op.source);a.call('rt.privateSet');break;
         case 'defineField':pointer('rcx',op.object);pointer('rdx',op.key);pointer('r8',op.source);a.call('rt.defineField');break;

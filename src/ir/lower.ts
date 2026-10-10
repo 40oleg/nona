@@ -4,6 +4,7 @@ import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../front
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
 import {CompileError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
+import {maxInlineCapacity} from '../runtime/shapes.js';
 import type {FfiDeclarationIR} from './model.js';
 type WithReference={found:number;object:number};
 type Reference={id:A.Identifier;resolvable?:number;withRef?:WithReference}|{object:number;key:number;receiver?:number;/** super base already read into object */baseReady?:boolean;/** `object.name`: the literal key */keyName?:string;/** `object.#name`: key holds the private name record */privateName?:boolean;privateKind?:A.PrivateName['privateKind']};
@@ -61,6 +62,23 @@ export function lower(bound:BoundProgram):ModuleIR {
     functions:functions.map(optimizeFunction),
     globalProperties:bound.globals.filter(b=>!b.lexical&&!b.module).map(({name,index})=>({name,index})),
   });
+}
+/**
+ * The distinct keys, in definition order, of an object literal whose final
+ * shape is known at compile time (#194): every property is a data property or
+ * method with a literal key that a shaped object can hold (not an array index,
+ * not `__proto__`; the same names rt.namedSetFast takes), with no spread,
+ * computed key, accessor or prototype. Undefined otherwise.
+ */
+function staticLiteralKeys(e:A.ObjectLiteral):string[]|undefined {
+  const keys:string[]=[];
+  for(const p of e.properties){
+    if('spread'in p||p.computed||p.accessor||p.prototype||p.key.kind!=='Literal'||typeof p.key.value!=='string')return undefined;
+    const key=p.key.value;
+    if(key===''||key==='__proto__'||(key.charCodeAt(0)>=48&&key.charCodeAt(0)<=57))return undefined;
+    if(!keys.includes(key))keys.push(key);
+  }
+  return keys.length&&keys.length<=maxInlineCapacity?keys:undefined;
 }
 class Lowerer {
   private blocks:BlockIR[]=[];
@@ -788,7 +806,8 @@ class Lowerer {
       case 'OptionalChain':return this.optionalChain(e,'value');
       case 'ObjectLiteral':case 'ArrayLiteral': {
         const spread=e.kind==='ArrayLiteral'&&e.elements.some(item=>item?.kind==='SpreadElement');
-        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{})});
+        const keys=e.kind==='ObjectLiteral'?staticLiteralKeys(e):undefined;
+        const dest=this.slot();this.emit({kind:'newObject',dest,array:e.kind==='ArrayLiteral',length:e.kind==='ArrayLiteral'&&!spread?e.elements.length:0,...(e.kind==='ObjectLiteral'?{slots:e.properties.filter(p=>!('spread'in p)).length}:{}),...(keys?{keys}:{})});
         if(e.kind==='ArrayLiteral'&&!spread)e.elements.forEach((item,i)=>{
           if(item&&item.kind!=='SpreadElement'){const key=this.constant(i),source=this.expression(item);this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});}
         });
@@ -807,12 +826,13 @@ class Lowerer {
         }
         else for(const p of e.properties){
           if('spread'in p){const source=this.expression(p.spread),copied=this.slot();this.maxArguments=Math.max(this.maxArguments,2);this.emit({kind:'call',dest:copied,target:'rt.copyDataProperties',arguments:[dest,source]});continue;}
-          const raw=this.expression(p.key),key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:raw});
-          const functionName=p.value.kind==='FunctionExpression'||p.value.kind==='ClassExpression'?this.methodName(key,p.accessor?p.accessor+' ':undefined):key;
+          // A literal key of a static literal is already a property key.
+          let key:number;if(keys)key=this.constant((p.key as A.Literal).value as string);else{const raw=this.expression(p.key);key=this.slot();this.emit({kind:'unary',dest:key,operator:'propertyKey',argument:raw});}
+          const functionName=keys?(p.key as A.Literal).value as string:p.value.kind==='FunctionExpression'||p.value.kind==='ClassExpression'?this.methodName(key,p.accessor?p.accessor+' ':undefined):key;
           const source=p.value.kind==='FunctionExpression'&&p.value.method?this.closure(this.bound.functionNodes.get(p.value)!,functionName,dest):this.expression(p.value,p.prototype?undefined:functionName);
           if(p.prototype)this.emit({kind:'setPrototype',object:dest,prototype:source});
           else if(p.accessor)this.emit({kind:'defineAccessor',object:dest,key,source,setter:p.accessor==='set'});
-          else this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true});
+          else this.emit({kind:'setProperty',strict:this.strict,object:dest,key,source,define:true,...(keys?{literalSlot:keys.indexOf((p.key as A.Literal).value as string)}:{})});
         }
         return dest;
       }

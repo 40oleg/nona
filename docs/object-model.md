@@ -53,6 +53,19 @@ only marks their keys.
 
 - Object literals share one root per inline capacity (the literal's property
   count; 4 for `{}`).
+- An object literal whose keys are all known at compile time (data properties
+  and methods with identifier, string or name-like keys; no spread, computed
+  key, accessor, `__proto__` or array-index key) has a per-site record
+  (`LiteralSiteLayout`, in `.data`) with its keys in order. Its first
+  evaluation resolves the shape the keys lead to from the literal root
+  (`rt.literalSiteResolve`); every evaluation allocates the object with that
+  shape (`rt.newLiteralObject`, slots undefined) and each definition stores its
+  value into its slot directly, without a transition lookup. The shape is the
+  one the key-by-key definitions would give, so these objects share shapes
+  and inline caches with objects built by assignments. When the shape cannot
+  be resolved (too many shapes or transitions), the site falls back to
+  ordinary definitions. A definition also falls back when the object no longer
+  has the site's shape.
 - Every constructor has its own root (`FunctionLayout.instanceShape`). When an
   instance outgrows the inline slots, the root gets a successor with as many
   slots as that instance now has properties, and later instances start from
@@ -110,6 +123,28 @@ measurable speed-up over a call.
 The shape epoch (`rt.shapeEpoch`) advances when a property is added to,
 removed from or redefined on an object that some cache uses as a prototype,
 when such an object's prototype changes, and at every collection.
+
+## Element sites
+
+`object[key]` reads and `object[key] = value` assignments whose key is not a
+literal name call `rt.elementGet` and `rt.elementSet`
+(`src/runtime/array-elements.ts`) instead of `rt.getProperty` and
+`rt.setProperty`. With a Number key that is an integer index they answer
+directly:
+
+- a dense slot of an array or plain object that is not a hole (an own data
+  property with ordinary attributes, so no prototype element, getter or
+  setter can be involved); a write only overwrites an existing slot;
+- an in-range element of a typed array whose buffer is not detached; a write
+  also needs a Number value and an element type that is neither
+  `Uint8Clamped` nor BigInt;
+- for a read, a code unit below 256 of a primitive string, answered with a
+  static one-unit string (`rt.charStrings`) instead of a new allocation.
+
+Everything else (holes, indices outside the table, string and symbol keys,
+proxies, arguments objects, string wrappers) is the generic call with the
+same arguments. As with the inline caches, the checks are one shared stub per
+direction, not code at every site.
 
 ## Development aids
 
