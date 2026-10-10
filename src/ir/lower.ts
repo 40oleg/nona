@@ -909,7 +909,9 @@ class Lowerer {
         // closure in the realm of ctor when ctor is that realm's %Function%.
         if(e.callee.kind==='Identifier'&&e.callee.name==='\u0001realmFunction'){
           const maker=this.bound.functionNodes.get(e.arguments[1] as A.FunctionExpression)!,dest=this.slot();
-          this.emit({kind:'realmFunction',dest,ctor:this.expression(e.arguments[0] as A.Expression),target:`js.rfn.${maker.index}`});return dest;
+          // A third argument names the intrinsic ctor must be (default %Function%).
+          const intrinsic=e.arguments[2]?.kind==='Literal'?String((e.arguments[2] as A.Literal).value):undefined;
+          this.emit({kind:'realmFunction',dest,ctor:this.expression(e.arguments[0] as A.Expression),target:`js.rfn.${maker.index}`,...(intrinsic?{intrinsic}:{})});return dest;
         }
         if(e.callee.kind==='Identifier'&&e.callee.name.startsWith('\u0001'))
           return this.preludeCall(e.callee.name.slice(1),e.arguments.map(arg=>this.expression(arg as A.Expression)));

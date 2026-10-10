@@ -451,7 +451,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           else a.call('rt.readGlobalProperty');break;
         }
         case 'realmFunction':{
-          // ctor is a %Function% intrinsic: its realm's copy of the realm-local
+          // ctor is a %Function% (or op.intrinsic) intrinsic: its realm's copy of the realm-local
           // maker (cloned with that realm's runtime) becomes a closure there.
           const no=a.unique('realmFunctionNo'),done=a.unique('realmFunctionDone');
           const table=(symbol:string)=>{realmCodeTables.add(symbol);return 'realm.code.'+symbol;};
@@ -459,7 +459,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.load('rax',value(op.ctor));a.cmp('rax',5);a.jcc('ne',no);
           a.load('rcx',payload(op.ctor));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',no);
           a.load('rax',{base:'rcx',disp:FunctionLayout.realm});a.and('rax',255);a.shl('rax',3);a.store(payload(op.dest),'rax');
-          a.lea('r11',{rip:table('rt.Function')});a.add('r11','rax');a.load('r11',{base:'r11'});a.cmp('r11','rcx');a.jcc('ne',no);
+          a.lea('r11',{rip:table(op.intrinsic??'rt.Function')});a.add('r11','rax');a.load('r11',{base:'r11'});a.cmp('r11','rcx');a.jcc('ne',no);
           a.lea('r11',{rip:table(op.target)});a.add('r11','rax');a.load('rdx',{base:'r11'});
           a.lea('r11',{rip:table('rt.newFunction')});a.add('r11','rax');a.load('r11',{base:'r11'});
           pointer('rcx',op.dest);a.mov('r8',0);a.lea('r9',stack(argsBase));a.callRegister('r11');a.jmp(done);

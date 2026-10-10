@@ -120,3 +120,43 @@ var call = new other.Function('f', 'x', '"use strict"; return f({v: x}, [x], "x"
 var sum = 0; for (var c = 0; c < 200; c++) sum += call(function (o, a, s) { return o.v + a[0] + s.length; }, c);
 console.log(sum);
 `));
+
+test('another realm\'s eval with literal source runs as that realm\'s global code',()=>check(`
+var other = __nonaCreateRealm();
+var C = other.eval('(class {})');
+try { C(); } catch (e) { console.log('class call', e instanceof other.TypeError, e instanceof TypeError); }
+var f = other.eval('new Proxy(function() {}, { apply: function(_, __, args) { return args; } })');
+console.log('proxy', f().constructor === Array, f().constructor === other.Array);
+var g = other.eval('(0, function* () {})');
+console.log('gen', Object.getPrototypeOf(g) === Object.getPrototypeOf(function*(){}), typeof g);
+console.log('this', other.eval('this') === other, other.eval('var declared = 5; declared') , other.declared, typeof declared);
+var o = { eval: function (s) { return 'custom ' + s; } };
+console.log(o.eval('1+1'));
+console.log(globalThis.eval('1+2'), other.eval('typeof __nonaCreateRealm'));
+try { other.eval('('); } catch (e) { console.log('syntax', e instanceof other.SyntaxError, e instanceof SyntaxError); }
+var local = { eval: eval }, counter = 1;
+console.log(local.eval('counter += 1; typeof other'), counter, local.eval('this') === globalThis);
+`));
+
+test('GeneratorFunction, AsyncFunction, AsyncGeneratorFunction and AggregateError fall back to new.target realm\'s prototype',()=>check(`
+var other = __nonaCreateRealm();
+var newTarget = new other.Function();
+var kinds = [['AsyncFunction', other.eval('(0, async function() {})'), async function () {}],
+             ['GeneratorFunction', other.eval('(0, function* () {})'), function* () {}],
+             ['AsyncGeneratorFunction', other.eval('(0, async function* () {})'), async function* () {}]];
+kinds.forEach(function (k) {
+  var Local = Object.getPrototypeOf(k[2]).constructor;
+  var Other = Object.getPrototypeOf(k[1]).constructor;
+  [undefined, null, true, '', Symbol(), 1].forEach(function (p) {
+    newTarget.prototype = p;
+    var fn = Reflect.construct(Local, [], newTarget);
+    console.log(k[0], typeof p, Object.getPrototypeOf(fn) === Other.prototype, Object.getPrototypeOf(fn) === Local.prototype, Other !== Local);
+  });
+});
+[undefined, null, true, '', 1].forEach(function (p) {
+  newTarget.prototype = p;
+  var err = Reflect.construct(AggregateError, [[1]], newTarget);
+  console.log('AggregateError', typeof p, Object.getPrototypeOf(err) === other.AggregateError.prototype, err.errors.length);
+});
+console.log(Object.getPrototypeOf(new AggregateError([])) === AggregateError.prototype, Object.getPrototypeOf(AggregateError([])) === AggregateError.prototype);
+`));

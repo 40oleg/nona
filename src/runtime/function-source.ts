@@ -13,12 +13,14 @@ export const sourceStaticProperties=[...builtinPropertyRoots('rt.functionToStrin
  ...builtinPropertyRoots('rt.markNativeBuiltin','__nonaMarkNativeInternal'),
  ...builtinPropertyRoots('rt.markPromiseBuiltin','__nonaMarkPromiseInternal'),
  ...builtinPropertyRoots('rt.promiseRealmBuiltin','__nonaPromiseRealmInternal'),
+ ...builtinPropertyRoots('rt.realmVmBuiltin','__nonaRealmVmInternal'),
  ...builtinPropertyRoots('rt.reflectConstructInternal','__nonaReflectConstructInternal')];
 export function emitFunctionSource(b:RuntimeBuilder):void {
  emitFunctionBuiltin(b,'rt.functionToString','toString',0,'rt.functionPrototype.bind');
  prependFunctionBuiltin(b,'rt.markNativeBuiltin','__nonaMarkNativeInternal',1,'rt.functionPrototype');
  prependFunctionBuiltin(b,'rt.markPromiseBuiltin','__nonaMarkPromiseInternal',1,'rt.functionPrototype');
  prependFunctionBuiltin(b,'rt.promiseRealmBuiltin','__nonaPromiseRealmInternal',2,'rt.functionPrototype');
+ prependFunctionBuiltin(b,'rt.realmVmBuiltin','__nonaRealmVmInternal',1,'rt.functionPrototype');
  prependFunctionBuiltin(b,'rt.reflectConstructInternal','__nonaReflectConstructInternal',3,'rt.functionPrototype');
  b.bundle.fragments.push(stringLiteral('rt.promiseIndexZero','0'));
  // The JS bootstrap validates constructors and builds a private dense list.
@@ -92,6 +94,21 @@ export function emitFunctionSource(b:RuntimeBuilder):void {
   a.label(adjust);a.load('r10',{base:'r8',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.mov('rax','r11');a.and('rax',OF.defaultPrototypeFallback);a.jcc('e',done);
   a.shr('r11',RealmFlagShift);a.and('r11',255);a.shl('r11',3);a.lea('r9',{rip:realmTable('rt.preludeGlobals')});a.add('r9','r11');a.load('r9',{base:'r9'});
   a.load('rax',{base:'r9',disp:32});a.cmp('rax',5);a.jcc('ne',done);a.load('rax',{base:'r9',disp:40});a.store({base:'r10',disp:O.prototype},'rax');
+  a.label(done);
+ });
+ // __nonaRealmVmInternal(receiver): for a receiver that the ordinary
+ // [[Construct]] of a prelude constructor created with the %Object.prototype%
+ // fallback (new.target.prototype was not an object), the prelude object
+ // (__nonaRegexpVm) of new.target's realm, whose intrinsics the constructor
+ // then uses (GetPrototypeFromConstructor); undefined otherwise.
+ b.fn('rt.realmVmBuiltin.code',40,a=>{
+  const done=a.unique('done');
+  a.mov('rax',0);a.store({base:'rcx'},'rax');a.store({base:'rcx',disp:8},'rax');
+  a.test('rdx','rdx');a.jcc('e',done);a.load('rax',{base:'r8'});a.cmp('rax',5);a.jcc('ne',done);
+  a.load('r10',{base:'r8',disp:8});a.load('r11',{base:'r10',disp:O.flags});a.mov('rax','r11');a.and('rax',OF.defaultPrototypeFallback);a.jcc('e',done);
+  a.shr('r11',RealmFlagShift);a.and('r11',255);a.shl('r11',3);a.lea('r9',{rip:realmTable('rt.preludeGlobals')});a.add('r9','r11');a.load('r9',{base:'r9'});
+  a.load('rax',{base:'r9'});a.cmp('rax',5);a.jcc('ne',done);
+  for(const part of [0,8]){a.load('rax',{base:'r9',disp:part});a.store({base:'rcx',disp:part},'rax');}
   a.label(done);
  });
  b.fn('rt.isPromiseConstructor',40,a=>{
