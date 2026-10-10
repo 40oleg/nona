@@ -225,7 +225,27 @@ export function emitMemory(b:RuntimeBuilder):void {
  // payloads this halves the memory traffic of an allocation.
  b.data('rt.allocNoZero',new Uint8Array(8),'.data');
  b.data('rt.gcPoison',new Uint8Array(8),'.data');
- b.fn('rt.allocRaw',40,a=>{
+ //
+ // A cell of a small class (up to 1024 bytes with its header) whose free list
+ // is not empty is popped here without a frame (#48): the class is the
+ // 16-byte step of the size, and the header, the live byte count and the
+ // collection flag are updated as rt.alloc does. Everything else (an empty
+ // list, which may need a lazy sweep or a new chunk, and large blocks) is
+ // rt.alloc without the clearing pass.
+ b.raw('rt.allocRaw',a=>{
+  const slow=a.unique('slow'),last=a.unique('lastCell');
+  a.lea('r9',{base:'rcx',disp:H.size+15});a.and('r9',-16);a.cmp('r9',1024);a.jcc('a',slow);a.cmp('r9',48);a.jcc('b',slow);
+  a.mov('r10','r9');a.sub('r10',48);a.shr('r10',1);a.lea('r11',{rip:'rt.classState'});a.add('r11','r10');
+  a.load('rax',{base:'r11'});a.test('rax','rax');a.jcc('e',slow);
+  a.load('r10',{base:'rax',disp:H.next});a.store({base:'r11'},'r10');a.test('r10','r10');a.jcc('e',last);a.prefetch({base:'r10'});a.label(last);
+  a.store({base:'rax',disp:H.bytes},'rcx');a.mov('r10',0);for(const offset of [H.next,H.kind,H.greyNext])a.store({base:'rax',disp:offset},'r10');
+  a.load('r10',{rip:'rt.gcEpoch'});a.store({base:'rax',disp:H.marked},'r10');
+  a.load('r11',{rip:'rt.liveBytes'});a.add('r11','r9');a.store({rip:'rt.liveBytes'},'r11');noteManagedBytes(a,'rt.generatorStackBytes');
+  a.load('r11',{rip:'rt.blocks'});a.add('r11',1);a.store({rip:'rt.blocks'},'r11');
+  a.add('rax',H.size);a.ret();
+  a.label(slow);a.tailJump('rt.allocRawSlow');
+ });
+ b.fn('rt.allocRawSlow',40,a=>{
   a.mov('rax',1);a.store({rip:'rt.allocNoZero'},'rax');a.call('rt.alloc');a.mov('r10',0);a.store({rip:'rt.allocNoZero'},'r10');
  });
  // RCX payload bytes -> RAX zeroed payload (header before it).
