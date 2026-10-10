@@ -64,7 +64,7 @@ the cost of the generic path and of copying strings:
 - `s += …` is still quadratic (×237 at 20 000 iterations): ropes are tracked in #46 and #83.
 - RegExp is ×227 on this scan-heavy case.
 - Calls, closures and classes are ×4–12, and short-lived objects ×13: call-site caches (#47), inline slots for short-lived objects (#48) and shapes (#114).
-- `JSON.stringify` still builds a string first (#45, #155).
+- `JSON.stringify` still builds a UTF-16 string first (#155). Since #45 it reads plain data (shaped objects, dense arrays) directly: 30 000 objects take 30 ms instead of 72 ms on the machine of the 2026-10-05 HTTP measurement (Node.js: 17 ms).
 
 Sections 1–4 (startup, size, build time, memory), the executable size, the
 real-world code and the HTTP server tables are not covered by this update and
