@@ -8,7 +8,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.ref_name }}
+  # A pull request has one group (head_ref): a newer push cancels the older
+  # run. A push to main has one group per commit (sha), so the next merge
+  # does not cancel the check of the previous one (#42).
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
 
 jobs:
