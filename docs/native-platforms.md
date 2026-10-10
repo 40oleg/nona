@@ -51,6 +51,15 @@ garbage collection, generators, async functions, timers and Atomics. The
 platform layer implements memory mapping/protection, output, process exit,
 wall/monotonic clocks, sleeping, thread creation and wait/wake operations.
 
+On the POSIX targets the Win32-shaped `HeapAlloc`/`HeapFree` the runtime uses
+for memory outside the managed heap (array element tables, index tables,
+string builders, collector work lists) is a size-class allocator
+(`src/backend/linux/shims.ts`): blocks of up to 256 KiB, header included, are
+power-of-two classes carved from 4 MiB `mmap` arenas and recycled through a
+free list per class; only larger blocks map their own pages. A program makes
+`mmap` calls in proportion to its arenas, not to its allocations. Freed blocks
+stay in their class for reuse and are not returned to the system.
+
 `process`, `node:process` and `nona:process` are available on all eight targets,
 including `chdir`, `ppid`, `hrtime`, `uptime` and `nextTick`; see the
 [process API](process.md) for compatibility boundaries. `node:fs` and `nona:fs`

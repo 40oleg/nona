@@ -75,9 +75,9 @@ for (var t = 0; t < timers; t++) (function(){
 })();
 `;
 
-// Linux allocations currently map pages per block (#37),
-// so the Linux run is ten times smaller than the Windows one.
-const [timers,ticks]=process.platform==='win32'?[50,2000]:[20,1000];
+// The same sizes on Linux and Windows: the POSIX heap no longer maps pages
+// per block (#37).
+const [timers,ticks]=[50,2000];
 
 test('ten times more interval firings do not need more memory',{timeout:600_000},async()=>{
  const small=build(intervals(timers,ticks/10)),large=build(intervals(timers,ticks));
