@@ -1,0 +1,49 @@
+name: release
+env:
+  NODE_VERSION: '26.9.0'
+# A v<version> tag builds and publishes a GitHub release. A manual run is a
+# dry run: it builds the same archives and uploads them as an artifact only.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  build:
+    # Bootstraps, verifies and packages the native compiler for every target
+    # (artifacts nona-<target>).
+    uses: ./.github/workflows/self-hosting.yml
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nona-*
+          path: work/artifacts
+      - name: Check versions and build the archives
+        run: node scripts/release-archives.mjs --artifacts work/artifacts --out work/release --notes work/release-notes.md ${{ github.ref_type == 'tag' && format('--tag {0}', github.ref_name) || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-archives
+          path: |
+            work/release
+            work/release-notes.md
+      - name: Publish the GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" work/release/* --verify-tag --title "Nona $GITHUB_REF_NAME" --notes-file work/release-notes.md

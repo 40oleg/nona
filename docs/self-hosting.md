@@ -48,3 +48,12 @@ a module with disk caching enabled and an empty PATH. Compiler cache home
 lookup uses the native account profile when HOME/USERPROFILE is absent.
 Node.js remains a development bootstrap and test oracle; it is not included
 in these native distribution artifacts.
+
+Releases are built by `.github/workflows/release.yml`. Pushing a `v<version>`
+tag runs the self-hosting workflow, then `scripts/release-archives.mjs` checks
+that the tag, `package.json` and the `VERSION` of all eight `nona-<target>`
+packages agree, archives each package (`nona-<version>-<target>.tar.gz`, `.zip`
+for Windows) with a `SHA256SUMS` file, and `gh release create` publishes them
+with the version's CHANGELOG section as notes. Running the workflow manually is
+a dry run: it uploads the archives as the `release-archives` artifact and
+publishes nothing.

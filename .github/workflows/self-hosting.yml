@@ -1,8 +1,12 @@
 name: self-hosting
+env:
+  NODE_VERSION: '26.9.0'
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  # release.yml builds the eight nona-<target> packages with this workflow.
+  workflow_call:
   pull_request:
     paths:
       - 'src/**'
@@ -44,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -86,7 +90,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -116,7 +120,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run build
