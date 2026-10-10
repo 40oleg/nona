@@ -42,12 +42,18 @@ export function emitObjects(b:RuntimeBuilder):void {
   });
   // RCX result Value*, RDX root shape -> a plain object with that shape and
   // its inline slots, whose prototype is Object.prototype.
+  // The cell is not cleared by rt.alloc (rt.allocRaw): every header field
+  // and slot is written here, before anything can trigger a collection.
   b.fn('rt.newShapedObject',56,a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');
-    a.load('rcx',{base:'rdx',disp:ShapeLayout.capacity});a.shl('rcx',4);a.add('rcx',O.size);a.call('rt.alloc');
+    a.load('rcx',{base:'rdx',disp:ShapeLayout.capacity});a.shl('rcx',4);a.add('rcx',O.size);a.call('rt.allocRaw');
     a.mov('r10',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r10');
-    a.load('r10',slot(48));a.store({base:'rax',disp:O.shape},'r10');
+    a.mov('r10',0);for(const field of [O.kind,O.properties,O.length,O.flags,O.index,O.elements,O.keys])a.store({base:'rax',disp:field},'r10');
+    a.load('rdx',slot(48));a.store({base:'rax',disp:O.shape},'rdx');
     a.lea('r10',{rip:'rt.objectPrototype'});a.store({base:'rax',disp:O.prototype},'r10');
+    // Every inline slot undefined.
+    {const loop=a.unique('slots'),done=a.unique('slotsDone');a.load('rdx',{base:'rdx',disp:ShapeLayout.capacity});a.shl('rdx',4);a.lea('r10',{base:'rax',disp:O.size});a.add('rdx','r10');a.mov('r11',0);
+     a.label(loop);a.cmp('r10','rdx');a.jcc('ae',done);a.store({base:'r10'},'r11');a.store({base:'r10',disp:8},'r11');a.add('r10',16);a.jmp(loop);a.label(done);}
     a.load('rcx',slot(40));a.store({base:'rcx',disp:8},'rax');a.mov('rax',5);a.store({base:'rcx'},'rax');
   });
   for(const withSlots of [false])b.fn('rt.newObject',72,a=>{

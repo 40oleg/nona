@@ -2,6 +2,7 @@ import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
 import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
+import {ElementsLayout} from '../../runtime/array-elements.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, type Mem, type Condition } from './assembler.js';
 import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
@@ -215,6 +216,10 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       fragments.push({name:site,section:'.data',alignment:8,bytes,symbols:{},fixups:op.keys.map((key,i)=>({offset:L.keys+8*i,kind:'va64' as const,target:literal(key),addend:0}))});
       literalSites.set(op.dest,site);
     }
+    // Array literals created with their element table (#48), by the slot of
+    // the array (defined only by its newObject).
+    const arrayLiterals=new Set<number>();
+    for(const block of fn.blocks)for(const op of block.operations)if(op.kind==='newObject'&&op.array&&op.elements)arrayLiterals.add(op.dest);
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness=analyzeLiveness(fn),locations=assignLocations(fn,liveness);
     const a=createAssembler(fn.id),rootBase=80,valueBase=112,thisBase=valueBase+16*locations.count,newTargetBase=thisBase+16,superReceiverBase=newTargetBase+16,argsBase=superReceiverBase+16;
@@ -650,6 +655,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           // shape the first evaluation resolves; its objects start with it.
           const site=literalSites.get(op.dest);
           if(site&&op.keys&&!op.array){pointer('rcx',op.dest);a.lea('rdx',{rip:site});a.call('rt.newLiteralObject');break;}
+          if(op.array&&op.elements){pointer('rcx',op.dest);a.mov('rdx',op.length);a.call('rt.newArrayLiteral');break;}
           pointer('rcx',op.dest);a.mov('rdx',op.array?1:0);a.mov('r8',op.length);if(op.slots!==undefined&&!op.array){a.mov('r9',capacity);a.call('rt.newObjectSlots');}else a.call('rt.newObject');break;
         }
         case 'forInKeys':pointer('rcx',op.dest);pointer('rdx',op.object);a.call('rt.forInKeys');break;
@@ -681,6 +687,17 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           if(op.operation==='get'&&op.keyName===undefined&&!stringConstant(op.key)){a.call('rt.elementGet');break;}
           a.call('rt.'+op.operation+'Property');if(op.strict&&op.operation==='delete'){a.load('rax',payload(op.dest));a.test('rax','rax');failIf(a,'e','rt.throwTypeError');}break;
         case 'setProperty':
+          // An element of an array literal created with its table (#48) is
+          // stored into its slot.
+          if(op.literalElement!==undefined&&arrayLiterals.has(op.object)){
+            const slow=a.unique('elementSlow'),done=a.unique('elementDone'),generic=op,offset=ElementsLayout.values+16*op.literalElement;
+            a.load('r10',payload(op.object));a.load('r10',{base:'r10',disp:O.elements});a.test('r10','r10');a.jcc('e',slow);
+            a.load('rax',{base:'r10',disp:ElementsLayout.capacity});a.cmp('rax',op.literalElement);a.jcc('be',slow);
+            a.load('rax',value(op.source));a.store({base:'r10',disp:offset},'rax');
+            a.load('rax',payload(op.source));a.store({base:'r10',disp:offset+8},'rax');
+            cold.push(()=>{a.label(slow);pointer('rcx',generic.object);pointer('rdx',generic.key);pointer('r8',generic.source);a.mov('r9',(generic.define?1:0)|(generic.strict?2:0));a.call('rt.setProperty');a.jmp(done);});
+            a.label(done);break;
+          }
           // A definition in an object literal with known keys stores its slot
           // directly while the object still has the site's shape.
           if(op.literalSlot!==undefined&&literalSites.has(op.object)){
