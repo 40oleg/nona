@@ -42,7 +42,7 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 
 ## Realms
 
-`$262.createRealm` é suportado para o Test262. Alguns construtores implementados em prelúdios JavaScript ainda pegam os protótipos padrão do realm errado quando chamados com um `new.target` de outro realm ([#7](https://github.com/40oleg/nona/issues/7)).
+`$262.createRealm` é suportado para o Test262. Funções, classes e código eval criados com código-fonte literal por meio de `Function`, `eval` ou dos construtores de funções dinâmicas de outro realm são executados nesse realm, e os protótipos padrão e os erros dos construtores vêm do realm indicado pela ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## Plataformas
 

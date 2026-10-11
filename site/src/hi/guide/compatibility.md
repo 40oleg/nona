@@ -42,7 +42,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Realm
 
-Test262 के लिए `$262.createRealm` समर्थित है। JavaScript प्रील्यूड में लागू कुछ कंस्ट्रक्टर, जब दूसरे realm के `new.target` के साथ कॉल किए जाते हैं, तब भी डिफ़ॉल्ट प्रोटोटाइप ग़लत realm से लेते हैं ([#7](https://github.com/40oleg/nona/issues/7))।
+Test262 के लिए `$262.createRealm` समर्थित है। दूसरे realm के `Function`, `eval` या डायनामिक फ़ंक्शन कंस्ट्रक्टरों से लिटरल सोर्स द्वारा बने फ़ंक्शन, क्लास और eval कोड उसी realm में चलते हैं, और डिफ़ॉल्ट प्रोटोटाइप तथा कंस्ट्रक्टर की त्रुटियाँ उसी realm से आती हैं जिसे ECMA-262 बताता है ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176))।
 
 ## प्लेटफ़ॉर्म
 

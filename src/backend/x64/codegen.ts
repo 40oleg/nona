@@ -16,7 +16,7 @@ import {StackBudget} from '../../runtime/context-switch.js';
 import {JsFrame as JF,FrameDescriptor as FD} from '../../runtime/frame-layout.js';
 import {stackMapFragment,type StackMapEntry} from '../../runtime/stack-maps.js';
 import { FunctionLayout,FunctionKind } from '../../runtime/functions.js';
-import { TailCallTag } from '../../runtime/tail-calls.js';
+import { TailCallTag, ConstructErrorTag } from '../../runtime/tail-calls.js';
 import { addCoverage, type CoverageOptions } from './coverage.js';
 import { renderListing } from './listing.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
@@ -489,7 +489,8 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
           a.load('rax',value(op.ctor));a.cmp('rax',5);a.jcc('ne',no);
           a.load('rcx',payload(op.ctor));a.load('rax',{base:'rcx',disp:O.kind});a.cmp('rax',FunctionKind);a.jcc('ne',no);
           a.load('rax',{base:'rcx',disp:FunctionLayout.realm});a.and('rax',255);a.shl('rax',3);a.store(payload(op.dest),'rax');
-          a.lea('r11',{rip:table(op.intrinsic??'rt.Function')});a.add('r11','rax');a.load('r11',{base:'r11'});a.cmp('r11','rcx');a.jcc('ne',no);
+          // '*': any function; the maker itself checks ctor in its realm.
+          if(op.intrinsic!=='*'){a.lea('r11',{rip:table(op.intrinsic??'rt.Function')});a.add('r11','rax');a.load('r11',{base:'r11'});a.cmp('r11','rcx');a.jcc('ne',no);}
           a.lea('r11',{rip:table(op.target)});a.add('r11','rax');a.load('rdx',{base:'r11'});
           a.lea('r11',{rip:table('rt.newFunction')});a.add('r11','rax');a.load('r11',{base:'r11'});
           pointer('rcx',op.dest);a.mov('r8',0);a.lea('r9',stack(argsBase));a.callRegister('r11');a.jmp(done);
@@ -599,11 +600,17 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
         case 'constructorResult':pointer('rcx',op.dest);pointer('rdx',op.result);pointer('r8',op.instance);a.call('rt.constructorResult');break;
         case 'derivedReturn':{
           const object=a.unique('derivedReturnObject'),receiver=a.unique('derivedReturnReceiver'),done=a.unique('derivedReturnDone');
+          // The TypeError (result not an object) and ReferenceError (this
+          // never initialized) belong to the caller's realm: the constructor
+          // returns a ConstructErrorTag marker and the calling runtime's
+          // rt.invokeSourceConstruct throws them.
+          const marker=a.unique('derivedReturnMarker');
           a.load('rax',value(op.source));a.cmp('rax',5);a.jcc('e',object);a.cmp('rax',0);a.jcc('e',receiver);
-          a.call('rt.throwTypeError');
+          a.mov('rax',0);a.jmp(marker);
           a.label(object);copy(value(op.dest),value(op.source));a.jmp(done);
           a.label(receiver);pointer('rcx',op.dest);a.lea('rdx',stack(thisBase));a.call('rt.readCell');
-          a.load('rax',value(op.dest));a.cmp('rax',255);failIf(a,'e','rt.throwReferenceError');
+          a.load('rax',value(op.dest));a.cmp('rax',255);a.jcc('ne',done);a.mov('rax',1);
+          a.label(marker);a.store(payload(op.dest),'rax');a.mov('rax',ConstructErrorTag);a.store(value(op.dest),'rax');
           a.label(done);break;
         }
         case 'invoke':{

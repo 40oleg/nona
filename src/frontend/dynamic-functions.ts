@@ -106,6 +106,20 @@ function compileSource(parameters:string,body:string,prefix='function'):{express
   }
 }
 
+/** The function expression `x.eval("<source>")` evaluates to, when the literal source is one. */
+function evalFunctionLiteral(e:A.Expression):A.FunctionExpression|undefined {
+  if(e.kind!=='Call'||e.callee.kind!=='Member'||e.callee.property.kind!=='Literal'||e.callee.property.value!=='eval'||e.arguments.length!==1)return undefined;
+  const text=stringValue(e.arguments[0]!);
+  if(text===undefined)return undefined;
+  try{
+    const program=parse(lex(text)),statement=program.body[0];
+    if(program.body.length!==1||statement?.kind!=='ExpressionStatement')return undefined;
+    let value=statement.expression;
+    while(value.kind==='Binary'&&value.operator===',')value=value.right;
+    return value.kind==='FunctionExpression'&&!value.arrow&&!value.method?value:undefined;
+  }catch{return undefined;}
+}
+
 /**
  * Names bound to `<function expression>.constructor` or
  * `Object.getPrototypeOf(<function expression>).constructor`: the dynamic
@@ -127,6 +141,11 @@ function constructorAliases(program:A.Program):Map<string,string> {
       // A function declaration named by an identifier (the run-time guard
       // covers a reassigned binding).
       if(source.kind==='Identifier'&&declared.has(source.name)){aliases.set(d.id.name,kindOf(declared.get(source.name)!));continue;}
+      // x.eval("(function* () {})"): usually another realm's (Test262
+      // $262.createRealm().global.eval), so the alias may be that realm's
+      // constructor; the run-time guards check which one it is.
+      const evaluated=evalFunctionLiteral(source);
+      if(evaluated){aliases.set(d.id.name,kindOf(evaluated));continue;}
       if(source.kind!=='FunctionExpression'||source.arrow||source.method)continue;
       aliases.set(d.id.name,kindOf(source as A.FunctionExpression));
     }
@@ -186,6 +205,32 @@ export function lowerDynamicFunctions(program:A.Program):A.Program {
        ((once.body.body[0] as A.Return).argument as A.Call).callee={kind:'Identifier',name,span};
        replace({kind:'Call',callee:once,arguments:[args[0] as A.Expression,args[1] as A.Expression],span} as A.Call);
       }
+      return;
+    }
+    // Reflect.construct(C, [literals], newTarget) with C a variable that holds
+    // the dynamic constructor of some function kind, possibly of another
+    // realm (`var C = other.eval('(function* () {})').constructor`). The
+    // realm-local maker runs in C's realm and creates the function only when
+    // C is that realm's constructor of the kind; anything else is constructed
+    // as written. The prototype is the one C gives for newTarget without source.
+    if(call.kind==='Call'&&call.callee.kind==='Member'&&call.callee.object.kind==='Identifier'&&call.callee.object.name==='Reflect'
+      &&call.callee.property.kind==='Literal'&&call.callee.property.value==='construct'&&(args.length===2||args.length===3)&&!args.some(a=>a.kind==='SpreadElement')
+      &&args[1]!.kind==='ArrayLiteral'&&(args[1] as A.ArrayLiteral).elements.every(e=>e!==null&&e.kind!=='SpreadElement')
+      &&args[0]!.kind==='Identifier'&&(aliases.has((args[0] as A.Identifier).name)||Object.hasOwn(kinds,(args[0] as A.Identifier).name))){
+      const values=((args[1] as A.ArrayLiteral).elements as A.Expression[]).map(item=>stringValue(item as A.Argument));if(values.some(value=>value===undefined))return;
+      const ctorName=(args[0] as A.Identifier).name,kindPrefix=aliases.get(ctorName)??kinds[ctorName]!;
+      const strings=values as string[],span=call.span;
+      const result=compileSource(strings.slice(0,-1).join(','),strings.at(-1)??'',kindPrefix),name=dynamicFactoryPrefix+factories.length;
+      const made:A.Statement='expression'in result
+        ?{kind:'Return',argument:result.expression,span}
+        :{kind:'Throw',argument:{kind:'New',callee:{kind:'Identifier',name:'SyntaxError',span},arguments:[{kind:'Literal',value:result.error,span}],span},span};
+      const maker=(parse(lex(`(function(ctor){if(ctor!==Object.getPrototypeOf(${kindPrefix}(){}).constructor)return})`)).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      maker.body.body.push(made);maker.dynamic=true;maker.realmLocal=true;
+      const guard=(parse(lex('(function(ctor,args,newTarget){var made=__nonaRealmMaker;var fn=made===undefined?undefined:made(ctor);if(fn===undefined)return Reflect.construct(ctor,args,newTarget);Object.setPrototypeOf(fn,Object.getPrototypeOf(Reflect.construct(ctor,[],newTarget)));return fn})')).body[0] as A.ExpressionStatement).expression as A.FunctionExpression;
+      const declaration=(guard.body.body[0] as A.Var).declarations[0]!;
+      declaration.init={kind:'Call',callee:{kind:'Identifier',name:'\u0001realmFunction',span},arguments:[{kind:'Identifier',name:'ctor',span},maker,{kind:'Literal',value:'*',span}],span} as A.Call;
+      factories.push({kind:'Function',id:{kind:'Identifier',name,span},parameters:guard.parameters,body:{kind:'Block',body:guard.body.body,span},span} as A.FunctionDeclaration);
+      replace({kind:'Call',callee:{kind:'Identifier',name,span},arguments:[args[0] as A.Expression,args[1] as A.Expression,(args[2] as A.Expression|undefined)??args[0] as A.Expression],span} as A.Call);
       return;
     }
     if(call.kind==='Call'&&call.callee.kind==='Member'&&isFunction(call.callee.object)&&call.callee.property.kind==='Literal'&&call.callee.property.value==='call'&&!args.some(a=>a.kind==='SpreadElement')){

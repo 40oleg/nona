@@ -42,7 +42,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Realm
 
-`$262.createRealm` 为 Test262 提供支持。用 JavaScript 前导代码实现的部分构造器，在以另一个 realm 的 `new.target` 调用时，仍会从错误的 realm 获取默认原型（[#7](https://github.com/40oleg/nona/issues/7)）。
+`$262.createRealm` 为 Test262 提供支持。通过另一个 realm 的 `Function`、`eval` 或动态函数构造器以字面量源码创建的函数、类和 eval 代码在该 realm 中运行，默认原型和构造器错误来自 ECMA-262 所规定的 realm（[#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)）。
 
 ## 平台
 

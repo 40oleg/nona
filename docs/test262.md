@@ -97,7 +97,10 @@ Runner features added for the ES2020 gate (2026-09):
 - `$262.createRealm` is compiled in when the test mentions it (up to three
   realms). Functions made with `other.Function("literal source")` run in
   `other`'s realm (realm-local code cloned per realm, see
-  `src/frontend/dynamic-functions.ts`); `other.eval(...)` is not compiled yet; `$262.agent` programs are extracted from static templates (loop
+  `src/frontend/dynamic-functions.ts`), and so do `other.eval("literal source")`
+  (`src/frontend/eval-aot.ts`, including the `Function(...)` and nested evals
+  in that source) and `Reflect.construct(C, [literals], newTarget)` with `C` a
+  variable holding another realm's dynamic function constructor; `$262.agent` programs are extracted from static templates (loop
   counters, top-level constants and `$262.agent.timeouts` are folded) and
   compiled into the image as agent threads. `CanBlockIsFalse` tests are skipped
   because the main agent can block.

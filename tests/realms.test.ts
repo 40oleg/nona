@@ -160,3 +160,89 @@ kinds.forEach(function (k) {
 });
 console.log(Object.getPrototypeOf(new AggregateError([])) === AggregateError.prototype, Object.getPrototypeOf(AggregateError([])) === AggregateError.prototype);
 `));
+
+// [[Construct]] checks a derived constructor's result after its context is
+// popped, so both errors belong to the realm of the code that constructs.
+const constructErrorCases=`
+var other = __nonaCreateRealm();
+function realmOf(e) { return [e instanceof TypeError, e instanceof ReferenceError, e instanceof other.TypeError, e instanceof other.ReferenceError].join(); }
+function constructAll(name, C) {
+  try { new C(); } catch (e) { console.log(name, 'new', realmOf(e)); }
+  try { Reflect.construct(C, []); } catch (e) { console.log(name, 'Reflect.construct', realmOf(e)); }
+  try { other.Reflect.construct(C, []); } catch (e) { console.log(name, 'other Reflect.construct', realmOf(e)); }
+  try { new (new Proxy(C, {}))(); } catch (e) { console.log(name, 'proxy', realmOf(e)); }
+  try { new (C.bind())(); } catch (e) { console.log(name, 'bound', realmOf(e)); }
+  try { new (class extends C { constructor() { super(); } })(); } catch (e) { console.log(name, 'super', realmOf(e)); }
+  try { other.eval('(function (C) { return new C(); })')(C); } catch (e) { console.log(name, 'other caller', realmOf(e)); }
+}
+`;
+
+test('derived constructor result TypeErrors are thrown in the caller\'s realm',()=>check(constructErrorCases+`
+constructAll('null', other.eval('0, class extends Object { constructor() { return null; } }'));
+constructAll('number', other.eval('(class extends Object { constructor() { return 1; } })'));
+class Local extends Object { constructor() { return 'x'; } }
+constructAll('local', Local);
+var Ok = other.eval('(class extends Object { constructor() { super(); return undefined; } })');
+console.log(new Ok() instanceof Ok, Object.getPrototypeOf(new Ok()) === Ok.prototype);
+class Finally extends Object { constructor() { try { return 1; } finally { console.log('finally'); } } }
+try { new Finally(); } catch (e) { console.log('finally', realmOf(e)); }
+`));
+
+// V8 throws this ReferenceError in the constructor's realm, so Node.js is no
+// oracle here (Test262 derived-this-uninitialized-realm.js).
+test('a derived constructor\'s uninitialized this is a ReferenceError of the caller\'s realm',()=>{
+ const run=runOnHost(constructErrorCases+`
+constructAll('implicit', other.eval('(class C extends Object { constructor() {} })'));
+constructAll('explicit', other.eval('(class extends Object { constructor() { return undefined; } })'));
+class Local extends Object { constructor() { if (false) super(); } }
+constructAll('local', Local);
+`,{gcStress:true,realms:1});
+ assert.equal(run.status,0,run.stderr);
+ const here='false,true,false,false',there='false,false,false,true';
+ const expected=['implicit','explicit','local'].flatMap(name=>[['new',here],['Reflect.construct',here],['other Reflect.construct',there],['proxy',here],['bound',here],['super',here],['other caller',there]].map(([how,realm])=>`${name} ${how} ${realm}`));
+ assert.equal(run.stdout,expected.join('\n')+'\n');
+});
+
+test('Function(...) and nested evals with literal source inside another realm\'s eval code run in that realm',()=>check(`
+var other = __nonaCreateRealm(), third = __nonaCreateRealm();
+var marker = 'main';
+other.marker = 'other'; other.third = third; third.marker = 'third';
+console.log(other.eval('Function("return this")()') === other, other.eval('new Function("return marker")()'), other.eval('Function()') instanceof other.Function);
+console.log(other.eval('(0, eval)("this")') === other, other.eval('(0, eval)("var nested = 3; marker")'), other.nested, typeof nested);
+console.log(other.eval('globalThis.eval("[]")') instanceof other.Array, other.eval('eval("[]")') instanceof other.Array);
+console.log(other.eval('eval("Function(\\'return {}\\')()")') instanceof other.Object, other.eval('(0, eval)("Function(\\'return marker\\')()")'));
+console.log(other.eval('third.eval("marker")'), other.eval('third.Function("return marker")()'), other.eval('third.eval("Function(\\'return marker\\')()")'));
+console.log(other.eval('try { Function("(") } catch (e) { e instanceof SyntaxError }'), other.eval('(0, eval)("(function () { return eval(\\'marker\\'); })()")'));
+console.log(Function('return this')() === globalThis, (0, eval)('marker'), eval('Function("return marker")()'));
+`,2));
+
+test('Reflect.construct of a dynamic function constructor variable with literal source creates the function in the constructor\'s realm',()=>check(`
+var realmA = __nonaCreateRealm();
+realmA.calls = 0;
+var aGeneratorFunction = realmA.eval("(function* () {})").constructor;
+var aGeneratorPrototype = Object.getPrototypeOf(realmA.eval("(function* () {})").prototype);
+var realmB = __nonaCreateRealm();
+var bGeneratorFunction = realmB.eval("(function* () {})").constructor;
+var newTarget = new realmB.Function();
+newTarget.prototype = null;
+var fn = Reflect.construct(aGeneratorFunction, ["calls += 1;"], newTarget);
+console.log(Object.getPrototypeOf(fn) === bGeneratorFunction.prototype, Object.getPrototypeOf(fn.prototype) === aGeneratorPrototype);
+var gen = fn();
+console.log(gen instanceof realmA.Object);
+gen.next();
+console.log(realmA.calls);
+var aAsync = realmA.eval("(0, async function* () {})").constructor;
+var g2 = Reflect.construct(aAsync, ["a", "yield a * 2;"]);
+console.log(Object.getPrototypeOf(g2) === aAsync.prototype, g2.length, g2.name);
+console.log(g2(21).next() instanceof realmA.Promise);
+g2(21).next().then(function (r) { console.log('async gen', r.value); });
+realmA.eval('(async function (a) { return a * 2; })')(4).then(function (r) { console.log('async fn', r); });
+console.log(realmA.eval('(async function () {})')() instanceof realmA.Promise, realmA.eval('(async function* () {})')().next() instanceof realmA.Promise);
+var localGen = (function* () {}).constructor;
+var g3 = Reflect.construct(localGen, ["return 5"], newTarget);
+console.log(Object.getPrototypeOf(g3) === bGeneratorFunction.prototype, g3().next().value);
+var notGen = realmA.eval("(function () {})").constructor;
+var f4 = Reflect.construct(notGen, ["return this"]);
+console.log(f4() === realmA, f4 instanceof realmA.Function);
+try { Reflect.construct(aGeneratorFunction, ["yield ("], newTarget); } catch (e) { console.log(e instanceof realmA.SyntaxError, e instanceof SyntaxError); }
+`,2));

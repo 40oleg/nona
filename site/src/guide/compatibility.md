@@ -72,7 +72,7 @@ A program can still reach an omitted part through a name computed at run time, f
 
 ## Realms
 
-`$262.createRealm` is supported for Test262. Some constructors implemented in JavaScript preludes still take default prototypes from the wrong realm when called with `new.target` from another realm ([#7](https://github.com/40oleg/nona/issues/7)).
+`$262.createRealm` is supported for Test262. Functions, classes and eval code created with literal source through another realm's `Function`, `eval` or dynamic function constructors run in that realm, and default prototypes and constructor errors come from the realm ECMA-262 names ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## Platforms
 

@@ -155,7 +155,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
 - Node.js modules outside the table above, npm packages that need them, and browser APIs are not available. Networking runs on Linux and Windows.
-- Plain computation is much slower than in a JIT; some default prototypes for constructors from another realm are still open work.
+- Plain computation is much slower than in a JIT.
 
 ## Development
 

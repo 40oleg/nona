@@ -42,7 +42,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## العوالم (Realms)
 
-‏`$262.createRealm` مدعوم لأجل Test262. وما زالت بعض المُنشئات المنفَّذة في مقدّمات JavaScript تأخذ النماذج الأولية الافتراضية من العالم الخطأ حين تُستدعى بـ `new.target` من عالم آخر ([#7](https://github.com/40oleg/nona/issues/7)).
+‏`$262.createRealm` مدعوم لأجل Test262. الدوال والأصناف وشيفرة eval المُنشأة بمصدر حرفي عبر `Function` أو `eval` أو مُنشئات الدوال الديناميكية لعالم آخر تعمل في ذلك العالم، وتأتي النماذج الأولية الافتراضية وأخطاء المُنشئات من العالم الذي تحدده ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## المنصات
 

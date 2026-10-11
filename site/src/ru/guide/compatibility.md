@@ -42,7 +42,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Realms
 
-`$262.createRealm` поддерживается для Test262. Некоторые конструкторы, реализованные в JavaScript-прелюдиях, при вызове с `new.target` из другого realm всё ещё берут прототипы по умолчанию не из того realm ([#7](https://github.com/40oleg/nona/issues/7)).
+`$262.createRealm` поддерживается для Test262. Функции, классы и eval-код, созданные из литерального исходника через `Function`, `eval` или динамические конструкторы функций другого realm, выполняются в этом realm, а прототипы по умолчанию и ошибки конструкторов берутся из realm, который указывает ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## Платформы
 

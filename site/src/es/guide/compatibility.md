@@ -42,7 +42,7 @@ El código en tiempo de ejecución se sigue en [#11](https://github.com/40oleg/n
 
 ## Realms
 
-`$262.createRealm` está soportado para Test262. Algunos constructores implementados en preludios de JavaScript todavía toman los prototipos por defecto del realm equivocado cuando se llaman con un `new.target` de otro realm ([#7](https://github.com/40oleg/nona/issues/7)).
+`$262.createRealm` está soportado para Test262. Las funciones, clases y código eval creados con código fuente literal mediante `Function`, `eval` o los constructores de funciones dinámicas de otro realm se ejecutan en ese realm, y los prototipos por defecto y los errores de los constructores provienen del realm que indica ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
 
 ## Plataformas
 
