@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O,ObjectFlags} from './object-layout.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * Inline caches for `'name' in object` and `object.hasOwnProperty(key)`.

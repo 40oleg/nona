@@ -1,4 +1,4 @@
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 import {slot} from './abi.js';
 import {ObjectLayout as O,ObjectFlags as OF} from './object-layout.js';
 

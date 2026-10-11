@@ -5,7 +5,7 @@ import {Assembler} from '../../src/backend/x64/assembler.js';
 import {linkElf} from '../../src/backend/elf/writer.js';
 import {linkMachO} from '../../src/backend/macho/writer.js';
 import {getTarget,type Target} from '../../src/target.js';
-import type {CodeFragment,NativeProgram} from '../../src/backend/pe/model.js';
+import type {CodeFragment,NativeProgram} from '../../src/backend/machine/model.js';
 import {compile} from '../../src/compiler.js';
 import {processTitleProbe} from './process-title-probe.js';
 import {processFinalizationProbeSource,processFinalizationProbeExpected} from './process-finalization-probe.js';

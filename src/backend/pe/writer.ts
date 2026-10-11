@@ -1,4 +1,4 @@
-import type { NativeProgram, NamedFragment } from "./model.js";
+import type { NativeProgram, NamedFragment } from "../machine/model.js";
 import {isArm64Relocation,relocateArm64} from '../arm64/relocations.js';
 import { checkedRel32 } from "../x64/encoder.js";
 import { buildImports } from "./imports.js";

@@ -4,7 +4,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlag
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * Dense element storage for arrays and plain objects.
@@ -277,7 +277,7 @@ export function emitArrayElements(b:RuntimeBuilder):void {
 
  // RAX = integer index of the Number key, or jump to miss. Leaves RCX, RDX,
  // R8 untouched.
- const integerKey=(a:import('../backend/x64/assembler.js').Assembler,key:'r8'|'rdx',miss:string)=>{
+ const integerKey=(a:import('../backend/machine/context.js').Assembler,key:'r8'|'rdx',miss:string)=>{
   a.movsd('xmm0',{base:key,disp:8});a.cvttsd2si('rax','xmm0');a.cvtsi2sd('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('ne',miss);a.jcc('p',miss);a.test('rax','rax');a.jcc('s',miss);
  };
  // RCX result Value*, RDX base Value*, R8 key Value*. RAX 1 when the read was

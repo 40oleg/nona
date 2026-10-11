@@ -1,4 +1,4 @@
-import type { ImportSymbol } from "./model.js";
+import type { ImportSymbol } from "../machine/model.js";
 export function buildImports(
   imports: ImportSymbol[],
   rva: number,

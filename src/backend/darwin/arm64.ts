@@ -4,7 +4,7 @@ import {linuxShims} from '../linux/shims.js';
 import {linkMachO} from '../macho/writer.js';
 import {withNativeTarget} from '../machine/context.js';
 import type {Assembler} from '../x64/assembler.js';
-import type {NativeProgram} from '../pe/model.js';
+import type {NativeProgram} from '../machine/model.js';
 import {darwinProcessSystemAdapters} from './system.js';
 
 function syscall(a:Assembler,number:number):void {

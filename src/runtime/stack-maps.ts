@@ -1,4 +1,4 @@
-import type {NamedFragment} from '../backend/pe/model.js';
+import type {NamedFragment} from '../backend/machine/model.js';
 
 /**
  * Stack maps (#165): which value slots of a compiled function's frame the

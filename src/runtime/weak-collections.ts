@@ -64,7 +64,7 @@ export function emitWeakCollections(b:RuntimeBuilder):void {
    a.label(caught);installHandler(624,closeFailed,288);a.lea('rcx',slot(144));a.call('rt.iteratorClose');a.load('rax',slot(624+EH.next));a.store({rip:'rt.exceptionHandler'},'rax');a.lea('rcx',slot(272));a.call('rt.throw');a.label(closeFailed);a.lea('rcx',slot(272));a.call('rt.throw');
    a.label(done);a.load('rcx',slot(40));for(const n of [0,8]){a.load('rax',slot(80+n));a.store({base:'rcx',disp:n},'rax');}
   });
-  const receiver=(a:import('../backend/x64/assembler.js').Assembler,frame:number)=>{
+  const receiver=(a:import('../backend/machine/context.js').Assembler,frame:number)=>{
    a.load('r10',slot(frame+40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',spec.kind);failIf(a,'ne','rt.throwTypeError');
   };
   for(const method of spec.methods)rootedFn(b,`${prefix}.${method}.fn.code`,168,[{kind:'output',register:'rcx'},{kind:'range',register:'r8',count:'rdx'},{kind:'locals',offset:80,count:3}],(a,frame)=>{

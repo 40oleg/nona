@@ -2,7 +2,7 @@ import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {rootedFn,type RuntimeRoot} from './root-scope.js';
 const unaryRoots:RuntimeRoot[]=[{kind:'output',register:'rcx'},{kind:'value',register:'rdx'}];
 const binaryRoots:RuntimeRoot[]=[...unaryRoots,{kind:'value',register:'r8'},{kind:'locals',offset:64,count:2}];
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 import {ObjectLayout as O,ProxyKind,ProxyCallable} from './object-layout.js';
 const copy=(a:Assembler)=>{a.load('rax',{base:'rdx'});a.store({base:'rcx'},'rax');a.load('rax',{base:'rdx',disp:8});a.store({base:'rcx',disp:8},'rax');};
 const tag=(a:Assembler,n:number)=>{a.mov('rax',n);a.store({base:'rcx'},'rax');};

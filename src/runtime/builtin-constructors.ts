@@ -6,8 +6,8 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {FunctionLayout as F,FunctionKind} from './functions.js';
 import {stringLiteral} from './value.js';
 import {nativeConstructorNames as names,errorConstructorNames} from '../global-builtins.js';
-import type {Assembler} from '../backend/x64/assembler.js';
-import type {Fixup} from '../backend/pe/model.js';
+import type {Assembler} from '../backend/machine/context.js';
+import type {Fixup} from '../backend/machine/model.js';
 
 export const constructorRoots=names.map(name=>'rt.'+name);
 const numberConstants=[['MAX_VALUE',Number.MAX_VALUE],['MIN_VALUE',Number.MIN_VALUE],['NaN',NaN],['NEGATIVE_INFINITY',-Infinity],['POSITIVE_INFINITY',Infinity],['EPSILON',Number.EPSILON],['MAX_SAFE_INTEGER',Number.MAX_SAFE_INTEGER],['MIN_SAFE_INTEGER',Number.MIN_SAFE_INTEGER]] as const;

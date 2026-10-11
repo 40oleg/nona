@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot} from '../../runtime/abi.js';
-import type {NativeProgram} from '../pe/model.js';
+import type {NativeProgram} from '../machine/model.js';
 import type {Xmm} from '../x64/assembler.js';
 
 /** Bridge Nona's logical Win64 boundary to the OS C ABI, without a C runtime. */

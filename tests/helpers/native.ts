@@ -76,7 +76,7 @@ export function runNative(
 }
 
 /** Replace a Windows IAT slot with a native stub, entirely in test composition. */
-export function replaceImport(program:import('../../src/backend/pe/model.js').NativeProgram,symbol:string,stub:string):void {
+export function replaceImport(program:import('../../src/backend/machine/model.js').NativeProgram,symbol:string,stub:string):void {
  program.imports=program.imports.filter(i=>i.symbol!==symbol);
  program.fragments.push({name:symbol,section:'.rdata',alignment:8,bytes:new Uint8Array(8),symbols:{},fixups:[{offset:0,kind:'va64',target:stub,addend:0}]});
 }

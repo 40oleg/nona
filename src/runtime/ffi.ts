@@ -1,6 +1,5 @@
-import {currentNativeTarget} from '../backend/machine/context.js';
+import {currentNativeTarget,type Assembler,type Reg,type Xmm} from '../backend/machine/context.js';
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import type {Assembler} from '../backend/x64/assembler.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {FunctionLayout,FunctionKind} from './functions.js';
 import {ArrayBufferKind,ArrayBufferLayout} from './array-buffer.js';
@@ -9,7 +8,6 @@ import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {DataViewKind} from './data-view.js';
 import {stringLiteral} from './value.js';
 import {parseFfiSignature,ffiImportSymbol,ffiIntegerTypes,type FfiDeclaration,type FfiType} from '../ffi.js';
-import type {Reg,Xmm} from '../backend/x64/assembler.js';
 
 const integerTypes=new Set<string>(ffiIntegerTypes);
 const gp:Reg[]=['rcx','rdx','r8','r9'];

@@ -2,7 +2,7 @@ import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O} from './object-layout.js';
 import {TypedArrayKind,TypedArrayLayout as T} from './typed-array.js';
 import {ArrayBufferLayout as AB} from './array-buffer.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * Native UTF-8 transcoding behind TextEncoder and TextDecoder.

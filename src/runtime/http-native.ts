@@ -2,7 +2,7 @@ import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O} from './object-layout.js';
 import {TypedArrayKind,TypedArrayLayout as T} from './typed-array.js';
 import {ArrayBufferLayout as AB} from './array-buffer.js';
-import type {Assembler,Reg} from '../backend/x64/assembler.js';
+import type {Assembler,Reg} from '../backend/machine/context.js';
 
 /**
  * Native helpers of the node:http and node:net modules.

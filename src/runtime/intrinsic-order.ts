@@ -1,4 +1,4 @@
-import type {NamedFragment} from '../backend/pe/model.js';
+import type {NamedFragment} from '../backend/machine/model.js';
 import type {RuntimeBuilder} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {errorConstructorNames} from '../global-builtins.js';

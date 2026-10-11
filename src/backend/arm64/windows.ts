@@ -2,7 +2,7 @@ import {Arm64Assembler} from './assembler.js';
 import {RuntimeBuilder,slot} from '../../runtime/abi.js';
 import {withNativeTarget} from '../machine/context.js';
 import {linkPe,type PeOptions} from '../pe/writer.js';
-import type {NativeProgram} from '../pe/model.js';
+import type {NativeProgram} from '../machine/model.js';
 
 /** Bridge the OS thread callback ABI to the runtime's logical call frames. */
 export function linkWindowsArm64(program:NativeProgram,options:PeOptions={}):Uint8Array {

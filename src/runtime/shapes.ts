@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {HeapLayout as H,HeapKind,ValueListLayout as V} from './heap-layout.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 import {maxInlineCapacity} from '../shape-limits.js';
 
 /**

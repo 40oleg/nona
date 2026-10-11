@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Assembler } from "../src/backend/x64/assembler.js";
 import { linkPe } from "../src/backend/pe/writer.js";
-import type { NativeProgram } from "../src/backend/pe/model.js";
+import type { NativeProgram } from "../src/backend/machine/model.js";
 import { runNative } from "./helpers/native.js";
 import { readPe } from "./helpers/pe-reader.js";
 import { encodeUnwind } from "../src/backend/pe/unwind.js";

@@ -1,7 +1,7 @@
 import type {Assembler} from '../x64/assembler.js';
 import {RuntimeBuilder,slot} from '../../runtime/abi.js';
 import {GeneratorStack} from '../../runtime/generator-stack.js';
-import type {NamedFragment,NativeProgram} from '../pe/model.js';
+import type {NamedFragment,NativeProgram} from '../machine/model.js';
 
 /** Linux syscall implementations of the small Win64-style native ABI used by
  * the existing runtime. They let semantic runtime code remain target-neutral.

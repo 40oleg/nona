@@ -1,6 +1,15 @@
 import {Assembler} from '../x64/assembler.js';
 import {Arm64Assembler} from '../arm64/assembler.js';
+import {x87Math} from '../x64/x87-math.js';
+import {softwareMath,type MachineMath} from './math.js';
 import {detectHostTarget,getTarget,type Target} from '../../target.js';
+
+// The runtime reaches the backend only through backend/machine/*: these
+// re-exports are the machine model it emits code against (see
+// docs/architecture.md, "Machine model").
+export {Assembler,Arm64Assembler};
+export type {Reg,Xmm,Mem,Condition,NativeArgumentKind} from '../x64/assembler.js';
+export type {MachineMath} from './math.js';
 
 let activeTarget=detectHostTarget();
 export function currentNativeTarget():Target|undefined {return activeTarget;}
@@ -18,4 +27,8 @@ export function createAssembler(name=''):Assembler {
     return new Arm64Assembler(name,target.os);
   }
   return new Assembler(name);
+}
+/** The transcendental floating-point steps of the active target: x87 on x86-64, software routines on ARM64. */
+export function machineMath():MachineMath {
+  return getTarget(activeTarget??'')?.arch==='arm64'?softwareMath:x87Math;
 }

@@ -1,6 +1,5 @@
-import {createAssembler,currentNativeTarget} from '../backend/machine/context.js';
-import type { NamedFragment, ImportSymbol, UnwindFunction } from '../backend/pe/model.js';
-import { Assembler } from '../backend/x64/assembler.js';
+import {createAssembler,currentNativeTarget,Assembler} from '../backend/machine/context.js';
+import type { NamedFragment, ImportSymbol, UnwindFunction } from '../backend/machine/model.js';
 export interface RuntimeRequest {operations:ReadonlySet<string>;realms?:number;/** Link the normalization tables (default true). */unicodeNormalization?:boolean}
 export interface RuntimeBundle {fragments:NamedFragment[];imports:ImportSymbol[];functions:UnwindFunction[]}
 export class RuntimeBuilder {
@@ -12,7 +11,7 @@ export class RuntimeBuilder {
 }
 export const slot=(disp:number)=>({base:'rsp' as const,disp});
 /** Conditional failure keeps the caller's aligned frame and unwind chain. */
-export function failIf(a:Assembler,c:import('../backend/x64/assembler.js').Condition,target='rt.fail'):void {
+export function failIf(a:Assembler,c:import('../backend/machine/context.js').Condition,target='rt.fail'):void {
  const inverse={e:'ne',ne:'e',l:'ge',le:'g',g:'le',ge:'l',b:'ae',be:'a',a:'be',ae:'b',p:'np',np:'p',s:'ns',ns:'s',o:'no',no:'o'} as const;
  const skip=a.unique('noError');a.jcc(inverse[c],skip);a.call(target);a.label(skip);
 }

@@ -11,7 +11,7 @@ import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
 import {linkLinux} from '../src/backend/linux/index.js';
 import {runOracle} from './helpers/oracle.js';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 
 function helloElf():Uint8Array {
  const code=new Assembler('linux.hello');

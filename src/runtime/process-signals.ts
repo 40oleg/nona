@@ -1,6 +1,5 @@
 import {RuntimeBuilder} from './abi.js';
-import {createAssembler} from '../backend/machine/context.js';
-import {Arm64Assembler} from '../backend/arm64/assembler.js';
+import {createAssembler,Arm64Assembler} from '../backend/machine/context.js';
 import type {Target} from '../target.js';
 
 /** OS callbacks touch only native flags, never the JS stack or allocator. */

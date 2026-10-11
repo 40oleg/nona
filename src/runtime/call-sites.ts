@@ -3,9 +3,8 @@ import {ObjectLayout as O} from './object-layout.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {EnvironmentLayout as E} from './environment-layout.js';
 import {FunctionLayout} from './functions.js';
-import type {Assembler,Mem} from '../backend/x64/assembler.js';
-import type {Reg} from '../backend/x64/encoder.js';
-import type {Fixup} from '../backend/pe/model.js';
+import type {Assembler,Mem,Reg} from '../backend/machine/context.js';
+import type {Fixup} from '../backend/machine/model.js';
 
 /**
  * Closure creation and general calls described by static site descriptors

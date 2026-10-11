@@ -5,7 +5,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {errorConstructorNames} from '../global-builtins.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
-import type {Fixup} from '../backend/pe/model.js';
+import type {Fixup} from '../backend/machine/model.js';
 import {ProxyKind} from './object-layout.js';
 import {ProxyLayout} from './proxy.js';
 

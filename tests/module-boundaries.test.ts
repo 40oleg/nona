@@ -36,6 +36,26 @@ test('runtime imports nothing from frontend',()=>{
   assert.deepEqual(violations,[]);
 });
 
+test('runtime reaches the backend only through backend/machine',()=>{
+  // The machine model (assembler, fragments, math steps) is exported by
+  // backend/machine/*; x64-, ARM64- and OS-specific modules stay behind it.
+  // Inline type imports (`import('…').Assembler`) count as well.
+  const violations=[...graph].flatMap(([file,edges])=>layer(file)==='runtime'?edges.filter(edge=>layer(edge.to)==='backend'&&!edge.to.startsWith('backend/machine/')).map(edge=>file+' -> '+edge.to):[]);
+  for(const file of sources(join(root,'runtime')))
+    for(const match of readFileSync(file,'utf8').matchAll(/import\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g)){
+      const to=relative(root,resolve(dirname(file),match[1]!)).replaceAll('\\','/');
+      if(layer(to)==='backend'&&!to.startsWith('backend/machine/'))violations.push(relative(root,file).replaceAll('\\','/')+' -> '+to);
+    }
+  assert.deepEqual(violations,[]);
+});
+
+test('the shared program model lives in backend/machine, not in an object-file writer',()=>{
+  assert.ok(graph.has('backend/machine/model.ts'));
+  // ELF, Mach-O and the runtime share it with the PE writer.
+  const violations=[...graph].flatMap(([file,edges])=>edges.filter(edge=>edge.to==='backend/pe/model.ts').map(edge=>file+' -> '+edge.to));
+  assert.deepEqual(violations,[]);
+});
+
 test('value imports have no cycles',()=>{
   // Tarjan's strongly connected components over the non-type-only edges.
   const order=new Map<string,number>(),low=new Map<string,number>(),stack:string[]=[],onStack=new Set<string>(),cycles:string[][]=[];

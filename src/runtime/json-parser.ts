@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {emptyLiteralCapacity} from './shapes.js';
 import {rootedFn} from './root-scope.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * JSON.parse as a recursive-descent parser over the source text.
