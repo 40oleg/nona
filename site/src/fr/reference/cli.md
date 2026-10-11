@@ -5,6 +5,7 @@
 ```text
 Nona 0.10.0 — JavaScript subset to native executables
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -20,6 +21,7 @@ Depuis un clone du dépôt, lancez `node dist/cli.js …` ; après `npm link`, l
 | `-o` | chemin | Fichier de sortie. Obligatoire. Les répertoires manquants sont créés. |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compile l’entrée comme un module ES. Les entrées se terminant par `.mjs` sont automatiquement des modules. |
+| `--print-asm` | — | Affiche sur stdout l’assembleur x86-64 généré pour les fonctions du programme lui-même (ni le runtime ni ses préludes) : l’étiquette de chaque fonction, puis une ligne par instruction avec son décalage, ses octets encodés et son texte en syntaxe Intel. Avec cette option, `-o` peut être omis. Cibles x86-64 uniquement. |
 | `--subsystem` | `console` (par défaut), `windows` | Programme graphique Windows sans fenêtre de console. `win32-x64` uniquement. Un programme graphique sans `--manifest` reçoit un manifeste par défaut. |
 | `--icon` | fichier `.ico` | Intègre toutes les images du fichier d’icône. `win32-x64` uniquement. |
 | `--manifest` | fichier XML | Intègre un manifeste d’application. Il doit être valide : Windows refuse de démarrer un programme dont le manifeste est mal formé. `win32-x64` uniquement. |

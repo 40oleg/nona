@@ -8,6 +8,7 @@ import {
   type Condition,
 } from "./encoder.js";
 import type { CodeFragment, Fixup } from "../pe/model.js";
+import { formatInstruction, type ListingEntry } from "./listing.js";
 export type NativeArgumentKind='gp'|'f32'|'f64';
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
 export type { CodeFragment, Fixup } from "../pe/model.js";
@@ -28,8 +29,20 @@ let callCounter: ((target: string) => string | undefined) | undefined;
 export function setCallCounter(hook: ((target: string) => string | undefined) | undefined): void {
   callCounter = hook;
 }
+/**
+ * Assembly listing (nona build --print-asm): assemblers created while it is
+ * on record the text of every top-level instruction call. Off, an assembler
+ * is untouched (one flag test in the constructor).
+ */
+let assemblyListing = false;
+export function setAssemblyListing(on: boolean): void {
+  assemblyListing = on;
+}
+/** Methods that are not instructions (or only build other instructions). */
+const unlisted = new Set(["constructor", "finish", "unique", "countCall", "listInstructions"]);
 export class Assembler {
   private bytes: number[] = [];
+  private listing: ListingEntry[] | undefined;
   private fixups: Fixup[] = [];
   private syscalls:{offset:number;number:number}[]=[];
   private symbols: Record<string, number> = Object.create(null) as Record<
@@ -37,7 +50,37 @@ export class Assembler {
     number
   >;
   private id = serial++;
-  constructor(readonly name = "") {}
+  constructor(readonly name = "") {
+    if (assemblyListing) this.listInstructions();
+  }
+  /** Wraps every instruction method of this instance to record its calls. */
+  private listInstructions(): void {
+    const listing: ListingEntry[] = (this.listing = []);
+    let depth = 0;
+    const names = new Set<string>();
+    for (let p = Object.getPrototypeOf(this) as object | null; p && p !== Object.prototype; p = Object.getPrototypeOf(p) as object | null)
+      for (const name of Object.getOwnPropertyNames(p)) {
+        const d = Object.getOwnPropertyDescriptor(p, name);
+        if (d && typeof d.value === "function" && !unlisted.has(name)) names.add(name);
+      }
+    const self = this as unknown as Record<string, (...args: unknown[]) => unknown>;
+    for (const name of names) {
+      const method = self[name]!;
+      self[name] = function (this: Assembler, ...args: unknown[]): unknown {
+        const start = this.offset;
+        depth++;
+        let result: unknown;
+        try {
+          result = method.apply(this, args);
+        } finally {
+          depth--;
+        }
+        if (depth === 0 && (name === "label" || this.offset !== start))
+          listing.push({ offset: start, text: formatInstruction(name, args) });
+        return result;
+      };
+    }
+  }
   get offset(): number {
     return this.bytes.length;
   }
@@ -61,6 +104,7 @@ export class Assembler {
       fixups: this.fixups.map((x) => ({ ...x })),
       symbols: { ...this.symbols },
       ...(this.syscalls.length?{syscalls:this.syscalls.map(call=>({...call}))}:{}),
+      ...(this.listing?{listing:this.listing.map(entry=>({...entry}))}:{}),
     };
   }
   /** Emit a raw native syscall number; OS service adapters choose its ABI. */

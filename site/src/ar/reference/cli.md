@@ -5,6 +5,7 @@
 ```text
 Nona 0.10.0 — JavaScript subset to native executables
 Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -20,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | مسار | ملف الناتج. إلزامي. تُنشأ المجلدات الناقصة. |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ترجمة المدخل كوحدة ES. المدخلات المنتهية بـ `.mjs` وحدات تلقائيًا. |
+| `--print-asm` | — | طباعة شيفرة التجميع x86-64 المولَّدة لدوال البرنامج نفسه (دون بيئة التشغيل ومقدماتها) على stdout: وسم كل دالة، ثم سطر لكل تعليمة يضم إزاحتها وبايتاتها المرمَّزة ونصها بصياغة Intel. مع هذا الخيار يمكن حذف `-o`. لأهداف x86-64 فقط. |
 | `--subsystem` | `console` (الافتراضي)، `windows` | برنامج Windows رسومي بلا نافذة طرفية. للمنصة `win32-x64` فقط. البرنامج الرسومي بلا `--manifest` يحصل على بيان افتراضي. |
 | `--icon` | ملف `.ico` | تضمين كل صور ملف الأيقونة. للمنصة `win32-x64` فقط. |
 | `--manifest` | ملف XML | تضمين بيان تطبيق. يجب أن يكون صالحًا: يرفض Windows تشغيل برنامج ببيان تالف. للمنصة `win32-x64` فقط. |

@@ -8,7 +8,7 @@ import {compile} from './compiler.js';
 import {position} from './source.js';
 import {nonaVersion} from './version.js';
 
-const help='Nona '+nonaVersion+' — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona '+nonaVersion+' — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
@@ -30,10 +30,10 @@ export function main(args:string[]):number {
     if(args.length===1&&args[0]==='--version'){process.stdout.write(nonaVersion+'\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
     const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
-    let outputArg:string|undefined,coverage:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target:string|undefined=detectHostTarget(),module=inputArg.endsWith('.mjs'),fullRuntime=false,callStats=false;const seen=new Set<string>();
+    let outputArg:string|undefined,coverage:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target:string|undefined=detectHostTarget(),module=inputArg.endsWith('.mjs'),fullRuntime=false,callStats=false,printAsm=false;const seen=new Set<string>();
     for(let i=2;i<args.length;i+=2){
       const flag=args[i]!,value=args[i+1];
-      if(flag==='--module'||flag==='--full-runtime'||flag==='--call-stats'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);if(flag==='--module')module=true;else if(flag==='--call-stats')callStats=true;else fullRuntime=true;i--;continue;}
+      if(flag==='--module'||flag==='--full-runtime'||flag==='--call-stats'||flag==='--print-asm'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);if(flag==='--module')module=true;else if(flag==='--call-stats')callStats=true;else if(flag==='--print-asm')printAsm=true;else fullRuntime=true;i--;continue;}
       if(!['-o','--target','--subsystem','--icon','--manifest','--version-info','--coverage'].includes(flag))throw new Error('Unknown option: '+flag);
       if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);
       if(!value||value.startsWith('-'))throw new Error('Missing value for '+flag);
@@ -45,12 +45,13 @@ export function main(args:string[]):number {
       else if(flag==='--subsystem'){if(value!=='console'&&value!=='windows')throw new Error('Unsupported subsystem: '+value);subsystem=value;}
       else target=value;
     }
-    if(!outputArg)throw new Error('Output is required (-o <output>)');
+    // --print-asm alone only prints the listing; with -o it also writes the executable.
+    if(!outputArg&&!printAsm)throw new Error('Output is required (-o <output>)');
     if(target===undefined)throw new Error('Unsupported native host; supply --target explicitly');
     const descriptor=getTarget(target);
     if(!descriptor)throw new Error('Unsupported target: '+target);
-    const input=resolve(inputArg),output=resolve(outputArg),source=readFileSync(input,'utf8');
-    assertDifferent(input,output);
+    const input=resolve(inputArg),output=outputArg===undefined?undefined:resolve(outputArg),source=readFileSync(input,'utf8');
+    if(output!==undefined)assertDifferent(input,output);
     if(subsystem!==undefined&&target!=='win32-x64')throw new Error('--subsystem requires --target win32-x64');
     let versionFields;
     if(versionInfo!==undefined){
@@ -59,7 +60,7 @@ export function main(args:string[]):number {
     }
     // NONA_CACHE=0 disables the on-disk runtime cache; NONA_CACHE_DIR moves it.
     const baseCache=process.env.NONA_CACHE==='0'?undefined:fileBaseImageCache();
-    const result=compile(source,{fileName:inputArg,target:descriptor.target,module,...(fullRuntime?{fullRuntime}:{}),...(callStats?{callStats}:{}),...(coverage!==undefined?{coverage:{directory:resolve(coverage),url:pathToFileURL(input).href}}:{}),...(baseCache?{baseCache}:{}),...(subsystem?{subsystem}:{}),
+    const result=compile(source,{fileName:inputArg,target:descriptor.target,module,...(fullRuntime?{fullRuntime}:{}),...(callStats?{callStats}:{}),...(printAsm?{printAsm}:{}),...(coverage!==undefined?{coverage:{directory:resolve(coverage),url:pathToFileURL(input).href}}:{}),...(baseCache?{baseCache}:{}),...(subsystem?{subsystem}:{}),
       ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
       ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
       ...(versionFields!==undefined?{versionInfo:versionFields}:{})});
@@ -74,6 +75,8 @@ export function main(args:string[]):number {
       }
       return 1;
     }
+    if(result.assembly!==undefined)process.stdout.write(result.assembly);
+    if(output===undefined)return 0;
     mkdirSync(dirname(output),{recursive:true});
     temporary=join(dirname(output),'.nona-'+randomUUID()+'.tmp');
     writeFileSync(temporary,result.image,{flag:'wx',mode:descriptor.fileMode});

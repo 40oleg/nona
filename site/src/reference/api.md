@@ -39,13 +39,14 @@ Compiles one source text and returns `CompileResult`. It does not write files.
 | `baseCache` | `BaseImageCache` | Keep the compiled runtime and preludes between processes. `fileBaseImageCache(directory?)` from `src/cache.ts` (Node.js only) stores them in a directory; the command line uses it by default (see [Runtime cache](/reference/cli#runtime-cache)). Within one process they are always reused. |
 | `callStats` | `boolean` | Count every call by target and print the counts to stderr when the program ends (see [`--call-stats`](/reference/cli#options)). |
 | `coverage` | `{directory, url}` | Write per-function V8 coverage to `directory` when the program ends; `url` is the program's script URL (`file://…`) in the report (see [`--coverage`](/reference/cli#options)). |
+| `printAsm` | `boolean` | Return the x86-64 assembly of the program's own functions as `assembly` (see [`--print-asm`](/reference/cli#options)). x86-64 targets only. |
 | `scriptPrelude`, `realms`, `agents` | — | Options used by the Test262 harness. |
 
 ### `CompileResult`
 
 ```ts
 type CompileResult =
-  | { ok: true; image: Uint8Array; imports: string[] }   // imports: "DLL!function" of a PE image
+  | { ok: true; image: Uint8Array; imports: string[]; assembly?: string }   // imports: "DLL!function" of a PE image; assembly: with printAsm
   | { ok: false; diagnostics: Diagnostic[] };            // { code, message, file, span }
 ```
 

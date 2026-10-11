@@ -33,7 +33,7 @@ function scriptUrl(path:string):string|undefined {
 export type {Target} from './target.js';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget=detectHostTarget();
-export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string}}
+export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string};/** Return the x86-64 assembly of the program's own functions (not the runtime) as `assembly`; x86-64 targets only. */printAsm?:boolean}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -56,7 +56,7 @@ export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=
   const bound=inPhase('bind',()=>bind(main,records));
   return {...inPhase('lower',()=>lower(bound)),runtimePrelude:true};
 }
-export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:false;diagnostics:Diagnostic[]};
+export type CompileResult = {ok:true;image:Uint8Array;imports:string[];/** With printAsm: the program's functions as assembly text. */assembly?:string}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost,target:Target=requireHostTarget()):ModuleIR {
   host=withBuiltinModules(host,target);
@@ -112,9 +112,10 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(descriptor.os!=='win32'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} requires a Linux, Darwin or BSD target`:`FFI declaration ${d.dll}!${d.name} requires a Windows target`})));
     const resources=peResources(options);
-    const program=inPhase('codegen',()=>generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})}));
+    if(options.printAsm&&descriptor.arch!=='x64')throw new CompileError([{code:'E_TARGET',file:options.fileName,span:{start:0,end:0},message:'Assembly listings (--print-asm) require an x86-64 target'}]);
+    const program=inPhase('codegen',()=>generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.printAsm?{listing:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})}));
     const image=inPhase('link',()=>descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources}));
-    return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[]};
+    return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[],...(program.assembly!==undefined?{assembly:program.assembly}:{})};
   } catch(caught) {
     // A failure outside the named phases is a compiler bug too (E_INTERNAL).
     const error=caught instanceof CompileError?caught:internalError('compile',caught instanceof Error?caught.message:String(caught));
