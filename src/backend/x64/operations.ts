@@ -206,6 +206,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
   // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
   const knownArithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
   const knownRelation:Record<string,Condition>={'<':'b','<=':'be','>':'a','>=':'ae','==':'e','===':'e','!=':'e','!==':'e'};
+  const inverse:Partial<Record<Condition,Condition>>={b:'ae',be:'a',a:'be',ae:'b',e:'ne'};
   const emitKnownNumberBinary=(dest:number,operator:string,left:number,right:number):boolean=>{
     if(operator in knownArithmetic){a.movsd('xmm0',payload(left));a[knownArithmetic[operator]!]('xmm0',payload(right));setNumber(dest);return true;}
     if(!(operator in knownRelation))return false;
@@ -290,7 +291,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
   };
   // A block of inline operations allocates nothing: it needs no safepoint.
   const needsSafepoint=(block:BlockIR):boolean=>!block.operations.every(inline);
-  for(const block of fn.blocks){
+  for(const [blockIndex,block] of fn.blocks.entries()){
     a.label(fn.id+'.block.'+block.id);
     let fused:Extract<Operation,{kind:'binary'}>|undefined;
     for(const [index,op] of block.operations.entries()){
@@ -703,14 +704,17 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
      }
     }
     const term=block.terminator;currentMap=mapOf(liveness.get(block.id)!.beforeTerminator);
+    // A jump to the block emitted next falls through (#146).
+    const following=fn.blocks[blockIndex+1]?.id,goto=(target:number)=>{if(target!==following)a.jmp(fn.id+'.block.'+target);};
     switch(term.kind){
-      case 'jump':a.jmp(fn.id+'.block.'+term.target);break;
+      case 'jump':goto(term.target);break;
       case 'branch':{
         if(fused){
           // ucomisd: unordered (NaN) sets parity; only != holds then.
           const yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no,negated=fused.operator==='!='||fused.operator==='!==';
           a.movsd('xmm0',payload(fused.left));a.ucomisd('xmm0',payload(fused.right));
-          if(negated){a.jcc('p',yes);a.jcc('e',no);a.jmp(yes);}else{a.jcc('p',no);a.jcc(knownRelation[fused.operator]!,yes);a.jmp(no);}
+          if(negated){a.jcc('p',yes);if(term.no===following)a.jcc('ne',yes);else{a.jcc('e',no);goto(term.yes);}}
+          else{a.jcc('p',no);const c=knownRelation[fused.operator]!;if(term.yes===following)a.jcc(inverse[c]!,no);else{a.jcc(c,yes);goto(term.no);}}
           break;
         }
         // Booleans (the result of every comparison) and numbers decide inline;
@@ -719,7 +723,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
         a.load('rax',value(term.condition));a.load('r10',payload(term.condition));a.cmp('rax',2);a.jcc('e',test);a.cmp('rax',3);a.jcc('ne',slow);
         a.movqToXmm('xmm0','r10');a.xor('rax','rax');a.movqToXmm('xmm1','rax');a.ucomisd('xmm0','xmm1');a.jcc('p',no);a.jcc('e',no);a.jmp(yes);
         {const condition=term.condition;pushCold(()=>{a.label(slow);pointer('rcx',condition);a.call('rt.toBoolean');a.mov('r10','rax');a.jmp(test);});}
-        a.label(test);a.test('r10','r10');a.jcc('ne',yes);a.jmp(no);break;
+        a.label(test);a.test('r10','r10');if(term.yes===following)a.jcc('e',no);else{a.jcc('ne',yes);goto(term.no);}break;
       }
       case 'throw':flattenSlot(term.value);pointer('rcx',term.value);a.call('rt.throw');break;
       case 'return':
