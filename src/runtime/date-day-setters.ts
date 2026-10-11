@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot} from './abi.js';
 import {rootedFn} from './root-scope.js';
-import {DateLayout} from './date.js';
+import {DateLayout} from './date-layout.js';
 
 export const dateDaySetters=['setDate','setUTCDate'] as const;
 

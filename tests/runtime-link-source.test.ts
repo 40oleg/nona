@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {compile,hostTarget,type CompileOptions,type Target} from '../src/compiler.js';
 import {collectSourceUsage,lex} from '../src/frontend/lexer.js';
-import {preludeSet} from '../src/runtime/link.js';
+import {preludeSet} from '../src/link.js';
 
 function image(source:string,options:Partial<CompileOptions>={},target:Target=hostTarget??requireHostTarget()):Uint8Array {
  const result=compile(source,{fileName:options.module?'/app.mjs':'/app.js',target,...options});

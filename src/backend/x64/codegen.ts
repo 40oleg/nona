@@ -21,7 +21,7 @@ import { addCoverage, type CoverageOptions } from './coverage.js';
 import { renderListing } from './listing.js';
 import { CellTag,EnvironmentLayout as E } from '../../runtime/environment-layout.js';
 import {regexpVmPrelude} from '../../runtime/regexp-vm-source.js';
-import {runtimeRegExpLink,fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../runtime/link.js';
+import {runtimeRegExpLink,fullRuntimeLink,optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../link.js';
 import {reflectPreludeSource} from '../../runtime/reflect-source.js';
 import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-source.js';
 import {promisePreludeSource} from '../../runtime/promise-source.js';

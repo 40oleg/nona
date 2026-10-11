@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import {MapLayout,MapEntryLayout} from './map.js';
+import {MapLayout,MapEntryLayout,mapIndexThreshold} from './map-layout.js';
 
 /**
  * Hash index for Map, Set, WeakMap and WeakSet entry lists.
@@ -23,8 +23,7 @@ import {MapLayout,MapEntryLayout} from './map.js';
  */
 export const MapIndexLayout={capacity:0,live:8,used:16,entries:24} as const;
 const T=MapIndexLayout;
-/** Lists at least this long get a table on their first lookup. */
-export const mapIndexThreshold=8;
+export {mapIndexThreshold};
 
 export function emitMapIndex(b:RuntimeBuilder):void {
  // RCX key Value* -> RAX hash, odd and non-negative so that it is never 0 or -1.

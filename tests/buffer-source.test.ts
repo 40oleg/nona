@@ -10,7 +10,7 @@ import {nativeTargets} from '../src/target.js';
 import {runtimeProbeSources} from './probes/platform-probes.js';
 import {cases,blobStreamCases,streamOracle} from './helpers/buffer-cases.js';
 import {regexpVmPrelude} from '../src/runtime/regexp-vm-source.js';
-import {runtimeRegExpLink} from '../src/runtime/link.js';
+import {runtimeRegExpLink} from '../src/link.js';
 import {collectSourceUsage,lex} from '../src/frontend/lexer.js';
 
 test('Buffer captures the private checked byte-copy adapter',()=>{

@@ -1,6 +1,6 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {ObjectLayout as O} from './object-layout.js';
-import {DateKind,DateLayout} from './date.js';
+import {DateKind,DateLayout} from './date-layout.js';
 
 // Convert TimeClip milliseconds to Gregorian UTC fields. The same fields are
 // used for local getters while the documented local-time policy is UTC.

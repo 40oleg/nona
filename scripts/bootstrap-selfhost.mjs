@@ -34,19 +34,20 @@ if(process.env.NONA_SELFHOST_DUMP_IR){
  `}
 }
 `;
-const lexer=resolve(sources,'frontend/lexer.js');
-let text=readFileSync(lexer,'utf8');
-  text=text.replace(/import \{ runInNewContext \} from 'node:vm';\r?\n/,'');
-  text=text.replace(/import \{ regexpVmSource \} from '..\/runtime\/regexp-vm-source.js';/,"import {compileRegExpPattern} from '../selfhost-regexp.js';");
-  text=text.replace(/let compileRegExpPattern;\r?\n/,'');
-  text=text.replace(/\s*compileRegExpPattern \?\?= runInNewContext\(regexpVmSource\).compile;/,'');
-writeFileSync(lexer,text);
-writeFileSync(resolve(sources,'selfhost-regexp.js'),'export const compileRegExpPattern=('+regexpVmSource+').compile;');
+/** String.replace that fails when the pattern is absent, so a reformatted source cannot silently skip an edit. */
+function replaceChecked(text,pattern,replacement,file){
+ const result=text.replace(pattern,replacement);
+ if(result===text)throw new Error('bootstrap-selfhost: '+file+' no longer contains '+pattern);
+ return result;
+}
+// The native compiler has no node:vm: its RegExp literal validator embeds the
+// runtime's pattern compiler instead of evaluating it in a separate context.
+writeFileSync(resolve(sources,'regexp-validator.js'),'const compilePattern=('+regexpVmSource+').compile;\nexport function validateRegExp(pattern,flags){compilePattern(pattern,flags);}\n');
 writeFileSync(entry,source);
 const codegen=resolve(sources,'backend/x64/codegen.js');
 let generator=readFileSync(codegen,'utf8');
-generator=generator.replace('export function generate(', 'function generateOriginal(');
-generator=generator.replace('cachedRuntimePreludes.set(preludeKey, prelude);',"if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('prelude',prelude);cachedRuntimePreludes.set(preludeKey, prelude);");
+generator=replaceChecked(generator,'export function generate(', 'function generateOriginal(','codegen.js');
+generator=replaceChecked(generator,'cachedRuntimePreludes.set(preludeKey, prelude);',"if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('prelude',prelude);cachedRuntimePreludes.set(preludeKey, prelude);",'codegen.js');
 generator+=`\nexport function generate(module,options={}){const program=generateOriginal(module,options);if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('program',{...program,fragments:program.fragments.map(fragment=>({...fragment,bytes:Buffer.from(fragment.bytes).toString('base64')}))});return program}\n`;
 writeFileSync(codegen,generator);
 if(cliMode){
@@ -54,23 +55,25 @@ if(cliMode){
  writeFileSync(resolve(sources,'selfhost-url.js'),compilerUrlSource);
  writeFileSync(resolve(sources,'selfhost-home.js'),compilerHomeSource(target));
  const cliPath=resolve(sources,'cli.js');
- const cli=readFileSync(cliPath,'utf8').replace("from 'node:crypto'","from './selfhost-crypto.js'")
-  .replace("from 'node:url'","from './selfhost-url.js'").replace('process.exitCode = main(process.argv.slice(2));','');
+ let cli=readFileSync(cliPath,'utf8');
+ cli=replaceChecked(cli,"from 'node:crypto'","from './selfhost-crypto.js'",'cli.js');
+ cli=replaceChecked(cli,"from 'node:url'","from './selfhost-url.js'",'cli.js');
+ cli=replaceChecked(cli,'process.exitCode = main(process.argv.slice(2));','','cli.js');
  writeFileSync(cliPath,cli);
  const cachePath=resolve(sources,'cache.js');
- let cache=readFileSync(cachePath,'utf8').replace("from 'node:crypto'","from './selfhost-crypto.js'")
-  .replace(/^import \{ fileURLToPath \} from 'node:url';\r?\n/m,'')
-  .replace("from 'node:os'","from './selfhost-home.js'");
+ let cache=readFileSync(cachePath,'utf8');
+ cache=replaceChecked(cache,"from 'node:crypto'","from './selfhost-crypto.js'",'cache.js');
+ cache=replaceChecked(cache,/^import \{ fileURLToPath \} from 'node:url';\r?\n/m,'','cache.js');
+ cache=replaceChecked(cache,"from 'node:os'","from './selfhost-home.js'",'cache.js');
  // The native distribution contains compiled functions, not a JavaScript
  // source installation. Embed a fingerprint of the prepared compiler sources.
- cache=cache.replace(/function compilerFingerprint\(\) \{[\s\S]*?\r?\n\}/,'function compilerFingerprint(){return "SELFHOST_FINGERPRINT";}');
- if(!cache.includes('SELFHOST_FINGERPRINT'))throw new Error('Cannot prepare native compiler fingerprint');
+ cache=replaceChecked(cache,/function compilerFingerprint\(\) \{[\s\S]*?\r?\n\}/,'function compilerFingerprint(){return "SELFHOST_FINGERPRINT";}','cache.js');
  writeFileSync(cachePath,cache);
  const hash=createHash('sha256');
  function fingerprint(directory){for(const entry of readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0)){
   const path=resolve(directory,entry.name);if(entry.isDirectory())fingerprint(path);else if(entry.name.endsWith('.js')||entry.name.endsWith('.mjs'))hash.update(path.slice(sources.length).replaceAll('\\','/')).update('\0').update(readFileSync(path)).update('\0');
  }}
- fingerprint(sources);writeFileSync(cachePath,cache.replace('SELFHOST_FINGERPRINT',hash.digest('hex')));
+ fingerprint(sources);writeFileSync(cachePath,replaceChecked(cache,'SELFHOST_FINGERPRINT',hash.digest('hex'),'cache.js'));
 }
 const result=compile(source,{fileName:entry,target,module:true});
 mkdirSync(dirname(output),{recursive:true});

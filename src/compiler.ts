@@ -19,10 +19,13 @@ import {loadModuleGraph,moduleRequests,builtinModuleRequests,resolveRelative,typ
 import {readFileSync} from 'node:fs';
 import {withBuiltinModules} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
-import {collectSourceUsage} from './frontend/lexer.js';
-import {fullRuntimeLink} from './runtime/link.js';
+import {collectSourceUsage,setRegExpValidator} from './frontend/lexer.js';
+import {validateRegExp} from './regexp-validator.js';
+import {fullRuntimeLink} from './link.js';
 import {detectHostTarget,getTarget,supportedNativeTargets,requireHostTarget,type Target} from './target.js';
 import {withNativeTarget} from './backend/machine/context.js';
+// RegExp literals are checked with the runtime's pattern compiler.
+setRegExpValidator(validateRegExp);
 /** A module path as a coverage URL: absolute paths become file:// URLs, others are kept (built-in modules). */
 function scriptUrl(path:string):string|undefined {
   if(path.startsWith('/'))return 'file://'+encodeURI(path);

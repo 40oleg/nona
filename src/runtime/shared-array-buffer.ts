@@ -5,9 +5,9 @@ import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './object-layout.js';
 import {emitNativeFunction} from './function-builtin.js';
 import {stringLiteral} from './value.js';
-import {ArrayBufferLayout} from './array-buffer.js';
+import {ArrayBufferLayout,SharedArrayBufferKind} from './array-buffer-layout.js';
 
-export const SharedArrayBufferKind=14;
+export {SharedArrayBufferKind};
 export const sharedArrayBufferRoots=['rt.sharedArrayBufferByteLength.fn','rt.SharedArrayBuffer.species.fn'];
 export const sharedArrayBufferPropertyRoots=['rt.sharedarraybufferPrototype.byteLength','rt.sharedarraybufferPrototype.@@toStringTag','rt.SharedArrayBuffer.@@species',...sharedArrayBufferRoots.flatMap(name=>[name+'.name',name+'.length'])];
 

@@ -17,7 +17,8 @@
         "eval-exception",
         "eval-aot",
         "gc-stress-roadmap",
-        "stack-overflow"
+        "stack-overflow",
+        "module-boundaries"
       ]
     },
     "path": {

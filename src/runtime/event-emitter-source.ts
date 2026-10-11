@@ -1,4 +1,4 @@
-import {eventsModuleSource} from '../frontend/events-module.js';
+import {eventsModuleSource} from './events-module-source.js';
 
 /** Reuse Nona's original Events algorithms for canonical process/stream ancestry. */
 export const eventEmitterPreludeSource=(()=>{
