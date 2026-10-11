@@ -2,7 +2,7 @@ import {boundNames} from '../frontend/declarations.js';
 import type * as A from '../frontend/ast.js';
 import type { Binding,StorageBinding,BoundProgram,BoundFunction } from '../frontend/bound.js';
 import type { BlockIR,FunctionIR,ModuleIR,Operation,Terminator } from './model.js';
-import {CompileError} from '../diagnostics.js';
+import {CompileError,internalError} from '../diagnostics.js';
 import {checkFfiNames,parseFfiSignature} from '../ffi.js';
 import {maxInlineCapacity} from '../runtime/shapes.js';
 import type {FfiDeclarationIR} from './model.js';
@@ -107,7 +107,7 @@ class Lowerer {
   private emit(op:Operation):void{this.current.operations.push(op);}
   private end(t:Terminator):void{this.current.terminator=t;this.terminated=true;}
   private constant(value:undefined|null|boolean|number|bigint|string):number {const dest=this.slot();this.emit({kind:'constant',dest,value});return dest;}
-  private binding(id:A.Identifier):Binding {const b=this.bound.bindings.get(id);if(!b)throw new Error(`Missing binding: ${id.name}`);return b;}
+  private binding(id:A.Identifier):Binding {const b=this.bound.bindings.get(id);if(!b)throw internalError('lower',`Missing binding: ${id.name}`,id.span);return b;}
   private cellSlot(binding:StorageBinding):number {
     if(binding.owner===(this.fn?.index??-1))return binding.index;
     const slot=this.captureSlots.get(binding);if(slot===undefined)throw new Error(`Missing capture ${binding.name}`);return slot;
@@ -699,7 +699,7 @@ class Lowerer {
   private expression(e:A.Expression,inferredName?:string|number):number {
     switch(e.kind){
       case 'NewTarget':{const dest=this.slot();this.emit({kind:'newTarget',dest});return dest;}
-      case 'Super':throw new Error('Bare super');
+      case 'Super':throw internalError('lower','Bare super',e.span);
       case 'This':{if(this.moduleIndex!==undefined&&this.moduleIndex>=0)return this.constant(undefined);const dest=this.slot();this.emit({kind:'currentThis',dest});return dest;}
       case 'ImportMeta':{
         const index=this.fn?.module??(this.moduleIndex!==undefined&&this.moduleIndex>=0?this.moduleIndex:undefined);if(index===undefined)throw new CompileError([{code:'E_SYNTAX',message:'import.meta is only valid in module code',file:'',span:e.span}]);
@@ -801,7 +801,7 @@ class Lowerer {
       }
       case 'Identifier':return this.read(e);
       case 'ClassExpression':return this.classValue(e,inferredName);
-      case 'PrivateName':throw new Error('Unexpected private name');
+      case 'PrivateName':throw internalError('lower','Unexpected private name',e.span);
       case 'ClassFieldDefinition':return this.classFieldDefinition(e);
       case 'FunctionExpression':return this.closure(this.bound.functionNodes.get(e)!,inferredName);
       case 'Member':return this.getReference(this.reference(e));
@@ -860,7 +860,7 @@ class Lowerer {
           if(e.argument.kind==='Member'){
             // SuperProperty evaluation reads this (GetThisEnvironment) before the key.
             if(e.argument.object.kind==='Super'){this.currentThis();this.expression(e.argument.property);this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);}
-            const ref=this.reference(e.argument);if('id'in ref)throw new Error('Expected property');
+            const ref=this.reference(e.argument);if('id'in ref)throw internalError('lower','Expected property',e.span);
             if(ref.receiver!==undefined){this.emit({kind:'immutableWrite',error:'ReferenceError'});return this.constant(undefined);}
             const dest=this.slot();this.emit({kind:'property',operation:'delete',strict:this.strict,dest,...ref});return dest;
           }
@@ -1189,7 +1189,7 @@ class Lowerer {
       }
       case 'Break':case 'Continue': {
         const target=[...this.controls].reverse().find(c=>s.label?c.labels.includes(s.label.name):s.kind==='Break'?c.unlabelledBreak:c.next!==undefined);
-        if(!target)throw new Error('Missing validated control target');
+        if(!target)throw internalError('lower','Missing validated control target',s.span);
         const targetIndex=this.controls.lastIndexOf(target),exited=this.controls.slice(s.kind==='Break'?targetIndex:targetIndex+1).reverse().flatMap(c=>c.iterator===undefined?[]:[c.iterator]);
         this.complete({kind:'jump',target:s.kind==='Break'?target.stop:target.next!},target.handlerDepth,target.finalizerDepth,exited);break;
       }

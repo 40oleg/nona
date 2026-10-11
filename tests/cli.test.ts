@@ -12,6 +12,14 @@ test('CLI emits Linux ELF for linux-x64 target',()=>fixture(dir=>{const input=jo
 test('CLI --full-runtime links the parts a program does not mention',()=>fixture(dir=>{const input=join(dir,'in.js');writeFileSync(input,'console.log("hello");');const trimmed=cli(['build',input,'-o',join(dir,'trimmed'),'--target','linux-x64']),full=cli(['build',input,'-o',join(dir,'full'),'--target','linux-x64','--full-runtime']);assert.equal(trimmed.status,0,trimmed.stderr);assert.equal(full.status,0,full.stderr);assert.ok(readFileSync(join(dir,'full')).length-readFileSync(join(dir,'trimmed')).length>3_000_000);assert.equal(cli(['build',input,'-o',join(dir,'x'),'--full-runtime','--full-runtime']).status,1);assert.match(cli(['--help']).stdout,/--full-runtime/);}));
 test('CLI rejects missing/unknown/duplicate arguments',()=>{for(const args of [[],['build'],['build','a.js'],['build','a.js','-o','b.exe','--target','linux'],['build','a.js','-o','b','-o','c'],['--wat']])assert.equal(cli(args).status,1);});
 test('analysis failure preserves existing output with positioned diagnostic',()=>fixture(dir=>{const input=join(dir,'in.js'),output=join(dir,'out.exe');writeFileSync(input,'var x=1;\n)');writeFileSync(output,'original');const r=cli(['build',input,'-o',output]);assert.equal(r.status,1);assert.match(r.stderr,/in\.js:2:1.*E_SYNTAX/);assert.equal(readFileSync(output,'utf8'),'original');}));
+test('an internal compiler failure is a located E_INTERNAL diagnostic naming the phase',()=>fixture(dir=>{
+ const input=join(dir,'in.js'),output=join(dir,'out');writeFileSync(input,'console.log(1);');writeFileSync(output,'original');
+ for(const phase of ['parse','lower','codegen']){
+  const r=spawnSync(process.execPath,['dist/cli.js','build',input,'-o',output,'--target','linux-x64'],{encoding:'utf8',windowsHide:true,env:{...process.env,NONA_DEBUG_FAIL_PHASE:phase}});
+  assert.equal(r.status,1);assert.equal(r.stderr,`${input}:1:1 E_INTERNAL: Internal compiler error in ${phase}: Injected failure (NONA_DEBUG_FAIL_PHASE)\n`);
+ }
+ assert.equal(readFileSync(output,'utf8'),'original');
+}));
 test('source aliases and hardlinks are never overwritten',()=>fixture(dir=>{const input=join(dir,'in.js'),hard=join(dir,'hard.exe');writeFileSync(input,'console.log(1);');linkSync(input,hard);for(const output of [input,input.toUpperCase(),hard])assert.equal(cli(['build',input,'-o',output]).status,1);assert.equal(readFileSync(input,'utf8'),'console.log(1);');}));
 test('missing input produces no output',()=>fixture(dir=>{const output=join(dir,'out.exe');assert.equal(cli(['build',join(dir,'missing.js'),'-o',output]).status,1);assert.equal(existsSync(output),false);}));
 test('locked output fails without removing previous executable',async()=>{

@@ -1,7 +1,7 @@
 import type { Diagnostic } from './diagnostics.js';
 import {lowerDynamicFunctions} from './frontend/dynamic-functions.js';
 import {lowerLiteralEval} from './frontend/eval-aot.js';
-import { CompileError } from './diagnostics.js';
+import { CompileError,inPhase,internalError } from './diagnostics.js';
 import { lex } from './frontend/lexer.js';
 import { parse } from './frontend/parser.js';
 import { bind } from './frontend/binder.js';
@@ -50,26 +50,29 @@ export const fileModuleHost:ModuleHost={
 export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=fileModuleHost,scriptPrelude='',target:Target=requireHostTarget()):ModuleIR {
   host=withBuiltinModules(host,target);
   // An optional classic script (such as a test harness) runs before the graph.
-  const script=lowerDynamicFunctions(parse(lex(scriptPrelude)));
-  const records=loadModuleGraph(modulePath(fileName),source,host,builtinModuleRequests(script,host));
+  const script=inPhase('dynamic-functions',()=>lowerDynamicFunctions(inPhase('parse',()=>parse(lex(scriptPrelude)))));
+  const records=inPhase('module-graph',()=>loadModuleGraph(modulePath(fileName),source,host,builtinModuleRequests(script,host)));
   const main:Program={...script,module:true,source:scriptPrelude};
-  return {...lower(bind(main,records)),runtimePrelude:true};
+  const bound=inPhase('bind',()=>bind(main,records));
+  return {...inPhase('lower',()=>lower(bound)),runtimePrelude:true};
 }
 export type CompileResult = {ok:true;image:Uint8Array;imports:string[]}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
 export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost,target:Target=requireHostTarget()):ModuleIR {
   host=withBuiltinModules(host,target);
-  const script=lowerLiteralEval(lowerDynamicFunctions(parse(lex(source))));
-  const requests=fileName===undefined?undefined:moduleRequests(script);
+  const parsed=inPhase('parse',()=>parse(lex(source)));
+  const script=inPhase('eval',()=>lowerLiteralEval(inPhase('dynamic-functions',()=>lowerDynamicFunctions(parsed))));
+  const requests=fileName===undefined?undefined:inPhase('module-requests',()=>moduleRequests(script));
   const dynamic=[...(requests===undefined?[]:[...requests.dynamic,...(requests.computed?host.candidates?.(modulePath(fileName!))??[]:[])]),...builtinModuleRequests(script,host)].filter((s,i,all)=>all.indexOf(s)===i);
-  if(!dynamic.length)return {...lower(bind(script)),runtimePrelude:true};
+  if(!dynamic.length){const bound=inPhase('bind',()=>bind(script));return {...inPhase('lower',()=>lower(bound)),runtimePrelude:true};}
   // Scripts may import() modules; the statically named targets are compiled in.
-  const path=modulePath(fileName??'builtin-script.js'),records=loadModuleGraph(path,null,host,dynamic);
+  const path=modulePath(fileName??'builtin-script.js'),records=inPhase('module-graph',()=>loadModuleGraph(path,null,host,dynamic));
   const scriptRequests=dynamic.flatMap(specifier=>{
     const resolved=host.resolve(specifier,path),index=records.findIndex(record=>record.path===resolved);
     return index<0?[]:[[specifier,index] as [string,number]];
   });
-  return {...lower(bind({...script,scriptPath:path,scriptRequests},records)),runtimePrelude:true};
+  const bound=inPhase('bind',()=>bind({...script,scriptPath:path,scriptRequests},records));
+  return {...inPhase('lower',()=>lower(bound)),runtimePrelude:true};
 }
 /** PE resources from compile options; a GUI program gets a default manifest. */
 function peResources(options:CompileOptions):PeResource[] {
@@ -103,24 +106,23 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
       ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
-    const agentPrograms=agentIRs.map(agentIR=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})}));
+    const agentPrograms=agentIRs.map(agentIR=>inPhase('codegen',()=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})})));
     const ffi=ir.ffi??[];
     // DLL imports exist in Windows images; other OS targets use raw kernel calls.
     const foreign=ffi.filter(d=>(d.dll==='syscall')!==(descriptor.os!=='win32'));
     if(foreign.length)throw new CompileError(foreign.map(d=>({code:'E_FFI_TARGET',file:options.fileName,span:d.span,message:d.dll==='syscall'?`System call declaration ${d.name} requires a Linux, Darwin or BSD target`:`FFI declaration ${d.dll}!${d.name} requires a Windows target`})));
     const resources=peResources(options);
-    const program=generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})});
-    const image=descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources});
+    const program=inPhase('codegen',()=>generate(ir,{unhandledRejections:options.unhandledRejections,realms:options.realms,agentPrograms,link,...(options.callStats?{callStats:true}:{}),...(options.coverage?{coverage:{directory:options.coverage.directory,urls:[options.coverage.url,...(ir.scripts??[]).slice(1).map(scriptUrl)]}}:{}),...(options.baseCache?{baseCache:options.baseCache}:{})}));
+    const image=inPhase('link',()=>descriptor.os==='freebsd'||descriptor.os==='openbsd'?linkBsd(program,descriptor.os):descriptor.os==='linux'?linkLinux(program,descriptor.arch):descriptor.os==='darwin'?linkDarwin(program,descriptor.arch):options.target==='win32-arm64'?linkWindowsArm64(program,{subsystem:options.subsystem,resources}):linkPe(program,{subsystem:options.subsystem,resources}));
     return {ok:true,image,imports:descriptor.format==='pe'?program.imports.filter(i=>i.dll!=='syscall').map(i=>i.dll+'!'+i.name):[]};
-  } catch(error) {
+  } catch(caught) {
+    // A failure outside the named phases is a compiler bug too (E_INTERNAL).
+    const error=caught instanceof CompileError?caught:internalError('compile',caught instanceof Error?caught.message:String(caught));
     // A diagnostic from an imported module keeps that module's path: the
     // file name as given for the entry, a host path for the default host
     // (canonical '/C:/x' is C:\x on Windows), the host's own path otherwise.
-    if(error instanceof CompileError){
-      const entry=options.module?modulePath(options.fileName):undefined;
-      const file=(path:string)=>!path||path===entry?options.fileName:!options.moduleHost&&/^\/[A-Za-z]:\//.test(path)?path.slice(1).replaceAll('/','\\'):path;
-      return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:file(d.file)}))};
-    }
-    throw error;
+    const entry=options.module?modulePath(options.fileName):undefined;
+    const file=(path:string)=>!path||path===entry?options.fileName:!options.moduleHost&&/^\/[A-Za-z]:\//.test(path)?path.slice(1).replaceAll('/','\\'):path;
+    return {ok:false,diagnostics:error.diagnostics.map(d=>({...d,file:file(d.file)}))};
   }
 }

@@ -62,6 +62,8 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `E_FFI_TARGET` | Объявление DLL скомпилировано для `linux-x64` или объявление системного вызова — для `win32-x64`. |
 | `E_RESOURCE` | Некорректная иконка или сведения о версии, либо ресурсы запрошены для `linux-x64`. |
 | `E_TARGET` | Неподдерживаемая цель или подсистема. |
+| `E_HOST_MODULE` | Встроенный модуль (например, `node:fs`) недоступен для этой цели. |
+| `E_INTERNAL` | Ошибка компилятора, а не программы: внутренняя проверка не прошла на этапе, указанном в сообщении (`parse`, `bind`, `lower`, `codegen`, `link`, …). Сообщите о ней, приложив программу, которая её вызывает. |
 
 Ошибки аргументов выводятся как `nona: <message>`, например `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` или `--subsystem requires --target win32-x64`.
 

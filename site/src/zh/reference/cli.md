@@ -62,6 +62,8 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `E_FFI_TARGET` | 为 `linux-x64` 编译了 DLL 声明，或为 `win32-x64` 编译了系统调用声明。 |
 | `E_RESOURCE` | 图标或版本信息无效，或为 `linux-x64` 请求了资源。 |
 | `E_TARGET` | 不支持的目标平台或子系统。 |
+| `E_HOST_MODULE` | 内置模块（例如 `node:fs`）在该目标平台上不可用。 |
+| `E_INTERNAL` | 编译器缺陷，而不是程序错误：消息中指明的阶段（`parse`、`bind`、`lower`、`codegen`、`link` 等）内部检查失败。请附上触发它的程序进行报告。 |
 
 参数错误以 `nona: <message>` 的形式输出，例如 `Unknown option: --foo`、`Duplicate option: -o`、`Missing value for --target`、`Output is required (-o <output>)`、`Unsupported target: arm64`、`Unsupported subsystem: native` 或 `--subsystem requires --target win32-x64`。
 
