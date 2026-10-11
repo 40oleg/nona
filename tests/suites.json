@@ -19,7 +19,8 @@
         "gc-stress-roadmap",
         "stack-overflow",
         "module-boundaries",
-        "lib-sources"
+        "lib-sources",
+        "source-budget"
       ]
     },
     "path": {
