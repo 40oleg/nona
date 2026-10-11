@@ -25,6 +25,8 @@ La suite compile et exécute de vrais exécutables : les tests PE s’exécutent
 
 Les tests se trouvent dans `tests/*.test.ts`. Privilégiez `runOnHost` avec l’oracle Node.js (`runOracle`) : le même test s’exécute alors sur les deux cibles, sous stress du ramasse-miettes, et compare la sortie du programme avec Node.js.
 
+Chaque fichier de tests appartient à exactement une suite de `tests/suites.json` ; ajoutez un nouveau fichier à la suite dont les jobs de CI doivent l'exécuter (`windows-only` si seule l'exécution complète sous Windows le doit). `node scripts/run-suite.mjs <suite...>` lance des suites en local, et `tests/suites.test.ts` échoue tant qu'un fichier n'est assigné à aucune suite.
+
 ## Conventions de code
 
 - Le compilateur est écrit en TypeScript (`src/`). Le code du runtime est émis en x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou écrit sous forme de préludes JavaScript (`src/runtime/*-source.ts`) compilés dans chaque exécutable.

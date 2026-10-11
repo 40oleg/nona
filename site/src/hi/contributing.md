@@ -25,6 +25,8 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 टेस्ट `tests/*.test.ts` में रहते हैं। Node.js oracle (`runOracle`) के साथ `runOnHost` को प्राथमिकता दें: तब वही टेस्ट दोनों टार्गेट पर, GC स्ट्रेस के तहत चलता है और प्रोग्राम के आउटपुट की तुलना Node.js से करता है।
 
+हर टेस्ट फ़ाइल `tests/suites.json` के ठीक एक सूट में होती है; नई फ़ाइल को उस सूट में जोड़ें जिसके CI जॉब्स को उसे चलाना चाहिए (अगर सिर्फ़ Windows का पूरा रन चलाए तो `windows-only`)। `node scripts/run-suite.mjs <suite...>` सूट्स को लोकल चलाता है, और जब तक कोई फ़ाइल किसी सूट में नहीं है, `tests/suites.test.ts` विफल होता है।
+
 ## कोड कन्वेंशन
 
 - कंपाइलर TypeScript (`src/`) में है। रनटाइम कोड `RuntimeBuilder` (`src/runtime/*.ts`) के ज़रिए x86-64 के रूप में उत्पन्न होता है या JavaScript प्रील्यूड (`src/runtime/*-source.ts`) के रूप में लिखा जाता है, जो हर एक्ज़ीक्यूटेबल में कंपाइल होते हैं।

@@ -25,6 +25,8 @@ A suíte compila e executa executáveis reais: os testes PE rodam no Windows e o
 
 Os testes ficam em `tests/*.test.ts`. Prefira `runOnHost` com o oráculo do Node.js (`runOracle`): assim o mesmo teste roda nos dois alvos, sob estresse do GC, e compara a saída do programa com o Node.js.
 
+Cada arquivo de testes pertence a exatamente uma suíte em `tests/suites.json`; adicione um arquivo novo à suíte cujos jobs de CI devem executá-lo (`windows-only` se apenas a execução completa no Windows). `node scripts/run-suite.mjs <suíte...>` executa suítes localmente, e `tests/suites.test.ts` falha enquanto um arquivo não estiver atribuído.
+
 ## Convenções de código
 
 - O compilador é escrito em TypeScript (`src/`). O código do runtime é emitido como x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou escrito como prelúdios JavaScript (`src/runtime/*-source.ts`) compilados em cada executável.

@@ -59,7 +59,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test dist/tests/elf.test.js dist/tests/x64.test.js dist/tests/base-cache.test.js dist/tests/native-targets.test.js dist/tests/machine-context.test.js dist/tests/machine-operations.test.js dist/tests/macho.test.js dist/tests/elf-platform-layout.test.js dist/tests/platform-probes.test.js dist/tests/bsd.test.js dist/tests/arm64-assembler.test.js dist/tests/arm64-relocations.test.js dist/tests/arm64-image-relocations.test.js dist/tests/arm64-math.test.js dist/tests/arm64-runtime-emission.test.js dist/tests/linux-arm64.test.js dist/tests/linux-arm64-host.test.js dist/tests/darwin-runtime.test.js dist/tests/arm64-windows-bridge.test.js dist/tests/arm64-page-geometry.test.js dist/tests/sha256.test.js dist/tests/native-ffi-targets.test.js
+      - run: node scripts/run-suite.mjs elf native-formats
       - run: npm run compare:linux
   loaders:
     name: ${{ matrix.target }} native and portable suites
@@ -102,19 +102,19 @@ jobs:
       - name: Verify native process report files
         run: node scripts/verify-process-reports.mjs
       - name: Events module oracle suite
-        run: node --test dist/tests/events.test.js dist/tests/event-target.test.js dist/tests/event-probes.test.js
+        run: node scripts/run-suite.mjs events event-target
       - name: Core runtime oracle suites
-        run: node --test dist/tests/math.test.js dist/tests/numeric.test.js dist/tests/gc.test.js dist/tests/generators.test.js dist/tests/async.test.js dist/tests/promise.test.js dist/tests/atomics.test.js
+        run: node scripts/run-suite.mjs core-runtime async
       - name: Buffer and Blob oracle suites
-        run: node --test dist/tests/buffer.test.js
+        run: node scripts/run-suite.mjs buffer
       # These exercise byte memory/FP conversions and the large Unicode/RegExp
       # preludes in addition to the CPU, math, GC and coroutine probes.
       - name: Portable language and built-in oracle suites
-        run: node --test dist/tests/date.test.js dist/tests/array-builtins.test.js dist/tests/array-buffer.test.js dist/tests/typed-array-fast-path.test.js dist/tests/string-builtins.test.js dist/tests/string-search.test.js dist/tests/string-split.test.js dist/tests/string-replace.test.js dist/tests/string-replace-all.test.js dist/tests/string-match.test.js dist/tests/regexp-vm.test.js dist/tests/regexp-construction.test.js dist/tests/regexp-split.test.js dist/tests/regexp-replace.test.js dist/tests/regexp-match-all.test.js dist/tests/map.test.js dist/tests/set.test.js dist/tests/weak-collections.test.js dist/tests/proxy.test.js dist/tests/reflect.test.js dist/tests/symbols.test.js dist/tests/json.test.js dist/tests/uri.test.js dist/tests/classes.test.js dist/tests/class-fields.test.js dist/tests/exceptions.test.js dist/tests/objects.test.js dist/tests/object-integrity.test.js dist/tests/object-introspection.test.js dist/tests/property-descriptors.test.js dist/tests/property-index-elements.test.js
+        run: node scripts/run-suite.mjs builtins
       - name: Filesystem oracle suite
-        run: node --test dist/tests/fs.test.js
+        run: node scripts/run-suite.mjs fs
       - name: Portable process oracle suite
-        run: node --test dist/tests/process.test.js dist/tests/process-portable.test.js dist/tests/process-io.test.js
+        run: node scripts/run-suite.mjs process
       - name: Compare Linux examples with Node.js
         run: npm run compare:linux
         if: matrix.target == 'linux-arm64'

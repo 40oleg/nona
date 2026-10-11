@@ -25,6 +25,8 @@ The suite compiles and runs real executables: PE tests run on Windows and ELF te
 
 Tests live in `tests/*.test.ts`. Prefer `runOnHost` with the Node.js oracle (`runOracle`): the same test then runs on both targets, under GC stress, and compares the program's output with Node.js.
 
+Every test file belongs to exactly one suite in `tests/suites.json`; add a new file to the suite whose CI jobs should run it (`windows-only` if only the full Windows run should). `node scripts/run-suite.mjs <suite...>` runs suites locally, and `tests/suites.test.ts` fails while a file is unassigned.
+
 ## Code conventions
 
 - The compiler is TypeScript (`src/`). Runtime code is emitted as x86-64 through `RuntimeBuilder` (`src/runtime/*.ts`) or written as JavaScript preludes (`src/runtime/*-source.ts`) that are compiled into every executable.

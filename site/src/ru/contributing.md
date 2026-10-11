@@ -25,6 +25,8 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 Тесты лежат в `tests/*.test.ts`. Предпочитайте `runOnHost` с оракулом Node.js (`runOracle`): тогда один и тот же тест запускается на обеих целях под GC stress и сравнивает вывод программы с Node.js.
 
+Каждый файл тестов входит ровно в один набор в `tests/suites.json`; новый файл добавляйте в набор, который должны запускать нужные задания CI (`windows-only`, если только полный прогон на Windows). `node scripts/run-suite.mjs <набор...>` запускает наборы локально, а `tests/suites.test.ts` падает, пока файл ни в один набор не входит.
+
 ## Соглашения о коде
 
 - Компилятор написан на TypeScript (`src/`). Код runtime генерируется как x86-64 через `RuntimeBuilder` (`src/runtime/*.ts`) или пишется как JavaScript-прелюдии (`src/runtime/*-source.ts`), которые компилируются в каждый исполняемый файл.

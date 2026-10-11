@@ -25,6 +25,8 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 توجد الاختبارات في `tests/*.test.ts`. فضّل `runOnHost` مع المرجع المستند إلى Node.js ‏(`runOracle`): عندئذٍ يعمل الاختبار نفسه على المنصتين تحت ضغط جامع المهملات، ويقارن ناتج البرنامج بناتج Node.js.
 
+ينتمي كل ملف اختبار إلى مجموعة واحدة بالضبط في `tests/suites.json`؛ أضف الملف الجديد إلى المجموعة التي يجب أن تشغّله مهام CI الخاصة بها (`windows-only` إذا كان التشغيل الكامل على Windows وحده يكفي). يشغّل `node scripts/run-suite.mjs <suite...>` المجموعات محليًا، ويفشل `tests/suites.test.ts` ما دام ملف ما غير مُسنَد.
+
 ## اصطلاحات الشيفرة
 
 - المترجم مكتوب بلغة TypeScript ‏(`src/`). تُصدَر شيفرة بيئة التشغيل بصيغة x86-64 عبر `RuntimeBuilder` ‏(`src/runtime/*.ts`)، أو تُكتب كمقدّمات JavaScript ‏(`src/runtime/*-source.ts`) تُترجَم في كل ملف تنفيذي.

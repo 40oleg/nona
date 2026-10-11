@@ -25,6 +25,8 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 测试位于 `tests/*.test.ts`。优先使用带 Node.js 对照（`runOracle`）的 `runOnHost`：这样同一个测试会在两个目标平台上、在 GC 压力下运行，并把程序输出与 Node.js 对比。
 
+每个测试文件恰好属于 `tests/suites.json` 中的一个测试套件；新文件要加入应当运行它的 CI 任务所对应的套件（如果只需在 Windows 完整运行中执行，则加入 `windows-only`）。`node scripts/run-suite.mjs <套件...>` 可在本地运行套件；只要有文件未分配，`tests/suites.test.ts` 就会失败。
+
 ## 代码约定
 
 - 编译器用 TypeScript 编写（`src/`）。运行时代码要么通过 `RuntimeBuilder`（`src/runtime/*.ts`）以 x86-64 形式生成，要么写成 JavaScript 前导代码（`src/runtime/*-source.ts`），编译进每个可执行文件。
