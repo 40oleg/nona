@@ -173,7 +173,8 @@ A [Lean proof prototype](docs/formal-verification.md) checks selected IR move ru
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function, built-in modules
 src/ir             intermediate representation, lowering and liveness
 src/backend        x86-64 and AArch64 code generation; PE32+, ELF64 and Mach-O64 linkers; OS adapters
-src/runtime        native runtime and the JavaScript preludes emitted into executables
+src/runtime        native runtime; TypeScript side of the JavaScript preludes
+src/lib            JavaScript emitted into executables: runtime preludes and node:* module bodies (.js)
 tests              unit, integration, native-execution and compatibility tests
 programs           the 1,000-program corpus
 examples           sample programs

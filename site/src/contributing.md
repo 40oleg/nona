@@ -29,7 +29,7 @@ Every test file belongs to exactly one suite in `tests/suites.json`; add a new f
 
 ## Code conventions
 
-- The compiler is TypeScript (`src/`). Runtime code is emitted as x86-64 through `RuntimeBuilder` (`src/runtime/*.ts`) or written as JavaScript preludes (`src/runtime/*-source.ts`) that are compiled into every executable.
+- The compiler is TypeScript (`src/`). Runtime code is emitted as x86-64 through `RuntimeBuilder` (`src/runtime/*.ts`) or written as JavaScript preludes (`src/lib/runtime/*.js`) that are compiled into every executable.
 - Preludes must not add top-level `var` bindings; wrap code in an IIFE.
 - Native runtime functions follow the Win64 ABI (shadow space, 16-byte alignment at calls, callee-saved registers). Functions that hold values across calls that may allocate use `rootedFn`.
 - Every new KERNEL32 import needs a Linux system-call shim in `src/backend/linux/shims.ts`.

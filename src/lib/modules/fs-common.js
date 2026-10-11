@@ -1,0 +1,141 @@
+
+import {resolve,join,dirname} from 'node:path';
+const encoder = new TextEncoder(), decoder = new TextDecoder();
+const descriptions = {
+  ENOENT: 'no such file or directory', EEXIST: 'file already exists', EACCES: 'permission denied',
+  EPERM: 'operation not permitted', ENOTDIR: 'not a directory', EISDIR: 'illegal operation on a directory',
+  ENOTEMPTY: 'directory not empty', EBUSY: 'resource busy or locked', EINVAL: 'invalid argument',
+  EBADF: 'bad file descriptor', EXDEV: 'cross-device link not permitted', EIO: 'i/o error', UNKNOWN: 'unknown error'
+};
+function fail(code, syscall, path, dest) {
+  // Like Node.js, errors of reads and writes on an open file carry no path.
+  if (syscall === 'read' || syscall === 'write') path = undefined;
+  let message = code + ': ' + (descriptions[code] || descriptions.UNKNOWN) + ', ' + syscall;
+  if (path !== undefined) message += " '" + path + "'";
+  if (dest !== undefined) message += " -> '" + dest + "'";
+  const error = new Error(message);
+  error.code = code; error.syscall = syscall;
+  if (path !== undefined) error.path = path;
+  if (dest !== undefined) error.dest = dest;
+  throw error;
+}
+function pathString(path, name) {
+  if (typeof path === 'string') {
+    if (path.indexOf('\u0000') >= 0) throw new TypeError('The argument \'' + name + '\' must be a string without null bytes');
+    return path;
+  }
+  if (path instanceof Uint8Array) return decoder.decode(path);
+  throw new TypeError('The "' + name + '" argument must be of type string or an instance of Uint8Array');
+}
+function encodingOf(options) {
+  if (typeof options === 'string') return options;
+  if (options !== null && typeof options === 'object' && options.encoding != null) return options.encoding;
+  return null;
+}
+function checkEncoding(encoding) {
+  if (encoding !== null && encoding !== 'utf8' && encoding !== 'utf-8')
+    throw new TypeError('Unsupported encoding: ' + encoding + ' (only utf8 is supported)');
+}
+function bytesOf(data) {
+  if (typeof data === 'string') return encoder.encode(data);
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  throw new TypeError('The "data" argument must be of type string or an instance of Uint8Array, TypedArray or DataView');
+}
+function concat(chunks, total) {
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (let i = 0; i < chunks.length; i++) { out.set(chunks[i], offset); offset += chunks[i].length; }
+  return out;
+}
+/** Read until end of file; readInto(view) returns the number of bytes read (0 at the end). */
+function readChunks(sizeHint, readInto) {
+  const chunks = []; let total = 0, chunk = new Uint8Array(Math.max(sizeHint + 1, 4096)), used = 0;
+  for (;;) {
+    if (used === chunk.length) { chunks.push(chunk); chunk = new Uint8Array(65536); used = 0; }
+    const n = readInto(chunk.subarray(used));
+    if (n === 0) break;
+    used += n; total += n;
+  }
+  if (chunks.length === 0) return chunk.slice(0, used);
+  chunks.push(chunk.subarray(0, used));
+  return concat(chunks, total);
+}
+class Stats {
+  constructor(kind, size, mtimeMs, mode) { this.size = size; this.mtimeMs = mtimeMs; this.mode = mode; this.mtime = new Date(mtimeMs); Object.defineProperty(this, '_kind', {value: kind}); }
+  isFile() { return this._kind === 'file'; }
+  isDirectory() { return this._kind === 'dir'; }
+  isSymbolicLink() { return this._kind === 'link'; }
+}
+export function readFileSync(path, options) {
+  path = pathString(path, 'path');
+  const encoding = encodingOf(options); checkEncoding(encoding);
+  const bytes = sys.readAll(path);
+  return encoding === null ? bytes : decoder.decode(bytes);
+}
+export function writeFileSync(path, data, options) {
+  path = pathString(path, 'path');
+  const flag = options !== null && typeof options === 'object' ? options.flag || 'w' : 'w';
+  if(flag!=='w'&&flag!=='a'&&flag!=='wx')throw new TypeError('Unsupported file flag: '+flag);
+  const mode=options !== null && typeof options === 'object' && options.mode!==undefined?options.mode:0o666;
+  sys.writeAll(path, bytesOf(data), flag==='a',flag==='wx',mode);
+}
+export function appendFileSync(path, data) { sys.writeAll(pathString(path, 'path'), bytesOf(data), true); }
+export function existsSync(path) {
+  try { return sys.stat(pathString(path, 'path')) !== null; } catch (e) { return false; }
+}
+export function statSync(path, options) {
+  path = pathString(path, 'path');
+  const result = sys.stat(path);
+  if (result === null) {
+    if (options && options.throwIfNoEntry === false) return undefined;
+    fail('ENOENT', 'stat', path);
+  }
+  const value=new Stats(result.kind, result.size, result.mtimeMs, result.mode);
+  value.dev=options&&options.bigint?result.dev:Number(result.dev);
+  value.ino=options&&options.bigint?result.ino:Number(result.ino);
+  return value;
+}
+export function realpathSync(path) {return sys.realpath(resolve(pathString(path,'path')));}
+export function readdirSync(path, options) {
+  path = pathString(path, 'path');
+  const names = sys.readdir(path);
+  if (options && typeof options === 'object' && options.withFileTypes)return names.map(name=>{
+    const info=sys.lstat(join(path,name));
+    return {name,isDirectory(){return info.kind==='dir'},isFile(){return info.kind==='file'},isSymbolicLink(){return info.kind==='link'}};
+  });
+  return names;
+}
+export function mkdirSync(path, options) {
+  path = pathString(path, 'path');
+  const recursive = options !== null && typeof options === 'object' && !!options.recursive;
+  if (!recursive) { sys.mkdir(path); return undefined; }
+  const existing = sys.stat(path);
+  if (existing !== null) {
+    if (existing.kind !== 'dir') fail('EEXIST', 'mkdir', path);
+    return undefined;
+  }
+  // Create missing ancestors first; return the first directory created, like Node.js.
+  const parts = [], separator = sys.separator;
+  let current = path;
+  while (current !== '' && sys.stat(current) === null) {
+    parts.push(current);
+    const index = Math.max(current.lastIndexOf('/'), separator === '\\' ? current.lastIndexOf('\\') : -1);
+    if (index <= 0 || (separator === '\\' && index === 2 && current[1] === ':')) break;
+    current = current.slice(0, index);
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    try { sys.mkdir(parts[i]); } catch (e) { if (e.code !== 'EEXIST') throw e; }
+  }
+  return parts.length ? parts[parts.length - 1] : undefined;
+}
+export function rmdirSync(path) { sys.rmdir(pathString(path, 'path')); }
+export function unlinkSync(path) { sys.unlink(pathString(path, 'path')); }
+export function renameSync(from, to) { sys.rename(pathString(from, 'oldPath'), pathString(to, 'newPath')); }
+export function copyFileSync(from, to, mode) {
+  from = pathString(from, 'src'); to = pathString(to, 'dest');
+  if ((mode | 0) & 1 && sys.stat(to) !== null) fail('EEXIST', 'copyfile', from, to);
+  sys.copy(from, to);
+}
+export const constants = { COPYFILE_EXCL: 1, F_OK: 0, R_OK: 4, W_OK: 2, X_OK: 1 };
+export default { readFileSync, writeFileSync, appendFileSync, existsSync, statSync, realpathSync, readdirSync, mkdirSync, rmdirSync, unlinkSync, renameSync, copyFileSync, constants };

@@ -29,7 +29,7 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 ## কোড কনভেনশন
 
-- কম্পাইলারটি TypeScript-এ (`src/`)। রানটাইম কোড `RuntimeBuilder` (`src/runtime/*.ts`)-এর মাধ্যমে x86-64 হিসেবে তৈরি হয় অথবা JavaScript প্রিলিউড (`src/runtime/*-source.ts`) হিসেবে লেখা হয়, যা প্রতিটি এক্সিকিউটেবলে কম্পাইল হয়।
+- কম্পাইলারটি TypeScript-এ (`src/`)। রানটাইম কোড `RuntimeBuilder` (`src/runtime/*.ts`)-এর মাধ্যমে x86-64 হিসেবে তৈরি হয় অথবা JavaScript প্রিলিউড (`src/lib/runtime/*.js`) হিসেবে লেখা হয়, যা প্রতিটি এক্সিকিউটেবলে কম্পাইল হয়।
 - প্রিলিউড টপ-লেভেল `var` বাইন্ডিং যোগ করতে পারবে না; কোডকে একটি IIFE-তে মুড়ে দিন।
 - নেটিভ রানটাইম ফাংশন Win64 ABI মেনে চলে (shadow space, কলের সময় 16-বাইট অ্যালাইনমেন্ট, callee-saved রেজিস্টার)। যে ফাংশন মেমরি বরাদ্দ করতে পারে এমন কলের পার জুড়ে মান ধরে রাখে, সেটি `rootedFn` ব্যবহার করে।
 - প্রতিটি নতুন KERNEL32 ইমপোর্টের জন্য `src/backend/linux/shims.ts`-এ একটি Linux সিস্টেম-কল শিম দরকার।

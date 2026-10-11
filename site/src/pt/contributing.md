@@ -29,7 +29,7 @@ Cada arquivo de testes pertence a exatamente uma suíte em `tests/suites.json`; 
 
 ## Convenções de código
 
-- O compilador é escrito em TypeScript (`src/`). O código do runtime é emitido como x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou escrito como prelúdios JavaScript (`src/runtime/*-source.ts`) compilados em cada executável.
+- O compilador é escrito em TypeScript (`src/`). O código do runtime é emitido como x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou escrito como prelúdios JavaScript (`src/lib/runtime/*.js`) compilados em cada executável.
 - Prelúdios não devem adicionar bindings `var` de nível superior; envolva o código em uma IIFE.
 - As funções nativas do runtime seguem a ABI Win64 (shadow space, alinhamento de 16 bytes nas chamadas, registradores preservados pela função chamada). Funções que mantêm valores entre chamadas que podem alocar usam `rootedFn`.
 - Toda nova importação do KERNEL32 precisa de um shim de chamada de sistema do Linux em `src/backend/linux/shims.ts`.

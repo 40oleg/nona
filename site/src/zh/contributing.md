@@ -29,7 +29,7 @@ npm run test262:smoke    # a quick pinned Test262 subset
 
 ## 代码约定
 
-- 编译器用 TypeScript 编写（`src/`）。运行时代码要么通过 `RuntimeBuilder`（`src/runtime/*.ts`）以 x86-64 形式生成，要么写成 JavaScript 前导代码（`src/runtime/*-source.ts`），编译进每个可执行文件。
+- 编译器用 TypeScript 编写（`src/`）。运行时代码要么通过 `RuntimeBuilder`（`src/runtime/*.ts`）以 x86-64 形式生成，要么写成 JavaScript 前导代码（`src/lib/runtime/*.js`），编译进每个可执行文件。
 - 前导代码不得添加顶层 `var` 绑定；请把代码包在 IIFE 中。
 - 原生运行时函数遵循 Win64 ABI（影子空间、调用时 16 字节对齐、被调用方保存的寄存器）。在可能分配内存的调用之间持有值的函数要使用 `rootedFn`。
 - 每个新的 KERNEL32 导入都需要在 `src/backend/linux/shims.ts` 中提供 Linux 系统调用垫片。

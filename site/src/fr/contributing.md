@@ -29,7 +29,7 @@ Chaque fichier de tests appartient à exactement une suite de `tests/suites.json
 
 ## Conventions de code
 
-- Le compilateur est écrit en TypeScript (`src/`). Le code du runtime est émis en x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou écrit sous forme de préludes JavaScript (`src/runtime/*-source.ts`) compilés dans chaque exécutable.
+- Le compilateur est écrit en TypeScript (`src/`). Le code du runtime est émis en x86-64 via `RuntimeBuilder` (`src/runtime/*.ts`) ou écrit sous forme de préludes JavaScript (`src/lib/runtime/*.js`) compilés dans chaque exécutable.
 - Les préludes ne doivent pas ajouter de liaisons `var` de premier niveau ; enveloppez le code dans une IIFE.
 - Les fonctions natives du runtime suivent l’ABI Win64 (shadow space, alignement sur 16 octets aux appels, registres préservés par l’appelé). Les fonctions qui conservent des valeurs à travers des appels susceptibles d’allouer utilisent `rootedFn`.
 - Chaque nouvel import KERNEL32 nécessite une cale d’appel système Linux dans `src/backend/linux/shims.ts`.
