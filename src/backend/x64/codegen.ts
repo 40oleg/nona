@@ -1,6 +1,6 @@
 import {createAssembler,currentNativeTarget} from '../machine/context.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from '../../runtime/exception-layout.js';
-import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from '../../runtime/object-layout.js';
+import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,ProxyCallable} from '../../runtime/object-layout.js';
 import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
 import {ElementsLayout} from '../../runtime/array-elements.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, setAssemblyListing, type Mem, type Condition, type Reg } from './assembler.js';
@@ -284,7 +284,7 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
       switch(op.kind){
         case 'copy':case 'storeGlobal':case 'constant':case 'loadGlobal':case 'uninitialized':case 'checkInitialized':case 'checkResolvable':case 'pushHandler':case 'popHandler':case 'immutableWrite':case 'generatorInitialSuspend':return true;
         case 'binary':return op.operator==='+'||!!op.numeric;
-        case 'unary':return !!op.numeric||op.operator==='typeof'||op.operator==='!'||op.operator==='isNullish'||op.operator==='string';
+        case 'unary':return !!op.numeric||op.operator==='typeof'||op.operator.startsWith('typeofIs:')||op.operator.startsWith('typeofNot:')||op.operator==='!'||op.operator==='isNullish'||op.operator==='string';
         case 'property':return op.operation==='get'&&op.keyName==='length';
         default:return false;
       }
@@ -786,6 +786,28 @@ function generateImage(module:ModuleIR,options:{gcStress?:boolean;unhandledRejec
             // generator.return() unwinds with a CellTag marker value (rt.generatorYield).
             a.load('rax',value(op.argument));a.cmp('rax',254);a.setCondition('e');// sete al; movzx rax,al
             a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
+          }
+          if(op.operator.startsWith('typeofIs:')||op.operator.startsWith('typeofNot:')){
+            // typeof x === 'name' (lower.ts): the tags rt.typeof maps to
+            // each name; an object is a function when it is a function
+            // object or a callable proxy.
+            const negate=op.operator.startsWith('typeofNot:'),name=op.operator.slice(op.operator.indexOf(':')+1);
+            const tags:Record<string,number>={undefined:0,boolean:2,number:3,string:4,symbol:6,bigint:7};
+            const match=a.unique('typeofMatch'),differ=a.unique('typeofDiffer'),store=a.unique('typeofStore');
+            a.load('rax',value(op.argument));
+            if(Object.hasOwn(tags,name)){a.cmp('rax',tags[name]!);a.jcc('e',match);a.jmp(differ);}
+            else if(name==='object'||name==='function'){
+              const fn=name==='function';
+              if(!fn){a.cmp('rax',1);a.jcc('e',match);}
+              a.cmp('rax',5);a.jcc('ne',differ);
+              a.load('r11',payload(op.argument));a.load('r10',{base:'r11',disp:O.kind});
+              a.cmp('r10',FunctionKind);a.jcc('e',fn?match:differ);
+              a.cmp('r10',ProxyKind);a.jcc('ne',fn?differ:match);
+              a.load('r10',{base:'r11',disp:O.flags});a.and('r10',ProxyCallable);a.test('r10','r10');a.jcc('ne',fn?match:differ);a.jmp(fn?differ:match);
+            }else a.jmp(differ);
+            a.label(differ);a.mov('rax',negate?1:0);a.jmp(store);
+            a.label(match);a.mov('rax',negate?0:1);
+            a.label(store);a.store(payload(op.dest),'rax');a.mov('r10',2);a.store(value(op.dest),'r10');break;
           }
           if(op.numeric&&emitKnownNumberUnary(op.dest,op.operator,op.argument))break;
           if(emitNumberUnary(op.dest,op.operator,op.argument))break;
