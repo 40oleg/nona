@@ -22,7 +22,10 @@ export function bind(ast:A.Program,moduleRecords?:ModuleRecord[]):BoundProgram {
   const fail=(node:A.Node,message:string):never=>{throw new CompileError([{code:'E_BIND',message,file:'',span:node.span}]);};
   let classCode=0; // > 0 while analyzing class heritage and element names (strict mode code)
   const register=(node:A.FunctionNode,parent:BoundFunction|null):BoundFunction=>{
-    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||classCode>0||currentModule!==undefined||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[]};
+    // Code from Function() and CommonJS module wrappers (dynamic functions)
+    // has its own strictness even inside a module, and so do its nested functions.
+    const dynamicScope=node.kind==='FunctionExpression'&&!!node.dynamic||!!parent?.dynamicScope;
+    const entry:BoundFunction={...(currentModule===undefined?{}:{module:currentModule}),strict:node.kind==='FunctionExpression'&&node.dynamic?!!node.body.strict:!!(node.body.strict||classCode>0||currentModule!==undefined&&!dynamicScope||node.kind==='FunctionExpression'&&node.classMethod||(parent?parent.strict:ast.strict)),declaration:node,index:functions.length,parent,parameters:[],locals:[],captures:[],declarations:[],...(dynamicScope?{dynamicScope:true}:{})};
     if(node.kind==='FunctionExpression'&&node.realmLocal||parent?.realmLocal)entry.realmLocal=true;
     functions.push(entry);functionNodes.set(node,entry);return entry;
   };
