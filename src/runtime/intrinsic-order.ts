@@ -2,6 +2,7 @@ import type {NamedFragment} from '../backend/pe/model.js';
 import type {RuntimeBuilder} from './abi.js';
 import {ObjectLayout as O,PropertyLayout as P} from './object-layout.js';
 import {errorConstructorNames} from '../global-builtins.js';
+import {consoleMethodNames} from './console.js';
 
 // Static emission order is an implementation detail. Link the implemented own
 // properties newest-first so ownKeys observes the intrinsic creation order.
@@ -70,7 +71,7 @@ export function orderIntrinsicProperties(b:RuntimeBuilder):void {
   'rt.arrayIteratorPrototype':['next','@@toStringTag'],
   'rt.stringIteratorPrototype':['next','@@toStringTag'],
   'rt.Symbol':['length','name','prototype','for','keyFor',...['asyncIterator','hasInstance','isConcatSpreadable','iterator','match','matchAll','replace','search','species','split','toPrimitive','toStringTag','unscopables','dispose','asyncDispose']],
-  'rt.console':['log'],
+  'rt.console':consoleMethodNames,
   'rt.globalObject':['Object','Function','Array','Number','Boolean','String','Date','RegExp','Map','Set','WeakMap','WeakSet','ArrayBuffer','SharedArrayBuffer','DataView','Int8Array','Uint8Array','Uint8ClampedArray','Int16Array','Uint16Array','Int32Array','Uint32Array','Float32Array','Float64Array','BigInt64Array','BigUint64Array','Symbol','BigInt',...errorConstructorNames,'Math','JSON','Atomics','globalThis','undefined','NaN','Infinity','eval','parseFloat','parseInt','isFinite','isNaN','decodeURI','decodeURIComponent','encodeURI','encodeURIComponent','console'],
   ...Object.fromEntries(errorConstructorNames.map(name=>['rt.'+name.toLowerCase()+'Prototype',['constructor','name','message',...(name==='Error'?['toString']:[])]])),
  };

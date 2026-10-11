@@ -10,6 +10,7 @@ Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compi
 | `process` | global | all eight native targets | [process](/pt/reference/process) |
 | `TextEncoder`, `TextDecoder` | globais | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | global | ambos | escreve UTF-8 na saída padrão |
+| `console.error`, `console.warn` | global | ambos | escreve UTF-8 na saída de erro padrão (`console.info`, `console.debug`: saída padrão) |
 | `nona:process`, `node:process` | módulos | all eight native targets | [process](/pt/reference/process) |
 | `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/pt/reference/process) |
 | `nona:fs`, `node:fs` | módulos | ambos | [Sistema de arquivos e codificação de texto](/pt/reference/fs) |

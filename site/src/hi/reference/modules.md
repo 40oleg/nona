@@ -10,6 +10,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | `process` | ग्लोबल | all eight native targets | [process](/hi/reference/process) |
 | `TextEncoder`, `TextDecoder` | ग्लोबल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |
+| `console.error`, `console.warn` | ग्लोबल | दोनों | स्टैंडर्ड एरर में UTF-8 लिखता है (`console.info`, `console.debug`: स्टैंडर्ड आउटपुट) |
 | `nona:process`, `node:process` | मॉड्यूल | all eight native targets | [process](/hi/reference/process) |
 | `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/hi/reference/process) |
 | `nona:fs`, `node:fs` | मॉड्यूल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs) |

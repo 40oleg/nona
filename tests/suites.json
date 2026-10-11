@@ -318,7 +318,8 @@
         "wrapper-methods",
         "print-asm",
         "typeof-compare",
-        "call-overhead"
+        "call-overhead",
+        "console-streams"
       ]
     }
   }

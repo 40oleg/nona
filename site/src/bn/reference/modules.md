@@ -10,6 +10,7 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 | `process` | গ্লোবাল | all eight native targets | [process](/bn/reference/process) |
 | `TextEncoder`, `TextDecoder` | গ্লোবাল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে |
+| `console.error`, `console.warn` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড এররে UTF-8 লেখে (`console.info`, `console.debug`: স্ট্যান্ডার্ড আউটপুট) |
 | `nona:process`, `node:process` | মডিউল | all eight native targets | [process](/bn/reference/process) |
 | `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/bn/reference/process) |
 | `nona:fs`, `node:fs` | মডিউল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs) |

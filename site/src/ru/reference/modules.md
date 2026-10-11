@@ -10,6 +10,7 @@
 | `process` | глобальный | all eight native targets | [process](/ru/reference/process) |
 | `TextEncoder`, `TextDecoder` | глобальные | обе | [Файловая система и кодировка текста](/ru/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | глобальный | обе | пишет UTF-8 в стандартный вывод |
+| `console.error`, `console.warn` | глобальный | обе | пишет UTF-8 в стандартный поток ошибок (`console.info`, `console.debug`: стандартный вывод) |
 | `nona:process`, `node:process` | модули | all eight native targets | [process](/ru/reference/process) |
 | `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/ru/reference/process) |
 | `nona:fs`, `node:fs` | модули | обе | [Файловая система и кодировка текста](/ru/reference/fs) |

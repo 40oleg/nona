@@ -10,6 +10,7 @@
 | `process` | عام | all eight native targets | [process](/ar/reference/process) |
 | `TextEncoder` و`TextDecoder` | عامة | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
+| `console.error` و`console.warn` | عام | كلتاهما | يكتب UTF-8 إلى مخرج الأخطاء القياسي (`console.info` و`console.debug`: المخرج القياسي) |
 | `nona:process` و`node:process` | وحدات | all eight native targets | [process](/ar/reference/process) |
 | `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |

@@ -10,6 +10,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `process` | 全局 | all eight native targets | [process](/zh/reference/process) |
 | `TextEncoder`、`TextDecoder` | 全局 | 两者 | [文件系统与文本编码](/zh/reference/fs#textencoder-and-textdecoder) |
 | `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
+| `console.error`、`console.warn` | 全局 | 两者 | 以 UTF-8 写入标准错误（`console.info`、`console.debug`：标准输出） |
 | `nona:process`、`node:process` | 模块 | all eight native targets | [process](/zh/reference/process) |
 | `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
 | `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
