@@ -182,6 +182,7 @@
         "closures",
         "coercion-hooks",
         "conformance",
+        "constant-equality",
         "constructors",
         "context-switch",
         "control-flow",

@@ -153,7 +153,7 @@ A function object is an object followed by the fields below (`src/runtime/functi
 | Moves | `copies.ts` | `t = op; x = t` with `t` dead becomes `x = op` for constants and Number operations. |
 | Direct calls | `calls.ts` | Annotates calls of known function declarations; the code generator checks the callee and calls its code directly. |
 
-A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out.
+A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out. A strict equality with an `undefined`, `null`, Boolean or Number constant operand is an inline tag test (with `ucomisd` for Numbers) instead of a call to `rt.strictEquals`; when the result only decides the block's branch, the test jumps to the branch targets directly. `switch` cases with such constants benefit the same way.
 
 ## Code generation and calling convention
 

@@ -127,7 +127,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
   const ropeTransparent=(op:Operation):boolean=>{
     switch(op.kind){
       case 'copy':case 'storeGlobal':case 'constant':case 'loadGlobal':case 'uninitialized':case 'checkInitialized':case 'checkResolvable':case 'pushHandler':case 'popHandler':case 'immutableWrite':case 'generatorInitialSuspend':return true;
-      case 'binary':return op.operator==='+'||!!op.numeric;
+      case 'binary':return op.operator==='+'||!!op.numeric||constantEquality(op);
       case 'unary':return !!op.numeric||op.operator==='typeof'||op.operator.startsWith('typeofIs:')||op.operator.startsWith('typeofNot:')||op.operator==='!'||op.operator==='isNullish'||op.operator==='string';
       case 'property':return op.operation==='get'&&op.keyName==='length';
       default:return false;
@@ -202,6 +202,22 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
       a.cvtsi2sd('xmm0','r10');setNumber(dest);
     }
     a.jmp(done);return {slow,done};
+  };
+  // x === c where c is a static undefined, null, Boolean or Number constant
+  // (#146): a tag test (and a payload test for Booleans, ucomisd for
+  // Numbers: NaN equals nothing, -0 equals 0) instead of rt.strictEquals.
+  // testConstant jumps to `differ` unless the value equals the constant.
+  const comparand=(left:number,right:number):{other:number;k:number}|undefined=>{
+    const known=(n:number)=>staticConstant(n)!==undefined&&(constants.get(n)===null||['undefined','boolean','number'].includes(typeof constants.get(n)));
+    return known(right)?{other:left,k:right}:known(left)?{other:right,k:left}:undefined;
+  };
+  // Calls nothing and reads only the tag of a string (so a rope stays one).
+  const constantEquality=(op:Operation)=>op.kind==='binary'&&(op.operator==='==='||op.operator==='!==')&&!!comparand(op.left,op.right);
+  const testConstant=({other,k}:{other:number;k:number},differ:string)=>{
+    const v=constants.get(k),tag=v===undefined?0:v===null?1:typeof v==='boolean'?2:3;
+    a.load('r10',value(other));a.cmp('r10',tag);a.jcc('ne',differ);
+    if(tag===2){a.load('r10',payload(other));a.test('r10','r10');a.jcc(v?'e':'ne',differ);}
+    if(tag===3){a.movsd('xmm0',payload(other));a.ucomisd('xmm0',payload(k));a.jcc('p',differ);a.jcc('ne',differ);}
   };
   // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
   const knownArithmetic:Record<string,'addsd'|'subsd'|'mulsd'|'divsd'>={'+':'addsd','-':'subsd','*':'mulsd','/':'divsd'};
@@ -285,7 +301,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
   // arithmetic, comparisons and updates on proven Numbers, cannot run a
   // collection or user code.
   const inline=(op:Operation):boolean=>{
-    if(movesOnly.has(op.kind))return true;
+    if(movesOnly.has(op.kind)||constantEquality(op))return true;
     if(op.kind==='binary'&&op.numeric&&['+','-','*','/','<','<=','>','>=','==','===','!=','!=='].includes(op.operator))return true;
     return op.kind==='unary'&&!!op.numeric&&['numeric','increment','decrement','-','+'].includes(op.operator);
   };
@@ -294,6 +310,7 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
   for(const [blockIndex,block] of fn.blocks.entries()){
     a.label(fn.id+'.block.'+block.id);
     let fused:Extract<Operation,{kind:'binary'}>|undefined;
+    let fusedEquality:{other:number;k:number;negate:boolean}|undefined;
     for(const [index,op] of block.operations.entries()){
      const live=liveness.get(block.id)!.before[index]!,dests=destinations(op).filter(d=>d>=floor&&!staticConstant(d));
      // Safepoint at the start of every block (every loop iteration passes
@@ -680,12 +697,16 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
       case 'binary':{
         // A comparison of Numbers that only decides this block's branch is
         // fused into it: no boolean is materialized.
-        if(op.numeric&&op.operator in knownRelation&&index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!isLive(liveness.get(block.id)!.liveOut,op.dest,floor)){fused=op;break;}
+        const decides=index===block.operations.length-1&&block.terminator.kind==='branch'&&block.terminator.condition===op.dest&&!isLive(liveness.get(block.id)!.liveOut,op.dest,floor);
+        if(op.numeric&&op.operator in knownRelation&&decides){fused=op;break;}
         if(op.numeric&&emitKnownNumberBinary(op.dest,op.operator,op.left,op.right))break;
         // Strict equality of values whose types are not known is one call
         // to rt.strictEquals: inline tag dispatch made each site several
         // hundred bytes, and code size costs more than the call.
         if(op.operator==='==='||op.operator==='!=='){
+          const c=comparand(op.left,op.right),negate=op.operator==='!==';
+          if(c&&decides){fusedEquality={...c,negate};break;}
+          if(c){const store=a.unique('constantEqual');a.mov('rax',0);testConstant(c,store);a.mov('rax',1);a.label(store);if(negate)a.xor('rax',1);setBoolean(op.dest);break;}
           pointer('rcx',op.dest);pointer('rdx',op.left);pointer('r8',op.right);a.call('rt.strictEquals');
           if(op.operator==='!=='){a.load('rax',payload(op.dest));a.xor('rax',1);a.store(payload(op.dest),'rax');}
           break;
@@ -709,6 +730,10 @@ export function emitFunction(context:EmitContext,fn:FunctionIR):void {
     switch(term.kind){
       case 'jump':goto(term.target);break;
       case 'branch':{
+        if(fusedEquality){
+          const equal=fusedEquality.negate?term.no:term.yes,differ=fusedEquality.negate?term.yes:term.no;
+          testConstant(fusedEquality,fn.id+'.block.'+differ);goto(equal);break;
+        }
         if(fused){
           // ucomisd: unordered (NaN) sets parity; only != holds then.
           const yes=fn.id+'.block.'+term.yes,no=fn.id+'.block.'+term.no,negated=fused.operator==='!='||fused.operator==='!==';
