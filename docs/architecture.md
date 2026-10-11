@@ -33,7 +33,7 @@ source text
 | Path | Contents |
 | --- | --- |
 | `src/frontend/` | Lexer, parser, binder, module graph loading, compile-time `eval`/`Function`, and the JavaScript implementations of the `node:*` modules |
-| `src/ir/` | Lowering to the IR (`lower.ts`: expressions and entry points; `lower/`: the shared state and references, classes, calls, patterns and statements, as one class chain), liveness, location assignment, number inference |
+| `src/ir/` | Lowering to the IR (`lower.ts`: expressions and entry points; `lower/`: the shared state and references, classes, calls, patterns and statements, as one class chain), liveness, location assignment and the IR optimization passes (see below) |
 | `src/runtime/` | The runtime: native routines emitted with `RuntimeBuilder`, the memory layouts, the GC, and the TypeScript side of the JavaScript preludes (`*-source.ts`) |
 | `src/lib/` | The JavaScript compiled into executables: the runtime preludes (`runtime/*.js`) and the `node:*` module bodies (`modules/*.js`); `scripts/build.mjs` turns them into `src/lib/sources.generated.ts` |
 | `src/backend/x64/` | The assembler and the code generator: `codegen.ts` assembles the image (runtime, base-image cache, host globals, entry code), `operations.ts` emits each IR function, `preludes.ts` selects and lowers the JavaScript preludes, `base-image.ts` caches the compiled runtime |
@@ -138,6 +138,21 @@ A function object is an object followed by the fields below (`src/runtime/functi
 | `FunctionLayout.size` | 200 |
 
 [`runtime-memory.md`](runtime-memory.md) (Russian) describes the allocation, rooting and exception rules in detail; where its byte numbers differ from the tables above, the tables are right.
+
+## IR optimization
+
+`optimizeFunction()` in `src/ir/lower.ts` runs these passes on every function after lowering, in this order; `annotateDirectCalls()` then runs once over the module. Each pass keeps ECMAScript semantics exactly: it only uses facts that hold on every path, and an operation that could run user code (a conversion of an object, a getter, a Proxy trap) or throw is never assumed to be pure. The catalogue of further transformations and their correctness conditions is [#146](https://github.com/40oleg/nona/issues/146).
+
+| Pass | File | What it does |
+| --- | --- | --- |
+| Dead-zone checks | `initialization.ts` | Drops `checkInitialized` of slots and globals that are definitely initialized (forward must-analysis over the CFG). |
+| Constants | `constants.ts` | Forward must-analysis of slots holding a known primitive, over feasible edges only: folds unary and binary operations on known primitives (no BigInt; `**` only to exact integers; Number-to-String only for integers; strings up to 4096 units), turns copies of known slots into constants, turns branches on known conditions into jumps and removes blocks that become unreachable. Skips functions with an `arguments` object and the error slots of exception handlers. |
+| Copies | `copies.ts` | Block-local copy forwarding; drops moves and pure operations (`!`, `typeof`, nullish and `typeof` tests, strict equality, operations on proven Numbers) whose result is dead. |
+| Numbers | `numbers.ts` | Marks arithmetic and comparisons whose operands are proven Numbers (`numeric`), which the code generator emits without tag checks or runtime fallback. |
+| Moves | `copies.ts` | `t = op; x = t` with `t` dead becomes `x = op` for constants and Number operations. |
+| Direct calls | `calls.ts` | Annotates calls of known function declarations; the code generator checks the callee and calls its code directly. |
+
+A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data.
 
 ## Code generation and calling convention
 

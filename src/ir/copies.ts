@@ -10,7 +10,8 @@ import {analyzeLiveness,isLive,liveFloor} from './liveness.js';
  * destination is dead are dropped.
  *
  * Only operands of the operations below are rewritten; any other use keeps
- * its temporary alive, so the result is always equivalent. Functions with a
+ * its temporary alive, so the result is always equivalent. Pure operations
+ * (see pure) whose destination is dead are dropped too. Functions with a
  * mapped `arguments` object are left alone: it aliases parameter slots.
  */
 type Map_=Map<number,number>;
@@ -36,7 +37,8 @@ function rewriteTerminator(t:Terminator,alias:Map_):Terminator {
  if(t.kind==='throw')return {...t,value:resolve(alias,t.value)};
  return t;
 }
-function definitions(op:Operation):number[] {
+/** The slots an operation writes. */
+export function definitions(op:Operation):number[] {
  const out:number[]=[];
  if('dest' in op)out.push(op.dest);
  if(op.kind==='getIterator')out.push(op.iterator,op.next);
@@ -45,6 +47,18 @@ function definitions(op:Operation):number[] {
  return out;
 }
 const removable=new Set<Operation['kind']>(['copy','constant','uninitialized']);
+/**
+ * Operations with no effect besides their destination, dropped like moves
+ * when it is dead (#146 item 10): tests that never convert their operand
+ * (ToBoolean, typeof, strict equality) and operations on proven Numbers.
+ */
+const pureUnary=new Set(['!','typeof','isNullish']);
+function pure(op:Operation):boolean {
+ if(removable.has(op.kind))return true;
+ if(op.kind==='unary')return op.numeric===true||pureUnary.has(op.operator)||op.operator.startsWith('typeofIs:')||op.operator.startsWith('typeofNot:');
+ if(op.kind==='binary')return op.numeric===true||op.operator==='==='||op.operator==='!==';
+ return false;
+}
 
 export function propagateCopies(fn:FunctionIR):FunctionIR {
  if(fn.blocks.some(block=>block.operations.some(op=>op.kind==='newArguments')))return fn;
@@ -68,7 +82,7 @@ export function propagateCopies(fn:FunctionIR):FunctionIR {
    const before=liveness.get(block.id)!.before,operations:Operation[]=[];
    block.operations.forEach((op,i)=>{
     const after=i+1<block.operations.length?before[i+1]!:liveness.get(block.id)!.beforeTerminator;
-    if(removable.has(op.kind)&&'dest' in op&&!isLive(after,op.dest,liveFloor(result))){removed=true;return;}
+    if(pure(op)&&'dest' in op&&!isLive(after,op.dest,liveFloor(result))){removed=true;return;}
     operations.push(op);
    });
    return operations.length===block.operations.length?block:{...block,operations};
