@@ -28,3 +28,21 @@ for(const [index,source] of cases.entries()){
  assert.equal(native.stdout,oracle.stdout);
  });
 }
+
+// Buffer.from(string) and Buffer.byteLength(string) in UTF-8 call the native
+// encoder directly (#155); the bytes must stay those of Node.js.
+test('Buffer.from and byteLength of strings in UTF-8 match Node',()=>{
+ const source=`
+var user={id:42,name:'Ada Lovelace',email:'ada@example.com',roles:['admin','dev'],active:true};
+var rope='';for(var i=0;i<40;i++)rope+=i%3?'界':'a';
+var strings=['','a','plain ascii text',JSON.stringify(user),JSON.stringify({name:'Ада',note:'日本語 ✓',emoji:'😀'}),'\\ud800','\\udc00x','a\\ud83d','\\ud83d\\ude00\\ud83d',rope,'\\0nul\\0','é'.repeat(3000),String.fromCharCode(0x7f,0x80,0x7ff,0x800,0xffff)];
+strings.forEach(function(s){
+ var a=Buffer.from(s),b=Buffer.from(s,'utf8'),c=Buffer.from(s,'utf-8');
+ console.log(a.length,Buffer.byteLength(s),Buffer.byteLength(s,'utf8'),a.toString('hex').slice(0,80),a.equals(b)&&a.equals(c),a instanceof Buffer,a.toString()===s);
+});
+console.log(Buffer.from(JSON.stringify(user)).toString(),Buffer.from('aGk=','base64').toString(),Buffer.from('6869','hex').toString(),Buffer.byteLength('aGk=','base64'),Buffer.from('é','latin1').length);
+`;
+ const native=runOnHost(source,{gcStress:true});
+ assert.equal(native.status,0,JSON.stringify(native));
+ assert.equal(native.stdout,runOracle(source).stdout);
+});

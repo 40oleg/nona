@@ -13,6 +13,8 @@ export const encodingPreludeSource=String.raw`
   // the loops below are the reference implementation and the fallback.
   var nativeEncode=typeof __nonaUtf8Encode==='function'?__nonaUtf8Encode:null,nativeDecode=typeof __nonaUtf8Decode==='function'?__nonaUtf8Decode:null;
   delete globalThis.__nonaUtf8Encode;delete globalThis.__nonaUtf8Decode;
+  // Buffer.from(string) and Buffer.byteLength use the native encoder directly.
+  if(nativeEncode!==null&&typeof __nonaRegexpVm!=='undefined'&&__nonaRegexpVm)__nonaRegexpVm.utf8Encode=nativeEncode;
   function encode(input){
     var s=input===undefined?'':String(input),n=s.length,size=0,i,c,d;
     if(nativeEncode!==null){

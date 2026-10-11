@@ -8,6 +8,13 @@ export const bufferPreludeSource=String.raw`
  var u8sub=U8.prototype.subarray,u8set=U8.prototype.set,u8fill=U8.prototype.fill,encoder=new TextEncoder(),decoder=new TextDecoder('utf8',{ignoreBOM:true});
  var encode=TextEncoder.prototype.encode,decode=TextDecoder.prototype.decode;
  var nativeHex=typeof __nonaHexEncode==='function'?__nonaHexEncode:null;
+ // The native UTF-8 encoder (encoding-source.ts): one call measures, one
+ // writes, without TextEncoder's receiver check and argument conversion.
+ var utf8Encode=typeof __nonaRegexpVm.utf8Encode==='function'?__nonaRegexpVm.utf8Encode:null;
+ function encodeUtf8(text){
+  if(utf8Encode!==null){var count=utf8Encode(text,undefined);if(count!==undefined){var out=new U8(count);if(utf8Encode(text,out)===count)return out}}
+  return apply(encode,encoder,[text])
+ }
  delete globalThis.__nonaHexEncode;
  var nativeCopy=typeof __nonaByteCopy==='function'?__nonaByteCopy:null,originalSet=u8set;
  delete globalThis.__nonaByteCopy;
@@ -32,7 +39,7 @@ export const bufferPreludeSource=String.raw`
   error(TypeError,'ERR_UNKNOWN_ENCODING','Unknown encoding: '+value)
  }
  function encodeString(text,enc){
-  if(enc==='utf8')return apply(encode,encoder,[text]);
+  if(enc==='utf8')return encodeUtf8(text);
   var out=[],i,c,d;
   if(enc==='hex'){
    for(i=0;i+1<text.length;i+=2){c=parseInt(text[i],16);d=parseInt(text[i+1],16);if(c!==c||d!==d)break;out.push(c*16+d)}
@@ -67,7 +74,7 @@ export const bufferPreludeSource=String.raw`
  define(Buffer,Symbol.species,{get:function(){return FastBuffer},configurable:true});
  function method(target,name,fn){if(fn.name==='')define(fn,'name',{value:String(name),configurable:true});define(target,name,{value:fn,writable:true,enumerable:true,configurable:true})}
  method(Buffer,'from',function from(value,enc,length){
-  if(typeof value==='string')return wrap(encodeString(value,encoding(enc,false)));
+  if(typeof value==='string')return wrap(enc===undefined?encodeUtf8(value):encodeString(value,encoding(enc,false)));
   if(value instanceof AB||value instanceof SAB){var offset=enc===undefined?0:Number(enc);if(offset!==offset)offset=0;offset=Math.trunc(offset);if(offset<0||offset>value.byteLength)error(RangeError,'ERR_BUFFER_OUT_OF_BOUNDS','offset is outside buffer bounds');if(length!==undefined){length=Math.trunc(Number(length));if(length!==length)length=0;if(length<0||offset+length>value.byteLength)error(RangeError,'ERR_BUFFER_OUT_OF_BOUNDS','length is outside buffer bounds')}return wrap(length===undefined?new U8(value,offset):new U8(value,offset,length))}
   if(value===null||value===undefined||typeof value==='number')type('The first argument must be a string, Buffer, ArrayBuffer, Array, or array-like object');
   if(typeof value==='object'||typeof value==='function'){
@@ -83,7 +90,7 @@ export const bufferPreludeSource=String.raw`
  method(Buffer,'allocUnsafe',unsafe);method(Buffer,'allocUnsafeSlow',unsafe);
  method(Buffer,'isBuffer',function isBuffer(value){return value instanceof Buffer});
  method(Buffer,'isEncoding',function isEncoding(enc){if(typeof enc!=='string'||enc==='')return false;try{encoding(enc,true);return true}catch(e){return false}});
- method(Buffer,'byteLength',function byteLength(value,enc){if(value instanceof AB||value instanceof SAB||AB.isView(value))return value.byteLength;if(typeof value!=='string')type('string must be a string, Buffer or ArrayBuffer');try{enc=encoding(enc,false)}catch(e){enc='utf8'}if(enc==='hex')return value.length>>>1;if(enc==='latin1'||enc==='ascii')return value.length;if(enc==='utf16le')return value.length*2;if(enc==='base64'||enc==='base64url'){var n=value.length;if(n>0&&value[n-1]==='=')n--;if(n>0&&value[n-1]==='=')n--;return Math.floor(n*3/4)}return encodeString(value,enc).length});
+ method(Buffer,'byteLength',function byteLength(value,enc){if(typeof value==='string'&&enc===undefined&&utf8Encode!==null){var bytes=utf8Encode(value,undefined);if(bytes!==undefined)return bytes}if(value instanceof AB||value instanceof SAB||AB.isView(value))return value.byteLength;if(typeof value!=='string')type('string must be a string, Buffer or ArrayBuffer');try{enc=encoding(enc,false)}catch(e){enc='utf8'}if(enc==='hex')return value.length>>>1;if(enc==='latin1'||enc==='ascii')return value.length;if(enc==='utf16le')return value.length*2;if(enc==='base64'||enc==='base64url'){var n=value.length;if(n>0&&value[n-1]==='=')n--;if(n>0&&value[n-1]==='=')n--;return Math.floor(n*3/4)}if(enc==='utf8'&&utf8Encode!==null){var count=utf8Encode(value,undefined);if(count!==undefined)return count}return encodeString(value,enc).length});
  method(Buffer,'compare',function compare(a,b){bytes(a);bytes(b);var n=Math.min(a.length,b.length);for(var i=0;i<n;i++){if(a[i]<b[i])return -1;if(a[i]>b[i])return 1}return a.length<b.length?-1:a.length>b.length?1:0});
  method(Buffer,'concat',function concat(list,totalLength){if(!Array.isArray(list))type('list must be an Array');if(list.length===0)return bufferAlloc(0);var n=0;for(var i=0;i<list.length;i++){bytes(list[i]);n+=list[i].length}if(totalLength!==undefined)n=size(totalLength);var out=bufferAlloc(n),p=0;for(i=0;i<list.length&&p<n;i++){var item=list[i],count=Math.min(n-p,item.length);apply(u8set,out,[apply(u8sub,item,[0,count]),p]);p+=count}return out});
  method(Buffer,'copyBytesFrom',function copyBytesFrom(view,offset,length){if(!AB.isView(view)||view instanceof DV)type('view must be a TypedArray');var count=view.length;if(offset===undefined)offset=0;else integer(offset,'offset',0,Number.MAX_SAFE_INTEGER);if(length===undefined)length=Math.max(0,count-offset);else integer(length,'length',0,Number.MAX_SAFE_INTEGER);length=Math.min(length,Math.max(0,count-offset));if(length===0)return bufferAlloc(0);var width=view.BYTES_PER_ELEMENT,raw=new U8(view.buffer,view.byteOffset+offset*width,length*width);return bufferFrom(raw)});
