@@ -18,7 +18,8 @@
         "eval-aot",
         "gc-stress-roadmap",
         "stack-overflow",
-        "module-boundaries"
+        "module-boundaries",
+        "lib-sources"
       ]
     },
     "path": {

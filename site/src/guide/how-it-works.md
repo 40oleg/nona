@@ -41,7 +41,7 @@ Every executable contains the runtime from [`src/runtime`](https://github.com/40
 - **Values** are 16-byte tagged pairs: undefined, null, booleans, binary64 numbers, UTF-16 strings, objects, symbols and BigInts.
 - **Objects** made by literals and constructors share *shapes* (hidden classes): their properties live in 16-byte slots that the shape describes, and inline caches in the generated code read and write them after one shape comparison. What a shape cannot describe (accessors, deletion, other attributes, symbol keys) turns the object into an ordered property list, which gets a hash index when it grows long.
 - **Native code** for built-ins is emitted as x86-64 or AArch64 with a small builder (`RuntimeBuilder`).
-- **JavaScript preludes** (`*-source.ts`) implement parts of the library in JavaScript and are compiled into every executable: the RegExp engine, Promise and async drivers, Proxy and Reflect helpers, timers and the event loop, `process`, `TextEncoder`/`TextDecoder` and Annex B built-ins.
+- **JavaScript preludes** (`src/lib/runtime/*.js`) implement parts of the library in JavaScript and are compiled into every executable: the RegExp engine, Promise and async drivers, Proxy and Reflect helpers, timers and the event loop, `process`, `TextEncoder`/`TextDecoder` and Annex B built-ins.
 
 ### Garbage collector
 

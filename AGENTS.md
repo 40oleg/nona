@@ -78,7 +78,8 @@ exactly.
 
 - The compiler is TypeScript (`src/`); runtime code is emitted as x86-64 via
   `RuntimeBuilder` (`src/runtime/*.ts`) or written as JavaScript preludes
-  (`src/runtime/*-source.ts`) compiled into every executable.
+  (`src/lib/runtime/*.js`, and `node:*` modules in `src/lib/modules/*.js`;
+  `src/runtime/*-source.ts` export them) compiled into every executable.
 - Preludes must not add top-level `var` bindings (the runtime has exactly two
   prelude globals). Wrap code in an IIFE and attach helpers to
   `__nonaRegexpVm`.

@@ -12,3 +12,4 @@ site/generated/
 site/node_modules/
 site/src/public/playground-worker.js
 bench/real/vendor/
+src/lib/sources.generated.ts

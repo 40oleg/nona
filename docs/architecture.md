@@ -34,7 +34,8 @@ source text
 | --- | --- |
 | `src/frontend/` | Lexer, parser, binder, module graph loading, compile-time `eval`/`Function`, and the JavaScript implementations of the `node:*` modules |
 | `src/ir/` | Lowering to the IR, liveness, location assignment, number inference |
-| `src/runtime/` | The runtime: native routines emitted with `RuntimeBuilder`, the memory layouts, the GC, and the JavaScript preludes (`*-source.ts`) |
+| `src/runtime/` | The runtime: native routines emitted with `RuntimeBuilder`, the memory layouts, the GC, and the TypeScript side of the JavaScript preludes (`*-source.ts`) |
+| `src/lib/` | The JavaScript compiled into executables: the runtime preludes (`runtime/*.js`) and the `node:*` module bodies (`modules/*.js`); `scripts/build.mjs` turns them into `src/lib/sources.generated.ts` |
 | `src/backend/x64/` | The assembler and the code generator |
 | `src/backend/arm64/` | The ARM64 assembler and the Windows ARM64 bridge |
 | `src/backend/machine/` | The machine model the runtime emits code against: the target context (which assembler a compilation uses), the fragment/fixup/program model (`model.ts`) and the floating-point steps without an SSE2 instruction (`math.ts`) |
@@ -154,7 +155,7 @@ The operating system adapters supply what differs per OS: the entry code, the sy
 
 ## JavaScript preludes and linking
 
-Large parts of the built-ins are JavaScript: the RegExp engine, Promise machinery, Proxy, Reflect, timers, Buffer, `process`, streams and the `node:*` modules (`src/runtime/*-source.ts`, `src/frontend/*-module.ts`). They are compiled by the same pipeline as the program and share its runtime. They talk to native code through the `__nonaRegexpVm` intrinsic object (see #183).
+Large parts of the built-ins are JavaScript: the RegExp engine, Promise machinery, Proxy, Reflect, timers, Buffer, `process`, streams and the `node:*` modules (`src/lib/runtime/*.js` and `src/lib/modules/*.js`, used by `src/runtime/*-source.ts` and `src/frontend/*-module.ts`). They are compiled by the same pipeline as the program and share its runtime. They talk to native code through the `__nonaRegexpVm` intrinsic object (see #183).
 
 Optional runtime parts are linked only when the program can reach them. The lexer records every identifier, property name and string literal it sees (`collectSourceUsage`), and `src/link.ts` maps trigger names to preludes; `--full-runtime` links everything. This is a lexical rule, documented in the site's compatibility guide and tracked in #182. The compiled runtime and prelude image is cached on disk (`BaseImageCache`, `src/cache.ts`), so a build only compiles the program.
 

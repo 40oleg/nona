@@ -173,7 +173,8 @@ A [Lean proof prototype](docs/formal-verification.md) checks selected IR move ru
 src/frontend       лексер, парсер, ранние ошибки, связывание областей, eval/Function при компиляции, встроенные модули
 src/ir             промежуточное представление, понижение и анализ живости
 src/backend        генерация кода x86-64 и AArch64; линкеры PE32+, ELF64 и Mach-O64; адаптеры ОС
-src/runtime        нативная среда выполнения и JavaScript-прелюдии, попадающие в исполняемые файлы
+src/runtime        нативная среда выполнения; TypeScript-часть JavaScript-прелюдий
+src/lib            JavaScript, попадающий в исполняемые файлы: прелюдии и тела модулей node:* (.js)
 tests              модульные, интеграционные, нативные и сравнительные тесты
 programs           корпус из 1000 программ
 examples           примеры программ
