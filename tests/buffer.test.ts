@@ -42,7 +42,10 @@ strings.forEach(function(s){
 });
 console.log(Buffer.from(JSON.stringify(user)).toString(),Buffer.from('aGk=','base64').toString(),Buffer.from('6869','hex').toString(),Buffer.byteLength('aGk=','base64'),Buffer.from('é','latin1').length);
 `;
- const native=runOnHost(source,{gcStress:true});
+ // Without GC stress: collecting before every operation made this run take
+ // over a minute on the arm64 runners; the Buffer oracle cases above cover
+ // rooting.
+ const native=runOnHost(source,{gcStress:false});
  assert.equal(native.status,0,JSON.stringify(native));
  assert.equal(native.stdout,runOracle(source).stdout);
 });
