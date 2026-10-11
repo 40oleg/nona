@@ -47,9 +47,11 @@ writeFileSync(entry,source);
 const codegen=resolve(sources,'backend/x64/codegen.js');
 let generator=readFileSync(codegen,'utf8');
 generator=replaceChecked(generator,'export function generate(', 'function generateOriginal(','codegen.js');
-generator=replaceChecked(generator,'cachedRuntimePreludes.set(preludeKey, prelude);',"if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('prelude',prelude);cachedRuntimePreludes.set(preludeKey, prelude);",'codegen.js');
 generator+=`\nexport function generate(module,options={}){const program=generateOriginal(module,options);if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('program',{...program,fragments:program.fragments.map(fragment=>({...fragment,bytes:Buffer.from(fragment.bytes).toString('base64')}))});return program}\n`;
 writeFileSync(codegen,generator);
+// The runtime prelude is lowered in backend/x64/preludes.js.
+const preludesPath=resolve(sources,'backend/x64/preludes.js');
+writeFileSync(preludesPath,replaceChecked(readFileSync(preludesPath,'utf8'),'cachedRuntimePreludes.set(preludeKey, prelude);',"if(globalThis.__nonaSelfhostTrace)globalThis.__nonaSelfhostTrace('prelude',prelude);cachedRuntimePreludes.set(preludeKey, prelude);",'preludes.js'));
 if(cliMode){
  writeFileSync(resolve(sources,'selfhost-crypto.js'),compilerCryptoSource(target));
  writeFileSync(resolve(sources,'selfhost-url.js'),compilerUrlSource);

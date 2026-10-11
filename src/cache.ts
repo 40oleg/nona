@@ -13,7 +13,7 @@ import {mkdirSync,readdirSync,readFileSync,renameSync,unlinkSync,writeFileSync} 
 import {homedir} from 'node:os';
 import {dirname,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import type {BaseImage,BaseImageCache} from './backend/x64/codegen.js';
+import type {BaseImage,BaseImageCache} from './backend/x64/base-image.js';
 
 const magic='NONABAS1';
 
