@@ -1,4 +1,8 @@
 name: check
+env:
+  NODE_VERSION: '26.9.0'
+  # tc39/test262 revision; scripts/test262-smoke.mjs pins the same one.
+  TEST262_REF: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
 on:
   # Branch pushes are checked by their pull request; a second push run in the
   # same concurrency group would only cancel or be cancelled by it.
@@ -18,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - name: Record isolated Windows Node abort behavior
@@ -29,8 +33,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          ref: ${{ env.TEST262_REF }}
           path: work/test262
+          # Directories that hold the tests listed in tests/test262-smoke.json.
           sparse-checkout: |
             harness
             test/language/expressions/coalesce
@@ -46,88 +51,16 @@ jobs:
             test/language/statements/for-of
             test/language/statements/function
             test/built-ins/Symbol
-            test/built-ins/Array/prototype/includes
-            test/built-ins/Array/prototype/concat
-            test/built-ins/Array/prototype/flat
-            test/built-ins/Array/prototype/flatMap
-            test/built-ins/Array/prototype/toLocaleString
-            test/built-ins/Array/prototype/sort
-            test/built-ins/Array/prototype/Symbol.unscopables
-            test/built-ins/Array/prototype/values
-            test/built-ins/Array/prototype/indexOf
-            test/built-ins/Array/prototype/lastIndexOf
-            test/built-ins/Array/prototype/forEach
-            test/built-ins/Array/prototype/map
-            test/built-ins/Array/prototype/some
-            test/built-ins/Array/prototype/every
-            test/built-ins/Array/prototype/find
-            test/built-ins/Array/prototype/findIndex
-            test/built-ins/Array/prototype/reduce
-            test/built-ins/Array/prototype/reduceRight
-            test/built-ins/Array/prototype/fill
-            test/built-ins/Array/prototype/copyWithin
-            test/built-ins/Array/prototype/reverse
-            test/built-ins/Array/prototype/shift
-            test/built-ins/Array/prototype/unshift
-            test/built-ins/Array/prototype/pop
-            test/built-ins/Math/pow
-            test/built-ins/Math/abs
-            test/built-ins/Math/ceil
-            test/built-ins/Math/floor
-            test/built-ins/Math/round
-            test/built-ins/Math/sign
-            test/built-ins/Math/sqrt
-            test/built-ins/Math/trunc
-            test/built-ins/Math/sin
-            test/built-ins/Math/cos
-            test/built-ins/Math/tan
-            test/built-ins/Math/log
-            test/built-ins/Math/log2
-            test/built-ins/Math/log10
-            test/built-ins/Math/log1p
-            test/built-ins/Math/cbrt
-            test/built-ins/Math/asin
-            test/built-ins/Math/acos
-            test/built-ins/Math/atanh
-            test/built-ins/Math/asinh
-            test/built-ins/Math/acosh
-            test/built-ins/Math/sinh
-            test/built-ins/Math/cosh
-            test/built-ins/Math/tanh
+            test/built-ins/Array/prototype
+            test/built-ins/Math
+            test/built-ins/Number
+            test/built-ins/String
+            test/built-ins/parseInt
+            test/built-ins/parseFloat
             test/built-ins/encodeURI
             test/built-ins/encodeURIComponent
             test/built-ins/decodeURI
             test/built-ins/decodeURIComponent
-            test/built-ins/Math/exp
-            test/built-ins/Math/expm1
-            test/built-ins/Math/atan
-            test/built-ins/Math/atan2
-            test/built-ins/Number/isFinite
-            test/built-ins/Number/isInteger
-            test/built-ins/Number/isNaN
-            test/built-ins/Number/isSafeInteger
-            test/built-ins/Number/parseInt.js
-            test/built-ins/Number/parseFloat.js
-            test/built-ins/parseInt
-            test/built-ins/parseFloat
-            test/built-ins/String/fromCharCode
-            test/built-ins/String/fromCodePoint
-            test/built-ins/String/raw
-            test/built-ins/String/prototype/concat
-            test/built-ins/String/prototype/toUpperCase
-            test/built-ins/String/prototype/toLowerCase
-            test/built-ins/String/prototype/toLocaleLowerCase
-            test/built-ins/String/prototype/toLocaleUpperCase
-            test/built-ins/String/prototype/split
-            test/built-ins/String/prototype/replace
-            test/built-ins/Number/prototype/toFixed
-            test/built-ins/Number/prototype/toExponential
-            test/built-ins/Number/prototype/toPrecision
-            test/built-ins/String/prototype/includes
-            test/built-ins/String/prototype/indexOf
-            test/built-ins/String/prototype/lastIndexOf
-            test/built-ins/String/prototype/padEnd
-            test/built-ins/String/prototype/padStart
       - run: npm run test262:smoke
   linux-native:
     runs-on: ubuntu-latest
@@ -135,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -145,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          ref: ${{ env.TEST262_REF }}
           path: work/test262
           sparse-checkout: |
             harness
@@ -163,249 +96,72 @@ jobs:
           name: test262-object-annexb-linux-report
           path: work/test262-object-annexb-linux-report.json
           if-no-files-found: ignore
-  windows-reflect-test262:
+  windows-test262:
+    # Same job names and report artifacts as the former per-directory jobs.
+    name: windows-${{ matrix.group }}-test262
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: reflect
+            dir: built-ins/Reflect
+            exclude-paths: 'arguments-list-is-not-array-like-but-still-valid.js'
+          - group: promise
+            dir: built-ins/Promise
+            run-async: '1'
+            exclude-paths: 'built-ins/Promise/any/,built-ins/Promise/allKeyed/,built-ins/Promise/allSettledKeyed/,built-ins/Promise/try/,built-ins/Promise/withResolvers/,ctx-non-ctor.js,proto-from-ctor-realm.js'
+          - group: typedarray
+            dir: built-ins/TypedArray
+            timeout: '600000'
+            exclude-paths: '/prototype/at/,/prototype/findLast/,/prototype/findLastIndex/,/prototype/toReversed/,/prototype/toSorted/,/prototype/with/'
+            exclude-features: 'resizable-arraybuffer,immutable-arraybuffer'
+          - group: dataview
+            dir: built-ins/DataView
+            exclude-paths: '/prototype/getFloat16/,/prototype/setFloat16/,proto-from-ctor-realm'
+            exclude-features: 'resizable-arraybuffer,immutable-arraybuffer'
+          - group: arraybuffer
+            dir: built-ins/ArrayBuffer
+            exclude-paths: '/prototype/detached/,/prototype/immutable/,/prototype/maxByteLength/,/prototype/resizable/,/prototype/resize/,/prototype/sliceToImmutable/,/prototype/transfer/,/prototype/transferToFixedLength/,/prototype/transferToImmutable/,proto-from-ctor-realm.js'
+            exclude-features: 'resizable-arraybuffer,immutable-arraybuffer'
+          - group: sharedarraybuffer
+            dir: built-ins/SharedArrayBuffer
+            exclude-paths: '/prototype/grow/,/prototype/growable/,/prototype/maxByteLength/,options-maxbytelength-,options-non-object.js,proto-from-ctor-realm.js'
+            exclude-features: 'growable-sharedarraybuffer,resizable-arraybuffer,immutable-arraybuffer'
+          - group: date
+            dir: built-ins/Date
+            exclude-paths: '/prototype/toTemporalInstant/,proto-from-ctor-realm'
+          - group: json
+            dir: built-ins/JSON
+            exclude-paths: '/isRawJSON/,/rawJSON/,replacer-array-proxy-revoked-realm.js,value-bigint-cross-realm.js'
+            exclude-features: 'json-parse-with-source'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.9.0'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run build
       - uses: actions/checkout@v4
         with:
           repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+          ref: ${{ env.TEST262_REF }}
           path: work/test262
           sparse-checkout: |
             harness
-            test/built-ins/Reflect
-      - run: node scripts/test262-smoke.mjs built-ins/Reflect
+            test/${{ matrix.dir }}
+      - run: node scripts/test262-smoke.mjs ${{ matrix.dir }}
         env:
           TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTER: 'arguments-list-is-not-array-like-but-still-valid.js'
-          TEST262_REPORT: 'work/test262-reflect-report.json'
+          TEST262_RUN_ASYNC: ${{ matrix.run-async || '' }}
+          TEST262_RUNTIME_TIMEOUT_MS: ${{ matrix.timeout || '120000' }}
+          TEST262_EXCLUDE_PATH_FILTERS: ${{ matrix.exclude-paths }}
+          TEST262_EXCLUDE_FEATURES: ${{ matrix.exclude-features || '' }}
+          TEST262_REPORT: work/test262-${{ matrix.group }}-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test262-reflect-report
-          path: work/test262-reflect-report.json
-          if-no-files-found: ignore
-  windows-promise-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/Promise
-      - run: node scripts/test262-smoke.mjs built-ins/Promise
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUN_ASYNC: '1'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: 'built-ins/Promise/any/,built-ins/Promise/allKeyed/,built-ins/Promise/allSettledKeyed/,built-ins/Promise/try/,built-ins/Promise/withResolvers/,ctx-non-ctor.js,proto-from-ctor-realm.js'
-          TEST262_REPORT: 'work/test262-promise-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-promise-report
-          path: work/test262-promise-report.json
-          if-no-files-found: ignore
-  windows-typedarray-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/TypedArray
-      - run: node scripts/test262-smoke.mjs built-ins/TypedArray
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '600000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/at/,/prototype/findLast/,/prototype/findLastIndex/,/prototype/toReversed/,/prototype/toSorted/,/prototype/with/'
-          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
-          TEST262_REPORT: 'work/test262-typedarray-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-typedarray-report
-          path: work/test262-typedarray-report.json
-          if-no-files-found: ignore
-  windows-dataview-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/DataView
-      - run: node scripts/test262-smoke.mjs built-ins/DataView
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/getFloat16/,/prototype/setFloat16/,proto-from-ctor-realm'
-          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
-          TEST262_REPORT: 'work/test262-dataview-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-dataview-report
-          path: work/test262-dataview-report.json
-          if-no-files-found: ignore
-  windows-arraybuffer-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/ArrayBuffer
-      - run: node scripts/test262-smoke.mjs built-ins/ArrayBuffer
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/detached/,/prototype/immutable/,/prototype/maxByteLength/,/prototype/resizable/,/prototype/resize/,/prototype/sliceToImmutable/,/prototype/transfer/,/prototype/transferToFixedLength/,/prototype/transferToImmutable/,proto-from-ctor-realm.js'
-          TEST262_EXCLUDE_FEATURES: 'resizable-arraybuffer,immutable-arraybuffer'
-          TEST262_REPORT: 'work/test262-arraybuffer-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-arraybuffer-report
-          path: work/test262-arraybuffer-report.json
-          if-no-files-found: ignore
-  windows-sharedarraybuffer-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/SharedArrayBuffer
-      - run: node scripts/test262-smoke.mjs built-ins/SharedArrayBuffer
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/grow/,/prototype/growable/,/prototype/maxByteLength/,options-maxbytelength-,options-non-object.js,proto-from-ctor-realm.js'
-          TEST262_EXCLUDE_FEATURES: 'growable-sharedarraybuffer,resizable-arraybuffer,immutable-arraybuffer'
-          TEST262_REPORT: 'work/test262-sharedarraybuffer-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-sharedarraybuffer-report
-          path: work/test262-sharedarraybuffer-report.json
-          if-no-files-found: ignore
-  windows-date-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/Date
-      - run: node scripts/test262-smoke.mjs built-ins/Date
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/prototype/toTemporalInstant/,proto-from-ctor-realm'
-          TEST262_REPORT: 'work/test262-date-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-date-report
-          path: work/test262-date-report.json
-          if-no-files-found: ignore
-  windows-json-test262:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.9.0'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/checkout@v4
-        with:
-          repository: tc39/test262
-          ref: 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
-          path: work/test262
-          sparse-checkout: |
-            harness
-            test/built-ins/JSON
-      - run: node scripts/test262-smoke.mjs built-ins/JSON
-        env:
-          TEST262_JOBS: '4'
-          TEST262_RUNTIME_TIMEOUT_MS: '120000'
-          TEST262_EXCLUDE_PATH_FILTERS: '/isRawJSON/,/rawJSON/,replacer-array-proxy-revoked-realm.js,value-bigint-cross-realm.js'
-          TEST262_EXCLUDE_FEATURES: 'json-parse-with-source'
-          TEST262_REPORT: 'work/test262-json-report.json'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test262-json-report
-          path: work/test262-json-report.json
+          name: test262-${{ matrix.group }}-report
+          path: work/test262-${{ matrix.group }}-report.json
           if-no-files-found: ignore
