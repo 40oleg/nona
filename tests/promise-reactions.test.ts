@@ -75,6 +75,19 @@ test('subclasses and foreign capabilities still go through the species construct
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
+test('awaiting primitives, promises, thenables and species edge cases keeps the job order',()=>expectOracle(`
+ var log=[];
+ async function prim(tag){for(var v of [undefined,null,0,'s',false,1n,Symbol.iterator])log.push(tag+typeof (await v));return tag}
+ prim('x').then(function(t){log.push('done '+t)});
+ prim('y');
+ (async function(){log.push('t '+(await {then:function(r){r('thenable')}}));log.push('p '+(await Promise.resolve('promise')))})();
+ Promise.resolve().then(function(){log.push('q1')}).then(function(){log.push('q2')}).then(function(){log.push('q3')});
+ var noCtor=Promise.resolve('nc');noCtor.constructor=undefined;noCtor.then(function(v){log.push('undefined constructor '+v)});
+ var nullSpecies=Promise.resolve('ns');nullSpecies.constructor={};nullSpecies.constructor[Symbol.species]=null;nullSpecies.then(function(v){log.push('null species '+v)});
+ var bad=Promise.resolve();bad.constructor=1;try{bad.then()}catch(e){log.push(e instanceof TypeError)}
+ setTimeout(function(){console.log(log.join(' '))},0);
+`));
+
 test('a chain of 200 000 reactions settles in order',()=>{
  const source=`
  var p=Promise.resolve(0);

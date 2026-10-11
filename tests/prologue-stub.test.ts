@@ -23,7 +23,8 @@ test('functions share one prologue stub and keep a short inline prologue',()=>{
  for(const fragment of functions){
   const descriptor=program.fragments.find(f=>f.name===fragment.name+'.frame');
   assert.ok(descriptor&&descriptor.section==='.rdata'&&descriptor.bytes.length===FrameDescriptor.size,fragment.name+' has a frame descriptor');
-  assert.ok(fragment.fixups.some(f=>f.target==='rt.enterFrame'),fragment.name+' calls the stub');
+  // rt.enterFrame, or the stub for a small function's parameter count (#47).
+  assert.ok(fragment.fixups.some(f=>/^rt\.enterFrame[0-4]?$/.test(f.target)),fragment.name+' calls the stub');
   const firstBlock=Math.min(...Object.entries(fragment.symbols).filter(([s])=>/\.block\.\d+$/.test(s)).map(([,o])=>o));
   // lea (7) + call (5); a derived constructor adds its this cell.
   assert.ok(firstBlock<=12+40,`${fragment.name} prologue is ${firstBlock} bytes`);

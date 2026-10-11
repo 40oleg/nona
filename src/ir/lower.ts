@@ -962,6 +962,17 @@ class Lowerer {
           }
         }
         if(e.operator==='in'&&e.left.kind==='PrivateName'){const name=this.privateName(e.left);return this.preludeCall('privateIn',[name,this.expression(e.right)]);}
+        // typeof x === 'type' (also !==, ==, !=, either side): a test of the
+        // value's tag, without the type name string and a string comparison.
+        if(e.operator==='==='||e.operator==='!=='||e.operator==='=='||e.operator==='!='){
+          const typeName=(x:A.Expression)=>x.kind==='Literal'&&typeof x.value==='string'?x.value:undefined;
+          const [test,name]=e.left.kind==='Unary'&&e.left.operator==='typeof'&&typeName(e.right)!==undefined?[e.left,typeName(e.right)!]
+            :e.right.kind==='Unary'&&e.right.operator==='typeof'&&typeName(e.left)!==undefined?[e.right,typeName(e.left)!]:[undefined,''];
+          if(test){
+            const argument=test.argument.kind==='Identifier'?this.read(test.argument,true):this.expression(test.argument),dest=this.slot();
+            this.emit({kind:'unary',dest,operator:(e.operator==='==='||e.operator==='=='?'typeofIs:':'typeofNot:')+name,argument});return dest;
+          }
+        }
         const left=this.expression(e.left);
         if(e.operator===',')return this.expression(e.right);
         if(e.operator==='&&'||e.operator==='||'||e.operator==='??') {

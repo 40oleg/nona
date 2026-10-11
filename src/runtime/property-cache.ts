@@ -284,7 +284,7 @@ export function emitPropertyCache(b:RuntimeBuilder):void {
    for(let i=0;i<L.shapeEntries;i++){const next=a.unique('shapeEntry');a.load('r11',{base:'r9',disp:L.shape+L.shapeEntry*i});a.cmp('rax','r11');a.jcc('ne',next);a.load('r11',{base:'r9',disp:L.slot+L.shapeEntry*i});a.jmp(slotKnown);a.label(next);}
    a.store(slot(72),'r10');a.mov('rcx','rax');a.load('rdx',{base:'r8',disp:8});a.call('rt.shapeLookup');
    a.load('r9',slot(64));a.load('r10',slot(72));a.load('r8',slot(56));
-   for(const field of [L.shape,L.slot,L.offset]){a.load('r11',{base:'r9',disp:field});a.store({base:'r9',disp:field+L.shapeEntry},'r11');}
+   for(let i=L.shapeEntries-1;i>0;i--)for(const field of [L.shape,L.slot,L.offset]){a.load('r11',{base:'r9',disp:field+L.shapeEntry*(i-1)});a.store({base:'r9',disp:field+L.shapeEntry*i},'r11');}
    a.load('r11',{base:'r10',disp:O.shape});a.store({base:'r9',disp:L.shape},'r11');a.store({base:'r9',disp:L.slot},'rax');
    {const noOffset=a.unique('noOffset');a.mov('rcx',0);a.test('rax','rax');a.jcc('s',noOffset);a.load('rdx',{base:'r11',disp:ShapeLayout.capacity});a.cmp('rax','rdx');a.jcc('ae',noOffset);
     a.mov('rcx','rax');a.shl('rcx',4);a.add('rcx',O.size);a.label(noOffset);a.store({base:'r9',disp:L.offset},'rcx');}

@@ -316,7 +316,9 @@
         "this",
         "timers",
         "wrapper-methods",
-        "print-asm"
+        "print-asm",
+        "typeof-compare",
+        "call-overhead"
       ]
     }
   }

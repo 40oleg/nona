@@ -78,6 +78,13 @@ only marks their keys.
   instance outgrows the inline slots, the root gets a successor with as many
   slots as that instance now has properties, and later instances start from
   it.
+- A `new C(...)` site has a record (`NewCacheLayout`): the constructor and
+  the node of its own `prototype` data property at the shape epoch.
+  `rt.newInstanceCached` then creates the instance from the constructor's
+  root and sets its prototype from the node without a lookup; `prototype` is
+  never configurable, and the constructor is flagged so that redefining it
+  advances the epoch. `%Promise%` is never remembered (its executor is
+  checked first).
 - A shape has at most 128 properties; a program has at most 2^20 shapes.
 
 ## Leaving shaped mode
