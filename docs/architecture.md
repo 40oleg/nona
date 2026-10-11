@@ -147,12 +147,13 @@ A function object is an object followed by the fields below (`src/runtime/functi
 | --- | --- | --- |
 | Dead-zone checks | `initialization.ts` | Drops `checkInitialized` of slots and globals that are definitely initialized (forward must-analysis over the CFG). |
 | Constants | `constants.ts` | Forward must-analysis of slots holding a known primitive, over feasible edges only: folds unary and binary operations on known primitives (no BigInt; `**` only to exact integers; Number-to-String only for integers; strings up to 4096 units), turns copies of known slots into constants, turns branches on known conditions into jumps and removes blocks that become unreachable. Skips functions with an `arguments` object and the error slots of exception handlers. |
+| Control flow | `control-flow.ts` | A branch on `!x` branches on `x` with its targets swapped; an edge to an empty block that only jumps, or that branches on a value whose truthiness the edge already knows (the second test of a short-circuit condition), goes straight to the final target; unreachable blocks are removed and a block is merged into its only predecessor when that predecessor jumps to it (not across exception handlers). |
 | Copies | `copies.ts` | Block-local copy forwarding; drops moves and pure operations (`!`, `typeof`, nullish and `typeof` tests, strict equality, operations on proven Numbers) whose result is dead. |
 | Numbers | `numbers.ts` | Marks arithmetic and comparisons whose operands are proven Numbers (`numeric`), which the code generator emits without tag checks or runtime fallback. |
 | Moves | `copies.ts` | `t = op; x = t` with `t` dead becomes `x = op` for constants and Number operations. |
 | Direct calls | `calls.ts` | Annotates calls of known function declarations; the code generator checks the callee and calls its code directly. |
 
-A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data.
+A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out.
 
 ## Code generation and calling convention
 
