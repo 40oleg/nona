@@ -70,7 +70,12 @@ only marks their keys.
   created by `rt.newArrayLiteral` with its element table (a power of two of
   at least four slots, the elements undefined), and each element is stored
   into its slot by the generated code, instead of a table built and grown by
-  `rt.setProperty` definitions.
+  `rt.setProperty` definitions. A table of up to eight slots is part of the
+  array's own cell, right after the header (`inlineElementCapacity`): one
+  managed allocation instead of a cell and a raw-heap table, and nothing to
+  release when the array dies. An object whose `elements` is its payload +
+  `ObjectLayout.size` owns such a table; growing the array moves the elements
+  to a raw-heap table.
 - `rt.newShapedObject` (object literals and constructor instances) takes an
   uncleared cell (`rt.allocRaw`) and writes every header field and inline
   slot itself.

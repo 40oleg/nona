@@ -58,11 +58,13 @@ export function emitObjects(b:RuntimeBuilder):void {
   });
   for(const withSlots of [false])b.fn('rt.newObject',72,a=>{
     a.store(slot(40),'rcx');a.store(slot(48),'rdx');a.store(slot(56),'r8');
+    // Every header field is written below, before anything can reach a
+    // safepoint: the cell needs no clearing pass (#48).
     a.mov('rcx',O.size);
-    a.call('rt.alloc');
+    a.call('rt.allocRaw');
     a.mov('r10',0);
     a.mov('r11',HeapKind.object);a.store({base:'rax',disp:H.kind-H.size},'r11');
-    for(const offset of [O.properties,O.shape,O.flags])a.store({base:'rax',disp:offset},'r10');
+    for(const offset of [O.properties,O.shape,O.flags,O.index,O.elements])a.store({base:'rax',disp:offset},'r10');
     a.load('r10',slot(48));a.store({base:'rax',disp:O.kind},'r10');
     a.load('r11',slot(56));a.store({base:'rax',disp:O.length},'r11');
     // An empty object: its key filter is complete from the start.
