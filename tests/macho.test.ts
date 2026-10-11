@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 const writerPath='../src/backend/macho/writer.js';
 const writer=await import(writerPath).catch(()=>undefined);
 function fixture():NativeProgram {return {entry:'start',imports:[],functions:[],fragments:[

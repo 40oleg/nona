@@ -2,7 +2,7 @@ import {RuntimeBuilder,slot} from '../../runtime/abi.js';
 import {linuxShims} from '../linux/shims.js';
 import {linkElf} from '../elf/writer.js';
 import type {Assembler} from '../x64/assembler.js';
-import type {NativeProgram} from '../pe/model.js';
+import type {NativeProgram} from '../machine/model.js';
 import {withNativeTarget} from '../machine/context.js';
 
 export type BsdOS='freebsd'|'openbsd';

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {linkElf} from '../src/backend/elf/writer.js';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 
 function fixture():NativeProgram {
   return {entry:'entry',imports:[],functions:[],fragments:[

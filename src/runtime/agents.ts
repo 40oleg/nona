@@ -4,7 +4,7 @@ import {ObjectLayout as O} from './object-layout.js';
 import {HeapKind,HeapLayout as H} from './heap-layout.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 import {SharedArrayBufferKind} from './shared-array-buffer.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /*
  * Test262 agents run as threads. Every agent is a separately compiled program

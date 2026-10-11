@@ -37,7 +37,7 @@ source text
 | `src/runtime/` | The runtime: native routines emitted with `RuntimeBuilder`, the memory layouts, the GC, and the JavaScript preludes (`*-source.ts`) |
 | `src/backend/x64/` | The assembler and the code generator |
 | `src/backend/arm64/` | The ARM64 assembler and the Windows ARM64 bridge |
-| `src/backend/machine/` | The target context: which assembler a compilation uses |
+| `src/backend/machine/` | The machine model the runtime emits code against: the target context (which assembler a compilation uses), the fragment/fixup/program model (`model.ts`) and the floating-point steps without an SSE2 instruction (`math.ts`) |
 | `src/backend/{pe,elf,macho}/` | File format writers |
 | `src/backend/{linux,darwin,bsd}/` | Operating system adapters: entry code, system-call shims, linking |
 | `src/*.ts` | The compiler driver (`compiler.ts`, `cli.ts`), targets, diagnostics, and data shared by the layers: the optional runtime parts and their triggers (`link.ts`), object model limits (`shape-limits.ts`), the lexer's RegExp literal validator (`regexp-validator.ts`) |
@@ -148,7 +148,9 @@ Closure creation and general calls are described by static site descriptors (`sr
 
 The code generator and the runtime are not duplicated per architecture. `src/backend/machine/context.ts` keeps the active native target (`withNativeTarget`) and `createAssembler(name)` returns an `Arm64Assembler` for ARM64 targets and the x64 `Assembler` otherwise. `Arm64Assembler` is a subclass: it keeps the logical x64 register names and re-encodes each operation as A64, mapping `rax`...`r15` and `rsp` onto `x0`...`x22` and `x28`, and it throws when raw x64 bytes are emitted. Code that emits raw bytes must therefore be guarded by an x64-only branch.
 
-The operating system adapters supply what differs per OS: the entry code, the system-call or DLL-import bridge and the file writer (`pe/writer.ts`, `linux/`, `darwin/`, `bsd/`, `arm64/windows.ts`). The fragment, fixup and program model they share lives in `src/backend/pe/model.ts`. A machine-independent builtins layer is roadmap item 25; the design questions around the logical-x64 model are recorded in #183.
+The runtime (`src/runtime/`) imports from the backend only `src/backend/machine/*` (checked by `tests/module-boundaries.test.ts`). `context.ts` re-exports the assembler classes and operand types (`Assembler`, `Arm64Assembler`, `Reg`, `Xmm`, `Mem`, `Condition`) and chooses the per-machine pieces: `machineMath()` returns the `MachineMath` implementation for the transcendental steps of `Math` (sin, cos, tan, log, atan, atan2, and the exp/expm1/log1p cores) — `x87Math` (`backend/x64/x87-math.ts`, the x87 unit) on x86-64 and `softwareMath` (calls of the `rt.armMath.*` routines of `runtime/numeric/software-math.ts`) on ARM64. New machine-specific code goes behind such an interface instead of an inline `if (arm64)` in the runtime.
+
+The operating system adapters supply what differs per OS: the entry code, the system-call or DLL-import bridge and the file writer (`pe/writer.ts`, `linux/`, `darwin/`, `bsd/`, `arm64/windows.ts`). The fragment, fixup and program model they share (`NamedFragment`, `Fixup`, `NativeProgram`, `UnwindFunction`, …) lives in `src/backend/machine/model.ts`. A machine-independent builtins layer is roadmap item 25; the design questions around the logical-x64 model are recorded in #183.
 
 ## JavaScript preludes and linking
 

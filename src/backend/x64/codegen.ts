@@ -4,7 +4,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ProxyKind,
 import {maxInlineCapacity,emptyLiteralCapacity,LiteralSiteLayout} from '../../runtime/shapes.js';
 import {ElementsLayout} from '../../runtime/array-elements.js';
 import { Assembler, assemblerSerial, reserveAssemblerSerial, setCallCounter, setAssemblyListing, type Mem, type Condition, type Reg } from './assembler.js';
-import type { NativeProgram, NamedFragment, UnwindFunction } from '../pe/model.js';
+import type { NativeProgram, NamedFragment, UnwindFunction } from '../machine/model.js';
 import type { ModuleIR, FunctionIR, BlockIR, Operation } from '../../ir/model.js';
 import { emitRuntime } from '../../runtime/index.js';
 import { failIf } from '../../runtime/abi.js';

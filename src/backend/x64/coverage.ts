@@ -1,7 +1,7 @@
 import {RuntimeBuilder,slot} from '../../runtime/abi.js';
 import type {Assembler} from './assembler.js';
 import type {ModuleIR} from '../../ir/model.js';
-import type {NamedFragment,NativeProgram} from '../pe/model.js';
+import type {NamedFragment,NativeProgram} from '../machine/model.js';
 
 /**
  * Coverage builds (roadmap item 19): every function of the program counts its

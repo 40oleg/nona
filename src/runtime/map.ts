@@ -84,7 +84,7 @@ export function emitMap(b:RuntimeBuilder):void {
   a.lea('rcx',{base:'rax',disp:MapEntryLayout.key});a.load('rdx',slot(48));a.call('rt.mapSameValueZero');a.test('rax','rax');const found=a.unique('found');a.jcc('ne',found);
   a.label(next);a.load('rax',slot(56));a.load('rax',{base:'rax',disp:MapEntryLayout.next});a.store(slot(56),'rax');a.jmp(loop);a.label(found);a.load('rax',slot(56));a.label(done);
  });
- const receiver=(a:import('../backend/x64/assembler.js').Assembler,frame:number)=>{
+ const receiver=(a:import('../backend/machine/context.js').Assembler,frame:number)=>{
   a.load('r10',slot(frame+40));a.load('rax',{base:'r10'});a.cmp('rax',5);failIf(a,'ne','rt.throwTypeError');a.load('r10',{base:'r10',disp:8});a.load('rax',{base:'r10',disp:O.kind});a.cmp('rax',MapKind);failIf(a,'ne','rt.throwTypeError');return 'r10' as const;
  };
  b.fn('rt.mapSize.fn.code',56,a=>{

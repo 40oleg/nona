@@ -1,5 +1,5 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * String builder for native code that assembles a result piece by piece.

@@ -1,4 +1,4 @@
-import type {NativeProgram} from '../pe/model.js';
+import type {NativeProgram} from '../machine/model.js';
 import {linkElf} from '../elf/writer.js';
 import {linuxShims} from './shims.js';
 import {withNativeTarget} from '../machine/context.js';

@@ -1,4 +1,4 @@
-import type {NamedFragment,UnwindFunction} from './pe/model.js';
+import type {NamedFragment,UnwindFunction} from './machine/model.js';
 
 /**
  * Agent-wide state shared by every realm: the heap, GC and exception/generator

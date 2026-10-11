@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Assembler} from '../src/backend/x64/assembler.js';
 import {linkHost} from './helpers/program.js';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {ContextLayout,emitContextSwitch} from '../src/runtime/context-switch.js';
 import {runNative} from './helpers/native.js';

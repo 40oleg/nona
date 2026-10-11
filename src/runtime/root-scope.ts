@@ -1,6 +1,6 @@
 import type {RuntimeBuilder} from './abi.js';
 import {slot} from './abi.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 import {RootLayout as R} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
 

@@ -1,4 +1,4 @@
-import type { UnwindFunction } from "./model.js";
+import type { UnwindFunction } from "../machine/model.js";
 export function encodeUnwind(fn: UnwindFunction): Uint8Array {
   const n = fn.stackAllocation;
   if (!Number.isInteger(n) || n < 0 || n > 0xfffffff8 || n % 8)

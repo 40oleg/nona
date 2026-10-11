@@ -1,7 +1,7 @@
 import {Arm64Assembler} from '../../src/backend/arm64/assembler.js';
 import {linkElf} from '../../src/backend/elf/writer.js';
 import type {NativeArgumentKind} from '../../src/backend/x64/assembler.js';
-import type {NamedFragment} from '../../src/backend/pe/model.js';
+import type {NamedFragment} from '../../src/backend/machine/model.js';
 
 /** Execute the Windows A64 call bridge against native ABI callees on Linux. */
 export function arm64BridgeProbe():Uint8Array {

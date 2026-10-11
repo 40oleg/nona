@@ -13,7 +13,7 @@ import {TypedArrayKind,TypedArrayLayout} from './typed-array.js';
 import {ArrayBufferLayout} from './array-buffer.js';
 import {ProxyKind} from './proxy.js';
 import {ElementsLayout as E,HoleTag} from './array-elements.js';
-import type {Assembler,Mem} from '../backend/x64/assembler.js';
+import type {Assembler,Mem} from '../backend/machine/context.js';
 
 function copyValue(a:Assembler,to:Mem,from:Mem):void {
   const plus=(m:Mem):Mem=>'base'in m?{base:m.base,disp:(m.disp??0)+8}:{rip:m.rip,addend:(m.addend??0)+8};

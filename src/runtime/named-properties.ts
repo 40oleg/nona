@@ -5,7 +5,7 @@ import {BoxKind} from './boxing.js';
 import {bumpEpochIfPrototype,emitNamedKindCheck,namedTypedArrayKind} from './property-cache.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {CellTag} from './environment-layout.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * Fast paths for named properties of ordinary objects.

@@ -5,7 +5,7 @@ import {FunctionLayout as F,FunctionKind} from './functions.js';
 import {DescriptorLayout as D,DescriptorFields as DF} from './descriptor-layout.js';
 import {HandlerLayout as H,preservedGp,preservedXmm} from './exception-layout.js';
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 export const arrayFromRoots=['rt.Array.from.fn'];
 export const arrayFromPropertyRoots=builtinPropertyRoots('rt.Array.from.fn','from','rt.Array');

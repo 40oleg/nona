@@ -4,7 +4,7 @@ import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A} from './o
 import {prependFunctionBuiltin,builtinPropertyRoots} from './function-builtin.js';
 import {stringLiteral} from './value.js';
 import {BuilderLayout} from './string-builder.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 export const jsonRoots=['rt.JSON','rt.JSON.parse.fn','rt.JSON.stringify.fn'];
 export const jsonPropertyRoots=['rt.globalObject.JSON','rt.JSON.@@toStringTag',...['parse','stringify'].flatMap(name=>builtinPropertyRoots('rt.JSON.'+name+'.fn',name,'rt.JSON'))];

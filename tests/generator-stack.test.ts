@@ -7,7 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {Assembler} from '../src/backend/x64/assembler.js';
 import {linkHost} from './helpers/program.js';
 import {linkLinux} from '../src/backend/linux/index.js';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 import {RuntimeBuilder} from '../src/runtime/abi.js';
 import {GeneratorStack,emitGeneratorStack} from '../src/runtime/generator-stack.js';
 import {runNative} from './helpers/native.js';

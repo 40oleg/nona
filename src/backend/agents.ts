@@ -1,4 +1,4 @@
-import type {NativeProgram,NamedFragment,UnwindFunction,ImportSymbol} from './pe/model.js';
+import type {NativeProgram,NamedFragment,UnwindFunction,ImportSymbol} from './machine/model.js';
 
 export const agentSymbol=(agent:number,name:string):string=>`A${agent}$${name}`;
 const shared=(name:string):boolean=>name.startsWith('agent.');

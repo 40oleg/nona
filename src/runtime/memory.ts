@@ -1,10 +1,9 @@
 import {RuntimeBuilder,slot,failIf} from './abi.js';
 import {emitCallStats} from './call-stats.js';
 import {emitProcessSignalDefaults} from './process-signal-defaults.js';
-import {currentNativeTarget} from '../backend/machine/context.js';
+import {currentNativeTarget,type Assembler} from '../backend/machine/context.js';
 import {HeapLayout as H,HeapKind} from './heap-layout.js';
 import {ObjectLayout as O} from './object-layout.js';
-import type {Assembler} from '../backend/x64/assembler.js';
 
 /** The smallest collection threshold, in managed bytes. */
 export const minimumGcThreshold=8<<20;

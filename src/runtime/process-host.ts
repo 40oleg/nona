@@ -1,5 +1,5 @@
 import {RuntimeBuilder} from './abi.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import {type Assembler,currentNativeTarget} from '../backend/machine/context.js';
 import type {Target} from '../target.js';
 import {emitProcessUnits} from './process-units.js';
 import {emitProcessMemory} from './process-memory.js';
@@ -7,7 +7,6 @@ import {emitProcessEnvironment} from './process-environment.js';
 import {emitProcessTitle} from './process-title.js';
 import {emitProcessFinalization} from './process-finalization.js';
 import {emitPosixProcessAbort} from './process-abort.js';
-import {currentNativeTarget} from '../backend/machine/context.js';
 import {emitProcessSignals} from './process-signals.js';
 import {emitProcessFatalReport} from './process-report-fatal.js';
 

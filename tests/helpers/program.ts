@@ -7,7 +7,7 @@ import {linkBsd} from '../../src/backend/bsd/index.js';
 import { linkPe } from '../../src/backend/pe/writer.js';
 import { linkLinux } from '../../src/backend/linux/index.js';
 import {requireHostTarget,getTarget,type Target} from '../../src/target.js';
-import type { NativeProgram } from '../../src/backend/pe/model.js';
+import type { NativeProgram } from '../../src/backend/machine/model.js';
 /** Select the host CPU as well as its operating system. */
 export const hostTarget = requireHostTarget();
 export function expectProgram(source:string, expected:string):void {

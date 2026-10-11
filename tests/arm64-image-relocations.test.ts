@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {linkElf} from '../src/backend/elf/writer.js';
 import {linkMachO} from '../src/backend/macho/writer.js';
 import {linkPe} from '../src/backend/pe/writer.js';
-import type {NativeProgram} from '../src/backend/pe/model.js';
+import type {NativeProgram} from '../src/backend/machine/model.js';
 
 function fixture():NativeProgram {
   const bytes=new Uint8Array(16),v=new DataView(bytes.buffer);

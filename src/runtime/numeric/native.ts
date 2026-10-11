@@ -1,5 +1,4 @@
-import {createAssembler,currentNativeTarget} from '../../backend/machine/context.js';
-import { Assembler, type Reg } from '../../backend/x64/assembler.js';
+import {createAssembler,currentNativeTarget,Assembler,type Reg} from '../../backend/machine/context.js';
 import type { RuntimeBundle } from '../abi.js';
 
 /** Private fixed scratch big integers: 256 base-2^32 limbs, little endian. */

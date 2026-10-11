@@ -4,7 +4,7 @@ import {ShapeLayout} from './shapes.js';
 import {ValueListLayout} from './heap-layout.js';
 import {ObjectLayout as O,PropertyLayout as P,PropertyAttributes as A,ObjectFlags} from './object-layout.js';
 import {CellTag} from './environment-layout.js';
-import type {Assembler} from '../backend/x64/assembler.js';
+import type {Assembler} from '../backend/machine/context.js';
 
 /**
  * Inline caches for `object.name` reads.

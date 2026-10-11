@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {runOnHost} from './helpers/host.js';
 import {compileToIR} from '../src/compiler.js';
 import {generate} from '../src/backend/x64/codegen.js';
-import type {NamedFragment} from '../src/backend/pe/model.js';
+import type {NamedFragment} from '../src/backend/machine/model.js';
 
 // Programs compiled with extra realms get __nonaCreateRealm(), which returns
 // the global object of a fresh realm. Node's vm contexts are realms too, so

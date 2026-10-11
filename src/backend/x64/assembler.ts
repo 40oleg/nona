@@ -7,11 +7,11 @@ import {
   type Mem,
   type Condition,
 } from "./encoder.js";
-import type { CodeFragment, Fixup } from "../pe/model.js";
+import type { CodeFragment, Fixup } from "../machine/model.js";
 import { formatInstruction, type ListingEntry } from "./listing.js";
 export type NativeArgumentKind='gp'|'f32'|'f64';
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
-export type { CodeFragment, Fixup } from "../pe/model.js";
+export type { CodeFragment, Fixup } from "../machine/model.js";
 let serial = 0;
 const conditionCodes:Record<Condition,number>={o:0,no:1,b:2,ae:3,e:4,ne:5,be:6,a:7,s:8,ns:9,p:10,np:11,l:12,ge:13,le:14,g:15};
 /** The next label serial; a restored code image reserves the serials it used. */
