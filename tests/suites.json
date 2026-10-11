@@ -226,6 +226,7 @@
         "has-cache",
         "http",
         "immediate-source",
+        "ir-constants",
         "ir-move-rules",
         "ir-optimizations",
         "language-control",

@@ -30,6 +30,8 @@ Tudo roda dentro do processo do compilador; não há assembler, linker ou compil
 
 [`src/ir`](https://github.com/40oleg/nona/tree/main/src/ir) converte o programa vinculado em uma IR baseada em registradores, formada por blocos, operações e terminadores (`lower.ts`, `model.ts`), e calcula a vivacidade (`liveness.ts`) para que o coletor de lixo veja apenas valores vivos em cada safepoint.
 
+Antes da geração de código, a IR de cada função passa por otimizações que preservam exatamente a semântica de JavaScript: dobramento e propagação de constantes com remoção de desvios de condição conhecida, remoção de verificações da zona morta temporal, propagação de cópias e remoção de código morto, inferência do tipo Number e chamadas diretas a funções conhecidas ([arquitetura](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
+
 ## Geração de código
 
 [`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contém um codificador de instruções e um assembler x86-64, além do gerador de código, que transforma as operações da IR em chamadas ao runtime e caminhos rápidos inline. O código gerado e o runtime seguem a convenção de chamada Win64 nos dois alvos.

@@ -16,7 +16,10 @@ test('long literal data concatenations lower without recursive expression frames
 test('literal string folding retains numeric additions and operand calls',()=>{
  const ir=lower(bind(parse(lex('var numeric=1+2+"3";var effect="a"+value()+"b";'))));
  const operations=ir.functions[0]!.blocks.flatMap(block=>block.operations);
- assert.equal(operations.filter(op=>op.kind==='binary'&&op.operator==='+').length,4);
+ // 1+2+"3" is "33" (folded by src/ir/constants.ts, never "123"); the call stays.
+ assert.equal(operations.filter(op=>op.kind==='binary'&&op.operator==='+').length,2);
+ assert.ok(operations.some(op=>op.kind==='constant'&&op.value==='33'));
+ assert.ok(!operations.some(op=>op.kind==='constant'&&op.value==='123'));
  assert.ok(operations.some(op=>op.kind==='invoke'));
 });
 
@@ -27,7 +30,7 @@ test('lowerer keeps top-level initialization separate from function declarations
   assert.ok(ir.functions[0]!.blocks.flatMap(b=>b.operations).some(o=>o.kind==='storeGlobal'));
 });
 test('short circuit emits a branch rather than unconditional RHS evaluation', () => {
-  const ir = lower(bind(parse(lex('var x=0;false&&(x=1);'))));
+  const ir = lower(bind(parse(lex('var x=0;f()&&(x=1);'))));
   assert.ok(ir.functions[0]!.blocks.some(b=>b.terminator.kind==='branch'));
 });
 test('optional chain lowers to nullish branches and one join',()=>{

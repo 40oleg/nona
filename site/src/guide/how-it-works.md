@@ -30,6 +30,8 @@ Everything runs inside the compiler process; there is no external assembler, lin
 
 [`src/ir`](https://github.com/40oleg/nona/tree/main/src/ir) lowers the bound program to a register-like IR of blocks, operations and terminators (`lower.ts`, `model.ts`) and computes liveness (`liveness.ts`) so that the garbage collector only sees live values at each safepoint.
 
+Before code generation, each function's IR goes through passes that keep JavaScript semantics exactly: constant folding and propagation with removal of branches on known conditions, dead-zone check removal, copy forwarding and dead-code removal, Number type inference and direct calls to known functions ([architecture](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
+
 ## Code generation
 
 [`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contains an x86-64 instruction encoder and assembler and the code generator, which turns IR operations into calls into the runtime and inline fast paths. Generated code uses a shared logical calling convention; OS bridges marshal it to each native ABI.
