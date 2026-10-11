@@ -229,6 +229,7 @@
         "ir-constants",
         "ir-control-flow",
         "ir-move-rules",
+        "ir-number-facts",
         "ir-optimizations",
         "language-control",
         "language-lexical",
