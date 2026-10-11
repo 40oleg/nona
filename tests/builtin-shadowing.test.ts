@@ -31,9 +31,10 @@ const cases:[string,string][]=[
 
 for(const [name,source] of cases)test('builtin shadowing: '+name,()=>expectNativeOracle(source));
 
+// Console methods are enumerable data properties, as in Node.js (#230).
 test('intrinsic global and console descriptors',()=>{
   const source='function show(o,k){let d=Object.getOwnPropertyDescriptor(o,k);console.log(d.writable,d.enumerable,d.configurable);}show(globalThis,"undefined");show(globalThis,"NaN");show(globalThis,"Infinity");show(globalThis,"console");show(console,"log");console.log(console.log.name,console.log.length);';
-  expectProgram(source,'false false false\nfalse false false\nfalse false false\ntrue false true\ntrue false true\nlog 0\n');
+  expectProgram(source,'false false false\nfalse false false\nfalse false false\ntrue false true\ntrue true true\nlog 0\n');
 });
 
 test('global lexical cannot shadow immutable intrinsic',()=>{

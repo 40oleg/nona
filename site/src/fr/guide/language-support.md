@@ -40,7 +40,7 @@ Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions document�
 | SharedArrayBuffer, Atomics | Pris en charge | Y compris `Atomics.wait`/`notify` avec des agents travailleurs (utilisés par Test262). |
 | Proxy, Reflect | Pris en charge | Tous les pièges et invariants. |
 | Promise | Pris en charge | `all`, `allSettled`, `race`, `finally`, thenables et signalement des rejets non gérés. |
-| `globalThis`, `console.log` | Pris en charge | `console.log` écrit de l’UTF-8 sur la sortie standard. |
+| `globalThis`, `console.log` | Pris en charge | `console.log` écrit de l’UTF-8 sur la sortie standard. `console.info` et `console.debug` font de même ; `console.error` et `console.warn` écrivent sur la sortie d’erreur standard. |
 
 ## Au-delà d’ES2020
 

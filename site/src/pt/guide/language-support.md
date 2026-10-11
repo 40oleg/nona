@@ -40,7 +40,7 @@ O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções docume
 | SharedArrayBuffer, Atomics | Suportado | Inclusive `Atomics.wait`/`notify` com agentes trabalhadores (usados pelo Test262). |
 | Proxy, Reflect | Suportado | Todas as traps e invariantes. |
 | Promise | Suportado | `all`, `allSettled`, `race`, `finally`, thenables e relato de rejeições não tratadas. |
-| `globalThis`, `console.log` | Suportado | `console.log` escreve UTF-8 na saída padrão. |
+| `globalThis`, `console.log` | Suportado | `console.log` escreve UTF-8 na saída padrão. `console.info` e `console.debug` fazem o mesmo; `console.error` e `console.warn` escrevem na saída de erro padrão. |
 
 ## Além do ES2020
 

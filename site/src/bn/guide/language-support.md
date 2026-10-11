@@ -40,7 +40,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 | SharedArrayBuffer, Atomics | সমর্থিত | worker agent-সহ `Atomics.wait`/`notify` (Test262 ব্যবহার করে)। |
 | Proxy, Reflect | সমর্থিত | সব trap ও invariant। |
 | Promise | সমর্থিত | `all`, `allSettled`, `race`, `finally`, thenable এবং আনহ্যান্ডেলড rejection রিপোর্টিং। |
-| `globalThis`, `console.log` | সমর্থিত | `console.log` স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে। |
+| `globalThis`, `console.log` | সমর্থিত | `console.log` স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে। `console.info` ও `console.debug` একই কাজ করে; `console.error` ও `console.warn` স্ট্যান্ডার্ড এররে লেখে। |
 
 ## ES2020-এর পরে
 
