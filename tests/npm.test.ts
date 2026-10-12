@@ -320,3 +320,58 @@ test('a RegExp literal may follow export default (uuid), a division may follow a
  const division=parse(lex('var x = a.default / 2 / 1, y = a?.extends / 3;'));
  assert.equal(division.body.length,1);
 });
+
+test('packages load the os, tty, util, url, assert, querystring and timers modules',()=>agree({
+ 'main.js':String.raw`
+const util = require('util'), os = require('node:os'), tty = require('tty'), url = require('url'), assert = require('assert'), qs = require('querystring');
+console.log(util.format('%s=%d %i %j %%', 'a', 42.5, '7px', {x: [1, 2]}), util.format('x', 1, 'y'), util.format(1, {a: 1}));
+console.log(util.inspect({a: 1, b: 's', c: [1, 2, {d: null}], e: new Map([[1, 2]]), f: function foo() {}, g: undefined}));
+console.log(util.inspect({a: {b: {c: {d: {}}}}}), util.inspect("it's"), util.inspect([, 1]), util.inspect(new Set(['x'])), util.inspect(Object.create(null)));
+class Custom { [util.inspect.custom]() { return 'custom!'; } }
+console.log(util.inspect(new Custom()), util.inspect(-0), util.inspect(10n), util.inspect(Symbol('s')));
+function A() {} function B() {} util.inherits(B, A);
+console.log(new B() instanceof A, B.super_ === A, util.isDeepStrictEqual({a: [1, new Set([2])]}, {a: [1, new Set([2])]}), util.types.isDate(new Date()));
+console.log(typeof os.EOL, os.EOL.length === (process.platform === 'win32' ? 2 : 1), typeof os.homedir(), os.platform() === process.platform, os.endianness(), tty.isatty(99));
+console.log(url.fileURLToPath(url.pathToFileURL(__filename)) === __filename, url.parse('http://u@h:8/p?q=1#f').port, url.format({protocol: 'https', host: 'x.org', pathname: '/a'}));
+assert.strictEqual(1, 1); assert.deepStrictEqual({a: [1]}, {a: [1]}); assert(true);
+try { assert.strictEqual(1, 2); } catch (e) { console.log(e.name, e.code, e instanceof assert.AssertionError); }
+assert.throws(() => { throw new TypeError('x'); }, TypeError);
+assert.throws(() => { throw new Error('boom'); }, /boom/);
+console.log(qs.stringify({a: [1, 2], b: 'x y'}), JSON.stringify(qs.parse('a=1&a=2&b=x+y&c')));
+util.promisify((x, cb) => cb(null, x * 2))(21).then(v => console.log('promisify', v));
+util.callbackify(async x => x + 1)(1, (e, v) => console.log('callbackify', e, v));
+require('timers/promises').setTimeout(1, 'later').then(v => console.log(v));
+`},'main.js'));
+
+test('URL and URLSearchParams follow the URL Standard',()=>agree({
+ 'main.js':String.raw`
+const cases = [['https://user:pa ss@EXAMPLE.com:443/a/./b/../c?x=1 2#frag ment'], ['http://example.com:8080'], ['HTTP://a.b/%7Efoo/'], ['../d?q', 'http://h/a/b/c'],
+ ['//other/p', 'https://h/x'], ['?y', 'http://h/a?b#c'], ['#z', 'http://h/a?b'], ['file:///C:/x/../y'], ['file:///tmp/a b'], ['mailto:me@x.org?subject=hi'],
+ ['data:text/plain,hello world'], ['http://[::1]:3000/'], ['http://[2001:db8:0:0:1:0:0:1]/'], ['http://192.168.0.1.'], ['http://0x7f.1/'], ['http://a\\b\\c'],
+ ['foo://host/p/../q'], ['urn:isbn:123'], ['http://ex.com/\u00e4?\u00fc#\u00f6'], ['blob:https://a.com/uuid'], ['http://'], ['nonsense'], ['http://a:99999/'], ['/abs', 'file:///C:/dir/f']];
+for (const [input, base] of cases) {
+  try { const u = new URL(input, base); console.log(JSON.stringify([u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash])); }
+  catch (e) { console.log('error', input, e.name, e.code); }
+}
+const u = new URL('http://h/p?a=1&b=2&a=3');
+u.searchParams.append('c', 'x y&z'); u.searchParams.delete('b');
+console.log(u.href, JSON.stringify(u.searchParams.getAll('a')), u.searchParams.size);
+u.search = '?k=v'; console.log(u.searchParams.get('k'));
+u.hash = 'h'; u.pathname = '/n m'; u.port = '81'; u.hostname = 'Z.COM'; console.log(u.href, String(u), JSON.stringify({u}));
+const p = new URLSearchParams({b: '2', a: '1'}); p.sort();
+console.log(p.toString(), JSON.stringify([...p]), JSON.stringify([...p.keys()]), new URLSearchParams('?a=%20b+c&d').toString(), String(new URLSearchParams([['x', '1'], ['y', '\u00e9']])));
+console.log(URL.canParse('x:'), URL.canParse('nope'), URL.canParse('a', 'http://b/'));
+`},'main.js'));
+
+test('node:crypto hashes, HMACs and random values',()=>agree({
+ 'main.js':String.raw`
+const crypto = require('crypto');
+for (const algorithm of ['md5', 'sha1', 'sha256', 'sha384', 'sha512'])
+  for (const text of ['', 'abc', 'x'.repeat(200)])
+    console.log(algorithm, crypto.createHash(algorithm).update(text).digest('hex'), crypto.createHmac(algorithm, 'key'.repeat(algorithm === 'md5' ? 1 : 50)).update(text).digest('base64'));
+const hash = crypto.createHash('sha256').update('a');
+console.log(hash.copy().update('b').digest('hex'), hash.update(Buffer.from('b')).digest('hex'));
+console.log(crypto.randomBytes(8).length, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(crypto.randomUUID()));
+const n = crypto.randomInt(3, 9); console.log(n >= 3 && n < 9, crypto.timingSafeEqual(Buffer.from('ab'), Buffer.from('ab')), crypto.getRandomValues(new Uint32Array(4)).length);
+try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
+`},'main.js'));

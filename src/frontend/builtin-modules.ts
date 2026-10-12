@@ -14,6 +14,7 @@ import {httpModuleSource} from './http-module.js';
 import {pathModuleSourceForTarget} from './path-module.js';
 import {networkStreamModuleSource} from './network-stream-module.js';
 import {commonJsModuleSource} from './commonjs-module.js';
+import {nodeCompatModules,cryptoModuleSource} from './node-compat-modules.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -127,6 +128,8 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:internal/stream',()=>networkStreamModuleSource],
   ['nona:internal/native',()=>nativeModuleSource],
   ['nona:internal/commonjs',()=>commonJsModuleSource],
+  ['node:crypto',cryptoModuleSource],
+  ...nodeCompatModules.map(([name,source])=>[name,()=>source] as [string,()=>string]),
   ['node:net',netModuleSource],
   ['nona:net',()=>aliasOf('node:net')],
   ['node:http',()=>httpModuleSource],
