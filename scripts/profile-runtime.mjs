@@ -17,7 +17,7 @@
 // instruction ran: the calls of the routine, plus any jump back to its start.
 // `--group` also sums routines into the families of `groups` below.
 // SCALE is passed to the program as in bench/.
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
     createReadStream,
     mkdtempSync,
@@ -27,7 +27,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -203,52 +202,89 @@ try {
         return low;
     };
 
-    // The trace (gigabytes for a few hundred million instructions) goes
-    // through a named pipe and is counted while QEMU runs.
-    const log = join(directory, "trace.fifo");
-    if (spawnSync("mkfifo", [log]).status !== 0)
-        throw new Error("mkfifo failed");
-    const child = spawn(
+    // QEMU writes the trace to a file: about 20 bytes per executed
+    // instruction, so keep profiled runs to a few hundred million
+    // instructions. (A pipe would avoid the file, but QEMU's small log
+    // writes make it several times slower.)
+    const log = join(directory, "trace.log");
+    const run = spawnSync(
         qemu,
         ["-d", "in_asm,exec,nochain", "-D", log, executable],
         {
             cwd,
             env: { ...process.env, SCALE: scale },
             stdio: ["ignore", "ignore", "pipe"],
+            encoding: "utf8",
+            maxBuffer: 1 << 28,
         },
     );
-    let stderr = "";
-    child.stderr.on("data", (chunk) => (stderr += chunk));
-    const exited = new Promise((resolve) => child.on("close", resolve));
+    if (run.status !== 0)
+        throw new Error(`run failed (status ${run.status}):\n${run.stderr}`);
 
     const blocks = new Map(); // start address -> instructions in the block
     const executions = new Map(); // start address -> times executed
+    // The trace is scanned as bytes (hundreds of millions of lines): an
+    // "exec" line is "Trace N: <host> [<cpu>/<pc>/<flags>/<cflags>] ", an
+    // "in_asm" entry is "IN: " followed by the address line "0x<pc>:" and
+    // "OBJD-T: <hex bytes>" (QEMU without a disassembler prints the bytes).
+    const hex = (buffer, from, to) => {
+        let value = 0;
+        for (let i = from; i < to; i++) {
+            const c = buffer[i];
+            value = value * 16 + (c <= 57 ? c - 48 : (c | 32) - 87);
+        }
+        return value;
+    };
     let pending = null;
-    const lines = createInterface({
-        input: createReadStream(log),
-        crlfDelay: Infinity,
-    });
-    for await (const line of lines) {
-        if (line.startsWith("Trace ")) {
-            const match = /\[[0-9a-f]+\/([0-9a-f]+)\//.exec(line);
-            if (match) {
-                const address = parseInt(match[1], 16);
-                executions.set(address, (executions.get(address) ?? 0) + 1);
-            }
-        } else if (line.startsWith("0x") && pending === "address") {
-            pending = parseInt(line, 16);
-        } else if (line.startsWith("OBJD-T: ") && typeof pending === "number") {
-            const bytes = (line.trimEnd().length - 8) / 2;
+    const onLine = (buffer, from, to) => {
+        const first = buffer[from];
+        if (first === 84 /* T */) {
+            const open = buffer.indexOf(91 /* [ */, from);
+            if (open < 0 || open >= to) return;
+            const slash = buffer.indexOf(47 /* / */, open);
+            const next = buffer.indexOf(47, slash + 1);
+            if (slash < 0 || next < 0 || next >= to) return;
+            const address = hex(buffer, slash + 1, next);
+            executions.set(address, (executions.get(address) ?? 0) + 1);
+        } else if (first === 73 /* I */ && buffer[from + 1] === 78 /* N */) {
+            pending = "address";
+        } else if (first === 48 /* 0 */ && pending === "address") {
+            const colon = buffer.indexOf(58 /* : */, from);
+            pending = hex(
+                buffer,
+                from + 2,
+                colon < 0 || colon > to ? to : colon,
+            );
+        } else if (first === 79 /* O */ && typeof pending === "number") {
+            let end = to;
+            while (
+                end > from &&
+                (buffer[end - 1] === 32 || buffer[end - 1] === 13)
+            )
+                end--;
+            const bytes = (end - from - 8) / 2;
             blocks.set(
                 pending,
                 firstAtLeast(pending + bytes) - firstAtLeast(pending),
             );
             pending = null;
-        } else if (line.startsWith("IN:")) pending = "address";
+        }
+    };
+    let carry = null;
+    for await (const chunk of createReadStream(log, {
+        highWaterMark: 1 << 22,
+    })) {
+        let buffer = carry ? Buffer.concat([carry, chunk]) : chunk,
+            from = 0;
+        for (;;) {
+            const newline = buffer.indexOf(10, from);
+            if (newline < 0) break;
+            if (newline > from) onLine(buffer, from, newline);
+            from = newline + 1;
+        }
+        carry =
+            from < buffer.length ? Buffer.from(buffer.subarray(from)) : null;
     }
-    const status = await exited;
-    if (status !== 0)
-        throw new Error(`run failed (status ${status}):\n${stderr}`);
 
     const totals = new Map(),
         entries = new Map();
