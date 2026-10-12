@@ -333,7 +333,7 @@ console.log(util.inspect(new Custom()), util.inspect(-0), util.inspect(10n), uti
 function A() {} function B() {} util.inherits(B, A);
 console.log(new B() instanceof A, B.super_ === A, util.isDeepStrictEqual({a: [1, new Set([2])]}, {a: [1, new Set([2])]}), util.types.isDate(new Date()));
 console.log(typeof os.EOL, os.EOL.length === (process.platform === 'win32' ? 2 : 1), typeof os.homedir(), os.platform() === process.platform, os.endianness(), tty.isatty(99));
-console.log(url.fileURLToPath(url.pathToFileURL(__filename)) === __filename, url.parse('http://u@h:8/p?q=1#f').port, url.format({protocol: 'https', host: 'x.org', pathname: '/a'}));
+console.log(url.pathToFileURL('/a b#c?d%e[f]^g|h~i{j};k,l@m&n=o+p$q!r').href, url.pathToFileURL('rel/../x/').href === url.pathToFileURL(process.cwd()).href + '/x/', url.fileURLToPath(url.pathToFileURL(__filename)) === __filename, url.parse('http://u@h:8/p?q=1#f').port, url.format({protocol: 'https', host: 'x.org', pathname: '/a'}));
 assert.strictEqual(1, 1); assert.deepStrictEqual({a: [1]}, {a: [1]}); assert(true);
 try { assert.strictEqual(1, 2); } catch (e) { console.log(e.name, e.code, e instanceof assert.AssertionError); }
 assert.throws(() => { throw new TypeError('x'); }, TypeError);
@@ -406,6 +406,6 @@ test('the namespace of a CommonJS module has a "module.exports" export, as in No
 });
 
 test('import.meta has the url, filename and dirname of the module file',()=>agree({
- 'dir with space/main.mjs':"import {fileURLToPath} from 'node:url';\nimport {meta} from './lib.mjs';\nconsole.log(import.meta.url, import.meta.filename, import.meta.dirname, fileURLToPath(import.meta.url) === import.meta.filename, meta.filename);\n",
- 'dir with space/lib.mjs':"export const meta = {filename: import.meta.filename};\n",
-},'dir with space/main.mjs'));
+ 'dir with space~[x]/main.mjs':"import {fileURLToPath} from 'node:url';\nimport {meta} from './lib.mjs';\nconsole.log(import.meta.url, import.meta.filename, import.meta.dirname, fileURLToPath(import.meta.url) === import.meta.filename, meta.filename);\n",
+ 'dir with space~[x]/lib.mjs':"export const meta = {filename: import.meta.filename};\n",
+},'dir with space~[x]/main.mjs'));

@@ -66,7 +66,7 @@ AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its 
 
 ## URL {#url}
 
-全局 `URL` 和 `URLSearchParams`（`node:url` 也导出它们）遵循 [URL 标准](https://url.spec.whatwg.org/)：带默认端口的特殊协议（`http`、`https`、`ws`、`wss`、`ftp`、`file`），反斜杠和点路径段，相对于基准 URL 的相对引用，带 authority 或不透明路径的其他协议（`mailto:`、`data:`、`blob:`），标准的百分号编码集，任意写法的 IPv4 数字以及 IPv6 地址。每个组成部分都可以读取和设置；`searchParams` 与 `search` 保持同步。提供 `URL.canParse` 和 `URL.parse`。主机名会转为小写，但不做 IDNA 转换：主机含非 ASCII 字符的 URL 会抛出 `ERR_INVALID_URL`。只有当程序源码中提到 `URL` 或 `URLSearchParams` 时，解析器才会被链接进程序。
+全局 `URL` 和 `URLSearchParams`（`node:url` 也导出它们）遵循 [URL 标准](https://url.spec.whatwg.org/)：带默认端口的特殊协议（`http`、`https`、`ws`、`wss`、`ftp`、`file`），反斜杠和点路径段，相对于基准 URL 的相对引用，带 authority 或不透明路径的其他协议（`mailto:`、`data:`、`blob:`），标准的百分号编码集，任意写法的 IPv4 数字以及 IPv6 地址。每个组成部分都可以读取和设置；`searchParams` 与 `search` 保持同步。提供 `URL.canParse` 和 `URL.parse`。主机名会转为小写，但不做 IDNA 转换：主机含非 ASCII 字符的 URL 会抛出 `ERR_INVALID_URL`。只有当程序源码中提到 `URL` 或 `URLSearchParams` 时，解析器才会被链接进程序。 `URL.prototype` 和 `URLSearchParams.prototype` 上的方法和访问器在创建第一个 URL 或查询参数对象（或调用 `URL.canParse`）时才安装，这样从不解析 URL 的程序堆保持较小。
 
 ## Node.js 支持模块 {#nodejs-support-modules}
 

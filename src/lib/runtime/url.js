@@ -7,9 +7,27 @@
 // relative references against a base; other schemes with an authority or an
 // opaque path; percent-encoding sets; IPv4 numbers and IPv6 brackets. Hosts
 // are lowercased but not converted with IDNA (non-ASCII hosts are rejected).
-// It adds no prelude globals.
+// It adds no prelude globals. Everything but the two constructors is set
+// up on first use (a constructor call, URL.canParse or URL.parse), so that a
+// program that never uses a URL keeps a small heap: until then
+// URL.prototype and URLSearchParams.prototype have no members.
 (function(){
- var define=Object.defineProperty;
+ var define=Object.defineProperty,impl=null;
+ function URL(input,base){
+  if(new.target===undefined)throw new TypeError("Class constructor URL cannot be invoked without 'new'");
+  if(arguments.length===0)throw new TypeError('The "url" argument must be specified');
+  (impl||install()).initURL(this,input,base);
+ }
+ function URLSearchParams(init){
+  if(new.target===undefined)throw new TypeError("Class constructor URLSearchParams cannot be invoked without 'new'");
+  (impl||install()).initParams(this,init);
+ }
+ function staticMethod(name,fn){define(URL,name,{value:fn,writable:true,enumerable:true,configurable:true})}
+ staticMethod('canParse',function canParse(input,base){return (impl||install()).canParse(input,base)});
+ staticMethod('parse',function parse(input,base){try{return new URL(input,base)}catch(e){return null}});
+ define(globalThis,'URL',{value:URL,writable:true,enumerable:false,configurable:true});
+ define(globalThis,'URLSearchParams',{value:URLSearchParams,writable:true,enumerable:false,configurable:true});
+ function install(){
  var special={'http:':80,'https:':443,'ws:':80,'wss:':443,'ftp:':21,'file:':null};
  var isSpecial=function(scheme){return Object.prototype.hasOwnProperty.call(special,scheme)};
  var hex='0123456789ABCDEF';
@@ -357,8 +375,7 @@
   return out;
  }
 
- function URLSearchParams(init){
-  if(new.target===undefined)throw new TypeError("Class constructor URLSearchParams cannot be invoked without 'new'");
+ function initParams(self,init){
   var list=[];
   if(init!==undefined&&init!==null&&typeof init==='object'||typeof init==='function'){
    if(typeof init[Symbol.iterator]==='function'){
@@ -371,7 +388,7 @@
    else{var keys=Reflect.ownKeys(init);for(var k=0;k<keys.length;k++){var desc=Object.getOwnPropertyDescriptor(init,keys[k]);if(desc&&desc.enumerable&&typeof keys[k]==='string')list.push([toUSV(keys[k]),toUSV(init[keys[k]])])}}
   }
   else if(init!==undefined){var text=toUSV(init);if(text[0]==='?')text=text.slice(1);list=formParse(text)}
-  paramsOf.set(this,list);
+  paramsOf.set(self,list);
  }
  function listOf(params){var list=paramsOf.get(params);if(list===undefined)throw new TypeError('Value of "this" must be of type URLSearchParams');return list}
  function update(params){
@@ -409,13 +426,11 @@
   return 'URLSearchParams { '+list.map(function(pair){return inspect(pair[0])+' => '+inspect(pair[1])}).join(', ')+' }';
  },writable:true,configurable:true});
 
- function URL(input,base){
-  if(new.target===undefined)throw new TypeError("Class constructor URL cannot be invoked without 'new'");
-  if(arguments.length===0)throw new TypeError('The "url" argument must be specified');
+ function initURL(self,input,base){
   var baseRecord;
   if(base!==undefined)baseRecord=parse(toUSV(base));
   var record=parse(toUSV(input),baseRecord);
-  records.set(this,record);
+  records.set(self,record);
  }
  var U=URL.prototype,searchParams=new WeakMap();
  function accessor(name,get,set){define(U,name,{get:get,set:set,enumerable:true,configurable:true})}
@@ -484,8 +499,8 @@
   var self=this,names=['href','origin','protocol','username','password','host','hostname','port','pathname','search','searchParams','hash'];
   return 'URL {\n'+names.map(function(name){return '  '+name+': '+(name==='searchParams'?inspect(self.searchParams):inspect(self[name]))}).join(',\n')+'\n}';
  },writable:true,configurable:true});
- method(URL,'canParse',function canParse(input,base){try{var b=base===undefined?undefined:parse(toUSV(base));parse(toUSV(input),b);return true}catch(e){return false}});
- method(URL,'parse',function parse_(input,base){try{return new URL(input,base)}catch(e){return null}});
- define(globalThis,'URL',{value:URL,writable:true,enumerable:false,configurable:true});
- define(globalThis,'URLSearchParams',{value:URLSearchParams,writable:true,enumerable:false,configurable:true});
+ function canParse(input,base){try{var b=base===undefined?undefined:parse(toUSV(base));parse(toUSV(input),b);return true}catch(e){return false}}
+ impl={initURL:initURL,initParams:initParams,canParse:canParse};
+ return impl;
+ }
 })();

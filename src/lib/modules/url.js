@@ -1,3 +1,4 @@
+import {resolve as resolvePath} from 'node:path';
 export const URL = globalThis.URL;
 export const URLSearchParams = globalThis.URLSearchParams;
 const windows = process.platform === 'win32';
@@ -21,14 +22,30 @@ export function fileURLToPath(url) {
   return pathname.slice(1);
 }
 export function pathToFileURL(path) {
-  let resolved = String(path);
-  if (windows) resolved = resolved.split('\\').join('/');
-  if (!resolved.startsWith('/') && !/^[A-Za-z]:\//.test(resolved)) {
-    const cwd = process.cwd().split('\\').join('/');
-    resolved = cwd + (cwd.endsWith('/') ? '' : '/') + resolved;
+  // As in Node.js: an absolute path (path.resolve), keeping a trailing separator.
+  const text = String(path), trailing = text.endsWith('/') || windows && text.endsWith('\\');
+  let resolved = resolvePath(text);
+  if (windows) {
+    resolved = resolved.split('\\').join('/');
+    // A UNC path \\host\share\x becomes file://host/share/x.
+    if (resolved.startsWith('//')) {
+      const slash = resolved.indexOf('/', 2);
+      const host = slash < 0 ? resolved.slice(2) : resolved.slice(2, slash);
+      return new URL('file://' + host + encodePath(slash < 0 ? '/' : resolved.slice(slash)));
+    }
   }
-  const encoded = resolved.split('/').map(part => encodeURIComponent(part).replace(/%3A/g, ':')).join('/');
-  return new URL('file://' + (encoded.startsWith('/') ? '' : '/') + encoded);
+  if (trailing && !resolved.endsWith('/')) resolved += '/';
+  return new URL('file://' + (resolved.startsWith('/') ? '' : '/') + encodePath(resolved));
+}
+function encodePath(resolved) {
+  // The characters Node.js percent-encodes in a file URL path, besides controls and non-ASCII.
+  let encoded = '';
+  for (const ch of resolved) {
+    const code = ch.codePointAt(0);
+    if (code > 0x20 && code < 0x7f && !'"#%<>?[\\]^\x60{|}~'.includes(ch)) { encoded += ch; continue; }
+    for (const byte of new TextEncoder().encode(ch)) encoded += '%' + (byte < 16 ? '0' : '') + byte.toString(16).toUpperCase();
+  }
+  return encoded;
 }
 export function domainToASCII(domain) { return String(domain).toLowerCase(); }
 export function domainToUnicode(domain) { return String(domain); }

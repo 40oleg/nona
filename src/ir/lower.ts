@@ -80,7 +80,8 @@ function staticLiteralKeys(e:A.ObjectLiteral):string[]|undefined {
   return keys.length&&keys.length<=maxInlineCapacity?keys:undefined;
 }
 /**
- * import.meta.url, filename and dirname of a module file, as Node.js sets them:
+ * import.meta.url, filename and dirname of a module file, as Node.js sets them
+ * (the URL percent-encodes what pathToFileURL encodes):
  * the module's path when the program was built (paths are canonical, a
  * Windows drive as `/C:/...`). Builtin modules have none.
  */
@@ -90,7 +91,7 @@ export function importMetaFields(path:string):{url:string;filename:string;dirnam
   let url='file://';
   for(const ch of path){
     const code=ch.codePointAt(0)!;
-    url+=code>0x20&&code<0x7f&&!'"#%<>?`{}\\'.includes(ch)?ch:[...new TextEncoder().encode(ch)].map(b=>'%'+b.toString(16).toUpperCase().padStart(2,'0')).join('');
+    url+=code>0x20&&code<0x7f&&!'"#%<>?[\\]^`{|}~'.includes(ch)?ch:[...new TextEncoder().encode(ch)].map(b=>'%'+b.toString(16).toUpperCase().padStart(2,'0')).join('');
   }
   const native=drive?path.slice(1).split('/').join('\\'):path;
   const separator=drive?'\\':'/',at=native.lastIndexOf(separator);

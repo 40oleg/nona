@@ -268,6 +268,10 @@ and set; `searchParams` stays in sync with `search`. `URL.canParse` and
 `URL.parse` are provided. Hosts are lowercased but not converted with IDNA:
 a URL with a non-ASCII host throws `ERR_INVALID_URL`. The parser is linked
 into a program only when its sources mention `URL` or `URLSearchParams`.
+Its methods and accessors are installed on `URL.prototype` and
+`URLSearchParams.prototype` when the first URL or search parameters object is
+created (or `URL.canParse` is called), which keeps the heap of programs that
+never parse a URL small.
 
 ## Node.js support modules
 
