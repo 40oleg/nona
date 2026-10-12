@@ -44,12 +44,14 @@ their cost are recorded in
 ### Task 1: Exponentiation grammar, IR dispatch, and compound assignment
 
 **Files:**
+
 - Create: `tests/exponentiation-grammar.test.ts`
 - Modify: `src/frontend/lexer.ts`
 - Modify: `src/frontend/parser.ts`
 - Modify: `src/backend/x64/codegen.ts`
 
 **Interfaces:**
+
 - Consumes: existing `Binary`, `Assignment`, Reference lowering, `Operation.kind === 'binary'`, and runtime binary-call ABI `(dest, left, right)`.
 - Produces: `Binary.operator === '**'`, `Assignment.operator === '**='`, and codegen mapping `'**': 'pow'`.
 
@@ -58,40 +60,62 @@ their cost are recorded in
 Create `tests/exponentiation-grammar.test.ts`:
 
 ```ts
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {compile} from '../src/compiler.js';
-import {lex} from '../src/frontend/lexer.js';
-import {parse} from '../src/frontend/parser.js';
-import {expectProgram} from './helpers/program.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { compile } from "../src/compiler.js";
+import { lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
+import { expectProgram } from "./helpers/program.js";
 
-const syntax=(source:string)=>parse(lex(source));
+const syntax = (source: string) => parse(lex(source));
 
-test('lexer uses longest match for exponentiation assignment',()=>{
- assert.deepEqual(lex('a**=b**c').slice(0,-1).map(t=>t.text),['a','**=','b','**','c']);
+test("lexer uses longest match for exponentiation assignment", () => {
+    assert.deepEqual(
+        lex("a**=b**c")
+            .slice(0, -1)
+            .map((t) => t.text),
+        ["a", "**=", "b", "**", "c"],
+    );
 });
 
-test('exponentiation is right associative and binds above multiplication',()=>{
- const body=(syntax('2*3**2**2;').body[0] as any).expression;
- assert.equal(body.operator,'*');
- assert.equal(body.right.operator,'**');
- assert.equal(body.right.right.operator,'**');
+test("exponentiation is right associative and binds above multiplication", () => {
+    const body = (syntax("2*3**2**2;").body[0] as any).expression;
+    assert.equal(body.operator, "*");
+    assert.equal(body.right.operator, "**");
+    assert.equal(body.right.right.operator, "**");
 });
 
-test('exponentiation unary grammar accepts only the permitted sides',()=>{
- for(const source of ['-2**2;','+2**2;','!2**2;','~2**2;','typeof x**2;','void 0**2;'])
-  assert.equal(compile(source,{fileName:'power.js',target:'win32-x64'}).ok,false,source);
- for(const source of ['(-2)**2;','2**-2;','2**+2;','2**(-2);'])
-  assert.equal(compile(source,{fileName:'power.js',target:'win32-x64'}).ok,true,source);
+test("exponentiation unary grammar accepts only the permitted sides", () => {
+    for (const source of [
+        "-2**2;",
+        "+2**2;",
+        "!2**2;",
+        "~2**2;",
+        "typeof x**2;",
+        "void 0**2;",
+    ])
+        assert.equal(
+            compile(source, { fileName: "power.js", target: "win32-x64" }).ok,
+            false,
+            source,
+        );
+    for (const source of ["(-2)**2;", "2**-2;", "2**+2;", "2**(-2);"])
+        assert.equal(
+            compile(source, { fileName: "power.js", target: "win32-x64" }).ok,
+            true,
+            source,
+        );
 });
 
-test('compound exponentiation evaluates one reference in specification order',()=>{
- expectProgram('let log="";let o={x:2};function base(){log+="b";return o;}function key(){log+="k";return "x";}function rhs(){log+="r";o.x=3;return 2;}base()[key()]**=rhs();console.log(log,o.x);',
-  'bkr 4\n');
+test("compound exponentiation evaluates one reference in specification order", () => {
+    expectProgram(
+        'let log="";let o={x:2};function base(){log+="b";return o;}function key(){log+="k";return "x";}function rhs(){log+="r";o.x=3;return 2;}base()[key()]**=rhs();console.log(log,o.x);',
+        "bkr 4\n",
+    );
 });
 
-test('compound exponentiation is right associative',()=>{
- expectProgram('let a=2,b=3;a**=b**=2;console.log(a,b);','512 9\n');
+test("compound exponentiation is right associative", () => {
+    expectProgram("let a=2,b=3;a**=b**=2;console.log(a,b);", "512 9\n");
 });
 ```
 
@@ -111,9 +135,36 @@ Expected: lexer/parser tests fail because `**=` is split and `**` has no grammar
 In `lexer.ts`, place `**=` before `**` and `*` in longest-match order:
 
 ```ts
-const op = ['>>>=','===','!==','**=','<<=','>>=','>>>','==','!=','<=','>=',
- '&&','||','??','++','--','+=','-=','*=','/=','%=','&=','|=','^=','<<','>>','=>','**']
-  .find(op => source.startsWith(op, i));
+const op = [
+    ">>>=",
+    "===",
+    "!==",
+    "**=",
+    "<<=",
+    ">>=",
+    ">>>",
+    "==",
+    "!=",
+    "<=",
+    ">=",
+    "&&",
+    "||",
+    "??",
+    "++",
+    "--",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    "%=",
+    "&=",
+    "|=",
+    "^=",
+    "<<",
+    ">>",
+    "=>",
+    "**",
+].find((op) => source.startsWith(op, i));
 ```
 
 In `parser.ts`, add `**=` to the assignment operator list and make binary parsing begin at `exponentiation()` rather than `unary()`:
@@ -137,9 +188,14 @@ Change only the initial operand of `binary(min)` to `this.exponentiation()`. Rec
 In `src/backend/x64/codegen.ts`, extend the table:
 
 ```ts
-const binary:Record<string,string>={
- '+':'add','-':'sub','*':'mul','/':'div','%':'rem','**':'pow',
- // existing comparison and bitwise entries
+const binary: Record<string, string> = {
+    "+": "add",
+    "-": "sub",
+    "*": "mul",
+    "/": "div",
+    "%": "rem",
+    "**": "pow",
+    // existing comparison and bitwise entries
 };
 ```
 
@@ -161,6 +217,7 @@ Expected: the three frontend tests pass. Runtime cases remain for Task 2.
 ### Task 2: Standalone binary64 exponentiation runtime
 
 **Files:**
+
 - Create: `src/runtime/numeric/power.ts`
 - Create: `tests/exponentiation-runtime.test.ts`
 - Modify: `src/backend/x64/assembler.ts`
@@ -170,6 +227,7 @@ Expected: the three frontend tests pass. Runtime cases remain for Task 2.
 - Modify: `tests/x64.test.ts`
 
 **Interfaces:**
+
 - Consumes: `RuntimeBundle`, `Native`, rooted binary primitive ABI, `rt.toNumber`, and XMM input convention used by `rt.remainder`.
 - Produces: `emitPower(bundle:RuntimeBundle):void`, native helper `rt.numberPow(xmm0 base, xmm1 exponent) -> xmm0`, and rooted value helper `rt.pow(dest, left, right):void`.
 
@@ -178,37 +236,46 @@ Expected: the three frontend tests pass. Runtime cases remain for Task 2.
 Create `tests/exponentiation-runtime.test.ts`:
 
 ```ts
-import {test} from 'node:test';
-import {expectProgram} from './helpers/program.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import { expectProgram } from "./helpers/program.js";
+import { runOracle } from "./helpers/oracle.js";
 
-test('power follows ES Number special cases',()=>{
- const source='console.log(2**3,2**-2,(-2)**3,(-2)**2,(-2)**.5,NaN**0,1**Infinity,(-1)**Infinity,0**-2,1/((-0)**3),1/((-0)**2),Infinity**-1,(-Infinity)**3);';
- expectProgram(source,runOracle(source).stdout);
+test("power follows ES Number special cases", () => {
+    const source =
+        "console.log(2**3,2**-2,(-2)**3,(-2)**2,(-2)**.5,NaN**0,1**Infinity,(-1)**Infinity,0**-2,1/((-0)**3),1/((-0)**2),Infinity**-1,(-Infinity)**3);";
+    expectProgram(source, runOracle(source).stdout);
 });
 
-test('power covers overflow underflow subnormal and near-one values',()=>{
- const source='console.log(2**1023,2**1024,2**-1074,2**-1075,(1+2.220446049250313e-16)**4503599627370496,.5**1074,(-2)**2147483647);';
- expectProgram(source,runOracle(source).stdout);
+test("power covers overflow underflow subnormal and near-one values", () => {
+    const source =
+        "console.log(2**1023,2**1024,2**-1074,2**-1075,(1+2.220446049250313e-16)**4503599627370496,.5**1074,(-2)**2147483647);";
+    expectProgram(source, runOracle(source).stdout);
 });
 
-test('power performs both ToNumber conversions left to right',()=>{
- const source='let s="";let r={valueOf:function(){s+="r";return 3;}};let l={valueOf:function(){s+="l";r.valueOf=function(){s+="R";return 2;};return 2;}};console.log(l**r,s);';
- expectProgram(source,'4 lR\n');
+test("power performs both ToNumber conversions left to right", () => {
+    const source =
+        'let s="";let r={valueOf:function(){s+="r";return 3;}};let l={valueOf:function(){s+="l";r.valueOf=function(){s+="R";return 2;};return 2;}};console.log(l**r,s);';
+    expectProgram(source, "4 lR\n");
 });
 
-test('seeded finite power corpus agrees with Node rendering',()=>{
- let seed=0x6a09e667f3bcc909n;
- const rows:string[]=[];
- for(let i=0;i<96;i++){
-  seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);
-  const base=((Number(seed>>11n)/2**53)*4)-2;
-  seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);
-  const exponent=((Number(seed>>11n)/2**53)*40)-20;
-  rows.push(`console.log((${base})**(${exponent}));`);
- }
- const source=rows.join('');
- expectProgram(source,runOracle(source).stdout);
+test("seeded finite power corpus agrees with Node rendering", () => {
+    let seed = 0x6a09e667f3bcc909n;
+    const rows: string[] = [];
+    for (let i = 0; i < 96; i++) {
+        seed = BigInt.asUintN(
+            64,
+            seed * 6364136223846793005n + 1442695040888963407n,
+        );
+        const base = (Number(seed >> 11n) / 2 ** 53) * 4 - 2;
+        seed = BigInt.asUintN(
+            64,
+            seed * 6364136223846793005n + 1442695040888963407n,
+        );
+        const exponent = (Number(seed >> 11n) / 2 ** 53) * 40 - 20;
+        rows.push(`console.log((${base})**(${exponent}));`);
+    }
+    const source = rows.join("");
+    expectProgram(source, runOracle(source).stdout);
 });
 ```
 
@@ -228,12 +295,12 @@ Expected: linking fails with missing `rt.pow` or execution reaches no runtime fr
 In `primitives.ts`, extend the arithmetic loop with `pow` while keeping the same 120-byte frame and `binaryRoots`. After left then right `rt.toNumber`, dispatch as follows:
 
 ```ts
-if(op==='rem')a.call('rt.remainder');
-else if(op==='pow')a.call('rt.numberPow');
-else if(op==='add')a.addsd('xmm0','xmm1');
-else if(op==='sub')a.subsd('xmm0','xmm1');
-else if(op==='mul')a.mulsd('xmm0','xmm1');
-else a.divsd('xmm0','xmm1');
+if (op === "rem") a.call("rt.remainder");
+else if (op === "pow") a.call("rt.numberPow");
+else if (op === "add") a.addsd("xmm0", "xmm1");
+else if (op === "sub") a.subsd("xmm0", "xmm1");
+else if (op === "mul") a.mulsd("xmm0", "xmm1");
+else a.divsd("xmm0", "xmm1");
 ```
 
 The loop becomes `['add','sub','mul','div','rem','pow']`. Do not move either `rt.toNumber` call: both original tagged operands must stay rooted until both conversions finish.
@@ -260,14 +327,15 @@ Create `numeric/power.ts` with this public shape:
 
 ```ts
 /* fdlibm/OpenLibm permissive copyright notice copied verbatim from the source file. */
-import type {RuntimeBundle} from '../abi.js';
-import {Native} from './native.js';
+import type { RuntimeBundle } from "../abi.js";
+import { Native } from "./native.js";
 
-export function emitPower(bundle:RuntimeBundle):void {
- const f=new Native('rt.numberPow'),a=f.a;
- // xmm0=x, xmm1=y, xmm0=result; integer registers hold exact bit fields.
- // Emit special-case classifier, log2 kernel, y*log2(x), and exp2 reconstruction.
- f.end(bundle);
+export function emitPower(bundle: RuntimeBundle): void {
+    const f = new Native("rt.numberPow"),
+        a = f.a;
+    // xmm0=x, xmm1=y, xmm0=result; integer registers hold exact bit fields.
+    // Emit special-case classifier, log2 kernel, y*log2(x), and exp2 reconstruction.
+    f.end(bundle);
 }
 ```
 
@@ -293,8 +361,12 @@ order before the approximation path:
 Represent every fdlibm double constant through a helper that moves an explicit `bigint` bit pattern into an XMM register, for example:
 
 ```ts
-const loadBits=(register:'xmm2'|'xmm3'|'xmm4'|'xmm5',bits:bigint)=>{
- a.mov('rax',bits);a.movqToXmm(register,'rax');
+const loadBits = (
+    register: "xmm2" | "xmm3" | "xmm4" | "xmm5",
+    bits: bigint,
+) => {
+    a.mov("rax", bits);
+    a.movqToXmm(register, "rax");
 };
 ```
 
@@ -305,10 +377,13 @@ Use unique labels prefixed `pow.` and only instructions already supported by `As
 Extend `tests/standalone.test.ts` with:
 
 ```ts
-test('power adds no non-system import',()=>{
- const result=compile('console.log(2**10);',{fileName:'power.js',target:'win32-x64'});
- assert.ok(result.ok);
- assert.ok(result.imports.every(i=>i.startsWith('KERNEL32.dll!')));
+test("power adds no non-system import", () => {
+    const result = compile("console.log(2**10);", {
+        fileName: "power.js",
+        target: "win32-x64",
+    });
+    assert.ok(result.ok);
+    assert.ok(result.imports.every((i) => i.startsWith("KERNEL32.dll!")));
 });
 ```
 
@@ -326,6 +401,7 @@ Expected: all tests pass, the deterministic corpus matches Node's printed result
 ### Task 3: Optional-chain AST, lexer, parser, and binder
 
 **Files:**
+
 - Create: `tests/optional-chaining-frontend.test.ts`
 - Modify: `src/frontend/lexer.ts`
 - Modify: `src/frontend/ast.ts`
@@ -333,15 +409,24 @@ Expected: all tests pass, the deterministic corpus matches Node's printed result
 - Modify: `src/frontend/binder.ts`
 
 **Interfaces:**
+
 - Consumes: existing `Expression`, `Member`, `Call`, `parenthesized` tracking, `arguments()`, and binder expression walk.
 - Produces:
 
 ```ts
-export type OptionalLink=
- | {kind:'property';property:Expression;computed:boolean;optional:boolean;span:Span}
- | {kind:'call';arguments:Expression[];optional:boolean;span:Span};
+export type OptionalLink =
+    | {
+          kind: "property";
+          property: Expression;
+          computed: boolean;
+          optional: boolean;
+          span: Span;
+      }
+    | { kind: "call"; arguments: Expression[]; optional: boolean; span: Span };
 export interface OptionalChain extends Node {
- kind:'OptionalChain';base:Expression;links:OptionalLink[];
+    kind: "OptionalChain";
+    base: Expression;
+    links: OptionalLink[];
 }
 ```
 
@@ -350,42 +435,72 @@ export interface OptionalChain extends Node {
 Create `tests/optional-chaining-frontend.test.ts`:
 
 ```ts
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {compile} from '../src/compiler.js';
-import {lex} from '../src/frontend/lexer.js';
-import {parse} from '../src/frontend/parser.js';
-import {bind} from '../src/frontend/binder.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { compile } from "../src/compiler.js";
+import { lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
+import { bind } from "../src/frontend/binder.js";
 
-const syntax=(source:string)=>parse(lex(source));
-const check=(source:string)=>bind(syntax(source));
+const syntax = (source: string) => parse(lex(source));
+const check = (source: string) => bind(syntax(source));
 
-test('question-dot token excludes a following decimal digit',()=>{
- assert.deepEqual(lex('a?.b').slice(0,-1).map(t=>t.text),['a','?.','b']);
- assert.deepEqual(lex('a?.3:0').slice(0,-1).map(t=>t.text),['a','?','.3',':','0']);
+test("question-dot token excludes a following decimal digit", () => {
+    assert.deepEqual(
+        lex("a?.b")
+            .slice(0, -1)
+            .map((t) => t.text),
+        ["a", "?.", "b"],
+    );
+    assert.deepEqual(
+        lex("a?.3:0")
+            .slice(0, -1)
+            .map((t) => t.text),
+        ["a", "?", ".3", ":", "0"],
+    );
 });
 
-test('parser flattens one continuous optional chain',()=>{
- const e=(syntax('obj.m?.(x)?.[key].z;').body[0] as any).expression;
- assert.equal(e.kind,'OptionalChain');
- assert.equal(e.base.kind,'Identifier');
- assert.deepEqual(e.links.map((x:any)=>[x.kind,x.optional,x.computed??null]),[
-  ['property',false,false],['call',true,null],['property',true,true],['property',false,false]
- ]);
+test("parser flattens one continuous optional chain", () => {
+    const e = (syntax("obj.m?.(x)?.[key].z;").body[0] as any).expression;
+    assert.equal(e.kind, "OptionalChain");
+    assert.equal(e.base.kind, "Identifier");
+    assert.deepEqual(
+        e.links.map((x: any) => [x.kind, x.optional, x.computed ?? null]),
+        [
+            ["property", false, false],
+            ["call", true, null],
+            ["property", true, true],
+            ["property", false, false],
+        ],
+    );
 });
 
-test('parentheses end a chain instead of extending its links',()=>{
- const e=(syntax('(a?.b).c;').body[0] as any).expression;
- assert.equal(e.kind,'Member');
- assert.equal(e.object.kind,'OptionalChain');
+test("parentheses end a chain instead of extending its links", () => {
+    const e = (syntax("(a?.b).c;").body[0] as any).expression;
+    assert.equal(e.kind, "Member");
+    assert.equal(e.object.kind, "OptionalChain");
 });
 
-for(const source of ['a?.b=1;','a?.b++;','++a?.b;','new a?.b();','super?.x;','a?.;','a?.[x;'])
- test('invalid optional-chain syntax: '+source,()=>assert.equal(compile(source,{fileName:'optional.js',target:'win32-x64'}).ok,false));
+for (const source of [
+    "a?.b=1;",
+    "a?.b++;",
+    "++a?.b;",
+    "new a?.b();",
+    "super?.x;",
+    "a?.;",
+    "a?.[x;",
+])
+    test("invalid optional-chain syntax: " + source, () =>
+        assert.equal(
+            compile(source, { fileName: "optional.js", target: "win32-x64" })
+                .ok,
+            false,
+        ),
+    );
 
-test('grouped constructor and optional super method call bind',()=>{
- assert.doesNotThrow(()=>check('function f(){return new (a?.b)();}'));
- assert.doesNotThrow(()=>check('let o={m(){return super.x?.();}};'));
+test("grouped constructor and optional super method call bind", () => {
+    assert.doesNotThrow(() => check("function f(){return new (a?.b)();}"));
+    assert.doesNotThrow(() => check("let o={m(){return super.x?.();}};"));
 });
 ```
 
@@ -407,8 +522,10 @@ Add `OptionalLink` and `OptionalChain` from the Interfaces block to `ast.ts`, im
 In `lexer.ts`, before the generic operator lookup, recognize `?.` only when the next code unit is not a decimal digit:
 
 ```ts
-if(source.startsWith('?.',i)&&!/[0-9]/.test(source[i+2]??'')){
- i+=2;push('punct',start);continue;
+if (source.startsWith("?.", i) && !/[0-9]/.test(source[i + 2] ?? "")) {
+    i += 2;
+    push("punct", start);
+    continue;
 }
 ```
 
@@ -471,12 +588,14 @@ Expected: all suites pass and no existing call/member/new precedence changes.
 ### Task 4: Reference-aware optional-chain lowering, delete, and GC
 
 **Files:**
+
 - Create: `tests/optional-chaining.test.ts`
 - Create: `tests/optional-chaining-gc.test.ts`
 - Modify: `src/ir/lower.ts`
 - Modify: `tests/lowering.test.ts`
 
 **Interfaces:**
+
 - Consumes: existing `Reference`, `getReference`, property/invoke operations, `isNullish`, CFG block/jump/branch, strict property delete, and normal liveness analysis.
 - Produces: `optionalChain(e:A.OptionalChain, mode:'value'|'delete'):number` and `optionalChainCallee(e:A.OptionalChain):{callee:number;receiver?:number}`, with one shared short-circuit result and receiver-preserving calls.
 
@@ -485,27 +604,60 @@ Expected: all suites pass and no existing call/member/new precedence changes.
 Create `tests/optional-chaining.test.ts`:
 
 ```ts
-import {test} from 'node:test';
-import {expectProgram} from './helpers/program.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import { expectProgram } from "./helpers/program.js";
+import { runOracle } from "./helpers/oracle.js";
 
-const cases:[string,string][]=[
- ['property and mixed chains','let a=null,b={x:{y:4}};console.log(a?.x.y,b?.x.y,b?.missing?.y);'],
- ['computed key is skipped','let n=0,a=null,b={x:3};console.log(a?.[++n],b?.[(n++,"x")],n);'],
- ['base identifier still resolves','try{console.log(missing?.x);}catch(e){console.log(e.name);}'],
- ['getter errors are not swallowed','let o={get x(){throw 7;}};try{o?.x;}catch(e){console.log(e);}'],
- ['property receivers survive optional and grouped calls','let o={x:6,m(){return this.x;}};console.log(o?.m(),o.m?.(),(o?.m)());'],
- ['arguments are skipped','let n=0,f=null,g=function(x){return x;};console.log(f?.(++n),g?.(++n),n);'],
- ['noncallable and missing method errors remain','let o={x:1};try{o?.x();}catch(e){console.log(e.name);}try{o?.missing();}catch(e){console.log(e.name);}'],
- ['delete nullish and live properties','let a=null,o={x:1};console.log(delete a?.x,delete o?.x,"x" in o);'],
- ['delete computed key is skipped','let n=0,a=null;console.log(delete a?.[++n],n);'],
- ['parentheses terminate short circuit','let a=null;console.log(a?.b.c);try{console.log((a?.b).c);}catch(e){console.log(e.name);}'],
+const cases: [string, string][] = [
+    [
+        "property and mixed chains",
+        "let a=null,b={x:{y:4}};console.log(a?.x.y,b?.x.y,b?.missing?.y);",
+    ],
+    [
+        "computed key is skipped",
+        'let n=0,a=null,b={x:3};console.log(a?.[++n],b?.[(n++,"x")],n);',
+    ],
+    [
+        "base identifier still resolves",
+        "try{console.log(missing?.x);}catch(e){console.log(e.name);}",
+    ],
+    [
+        "getter errors are not swallowed",
+        "let o={get x(){throw 7;}};try{o?.x;}catch(e){console.log(e);}",
+    ],
+    [
+        "property receivers survive optional and grouped calls",
+        "let o={x:6,m(){return this.x;}};console.log(o?.m(),o.m?.(),(o?.m)());",
+    ],
+    [
+        "arguments are skipped",
+        "let n=0,f=null,g=function(x){return x;};console.log(f?.(++n),g?.(++n),n);",
+    ],
+    [
+        "noncallable and missing method errors remain",
+        "let o={x:1};try{o?.x();}catch(e){console.log(e.name);}try{o?.missing();}catch(e){console.log(e.name);}",
+    ],
+    [
+        "delete nullish and live properties",
+        'let a=null,o={x:1};console.log(delete a?.x,delete o?.x,"x" in o);',
+    ],
+    [
+        "delete computed key is skipped",
+        "let n=0,a=null;console.log(delete a?.[++n],n);",
+    ],
+    [
+        "parentheses terminate short circuit",
+        "let a=null;console.log(a?.b.c);try{console.log((a?.b).c);}catch(e){console.log(e.name);}",
+    ],
 ];
-for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
+for (const [name, source] of cases)
+    test(name, () => expectProgram(source, runOracle(source).stdout));
 
-test('strict delete preserves descriptor failure',()=>{
- expectProgram('"use strict";let o={};Object.defineProperty(o,"x",{value:1,configurable:false});try{delete o?.x;}catch(e){console.log(e.name);}',
-  'TypeError\n');
+test("strict delete preserves descriptor failure", () => {
+    expectProgram(
+        '"use strict";let o={};Object.defineProperty(o,"x",{value:1,configurable:false});try{delete o?.x;}catch(e){console.log(e.name);}',
+        "TypeError\n",
+    );
 });
 ```
 
@@ -514,21 +666,23 @@ test('strict delete preserves descriptor failure',()=>{
 Append to `tests/lowering.test.ts`:
 
 ```ts
-test('optional chain lowers to nullish branches and one join',()=>{
- const ir=lower(bind(parse(lex('let o=null;console.log(o?.x?.());'))));
- const blocks=ir.functions[0]!.blocks;
- assert.ok(blocks.filter(b=>b.terminator.kind==='branch').length>=2);
- assert.ok(blocks.flatMap(b=>b.operations).some(o=>o.kind==='invoke'));
+test("optional chain lowers to nullish branches and one join", () => {
+    const ir = lower(bind(parse(lex("let o=null;console.log(o?.x?.());"))));
+    const blocks = ir.functions[0]!.blocks;
+    assert.ok(blocks.filter((b) => b.terminator.kind === "branch").length >= 2);
+    assert.ok(
+        blocks.flatMap((b) => b.operations).some((o) => o.kind === "invoke"),
+    );
 });
 ```
 
 Create `tests/optional-chaining-gc.test.ts` using `compile` plus `runNative`, matching the helper pattern in `tests/gc.test.ts`, and run each source with `{gcStress:true}`:
 
 ```ts
-const cases=[
- 'let o={x:8,m(){for(let i=0;i<20;i++)({v:""+i});return this.x;}};console.log(o?.m());',
- 'let key={toString(){for(let i=0;i<20;i++)({v:""+i});return "x";}};let o={x:{y:9}};console.log(o?.[key].y);',
- 'let o={m:function(a){return this.x+a;},x:2};function arg(){for(let i=0;i<20;i++)({v:""+i});return 5;}console.log(o.m?.(arg()));',
+const cases = [
+    'let o={x:8,m(){for(let i=0;i<20;i++)({v:""+i});return this.x;}};console.log(o?.m());',
+    'let key={toString(){for(let i=0;i<20;i++)({v:""+i});return "x";}};let o={x:{y:9}};console.log(o?.[key].y);',
+    'let o={m:function(a){return this.x+a;},x:2};function arg(){for(let i=0;i<20;i++)({v:""+i});return 5;}console.log(o.m?.(arg()));',
 ];
 ```
 
@@ -539,7 +693,9 @@ Expected stdout must match `runOracle(source).stdout` for every case.
 In `lower.ts`, introduce:
 
 ```ts
-type ChainState={kind:'value';slot:number}|{kind:'reference';reference:Reference};
+type ChainState =
+    | { kind: "value"; slot: number }
+    | { kind: "reference"; reference: Reference };
 ```
 
 Implement `optionalChain(e,mode)` with one result slot and one join block:
@@ -586,16 +742,27 @@ In the ordinary `Call` case, handle an OptionalChain callee before the existing
 Member/reference branch:
 
 ```ts
-const optional=e.callee.kind==='OptionalChain'?this.optionalChainCallee(e.callee):undefined;
-const ref=!optional&&e.callee.kind==='Member'?this.reference(e.callee):undefined;
-const receiver=optional?.receiver??(ref&&'object'in ref?(ref.receiver??ref.object):undefined);
-const callee=optional?.callee??(ref?this.getReference(ref):this.expression(e.callee));
+const optional =
+    e.callee.kind === "OptionalChain"
+        ? this.optionalChainCallee(e.callee)
+        : undefined;
+const ref =
+    !optional && e.callee.kind === "Member"
+        ? this.reference(e.callee)
+        : undefined;
+const receiver =
+    optional?.receiver ??
+    (ref && "object" in ref ? (ref.receiver ?? ref.object) : undefined);
+const callee =
+    optional?.callee ??
+    (ref ? this.getReference(ref) : this.expression(e.callee));
 ```
 
 At the start of unary `delete` handling add:
 
 ```ts
-if(e.argument.kind==='OptionalChain')return this.optionalChain(e.argument,'delete');
+if (e.argument.kind === "OptionalChain")
+    return this.optionalChain(e.argument, "delete");
 ```
 
 Do not add an IR operation or liveness special case: all values cross callbacks through existing `property`, `invoke`, `copy`, and CFG successor liveness.
@@ -616,6 +783,7 @@ Expected: all suites pass under normal and stress collection, including skipped 
 ### Task 5: Compatibility example, complete verification, review, and documentation
 
 **Files:**
+
 - Create: `examples/compat/modern-expressions.cjs`
 - Modify: `README.md`
 - Modify: `docs/language-support.md`
@@ -625,6 +793,7 @@ Expected: all suites pass under normal and stress collection, including skipped 
 - Modify: `docs/history/superpowers/plans/2026-09-23-exponentiation-optional-chaining.md`
 
 **Interfaces:**
+
 - Consumes: Tasks 1–4, `npm run check`, `scripts/compare-examples.mjs`, and the independent review workflow.
 - Produces: a Node/Nona compatibility program, reproducible logs, updated support boundaries, and final implementation evidence.
 
@@ -633,14 +802,23 @@ Expected: all suites pass under normal and stress collection, including skipped 
 Create `examples/compat/modern-expressions.cjs`:
 
 ```js
-console.log(2 ** 3 ** 2, 2 ** -2, (-2) ** 3);
-let box = { value: 3, read() { return this.value; } };
+console.log(2 ** (3 ** 2), 2 ** -2, (-2) ** 3);
+let box = {
+    value: 3,
+    read() {
+        return this.value;
+    },
+};
 console.log(box?.value, box?.read(), box.read?.());
 let absent = null;
 let effects = 0;
 console.log(absent?.[++effects], absent?.read(++effects), effects);
 console.log(delete absent?.value, delete box?.value, "value" in box);
-try { console.log((absent?.value).x); } catch (error) { console.log(error.name); }
+try {
+    console.log((absent?.value).x);
+} catch (error) {
+    console.log(error.name);
+}
 let target = { x: 2 };
 target.x **= 3;
 console.log(target.x);

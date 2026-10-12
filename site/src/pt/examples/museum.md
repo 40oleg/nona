@@ -11,15 +11,15 @@ O Museum é um programa em segundo plano que mostra uma pintura diferente como p
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` é o executável e `process.argv[1]` o primeiro argumento. Um programa gráfico não tem console, então os erros são mostrados com `MessageBoxW`:
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## Passo 3: uma única instância
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 Um mutex nomeado existe enquanto o processo que o criou estiver vivo. Se ele já existe, outro Museum está rodando.
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## Passo 4: definir o papel de parede
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 O parâmetro `wstr` transforma a string JavaScript em uma cópia UTF-16 temporária terminada em NUL, então caminhos com quaisquer caracteres funcionam. `SPIF_UPDATEINIFILE` mantém o papel de parede depois de sair da sessão e `SPIF_SENDCHANGE` avisa os outros programas.
@@ -86,9 +91,26 @@ Com `--install`, o Museum grava sua linha de comando em `HKCU\Software\Microsoft
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 Para desfazer, apague o valor `NonaMuseum` dessa chave (por exemplo, com `RegDeleteValueW` ou no Editor do Registro).

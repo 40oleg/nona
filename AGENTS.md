@@ -23,8 +23,8 @@ exactly.
 
 ## Commits
 
-- Commit as the repository owner: author and committer `helgus
-  <oleg.merkulov701@gmail.com>`.
+- Commit as the repository owner: author and committer
+  `helgus <oleg.merkulov701@gmail.com>`.
 - Do **not** add `Co-Authored-By`, `Claude-Session`, "Generated with" or any
   other agent/tool trailers or footers to commit messages or pull request
   descriptions. Such trailers make the agent appear as a repository
@@ -40,11 +40,11 @@ exactly.
 - The PR description contains a summary of the design, how it was tested
   (Linux, Windows, which suites), and known limitations, and links every issue
   it works on, one line each:
-  - `Closes #N` when the PR completes the issue. GitHub then lists the PR in
-    the issue's Development box and closes the issue when the PR is merged.
-  - `Part of #N` when it does only part of it. After the merge, comment on the
-    issue with the PR link, what was done and what remains, and remove
-    `blocked` unless you continue with it.
+    - `Closes #N` when the PR completes the issue. GitHub then lists the PR in
+      the issue's Development box and closes the issue when the PR is merged.
+    - `Part of #N` when it does only part of it. After the merge, comment on the
+      issue with the PR link, what was done and what remains, and remove
+      `blocked` unless you continue with it.
 - GitHub closes issues only for PRs merged into `main`, and it closes (not
   retargets) a PR whose base branch is deleted. Before merging a PR, retarget
   every PR stacked on its branch to `main`; merge stacked PRs into `main`, not
@@ -57,6 +57,8 @@ exactly.
 
 ## Before opening a PR
 
+- `npm run format` (Prettier, 4-space indent; `.prettierignore` lists the
+  generated files). CI fails when `npm run format:check` does.
 - `npm run check` (build + full test suite). The CI runs it on Windows with
   Node.js 26; native PE tests only run on Windows, ELF tests on Linux.
 - `npm run compare` when runtime behaviour visible to programs changes.

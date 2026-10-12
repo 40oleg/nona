@@ -7,10 +7,14 @@ Esta página es una traducción de la página en inglés [Native functions (FFI)
 Los programas de Windows pueden llamar a funciones exportadas de cualquier DLL mediante el módulo integrado `nona:ffi`. Las declaraciones se resuelven en tiempo de compilación: cada llamada a `define` añade una entrada a la tabla de importaciones PE, así que el programa no usa `LoadLibrary`/`GetProcAddress`.
 
 ```js
-import { define, lastError } from 'nona:ffi';
+import { define, lastError } from "nona:ffi";
 
-const MessageBoxW = define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)');
-MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
+const MessageBoxW = define(
+    "user32.dll",
+    "MessageBoxW",
+    "i32(ptr,wstr,wstr,u32)",
+);
+MessageBoxW(null, "Hello from Nona", "Nona", 0);
 ```
 
 - FFI está disponible en código de módulo (`.mjs` o `--module`). `define` debe llamarse directamente, con tres literales de cadena: el nombre de la DLL, el nombre de la exportación y la firma. Cualquier otra cosa es un error de compilación (`E_FFI_STATIC`).
@@ -23,16 +27,16 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 
 `result(param, param, ...)`, por ejemplo `bool(u32,u32,wstr,u32)`.
 
-| Tipo | Parámetro | Resultado |
-| --- | --- | --- |
-| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (truncado hacia cero) o Boolean | Number |
-| `ptr` | Number, Boolean, `null`/`undefined` (NULL) | Number |
-| `bool` | como `i32` | Boolean (`BOOL` de Win32, distinto de cero es `true`) |
-| `f32 f64` | Number | Number |
-| `wstr` | String → copia temporal UTF-16 terminada en NUL; `null`/`undefined` → NULL | — |
-| `str` | String → copia temporal UTF-8 terminada en NUL; `null`/`undefined` → NULL | — |
-| `buf` | ArrayBuffer, SharedArrayBuffer, typed array o DataView → puntero a sus bytes (en el desplazamiento de la vista); `null`/`undefined` → NULL | — |
-| `void` | — | `undefined` |
+| Tipo                            | Parámetro                                                                                                                                  | Resultado                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (truncado hacia cero) o Boolean                                                                                                     | Number                                                |
+| `ptr`                           | Number, Boolean, `null`/`undefined` (NULL)                                                                                                 | Number                                                |
+| `bool`                          | como `i32`                                                                                                                                 | Boolean (`BOOL` de Win32, distinto de cero es `true`) |
+| `f32 f64`                       | Number                                                                                                                                     | Number                                                |
+| `wstr`                          | String → copia temporal UTF-16 terminada en NUL; `null`/`undefined` → NULL                                                                 | —                                                     |
+| `str`                           | String → copia temporal UTF-8 terminada en NUL; `null`/`undefined` → NULL                                                                  | —                                                     |
+| `buf`                           | ArrayBuffer, SharedArrayBuffer, typed array o DataView → puntero a sus bytes (en el desplazamiento de la vista); `null`/`undefined` → NULL | —                                                     |
+| `void`                          | —                                                                                                                                          | `undefined`                                           |
 
 Los argumentos de otros tipos lanzan `TypeError`; también los argumentos que faltan (salvo en los tipos puntero, donde `undefined` significa NULL) y los búferes desvinculados. La función llamada puede escribir en la memoria `buf`, que es la forma de devolver parámetros de salida: pasa un `Uint16Array` para un búfer de cadena UTF-16 o un `Uint8Array(8)` para un handle. Las copias temporales de cadenas se liberan tras la llamada; la función llamada no debe conservar el puntero. Los callbacks (`cb(...)`) y los tipos de parámetro de salida quedan reservados para una versión posterior.
 
@@ -47,10 +51,19 @@ Un conjunto seleccionado de declaraciones y funciones auxiliares construido sobr
 - las funciones auxiliares `wideString(text)` (`Uint16Array` terminado en NUL), `fromWideString(buffer)` y `readHandle(buffer)`; `lastError` se reexporta.
 
 ```js
-import { SystemParametersInfoW, SPI_SETDESKWALLPAPER, SPIF_UPDATEINIFILE, SPIF_SENDCHANGE } from 'nona:win32';
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, 'C:\\Pictures\\painting.jpg', SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+import {
+    SystemParametersInfoW,
+    SPI_SETDESKWALLPAPER,
+    SPIF_UPDATEINIFILE,
+    SPIF_SENDCHANGE,
+} from "nona:win32";
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    "C:\\Pictures\\painting.jpg",
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
-
 
 ## Native target availability
 

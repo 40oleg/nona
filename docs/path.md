@@ -5,11 +5,11 @@ into the executable. It has no filesystem side effects or external runtime
 dependencies. All eight native targets support it.
 
 ```js
-import path, {posix, win32, matchesGlob} from 'node:path';
-console.log(posix.normalize('/a/../b/')); // /b/
-console.log(win32.basename('C:\\temp\\file.txt')); // file.txt
-console.log(path.join('data', 'report.txt')); // native separators
-console.log(matchesGlob('src/main.js', '**/*.js')); // true
+import path, { posix, win32, matchesGlob } from "node:path";
+console.log(posix.normalize("/a/../b/")); // /b/
+console.log(win32.basename("C:\\temp\\file.txt")); // file.txt
+console.log(path.join("data", "report.txt")); // native separators
+console.log(matchesGlob("src/main.js", "**/*.js")); // true
 ```
 
 ## Imports and flavors
@@ -25,19 +25,19 @@ CommonJS `require` is not supported by that loader.
 
 ## API
 
-| Function/property | Behavior |
-| --- | --- |
-| `normalize(path)` | Resolve `.` and `..`, repeated separators and Windows roots; retain trailing separators. |
-| `join(...paths)` | Join nonempty segments and normalize the result. |
-| `resolve(...paths)` | Resolve from right to left using the executable's current directory when needed. |
-| `relative(from, to)` | Return a relative path, or the resolved target on different Windows devices. |
-| `isAbsolute(path)` | Recognize absolute paths without normalizing them. |
-| `dirname(path)`, `basename(path, suffix?)`, `extname(path)` | Extract components, ignoring trailing separators. Suffix stripping is case sensitive. |
-| `parse(path)` | Return `{root, dir, base, ext, name}`. |
-| `format(object)` | Respect `dir` over `root`, `base` over `name`/`ext`; add a missing extension dot. |
-| `toNamespacedPath(path)` | Convert Windows drive/UNC absolute paths to namespace paths; POSIX passes input through. |
-| `matchesGlob(path, pattern)` | Match strings using Node.js 26 glob rules, without accessing the filesystem. |
-| `sep`, `delimiter` | POSIX `/`, `:`; Windows `\\`, `;`. |
+| Function/property                                           | Behavior                                                                                 |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `normalize(path)`                                           | Resolve `.` and `..`, repeated separators and Windows roots; retain trailing separators. |
+| `join(...paths)`                                            | Join nonempty segments and normalize the result.                                         |
+| `resolve(...paths)`                                         | Resolve from right to left using the executable's current directory when needed.         |
+| `relative(from, to)`                                        | Return a relative path, or the resolved target on different Windows devices.             |
+| `isAbsolute(path)`                                          | Recognize absolute paths without normalizing them.                                       |
+| `dirname(path)`, `basename(path, suffix?)`, `extname(path)` | Extract components, ignoring trailing separators. Suffix stripping is case sensitive.    |
+| `parse(path)`                                               | Return `{root, dir, base, ext, name}`.                                                   |
+| `format(object)`                                            | Respect `dir` over `root`, `base` over `name`/`ext`; add a missing extension dot.        |
+| `toNamespacedPath(path)`                                    | Convert Windows drive/UNC absolute paths to namespace paths; POSIX passes input through. |
+| `matchesGlob(path, pattern)`                                | Match strings using Node.js 26 glob rules, without accessing the filesystem.             |
+| `sep`, `delimiter`                                          | POSIX `/`, `:`; Windows `\\`, `;`.                                                       |
 
 Windows algorithms handle UNC shares, drive-relative paths, namespace/device
 roots, case insensitive device comparison and reserved device names.

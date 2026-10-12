@@ -11,15 +11,15 @@ Museum 是一个后台程序，每隔几分钟就把桌面壁纸换成另一幅�
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` 是可执行文件，`process.argv[1]` 是第一个参数。图形界面程序没有控制台，所以错误用 `MessageBoxW` 显示：
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## 第 3 步：单实例
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 命名互斥体在创建它的进程存续期间一直存在。如果它已经存在，说明另一个 Museum 正在运行。
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## 第 4 步：设置壁纸
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 `wstr` 参数把 JavaScript 字符串转换成以 NUL 结尾的临时 UTF-16 副本，因此包含任意字符的路径都能正常工作。`SPIF_UPDATEINIFILE` 让壁纸在注销后仍然保留，`SPIF_SENDCHANGE` 通知其他程序。
@@ -86,9 +91,26 @@ node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 要撤销，删除该键中的 `NonaMuseum` 值即可（例如用 `RegDeleteValueW`，或在注册表编辑器中操作）。

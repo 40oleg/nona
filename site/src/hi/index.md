@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: JavaScript से नेटिव एक्ज़ीक्यूटेबल तक
-  tagline: एक ahead-of-time कंपाइलर, जो ES2020 JavaScript को Windows और Linux x64 के स्वतंत्र एक्ज़ीक्यूटेबल में बदलता है। न कोई एम्बेडेड इंटरप्रेटर, न C टूलचेन। Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: शुरू करें
-      link: /hi/guide/getting-started
-    - theme: alt
-      text: ब्राउज़र में आज़माएँ
-      link: /playground
-    - theme: alt
-      text: Nona क्या है
-      link: /hi/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: JavaScript से नेटिव एक्ज़ीक्यूटेबल तक
+    tagline: एक ahead-of-time कंपाइलर, जो ES2020 JavaScript को Windows और Linux x64 के स्वतंत्र एक्ज़ीक्यूटेबल में बदलता है। न कोई एम्बेडेड इंटरप्रेटर, न C टूलचेन। Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: शुरू करें
+          link: /hi/guide/getting-started
+        - theme: alt
+          text: ब्राउज़र में आज़माएँ
+          link: /playground
+        - theme: alt
+          text: Nona क्या है
+          link: /hi/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: 2 ms में शुरू
-    details: कंपाइल किया गया hello world 1.8 ms में शुरू होता है और अधिकतम 11 MB मेमोरी लेता है, जबकि एक्ज़ीक्यूटेबल 3 MB का है। Node.js को 28 ms और 45 MB लगते हैं; Node SEA एक्ज़ीक्यूटेबल 124 MB का होता है।
-    link: /hi/guide/performance
-  - title: ES2020 भाषा
-    details: क्लास, जनरेटर, async फ़ंक्शन, डीस्ट्रक्चरिंग, ऑप्शनल चेनिंग, BigInt, प्रॉपर टेल कॉल और साइकिल व लाइव बाइंडिंग वाले ES मॉड्यूल — दस्तावेज़ित अपवादों के साथ।
-    link: /hi/guide/language-support
-  - title: नेटिव रनटाइम
-    details: एक सटीक mark-and-sweep गार्बेज कलेक्टर, UTF-16 स्ट्रिंग, असली एक्सेप्शन और स्टैक ओवरफ़्लो पर पकड़ा जा सकने वाला RangeError, हर एक्ज़ीक्यूटेबल में लिंक किए हुए।
-    link: /hi/guide/how-it-works
-  - title: होस्ट API
-    details: टाइमर वाला इवेंट लूप, ग्लोबल process, सिंक्रोनस node:fs, TextEncoder और TextDecoder।
-    link: /hi/reference/host-apis
-  - title: FFI और nona:win32
-    details: कंपाइल-टाइम डिक्लेरेशन से Windows पर किसी भी DLL का एक्सपोर्ट कॉल करें; user32, kernel32 और advapi32 के लिए तैयार बाइंडिंग।
-    link: /hi/reference/ffi
-  - title: Windows GUI एक्ज़ीक्यूटेबल
-    details: कंसोल विंडो के बिना प्रोग्राम, आइकन, ऐप्लिकेशन मैनिफ़ेस्ट और वर्ज़न जानकारी के साथ।
-    link: /hi/reference/windows-executables
+    - title: 2 ms में शुरू
+      details: कंपाइल किया गया hello world 1.8 ms में शुरू होता है और अधिकतम 11 MB मेमोरी लेता है, जबकि एक्ज़ीक्यूटेबल 3 MB का है। Node.js को 28 ms और 45 MB लगते हैं; Node SEA एक्ज़ीक्यूटेबल 124 MB का होता है।
+      link: /hi/guide/performance
+    - title: ES2020 भाषा
+      details: क्लास, जनरेटर, async फ़ंक्शन, डीस्ट्रक्चरिंग, ऑप्शनल चेनिंग, BigInt, प्रॉपर टेल कॉल और साइकिल व लाइव बाइंडिंग वाले ES मॉड्यूल — दस्तावेज़ित अपवादों के साथ।
+      link: /hi/guide/language-support
+    - title: नेटिव रनटाइम
+      details: एक सटीक mark-and-sweep गार्बेज कलेक्टर, UTF-16 स्ट्रिंग, असली एक्सेप्शन और स्टैक ओवरफ़्लो पर पकड़ा जा सकने वाला RangeError, हर एक्ज़ीक्यूटेबल में लिंक किए हुए।
+      link: /hi/guide/how-it-works
+    - title: होस्ट API
+      details: टाइमर वाला इवेंट लूप, ग्लोबल process, सिंक्रोनस node:fs, TextEncoder और TextDecoder।
+      link: /hi/reference/host-apis
+    - title: FFI और nona:win32
+      details: कंपाइल-टाइम डिक्लेरेशन से Windows पर किसी भी DLL का एक्सपोर्ट कॉल करें; user32, kernel32 और advapi32 के लिए तैयार बाइंडिंग।
+      link: /hi/reference/ffi
+    - title: Windows GUI एक्ज़ीक्यूटेबल
+      details: कंसोल विंडो के बिना प्रोग्राम, आइकन, ऐप्लिकेशन मैनिफ़ेस्ट और वर्ज़न जानकारी के साथ।
+      link: /hi/reference/windows-executables
 ---
 
 ## छोटा उदाहरण

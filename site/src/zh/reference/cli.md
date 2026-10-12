@@ -16,19 +16,19 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 
 ## 选项
 
-| 选项 | 值 | 说明 |
-| --- | --- | --- |
-| `-o` | 路径 | 输出文件。必填。缺失的目录会被创建。 |
-| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
-| `--module` | — | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。 |
-| `--conditions`, `-C` | 名称 | 添加一个 package.json 的 `exports`/`imports` 条件，它会先于 Nona 自身的条件（`nona`、`node`、`import` 或 `require`、`default`）被尝试；也可以写作 `--conditions=name`。可以重复使用。参见 [npm 包](/reference/npm#resolution)。 |
-| `--print-asm` | — | 把为程序自身函数（不含运行时及其前导代码）生成的 x86-64 汇编输出到 stdout：每个函数的标签，然后每条指令一行，包含偏移、编码字节和 Intel 语法文本。使用此选项时可以省略 `-o`。仅限 x86-64 目标。 |
-| `--subsystem` | `console`（默认）、`windows` | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。 |
-| `--icon` | `.ico` 文件 | 嵌入图标文件中的所有图像。仅限 `win32-x64`。 |
-| `--manifest` | XML 文件 | 嵌入应用程序清单。清单必须有效：Windows 会拒绝启动清单格式错误的程序。仅限 `win32-x64`。 |
-| `--version-info` | JSON 文件 | 嵌入版本信息（`FileVersion`、`ProductVersion`、`ProductName`、`FileDescription`、`CompanyName`、`LegalCopyright`、`OriginalFilename`、`InternalName`、`Comments`）。仅限 `win32-x64`。 |
-| `--help` | — | 打印概要。 |
-| `--version` | — | 打印编译器版本。 |
+| 选项                 | 值                                              | 说明                                                                                                                                                                                                                            |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-o`                 | 路径                                            | 输出文件。必填。缺失的目录会被创建。                                                                                                                                                                                            |
+| `--target`           | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU.                                                                                                                                                                             |
+| `--module`           | —                                               | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。                                                                                                                                                                        |
+| `--conditions`, `-C` | 名称                                            | 添加一个 package.json 的 `exports`/`imports` 条件，它会先于 Nona 自身的条件（`nona`、`node`、`import` 或 `require`、`default`）被尝试；也可以写作 `--conditions=name`。可以重复使用。参见 [npm 包](/reference/npm#resolution)。 |
+| `--print-asm`        | —                                               | 把为程序自身函数（不含运行时及其前导代码）生成的 x86-64 汇编输出到 stdout：每个函数的标签，然后每条指令一行，包含偏移、编码字节和 Intel 语法文本。使用此选项时可以省略 `-o`。仅限 x86-64 目标。                                 |
+| `--subsystem`        | `console`（默认）、`windows`                    | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。                                                                                                                       |
+| `--icon`             | `.ico` 文件                                     | 嵌入图标文件中的所有图像。仅限 `win32-x64`。                                                                                                                                                                                    |
+| `--manifest`         | XML 文件                                        | 嵌入应用程序清单。清单必须有效：Windows 会拒绝启动清单格式错误的程序。仅限 `win32-x64`。                                                                                                                                        |
+| `--version-info`     | JSON 文件                                       | 嵌入版本信息（`FileVersion`、`ProductVersion`、`ProductName`、`FileDescription`、`CompanyName`、`LegalCopyright`、`OriginalFilename`、`InternalName`、`Comments`）。仅限 `win32-x64`。                                          |
+| `--help`             | —                                               | 打印概要。                                                                                                                                                                                                                      |
+| `--version`          | —                                               | 打印编译器版本。                                                                                                                                                                                                                |
 
 除 `--conditions` 外，每个选项最多出现一次。资源格式参见 [Windows 可执行文件](/zh/reference/windows-executables)。
 
@@ -44,10 +44,10 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 
 对于链接相同部分的程序，编译后的运行时和前导代码完全相同，而生成它们占构建的大部分时间。命令行把它们保存在缓存目录中，之后的构建快约三倍（Linux 上的 hello world：1.1 秒，之后 0.33 秒）。有无缓存输出完全相同。缓存条目只属于某一个编译器构建，更新后会被忽略。
 
-| 变量 | 作用 |
-| --- | --- |
+| 变量             | 作用                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NONA_CACHE_DIR` | 缓存目录。默认：Windows 为 `%LOCALAPPDATA%\nona\cache`，macOS 为 `~/Library/Caches/nona`，其他系统为 `$XDG_CACHE_HOME/nona` 或 `~/.cache/nona`。 |
-| `NONA_CACHE=0` | 不读取也不写入缓存。 |
+| `NONA_CACHE=0`   | 不读取也不写入缓存。                                                                                                                             |
 
 ## 诊断与退出码
 
@@ -57,17 +57,17 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 <file>:<line>:<column> <CODE>: <message>
 ```
 
-| 代码 | 含义 |
-| --- | --- |
-| `E_LEX`、`E_SYNTAX` | 源码无法分词或解析，或使用了不支持的语法。 |
-| `E_BIND` | 解析名称时发现的早期错误（重复声明、无效的赋值目标等）。 |
-| `E_MODULE` | 模块无法解析、读取或链接，或者导出冲突。 |
-| `E_FFI_STATIC` | 来自 `nona:ffi` 的 `define()` 调用不是三个字符串字面量，或签名无效。 |
-| `E_FFI_TARGET` | 为 `linux-x64` 编译了 DLL 声明，或为 `win32-x64` 编译了系统调用声明。 |
-| `E_RESOURCE` | 图标或版本信息无效，或为 `linux-x64` 请求了资源。 |
-| `E_TARGET` | 不支持的目标平台或子系统。 |
-| `E_HOST_MODULE` | 内置模块（例如 `node:fs`）在该目标平台上不可用。 |
-| `E_INTERNAL` | 编译器缺陷，而不是程序错误：消息中指明的阶段（`parse`、`bind`、`lower`、`codegen`、`link` 等）内部检查失败。请附上触发它的程序进行报告。 |
+| 代码                | 含义                                                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `E_LEX`、`E_SYNTAX` | 源码无法分词或解析，或使用了不支持的语法。                                                                                               |
+| `E_BIND`            | 解析名称时发现的早期错误（重复声明、无效的赋值目标等）。                                                                                 |
+| `E_MODULE`          | 模块无法解析、读取或链接，或者导出冲突。                                                                                                 |
+| `E_FFI_STATIC`      | 来自 `nona:ffi` 的 `define()` 调用不是三个字符串字面量，或签名无效。                                                                     |
+| `E_FFI_TARGET`      | 为 `linux-x64` 编译了 DLL 声明，或为 `win32-x64` 编译了系统调用声明。                                                                    |
+| `E_RESOURCE`        | 图标或版本信息无效，或为 `linux-x64` 请求了资源。                                                                                        |
+| `E_TARGET`          | 不支持的目标平台或子系统。                                                                                                               |
+| `E_HOST_MODULE`     | 内置模块（例如 `node:fs`）在该目标平台上不可用。                                                                                         |
+| `E_INTERNAL`        | 编译器缺陷，而不是程序错误：消息中指明的阶段（`parse`、`bind`、`lower`、`codegen`、`link` 等）内部检查失败。请附上触发它的程序进行报告。 |
 
 参数错误以 `nona: <message>` 的形式输出，例如 `Unknown option: --foo`、`Duplicate option: -o`、`Missing value for --target`、`Output is required (-o <output>)`、`Unsupported target: arm64`、`Unsupported subsystem: native` 或 `--subsystem requires --target win32-x64`。
 
@@ -88,7 +88,6 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
-
 
 ## Native target availability
 

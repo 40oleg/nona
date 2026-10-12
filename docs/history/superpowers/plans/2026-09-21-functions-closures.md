@@ -24,7 +24,7 @@ Files: AST/parser/binder, IR/lower/liveness, x64 assembler/codegen,
 runtime/functions, typeof, tests/functions-values.
 
 - [x] RED: aliases, callbacks, returned functions, property calls, replacement,
-  function hoisting/mutual recursion, callee-before-args, typeof, GC stress.
+      function hoisting/mutual recursion, callee-before-args, typeof, GC stress.
 - [x] call-register x64 instruction с независимой проверкой bytes.
 - [x] Function object kind и native code pointer; общий invoke проверяет callable.
 - [x] Top-level declarations — mutable global bindings с hoisted initialization.
@@ -72,34 +72,34 @@ Named expression self-binding требует отдельного immutable self
 
 - [x] Добавить AST function expression/nested declaration и lexical binding graph.
 - [x] Cells/environments в heap, capture-by-reference, GC trace kinds/rooting
-  на уровне runtime/IR; source binding integration остаётся следующими пунктами.
+      на уровне runtime/IR; source binding integration остаётся следующими пунктами.
 - [x] Не захватывать всё окружение без необходимости: проверить освобождение
-  недоступных closures, совместные и независимые captured bindings.
+      недоступных closures, совместные и независимые captured bindings.
 - [x] Hoisting, named expression self-binding, block scopes и per-iteration let.
 - [x] Проверить counter factories, mutual closures, nested recursive calls и TDZ.
 
 ## Task 3: Function protocol и callbacks
 
 - [x] Object receiver, parenthesized members и sloppy bare-call/global `this`;
-  глобальные var/function properties alias существующих Value slots, lexicals
-  остаются отдельными. `this.test.ts`, включая GC stress.
+      глобальные var/function properties alias существующих Value slots, lexicals
+      остаются отдельными. `this.test.ts`, включая GC stress.
 - [ ] this/arguments/new/instanceof, Function.prototype и name/length/prototype.
 - [x] Ordinary new/instanceof, own function.prototype, prototype.constructor;
-  аргументы до чтения prototype, возврат object вместо экземпляра, GC stress.
+      аргументы до чтения prototype, возврат object вместо экземпляра, GC stress.
 - [x] Own function.name/length, direct anonymous name inference, callable
-  Function.prototype с name/length и nonconstructable flag. Методы ещё впереди.
+      Function.prototype с name/length и nonconstructable flag. Методы ещё впереди.
 - [x] Sloppy mapped arguments с simple parameters, включая duplicates, length/callee,
-  parameter aliasing, shadowing, deletion disconnect и escaped GC roots.
+      parameter aliasing, shadowing, deletion disconnect и escaped GC roots.
 - [ ] call/apply/bind, constructor return rules и object primitive hooks.
 - [ ] Runtime temporary root scopes до reentrant JS; GC callbacks stress.
 - [x] Function.prototype.call с raw builtin this, receiver boxing и runtime
-  roots для target/argv во время reentrant invoke.
+      roots для target/argv во время reentrant invoke.
 - [x] Function.prototype.apply: array-like snapshot, ToLength, nullish list,
-  heap argv root range, вложенные вызовы и освобождение буфера.
+      heap argv root range, вложенные вызовы и освобождение буфера.
 - [x] Function.prototype.bind: bound data/GC, args/this, metadata и internal
-  prototype, ordinary new/instanceof, nested bind и constructor return rules.
+      prototype, ordinary new/instanceof, nested bind и constructor return rules.
 - [x] Function.prototype.toString: exact source text, native/bound representation,
-  immutable static source descriptor и legacy implicit conversion integration.
+      immutable static source descriptor и legacy implicit conversion integration.
 - [ ] Стрелки и lexical this; receiver evaluation order и ошибки.
 - [ ] Отдельные программы EXE/Node, документация, полный check и review.
 

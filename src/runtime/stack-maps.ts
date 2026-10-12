@@ -1,4 +1,4 @@
-import type {NamedFragment} from '../backend/machine/model.js';
+import type { NamedFragment } from "../backend/machine/model.js";
 
 /**
  * Stack maps (#165): which value slots of a compiled function's frame the
@@ -33,29 +33,80 @@ import type {NamedFragment} from '../backend/machine/model.js';
  *   16  entries, sorted by offset: {offset, map index}, two fields each
  *   then the bitmaps, `bitmapBytes` each
  */
-export const StackMapTable={code:0,count:8,fieldWidth:12,bitmapBytes:14,entries:16} as const;
+export const StackMapTable = {
+    code: 0,
+    count: 8,
+    fieldWidth: 12,
+    bitmapBytes: 14,
+    entries: 16,
+} as const;
 
-export interface StackMapEntry {offset:number;map:number}
+export interface StackMapEntry {
+    offset: number;
+    map: number;
+}
 /**
  * Builds a function's table; `maps` are the distinct maps the entries index,
  * each the sorted locations it lists beyond the first `alwaysLive` locations,
  * which every map lists.
  */
-export function stackMapFragment(name:string,code:string,entries:readonly StackMapEntry[],maps:readonly (readonly number[])[],locations:number,alwaysLive=0):NamedFragment {
- for(let i=1;i<entries.length;i++)if(entries[i]!.offset<=entries[i-1]!.offset)throw new Error('Stack map entries must be sorted by offset');
- const bitmapBytes=Math.max(1,Math.ceil(locations/8));
- if(bitmapBytes>0xffff)throw new RangeError('Stack map bitmap exceeds supported width');
- const wide=entries.some(entry=>entry.offset>0xffff||entry.map>0xffff),width=wide?4:2;
- const base=StackMapTable.entries+2*width*entries.length;
- const bytes=new Uint8Array(base+bitmapBytes*maps.length),view=new DataView(bytes.buffer);
- view.setUint32(StackMapTable.count,entries.length,true);bytes[StackMapTable.fieldWidth]=width;view.setUint16(StackMapTable.bitmapBytes,bitmapBytes,true);
- const field=(at:number,value:number)=>{if(width===2)view.setUint16(at,value,true);else view.setUint32(at,value,true);};
- entries.forEach((entry,i)=>{field(StackMapTable.entries+2*width*i,entry.offset);field(StackMapTable.entries+2*width*i+width,entry.map);});
- // The locations every map lists, as whole bytes and the bits of a last partial byte.
- const prefix=new Uint8Array(bitmapBytes);for(let l=0;l<alwaysLive;l++)prefix[l>>3]!|=1<<(l&7);
- maps.forEach((map,m)=>{
-  const at=base+bitmapBytes*m;bytes.set(prefix,at);
-  for(const l of map){if(l<0||l>=locations)throw new Error('Stack map location out of range');bytes[at+(l>>3)]!|=1<<(l&7);}
- });
- return {name,section:'.rdata',alignment:8,bytes,fixups:[{offset:StackMapTable.code,kind:'va64',target:code,addend:0}],symbols:{}};
+export function stackMapFragment(
+    name: string,
+    code: string,
+    entries: readonly StackMapEntry[],
+    maps: readonly (readonly number[])[],
+    locations: number,
+    alwaysLive = 0,
+): NamedFragment {
+    for (let i = 1; i < entries.length; i++)
+        if (entries[i]!.offset <= entries[i - 1]!.offset)
+            throw new Error("Stack map entries must be sorted by offset");
+    const bitmapBytes = Math.max(1, Math.ceil(locations / 8));
+    if (bitmapBytes > 0xffff)
+        throw new RangeError("Stack map bitmap exceeds supported width");
+    const wide = entries.some(
+            (entry) => entry.offset > 0xffff || entry.map > 0xffff,
+        ),
+        width = wide ? 4 : 2;
+    const base = StackMapTable.entries + 2 * width * entries.length;
+    const bytes = new Uint8Array(base + bitmapBytes * maps.length),
+        view = new DataView(bytes.buffer);
+    view.setUint32(StackMapTable.count, entries.length, true);
+    bytes[StackMapTable.fieldWidth] = width;
+    view.setUint16(StackMapTable.bitmapBytes, bitmapBytes, true);
+    const field = (at: number, value: number) => {
+        if (width === 2) view.setUint16(at, value, true);
+        else view.setUint32(at, value, true);
+    };
+    entries.forEach((entry, i) => {
+        field(StackMapTable.entries + 2 * width * i, entry.offset);
+        field(StackMapTable.entries + 2 * width * i + width, entry.map);
+    });
+    // The locations every map lists, as whole bytes and the bits of a last partial byte.
+    const prefix = new Uint8Array(bitmapBytes);
+    for (let l = 0; l < alwaysLive; l++) prefix[l >> 3]! |= 1 << (l & 7);
+    maps.forEach((map, m) => {
+        const at = base + bitmapBytes * m;
+        bytes.set(prefix, at);
+        for (const l of map) {
+            if (l < 0 || l >= locations)
+                throw new Error("Stack map location out of range");
+            bytes[at + (l >> 3)]! |= 1 << (l & 7);
+        }
+    });
+    return {
+        name,
+        section: ".rdata",
+        alignment: 8,
+        bytes,
+        fixups: [
+            {
+                offset: StackMapTable.code,
+                kind: "va64",
+                target: code,
+                addend: 0,
+            },
+        ],
+        symbols: {},
+    };
 }

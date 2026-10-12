@@ -37,7 +37,8 @@
 ```js
 console.log(~0, -1 >>> 0, 1 << 33, -8 >> 2);
 console.log(4294967297 | 0, -4294967297 | 0, NaN | 0, Infinity | 0);
-var a=1; console.log((a+=2,a*=3,a),void(a++),a);
+var a = 1;
+console.log(((a += 2), (a *= 3), a), void a++, a);
 ```
 
 Ожидания: `-1 4294967295 2 -2\n`, `1 -1 0 0\n`, `9 undefined 10\n`.
@@ -58,9 +59,34 @@ var a=1; console.log((a+=2,a*=3,a),void(a++),a);
 - [x] Добавить и запустить падающие тесты:
 
 ```js
-var x=0; do { x++; if(x<3)continue; } while(x<3); console.log(x);
-var s=''; switch(2){case 1:s+='a';break;default:s+='d';case 2:s+='b';case 3:s+='c';}console.log(s);
-var n=0; outer:for(var i=0;i<3;i++){switch(i){case 1:continue outer;}n++;}console.log(n);
+var x = 0;
+do {
+    x++;
+    if (x < 3) continue;
+} while (x < 3);
+console.log(x);
+var s = "";
+switch (2) {
+    case 1:
+        s += "a";
+        break;
+    default:
+        s += "d";
+    case 2:
+        s += "b";
+    case 3:
+        s += "c";
+}
+console.log(s);
+var n = 0;
+outer: for (var i = 0; i < 3; i++) {
+    switch (i) {
+        case 1:
+            continue outer;
+    }
+    n++;
+}
+console.log(n);
 ```
 
 Ожидания: `3\n`, `bc\n`, `2\n`.

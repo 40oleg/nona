@@ -10,12 +10,12 @@
 
 ## Что сделано
 
-| Этап | Изменения |
-| --- | --- |
-| 0.17 async | Async функции, стрелки, методы, async generators, `for await`, IteratorClose и порядок jobs закрыты в PR #5; здесь — проверка полным аудитом (таблица ниже) и стресс-тесты GC для async/генераторов/модулей (`gc-stress-roadmap.test.ts`). |
-| 0.18 модули | Модули, `import()`, `import.meta`, циклы и ошибки связывания — PR #5. Добавлено: литеральный `eval` в модульном коде (строгий), функции из `Function()` и косвенного `eval` видят только глобальную область, а не область модуля. |
+| Этап                 | Изменения                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.17 async           | Async функции, стрелки, методы, async generators, `for await`, IteratorClose и порядок jobs закрыты в PR #5; здесь — проверка полным аудитом (таблица ниже) и стресс-тесты GC для async/генераторов/модулей (`gc-stress-roadmap.test.ts`).                                                                                                                                              |
+| 0.18 модули          | Модули, `import()`, `import.meta`, циклы и ошибки связывания — PR #5. Добавлено: литеральный `eval` в модульном коде (строгий), функции из `Function()` и косвенного `eval` видят только глобальную область, а не область модуля.                                                                                                                                                       |
 | 0.19 семантика языка | Цели присваивания Annex B вида `f() = 1` (ReferenceError после вызова), RegExp `\c` Annex B.1.4, точное поведение исключения `eval`, **`eval` с исходным текстом времени компиляции** (`src/frontend/eval-aot.ts`), переполнение стека бросает `RangeError` вместо аварийного завершения процесса, запись в TypedArray и дескрипторы на отсоединённых буферах по закреплённому Test262. |
-| 0.20 интеграция | `Function`/`GeneratorFunction`/`AsyncFunction` через переменные и подклассы с литеральными исходниками, порядок `TypedArray(length)` и `new.target.prototype`, хеш-индекс свойств (большие массивы и объекты), size-class аллокатор кучи на Linux, скрипты полного аудита Test262 для Windows и Linux, закреплённые ожидания тестов там, где версии Node расходятся. |
+| 0.20 интеграция      | `Function`/`GeneratorFunction`/`AsyncFunction` через переменные и подклассы с литеральными исходниками, порядок `TypedArray(length)` и `new.target.prototype`, хеш-индекс свойств (большие массивы и объекты), size-class аллокатор кучи на Linux, скрипты полного аудита Test262 для Windows и Linux, закреплённые ожидания тестов там, где версии Node расходятся.                    |
 
 ### `eval` времени компиляции
 
@@ -25,21 +25,21 @@
 исполнения), — исходник разбирается компилятором и встраивается в программу
 по правилам PerformEval:
 
-* прямой `eval` — стрелка в месте вызова: область видимости, `this`,
+- прямой `eval` — стрелка в месте вызова: область видимости, `this`,
   `arguments`, `new.target` и `super` вызывающего кода; контекст (функция,
   метод, производный конструктор) задаёт допустимые `new.target`, `super.x`
   и `super()`;
-* sloppy `var` и объявления функций попадают в переменное окружение
+- sloppy `var` и объявления функций попадают в переменное окружение
   вызывающего кода (EvalDeclarationInstantiation): в функции — в скрытое
   объектное окружение, которое binder проверяет только для этих имён, на
   глобальном уровне — в configurable свойства глобального объекта с
   проверками CanDeclareGlobalVar/Function; конфликты с лексическими
   объявлениями дают `SyntaxError`; Annex B.3.3.3 для функций в блоках;
-* strict-код и `let`/`const`/`class` остаются локальными;
-* результат — completion value (UpdateEmpty, включая `break` из `finally`);
-* косвенные формы — `(0, eval)(…)`, `globalThis.eval(…)`, `eval?.(…)`,
+- strict-код и `let`/`const`/`class` остаются локальными;
+- результат — completion value (UpdateEmpty, включая `break` из `finally`);
+- косвенные формы — `(0, eval)(…)`, `globalThis.eval(…)`, `eval?.(…)`,
   переменные-псевдонимы `eval` — исполняются в глобальной области;
-* если `eval` подменён или затенён, проверка во время исполнения выполняет
+- если `eval` подменён или затенён, проверка во время исполнения выполняет
   обычный вызов; ошибки разбора и ранние ошибки бросают `SyntaxError` при
   вычислении вызова; `Function(…)` с литералами внутри eval-кода тоже
   компилируется.
@@ -53,12 +53,12 @@
 Windows x64 (Node 22, PE), полный закреплённый Test262 на `60b5763`
 (`scripts/test262-audit.ps1 -Unit`, `TEST262_EXCLUDE_FEATURES=post-es2020`):
 
-| Каталог | Pass/применимо | Оставшиеся отказы | PR #5 (`c6c3b5b`) |
-| --- | --- | --- | --- |
-| `language/` | **17298/17337** (26 skip) | 30 eval, 6 post, 3 other | 16516/17337 |
-| `built-ins/` | **15491/15559** | 16 eval, 14 post, 38 other | 15433/15554 |
-| `built-ins/Atomics` (агенты) | **268/268** (2 skip `CanBlockIsFalse`) | — | 268/268 |
-| `annexB/` | **996/1016** (8 skip) | 20 eval | 518/1016 |
+| Каталог                      | Pass/применимо                         | Оставшиеся отказы          | PR #5 (`c6c3b5b`) |
+| ---------------------------- | -------------------------------------- | -------------------------- | ----------------- |
+| `language/`                  | **17298/17337** (26 skip)              | 30 eval, 6 post, 3 other   | 16516/17337       |
+| `built-ins/`                 | **15491/15559**                        | 16 eval, 14 post, 38 other | 15433/15554       |
+| `built-ins/Atomics` (агенты) | **268/268** (2 skip `CanBlockIsFalse`) | —                          | 268/268           |
+| `annexB/`                    | **996/1016** (8 skip)                  | 20 eval                    | 518/1016          |
 
 Классификация `scripts/test262-summary.mjs`: «eval» — тест вызывает `eval`
 или `$262.evalScript`; «post» — семантика после ES2020 под старым или
@@ -90,21 +90,21 @@ eval-коде и другой realm), `annexB/language/eval-code` 468/469
 
 Все «other» на Windows разобраны по файлам:
 
-* `built-ins/Function` S15.3.2.1/S15.3.4.x (25) — исходный текст функции
+- `built-ins/Function` S15.3.2.1/S15.3.4.x (25) — исходный текст функции
   получается из `toString` объектов во время исполнения (исключение `eval`);
   ToString аргументов теперь выполняется до `EvalError`;
-* `is-a-constructor` для `AsyncFunction`/`AsyncGeneratorFunction`/
+- `is-a-constructor` для `AsyncFunction`/`AsyncGeneratorFunction`/
   `GeneratorFunction` и `language/expressions/async-arrow-function/prototype.js`
   (4) — harness `getWellKnownIntrinsicObject` строит исходник во время
   исполнения;
-* другие realms (7): `proto-from-ctor-realm` для `Function`/`Promise`,
+- другие realms (7): `proto-from-ctor-realm` для `Function`/`Promise`,
   `call-bind-this-realm-*`, `splitter-proto-from-ctor-realm`,
   `distinct-cross-realm` — issue #7;
-* `TypedArrayConstructors/internals/Set/*key-is-canonical-invalid-index-prototype-chain-set`
+- `TypedArrayConstructors/internals/Set/*key-is-canonical-invalid-index-prototype-chain-set`
   (2) — Proxy над объектом с TypedArray в цепочке прототипов; исправлено в
   `5d891e2` после аудита (Linux: `internals/Set` 52/52, `Proxy` 308/311,
   `Reflect` 153/153);
-* `private-class-field-on-nonextensible-*` (2) — проходят с элементами
+- `private-class-field-on-nonextensible-*` (2) — проходят с элементами
   классов ES2022 (#106); их аудит добавляет 24 отказа «eval» в
   `language/expressions/class` (класс из строки через псевдоним `eval`,
   `Function` или другой realm).
@@ -118,8 +118,8 @@ eval-коде и другой realm), `annexB/language/eval-code` 468/469
 
 ## Задачи после 0.20
 
-* #11 — `eval`/`Function` с исходным текстом времени исполнения (встроенный
+- #11 — `eval`/`Function` с исходным текстом времени исполнения (встроенный
   интерпретатор или JIT);
-* #7 — прототипы по умолчанию из другой realm для конструкторов JS-прелюдии;
-* #13, #36 — плотное хранение элементов массивов и хеш-таблицы Map/Set;
-* #14 — производительность RegExp VM.
+- #7 — прототипы по умолчанию из другой realm для конструкторов JS-прелюдии;
+- #13, #36 — плотное хранение элементов массивов и хеш-таблицы Map/Set;
+- #14 — производительность RegExp VM.

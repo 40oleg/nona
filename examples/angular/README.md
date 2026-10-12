@@ -11,10 +11,10 @@ The Angular CLI itself cannot run on Nona. `ng build` drives esbuild, a Go binar
 3. **Inlines component resources.** `templateUrl` and `styleUrl(s)` become `template` and `styles`.
 4. **Bundles `@angular/compiler`.** Components are compiled in the browser (JIT) rather than ahead of time by `@angular/compiler-cli`.
 5. **Writes `dist/<project>/browser`:**
-   - `main.js`: all modules and a minimal CommonJS loader;
-   - `styles.css`: the global styles;
-   - `index.html`;
-   - the `public` assets.
+    - `main.js`: all modules and a minimal CommonJS loader;
+    - `styles.css`: the global styles;
+    - `index.html`;
+    - the `public` assets.
 
 It does no tree shaking, minification, AOT compilation, Sass or i18n.
 
@@ -36,11 +36,11 @@ The same `ng-build.mjs` also runs on Node.js (`node ng-build.mjs path/to/my-app`
 
 Angular 22.2.1, TypeScript 6.0.3, `ng new ngapp --defaults --zoneless --ssr=false`, Linux x64:
 
-| | `ng build` on Node.js 22 (Windows machine) | `ng-build.mjs` on Node.js (Linux) | Nona-native `ng-build` (Linux) |
-| --- | --- | --- | --- |
-| Build time | 16 s (bundle 6.4 s) | 5.3 s | 839 s |
-| Output | `main-*.js` 216 kB (AOT, minified) | `main.js` 3.8 MB (JIT, not minified) | identical to the Node.js run |
-| Page in Chromium | "Hello, ngapp", 9 links | the same | the same |
+|                  | `ng build` on Node.js 22 (Windows machine) | `ng-build.mjs` on Node.js (Linux)    | Nona-native `ng-build` (Linux) |
+| ---------------- | ------------------------------------------ | ------------------------------------ | ------------------------------ |
+| Build time       | 16 s (bundle 6.4 s)                        | 5.3 s                                | 839 s                          |
+| Output           | `main-*.js` 216 kB (AOT, minified)         | `main.js` 3.8 MB (JIT, not minified) | identical to the Node.js run   |
+| Page in Chromium | "Hello, ngapp", 9 links                    | the same                             | the same                       |
 
 Compiling the builder takes 97 s and 3.2 GB of memory. The executable is 146 MB, almost all of it TypeScript.
 

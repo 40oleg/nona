@@ -1,18 +1,24 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runModulesOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runModulesOnHost } from "./helpers/host.js";
 
 // The program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical.
-function expectNode(source:string,gcStress:boolean):void {
- const {native,oracle}=runModulesOnHost({'main.mjs':source},'main.mjs',{gcStress});
- assert.equal(native.error,undefined);
- assert.equal(native.status,0,native.stderr);
- assert.ok(oracle.length>0);
- assert.equal(native.stdout,oracle);
+function expectNode(source: string, gcStress: boolean): void {
+    const { native, oracle } = runModulesOnHost(
+        { "main.mjs": source },
+        "main.mjs",
+        { gcStress },
+    );
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.ok(oracle.length > 0);
+    assert.equal(native.stdout, oracle);
 }
 
-test('node:events, node:buffer and node:string_decoder behave like Node.js',()=>expectNode(String.raw`import EventEmitter, { once } from 'node:events';
+test("node:events, node:buffer and node:string_decoder behave like Node.js", () =>
+    expectNode(
+        String.raw`import EventEmitter, { once } from 'node:events';
 import { Buffer } from 'node:buffer';
 import { StringDecoder } from 'node:string_decoder';
 class E extends EventEmitter {}
@@ -31,16 +37,24 @@ console.log(JSON.stringify(Buffer.from('hi')), Buffer.alloc(4, 'ab').toString(),
 const d = new StringDecoder('utf8'); const euro = Buffer.from('€');
 console.log(d.write(euro.subarray(0, 1)) + '|' + d.write(euro.subarray(1)) + '|' + d.end());
 console.log(typeof globalThis.Buffer, Buffer.from('aGk=', 'base64').toString('latin1'));
-`,true));
+`,
+        true,
+    ));
 
-test('nona: specifiers share the node: module instances',()=>{
- const {native}=runModulesOnHost({'main.mjs':String.raw`import { Buffer as A } from 'nona:buffer';
+test("nona: specifiers share the node: module instances", () => {
+    const { native } = runModulesOnHost(
+        {
+            "main.mjs": String.raw`import { Buffer as A } from 'nona:buffer';
 import B from 'node:buffer';
 import EventEmitter from 'nona:events';
 import { EventEmitter as E2 } from 'node:events';
 import { StringDecoder } from 'nona:string_decoder';
 console.log(A === B.Buffer, A === globalThis.Buffer, EventEmitter === E2, typeof StringDecoder);
-`},'main.mjs',{gcStress:false});
- assert.equal(native.status,0,native.stderr);
- assert.equal(native.stdout,'true true true function\n');
+`,
+        },
+        "main.mjs",
+        { gcStress: false },
+    );
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout, "true true true function\n");
 });

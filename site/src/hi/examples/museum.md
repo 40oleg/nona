@@ -11,15 +11,15 @@ Museum एक बैकग्राउंड प्रोग्राम है 
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` एक्ज़ीक्यूटेबल है और `process.argv[1]` पहला आर्ग्युमेंट। GUI प्रोग्राम के पास कंसोल नहीं होता, इसलिए त्रुटियाँ `MessageBoxW` से दिखाई जाती हैं:
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## चरण 3: केवल एक इंस्टेंस
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 नामित mutex तब तक मौजूद रहता है जब तक उसे बनाने वाली प्रोसेस चल रही है। अगर वह पहले से मौजूद है, तो दूसरा Museum चल रहा है।
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## चरण 4: वॉलपेपर सेट करना
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 `wstr` पैरामीटर JavaScript स्ट्रिंग को अस्थायी NUL-terminated UTF-16 कॉपी में बदल देता है, इसलिए किसी भी अक्षर वाले पाथ काम करते हैं। `SPIF_UPDATEINIFILE` साइन-आउट के बाद भी वॉलपेपर बनाए रखता है और `SPIF_SENDCHANGE` दूसरे प्रोग्रामों को सूचित करता है।
@@ -86,9 +91,26 @@ node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 इसे वापस लेने के लिए उस key में `NonaMuseum` वैल्यू हटा दें (उदाहरण के लिए `RegDeleteValueW` से, या Registry Editor में)।

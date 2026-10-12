@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: Du JavaScript aux exécutables natifs
-  tagline: Un compilateur ahead-of-time qui transforme du JavaScript ES2020 en exécutables autonomes pour Windows et Linux x64. Sans interpréteur embarqué, sans chaîne de compilation C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: Commencer
-      link: /fr/guide/getting-started
-    - theme: alt
-      text: Essayer dans le navigateur
-      link: /playground
-    - theme: alt
-      text: Qu’est-ce que Nona
-      link: /fr/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: Du JavaScript aux exécutables natifs
+    tagline: Un compilateur ahead-of-time qui transforme du JavaScript ES2020 en exécutables autonomes pour Windows et Linux x64. Sans interpréteur embarqué, sans chaîne de compilation C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: Commencer
+          link: /fr/guide/getting-started
+        - theme: alt
+          text: Essayer dans le navigateur
+          link: /playground
+        - theme: alt
+          text: Qu’est-ce que Nona
+          link: /fr/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: Démarrage en 2 ms
-    details: Un hello world compilé démarre en 1,8 ms et culmine à 11 Mo de mémoire, dans un exécutable de 3 Mo. Node.js met 28 ms et utilise 45 Mo ; un exécutable Node SEA pèse 124 Mo.
-    link: /fr/guide/performance
-  - title: Le langage ES2020
-    details: Classes, générateurs, fonctions async, déstructuration, chaînage optionnel, BigInt, appels terminaux et modules ES avec cycles et liaisons vivantes — avec des exceptions documentées.
-    link: /fr/guide/language-support
-  - title: Un runtime natif
-    details: Un ramasse-miettes mark-and-sweep précis, des chaînes UTF-16, de vraies exceptions et une RangeError interceptable en cas de débordement de pile, liés dans chaque exécutable.
-    link: /fr/guide/how-it-works
-  - title: API de l’hôte
-    details: Une boucle d’événements avec minuteurs, un process global, node:fs synchrone, TextEncoder et TextDecoder.
-    link: /fr/reference/host-apis
-  - title: FFI et nona:win32
-    details: Appelez n’importe quelle fonction exportée d’une DLL sous Windows grâce à des déclarations résolues à la compilation ; des liaisons prêtes à l’emploi pour user32, kernel32 et advapi32.
-    link: /fr/reference/ffi
-  - title: Exécutables graphiques Windows
-    details: Des programmes sans fenêtre de console, avec icône, manifeste d’application et informations de version.
-    link: /fr/reference/windows-executables
+    - title: Démarrage en 2 ms
+      details: Un hello world compilé démarre en 1,8 ms et culmine à 11 Mo de mémoire, dans un exécutable de 3 Mo. Node.js met 28 ms et utilise 45 Mo ; un exécutable Node SEA pèse 124 Mo.
+      link: /fr/guide/performance
+    - title: Le langage ES2020
+      details: Classes, générateurs, fonctions async, déstructuration, chaînage optionnel, BigInt, appels terminaux et modules ES avec cycles et liaisons vivantes — avec des exceptions documentées.
+      link: /fr/guide/language-support
+    - title: Un runtime natif
+      details: Un ramasse-miettes mark-and-sweep précis, des chaînes UTF-16, de vraies exceptions et une RangeError interceptable en cas de débordement de pile, liés dans chaque exécutable.
+      link: /fr/guide/how-it-works
+    - title: API de l’hôte
+      details: Une boucle d’événements avec minuteurs, un process global, node:fs synchrone, TextEncoder et TextDecoder.
+      link: /fr/reference/host-apis
+    - title: FFI et nona:win32
+      details: Appelez n’importe quelle fonction exportée d’une DLL sous Windows grâce à des déclarations résolues à la compilation ; des liaisons prêtes à l’emploi pour user32, kernel32 et advapi32.
+      link: /fr/reference/ffi
+    - title: Exécutables graphiques Windows
+      details: Des programmes sans fenêtre de console, avec icône, manifeste d’application et informations de version.
+      link: /fr/reference/windows-executables
 ---
 
 ## Exemple rapide

@@ -2,12 +2,12 @@
 
 ## Walkthroughs
 
-| Example | Shows | Targets |
-| --- | --- | --- |
-| [Hello, timers](/examples/hello) | functions, template literals, microtasks and timers | Windows, Linux |
-| [Museum: wallpaper changer](/examples/museum) | `nona:win32`, timers, `node:fs`, `process`, a GUI executable with resources | Windows |
-| [Matrix calculator](/examples/matrix-calculator) | plain ES2020 code with arrays and exceptions | Windows, Linux |
-| [Word count](/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp | Windows, Linux |
+| Example                                          | Shows                                                                       | Targets        |
+| ------------------------------------------------ | --------------------------------------------------------------------------- | -------------- |
+| [Hello, timers](/examples/hello)                 | functions, template literals, microtasks and timers                         | Windows, Linux |
+| [Museum: wallpaper changer](/examples/museum)    | `nona:win32`, timers, `node:fs`, `process`, a GUI executable with resources | Windows        |
+| [Matrix calculator](/examples/matrix-calculator) | plain ES2020 code with arrays and exceptions                                | Windows, Linux |
+| [Word count](/examples/word-count)               | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp        | Windows, Linux |
 
 ## Repository examples
 

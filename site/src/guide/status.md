@@ -8,12 +8,12 @@
 
 Full pinned Test262 on Windows x64 for v0.8.0 (`scripts/test262-audit.ps1 -Unit`, features from ES2020 and earlier plus the supported later ones such as the ES2022 class elements):
 
-| Directory | Passed / applicable | Remaining failures |
-| --- | --- | --- |
-| `language/` | **22436 / 22492** (26 skipped) | 44 `eval`, 1 newer semantics, 11 other |
-| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 newer semantics, 37 other |
-| `built-ins/Atomics` (agents) | **268 / 268** | — |
-| `annexB/` | **996 / 1016** (8 skipped) | 20 `eval` |
+| Directory                    | Passed / applicable            | Remaining failures                      |
+| ---------------------------- | ------------------------------ | --------------------------------------- |
+| `language/`                  | **22436 / 22492** (26 skipped) | 44 `eval`, 1 newer semantics, 11 other  |
+| `built-ins/`                 | **15868 / 15933**              | 16 `eval`, 12 newer semantics, 37 other |
+| `built-ins/Atomics` (agents) | **268 / 268**                  | —                                       |
+| `annexB/`                    | **996 / 1016** (8 skipped)     | 20 `eval`                               |
 
 The classification comes from `scripts/test262-summary.mjs`: "`eval`" tests call `eval` or `$262.evalScript` with source text Nona cannot know at compile time; "newer semantics" tests check behaviour from later editions (the `v` flag, numeric separators, `Promise.any`, …) under an old or missing feature tag. The unit suite runs on Windows and Linux in CI and compiles and executes real PE and ELF files, many under GC stress. How to run the audits is described on the [Test262](/reference/test262) page.
 

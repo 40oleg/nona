@@ -1,19 +1,25 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runModulesOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runModulesOnHost } from "./helpers/host.js";
 
 // The program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical. It runs without GC stress: a forced collection
 // before every block walks the whole compiled module graph and takes minutes.
-function expectNode(source:string,gcStress:boolean):void {
- const {native,oracle}=runModulesOnHost({'main.mjs':source},'main.mjs',{gcStress});
- assert.equal(native.error,undefined);
- assert.equal(native.status,0,native.stderr);
- assert.ok(oracle.length>0);
- assert.equal(native.stdout,oracle);
+function expectNode(source: string, gcStress: boolean): void {
+    const { native, oracle } = runModulesOnHost(
+        { "main.mjs": source },
+        "main.mjs",
+        { gcStress },
+    );
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.ok(oracle.length > 0);
+    assert.equal(native.stdout, oracle);
 }
 
-test('node:net echoes data, reports addresses and refused connections',()=>expectNode(String.raw`import net from 'node:net';
+test("node:net echoes data, reports addresses and refused connections", () =>
+    expectNode(
+        String.raw`import net from 'node:net';
 console.log(net.isIP('127.0.0.1'), net.isIP('::1'), net.isIP('::ffff:1.2.3.4'), net.isIP('1:2:3:4:5:6:7:8'), net.isIP('x'), net.isIPv6('1::2::3'));
 const server = net.createServer(socket => {
   console.log('server: connection', typeof socket.remotePort);
@@ -42,9 +48,13 @@ server.listen(0, '127.0.0.1', () => {
     }, 50);
   });
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:net forgets addresses that were not read before the socket closed',()=>expectNode(String.raw`import net from 'node:net';
+test("node:net forgets addresses that were not read before the socket closed", () =>
+    expectNode(
+        String.raw`import net from 'node:net';
 const server = net.createServer(socket => {
   const remembered = socket.remoteAddress;
   socket.on('close', () => {
@@ -58,4 +68,6 @@ server.listen(0, '127.0.0.1', () => {
   client.on('data', () => {});
   client.on('close', () => console.log('client after close', client.remoteAddress, client.localAddress, client.remotePort, client.localPort));
 });
-`,false));
+`,
+        false,
+    ));

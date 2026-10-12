@@ -227,7 +227,7 @@ From создаёт свежий обычный объект с own data propert
 
 GetOwnPropertyDescriptor box-ит target до key coercion, сохраняет boxed target
 и key через callbacks, читает accessor functions напрямую, не вызывая getter.
-Mapped arguments возвращают current cell Value. __proto__ материализован как
+Mapped arguments возвращают current cell Value. **proto** материализован как
 настоящий static accessor node со стабильными native getter/setter functions;
 node, functions и metadata properties добавлены в static GC roots. Старый virtual
 fallback отключён. Тестовый roundTrip не экспортируется в production globals.

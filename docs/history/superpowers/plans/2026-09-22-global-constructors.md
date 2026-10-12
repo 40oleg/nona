@@ -4,19 +4,19 @@
 завершённым до frontend bindings, native implementations и differential tests.
 
 - [x] FunctionLayout.constructCode: отдельный native construct entry, ноль для
-  обычных JS функций/bound wrappers. InvokeConstruct unwraps bound calls и
-  передаёт out/argc/argv/callee/receiver по builtin ABI; source functions остаются
-  на обычном invoke. Обновить все allocating paths, static layout и native tests.
+      обычных JS функций/bound wrappers. InvokeConstruct unwraps bound calls и
+      передаёт out/argc/argv/callee/receiver по builtin ABI; source functions остаются
+      на обычном invoke. Обновить все allocating paths, static layout и native tests.
 - [x] Mutable global builtin properties и identifier lookup/write с shadowing.
-  Script var с именем builtin без initializer сохраняет существующее значение;
-  lexical bindings не конфликтуют с configurable builtin global properties.
-  Не закреплять builtin names как immutable или reserved identifiers.
+      Script var с именем builtin без initializer сохраняет существующее значение;
+      lexical bindings не конфликтуют с configurable builtin global properties.
+      Не закреплять builtin names как immutable или reserved identifiers.
 - [x] Object/Array/Boolean/Number/String constructors: static function objects,
-  name/length/prototype и обратные constructor links, GC roots static nodes.
-  Отдельный call/construct путь для primitive wrappers; Object identity/boxing;
-  Array single numeric length versus element list, holes и invalid lengths.
+      name/length/prototype и обратные constructor links, GC roots static nodes.
+      Отдельный call/construct путь для primitive wrappers; Object identity/boxing;
+      Array single numeric length versus element list, holes и invalid lengths.
 - [x] Prototype selection, bound constructors, callbacks/GC during conversion,
-  mutation and shadowing, metadata/deletion tests, standalone comparison example.
+      mutation and shadowing, metadata/deletion tests, standalone comparison example.
 - [x] Full check, Node bytewise comparison, independent review, docs/matrix.
 
 Dynamic eval/Function остаются исключены по поручению пользователя. Остальные

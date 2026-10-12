@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: De JavaScript a ejecutables nativos
-  tagline: Un compilador ahead-of-time que convierte JavaScript ES2020 en ejecutables autónomos para Windows y Linux x64. Sin intérprete embebido y sin toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: Empezar
-      link: /es/guide/getting-started
-    - theme: alt
-      text: Pruébalo en el navegador
-      link: /playground
-    - theme: alt
-      text: Qué es Nona
-      link: /es/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: De JavaScript a ejecutables nativos
+    tagline: Un compilador ahead-of-time que convierte JavaScript ES2020 en ejecutables autónomos para Windows y Linux x64. Sin intérprete embebido y sin toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: Empezar
+          link: /es/guide/getting-started
+        - theme: alt
+          text: Pruébalo en el navegador
+          link: /playground
+        - theme: alt
+          text: Qué es Nona
+          link: /es/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: Arranca en 2 ms
-    details: Un hello world compilado arranca en 1,8 ms y alcanza como máximo 11 MB de memoria, en un ejecutable de 3 MB. Node.js tarda 28 ms y usa 45 MB; un ejecutable Node SEA ocupa 124 MB.
-    link: /es/guide/performance
-  - title: El lenguaje ES2020
-    details: Clases, generadores, funciones async, desestructuración, encadenamiento opcional, BigInt, llamadas de cola propias y módulos ES con ciclos y enlaces vivos, con excepciones documentadas.
-    link: /es/guide/language-support
-  - title: Un runtime nativo
-    details: Un recolector de basura mark-and-sweep preciso, cadenas UTF-16, excepciones reales y un RangeError capturable ante un desbordamiento de pila, enlazados en cada ejecutable.
-    link: /es/guide/how-it-works
-  - title: APIs del host
-    details: Un bucle de eventos con temporizadores, un process global, node:fs síncrono, TextEncoder y TextDecoder.
-    link: /es/reference/host-apis
-  - title: FFI y nona:win32
-    details: Llama a cualquier función exportada de una DLL en Windows con declaraciones en tiempo de compilación; incluye enlaces listos para user32, kernel32 y advapi32.
-    link: /es/reference/ffi
-  - title: Ejecutables gráficos de Windows
-    details: Programas sin ventana de consola, con icono, manifiesto de aplicación e información de versión.
-    link: /es/reference/windows-executables
+    - title: Arranca en 2 ms
+      details: Un hello world compilado arranca en 1,8 ms y alcanza como máximo 11 MB de memoria, en un ejecutable de 3 MB. Node.js tarda 28 ms y usa 45 MB; un ejecutable Node SEA ocupa 124 MB.
+      link: /es/guide/performance
+    - title: El lenguaje ES2020
+      details: Clases, generadores, funciones async, desestructuración, encadenamiento opcional, BigInt, llamadas de cola propias y módulos ES con ciclos y enlaces vivos, con excepciones documentadas.
+      link: /es/guide/language-support
+    - title: Un runtime nativo
+      details: Un recolector de basura mark-and-sweep preciso, cadenas UTF-16, excepciones reales y un RangeError capturable ante un desbordamiento de pila, enlazados en cada ejecutable.
+      link: /es/guide/how-it-works
+    - title: APIs del host
+      details: Un bucle de eventos con temporizadores, un process global, node:fs síncrono, TextEncoder y TextDecoder.
+      link: /es/reference/host-apis
+    - title: FFI y nona:win32
+      details: Llama a cualquier función exportada de una DLL en Windows con declaraciones en tiempo de compilación; incluye enlaces listos para user32, kernel32 y advapi32.
+      link: /es/reference/ffi
+    - title: Ejecutables gráficos de Windows
+      details: Programas sin ventana de consola, con icono, manifiesto de aplicación e información de versión.
+      link: /es/reference/windows-executables
 ---
 
 ## Ejemplo rápido

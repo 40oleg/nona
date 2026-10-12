@@ -1,18 +1,19 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOracle} from './helpers/oracle.js';
-import {runOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOracle } from "./helpers/oracle.js";
+import { runOnHost } from "./helpers/host.js";
 
 // `typeof x === 'name'` compiles to a test of the value's tag (lower.ts,
 // codegen.ts) instead of a type string and a string comparison.
-function expectOracle(source:string):void {
- const expected=runOracle(source).stdout;
- const run=runOnHost(source,{gcStress:true});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,expected);
+function expectOracle(source: string): void {
+    const expected = runOracle(source).stdout;
+    const run = runOnHost(source, { gcStress: true });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, expected);
 }
 
-test('typeof comparisons with a string literal agree with typeof for every kind of value',()=>expectOracle(`
+test("typeof comparisons with a string literal agree with typeof for every kind of value", () =>
+    expectOracle(`
 var values = [undefined, null, true, false, 0, -0, NaN, 1.5, 'x', '', 'a' + String(1), Symbol('s'), 10n, {}, [], function () {}, class {}, () => 1,
   new Proxy({}, {}), new Proxy(function () {}, {}), Proxy.revocable(function () {}, {}).proxy, Object.create(null), new Date(0), /r/, new Map(),
   async function () {}, function* () {}, Math.max.bind(Math), Math.max, new Error('e'), (function () { return arguments; })(), new Uint8Array(2), Object(1), Object('s')];

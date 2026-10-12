@@ -1,8 +1,31 @@
-const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
-class Shape { constructor(w) { this.w = w; } area() { return 0; } scaled() { return this.area() * 2; } }
-class Square extends Shape { area() { return this.w * this.w; } }
-class Circle extends Shape { area() { return 3 * this.w * this.w; } }
-class Tri extends Shape { area() { return this.w * this.w / 2; } }
+const SCALE = Number(process.env.SCALE) || 1;
+const S = (n) => Math.round(n * SCALE);
+class Shape {
+    constructor(w) {
+        this.w = w;
+    }
+    area() {
+        return 0;
+    }
+    scaled() {
+        return this.area() * 2;
+    }
+}
+class Square extends Shape {
+    area() {
+        return this.w * this.w;
+    }
+}
+class Circle extends Shape {
+    area() {
+        return 3 * this.w * this.w;
+    }
+}
+class Tri extends Shape {
+    area() {
+        return (this.w * this.w) / 2;
+    }
+}
 let t = performance.now();
 const sq = new Square(3);
 let s = 0;
@@ -17,4 +40,11 @@ t = performance.now();
 const objs = new Array(S(1000000));
 for (let i = 0; i < S(1000000); i++) objs[i] = new Square(i);
 const tNew = performance.now() - t;
-console.log(JSON.stringify({ mono5M: tMono, poly5M: tPoly, new1M: tNew, check: s + s2 + objs[5].w }));
+console.log(
+    JSON.stringify({
+        mono5M: tMono,
+        poly5M: tPoly,
+        new1M: tNew,
+        check: s + s2 + objs[5].w,
+    }),
+);

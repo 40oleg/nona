@@ -21,7 +21,12 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 - `--version-info` lee un objeto JSON con cualquiera de `FileVersion`, `ProductVersion` (`"major.minor.build.revision"`, partes 0–65535), `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName` y `Comments`, que se muestran en Propiedades → Detalles del archivo (`RT_VERSION` 1, idioma 0409, página de códigos 04B0).
 
 ```json
-{ "FileVersion": "1.0.0.0", "ProductName": "Museum", "FileDescription": "Paintings on the desktop", "CompanyName": "Oleg" }
+{
+    "FileVersion": "1.0.0.0",
+    "ProductName": "Museum",
+    "FileDescription": "Paintings on the desktop",
+    "CompanyName": "Oleg"
+}
 ```
 
 Las mismas opciones están disponibles en `compile()` como `icon` (bytes), `manifest` (cadena) y `versionInfo` (objeto). Requieren `--target win32-x64`.

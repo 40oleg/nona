@@ -2,28 +2,28 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
-| Document | Contents | Language |
-| --- | --- | --- |
-| [architecture.md](architecture.md) | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking | English |
-| [roadmap.md](roadmap.md) | Performance and platform plan derived from the V8 blog, with status | English |
-| [status.md](status.md) | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures | Russian |
-| [es2020-contract.md](es2020-contract.md) | The ES2020 completion contract: scope, documented exceptions, how completion is judged | English |
-| [language-support.md](language-support.md) | Language feature matrix (checked for Nona 0.5.0; see its note) | Russian |
-| [test262.md](test262.md) | The Test262 baseline and how it is run | English |
-| [object-model.md](object-model.md) | Object header, shapes, slots and property lists, inline caches | English |
-| [runtime-memory.md](runtime-memory.md) | Allocation, rooting, safepoints and exception rules of the runtime | Russian |
-| [host-apis.md](host-apis.md) | Host APIs available to programs (timers, `process`, `fs`, FFI and more) | English |
-| [process.md](process.md) | The `process` API on all targets | English |
-| [fs.md](fs.md) | `node:fs` and `nona:fs` | English |
-| [path.md](path.md) | `node:path` and `path` | English |
-| [network.md](network.md) | `node:http` and `node:net` | English |
-| [npm.md](npm.md) | npm packages: `node_modules` resolution, CommonJS, ES module interop, support modules | English |
-| [ffi.md](ffi.md) | Native functions (`nona:ffi`, `nona:win32`) | English |
-| [windows-executables.md](windows-executables.md) | Windows subsystem, icons, manifests and version information | English |
-| [native-platforms.md](native-platforms.md) | The eight native targets and their execution evidence | English |
-| [self-hosting.md](self-hosting.md) | Building the compiler as a native executable | English |
-| [program-corpus.md](program-corpus.md) | The combination program regression corpus | English |
-| [formal-verification.md](formal-verification.md) | The Lean proof prototype for IR move rules | English |
-| [matrix-calculator.md](matrix-calculator.md) | Example program: matrix operations and a standalone EXE | Russian |
+| Document                                         | Contents                                                                                            | Language |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- | -------- |
+| [architecture.md](architecture.md)               | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking | English  |
+| [roadmap.md](roadmap.md)                         | Performance and platform plan derived from the V8 blog, with status                                 | English  |
+| [status.md](status.md)                           | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures  | Russian  |
+| [es2020-contract.md](es2020-contract.md)         | The ES2020 completion contract: scope, documented exceptions, how completion is judged              | English  |
+| [language-support.md](language-support.md)       | Language feature matrix (checked for Nona 0.5.0; see its note)                                      | Russian  |
+| [test262.md](test262.md)                         | The Test262 baseline and how it is run                                                              | English  |
+| [object-model.md](object-model.md)               | Object header, shapes, slots and property lists, inline caches                                      | English  |
+| [runtime-memory.md](runtime-memory.md)           | Allocation, rooting, safepoints and exception rules of the runtime                                  | Russian  |
+| [host-apis.md](host-apis.md)                     | Host APIs available to programs (timers, `process`, `fs`, FFI and more)                             | English  |
+| [process.md](process.md)                         | The `process` API on all targets                                                                    | English  |
+| [fs.md](fs.md)                                   | `node:fs` and `nona:fs`                                                                             | English  |
+| [path.md](path.md)                               | `node:path` and `path`                                                                              | English  |
+| [network.md](network.md)                         | `node:http` and `node:net`                                                                          | English  |
+| [npm.md](npm.md)                                 | npm packages: `node_modules` resolution, CommonJS, ES module interop, support modules               | English  |
+| [ffi.md](ffi.md)                                 | Native functions (`nona:ffi`, `nona:win32`)                                                         | English  |
+| [windows-executables.md](windows-executables.md) | Windows subsystem, icons, manifests and version information                                         | English  |
+| [native-platforms.md](native-platforms.md)       | The eight native targets and their execution evidence                                               | English  |
+| [self-hosting.md](self-hosting.md)               | Building the compiler as a native executable                                                        | English  |
+| [program-corpus.md](program-corpus.md)           | The combination program regression corpus                                                           | English  |
+| [formal-verification.md](formal-verification.md) | The Lean proof prototype for IR move rules                                                          | English  |
+| [matrix-calculator.md](matrix-calculator.md)     | Example program: matrix operations and a standalone EXE                                             | Russian  |
 
 The user documentation is on the site (`site/`); pages that mirror documents from this directory are generated by `site/scripts/sync-docs.mjs`. [`../CHANGELOG.md`](../CHANGELOG.md) lists the changes per release and [`../PERFORMANCE.md`](../PERFORMANCE.md) the measurements.

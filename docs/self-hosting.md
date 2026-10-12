@@ -25,8 +25,7 @@ verified in native CI; local verification refuses to execute them.
 
 The development verifier launches native children with an empty `PATH`, checks
 representative programs against bootstrap images, asks stage 1 to build stage 2,
-compares the two compiler images, and repeats the program regressions with stage
-2. Its use of Node.js for bootstrap, comparison and orchestration does not imply
+compares the two compiler images, and repeats the program regressions with stage 2. Its use of Node.js for bootstrap, comparison and orchestration does not imply
 a native compiler runtime dependency.
 
 The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe.

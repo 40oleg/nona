@@ -6,10 +6,14 @@ call adds an entry to the PE import table, so the program does not use
 `LoadLibrary`/`GetProcAddress`.
 
 ```js
-import { define, lastError } from 'nona:ffi';
+import { define, lastError } from "nona:ffi";
 
-const MessageBoxW = define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)');
-MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
+const MessageBoxW = define(
+    "user32.dll",
+    "MessageBoxW",
+    "i32(ptr,wstr,wstr,u32)",
+);
+MessageBoxW(null, "Hello from Nona", "Nona", 0);
 ```
 
 - FFI is available in module code (`.mjs` or `--module`). `define` must be
@@ -30,16 +34,16 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 
 `result(param, param, ...)`, for example `bool(u32,u32,wstr,u32)`.
 
-| Type | Parameter | Result |
-| --- | --- | --- |
-| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (truncated towards zero) or Boolean | Number |
-| `ptr` | Number, Boolean, `null`/`undefined` (NULL) | Number |
-| `bool` | like `i32` | Boolean (Win32 `BOOL`, non-zero is `true`) |
-| `f32 f64` | Number | Number |
-| `wstr` | String → temporary NUL-terminated UTF-16 copy; `null`/`undefined` → NULL | — |
-| `str` | String → temporary NUL-terminated UTF-8 copy; `null`/`undefined` → NULL | — |
-| `buf` | ArrayBuffer, SharedArrayBuffer, typed array or DataView → pointer to its bytes (at the view offset); `null`/`undefined` → NULL | — |
-| `void` | — | `undefined` |
+| Type                            | Parameter                                                                                                                      | Result                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (truncated towards zero) or Boolean                                                                                     | Number                                     |
+| `ptr`                           | Number, Boolean, `null`/`undefined` (NULL)                                                                                     | Number                                     |
+| `bool`                          | like `i32`                                                                                                                     | Boolean (Win32 `BOOL`, non-zero is `true`) |
+| `f32 f64`                       | Number                                                                                                                         | Number                                     |
+| `wstr`                          | String → temporary NUL-terminated UTF-16 copy; `null`/`undefined` → NULL                                                       | —                                          |
+| `str`                           | String → temporary NUL-terminated UTF-8 copy; `null`/`undefined` → NULL                                                        | —                                          |
+| `buf`                           | ArrayBuffer, SharedArrayBuffer, typed array or DataView → pointer to its bytes (at the view offset); `null`/`undefined` → NULL | —                                          |
+| `void`                          | —                                                                                                                              | `undefined`                                |
 
 Other argument types throw `TypeError`; so do missing arguments (except for
 pointer types, where `undefined` means NULL) and detached buffers. The callee
@@ -66,6 +70,16 @@ A curated set of declarations and helpers built on `nona:ffi`:
   re-exported.
 
 ```js
-import { SystemParametersInfoW, SPI_SETDESKWALLPAPER, SPIF_UPDATEINIFILE, SPIF_SENDCHANGE } from 'nona:win32';
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, 'C:\\Pictures\\painting.jpg', SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+import {
+    SystemParametersInfoW,
+    SPI_SETDESKWALLPAPER,
+    SPIF_UPDATEINIFILE,
+    SPIF_SENDCHANGE,
+} from "nona:win32";
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    "C:\\Pictures\\painting.jpg",
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```

@@ -2,12 +2,12 @@
 
 ## Recorridos guiados
 
-| Ejemplo | Muestra | Destinos |
-| --- | --- | --- |
-| [Hola, temporizadores](/es/examples/hello) | funciones, plantillas literales, microtareas y temporizadores | Windows, Linux |
-| [Museum: cambiador de fondos de pantalla](/es/examples/museum) | `nona:win32`, temporizadores, `node:fs`, `process`, un ejecutable gráfico con recursos | Windows |
-| [Calculadora de matrices](/es/examples/matrix-calculator) | código ES2020 corriente con arrays y excepciones | Windows, Linux |
-| [Conteo de palabras](/es/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode | Windows, Linux |
+| Ejemplo                                                        | Muestra                                                                                | Destinos       |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------- |
+| [Hola, temporizadores](/es/examples/hello)                     | funciones, plantillas literales, microtareas y temporizadores                          | Windows, Linux |
+| [Museum: cambiador de fondos de pantalla](/es/examples/museum) | `nona:win32`, temporizadores, `node:fs`, `process`, un ejecutable gráfico con recursos | Windows        |
+| [Calculadora de matrices](/es/examples/matrix-calculator)      | código ES2020 corriente con arrays y excepciones                                       | Windows, Linux |
+| [Conteo de palabras](/es/examples/word-count)                  | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode                   | Windows, Linux |
 
 ## Ejemplos del repositorio
 

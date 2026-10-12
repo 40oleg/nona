@@ -4,25 +4,25 @@ Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous
 
 ## Vue d’ensemble
 
-| API | Nature | Cibles | Référence |
-| --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | globaux | all eight native targets | [Minuteurs et boucle d’événements](/fr/reference/host-apis) |
-| `process` | global | all eight native targets | [process](/fr/reference/process) |
-| `TextEncoder`, `TextDecoder` | globaux | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs#textencoder-and-textdecoder) |
-| `console.log` | global | les deux | écrit de l’UTF-8 sur la sortie standard |
-| `console.error`, `console.warn` | global | les deux | écrit de l’UTF-8 sur la sortie d’erreur standard (`console.info`, `console.debug` : sortie standard) |
-| `nona:process`, `node:process` | modules | all eight native targets | [process](/fr/reference/process) |
-| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/fr/reference/process) |
-| `nona:fs`, `node:fs` | modules | les deux | [Système de fichiers et encodage du texte](/fr/reference/fs) |
-| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
-| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/fr/reference/host-apis#events) |
-| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/fr/reference/host-apis#paths-nodepath) |
-| `nona:http`, `node:http`, `nona:net`, `node:net` | modules | les deux | [Réseau (en anglais)](/reference/network) |
-| `node:events`, `node:string_decoder` | modules | les deux | [Modules de support Node.js (en anglais)](/reference/network#supporting-modules) |
-| `URL`, `URLSearchParams`, `node:url`, `url` | globaux et module | les huit | [URL](/fr/reference/host-apis#url) |
-| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (et leurs noms sans préfixe) | modules | les huit | [Modules de support Node.js](/fr/reference/host-apis#nodejs-support-modules) |
-| `nona:ffi` | module | Windows (DLL), Linux (appels système) | [Fonctions natives (FFI)](/fr/reference/ffi) |
-| `nona:win32` | module | Windows | ci-dessous et [FFI](/fr/reference/ffi#nona-win32) |
+| API                                                                                                                                                                                                                                                                              | Nature            | Cibles                                | Référence                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()`                                                                                                                                             | globaux           | all eight native targets              | [Minuteurs et boucle d’événements](/fr/reference/host-apis)                                                        |
+| `process`                                                                                                                                                                                                                                                                        | global            | all eight native targets              | [process](/fr/reference/process)                                                                                   |
+| `TextEncoder`, `TextDecoder`                                                                                                                                                                                                                                                     | globaux           | les deux                              | [Système de fichiers et encodage du texte](/fr/reference/fs#textencoder-and-textdecoder)                           |
+| `console.log`                                                                                                                                                                                                                                                                    | global            | les deux                              | écrit de l’UTF-8 sur la sortie standard                                                                            |
+| `console.error`, `console.warn`                                                                                                                                                                                                                                                  | global            | les deux                              | écrit de l’UTF-8 sur la sortie d’erreur standard (`console.info`, `console.debug` : sortie standard)               |
+| `nona:process`, `node:process`                                                                                                                                                                                                                                                   | modules           | all eight native targets              | [process](/fr/reference/process)                                                                                   |
+| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers`                                                                                                                                                                                          | modules           | all eight native targets              | [Streams and standard I/O](/fr/reference/process)                                                                  |
+| `nona:fs`, `node:fs`                                                                                                                                                                                                                                                             | modules           | les deux                              | [Système de fichiers et encodage du texte](/fr/reference/fs)                                                       |
+| `node:async_hooks`, `nona:async_hooks`                                                                                                                                                                                                                                           | modules           | all native targets                    | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events`                                                                                                                                                                                                                                           | modules           | all native targets                    | [EventEmitter and asynchronous event helpers](/fr/reference/host-apis#events)                                      |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32`                                                                                                                                                                                                                        | modules           | all eight                             | [Paths](/fr/reference/host-apis#paths-nodepath)                                                                    |
+| `nona:http`, `node:http`, `nona:net`, `node:net`                                                                                                                                                                                                                                 | modules           | les deux                              | [Réseau (en anglais)](/reference/network)                                                                          |
+| `node:events`, `node:string_decoder`                                                                                                                                                                                                                                             | modules           | les deux                              | [Modules de support Node.js (en anglais)](/reference/network#supporting-modules)                                   |
+| `URL`, `URLSearchParams`, `node:url`, `url`                                                                                                                                                                                                                                      | globaux et module | les huit                              | [URL](/fr/reference/host-apis#url)                                                                                 |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (et leurs noms sans préfixe) | modules           | les huit                              | [Modules de support Node.js](/fr/reference/host-apis#nodejs-support-modules)                                       |
+| `nona:ffi`                                                                                                                                                                                                                                                                       | module            | Windows (DLL), Linux (appels système) | [Fonctions natives (FFI)](/fr/reference/ffi)                                                                       |
+| `nona:win32`                                                                                                                                                                                                                                                                     | module            | Windows                               | ci-dessous et [FFI](/fr/reference/ffi#nona-win32)                                                                  |
 
 ## Règles
 
@@ -37,59 +37,58 @@ Des déclarations prêtes à l’emploi construites sur [`nona:ffi`](/fr/referen
 
 ### user32
 
-| Export | Signature |
-| --- | --- |
-| `MessageBoxW` | `i32(ptr hwnd, wstr text, wstr caption, u32 type)` |
-| `GetSystemMetrics` | `i32(i32 index)` |
-| `SystemParametersInfoW` | `bool(u32 action, u32 param, wstr value, u32 flags)` — pour les paramètres chaîne comme `SPI_SETDESKWALLPAPER` |
-| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — pour les paramètres tampon comme `SPI_GETDESKWALLPAPER` |
+| Export                        | Signature                                                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `MessageBoxW`                 | `i32(ptr hwnd, wstr text, wstr caption, u32 type)`                                                             |
+| `GetSystemMetrics`            | `i32(i32 index)`                                                                                               |
+| `SystemParametersInfoW`       | `bool(u32 action, u32 param, wstr value, u32 flags)` — pour les paramètres chaîne comme `SPI_SETDESKWALLPAPER` |
+| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — pour les paramètres tampon comme `SPI_GETDESKWALLPAPER`  |
 
 ### kernel32
 
-| Export | Signature |
-| --- | --- |
-| `CreateMutexW` | `ptr(ptr attributes, bool initialOwner, wstr name)` |
-| `ReleaseMutex` | `bool(ptr mutex)` |
-| `CloseHandle` | `bool(ptr handle)` |
-| `GetModuleFileNameW` | `u32(ptr module, buf path, u32 size)` |
-| `GetCurrentProcessId` | `u32()` |
+| Export                | Signature                                           |
+| --------------------- | --------------------------------------------------- |
+| `CreateMutexW`        | `ptr(ptr attributes, bool initialOwner, wstr name)` |
+| `ReleaseMutex`        | `bool(ptr mutex)`                                   |
+| `CloseHandle`         | `bool(ptr handle)`                                  |
+| `GetModuleFileNameW`  | `u32(ptr module, buf path, u32 size)`               |
+| `GetCurrentProcessId` | `u32()`                                             |
 
 ### advapi32
 
-| Export | Signature |
-| --- | --- |
-| `RegCreateKeyExW` | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
-| `RegOpenKeyExW` | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)` |
-| `RegSetValueExW` | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)` |
-| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)` |
-| `RegDeleteValueW` | `i32(ptr key, wstr name)` |
-| `RegDeleteKeyW` | `i32(ptr key, wstr subKey)` |
-| `RegCloseKey` | `i32(ptr key)` |
+| Export             | Signature                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `RegCreateKeyExW`  | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
+| `RegOpenKeyExW`    | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)`                                                         |
+| `RegSetValueExW`   | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)`                                                    |
+| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)`                                                    |
+| `RegDeleteValueW`  | `i32(ptr key, wstr name)`                                                                                                |
+| `RegDeleteKeyW`    | `i32(ptr key, wstr subKey)`                                                                                              |
+| `RegCloseKey`      | `i32(ptr key)`                                                                                                           |
 
 ### Constantes
 
-| Export | Valeur |
-| --- | --- |
-| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE` | clés de registre prédéfinies (sous forme de handles étendus en signe) |
-| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS` | `0x20019`, `0x20006`, `0xF003F` |
-| `REG_SZ`, `REG_DWORD` | `1`, `4` |
-| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183` |
-| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER` | `0x73`, `0x14` |
-| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE` | `1`, `2` |
-| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION` | `0`, `0x10`, `0x40` |
-| `MAX_PATH` | `260` |
+| Export                                                          | Valeur                                                                |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE`  | clés de registre prédéfinies (sous forme de handles étendus en signe) |
+| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS`                       | `0x20019`, `0x20006`, `0xF003F`                                       |
+| `REG_SZ`, `REG_DWORD`                                           | `1`, `4`                                                              |
+| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183`                                                       |
+| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER`                  | `0x73`, `0x14`                                                        |
+| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE`                         | `1`, `2`                                                              |
+| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION`                   | `0`, `0x10`, `0x40`                                                   |
+| `MAX_PATH`                                                      | `260`                                                                 |
 
 ### Utilitaires
 
-| Export | Description |
-| --- | --- |
-| `lastError()` | `GetLastError()` capturé juste après le dernier appel FFI (réexporté depuis `nona:ffi`). |
-| `wideString(text)` | Un `Uint16Array` terminé par NUL pour les paramètres `buf` qui attendent une chaîne UTF-16. |
-| `fromWideString(buffer)` | Décode un tampon UTF-16 terminé par NUL. |
-| `readHandle(buffer)` | Lit un handle (par exemple un `HKEY`) qu’une fonction a écrit dans un tampon de 8 octets. |
+| Export                   | Description                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| `lastError()`            | `GetLastError()` capturé juste après le dernier appel FFI (réexporté depuis `nona:ffi`).    |
+| `wideString(text)`       | Un `Uint16Array` terminé par NUL pour les paramètres `buf` qui attendent une chaîne UTF-16. |
+| `fromWideString(buffer)` | Décode un tampon UTF-16 terminé par NUL.                                                    |
+| `readHandle(buffer)`     | Lit un handle (par exemple un `HKEY`) qu’une fonction a écrit dans un tampon de 8 octets.   |
 
 Pour les fonctions absentes de cette liste, déclarez-les vous-même avec `define` de [`nona:ffi`](/fr/reference/ffi).
-
 
 ## Native target availability
 

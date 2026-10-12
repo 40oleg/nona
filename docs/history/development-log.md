@@ -51,7 +51,7 @@
 - Добавлен `examples/matrix-calculator/cpp/matrix-calculator.cpp` с теми же операциями и входными
   матрицами; инструкция сборки сохранена в `examples/matrix-calculator/cpp/README.md`.
 - Собран GCC 16.2.0 UCRT64 с `-std=c++17 -O2 -s -static -Wall -Wextra
-  -Wpedantic -ffp-contract=off`. Предупреждений нет.
+-Wpedantic -ffp-contract=off`. Предупреждений нет.
 - C++ EXE и исходный JS запущены: оба завершились кодом 0, stderr пуст,
   stdout совпал после нормализации переводов строк Windows.
 - Размер C++ EXE: 204 288 байт; существующего Nona EXE: 510 976 байт.
@@ -533,7 +533,7 @@ Usage: **45% использовано, 55% осталось**. Цель акти
 Предыдущий turn дал прогресс: ordinary constructors. Добавлены собственные
 name/length функций: явное имя, прямой anonymous initializer/identifier assignment
 и значения свойств литерала, включая computed/numeric keys. Inference не проходит
-через comma/conditional/return и member assignment; __proto__ setter literal не
+через comma/conditional/return и member assignment; **proto** setter literal не
 задаёт имя. Inferred name не создаёт named-expression lexical binding.
 
 IR newFunction хранит name/nameSlot и parameterCount; liveness удерживает dynamic
@@ -999,7 +999,7 @@ setPrototypeOf и is. Общий prependFunctionBuiltin сохраняет exist
 property chain, новые objects/nodes зарегистрированы в static GC roots.
 
 Own attribute lookup учитывает data properties, array length, String indices/length,
-mapped arguments, global aliases и virtual __proto__. Key coercion выполняется
+mapped arguments, global aliases и virtual **proto**. Key coercion выполняется
 до ToObject(receiver); receiver/key/lookup temporaries root-ятся через callbacks.
 IsPrototypeOf проверяет nonobject argument до boxing receiver. ToLocaleString
 читает текущий toString и вызывает его с исходным receiver. Object.is реализует
@@ -1059,7 +1059,7 @@ accessor tests с gcStress прошли. Installer существует толь
 objects, own-only lookup, data/accessor fields без вызова getter, special String
 indices/length, array length, mapped arguments current cells и global aliases.
 Target box-ится до key coercion; key/target/result protected через callbacks.
-Для virtual __proto__ добавлены стабильные native getter/setter functions,
+Для virtual **proto** добавлены стабильные native getter/setter functions,
 metadata и static GC roots. Getter поддерживает primitives, setter — nullish,
 primitive no-op, prototype validation/cycles/immutable Object.prototype.
 EmitNativeFunction отделён от установки owner data property.
@@ -1095,7 +1095,7 @@ V8 14.6.202.34-node.32. README, matrix, memory contract и descriptor plan об�
 
 Далее — DefineOwnProperty/Object.defineProperty с invariants и exotic write cases;
 план фиксирует необходимость length readonly/extensibility state и реального
-__proto__ accessor node. Вся ES2020 цель остаётся активной. Usage **69% использовано,
+**proto** accessor node. Вся ES2020 цель остаётся активной. Usage **69% использовано,
 31% осталось**; порог остановки/выключения 20% остатка ещё не достигнут.
 
 ## 2026-09-22 — Object.defineProperty и exotic write invariants
@@ -1106,7 +1106,7 @@ Object target проверяется до key coercion, затем ToPropertyDes
 ValidateDescriptor сохраняет absent поля, проверяет nonconfigurable flags,
 SameValue (NaN/signed zero/identity), data↔accessor transitions. Перед отказом
 не изменяет target. GetOwnDescriptor выделен из public reflection в общий helper.
-__proto__ теперь настоящий static accessor node с прежними getter/setter identities;
+**proto** теперь настоящий static accessor node с прежними getter/setter identities;
 virtual fallback отключён. Attributes и методы удерживаются static GC roots.
 
 String indices/length допускают только совместимые descriptors. Mapped arguments
@@ -1211,7 +1211,7 @@ nonconstructability, HomeObject/super. Полная ES2020 цель ещё не 
 ## 2026-09-22 — concise methods и accessor literal syntax
 
 Parser поддерживает concise methods и get/set accessors: static/computed/string/
-numeric/keyword names, обычные методы get()/set(), __proto__ как own method/accessor.
+numeric/keyword names, обычные методы get()/set(), **proto** как own method/accessor.
 Getter arity0, setter arity1, unique method parameters; source span сохраняет
 исходный текст с comments. AST/IR несут method/accessor kind. Lowering вычисляет
 key один раз, строит get/set name prefix и держит object/key/function live.
@@ -1477,7 +1477,7 @@ Node. Журналы: `work/stage02-check.log`, `work/stage02-compare.log`,
 129 pass, 214 fail, 0 skip (`work/stage03-arrow-test262-report.json`). Из 214
 ошибок 205 — compile failures: недостающие параметры, синтаксис и другие
 конструкции; 9 runtime failures требуют `eval`, Symbol, Array.forEach или иных
- API за пределами текущего поднабора. Поддержка стрелок остаётся частичной.
+API за пределами текущего поднабора. Поддержка стрелок остаётся частичной.
 
 ## 2026-09-25 — этап 3, шаблонные строки без тегов
 

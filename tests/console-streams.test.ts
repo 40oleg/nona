@@ -1,11 +1,11 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import test from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // Primitive arguments only: Node formats them like String(), as console.log does here.
 // runOracle replaces console.log, so its name and length are not compared.
-const source=`
+const source = `
 console.error('b'); console.log('after');
 console.warn('w', 1, true); console.info('i', null); console.debug('d', undefined);
 console.error(); console.warn();
@@ -17,9 +17,18 @@ process.stderr.write('raw\\n'); console.error('after raw', 'é', '\\u{1F600}');
 for (let i = 0; i < 3; i++) { console.warn('w' + i); console.log('o' + i); }
 `;
 
-test('console.error and console.warn write to stderr, info and debug to stdout (#230)',()=>{
- const oracle=runOracle(source),result=runOnHost(source);
- assert.equal(result.status,0,JSON.stringify({stdout:result.stdout,stderr:result.stderr,error:result.error?.message}));
- assert.equal(result.stdout,oracle.stdout);
- assert.equal(result.stderr,oracle.stderr);
+test("console.error and console.warn write to stderr, info and debug to stdout (#230)", () => {
+    const oracle = runOracle(source),
+        result = runOnHost(source);
+    assert.equal(
+        result.status,
+        0,
+        JSON.stringify({
+            stdout: result.stdout,
+            stderr: result.stderr,
+            error: result.error?.message,
+        }),
+    );
+    assert.equal(result.stdout, oracle.stdout);
+    assert.equal(result.stderr, oracle.stderr);
 });

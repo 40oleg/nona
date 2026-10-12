@@ -2,12 +2,12 @@
 
 ## Pas à pas
 
-| Exemple | Ce qu’il montre | Cibles |
-| --- | --- | --- |
-| [Bonjour, minuteurs](/fr/examples/hello) | fonctions, gabarits de chaînes, microtâches et minuteurs | Windows, Linux |
-| [Museum : changeur de fond d’écran](/fr/examples/museum) | `nona:win32`, minuteurs, `node:fs`, `process`, un exécutable graphique avec ressources | Windows |
-| [Calculatrice matricielle](/fr/examples/matrix-calculator) | du code ES2020 ordinaire avec tableaux et exceptions | Windows, Linux |
-| [Comptage de mots](/fr/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode | Windows, Linux |
+| Exemple                                                    | Ce qu’il montre                                                                        | Cibles         |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------- |
+| [Bonjour, minuteurs](/fr/examples/hello)                   | fonctions, gabarits de chaînes, microtâches et minuteurs                               | Windows, Linux |
+| [Museum : changeur de fond d’écran](/fr/examples/museum)   | `nona:win32`, minuteurs, `node:fs`, `process`, un exécutable graphique avec ressources | Windows        |
+| [Calculatrice matricielle](/fr/examples/matrix-calculator) | du code ES2020 ordinaire avec tableaux et exceptions                                   | Windows, Linux |
+| [Comptage de mots](/fr/examples/word-count)                | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode                   | Windows, Linux |
 
 ## Exemples du dépôt
 

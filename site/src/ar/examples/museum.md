@@ -11,15 +11,15 @@
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 ‏`process.argv[0]` هو الملف التنفيذي و`process.argv[1]` هو الوسيط الأول. البرنامج الرسومي لا يملك نافذة طرفية، لذا تُعرَض الأخطاء عبر `MessageBoxW`:
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## الخطوة 3: نسخة واحدة فقط
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 يبقى الـ mutex المسمّى موجودًا ما دامت العملية التي أنشأته حية. فإذا كان موجودًا بالفعل، فهناك نسخة أخرى من Museum قيد التشغيل.
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## الخطوة 4: تعيين الخلفية
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 يحوّل المعامل `wstr` سلسلة JavaScript إلى نسخة UTF-16 مؤقتة منتهية بـ NUL، لذا تعمل المسارات التي تحتوي على أي محارف. يحفظ `SPIF_UPDATEINIFILE` الخلفية بعد تسجيل الخروج، ويُعلِم `SPIF_SENDCHANGE` البرامج الأخرى بالتغيير.
@@ -86,9 +91,26 @@ node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 للتراجع عن ذلك احذف القيمة `NonaMuseum` من ذلك المفتاح (مثلًا عبر `RegDeleteValueW` أو في محرر السجل).

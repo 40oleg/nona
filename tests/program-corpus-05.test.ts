@@ -1,2 +1,2 @@
-import {registerProgramShard} from './helpers/program-corpus.js';
+import { registerProgramShard } from "./helpers/program-corpus.js";
 registerProgramShard(5);

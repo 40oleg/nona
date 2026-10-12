@@ -1,22 +1,32 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
-import {runOnHost} from './helpers/host.js';
-import {compileToIR} from '../src/compiler.js';
-import {generate} from '../src/backend/x64/codegen.js';
-import type {NamedFragment} from '../src/backend/machine/model.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { runOnHost } from "./helpers/host.js";
+import { compileToIR } from "../src/compiler.js";
+import { generate } from "../src/backend/x64/codegen.js";
+import type { NamedFragment } from "../src/backend/machine/model.js";
 
 // Programs compiled with extra realms get __nonaCreateRealm(), which returns
 // the global object of a fresh realm. Node's vm contexts are realms too, so
 // the same program runs under Node.js with a vm-backed __nonaCreateRealm.
-const oracle=(source:string)=>spawnSync(process.execPath,['-e',"globalThis.__nonaCreateRealm=()=>require('vm').runInNewContext('globalThis');\n"+source],{encoding:'utf8',timeout:20_000}).stdout;
-const check=(source:string,realms=1)=>{
- const run=runOnHost(source,{gcStress:true,realms});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,oracle(source));
+const oracle = (source: string) =>
+    spawnSync(
+        process.execPath,
+        [
+            "-e",
+            "globalThis.__nonaCreateRealm=()=>require('vm').runInNewContext('globalThis');\n" +
+                source,
+        ],
+        { encoding: "utf8", timeout: 20_000 },
+    ).stdout;
+const check = (source: string, realms = 1) => {
+    const run = runOnHost(source, { gcStress: true, realms });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, oracle(source));
 };
 
-test('constructors fall back to the prototype intrinsic of new.target realm',()=>check(`
+test("constructors fall back to the prototype intrinsic of new.target realm", () =>
+    check(`
 var other = __nonaCreateRealm();
 // A bound function has no prototype property; its realm is its target's.
 var C = other.Object.bind();
@@ -36,7 +46,8 @@ console.log(Object.getPrototypeOf(new Fn()) === Fn.prototype, Object.getPrototyp
 console.log(Object.getPrototypeOf(new Promise(function () {})) === Promise.prototype);
 `));
 
-test('functions created from another realm\'s Function run in that realm',()=>check(`
+test("functions created from another realm's Function run in that realm", () =>
+    check(`
 var shadow = 'main';
 var other = __nonaCreateRealm();
 var f = new other.Function('return this;');
@@ -63,7 +74,8 @@ var s = Reflect.construct(Function, ['return 8'], D); console.log(s(), s.mark);
 console.log(globalThis.Function('return 40 + 2')());
 `));
 
-test('objects of another realm survive and are collected with this realm\'s',()=>check(`
+test("objects of another realm survive and are collected with this realm's", () =>
+    check(`
 var other = __nonaCreateRealm();
 // JSON.parse, Array.from and the collections of the other realm allocate with that realm's runtime.
 var text = JSON.stringify(Array.from({length: 40}, function (_, i) { return {i: i, s: 'x' + i, inner: [i]}; }));
@@ -85,31 +97,70 @@ console.log(map.size, map.get('k49').m);
 // the compiled JS functions, which every realm runs - must not use a realm's
 // own copy, or it misses state made by another realm's runtime: the shapes of
 // #157 were collected while in use this way.
-test('code shared by every realm uses no realm-specific runtime data',()=>{
- const program=generate(compileToIR(`var other = __nonaCreateRealm();
+test("code shared by every realm uses no realm-specific runtime data", () => {
+    const program = generate(
+        compileToIR(`var other = __nonaCreateRealm();
 var g = new other.Function('"use strict"; return function* () { yield 1; };')();
-console.log(g().next().value);`),{realms:1});
- const owner=new Map<string,NamedFragment>();
- for(const fragment of program.fragments){owner.set(fragment.name,fragment);for(const symbol of Object.keys(fragment.symbols))owner.set(symbol,fragment);}
- const perRealm=new Set(program.fragments.filter(f=>f.name.startsWith('R1$')).map(f=>f.name.slice(3)));
- const realmData=(target:string)=>{const fragment=owner.get(target);return fragment&&fragment.section==='.data'&&perRealm.has(fragment.name)?fragment.name:undefined;};
- // The collector, apart from the root marking it runs once per realm.
- const reached=new Set<NamedFragment>(),collector=new Set<string>(),pending=['rt.collect'];
- while(pending.length){
-  const fragment=owner.get(pending.pop()!);
-  if(!fragment||reached.has(fragment)||fragment.name==='rt.gcMarkRealm'||fragment.name.startsWith('R1$'))continue;
-  reached.add(fragment);
-  if(fragment.section!=='.text'){const name=realmData(fragment.name);if(name)collector.add(name);continue;}
-  for(const fixup of fragment.fixups)pending.push(fixup.target);
- }
- assert.deepEqual([...collector],[]);
- const functions=new Set<string>();
- for(const fragment of program.fragments)if(fragment.section==='.text'&&(fragment.name.startsWith('js.fn.')||fragment.name.startsWith('js.module.')))
-  for(const fixup of fragment.fixups){const name=realmData(fixup.target);if(name?.startsWith('rt.'))functions.add(name);}
- assert.deepEqual([...functions],[]);
+console.log(g().next().value);`),
+        { realms: 1 },
+    );
+    const owner = new Map<string, NamedFragment>();
+    for (const fragment of program.fragments) {
+        owner.set(fragment.name, fragment);
+        for (const symbol of Object.keys(fragment.symbols))
+            owner.set(symbol, fragment);
+    }
+    const perRealm = new Set(
+        program.fragments
+            .filter((f) => f.name.startsWith("R1$"))
+            .map((f) => f.name.slice(3)),
+    );
+    const realmData = (target: string) => {
+        const fragment = owner.get(target);
+        return fragment &&
+            fragment.section === ".data" &&
+            perRealm.has(fragment.name)
+            ? fragment.name
+            : undefined;
+    };
+    // The collector, apart from the root marking it runs once per realm.
+    const reached = new Set<NamedFragment>(),
+        collector = new Set<string>(),
+        pending = ["rt.collect"];
+    while (pending.length) {
+        const fragment = owner.get(pending.pop()!);
+        if (
+            !fragment ||
+            reached.has(fragment) ||
+            fragment.name === "rt.gcMarkRealm" ||
+            fragment.name.startsWith("R1$")
+        )
+            continue;
+        reached.add(fragment);
+        if (fragment.section !== ".text") {
+            const name = realmData(fragment.name);
+            if (name) collector.add(name);
+            continue;
+        }
+        for (const fixup of fragment.fixups) pending.push(fixup.target);
+    }
+    assert.deepEqual([...collector], []);
+    const functions = new Set<string>();
+    for (const fragment of program.fragments)
+        if (
+            fragment.section === ".text" &&
+            (fragment.name.startsWith("js.fn.") ||
+                fragment.name.startsWith("js.module."))
+        )
+            for (const fixup of fragment.fixups) {
+                const name = realmData(fixup.target);
+                if (name?.startsWith("rt.")) functions.add(name);
+            }
+    assert.deepEqual([...functions], []);
 });
 
-test('generators and tail calls of another realm run on the shared stacks',()=>check(`
+test("generators and tail calls of another realm run on the shared stacks", () =>
+    check(`
 var other = __nonaCreateRealm();
 var make = other.Function('return function* (n) { for (var i = 0; i < n; i++) yield {i: i}; };')();
 var total = 0, live = [];
@@ -121,7 +172,8 @@ var sum = 0; for (var c = 0; c < 200; c++) sum += call(function (o, a, s) { retu
 console.log(sum);
 `));
 
-test('another realm\'s eval with literal source runs as that realm\'s global code',()=>check(`
+test("another realm's eval with literal source runs as that realm's global code", () =>
+    check(`
 var other = __nonaCreateRealm();
 var C = other.eval('(class {})');
 try { C(); } catch (e) { console.log('class call', e instanceof other.TypeError, e instanceof TypeError); }
@@ -138,7 +190,8 @@ var local = { eval: eval }, counter = 1;
 console.log(local.eval('counter += 1; typeof other'), counter, local.eval('this') === globalThis);
 `));
 
-test('GeneratorFunction, AsyncFunction, AsyncGeneratorFunction and AggregateError fall back to new.target realm\'s prototype',()=>check(`
+test("GeneratorFunction, AsyncFunction, AsyncGeneratorFunction and AggregateError fall back to new.target realm's prototype", () =>
+    check(`
 var other = __nonaCreateRealm();
 var newTarget = new other.Function();
 var kinds = [['AsyncFunction', other.eval('(0, async function() {})'), async function () {}],
@@ -163,7 +216,7 @@ console.log(Object.getPrototypeOf(new AggregateError([])) === AggregateError.pro
 
 // [[Construct]] checks a derived constructor's result after its context is
 // popped, so both errors belong to the realm of the code that constructs.
-const constructErrorCases=`
+const constructErrorCases = `
 var other = __nonaCreateRealm();
 function realmOf(e) { return [e instanceof TypeError, e instanceof ReferenceError, e instanceof other.TypeError, e instanceof other.ReferenceError].join(); }
 function constructAll(name, C) {
@@ -177,7 +230,10 @@ function constructAll(name, C) {
 }
 `;
 
-test('derived constructor result TypeErrors are thrown in the caller\'s realm',()=>check(constructErrorCases+`
+test("derived constructor result TypeErrors are thrown in the caller's realm", () =>
+    check(
+        constructErrorCases +
+            `
 constructAll('null', other.eval('0, class extends Object { constructor() { return null; } }'));
 constructAll('number', other.eval('(class extends Object { constructor() { return 1; } })'));
 class Local extends Object { constructor() { return 'x'; } }
@@ -186,24 +242,42 @@ var Ok = other.eval('(class extends Object { constructor() { super(); return und
 console.log(new Ok() instanceof Ok, Object.getPrototypeOf(new Ok()) === Ok.prototype);
 class Finally extends Object { constructor() { try { return 1; } finally { console.log('finally'); } } }
 try { new Finally(); } catch (e) { console.log('finally', realmOf(e)); }
-`));
+`,
+    ));
 
 // V8 throws this ReferenceError in the constructor's realm, so Node.js is no
 // oracle here (Test262 derived-this-uninitialized-realm.js).
-test('a derived constructor\'s uninitialized this is a ReferenceError of the caller\'s realm',()=>{
- const run=runOnHost(constructErrorCases+`
+test("a derived constructor's uninitialized this is a ReferenceError of the caller's realm", () => {
+    const run = runOnHost(
+        constructErrorCases +
+            `
 constructAll('implicit', other.eval('(class C extends Object { constructor() {} })'));
 constructAll('explicit', other.eval('(class extends Object { constructor() { return undefined; } })'));
 class Local extends Object { constructor() { if (false) super(); } }
 constructAll('local', Local);
-`,{gcStress:true,realms:1});
- assert.equal(run.status,0,run.stderr);
- const here='false,true,false,false',there='false,false,false,true';
- const expected=['implicit','explicit','local'].flatMap(name=>[['new',here],['Reflect.construct',here],['other Reflect.construct',there],['proxy',here],['bound',here],['super',here],['other caller',there]].map(([how,realm])=>`${name} ${how} ${realm}`));
- assert.equal(run.stdout,expected.join('\n')+'\n');
+`,
+        { gcStress: true, realms: 1 },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    const here = "false,true,false,false",
+        there = "false,false,false,true";
+    const expected = ["implicit", "explicit", "local"].flatMap((name) =>
+        [
+            ["new", here],
+            ["Reflect.construct", here],
+            ["other Reflect.construct", there],
+            ["proxy", here],
+            ["bound", here],
+            ["super", here],
+            ["other caller", there],
+        ].map(([how, realm]) => `${name} ${how} ${realm}`),
+    );
+    assert.equal(run.stdout, expected.join("\n") + "\n");
 });
 
-test('Function(...) and nested evals with literal source inside another realm\'s eval code run in that realm',()=>check(`
+test("Function(...) and nested evals with literal source inside another realm's eval code run in that realm", () =>
+    check(
+        `
 var other = __nonaCreateRealm(), third = __nonaCreateRealm();
 var marker = 'main';
 other.marker = 'other'; other.third = third; third.marker = 'third';
@@ -214,9 +288,13 @@ console.log(other.eval('eval("Function(\\'return {}\\')()")') instanceof other.O
 console.log(other.eval('third.eval("marker")'), other.eval('third.Function("return marker")()'), other.eval('third.eval("Function(\\'return marker\\')()")'));
 console.log(other.eval('try { Function("(") } catch (e) { e instanceof SyntaxError }'), other.eval('(0, eval)("(function () { return eval(\\'marker\\'); })()")'));
 console.log(Function('return this')() === globalThis, (0, eval)('marker'), eval('Function("return marker")()'));
-`,2));
+`,
+        2,
+    ));
 
-test('Reflect.construct of a dynamic function constructor variable with literal source creates the function in the constructor\'s realm',()=>check(`
+test("Reflect.construct of a dynamic function constructor variable with literal source creates the function in the constructor's realm", () =>
+    check(
+        `
 var realmA = __nonaCreateRealm();
 realmA.calls = 0;
 var aGeneratorFunction = realmA.eval("(function* () {})").constructor;
@@ -245,4 +323,6 @@ var notGen = realmA.eval("(function () {})").constructor;
 var f4 = Reflect.construct(notGen, ["return this"]);
 console.log(f4() === realmA, f4 instanceof realmA.Function);
 try { Reflect.construct(aGeneratorFunction, ["yield ("], newTarget); } catch (e) { console.log(e instanceof realmA.SyntaxError, e instanceof SyntaxError); }
-`,2));
+`,
+        2,
+    ));

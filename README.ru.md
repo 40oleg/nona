@@ -26,12 +26,12 @@ Hello, from Nona!
 
 Скачайте сборку для своей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте и запустите `nona --help` (`./nona --help` в Linux, macOS и BSD). В архиве только исполняемый файл, лицензия и файл с версией; больше ничего ставить не нужно.
 
-| ОС | Сборка в релизе | Имя цели | Формат файлов |
-| --- | --- | --- | --- |
-| Windows x64 / ARM64 | `nona-win32-x64.zip`, `nona-win32-arm64.zip` | `win32-x64`, `win32-arm64` | PE32+ |
-| Linux x64 / ARM64 | `nona-linux-x64.zip`, `nona-linux-arm64.zip` | `linux-x64`, `linux-arm64` | ELF64 |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64 |
-| FreeBSD / OpenBSD x64 | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64 |
+| ОС                          | Сборка в релизе                                | Имя цели                     | Формат файлов |
+| --------------------------- | ---------------------------------------------- | ---------------------------- | ------------- |
+| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   | PE32+         |
+| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   | ELF64         |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
+| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64         |
 
 В POSIX-системах выполните `chmod +x nona`, если архиватор потерял права. [Песочница в браузере](https://40oleg.github.io/nona/playground) компилирует и скачивает программы для всех восьми целей без установки.
 
@@ -50,7 +50,7 @@ node dist/cli.js --help
 ```js
 // hello.js
 function greet(name) {
-  return `Hello, ${name}!`;
+    return `Hello, ${name}!`;
 }
 
 setTimeout(() => console.log(greet("from Nona")), 10);
@@ -66,12 +66,12 @@ nona build hello.js -o hello --target darwin-arm64      # кросс-компи�
 
 ```js
 // server.mjs
-import http from 'node:http';
+import http from "node:http";
 
 http.createServer((req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify({ path: req.url, time: Date.now() }));
-}).listen(8080, () => console.log('listening on http://localhost:8080'));
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ path: req.url, time: Date.now() }));
+}).listen(8080, () => console.log("listening on http://localhost:8080"));
 ```
 
 ```sh
@@ -100,20 +100,20 @@ nona --help | --version
 
 **API, совместимые с Node.js.** Они написаны для Nona, а не взяты из Node.js, и покрывают подмножества, описанные по ссылкам:
 
-| Модуль или глобальный объект | Что покрывает | Документы |
-| --- | --- | --- |
-| `process`, `node:process` | `argv`, `env`, `cwd`/`chdir`, `exit`, `nextTick`, стандартные потоки ввода-вывода, `hrtime`, `cpuUsage`, `memoryUsage`, сигналы, `kill`, `abort`, `execve` (POSIX), `title`, учётные данные и группы, диагностические отчёты, `getBuiltinModule`, `loadEnvFile`; все восемь целей | [process](docs/process.md) |
-| таймеры | `setTimeout`, `setInterval`, `setImmediate` и их `clear*`, `queueMicrotask`, `performance.now()` | [host APIs](docs/host-apis.md) |
-| `node:events` | EventEmitter, EventTarget, `AbortController`/`AbortSignal`, помощники асинхронного контекста | [события](docs/host-apis.md#events) |
-| `node:async_hooks` | `AsyncLocalStorage` и `AsyncResource`, контекст переносится через промисы, таймеры и микрозадачи | [host APIs](docs/host-apis.md) |
-| `node:stream` | Readable, Writable, Duplex, Transform, pipeline, backpressure, асинхронная итерация, адаптеры Web streams | [потоки](docs/host-apis.md#streams) |
-| `node:fs` | синхронные операции с файлами и каталогами на всех восьми целях | [файловая система](docs/fs.md) |
-| `node:path` | варианты POSIX и Windows, разбор, разрешение путей, glob | [пути](docs/path.md) |
-| `Buffer`, `Blob`, `File`, `node:buffer` | хранение байтов, стандартные кодировки, числовой доступ; `TextEncoder`/`TextDecoder` | [двоичные данные](docs/host-apis.md#buffer-and-binary-data) |
-| `node:http`, `node:net`, `node:string_decoder` | HTTP/1.1-серверы, клиенты и keep-alive-агенты; TCP-сокеты и серверы (Linux и Windows) | [сеть](docs/network.md) |
-| `URL`, `URLSearchParams`, `node:url` | разбор и сериализация по URL Standard, `fileURLToPath`, `pathToFileURL` | [URL](docs/host-apis.md#url) |
-| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | то, что используют npm-пакеты: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, проверки, случайные значения, хеши и HMAC | [вспомогательные модули](docs/host-apis.md#nodejs-support-modules) |
-| `nona:ffi`, `nona:win32` | вызов любых экспортов DLL в Windows | [FFI](docs/ffi.md) |
+| Модуль или глобальный объект                                                                                    | Что покрывает                                                                                                                                                                                                                                                                     | Документы                                                          |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `process`, `node:process`                                                                                       | `argv`, `env`, `cwd`/`chdir`, `exit`, `nextTick`, стандартные потоки ввода-вывода, `hrtime`, `cpuUsage`, `memoryUsage`, сигналы, `kill`, `abort`, `execve` (POSIX), `title`, учётные данные и группы, диагностические отчёты, `getBuiltinModule`, `loadEnvFile`; все восемь целей | [process](docs/process.md)                                         |
+| таймеры                                                                                                         | `setTimeout`, `setInterval`, `setImmediate` и их `clear*`, `queueMicrotask`, `performance.now()`                                                                                                                                                                                  | [host APIs](docs/host-apis.md)                                     |
+| `node:events`                                                                                                   | EventEmitter, EventTarget, `AbortController`/`AbortSignal`, помощники асинхронного контекста                                                                                                                                                                                      | [события](docs/host-apis.md#events)                                |
+| `node:async_hooks`                                                                                              | `AsyncLocalStorage` и `AsyncResource`, контекст переносится через промисы, таймеры и микрозадачи                                                                                                                                                                                  | [host APIs](docs/host-apis.md)                                     |
+| `node:stream`                                                                                                   | Readable, Writable, Duplex, Transform, pipeline, backpressure, асинхронная итерация, адаптеры Web streams                                                                                                                                                                         | [потоки](docs/host-apis.md#streams)                                |
+| `node:fs`                                                                                                       | синхронные операции с файлами и каталогами на всех восьми целях                                                                                                                                                                                                                   | [файловая система](docs/fs.md)                                     |
+| `node:path`                                                                                                     | варианты POSIX и Windows, разбор, разрешение путей, glob                                                                                                                                                                                                                          | [пути](docs/path.md)                                               |
+| `Buffer`, `Blob`, `File`, `node:buffer`                                                                         | хранение байтов, стандартные кодировки, числовой доступ; `TextEncoder`/`TextDecoder`                                                                                                                                                                                              | [двоичные данные](docs/host-apis.md#buffer-and-binary-data)        |
+| `node:http`, `node:net`, `node:string_decoder`                                                                  | HTTP/1.1-серверы, клиенты и keep-alive-агенты; TCP-сокеты и серверы (Linux и Windows)                                                                                                                                                                                             | [сеть](docs/network.md)                                            |
+| `URL`, `URLSearchParams`, `node:url`                                                                            | разбор и сериализация по URL Standard, `fileURLToPath`, `pathToFileURL`                                                                                                                                                                                                           | [URL](docs/host-apis.md#url)                                       |
+| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | то, что используют npm-пакеты: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, проверки, случайные значения, хеши и HMAC                                                                                                                        | [вспомогательные модули](docs/host-apis.md#nodejs-support-modules) |
+| `nona:ffi`, `nona:win32`                                                                                        | вызов любых экспортов DLL в Windows                                                                                                                                                                                                                                               | [FFI](docs/ffi.md)                                                 |
 
 **npm-пакеты.** Установите пакеты через npm как обычно и соберите программу: Nona разрешает `node_modules` при компиляции так же, как Node.js (`exports`, `imports`, условия, `main`, `type` из `package.json`, символические ссылки), и компилирует в исполняемый файл модули CommonJS, ES-модули и JSON; `require`, `module.exports`, `require.cache`, циклы и взаимодействие с ES-модулями работают как в Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod и другие проверены на совпадение с Node.js ([npm-пакеты](docs/npm.md)).
 
@@ -127,13 +127,13 @@ Nona выигрывает там, где и должен выигрывать и
 
 Собственный HTTP-сервер Nona против Node.js на одной и той же программе ([bench/http](bench/http/server.mjs), Linux x64, замер для v0.9.0):
 
-| Сценарий | Node.js, запр./с | Nona, запр./с | Память, Node.js / Nona |
-| --- | --- | --- | --- |
-| hello (keep-alive) | 71–72k | 61–70k | 80 / 16 МБ |
-| ответ JSON | 66–68k | 55–61k | 79 / 16 МБ |
-| новое соединение на запрос | 25–27k | 22–26k | 70 / 18 МБ |
-| ответ 64 КиБ | 20–21k | **33–38k** | 91 / 16 МБ |
-| тело запроса 16 КиБ | 49–54k | 41k | 78 / 16 МБ |
+| Сценарий                   | Node.js, запр./с | Nona, запр./с | Память, Node.js / Nona |
+| -------------------------- | ---------------- | ------------- | ---------------------- |
+| hello (keep-alive)         | 71–72k           | 61–70k        | 80 / 16 МБ             |
+| ответ JSON                 | 66–68k           | 55–61k        | 79 / 16 МБ             |
+| новое соединение на запрос | 25–27k           | 22–26k        | 70 / 18 МБ             |
+| ответ 64 КиБ               | 20–21k           | **33–38k**    | 91 / 16 МБ             |
+| тело запроса 16 КиБ        | 49–54k           | 41k           | 78 / 16 МБ             |
 
 Полное сравнение с Node.js, Deno и Bun, методика и известные медленные места — в [PERFORMANCE.md](PERFORMANCE.md).
 
@@ -165,6 +165,7 @@ Nona выигрывает там, где и должен выигрывать и
 
 ```sh
 npm run check            # сборка и модульные тесты
+npm run format           # форматирование исходников Prettier (проверяется в CI)
 npm run check:programs   # сравнение 1000 самостоятельных программ с Node.js
 npm run compare          # компиляция примеров совместимости и сравнение с Node.js
 ```

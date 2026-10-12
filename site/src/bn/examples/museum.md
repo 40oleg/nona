@@ -11,15 +11,15 @@ Museum একটি ব্যাকগ্রাউন্ড প্রোগ্�
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` হলো এক্সিকিউটেবল এবং `process.argv[1]` প্রথম আর্গুমেন্ট। একটি GUI প্রোগ্রামের কনসোল থাকে না, তাই ত্রুটিগুলো `MessageBoxW` দিয়ে দেখানো হয়:
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## ধাপ 3: একটিমাত্র ইনস্ট্যান্স
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 একটি নামযুক্ত mutex ততক্ষণ থাকে, যতক্ষণ এটি তৈরি করা প্রসেসটি থাকে। এটি আগে থেকেই থাকলে আরেকটি Museum চলছে।
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## ধাপ 4: ওয়ালপেপার সেট করা
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 `wstr` প্যারামিটার JavaScript স্ট্রিংটিকে একটি অস্থায়ী NUL-terminated UTF-16 কপিতে রূপান্তর করে, তাই যেকোনো অক্ষরসহ পাথ কাজ করে। `SPIF_UPDATEINIFILE` সাইন-আউটের পরেও ওয়ালপেপার বজায় রাখে এবং `SPIF_SENDCHANGE` অন্য প্রোগ্রামগুলোকে জানায়।
@@ -86,9 +91,26 @@ node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 এটি বাতিল করতে সেই কী-তে `NonaMuseum` মানটি মুছে দিন (যেমন `RegDeleteValueW` দিয়ে, অথবা Registry Editor-এ)।

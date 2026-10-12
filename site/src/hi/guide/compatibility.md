@@ -21,17 +21,17 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Node.js से अंतर
 
-| क्षेत्र | Nona | Node.js |
-| --- | --- | --- |
-| `process.argv` | `[execPath, ...arguments]`: `argv[1]` पहला आर्ग्युमेंट है | `[node, script, ...arguments]` |
-| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| टाइमर id | नंबर | `Timeout` ऑब्जेक्ट |
-| `readFileSync(path)` | `Uint8Array` लौटाता है | `Buffer` लौटाता है |
-| एन्कोडिंग | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | कई |
-| Windows पर एरर मैसेज | पाथ वैसा ही, जैसा दिया गया | एब्सोल्यूट पाथ |
-| मॉड्यूल | `nona:*`, [बिल्ट-इन मॉड्यूल](/hi/reference/modules) में सूचीबद्ध `node:*` मॉड्यूल, और बिल्ड के समय रिज़ॉल्व होने वाली फ़ाइलें और npm पैकेज | `node:*` का सब कुछ और npm पैकेज, रनटाइम पर रिज़ॉल्व |
-| `require` | CommonJS मॉड्यूल, बिल्ड के समय ज्ञात लिटरल स्पेसिफ़ायर के साथ ([npm पैकेज](/reference/npm)) | रनटाइम पर कोई भी स्पेसिफ़ायर |
-| स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है | आउटपुट छोड़ दिया जाता है या एरर आता है |
+| क्षेत्र                                | Nona                                                                                                                                                | Node.js                                                                        |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `process.argv`                         | `[execPath, ...arguments]`: `argv[1]` पहला आर्ग्युमेंट है                                                                                           | `[node, script, ...arguments]`                                                 |
+| `process`                              | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
+| टाइमर id                               | नंबर                                                                                                                                                | `Timeout` ऑब्जेक्ट                                                             |
+| `readFileSync(path)`                   | `Uint8Array` लौटाता है                                                                                                                              | `Buffer` लौटाता है                                                             |
+| एन्कोडिंग                              | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                   | कई                                                                             |
+| Windows पर एरर मैसेज                   | पाथ वैसा ही, जैसा दिया गया                                                                                                                          | एब्सोल्यूट पाथ                                                                 |
+| मॉड्यूल                                | `nona:*`, [बिल्ट-इन मॉड्यूल](/hi/reference/modules) में सूचीबद्ध `node:*` मॉड्यूल, और बिल्ड के समय रिज़ॉल्व होने वाली फ़ाइलें और npm पैकेज          | `node:*` का सब कुछ और npm पैकेज, रनटाइम पर रिज़ॉल्व                            |
+| `require`                              | CommonJS मॉड्यूल, बिल्ड के समय ज्ञात लिटरल स्पेसिफ़ायर के साथ ([npm पैकेज](/reference/npm))                                                         | रनटाइम पर कोई भी स्पेसिफ़ायर                                                   |
+| स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है                                                                                                                            | आउटपुट छोड़ दिया जाता है या एरर आता है                                         |
 
 ## प्रदर्शन
 

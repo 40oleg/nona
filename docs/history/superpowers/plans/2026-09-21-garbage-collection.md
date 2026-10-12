@@ -27,9 +27,9 @@ objects — отдельные корни. Аллокации имеют header 
 Files: `src/ir/liveness.ts`, `tests/liveness.test.ts`.
 
 - [x] RED: фиксированные проверки straight-line kills, branch unions, loop fixed
-  point, call args/result, member/update references и return roots.
+      point, call args/result, member/update references и return roots.
 - [x] Вычислять live-in/live-out блоков до fixed point; затем live-before каждой
-  операции и терминатора. Запись убивает прежний dest, чтения создают корни.
+      операции и терминатора. Запись убивает прежний dest, чтения создают корни.
 - [x] Обход всех вариантов Operation/Terminator исчерпывающий на уровне TypeScript.
 - [x] GREEN: unit tests, build; обновить журнал. Анализ сам ещё не означает GC.
 
@@ -39,24 +39,25 @@ Files: `src/runtime/memory.ts`, новый `src/runtime/gc.ts`, runtime index,
 object allocations, `tests/gc.test.ts`.
 
 - [x] Проверить все rt.alloc call sites: наружу выдаётся payload base либо
-  interior pointer? Зафиксировать поддерживаемые корни до реализации маркировки.
+      interior pointer? Зафиксировать поддерживаемые корни до реализации маркировки.
 
-  Результат аудита: `numeric/format.ts` выдаёт descriptor по `payload + 2400`
-  внутри 4096-byte allocation. Поэтому mark membership обязан находить **содержащий**
-  блок по диапазону `[payload, payload + size)`, не только точное начало. Это остаётся
-  точным GC: кандидаты приходят лишь из типизированных Value/pointer полей, не из
-  произвольных чисел. `strings.ts`, string indexing, objects и property nodes
-  возвращают base. `numeric/parse.ts` (включая num.ratio) и `io.ts` возвращают
-  только primitive/void, их рабочие буферы не живут за пределами runtime operation.
-  Внутренние pointers числовых алгоритмов пока защищены запретом сборки внутри runtime.
+    Результат аудита: `numeric/format.ts` выдаёт descriptor по `payload + 2400`
+    внутри 4096-byte allocation. Поэтому mark membership обязан находить **содержащий**
+    блок по диапазону `[payload, payload + size)`, не только точное начало. Это остаётся
+    точным GC: кандидаты приходят лишь из типизированных Value/pointer полей, не из
+    произвольных чисел. `strings.ts`, string indexing, objects и property nodes
+    возвращают base. `numeric/parse.ts` (включая num.ratio) и `io.ts` возвращают
+    только primitive/void, их рабочие буферы не живут за пределами runtime operation.
+    Внутренние pointers числовых алгоритмов пока защищены запретом сборки внутри runtime.
+
 - [x] Header: next, payload size, kind (raw/object/property), mark/scan state.
-  raw allocations не содержат traced edges; object/property посещают только
-  определённые pointer/Value поля, не произвольные биты чисел.
+      raw allocations не содержат traced edges; object/property посещают только
+      определённые pointer/Value поля, не произвольные биты чисел.
 - [x] Реализовать iterative marking без рекурсии по пользовательскому графу;
-  проверять membership heap pointer без разыменования памяти перед static literals.
+      проверять membership heap pointer без разыменования памяти перед static literals.
 - [x] Sweep удаляет только немаркированные блоки и обновляет счётчик живых байтов.
 - [x] Нативные тесты: недостижимые циклы освобождаются, живые shared graphs остаются,
-  static roots сохраняют динамические свойства, строки и deleted properties корректны.
+      static roots сохраняют динамические свойства, строки и deleted properties корректны.
 
 ## Task 3: Compiler safepoints и root frames
 
@@ -64,11 +65,11 @@ Files: `src/backend/x64/codegen.ts`, liveness, native/PE tests.
 
 - [x] Зарегистрировать globals и оба static prototypes; функции push/pop root frame.
 - [x] Инициализировать все root slots до первой сборки, очищать dead slots по
-  liveness перед safepoint. Вызовы сохраняют caller roots и аргументы до копирования.
+      liveness перед safepoint. Вызовы сохраняют caller roots и аргументы до копирования.
 - [x] Включить safepoint threshold и тестовый stress mode, не вводя пользовательский
-  нестандартный builtin. Межоперационные данные должны переживать частые сборки.
+      нестандартный builtin. Межоперационные данные должны переживать частые сборки.
 - [x] Проверить память при длинных циклах, вложенных вызовах/рекурсии и выходах,
-  dead temporary release, compiler stack probes и unwind metadata.
+      dead temporary release, compiler stack probes и unwind metadata.
 - [x] `npm.cmd run check`, `npm.cmd run compare`, независимое ревью, docs matrix/log.
 
 ## Следующие расширения

@@ -1,3 +1,3 @@
-import {runtimeBuffer} from '../lib/sources.generated.js';
+import { runtimeBuffer } from "../lib/sources.generated.js";
 /** Node Buffer backed by the runtime's native typed arrays. */
-export const bufferPreludeSource=runtimeBuffer;
+export const bufferPreludeSource = runtimeBuffer;

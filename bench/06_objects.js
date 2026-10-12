@@ -1,4 +1,5 @@
-const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const SCALE = Number(process.env.SCALE) || 1;
+const S = (n) => Math.round(n * SCALE);
 const N = S(1000000);
 let t = performance.now();
 const objs = new Array(N);
@@ -6,7 +7,10 @@ for (let i = 0; i < N; i++) objs[i] = { id: i, x: i * 2, y: i * 3, name: "n" };
 const tCreate = performance.now() - t;
 t = performance.now();
 let s = 0;
-for (let i = 0; i < N; i++) { const o = objs[i]; s += o.id + o.x + o.y; }
+for (let i = 0; i < N; i++) {
+    const o = objs[i];
+    s += o.id + o.x + o.y;
+}
 const tAccess = performance.now() - t;
 t = performance.now();
 const m = new Map();
@@ -22,4 +26,13 @@ for (let i = 0; i < N; i++) st.add(i);
 let cnt = 0;
 for (let i = 0; i < N; i++) if (st.has(i)) cnt++;
 const tSet = performance.now() - t;
-console.log(JSON.stringify({ create: tCreate, access: tAccess, mapSet: tMapSet, mapGet: tMapGet, set: tSet, check: s + s2 + cnt }));
+console.log(
+    JSON.stringify({
+        create: tCreate,
+        access: tAccess,
+        mapSet: tMapSet,
+        mapGet: tMapGet,
+        set: tSet,
+        check: s + s2 + cnt,
+    }),
+);

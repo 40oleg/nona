@@ -13,6 +13,7 @@ src/lib/sources.generated.ts
 bench/real/vendor/
 # Written by scripts/snapshot-program-corpus.mjs
 programs/manifest.json
+programs/*/cases.json
 # Templates with ${...} or @@...@@ substitutions, not JavaScript on their own
 # (scripts/lib-sources.mjs fills them in)
 src/lib/runtime/process-extensions.js

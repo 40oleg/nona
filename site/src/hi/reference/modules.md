@@ -4,25 +4,25 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 ## अवलोकन
 
-| API | प्रकार | टार्गेट | संदर्भ |
-| --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | ग्लोबल | all eight native targets | [टाइमर और इवेंट लूप](/hi/reference/host-apis) |
-| `process` | ग्लोबल | all eight native targets | [process](/hi/reference/process) |
-| `TextEncoder`, `TextDecoder` | ग्लोबल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs#textencoder-and-textdecoder) |
-| `console.log` | ग्लोबल | दोनों | स्टैंडर्ड आउटपुट में UTF-8 लिखता है |
-| `console.error`, `console.warn` | ग्लोबल | दोनों | स्टैंडर्ड एरर में UTF-8 लिखता है (`console.info`, `console.debug`: स्टैंडर्ड आउटपुट) |
-| `nona:process`, `node:process` | मॉड्यूल | all eight native targets | [process](/hi/reference/process) |
-| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/hi/reference/process) |
-| `nona:fs`, `node:fs` | मॉड्यूल | दोनों | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs) |
-| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
-| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/hi/reference/host-apis#events) |
-| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/hi/reference/host-apis#paths-nodepath) |
-| `nona:http`, `node:http`, `nona:net`, `node:net` | मॉड्यूल | दोनों | [नेटवर्किंग (अंग्रेज़ी)](/reference/network) |
-| `node:events`, `node:string_decoder` | मॉड्यूल | दोनों | [Node.js सहायक मॉड्यूल (अंग्रेज़ी)](/reference/network#supporting-modules) |
-| `URL`, `URLSearchParams`, `node:url`, `url` | ग्लोबल और मॉड्यूल | सभी आठ | [URL](/hi/reference/host-apis#url) |
-| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (और प्रीफ़िक्स के बिना उनके नाम) | मॉड्यूल | सभी आठ | [Node.js सहायक मॉड्यूल](/hi/reference/host-apis#nodejs-support-modules) |
-| `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
-| `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |
+| API                                                                                                                                                                                                                                                                                  | प्रकार            | टार्गेट                           | संदर्भ                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()`                                                                                                                                                 | ग्लोबल            | all eight native targets          | [टाइमर और इवेंट लूप](/hi/reference/host-apis)                                                                      |
+| `process`                                                                                                                                                                                                                                                                            | ग्लोबल            | all eight native targets          | [process](/hi/reference/process)                                                                                   |
+| `TextEncoder`, `TextDecoder`                                                                                                                                                                                                                                                         | ग्लोबल            | दोनों                             | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs#textencoder-and-textdecoder)                                  |
+| `console.log`                                                                                                                                                                                                                                                                        | ग्लोबल            | दोनों                             | स्टैंडर्ड आउटपुट में UTF-8 लिखता है                                                                                |
+| `console.error`, `console.warn`                                                                                                                                                                                                                                                      | ग्लोबल            | दोनों                             | स्टैंडर्ड एरर में UTF-8 लिखता है (`console.info`, `console.debug`: स्टैंडर्ड आउटपुट)                               |
+| `nona:process`, `node:process`                                                                                                                                                                                                                                                       | मॉड्यूल           | all eight native targets          | [process](/hi/reference/process)                                                                                   |
+| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers`                                                                                                                                                                                              | modules           | all eight native targets          | [Streams and standard I/O](/hi/reference/process)                                                                  |
+| `nona:fs`, `node:fs`                                                                                                                                                                                                                                                                 | मॉड्यूल           | दोनों                             | [फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग](/hi/reference/fs)                                                              |
+| `node:async_hooks`, `nona:async_hooks`                                                                                                                                                                                                                                               | modules           | all native targets                | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events`                                                                                                                                                                                                                                               | modules           | all native targets                | [EventEmitter and asynchronous event helpers](/hi/reference/host-apis#events)                                      |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32`                                                                                                                                                                                                                            | modules           | all eight                         | [Paths](/hi/reference/host-apis#paths-nodepath)                                                                    |
+| `nona:http`, `node:http`, `nona:net`, `node:net`                                                                                                                                                                                                                                     | मॉड्यूल           | दोनों                             | [नेटवर्किंग (अंग्रेज़ी)](/reference/network)                                                                       |
+| `node:events`, `node:string_decoder`                                                                                                                                                                                                                                                 | मॉड्यूल           | दोनों                             | [Node.js सहायक मॉड्यूल (अंग्रेज़ी)](/reference/network#supporting-modules)                                         |
+| `URL`, `URLSearchParams`, `node:url`, `url`                                                                                                                                                                                                                                          | ग्लोबल और मॉड्यूल | सभी आठ                            | [URL](/hi/reference/host-apis#url)                                                                                 |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (और प्रीफ़िक्स के बिना उनके नाम) | मॉड्यूल           | सभी आठ                            | [Node.js सहायक मॉड्यूल](/hi/reference/host-apis#nodejs-support-modules)                                            |
+| `nona:ffi`                                                                                                                                                                                                                                                                           | मॉड्यूल           | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi)                                                                           |
+| `nona:win32`                                                                                                                                                                                                                                                                         | मॉड्यूल           | Windows                           | नीचे और [FFI](/hi/reference/ffi#nona-win32) में                                                                    |
 
 ## नियम
 
@@ -37,59 +37,58 @@ Nona प्रोग्राम Node.js के बिना चलते है
 
 ### user32
 
-| एक्सपोर्ट | सिग्नेचर |
-| --- | --- |
-| `MessageBoxW` | `i32(ptr hwnd, wstr text, wstr caption, u32 type)` |
-| `GetSystemMetrics` | `i32(i32 index)` |
-| `SystemParametersInfoW` | `bool(u32 action, u32 param, wstr value, u32 flags)` — `SPI_SETDESKWALLPAPER` जैसे स्ट्रिंग पैरामीटर के लिए |
-| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — `SPI_GETDESKWALLPAPER` जैसे बफ़र पैरामीटर के लिए |
+| एक्सपोर्ट                     | सिग्नेचर                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `MessageBoxW`                 | `i32(ptr hwnd, wstr text, wstr caption, u32 type)`                                                          |
+| `GetSystemMetrics`            | `i32(i32 index)`                                                                                            |
+| `SystemParametersInfoW`       | `bool(u32 action, u32 param, wstr value, u32 flags)` — `SPI_SETDESKWALLPAPER` जैसे स्ट्रिंग पैरामीटर के लिए |
+| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — `SPI_GETDESKWALLPAPER` जैसे बफ़र पैरामीटर के लिए      |
 
 ### kernel32
 
-| एक्सपोर्ट | सिग्नेचर |
-| --- | --- |
-| `CreateMutexW` | `ptr(ptr attributes, bool initialOwner, wstr name)` |
-| `ReleaseMutex` | `bool(ptr mutex)` |
-| `CloseHandle` | `bool(ptr handle)` |
-| `GetModuleFileNameW` | `u32(ptr module, buf path, u32 size)` |
-| `GetCurrentProcessId` | `u32()` |
+| एक्सपोर्ट             | सिग्नेचर                                            |
+| --------------------- | --------------------------------------------------- |
+| `CreateMutexW`        | `ptr(ptr attributes, bool initialOwner, wstr name)` |
+| `ReleaseMutex`        | `bool(ptr mutex)`                                   |
+| `CloseHandle`         | `bool(ptr handle)`                                  |
+| `GetModuleFileNameW`  | `u32(ptr module, buf path, u32 size)`               |
+| `GetCurrentProcessId` | `u32()`                                             |
 
 ### advapi32
 
-| एक्सपोर्ट | सिग्नेचर |
-| --- | --- |
-| `RegCreateKeyExW` | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
-| `RegOpenKeyExW` | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)` |
-| `RegSetValueExW` | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)` |
-| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)` |
-| `RegDeleteValueW` | `i32(ptr key, wstr name)` |
-| `RegDeleteKeyW` | `i32(ptr key, wstr subKey)` |
-| `RegCloseKey` | `i32(ptr key)` |
+| एक्सपोर्ट          | सिग्नेचर                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `RegCreateKeyExW`  | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
+| `RegOpenKeyExW`    | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)`                                                         |
+| `RegSetValueExW`   | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)`                                                    |
+| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)`                                                    |
+| `RegDeleteValueW`  | `i32(ptr key, wstr name)`                                                                                                |
+| `RegDeleteKeyW`    | `i32(ptr key, wstr subKey)`                                                                                              |
+| `RegCloseKey`      | `i32(ptr key)`                                                                                                           |
 
 ### कॉन्स्टेंट
 
-| एक्सपोर्ट | मान |
-| --- | --- |
-| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE` | पूर्वनिर्धारित रजिस्ट्री key (sign-extended हैंडल के रूप में) |
-| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS` | `0x20019`, `0x20006`, `0xF003F` |
-| `REG_SZ`, `REG_DWORD` | `1`, `4` |
-| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183` |
-| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER` | `0x73`, `0x14` |
-| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE` | `1`, `2` |
-| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION` | `0`, `0x10`, `0x40` |
-| `MAX_PATH` | `260` |
+| एक्सपोर्ट                                                       | मान                                                           |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE`  | पूर्वनिर्धारित रजिस्ट्री key (sign-extended हैंडल के रूप में) |
+| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS`                       | `0x20019`, `0x20006`, `0xF003F`                               |
+| `REG_SZ`, `REG_DWORD`                                           | `1`, `4`                                                      |
+| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183`                                               |
+| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER`                  | `0x73`, `0x14`                                                |
+| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE`                         | `1`, `2`                                                      |
+| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION`                   | `0`, `0x10`, `0x40`                                           |
+| `MAX_PATH`                                                      | `260`                                                         |
 
 ### सहायक फ़ंक्शन
 
-| एक्सपोर्ट | विवरण |
-| --- | --- |
-| `lastError()` | सबसे हाल की FFI कॉल के ठीक बाद सहेजा गया `GetLastError()` (`nona:ffi` से री-एक्सपोर्ट)। |
-| `wideString(text)` | उन `buf` पैरामीटर के लिए NUL-terminated `Uint16Array` जो UTF-16 स्ट्रिंग की अपेक्षा करते हैं। |
-| `fromWideString(buffer)` | NUL-terminated UTF-16 बफ़र को डिकोड करता है। |
-| `readHandle(buffer)` | वह हैंडल (उदाहरण के लिए `HKEY`) पढ़ता है जिसे किसी फ़ंक्शन ने 8-बाइट बफ़र में लिखा है। |
+| एक्सपोर्ट                | विवरण                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `lastError()`            | सबसे हाल की FFI कॉल के ठीक बाद सहेजा गया `GetLastError()` (`nona:ffi` से री-एक्सपोर्ट)।       |
+| `wideString(text)`       | उन `buf` पैरामीटर के लिए NUL-terminated `Uint16Array` जो UTF-16 स्ट्रिंग की अपेक्षा करते हैं। |
+| `fromWideString(buffer)` | NUL-terminated UTF-16 बफ़र को डिकोड करता है।                                                  |
+| `readHandle(buffer)`     | वह हैंडल (उदाहरण के लिए `HKEY`) पढ़ता है जिसे किसी फ़ंक्शन ने 8-बाइट बफ़र में लिखा है।        |
 
 जो फ़ंक्शन सूची में नहीं हैं, उन्हें [`nona:ffi`](/hi/reference/ffi) के `define` से ख़ुद घोषित करें।
-
 
 ## Native target availability
 

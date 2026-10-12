@@ -1,49 +1,55 @@
 export type Fixup = {
-  offset: number;
-  target: string;
-  addend: number;
-  kind: "rel32" | "rva32" | "va64" | "arm64-page21" | "arm64-pageoff12" | "arm64-branch26";
+    offset: number;
+    target: string;
+    addend: number;
+    kind:
+        | "rel32"
+        | "rva32"
+        | "va64"
+        | "arm64-page21"
+        | "arm64-pageoff12"
+        | "arm64-branch26";
 };
 export interface CodeFragment {
-  bytes: Uint8Array;
-  fixups: Fixup[];
-  symbols: Record<string, number>;
-  /** Native syscall instruction positions for OS loader registration. */
-  syscalls?: {offset:number;number:number}[];
-  /** The instructions as assembly text (nona build --print-asm), by offset. */
-  listing?: {offset:number;text:string}[];
+    bytes: Uint8Array;
+    fixups: Fixup[];
+    symbols: Record<string, number>;
+    /** Native syscall instruction positions for OS loader registration. */
+    syscalls?: { offset: number; number: number }[];
+    /** The instructions as assembly text (nona build --print-asm), by offset. */
+    listing?: { offset: number; text: string }[];
 }
 export type NamedFragment = CodeFragment & {
-  name: string;
-  section: ".text" | ".rdata" | ".data";
-  alignment?: number;
-  /** A string record (runtime/value.ts stringLiteral): the text it holds. */
-  stringText?: string;
+    name: string;
+    section: ".text" | ".rdata" | ".data";
+    alignment?: number;
+    /** A string record (runtime/value.ts stringLiteral): the text it holds. */
+    stringText?: string;
 };
 export interface ImportSymbol {
-  dll: string;
-  name: string;
-  symbol: string;
+    dll: string;
+    name: string;
+    symbol: string;
 }
 export interface SavedRegister {
-  register: number;
-  codeOffset: number;
-  stackOffset: number;
+    register: number;
+    codeOffset: number;
+    stackOffset: number;
 }
 export interface UnwindFunction {
-  begin: string;
-  end: string;
-  prologSize: number;
-  stackAllocation: number;
-  savedRegisters: SavedRegister[];
-  allocationCodeOffset?: number;
-  pushedRegisters?: { register: number; codeOffset: number }[];
+    begin: string;
+    end: string;
+    prologSize: number;
+    stackAllocation: number;
+    savedRegisters: SavedRegister[];
+    allocationCodeOffset?: number;
+    pushedRegisters?: { register: number; codeOffset: number }[];
 }
 export interface NativeProgram {
-  fragments: NamedFragment[];
-  imports: ImportSymbol[];
-  entry: string;
-  functions: UnwindFunction[];
-  /** The program's own functions as x86-64 assembly text (nona build --print-asm). */
-  assembly?: string;
+    fragments: NamedFragment[];
+    imports: ImportSymbol[];
+    entry: string;
+    functions: UnwindFunction[];
+    /** The program's own functions as x86-64 assembly text (nona build --print-asm). */
+    assembly?: string;
 }

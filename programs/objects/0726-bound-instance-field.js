@@ -1,7 +1,11 @@
 class Accumulator {
-  #total = 0;
-  add = value => { this.#total += value; };
-  get total() { return this.#total; }
+    #total = 0;
+    add = (value) => {
+        this.#total += value;
+    };
+    get total() {
+        return this.#total;
+    }
 }
 const accumulator = new Accumulator();
 [1, 4, 9].forEach(accumulator.add);

@@ -1,4 +1,5 @@
-const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const SCALE = Number(process.env.SCALE) || 1;
+const S = (n) => Math.round(n * SCALE);
 const N = S(10000000);
 let t = performance.now();
 const a = new Float64Array(N);

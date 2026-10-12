@@ -1,9 +1,9 @@
-import type {Target} from '../../src/target.js';
+import type { Target } from "../../src/target.js";
 
-export function selfhostFsProbeSource(target:Target):string {
- return `import {mkdirSync,rmdirSync,writeFileSync,readFileSync,statSync,realpathSync,readdirSync,renameSync,unlinkSync} from 'node:fs';
+export function selfhostFsProbeSource(target: Target): string {
+    return `import {mkdirSync,rmdirSync,writeFileSync,readFileSync,statSync,realpathSync,readdirSync,renameSync,unlinkSync} from 'node:fs';
 import {resolve} from 'node:path';
-const directory=${JSON.stringify('.nona-selfhost-fs-'+target)};
+const directory=${JSON.stringify(".nona-selfhost-fs-" + target)};
 mkdirSync(directory);
 const original=directory+'/original',renamed=directory+'/renamed';
 try{
@@ -19,4 +19,5 @@ try{
  renameSync(original,renamed);console.log('renamed',readFileSync(renamed,'utf8'));
 }finally{try{unlinkSync(original)}catch{}try{unlinkSync(renamed)}catch{}rmdirSync(directory);}`;
 }
-export const selfhostFsProbeExpected='exclusive original\nidentity bigint bigint true\nrealpath true\nentry original true false false\nrenamed original\n';
+export const selfhostFsProbeExpected =
+    "exclusive original\nidentity bigint bigint true\nrealpath true\nentry original true false false\nrenamed original\n";

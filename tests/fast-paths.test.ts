@@ -1,14 +1,14 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // Programs whose observable behaviour must not change when the runtime takes
 // a fast path (dense elements, named-property lookups, Map/Set hash index,
 // chunked heap, string builder, inline number operators) instead of the generic one. Each is run on
 // the host target under GC stress and compared with Node.js.
-const programs:Record<string,string>={
- 'dense elements and array semantics':`
+const programs: Record<string, string> = {
+    "dense elements and array semantics": `
 const a=[];for(let i=0;i<300;i++)a.push(i);let s=0;for(let i=0;i<a.length;i++)s+=a[i];
 const b=new Array(50);for(let i=0;i<50;i++)b[i]=i*2;
 const c=[1,2,3];c[5]=9;c[2]="x";
@@ -41,7 +41,7 @@ const w=[1,2,3];Object.defineProperty(w,"length",{writable:false});try{w.push(4)
 const x=[0];Object.defineProperty(Array.prototype,"1",{set(val){console.log("setter",val);},get(){return "G";},configurable:true});x[1]="x";console.log(x[1],x.length,Object.keys(x).join());delete Array.prototype[1];
 const y=[1,2,3];y.x=1;console.log(Object.keys(y).join(),JSON.stringify(y),Object.entries(y).length);
 `,
- 'array iteration for spread, destructuring and rest':`
+    "array iteration for spread, destructuring and rest": `
 const a=[1,2,3];console.log([...a].join(),Math.max(...a),[0,...a,4].join());var [x,,z,w=9]=a;console.log(x,z,w);
 const [h,...r]=[5,6,7];console.log(h,r.join(),Array.isArray(r),r.length);const [s0,...sr]="h\u00e9llo";console.log(s0,sr.join("|"));
 console.log([..."a\ud83d\ude00b"].length,[...new Set([1,2,2])].join(),[...a.keys()].join(),JSON.stringify([...a.entries()]),[...new Map([[1,2]])].join());
@@ -57,7 +57,7 @@ function f(...args){return args.length;}console.log(f(...a,...a),f(...[]),f(..."
 Object.defineProperty(Array.prototype,0,{set(v){console.log("setter",v);},configurable:true});console.log([...a].join(),JSON.stringify([...[]]));delete Array.prototype[0];
 const al={length:2,0:"x",1:"y",[Symbol.iterator]:Array.prototype[Symbol.iterator]};console.log([...al].join());
 `,
- 'named properties':`
+    "named properties": `
 const o={a:1,b:2};o.c=3;o.a=10;console.log(o.a,o.b,o.c,o.d,JSON.stringify(o),Object.keys(o).join());
 const p=Object.create(o);p.b=20;console.log(p.a,p.b,p.c,Object.keys(p).join(),p.hasOwnProperty("a"),"a" in p);
 const g={get x(){return 42;},set y(v){this._y=v*2;}};const h=Object.create(g);h.y=5;console.log(h.x,h._y,Object.keys(h).join(),g.x);
@@ -80,7 +80,7 @@ const nested={a:{b:{c:1}}};nested.a.b.c=2;nested.a.b.d=3;console.log(JSON.string
 Object.prototype.inherited="I";console.log(({}).inherited,[].inherited);delete Object.prototype.inherited;console.log(({}).inherited);
 const emptyKey={};emptyKey[""]="e";console.log(emptyKey[""],Object.keys(emptyKey).length);
 `,
- 'Map, Set and WeakMap with many keys':`
+    "Map, Set and WeakMap with many keys": `
 const m=new Map();for(let i=0;i<500;i++)m.set(i,i*2);let s=0;for(let i=0;i<500;i++)s+=m.get(i);
 console.log(m.size,s,m.get(-0),m.get(499),m.has("5"),m.get(500));
 m.set(NaN,"nan");m.set(-0,"zero");m.set("str",1);m.set("str",2);const o={};m.set(o,"obj");m.set(10n,"big");m.set(true,"t");m.set(undefined,"u");m.set(null,"n");
@@ -92,7 +92,7 @@ const wm=new WeakMap();const keys=[];for(let i=0;i<100;i++){const k={i};keys.pus
 let ws=0;for(const k of keys)ws+=wm.get(k);console.log(ws,wm.has({}),wm.delete(keys[5]),wm.has(keys[5]),wm.get(keys[6]));
 keys.length=50;for(let i=0;i<300;i++)({a:i});let ws2=0;for(const k of keys)ws2+=wm.get(k);console.log(ws2,wm.get(keys[49]));
 `,
- 'seeded property and collection hashes':`
+    "seeded property and collection hashes": `
 const o={};for(let i=0;i<60;i++)o["k"+i]=i;for(let i=0;i<60;i+=3)delete o["k"+i];o.k3=-1;let s=0;for(const k in o)s+=o[k];
 console.log(Object.keys(o).length,s,o.k59,o.k3,o.k0,"k30" in o,Object.keys(o).slice(0,4).join());
 const m=new Map();for(let i=0;i<150;i++){m.set("s"+i,i);m.set(i*0.5,-i);}m.set(NaN,"nan");m.set(-0,"zero");m.set(1n,"big");const sym=Symbol("x");m.set(sym,"sym");
@@ -100,7 +100,7 @@ for(let i=0;i<150;i+=2)m.delete("s"+i);console.log(m.size,m.get("s1"),m.get("s2"
 const st=new Set();for(let i=0;i<200;i++)st.add(i%50+"");console.log(st.size,st.has("49"),st.has("50"));
 const wm=new WeakMap();const keys=[];for(let i=0;i<40;i++){const k={i};keys.push(k);wm.set(k,i);}console.log(wm.get(keys[23]),wm.has({}));
 `,
- 'promise chains and sort':`
+    "promise chains and sort": `
 let p=Promise.resolve(0);for(let i=0;i<40;i++)p=p.then(v=>v+1);p.then(v=>console.log("chain",v));
 const a=[5,3,undefined,1,,4,"b","a",10,2];a.sort();console.log(a.length,4 in a,String(a[0]),String(a[9]));
 const b=[5,3,1,4,2].sort((x,y)=>y-x);console.log(b.join());
@@ -108,7 +108,7 @@ const o={length:3,0:"c",1:"a",2:"b"};Array.prototype.sort.call(o);console.log(o[
 console.log([{k:1,v:"a"},{k:0,v:"b"},{k:1,v:"c"},{k:0,v:"d"}].sort((x,y)=>x.k-y.k).map(x=>x.v).join(""));
 const big=[];for(let i=0;i<60;i++)big.push((i*7919)%1009);big.sort((x,y)=>x-y);let ok=true;for(let i=1;i<big.length;i++)if(big[i-1]>big[i])ok=false;console.log(ok,big[0],big[59]);
 `,
- 'inline number operators':`
+    "inline number operators": `
 const vals=[0,-0,1,-1,1.5,NaN,Infinity,2**31,2**32+5,2**53,"3","abc",true,null,undefined,10n,{},-2147483648,4294967295];
 const fmt=r=>typeof r==='object'?'obj':Object.is(r,-0)?'-0':String(r);
 const ops=[(a,b)=>a+b,(a,b)=>a-b,(a,b)=>a*b,(a,b)=>a/b,(a,b)=>a%b,(a,b)=>a<b,(a,b)=>a<=b,(a,b)=>a>b,(a,b)=>a>=b,(a,b)=>a==b,(a,b)=>a!=b,(a,b)=>a===b,(a,b)=>a!==b,(a,b)=>a&b,(a,b)=>a|b,(a,b)=>a^b,(a,b)=>a<<b,(a,b)=>a>>b,(a,b)=>a>>>b];
@@ -124,7 +124,7 @@ console.log(out.length,h,out.slice(0,60).join());
 const o={valueOf(){return 7;}};console.log(o+1,o*2,o<8,o==7,-o,!o,1<<o,o>>>1);
 let i=0;for(;i<10;i++);console.log(i,i>>1,i<<30,i<<31,(2**40)|0,(2**32+7)&255,(-1)>>>0,(-1)>>>31,1.9|0,-1.9|0);
 `,
- 'async functions with pooled coroutine stacks':`
+    "async functions with pooled coroutine stacks": `
 const log=[];
 async function leaf(x){return x+1;}
 async function thrower(x){if(x%3===0)throw new Error("e"+x);await null;return x;}
@@ -141,13 +141,13 @@ async function main(){
 }
 main().then(()=>console.log(log.join("|")));
 `,
- 'large block churn':`
+    "large block churn": `
 let s="x".repeat(9000);for(let i=0;i<400;i++)s=s+"y";console.log(s.length,s.slice(-3));
 const keep=[];for(let i=0;i<200;i++){keep.push(new Float64Array(3000));if(keep.length>5)keep.shift();}console.log(keep.length,keep[0].length);
 let b="";for(let i=0;i<3000;i++)b+="abc"+i;console.log(b.length,b.indexOf("abc2999"));
 const rows=[];for(let i=0;i<400;i++)rows.push({id:i,name:"n"+i,v:i*1.5});let text;for(let k=0;k<6;k++)text=JSON.stringify(rows);const again=JSON.stringify(rows);console.log(text.length,text===again,JSON.parse(text).length,JSON.parse(again)[399].name);
 `,
- 'number formatting and parsing':`
+    "number formatting and parsing": `
 const vals=[0,-0,1,-1,1.5,-2.5,0.1,0.2,0.3,0.1+0.2,1/3,2/3,1e21,1e-7,1e-6,123456.789,-0.000001,0.000001,9007199254740991,9007199254740992,4503599627370496.5,4503599627370497,1e15+0.5,0.5,1.005,1.1,2.675,100,1e3,1e16,1e17,12345678901234567890,0.000123,1.7976931348623157e308,5e-324,NaN,Infinity,-Infinity,3.14159,2.718281828459045,1.0000000000000002,0.30000000000000004,99.99,-99.99,1234.5678,0.1234567,1e-5,123e-7,4.35,0.07,1e22,1e-22,25.4,33.33,66.6,1.23456789012e5];
 let seed=0x831d55a1729bc044n;const view=new DataView(new ArrayBuffer(8));
 for(let i=0;i<400;i++){seed=BigInt.asUintN(64,seed*6364136223846793005n+1442695040888963407n);view.setBigUint64(0,seed);vals.push(view.getFloat64(0));
@@ -157,7 +157,7 @@ let h=0;for(let i=0;i<out.length;i++)h=(h*31+out.charCodeAt(i))|0;
 console.log(out.length,h,out.slice(0,300));
 console.log(JSON.parse("[1.5,-2.25,1e3,0.1,123456789012345680000,5e-324,1E+2,-0]").join(),(255).toString(16),(0.5).toString(2),(1e21).toFixed(2),(1.005).toFixed(2),(123.456).toPrecision(4),(0.00001).toExponential(2));
 `,
- 'parameters captured by value':`
+    "parameters captured by value": `
 function f(a){ function a(){ return 7; } return a(); }
 function g(a){ var a; return a; }
 function h(a){ var a = 5; const r=()=>a; return r(); }
@@ -185,7 +185,7 @@ function counter(start){ return { inc:()=>++start, get:()=>start }; } const c=co
 function shadow(a){ { let a=2; const r=()=>a; if(r()!==2)throw 1; } return (()=>a)(); } console.log(shadow(1));
 function evalish(a){ try { throw a; } catch(a){ return (()=>a)(); } } console.log(evalish(3));
 `,
- 'native UTF-8 transcoding':`
+    "native UTF-8 transcoding": `
 const enc=new TextEncoder(),dec=new TextDecoder(),fatal=new TextDecoder("utf-8",{fatal:true}),bom=new TextDecoder("utf-8",{ignoreBOM:true});
 const samples=["","abc","héllo wörld","日本語テキスト","😀 emoji \u{1F600}\u{10FFFF}","lone \uD800 high","lone \uDC00 low","\uD83D\uDE00pair","mixed \u0000\u007f\u0080\u07ff\u0800\uffff","x".repeat(5000)+"é"];
 const out=[];
@@ -196,14 +196,14 @@ const sub=new Uint8Array([0x41,0x42,0xc3,0xa9,0x43]);out.push(dec.decode(sub.sub
 out.push(enc.encode().length,enc.encode(123).length,dec.decode().length,dec.decode(new Uint8Array(0)));
 console.log(out.join("|"));
 `,
- 'BigInt multiplication by limbs':`
+    "BigInt multiplication by limbs": `
 const vals=[0n,1n,-1n,9n,10n,-10n,99n,100n,123456789n,999999999n,1000000000n,1000000001n,-1000000000n,2n**32n,2n**64n-1n,2n**64n,-(2n**63n),12345678901234567890123456789n,-98765432109876543210n,10n**18n,10n**27n+1n,(10n**40n)-1n];
 const out=[];for(const x of vals)for(const y of vals)out.push((x*y).toString());
 let f=1n;for(let i=1n;i<=200n;i++)f*=i;out.push(f.toString(),(f/(f/7n)).toString(),(f%1000003n).toString());
 out.push((2n**200n).toString(),((-3n)**7n).toString(),(123456789123456789n*987654321987654321n).toString(),(10n**9n*10n**9n).toString(),(999999999n*999999999n).toString(),(-(10n**9n-1n)*(10n**9n-1n)).toString(),(2n**100n).toString(16),BigInt.asIntN(64,2n**64n-1n).toString());
 let h=0;const s=out.join(",");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;console.log(s.length,h,s.slice(0,200));
 `,
- 'inline caches for named reads':`
+    "inline caches for named reads": `
 class Shape{constructor(w){this.w=w;}area(){return 0;}scaled(){return this.area()*2;}}
 class Square extends Shape{area(){return this.w*this.w;}}
 const out=[];const sq=new Square(3);
@@ -232,7 +232,7 @@ out.push(churn.length);
 const arr=[1,2,3];function len(a){return a.push(4);}out.push(len(arr),len(arr),arr.length);
 console.log(out.join());
 `,
- 'inline caches across prototype changes and deletes':`
+    "inline caches across prototype changes and deletes": `
 const out=[];
 const a={m(){return 'a';}},b={m(){return 'b';}};
 const mid=Object.create(a),leaf=Object.create(mid);
@@ -256,7 +256,7 @@ C.prototype.m=function(){return 'C2';};out.push(call(objs[3]));
 Object.setPrototypeOf(C.prototype,{m(){return 'up';}});delete C.prototype.m;out.push(call(objs[4]));
 console.log(out.join());
 `,
- 'inline caches for getters and objects of every kind':`
+    "inline caches for getters and objects of every kind": `
 class A { constructor() { this._x = 1; } get x() { return this._x * 2; } set x(v) { this._x = v; } get self() { return this; } }
 const a = new A(); const out = [];
 for (let i = 0; i < 5; i++) { out.push(a.x); a.x = i; }
@@ -278,7 +278,7 @@ Object.defineProperty(String.prototype, 'gs', { get() { return typeof this; }, c
 const so = { get onlySet() { return undefined; }, set onlySet2(v) {} }; out.push(so.onlySet, so.onlySet2);
 console.log(out.join(','));
 `,
- 'own key filters across every way a key is added':`
+    "own key filters across every way a key is added": `
 const out=[];const sym=Symbol('s');
 class P{m(){return 'proto';}}
 const objs=[];
@@ -302,7 +302,7 @@ const frozen=Object.freeze({fz:1});out.push(frozen.fz);
 const getter={};Object.defineProperty(getter,'gv',{get(){return 'got';}});out.push(getter.gv);
 console.log(out.join());
 `,
- 'inline property nodes of literals and instances':`
+    "inline property nodes of literals and instances": `
 const out=[];
 class P{constructor(i){this.a={v:i};this.b='b'+i;this.c=[i];}}
 function read(o){return o.a.v+o.b+o.c[0];}
@@ -321,7 +321,7 @@ out.push(fs.map(f=>Object.keys(f).length).join(''));
 const nested={};let cur=nested;for(let i=0;i<50;i++){cur.next={depth:i};cur=cur.next;}let d=0;cur=nested;while(cur.next){cur=cur.next;d=cur.depth;}out.push(d);
 console.log(out.join(' '));
 `,
- 'cached property writes':`
+    "cached property writes": `
 'use strict';
 const out=[];
 class A{constructor(v){this.x=v;this.y=v+1;}}
@@ -359,7 +359,7 @@ const g=make(6);Object.defineProperty(g,'x',{get(){return 'gx';},configurable:tr
 const px=new Proxy({},{set(t,k,v){out.push('trap '+k+'='+v);t[k]=v;return true;}});setX(px,7);setZ(px,8);
 console.log(out.join(' '));
 `,
- 'array length assignments':`
+    "array length assignments": `
 const out=[];
 const a=[1,2,3,4,5];a.length=3;out.push(a.join(),a.length,a[3],3 in a);a.length=6;out.push(a.length,a[5],5 in a,a.join());a.length=0;out.push(a.length,a[0]);
 const b=[1,2,3];b.x=1;b.length=1;out.push(b.join(),b.x,Object.keys(b).join());
@@ -371,7 +371,7 @@ const g=[];for(let i=0;i<100;i++)g.push(i);g.length=10;out.push(g.reduce((x,y)=>
 const h={length:5};h.length=1;out.push(h.length);
 console.log(out.join(' '));
 `,
- 'computed reads of getters':`
+    "computed reads of getters": `
 const out=[];const u=new Uint8Array(5);const k='length';out.push(u[k],u.length,new Map([[1,1]])['size']);
 class G{get v(){return this.w*2;}constructor(){this.w=3;}}const g=new G();const key='v';out.push(g[key],g['v']);
 const o={get x(){return this;}};out.push(o['x']===o);const s='str';out.push(s['length'],s[k]);
@@ -379,7 +379,7 @@ Object.defineProperty(Object.prototype,'ww',{set(v){},configurable:true});out.pu
 const arr=[1,2];out.push(arr[k]);const p=new Proxy({},{get:(t,q)=>'P'+String(q)});out.push(p[k]);
 console.log(out.join(' '));
 `,
- 'Number keys of plain objects':`
+    "Number keys of plain objects": `
 const T={100:'a',200:'b',404:'c',1.5:'d','-1':'e'};const out=[];
 for(const k of [100,200,404,500,1.5,-1,0,-0,NaN,1e21]){out.push(T[k]);}
 const proto={7:'p'};const child=Object.create(proto);child[8]='c';out.push(child[7],child[8],child[9]);
@@ -388,14 +388,14 @@ const arr=[1,2,3];arr[100]=4;out.push(arr[100],arr[50]);
 function C(){this[3]='three';}out.push(new C()[3]);
 console.log(out.join(' '));
 `,
- 'this in constructors, arrows and sloppy functions':`
+    "this in constructors, arrows and sloppy functions": `
 class A{constructor(){this.v=1;}m(){return this.v;}arrow(){return (()=>this.v)();}}
 class B extends A{constructor(){const f=()=>this;let e;try{f();}catch(x){e=x.constructor.name;}super();this.e=e;this.g=f()===this;}}
 const b=new B();console.log(b.m(),b.arrow(),b.e,b.g);
 class C extends A{constructor(){try{this.x=1;}catch(e){console.log('tdz',e.constructor.name);}super();}}new C();
 function sloppy(){return typeof this;}console.log(sloppy(),sloppy.call(5));
 `,
- 'JSON.parse over the source text':`
+    "JSON.parse over the source text": `
 const cases=['1','-0','0','123','-123','1.5','1e3','1E-2','-1.25e+2','123456789012345','1234567890123456','9007199254740993','0.1','"a"','""','"\\\\u0041\\\\n\\\\t\\\\"\\\\\\\\\\\\/\\\\b\\\\f\\\\r"','"\\\\ud83d\\\\ude00"','[]','[1]','[1,2,[3,[4]]]','{}','{"a":1}','{"a":{"b":[1,{"c":null}]},"d":"e"}','  [ 1 , 2 ]  ','true','false','null','{"__proto__":1,"x":2}','[1,2,]','[,1]','{"a":1,}','{a:1}','01','1.','.5','-','1e','"abc','"\\\\x"','"\\\\u12"','[1 2]','{"a" 1}','tru','nul','{"a":1}x','"\\\\u0000"','"a\\\\u0001b"','"\\u0001"','[[[[[[[[[[1]]]]]]]]]]','{"a":1,"a":2}','1 ','\\t\\n\\r 5','{"k":[true,false,null,-1.5e-3]}','"\\\\ud800"','99999999999999999999','1e400','-1e-400','[1e21,1e-7,0.000001]'];
 const out=[];
 for(const c of cases){try{const v=JSON.parse(c);out.push(JSON.stringify(v)+":"+typeof v+":"+(Object.is(v,-0)?"-0":""));}catch(e){out.push("ERR:"+e.constructor.name);}}
@@ -404,7 +404,7 @@ out.push(JSON.stringify(JSON.parse(' [1, 2] ',function(k,v){return k==='0'?undef
 const big='['+Array.from({length:300},(_,i)=>'{"i":'+i+',"s":"x'+i+'\\\\n","n":'+(i/4)+'}').join(',')+']';const p=JSON.parse(big);out.push(p.length,p[299].s,p[299].n,p[100].i,Object.keys(p[0]).join());
 console.log(out.join("|"));
 `,
- 'JSON and join through the string builder':`
+    "JSON and join through the string builder": `
 console.log(JSON.stringify({a:1,b:[1,"x",null,undefined,()=>1,{c:true}],d:undefined,e:{f:{g:[]}},h:"q\\"\\n"}));
 console.log(JSON.stringify([undefined,function(){},Symbol("s")]),JSON.stringify(undefined),JSON.stringify(null),JSON.stringify("s"),JSON.stringify(1e21),JSON.stringify(NaN));
 console.log(JSON.stringify({a:1,b:{c:[1,2,{d:3}]},e:[]},null,2));
@@ -416,7 +416,7 @@ try{const cyc={};cyc.self=cyc;JSON.stringify(cyc);}catch(e){console.log(e.constr
 console.log(JSON.stringify({a:{b:undefined,c:undefined}}),JSON.stringify([{a:undefined}]),JSON.stringify({},null,2),JSON.stringify([],null,2),JSON.stringify({a:[]},null,1));
 const cyc=[1];cyc.push(cyc);try{cyc.join();console.log("join ok");}catch(e){console.log(e.constructor.name);}
 `,
- 'Object.keys of ordinary objects':`
+    "Object.keys of ordinary objects": `
 const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
 log(Object.keys({b:1,a:2,c:3}));
 const p={};Object.defineProperty(p,"h",{value:1,enumerable:false});p.x=1;p[Symbol("s")]=2;p.y=3;log(Object.keys(p));
@@ -428,7 +428,7 @@ const big={};for(let i=0;i<40;i++)big["k"+i]=i;const ks=Object.keys(big);ks.push
 const keys=Object.keys({a:1});keys[5]=1;keys.pop();log(keys,keys.length);
 let n=0;for(let i=0;i<300;i++)n+=Object.keys({a:i,b:2,c:3}).length;log(n);
 `,
- 'array push and pop':`
+    "array push and pop": `
 const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
 const a=[];log(a.push(1,2,3),a,a.pop(),a,a.length,a.push(),a.length);
 const b=[1,,3];log(b.pop(),b.pop(),b.length,b.pop(),b.pop(),b.length);
@@ -444,18 +444,18 @@ Array.prototype[3]="p";const q=[0,1,2];q.push(9);log(q[3],q.length,q.pop(),q.pop
 const r=[1,2,3];r.length=1;log(r.pop(),r.length,r.pop(),r.length,r.pop());
 const g=[1,2];Object.defineProperty(g,"1",{get(){return "g"},configurable:true});log(g.pop(),g.length);
 `,
- 'integer remainder':`
+    "integer remainder": `
 const v=[5,-5,0,-0,5.5,1e20,2**53,NaN,Infinity,-Infinity,3,-3,1,"7",null,true,2**31,-(2**31),4294967296];
 const out=[];for(const x of v)for(const y of v)out.push(Object.is(x%y,-0)?"-0":String(x%y));console.log(out.join(","));
 let s=0;for(let i=0;i<300;i++)s+=i%7+(i%-3);console.log(s,String(10n%3n));
 `,
- 'buffers across the large size classes':`
+    "buffers across the large size classes": `
 const sizes=[1000,1100,1400,2000,2100,4000,4100,5500,8100,8200,11000,13000,16384,20000,22000,32000,33000,65000,65500,70000];
 let total=0;for(let round=0;round<20;round++){const live=[];for(const n of sizes){const u=new Uint8Array(n);u[0]=round;u[n-1]=n&255;live.push(u);}
 for(const u of live){if(u[0]!==round||u[u.length-1]!==(u.length&255))throw new Error("corrupt "+u.length);total+=u.length;}}
 console.log(total);
 `,
- 'default derived constructors':`
+    "default derived constructors": `
 class A{constructor(...a){this.args=a;this.nt=new.target.name;}}
 class B extends A{}
 class C extends B{}
@@ -476,7 +476,7 @@ try{S()}catch(e){console.log(e.constructor.name)}
 class T extends Object{constructor(){super();this.t=1}};console.log(new T().t, new T() instanceof T);
 const Px=new Proxy(S,{});console.log(new Px() instanceof S);
 `,
- 'length reads':`
+    "length reads": `
 const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
 const vals=["abc","",[1,2,3],[],new Uint8Array(5),new Float64Array(2),new String("xy"),function(a,b){},(...r)=>0,{length:7},{},Object.create({length:3}),new Map(),[,,],Object.assign([1],{length:4})];
 for(let r=0;r<3;r++)for(const v of vals)log(typeof v, v.length);
@@ -488,7 +488,7 @@ const g=new Uint16Array(3);log(g.length,g.subarray(1).length);
 log((5).length,true.length,Symbol("ab").description.length);
 try{null.length}catch(e){log(e.constructor.name)}try{undefined.length}catch(e){log(e.constructor.name)}
 `,
- 'super property reads':`
+    "super property reads": `
 const log=(...a)=>console.log(a.map(x=>JSON.stringify(x)).join(" "));
 class A{m(){return 'A.m:'+this.tag} get g(){return 'A.g:'+this.tag} static s(){return 'A.s'} get only(){return this.tag}}
 class B extends A{constructor(){super();this.tag='b'} m(){return 'B>'+super.m()} get g(){return 'B>'+super.g} x(){return [super.only,super.missing,super.constructor.name]} static s(){return 'B>'+super.s()}}
@@ -503,7 +503,7 @@ class C extends Array{last(){return super.at(-1)} len(){return super.length}};co
 class E extends Error{msg(){return super.toString()}};log(new E('x').msg());
 A.prototype.m=function(){return "back:"+this.tag};let s=0;class D extends A{m(){return super.m()}};const d=new D();d.tag='d';for(let i=0;i<300;i++)s+=d.m().length;log(s);
 `,
- 'global name reads':`
+    "global name reads": `
 const log=(...a)=>console.log(a.map(x=>typeof x==='function'?'fn:'+x.name:JSON.stringify(x)).join(" "));
 function readAll(){return [typeof Math, Math.PI, typeof Date, typeof queueMicrotask, typeof undeclaredThing, globalThis.foo===undefined?'nofoo':foo]}
 for(let i=0;i<3;i++)log(readAll());
@@ -517,7 +517,7 @@ delete globalThis.Math;try{log(readAll())}catch(e){log(e.constructor.name)}globa
 function bar(){return baz}try{bar()}catch(e){log(e.constructor.name)}globalThis.baz=7;log(bar());delete globalThis.baz;try{bar()}catch(e){log(e.constructor.name)}
 let s=0;for(let i=0;i<300;i++)s+=Math.abs(-1);log(s);
 `,
- 'JSON.stringify members, toJSON and replacers':`
+    "JSON.stringify members, toJSON and replacers": `
 const log=console.log;
 const user={id:42,name:'Ada',roles:['a','b'],nested:{x:[1,{y:2}]},d:new Date(0),n:null,u:undefined,f(){},s:Symbol('q')};
 for(let i=0;i<3;i++)log(JSON.stringify(user));
@@ -542,7 +542,7 @@ const arrHole=[1,,3];arrHole.x=1;log(JSON.stringify(arrHole));
 log(JSON.stringify(5,function(k,v){return JSON.stringify(Object.keys(this))+typeof this+k+v}));
 log(JSON.stringify('top'),JSON.stringify(null),JSON.stringify(undefined),JSON.stringify(()=>1),JSON.stringify([undefined]));
 `,
- 'JSON string quoting':`
+    "JSON string quoting": `
 const strs=['','a','ab','abc','abcd','abcde','hello world, this is a longer string','quote"inside','back\\\\slash','tab\\there','nl\\nx','\\u0001ctrl','\\u001fx','\\u00fcnicode','emoji\\ud83d\\ude00x','lone\\ud800x','x\\udc00y','abc"','"abc','ab\\\\c','\\u0000\\u0000\\u0000\\u0000','abcdefg\\u007f','\\u0080abc','abcd\\u2028efgh'];
 for(const s of strs)console.log(JSON.stringify(s),JSON.stringify({[s]:s}));
 let n=0;for(let i=0;i<400;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length;console.log(n);
@@ -551,27 +551,52 @@ let n=0;for(let i=0;i<400;i++)n+=JSON.stringify({a:'x'.repeat(i%40)+'"'}).length
 
 // The operator matrix does not allocate on its fast paths and is too large to
 // run with a collection before every operation, so it runs without GC stress.
-const plainPrograms=new Set(['inline number operators','number formatting and parsing','BigInt multiplication by limbs']);
+const plainPrograms = new Set([
+    "inline number operators",
+    "number formatting and parsing",
+    "BigInt multiplication by limbs",
+]);
 
-for(const [name,source] of Object.entries(programs))test(`fast paths agree with Node.js: ${name}`,()=>{
- const expected=runOracle(source).stdout;
- const run=runOnHost(source,{gcStress:!plainPrograms.has(name)});
- assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,expected);
-});
+for (const [name, source] of Object.entries(programs))
+    test(`fast paths agree with Node.js: ${name}`, () => {
+        const expected = runOracle(source).stdout;
+        const run = runOnHost(source, { gcStress: !plainPrograms.has(name) });
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(run.stdout, expected);
+    });
 
-test('the named fast paths list the ordinary object kinds by their numbers',async()=>{
- const {namedPropertyKinds,namedTypedArrayKind}=await import('../src/runtime/property-cache.js');
- const kinds=await Promise.all([
-  import('../src/runtime/arguments.js').then(m=>m.ArgumentsKind),import('../src/runtime/boxing.js').then(m=>m.BoxKind),
-  import('../src/runtime/errors.js').then(m=>m.ErrorKind),import('../src/runtime/date.js').then(m=>m.DateKind),
-  import('../src/runtime/iterators.js').then(m=>m.IteratorKind),import('../src/runtime/generator.js').then(m=>m.GeneratorKind),
-  import('../src/runtime/regexp.js').then(m=>m.RegExpKind),import('../src/runtime/array-buffer.js').then(m=>m.ArrayBufferKind),
-  import('../src/runtime/data-view.js').then(m=>m.DataViewKind),import('../src/runtime/typed-array.js').then(m=>m.TypedArrayKind),
-  import('../src/runtime/shared-array-buffer.js').then(m=>m.SharedArrayBufferKind),import('../src/runtime/map.js').then(m=>m.MapKind),
-  import('../src/runtime/map-iterator.js').then(m=>m.MapIteratorKind),import('../src/runtime/set.js').then(m=>m.SetKind),
-  import('../src/runtime/set-iterator.js').then(m=>m.SetIteratorKind),import('../src/runtime/weak-collections.js').then(m=>[m.WeakMapKind,m.WeakSetKind])]);
- assert.deepEqual(namedPropertyKinds,[0,1,2,...kinds.flat()]);
- assert.equal(namedTypedArrayKind,(await import('../src/runtime/typed-array.js')).TypedArrayKind);
- const {ProxyKind}=await import('../src/runtime/object-layout.js');
- assert.ok(!namedPropertyKinds.includes(ProxyKind));
+test("the named fast paths list the ordinary object kinds by their numbers", async () => {
+    const { namedPropertyKinds, namedTypedArrayKind } =
+        await import("../src/runtime/property-cache.js");
+    const kinds = await Promise.all([
+        import("../src/runtime/arguments.js").then((m) => m.ArgumentsKind),
+        import("../src/runtime/boxing.js").then((m) => m.BoxKind),
+        import("../src/runtime/errors.js").then((m) => m.ErrorKind),
+        import("../src/runtime/date.js").then((m) => m.DateKind),
+        import("../src/runtime/iterators.js").then((m) => m.IteratorKind),
+        import("../src/runtime/generator.js").then((m) => m.GeneratorKind),
+        import("../src/runtime/regexp.js").then((m) => m.RegExpKind),
+        import("../src/runtime/array-buffer.js").then((m) => m.ArrayBufferKind),
+        import("../src/runtime/data-view.js").then((m) => m.DataViewKind),
+        import("../src/runtime/typed-array.js").then((m) => m.TypedArrayKind),
+        import("../src/runtime/shared-array-buffer.js").then(
+            (m) => m.SharedArrayBufferKind,
+        ),
+        import("../src/runtime/map.js").then((m) => m.MapKind),
+        import("../src/runtime/map-iterator.js").then((m) => m.MapIteratorKind),
+        import("../src/runtime/set.js").then((m) => m.SetKind),
+        import("../src/runtime/set-iterator.js").then((m) => m.SetIteratorKind),
+        import("../src/runtime/weak-collections.js").then((m) => [
+            m.WeakMapKind,
+            m.WeakSetKind,
+        ]),
+    ]);
+    assert.deepEqual(namedPropertyKinds, [0, 1, 2, ...kinds.flat()]);
+    assert.equal(
+        namedTypedArrayKind,
+        (await import("../src/runtime/typed-array.js")).TypedArrayKind,
+    );
+    const { ProxyKind } = await import("../src/runtime/object-layout.js");
+    assert.ok(!namedPropertyKinds.includes(ProxyKind));
 });

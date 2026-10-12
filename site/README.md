@@ -16,34 +16,34 @@ npm run check:links      # links to repository files on GitHub exist (after a bu
 
 ## Layout
 
-| Path | Contents |
-| --- | --- |
-| `.vitepress/config.mts` | Title, locales, navigation, sidebar, search, `base: '/nona/'`. |
-| `.vitepress/locales/` | Per-language dictionaries: navigation, sidebar and theme labels, search translations. |
-| `src/` | Pages. The URL is the path without `.md` (`src/guide/getting-started.md` → `/guide/getting-started`). |
-| `src/<locale>/` | Translated pages (see [Translations](#translations)). |
-| `src/public/` | Static files (favicon). `src/public/playground-worker.js` is generated. |
-| `playground/` | The playground's Web Worker and the browser shims for the Node.js modules the compiler uses. |
-| `.vitepress/components/Playground.vue` | The playground UI (`/playground`). |
-| `samples/` | Runnable programs shown on the pages. |
-| `scripts/sync-docs.mjs` | Copies reference documents into `generated/` (not committed). |
-| `scripts/build-playground.mjs` | Bundles `../dist/src/compiler.js` with esbuild into the playground worker. |
-| `scripts/check-samples.mjs`, `scripts/check-playground.mjs`, `scripts/check-repo-links.mjs` | CI checks. |
+| Path                                                                                        | Contents                                                                                              |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `.vitepress/config.mts`                                                                     | Title, locales, navigation, sidebar, search, `base: '/nona/'`.                                        |
+| `.vitepress/locales/`                                                                       | Per-language dictionaries: navigation, sidebar and theme labels, search translations.                 |
+| `src/`                                                                                      | Pages. The URL is the path without `.md` (`src/guide/getting-started.md` → `/guide/getting-started`). |
+| `src/<locale>/`                                                                             | Translated pages (see [Translations](#translations)).                                                 |
+| `src/public/`                                                                               | Static files (favicon). `src/public/playground-worker.js` is generated.                               |
+| `playground/`                                                                               | The playground's Web Worker and the browser shims for the Node.js modules the compiler uses.          |
+| `.vitepress/components/Playground.vue`                                                      | The playground UI (`/playground`).                                                                    |
+| `samples/`                                                                                  | Runnable programs shown on the pages.                                                                 |
+| `scripts/sync-docs.mjs`                                                                     | Copies reference documents into `generated/` (not committed).                                         |
+| `scripts/build-playground.mjs`                                                              | Bundles `../dist/src/compiler.js` with esbuild into the playground worker.                            |
+| `scripts/check-samples.mjs`, `scripts/check-playground.mjs`, `scripts/check-repo-links.mjs` | CI checks.                                                                                            |
 
 ## Generated pages
 
 These pages include a document from the repository; edit the source, not the page:
 
-| Page | Source |
-| --- | --- |
-| `/reference/host-apis` | `docs/host-apis.md` |
-| `/reference/native-platforms` | `docs/native-platforms.md` |
-| `/reference/process` | `docs/process.md` |
-| `/reference/fs` | `docs/fs.md` |
-| `/reference/ffi` | `docs/ffi.md` |
+| Page                             | Source                        |
+| -------------------------------- | ----------------------------- |
+| `/reference/host-apis`           | `docs/host-apis.md`           |
+| `/reference/native-platforms`    | `docs/native-platforms.md`    |
+| `/reference/process`             | `docs/process.md`             |
+| `/reference/fs`                  | `docs/fs.md`                  |
+| `/reference/ffi`                 | `docs/ffi.md`                 |
 | `/reference/windows-executables` | `docs/windows-executables.md` |
-| `/reference/test262` | `docs/test262.md` |
-| `/changelog` | `CHANGELOG.md` |
+| `/reference/test262`             | `docs/test262.md`             |
+| `/changelog`                     | `CHANGELOG.md`                |
 
 `sync-docs.mjs` rewrites relative links: documents published on the site point to their page, everything else to the file on GitHub. To publish another document, add it to `sources` and `pages` in the script and create a wrapper page like `src/reference/ffi.md`. Internal notes in `docs/` (development logs, status reports, `superpowers/`) are not published; pages link to them on GitHub.
 

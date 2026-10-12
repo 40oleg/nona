@@ -1,12 +1,14 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runModulesOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runModulesOnHost } from "./helpers/host.js";
 
 // The native helpers of node:net and node:http (src/runtime/http-native.ts),
 // called through nona:internal/native. Node.js has no such module, so the
 // expected output is spelled out.
-test('native HTTP head parser, latin1 slices, string writer, byte copy and character checks',()=>{
- const {native}=runModulesOnHost({'main.mjs':String.raw`import { parse, latin1, write, copy, check } from 'nona:internal/native';
+test("native HTTP head parser, latin1 slices, string writer, byte copy and character checks", () => {
+    const { native } = runModulesOnHost(
+        {
+            "main.mjs": String.raw`import { parse, latin1, write, copy, check } from 'nona:internal/native';
 const enc = new TextEncoder();
 const out = new Int32Array(11 + 4 * 32);
 function show(text) {
@@ -54,7 +56,14 @@ for (const c of ['', 'abc', 'abcd', 'abcde', 'h\u00e9llo w\u00f6rld', 'x'.repeat
   console.log(c.length, n, same, lsame, write(c, new Uint8Array(Math.max(0, ref.length - 1)), 0, false));
 }
 console.log(typeof globalThis.__nonaNetParse, typeof globalThis.__nonaNetCheck);
-`},'main.mjs',{gcStress:true});
- assert.equal(native.status,0,native.stderr);
- assert.equal(native.stdout,"[93,\"GET\",\"/path?x=1\",\"1.1\",\"n=4\",\"flags=8460\",\"cl=12\",\"line=0\",\"Host=[localhost]\",\"Content-Length=[12]\",\"Connection=[close]\",\"X-A=[v]\"]\n[146,\"POST\",\"/\",\"1.0\",\"n=6\",\"flags=9431\",\"cl=3\",\"line=2\",\"Transfer-Encoding=[chunked]\",\"connection=[Keep-Alive]\",\"UPGRADE=[ws]\",\"Expect=[100-continue]\",\"Content-Length=[3]\",\"Content-Length=[3]\"]\n[0]\n[0]\n[-3]\n[-1]\n[-3]\n[-3]\n[-4]\n[-4]\n[-4]\n[-5]\n[-5]\n[47,\"GET\",\"/\",\"1.1\",\"n=1\",\"flags=4\",\"cl=-2\",\"line=0\",\"Content-Length=[99999999999]\"]\n[95,\"GET\",\"/\",\"1.1\",\"n=3\",\"flags=14338\",\"cl=-1\",\"line=0\",\"Transfer-Encoding=[gzip, chunked]\",\"Connection=[close, upgrade]\",\"Connection=[x]\"]\n-7 -1 0 30\n14 0,0,104,195,169,108,108,111,32,226,130,172,240,159,152,128,0,0\n5 104,233,108,108,111 3 -1 8 97,239,191,189,98,239,191,189\nh\u00e9\u00ff 1 \n5 0,3,4,5,6,7 2 0,3,4,5,1,2 0\n-1 3 -1 -1 1 0 -1 2\n0 0 true true 0\n3 3 true true -1\n4 4 true true -1\n5 5 true true -1\n11 13 true true -1\n4099 4099 true true -1\n20 24 true true -1\n4 6 true true -1\n5 7 true true -1\n18 20 true true -1\nundefined undefined\n");
+`,
+        },
+        "main.mjs",
+        { gcStress: true },
+    );
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(
+        native.stdout,
+        '[93,"GET","/path?x=1","1.1","n=4","flags=8460","cl=12","line=0","Host=[localhost]","Content-Length=[12]","Connection=[close]","X-A=[v]"]\n[146,"POST","/","1.0","n=6","flags=9431","cl=3","line=2","Transfer-Encoding=[chunked]","connection=[Keep-Alive]","UPGRADE=[ws]","Expect=[100-continue]","Content-Length=[3]","Content-Length=[3]"]\n[0]\n[0]\n[-3]\n[-1]\n[-3]\n[-3]\n[-4]\n[-4]\n[-4]\n[-5]\n[-5]\n[47,"GET","/","1.1","n=1","flags=4","cl=-2","line=0","Content-Length=[99999999999]"]\n[95,"GET","/","1.1","n=3","flags=14338","cl=-1","line=0","Transfer-Encoding=[gzip, chunked]","Connection=[close, upgrade]","Connection=[x]"]\n-7 -1 0 30\n14 0,0,104,195,169,108,108,111,32,226,130,172,240,159,152,128,0,0\n5 104,233,108,108,111 3 -1 8 97,239,191,189,98,239,191,189\nh\u00e9\u00ff 1 \n5 0,3,4,5,6,7 2 0,3,4,5,1,2 0\n-1 3 -1 -1 1 0 -1 2\n0 0 true true 0\n3 3 true true -1\n4 4 true true -1\n5 5 true true -1\n11 13 true true -1\n4099 4099 true true -1\n20 24 true true -1\n4 6 true true -1\n5 7 true true -1\n18 20 true true -1\nundefined undefined\n',
+    );
 });

@@ -1,19 +1,20 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {compile} from '../src/compiler.js';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { compile } from "../src/compiler.js";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // ES2022 class elements (#106): public and private fields, private methods
 // and accessors, static blocks and `#x in obj`, compared with Node.js under
 // GC stress.
-const agree=(source:string)=>{
- const run=runOnHost(source);
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(source).stdout);
+const agree = (source: string) => {
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
 };
 
-test('public fields are defined in order on the new instance',()=>agree(String.raw`
+test("public fields are defined in order on the new instance", () =>
+    agree(String.raw`
 const log=[];
 const key=(k)=>{log.push('key '+k);return k};
 class A {
@@ -42,7 +43,8 @@ class Late extends Frozen { y = 1; }
 try { new Late(); } catch (e) { console.log(e instanceof TypeError); }
 `));
 
-test('derived classes initialize their fields when super() returns',()=>agree(String.raw`
+test("derived classes initialize their fields when super() returns", () =>
+    agree(String.raw`
 class Base { constructor() { this.order = ['base']; } }
 class Derived extends Base {
   x = (this.order.push('field'), 'x');
@@ -59,7 +61,8 @@ class Down extends Up { who2 = super.who; }
 console.log(new Down().who2);
 `));
 
-test('private fields, methods and accessors check the brand',()=>agree(String.raw`
+test("private fields, methods and accessors check the brand", () =>
+    agree(String.raw`
 class Counter {
   #count = 0;
   static #instances = 0;
@@ -105,7 +108,8 @@ const plain = {};new Stamper(plain);
 console.log(Stamper.mark(plain), Object.keys(plain).length);
 `));
 
-test('static fields and blocks run in order with the class as this',()=>agree(String.raw`
+test("static fields and blocks run in order with the class as this", () =>
+    agree(String.raw`
 const log = [];
 class S {
   static a = (log.push('a'), 1);
@@ -124,54 +128,74 @@ const fromExpression = class { static self = this; };
 console.log(fromExpression.self === fromExpression);
 `));
 
-test('a class with thousands of private names compiles and runs',()=>{
- const count=3000,names=Array.from({length:count},(_,i)=>'#p'+i);
- const source='class Many {'+names.map((name,i)=>name+' = '+i+';').join('\n')+'\nstatic #s() { return 1; }'+
-  '\nsum() { return this.'+names[0]+' + this.'+names[count-1]+' + Many.#s(); } }\nconsole.log(new Many().sum());\n';
- const run=runOnHost(source,{gcStress:false});
- assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,String(count)+'\n');
+test("a class with thousands of private names compiles and runs", () => {
+    const count = 3000,
+        names = Array.from({ length: count }, (_, i) => "#p" + i);
+    const source =
+        "class Many {" +
+        names.map((name, i) => name + " = " + i + ";").join("\n") +
+        "\nstatic #s() { return 1; }" +
+        "\nsum() { return this." +
+        names[0] +
+        " + this." +
+        names[count - 1] +
+        " + Many.#s(); } }\nconsole.log(new Many().sum());\n";
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, String(count) + "\n");
 });
 
-const earlyErrors=[
- 'class A { constructor = 1; }',
- 'class A { "constructor"; }',
- 'class A { static prototype = 1; }',
- 'class A { static constructor; }',
- 'class A { #x; #x; }',
- 'class A { #x; get #x() {} }',
- 'class A { get #x() {} get #x() {} }',
- 'class A { static get #x() {} set #x(v) {} }',
- 'class A { #constructor; }',
- 'class A { m() { this.#y; } }',
- 'this.#x;',
- 'class A { #x; m() { delete this.#x; } }',
- 'class A { #x; m() { delete this?.#x; } }',
- 'class A { x = arguments; }',
- 'class A { x = () => arguments; }',
- 'class A { static { arguments; } }',
- 'class A { static { return; } }',
- 'class A { static { await; } }',
- 'class A extends B { x = super(); }',
- 'class A { #x; m() { #x; } }',
- 'class A { #x; m() { 1 + #x in this; } }',
- 'class A { x = 1 y = 2 }',
- 'class A { #x; m() { super.#x; } }',
- 'class A extends (class { m(o) { return o.#x; } }) { #x; }',
+const earlyErrors = [
+    "class A { constructor = 1; }",
+    'class A { "constructor"; }',
+    "class A { static prototype = 1; }",
+    "class A { static constructor; }",
+    "class A { #x; #x; }",
+    "class A { #x; get #x() {} }",
+    "class A { get #x() {} get #x() {} }",
+    "class A { static get #x() {} set #x(v) {} }",
+    "class A { #constructor; }",
+    "class A { m() { this.#y; } }",
+    "this.#x;",
+    "class A { #x; m() { delete this.#x; } }",
+    "class A { #x; m() { delete this?.#x; } }",
+    "class A { x = arguments; }",
+    "class A { x = () => arguments; }",
+    "class A { static { arguments; } }",
+    "class A { static { return; } }",
+    "class A { static { await; } }",
+    "class A extends B { x = super(); }",
+    "class A { #x; m() { #x; } }",
+    "class A { #x; m() { 1 + #x in this; } }",
+    "class A { x = 1 y = 2 }",
+    "class A { #x; m() { super.#x; } }",
+    "class A extends (class { m(o) { return o.#x; } }) { #x; }",
 ];
-for(const source of earlyErrors)test('class element early error: '+source,()=>{
- assert.equal(compile(source,{fileName:'early.js',target:'linux-x64'}).ok,false);
-});
+for (const source of earlyErrors)
+    test("class element early error: " + source, () => {
+        assert.equal(
+            compile(source, { fileName: "early.js", target: "linux-x64" }).ok,
+            false,
+        );
+    });
 
-const accepted=[
- 'class A { static; get; set; async; static static; }',
- 'class A { get\n x() {} }',
- 'class A { x\n y }',
- 'class A { "a" = 1; 2 = 3; [4]; }',
- 'class A { #x; m() { return class { y = this; m(o) { return o.#x; } }; } }',
- 'class A { x = function () { return arguments; }; }',
- 'class A { static get #x() {} static set #x(v) {} }',
+const accepted = [
+    "class A { static; get; set; async; static static; }",
+    "class A { get\n x() {} }",
+    "class A { x\n y }",
+    'class A { "a" = 1; 2 = 3; [4]; }',
+    "class A { #x; m() { return class { y = this; m(o) { return o.#x; } }; } }",
+    "class A { x = function () { return arguments; }; }",
+    "class A { static get #x() {} static set #x(v) {} }",
 ];
-for(const source of accepted)test('class elements accepted: '+JSON.stringify(source),()=>{
- const result=compile(source,{fileName:'accepted.js',target:'linux-x64'});
- assert.ok(result.ok,result.ok?'':JSON.stringify(result.diagnostics));
-});
+for (const source of accepted)
+    test("class elements accepted: " + JSON.stringify(source), () => {
+        const result = compile(source, {
+            fileName: "accepted.js",
+            target: "linux-x64",
+        });
+        assert.ok(
+            result.ok,
+            result.ok ? "" : JSON.stringify(result.diagnostics),
+        );
+    });

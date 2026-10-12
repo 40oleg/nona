@@ -1,22 +1,75 @@
-import {patchSource} from '../source-patch.js';
-import {eventsModuleSource} from './events-module-source.js';
+import { patchSource } from "../source-patch.js";
+import { eventsModuleSource } from "./events-module-source.js";
 
 /** Reuse Nona's original Events algorithms for canonical process/stream ancestry. */
-export const eventEmitterPreludeSource=(()=>{
- let implementation=eventsModuleSource.replace(/^import .*$/gm,'');
- implementation=patchSource(implementation,'export default EventEmitter;','');
- implementation=patchSource(implementation,/\bexport /g,'');
- implementation=patchSource(implementation,'list.push(listener)','emitterApply(emitterPush,list,[listener])',{all:true});
- implementation=patchSource(implementation,'list.unshift(listener)','emitterApply(emitterUnshift,list,[listener])',{all:true});
- implementation=patchSource(implementation,'list.splice(i, 1)','emitterApply(emitterSplice,list,[i,1])',{all:true});
- implementation=patchSource(implementation,'Object.create(null)','emitterCreate(null)',{all:true});
- implementation=patchSource(implementation,'Symbol.for(','emitterSymbolFor(',{all:true});
- implementation=patchSource(implementation,'defaultMaxListeners = n;','defaultMaxListeners = n;updateExports();',{all:true});
- implementation=patchSource(implementation,'captureRejections = value;','captureRejections = value;updateExports();');
- implementation=patchSource(implementation,'  let list = emitter._events[name];','  if(emitter===vm.processSignalEmitter)vm.processSignalListenerChanged(name,true);\n  let list = emitter._events[name];');
- implementation=patchSource(implementation,"      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);","      if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);\n      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);");
- implementation=patchSource(implementation,'else { delete this._events[name]; this._eventsCount--; }','else { delete this._events[name]; this._eventsCount--;if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false); }');
- return `;(function(){
+export const eventEmitterPreludeSource = (() => {
+    let implementation = eventsModuleSource.replace(/^import .*$/gm, "");
+    implementation = patchSource(
+        implementation,
+        "export default EventEmitter;",
+        "",
+    );
+    implementation = patchSource(implementation, /\bexport /g, "");
+    implementation = patchSource(
+        implementation,
+        "list.push(listener)",
+        "emitterApply(emitterPush,list,[listener])",
+        { all: true },
+    );
+    implementation = patchSource(
+        implementation,
+        "list.unshift(listener)",
+        "emitterApply(emitterUnshift,list,[listener])",
+        { all: true },
+    );
+    implementation = patchSource(
+        implementation,
+        "list.splice(i, 1)",
+        "emitterApply(emitterSplice,list,[i,1])",
+        { all: true },
+    );
+    implementation = patchSource(
+        implementation,
+        "Object.create(null)",
+        "emitterCreate(null)",
+        { all: true },
+    );
+    implementation = patchSource(
+        implementation,
+        "Symbol.for(",
+        "emitterSymbolFor(",
+        { all: true },
+    );
+    implementation = patchSource(
+        implementation,
+        /(?<!\.)defaultMaxListeners = n;/g,
+        "defaultMaxListeners = n;updateExports();",
+    );
+    implementation = patchSource(
+        implementation,
+        "captureRejections = value;",
+        "captureRejections = value;updateExports();",
+    );
+    implementation = patchSource(
+        implementation,
+        "let list = emitter._events[name];",
+        "if(emitter===vm.processSignalEmitter)vm.processSignalListenerChanged(name,true);\nlet list = emitter._events[name];",
+    );
+    implementation = patchSource(
+        implementation,
+        /if \(this\._events\.removeListener\)\s*this\.emit\("removeListener", name, current\.listener \|\| current\);/,
+        (match) =>
+            "if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);\n" +
+            match,
+    );
+    implementation = patchSource(
+        implementation,
+        /\} else \{\s*delete this\._events\[name\];\s*this\._eventsCount--;/,
+        (match) =>
+            match +
+            "if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);",
+    );
+    return `;(function(){
  var vm=__nonaRegexpVm,subscribers=[],initialized=null;
  var EventTarget=globalThis.EventTarget,Event=globalThis.Event,Promise=globalThis.Promise,Symbol=globalThis.Symbol;
  var Error=globalThis.Error,TypeError=globalThis.TypeError,RangeError=globalThis.RangeError;

@@ -2,12 +2,12 @@
 
 ## Разборы
 
-| Пример | Что показывает | Цели |
-| --- | --- | --- |
-| [Hello и таймеры](/ru/examples/hello) | функции, шаблонные строки, микрозадачи и таймеры | Windows, Linux |
-| [Museum: смена обоев](/ru/examples/museum) | `nona:win32`, таймеры, `node:fs`, `process`, GUI-программа с ресурсами | Windows |
-| [Матричный калькулятор](/ru/examples/matrix-calculator) | обычный код ES2020 с массивами и исключениями | Windows, Linux |
-| [Подсчёт слов](/ru/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp | Windows, Linux |
+| Пример                                                  | Что показывает                                                         | Цели           |
+| ------------------------------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| [Hello и таймеры](/ru/examples/hello)                   | функции, шаблонные строки, микрозадачи и таймеры                       | Windows, Linux |
+| [Museum: смена обоев](/ru/examples/museum)              | `nona:win32`, таймеры, `node:fs`, `process`, GUI-программа с ресурсами | Windows        |
+| [Матричный калькулятор](/ru/examples/matrix-calculator) | обычный код ES2020 с массивами и исключениями                          | Windows, Linux |
+| [Подсчёт слов](/ru/examples/word-count)                 | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp   | Windows, Linux |
 
 ## Примеры в репозитории
 

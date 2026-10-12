@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: 把 JavaScript 编译成原生可执行文件
-  tagline: 一个提前（ahead-of-time）编译器，把 ES2020 JavaScript 编译成独立的 Windows 和 Linux x64 可执行文件。没有内嵌解释器，也不需要 C 工具链。 Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: 快速开始
-      link: /zh/guide/getting-started
-    - theme: alt
-      text: 在浏览器中试用
-      link: /playground
-    - theme: alt
-      text: 什么是 Nona
-      link: /zh/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: 把 JavaScript 编译成原生可执行文件
+    tagline: 一个提前（ahead-of-time）编译器，把 ES2020 JavaScript 编译成独立的 Windows 和 Linux x64 可执行文件。没有内嵌解释器，也不需要 C 工具链。 Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: 快速开始
+          link: /zh/guide/getting-started
+        - theme: alt
+          text: 在浏览器中试用
+          link: /playground
+        - theme: alt
+          text: 什么是 Nona
+          link: /zh/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: 2 毫秒启动
-    details: 编译后的 hello world 启动只需 1.8 ms，内存峰值 11 MB，可执行文件 3 MB。Node.js 需要 28 ms 和 45 MB；Node SEA 可执行文件有 124 MB。
-    link: /zh/guide/performance
-  - title: ES2020 语言
-    details: 类、生成器、异步函数、解构、可选链、BigInt、尾调用优化，以及支持循环依赖和实时绑定的 ES 模块——例外情况均有文档说明。
-    link: /zh/guide/language-support
-  - title: 原生运行时
-    details: 精确的标记-清除垃圾回收器、UTF-16 字符串、真正的异常，以及栈溢出时可捕获的 RangeError，链接进每个可执行文件。
-    link: /zh/guide/how-it-works
-  - title: 宿主 API
-    details: 带定时器的事件循环、全局 process、同步的 node:fs、TextEncoder 和 TextDecoder。
-    link: /zh/reference/host-apis
-  - title: FFI 与 nona:win32
-    details: 通过编译期声明调用 Windows 上任意 DLL 的导出函数；内置现成的 user32、kernel32 和 advapi32 绑定。
-    link: /zh/reference/ffi
-  - title: Windows 图形界面程序
-    details: 没有控制台窗口的程序，带图标、应用程序清单和版本信息。
-    link: /zh/reference/windows-executables
+    - title: 2 毫秒启动
+      details: 编译后的 hello world 启动只需 1.8 ms，内存峰值 11 MB，可执行文件 3 MB。Node.js 需要 28 ms 和 45 MB；Node SEA 可执行文件有 124 MB。
+      link: /zh/guide/performance
+    - title: ES2020 语言
+      details: 类、生成器、异步函数、解构、可选链、BigInt、尾调用优化，以及支持循环依赖和实时绑定的 ES 模块——例外情况均有文档说明。
+      link: /zh/guide/language-support
+    - title: 原生运行时
+      details: 精确的标记-清除垃圾回收器、UTF-16 字符串、真正的异常，以及栈溢出时可捕获的 RangeError，链接进每个可执行文件。
+      link: /zh/guide/how-it-works
+    - title: 宿主 API
+      details: 带定时器的事件循环、全局 process、同步的 node:fs、TextEncoder 和 TextDecoder。
+      link: /zh/reference/host-apis
+    - title: FFI 与 nona:win32
+      details: 通过编译期声明调用 Windows 上任意 DLL 的导出函数；内置现成的 user32、kernel32 和 advapi32 绑定。
+      link: /zh/reference/ffi
+    - title: Windows 图形界面程序
+      details: 没有控制台窗口的程序，带图标、应用程序清单和版本信息。
+      link: /zh/reference/windows-executables
 ---
 
 ## 快速示例

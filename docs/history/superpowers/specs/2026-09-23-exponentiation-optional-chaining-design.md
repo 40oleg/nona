@@ -40,13 +40,18 @@ Windows CRT `pow` не импортируется.
 
 ```ts
 type OptionalLink =
-  | {kind:'property';property:Expression;computed:boolean;optional:boolean}
-  | {kind:'call';arguments:Expression[];optional:boolean};
+    | {
+          kind: "property";
+          property: Expression;
+          computed: boolean;
+          optional: boolean;
+      }
+    | { kind: "call"; arguments: Expression[]; optional: boolean };
 
 interface OptionalChain extends Node {
-  kind:'OptionalChain';
-  base:Expression;
-  links:OptionalLink[];
+    kind: "OptionalChain";
+    base: Expression;
+    links: OptionalLink[];
 }
 ```
 

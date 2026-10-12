@@ -39,8 +39,14 @@ A + B:
 Edita las matrices al final del código fuente y vuelve a compilar:
 
 ```js
-const A = [[2, 1], [1, 1]];
-const B = [[3, 4], [5, 6]];
+const A = [
+    [2, 1],
+    [1, 1],
+];
+const B = [
+    [3, 4],
+    [5, 6],
+];
 ```
 
 Cada array interior es una fila. Las matrices no pueden estar vacías, deben ser rectangulares y contener números finitos. La suma y la resta necesitan tamaños iguales; la multiplicación necesita tantas columnas en A como filas en B; el determinante y la inversa necesitan que A sea cuadrada. Un error en una operación no detiene las demás.

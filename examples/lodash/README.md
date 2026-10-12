@@ -35,9 +35,9 @@ Run on Node.js, the same bundle fails 10 assertions:
 
 Results by assertion (2026-10-08). By test, 50 fail natively and 8 on Node.js; the 42 extra are the `_.template` ones.
 
-| | Linux x64 | Windows x64 |
-| --- | --- | --- |
-| Nona-native | 6 651 passed, 62 failed of 6 713, 46 s | 6 651 passed, 62 failed of 6 713, 57 s |
+|                          | Linux x64                              | Windows x64                            |
+| ------------------------ | -------------------------------------- | -------------------------------------- |
+| Nona-native              | 6 651 passed, 62 failed of 6 713, 46 s | 6 651 passed, 62 failed of 6 713, 57 s |
 | The bundle on Node.js 22 | 6 780 passed, 10 failed of 6 790, 10 s | 6 780 passed, 10 failed of 6 790, 11 s |
 
 Compiling the bundle takes 17 s and 0.9 GB of memory. The executable is 27 MB.
@@ -53,7 +53,7 @@ Every other module passes the same assertions as on Node.js.
 
 1. **`Function('return this')()` at lodash's top level threw EvalError.** Nona compiles `Function` calls with literal source ahead of time. It skipped the whole program, though, as soon as any function declared its own `Function`, and lodash's `runInContext` does (`var Function = context.Function`). Now only the calls inside a function that binds `Function` are left as written (`src/frontend/dynamic-functions.ts`).
 2. **A global `replace` was quadratic in the number of matches.** `RegExp.prototype[Symbol.replace]` and `String.prototype.replaceAll` appended every piece to one string, which copied it each time. qunit-extras runs `toString(value).replace(/\s+/g, '')` on every assertion's expected value, and the suite did not finish in 10 minutes. The result is now joined from its pieces once:
-   - 20 000 matches of `/\s+/g`: 2.5 s before, 0.4 s after;
-   - 20 000 matches of `/ /g`: 3.6 s before, 0.2 s after.
+    - 20 000 matches of `/\s+/g`: 2.5 s before, 0.4 s after;
+    - 20 000 matches of `/ /g`: 3.6 s before, 0.2 s after.
 
 `s += x` in a loop is still quadratic in general: 40 000 appends take 1.3 s. That needs string ropes or builders in the runtime, which is a separate change.

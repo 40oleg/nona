@@ -1,23 +1,23 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
-import {compileToIR} from '../src/compiler.js';
-import {generate} from '../src/backend/x64/codegen.js';
-import {FrameDescriptor as FD} from '../src/runtime/frame-layout.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
+import { compileToIR } from "../src/compiler.js";
+import { generate } from "../src/backend/x64/codegen.js";
+import { FrameDescriptor as FD } from "../src/runtime/frame-layout.js";
 
 // Call overhead (#47): rt.invoke runs ordinary functions and arrows from a
 // small frame, rt.invokeConstruct runs compiled constructors directly, `new`
 // sites remember the constructor's prototype (rt.newInstanceCached), and
 // rt.enterFrame clears only the slots live at entry. All of it must agree
 // with the general paths, under GC stress (the default of runOnHost).
-const agree=(source:string,gcStress=true)=>{
- const run=runOnHost(source,{gcStress});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(source).stdout);
+const agree = (source: string, gcStress = true) => {
+    const run = runOnHost(source, { gcStress });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
 };
 
-const calls=String.raw`
+const calls = String.raw`
 'use strict';
 const out=[];
 const arrow=(a,b)=>a+b;
@@ -48,10 +48,12 @@ const callbacks=[1,2,3].map((x,i,a)=>x+i+a.length);out.push(callbacks.join());
 const lexical={v:'lex',m(){return [1].map(()=>this.v)[0]}};out.push(lexical.m());
 Promise.resolve().then(()=>console.log(out.join('|')));
 `;
-test('calls through rt.invoke of every kind of callee agree with Node',()=>agree(calls));
-test('calls through rt.invoke without GC stress',()=>agree(calls,false));
+test("calls through rt.invoke of every kind of callee agree with Node", () =>
+    agree(calls));
+test("calls through rt.invoke without GC stress", () => agree(calls, false));
 
-test('sloppy functions get the global object or the receiver as this',()=>agree(String.raw`
+test("sloppy functions get the global object or the receiver as this", () =>
+    agree(String.raw`
 const out=[];
 function who(){return this===globalThis?'global':this===undefined?'undefined':typeof this}
 const list=[who];
@@ -61,7 +63,7 @@ const prim=Object.assign(Object.create(null),{who});out.push(prim.who());
 console.log(out.join('|'));
 `));
 
-const constructions=String.raw`
+const constructions = String.raw`
 'use strict';
 const out=[];
 function P(w){this.w=w}
@@ -95,10 +97,12 @@ class Tail{constructor(){return make()}}function make(){return {made:1}}out.push
 const ctors=[P,Base,Derived];for(const C of ctors)out.push(new C(2) instanceof C);
 console.log(out.join('|'));
 `;
-test('new sites cache the constructor and its prototype',()=>agree(constructions));
-test('new sites without GC stress',()=>agree(constructions,false));
+test("new sites cache the constructor and its prototype", () =>
+    agree(constructions));
+test("new sites without GC stress", () => agree(constructions, false));
 
-test('slots not live at entry are written before the collector scans them',()=>agree(String.raw`
+test("slots not live at entry are written before the collector scans them", () =>
+    agree(String.raw`
 const out=[];
 function hoisted(flag){if(flag)var x={v:1};const junk=[{},{},{}];return [String(x&&x.v),junk.length].join()}
 out.push(hoisted(true),hoisted(false));
@@ -115,13 +119,25 @@ out.push(args(),args(1),args(1,2,3,4));
 console.log(out.join('|'));
 `));
 
-test('frame descriptors clear only the parameters and the slots live at entry',()=>{
- const program=generate(compileToIR('function f(a,b){let t=[a];let u=t.length;return u+b}\nfunction g(){if(Math.random()>2)var v={};return v}\nconsole.log(f(1,2),g());\n'));
- const field=(name:string,offset:number)=>Number(new DataView(program.fragments.find(f=>f.name===name)!.bytes.buffer).getBigInt64(offset,true));
- // f: two parameters, temporaries written before they are read.
- assert.equal(field('js.fn.0.frame',FD.clear),2);
- assert.ok(field('js.fn.0.frame',FD.slots)>2);
- // g: v may be read before it is assigned.
- assert.ok(field('js.fn.1.frame',FD.clear)>=1);
- assert.equal(field('js.fn.0.frame',FD.rootCount),-(field('js.fn.0.frame',FD.slots)+3));
+test("frame descriptors clear only the parameters and the slots live at entry", () => {
+    const program = generate(
+        compileToIR(
+            "function f(a,b){let t=[a];let u=t.length;return u+b}\nfunction g(){if(Math.random()>2)var v={};return v}\nconsole.log(f(1,2),g());\n",
+        ),
+    );
+    const field = (name: string, offset: number) =>
+        Number(
+            new DataView(
+                program.fragments.find((f) => f.name === name)!.bytes.buffer,
+            ).getBigInt64(offset, true),
+        );
+    // f: two parameters, temporaries written before they are read.
+    assert.equal(field("js.fn.0.frame", FD.clear), 2);
+    assert.ok(field("js.fn.0.frame", FD.slots) > 2);
+    // g: v may be read before it is assigned.
+    assert.ok(field("js.fn.1.frame", FD.clear) >= 1);
+    assert.equal(
+        field("js.fn.0.frame", FD.rootCount),
+        -(field("js.fn.0.frame", FD.slots) + 3),
+    );
 });

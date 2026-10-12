@@ -41,7 +41,7 @@ Antes da geração de código, a IR de cada função passa por otimizações que
 Cada executável contém o runtime de [`src/runtime`](https://github.com/40oleg/nona/tree/main/src/runtime):
 
 - **Valores** são pares etiquetados de 16 bytes: undefined, null, booleanos, números binary64, strings UTF-16, objetos, símbolos e BigInts.
-- **Objetos** criados por literais e construtores compartilham *shapes* (classes ocultas): suas propriedades ficam em slots de 16 bytes descritos pela shape, e os caches inline do código gerado os leem e escrevem após uma única comparação de shape. O que uma shape não consegue descrever (acessores, exclusão, outros atributos, chaves símbolo) transforma o objeto em uma lista ordenada de propriedades, que ganha um índice hash quando cresce.
+- **Objetos** criados por literais e construtores compartilham _shapes_ (classes ocultas): suas propriedades ficam em slots de 16 bytes descritos pela shape, e os caches inline do código gerado os leem e escrevem após uma única comparação de shape. O que uma shape não consegue descrever (acessores, exclusão, outros atributos, chaves símbolo) transforma o objeto em uma lista ordenada de propriedades, que ganha um índice hash quando cresce.
 - O **código nativo** dos objetos embutidos é emitido como x86-64 por um pequeno construtor (`RuntimeBuilder`).
 - Os **prelúdios em JavaScript** (`src/lib/runtime/*.js`) implementam partes da biblioteca em JavaScript e são compilados em cada executável: o motor de RegExp, os drivers de Promise e async, os auxiliares de Proxy e Reflect, timers e o loop de eventos, `process`, `TextEncoder`/`TextDecoder` e os objetos embutidos do Annex B.
 

@@ -40,13 +40,13 @@ A value domain can distinguish NaN representations, signed zeros, object
 identities and the uninitialized marker. Modeling these values does not
 establish the correctness of Nona's actual binary64 implementation.
 
-| Theorem | Guarantee | Production connection |
-| --- | --- | --- |
-| `substitute_correct` | Replacing a read preserves expression evaluation while the two slots hold equal values | Operand forwarding in `propagateCopies`; redefinitions must invalidate aliases |
-| `dead_write_correct` | A write to an unobserved slot preserves all observed slots | Removing dead copies, constants and uninitialized markers |
-| `coalesce_correct` | `t = e; x = t` and `x = e` agree when `t` is unobserved; `x` may occur in operands | Constants and inline numeric producers in `coalesceMoves` |
-| `run_congr` | Inputs equal at backward-computed live slots produce equal observations | The continuation condition required by dead-write removal |
-| `optimizer_correct` | For every program, state and observation list, the modeled recursive dead-move optimizer preserves observations | A complete correctness theorem for the modeled straight-line pass |
+| Theorem              | Guarantee                                                                                                       | Production connection                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `substitute_correct` | Replacing a read preserves expression evaluation while the two slots hold equal values                          | Operand forwarding in `propagateCopies`; redefinitions must invalidate aliases |
+| `dead_write_correct` | A write to an unobserved slot preserves all observed slots                                                      | Removing dead copies, constants and uninitialized markers                      |
+| `coalesce_correct`   | `t = e; x = t` and `x = e` agree when `t` is unobserved; `x` may occur in operands                              | Constants and inline numeric producers in `coalesceMoves`                      |
+| `run_congr`          | Inputs equal at backward-computed live slots produce equal observations                                         | The continuation condition required by dead-write removal                      |
+| `optimizer_correct`  | For every program, state and observation list, the modeled recursive dead-move optimizer preserves observations | A complete correctness theorem for the modeled straight-line pass              |
 
 The core statement is:
 

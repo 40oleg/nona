@@ -1,10 +1,11 @@
-const shelf = ["a","b","c","d","e","f"];
+const shelf = ["a", "b", "c", "d", "e", "f"];
 const before = shelf.slice();
-shelf.copyWithin(2,0,3);
+shelf.copyWithin(2, 0, 3);
 const original = new Set(before);
 const remaining = new Set(shelf);
-const lost = Array.from(original).filter(label=>!remaining.has(label));
+const lost = Array.from(original).filter((label) => !remaining.has(label));
 const changed = [];
-for (let i=0;i<shelf.length;i++) if (shelf[i]!==before[i]) changed.push(i);
-const report = {shelf,lost,changed};
+for (let i = 0; i < shelf.length; i++)
+    if (shelf[i] !== before[i]) changed.push(i);
+const report = { shelf, lost, changed };
 console.log(JSON.stringify(report));

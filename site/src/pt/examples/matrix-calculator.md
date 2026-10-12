@@ -39,8 +39,14 @@ A + B:
 Edite as matrizes no fim do código-fonte e compile de novo:
 
 ```js
-const A = [[2, 1], [1, 1]];
-const B = [[3, 4], [5, 6]];
+const A = [
+    [2, 1],
+    [1, 1],
+];
+const B = [
+    [3, 4],
+    [5, 6],
+];
 ```
 
 Cada array interno é uma linha. As matrizes precisam ser não vazias, retangulares e conter números finitos. Soma e subtração exigem tamanhos iguais; a multiplicação exige tantas colunas em A quanto linhas em B; o determinante e a inversa exigem que A seja quadrada. Um erro em uma operação não interrompe as outras.

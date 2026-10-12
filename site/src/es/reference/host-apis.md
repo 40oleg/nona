@@ -35,7 +35,6 @@ Globales: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - `tests/stability.test.ts` comprueba que diez veces más disparos de temporizador (con tareas de Promise y basura en cada tick) no aumentan el pico de memoria, que miles de corrutinas abandonadas se liberan y que un programa que espera un temporizador de dos segundos apenas consume CPU.
 - Límites conocidos: el almacenamiento de propiedades, elementos y Map es lineal (#36), así que los programas con cientos de temporizadores vivos u objetos grandes se ralentizan; en Linux cada bloque del heap es un mapeo de memoria aparte (#37).
 
-
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
@@ -60,7 +59,6 @@ and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks an
 local context storage. Promise, await, timer and microtask callbacks preserve
 captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
 this API; see the English reference for the precise boundaries.
-
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
 

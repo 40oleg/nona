@@ -39,8 +39,14 @@ A + B:
 Modifiez les matrices à la fin du source et recompilez :
 
 ```js
-const A = [[2, 1], [1, 1]];
-const B = [[3, 4], [5, 6]];
+const A = [
+    [2, 1],
+    [1, 1],
+];
+const B = [
+    [3, 4],
+    [5, 6],
+];
 ```
 
 Chaque tableau intérieur est une ligne. Les matrices doivent être non vides, rectangulaires et contenir des nombres finis. L’addition et la soustraction exigent des tailles égales ; la multiplication exige autant de colonnes dans A que de lignes dans B ; le déterminant et l’inverse exigent une matrice A carrée. Une erreur dans une opération n’arrête pas les autres.

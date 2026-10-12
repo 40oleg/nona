@@ -2,12 +2,12 @@
 
 ## 详解
 
-| 示例 | 展示内容 | 目标平台 |
-| --- | --- | --- |
-| [Hello，定时器](/zh/examples/hello) | 函数、模板字面量、微任务和定时器 | Windows、Linux |
-| [Museum：壁纸切换器](/zh/examples/museum) | `nona:win32`、定时器、`node:fs`、`process`、带资源的图形界面程序 | Windows |
-| [矩阵计算器](/zh/examples/matrix-calculator) | 使用数组和异常的普通 ES2020 代码 | Windows、Linux |
-| [单词计数](/zh/examples/word-count) | `node:fs`、`process.argv`、`process.exitCode`、`Map`、Unicode RegExp | Windows、Linux |
+| 示例                                         | 展示内容                                                             | 目标平台       |
+| -------------------------------------------- | -------------------------------------------------------------------- | -------------- |
+| [Hello，定时器](/zh/examples/hello)          | 函数、模板字面量、微任务和定时器                                     | Windows、Linux |
+| [Museum：壁纸切换器](/zh/examples/museum)    | `nona:win32`、定时器、`node:fs`、`process`、带资源的图形界面程序     | Windows        |
+| [矩阵计算器](/zh/examples/matrix-calculator) | 使用数组和异常的普通 ES2020 代码                                     | Windows、Linux |
+| [单词计数](/zh/examples/word-count)          | `node:fs`、`process.argv`、`process.exitCode`、`Map`、Unicode RegExp | Windows、Linux |
 
 ## 仓库中的示例
 

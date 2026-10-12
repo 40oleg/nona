@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- All sources, tests, scripts, docs and site pages are formatted with Prettier 3 (4-space indent, other options at their defaults). `npm run format` formats them and the `format` CI job runs `npm run format:check`; `.prettierignore` lists generated files and the prelude templates with substitutions. Target-specific edits of built-in sources now fail loudly when their text is not found ([#250](https://github.com/40oleg/nona/issues/250)).
+
 ### npm packages
 
 - Programs can use npm packages: Nona resolves `node_modules` at build time as Node.js does (`package.json` `exports` with subpath patterns and conditions, `imports`, self-reference, `main`, `type`, symbolic links and pnpm stores) and compiles CommonJS modules, ES modules and JSON into the executable. CommonJS works as in Node.js (the module wrapper, `module.exports`, `require.cache`, `require.resolve`, cycles, sloppy mode, retry after a failed load); ES modules import CommonJS named exports found by a `cjs-module-lexer`-style scan, and `require()` of an ES module returns its namespace. A CommonJS entry file is compiled with everything it requires. Compile errors in packages name the package file. 33 of 36 popular packages tested (lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod, …) print the same as on Node.js; see [docs/npm.md](docs/npm.md) ([#249](https://github.com/40oleg/nona/issues/249)).

@@ -3,4 +3,4 @@
  * runtime's shapes (src/runtime/shapes.ts).
  */
 /** Most inline slots an object gets. */
-export const maxInlineCapacity=64;
+export const maxInlineCapacity = 64;
