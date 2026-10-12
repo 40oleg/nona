@@ -1,5 +1,6 @@
 import type {Target} from '../target.js';
 import {CompileError} from '../diagnostics.js';
+import {patchSource} from '../source-patch.js';
 import {modulesFsCommon,modulesFsWin32,modulesFsLinux} from '../lib/sources.generated.js';
 /**
  * Source of the built-in `nona:fs` (alias `node:fs`) module: a synchronous
@@ -32,7 +33,7 @@ function linuxArm64Source():string {
   'getUint32(24, true)':'getUint32(16, true)',
   'O_DIRECTORY = 0x10000':'O_DIRECTORY = 0x4000',
  };
- let source=linux;for(const [from,to] of Object.entries(replacements))source=source.replace(from,to);return source;
+ let source=linux;for(const [from,to] of Object.entries(replacements))source=patchSource(source,from,to);return source;
 }
 
 /** Native 64-bit BSD/Darwin ABIs; filesystem algorithms remain our own. */
@@ -40,24 +41,24 @@ function bsdSource(target:Target):string {
  const darwin=target.startsWith('darwin-'),freebsd=target==='freebsd-x64';
  const calls:Record<string,string>={sysRead:'3',sysWrite:'4',sysOpen:'5',sysClose:'6',sysFstat:darwin?'339':freebsd?'551':'53',sysRename:'128',sysMkdir:'136',sysRmdir:'137',sysUnlink:'10',sysReadlink:'58'};
  let source=linux;
- for(const [name,number] of Object.entries(calls))source=source.replace(new RegExp("const "+name+" =? ?define\\('syscall', ?'\\d+'"),"const "+name+" = define('syscall', '"+number+"'");
+ for(const [name,number] of Object.entries(calls))source=patchSource(source,new RegExp("const "+name+" =? ?define\\('syscall', ?'\\d+'"),"const "+name+" = define('syscall', '"+number+"'");
  if(freebsd){
-  source=source.replace("const sysStat = define('syscall', '4', 'i64(buf,buf)');","const statat=define('syscall','552','i64(i64,buf,buf,i64)');function sysStat(path,buffer){return statat(-100,path,buffer,0)}");
-  source=source.replace("const sysLstat = define('syscall', '6', 'i64(buf,buf)');","function sysLstat(path,buffer){return statat(-100,path,buffer,512)}");
+  source=patchSource(source,"const sysStat = define('syscall', '4', 'i64(buf,buf)');","const statat=define('syscall','552','i64(i64,buf,buf,i64)');function sysStat(path,buffer){return statat(-100,path,buffer,0)}");
+  source=patchSource(source,"const sysLstat = define('syscall', '6', 'i64(buf,buf)');","function sysLstat(path,buffer){return statat(-100,path,buffer,512)}");
  }else{
-  source=source.replace("const sysStat = define('syscall', '4'","const sysStat = define('syscall', '"+(darwin?'338':'38')+"'");
-  source=source.replace("const sysLstat = define('syscall', '6'","const sysLstat = define('syscall', '"+(darwin?'340':'40')+"'");
+  source=patchSource(source,"const sysStat = define('syscall', '4'","const sysStat = define('syscall', '"+(darwin?'338':'38')+"'");
+  source=patchSource(source,"const sysLstat = define('syscall', '6'","const sysLstat = define('syscall', '"+(darwin?'340':'40')+"'");
  }
- source=source.replace("const sysGetdents = define('syscall', '217', 'i64(i64,buf,i64)');",darwin||freebsd?
+ source=patchSource(source,"const sysGetdents = define('syscall', '217', 'i64(i64,buf,i64)');",darwin||freebsd?
   "const getdirentries=define('syscall','"+(darwin?'344':'554')+"','i64(i64,buf,i64,buf)');const directoryPosition=new Uint8Array(8);function sysGetdents(fd,buffer,size){return getdirentries(fd,buffer,size,directoryPosition)}":
   "const sysGetdents=define('syscall','99','i64(i64,buf,i64)');");
- source=source.replace('O_CREAT = 0x40, O_TRUNC = 0x200, O_APPEND = 0x400, O_DIRECTORY = 0x10000, O_CLOEXEC = 0x80000',
+ source=patchSource(source,'O_CREAT = 0x40, O_TRUNC = 0x200, O_APPEND = 0x400, O_DIRECTORY = 0x10000, O_CLOEXEC = 0x80000',
   'O_CREAT = 0x200, O_TRUNC = 0x400, O_APPEND = 8, O_DIRECTORY = '+(darwin?'0x100000':'0x20000')+', O_CLOEXEC = '+(darwin?'0x1000000':freebsd?'0x100000':'0x10000'));
- source=source.replace('exclusive?0x80:0','exclusive?0x800:0').replace("39: 'ENOTEMPTY'","66: 'ENOTEMPTY'");
- source=source.replace('const statBuffer = new Uint8Array(144)','const statBuffer = new Uint8Array(256)');
+ source=patchSource(patchSource(source,'exclusive?0x80:0','exclusive?0x800:0'),"39: 'ENOTEMPTY'","66: 'ENOTEMPTY'");
+ source=patchSource(source,'const statBuffer = new Uint8Array(144)','const statBuffer = new Uint8Array(256)');
  const modeOffset=darwin?4:freebsd?24:0,sizeOffset=darwin?96:freebsd?112:80,timeOffset=freebsd?64:48;
  const modeRead=darwin||freebsd?'getUint16':'getUint32';
- source=source.replace(/function statResult\(\) \{[\s\S]*?\n\}/,`function statResult(){
+ source=patchSource(source,/function statResult\(\) \{[\s\S]*?\n\}/,`function statResult(){
   const mode=statView.${modeRead}(${modeOffset},true),type=mode&0o170000;
   return {kind:type===0o040000?'dir':type===0o100000?'file':type===0o120000?'link':'other',
    size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:Number(statView.getBigInt64(${timeOffset},true))*1000+Number(statView.getBigInt64(${timeOffset+8},true))/1e6,mode,
@@ -65,7 +66,7 @@ function bsdSource(target:Target):string {
  }`);
  // d_name starts after the ABI-specific directory entry header, not Linux's.
  const nameOffset=darwin?21:24;
- source=source.replaceAll('offset + 19','offset + '+nameOffset);
+ source=patchSource(source,'offset + 19','offset + '+nameOffset,{all:true});
  return source;
 }
 

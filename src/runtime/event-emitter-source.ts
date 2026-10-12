@@ -1,18 +1,21 @@
+import {patchSource} from '../source-patch.js';
 import {eventsModuleSource} from './events-module-source.js';
 
 /** Reuse Nona's original Events algorithms for canonical process/stream ancestry. */
 export const eventEmitterPreludeSource=(()=>{
- const implementation=eventsModuleSource.replace(/^import .*$/gm,'').replace('export default EventEmitter;','').replace(/\bexport /g,'')
-  .replaceAll('list.push(listener)','emitterApply(emitterPush,list,[listener])')
-  .replaceAll('list.unshift(listener)','emitterApply(emitterUnshift,list,[listener])')
-  .replaceAll('list.splice(i, 1)','emitterApply(emitterSplice,list,[i,1])')
-  .replaceAll('Object.create(null)','emitterCreate(null)')
-  .replaceAll('Symbol.for(','emitterSymbolFor(')
-  .replaceAll('defaultMaxListeners = n;','defaultMaxListeners = n;updateExports();')
-  .replace('captureRejections = value;','captureRejections = value;updateExports();')
-  .replace('  let list = emitter._events[name];','  if(emitter===vm.processSignalEmitter)vm.processSignalListenerChanged(name,true);\n  let list = emitter._events[name];')
-  .replace("      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);","      if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);\n      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);")
-  .replace('else { delete this._events[name]; this._eventsCount--; }','else { delete this._events[name]; this._eventsCount--;if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false); }');
+ let implementation=eventsModuleSource.replace(/^import .*$/gm,'');
+ implementation=patchSource(implementation,'export default EventEmitter;','');
+ implementation=patchSource(implementation,/\bexport /g,'');
+ implementation=patchSource(implementation,'list.push(listener)','emitterApply(emitterPush,list,[listener])',{all:true});
+ implementation=patchSource(implementation,'list.unshift(listener)','emitterApply(emitterUnshift,list,[listener])',{all:true});
+ implementation=patchSource(implementation,'list.splice(i, 1)','emitterApply(emitterSplice,list,[i,1])',{all:true});
+ implementation=patchSource(implementation,'Object.create(null)','emitterCreate(null)',{all:true});
+ implementation=patchSource(implementation,'Symbol.for(','emitterSymbolFor(',{all:true});
+ implementation=patchSource(implementation,'defaultMaxListeners = n;','defaultMaxListeners = n;updateExports();',{all:true});
+ implementation=patchSource(implementation,'captureRejections = value;','captureRejections = value;updateExports();');
+ implementation=patchSource(implementation,'  let list = emitter._events[name];','  if(emitter===vm.processSignalEmitter)vm.processSignalListenerChanged(name,true);\n  let list = emitter._events[name];');
+ implementation=patchSource(implementation,"      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);","      if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);\n      if (this._events.removeListener) this.emit('removeListener', name, current.listener || current);");
+ implementation=patchSource(implementation,'else { delete this._events[name]; this._eventsCount--; }','else { delete this._events[name]; this._eventsCount--;if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false); }');
  return `;(function(){
  var vm=__nonaRegexpVm,subscribers=[],initialized=null;
  var EventTarget=globalThis.EventTarget,Event=globalThis.Event,Promise=globalThis.Promise,Symbol=globalThis.Symbol;

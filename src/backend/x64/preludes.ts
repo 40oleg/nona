@@ -1,3 +1,4 @@
+import {patchSource} from '../../source-patch.js';
 import {currentNativeTarget} from '../machine/context.js';
 import type {ModuleIR} from '../../ir/model.js';
 import {optionalPreludes,preludeDependencies,type OptionalPrelude,type RuntimeLink} from '../../link.js';
@@ -43,7 +44,7 @@ export function lowerRuntimePrelude(rejectionPolicy:'throw'|'ignore',regexpLink:
     // Order matters: later preludes capture intrinsics installed by earlier ones.
     const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
       ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],['url',urlPreludeSource],
-      ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
+      ['buffer',currentNativeTarget()?.startsWith('win32')?patchSource(bufferPreludeSource,"nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
     prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
     cachedRuntimePreludes.set(preludeKey,prelude);
   }

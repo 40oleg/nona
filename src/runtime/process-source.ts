@@ -1,3 +1,4 @@
+import {patchSource} from '../source-patch.js';
 // The global `process` object and common process control/timing APIs.
 // Host functions are FFI thunks installed per target by the code
 // generator as __nonaHost_* globals; the prelude captures and removes them.
@@ -111,6 +112,6 @@ export function processHostDeclarations(target:Target):{name:string;declaration:
 export function processPreludeForTarget(target:string|undefined):string {
  const source=processPreludeSource.replace('__NONA_PROCESS_HOST_NAMES__',JSON.stringify(processHostDeclarations((target??'win32-x64') as Target).map(h=>h.name))).replace('__NONA_PROCESS_PLATFORM__',target?.startsWith('win32-')?'linux':target?.split('-')[0]??'linux').replace('__NONA_PROCESS_ARCH__',target?.endsWith('-arm64')?'arm64':'x64');
  if(target!=='linux-arm64')return source;
- return source.replace('var windows=host.GetCommandLineW()!==0;',
+ return patchSource(source,'var windows=host.GetCommandLineW()!==0;',
   'var windows=host.GetCommandLineW()!==0;var openat=host.sys_open,readlinkat=host.sys_readlink,ppoll=host.sys_poll;host.sys_open=function(path,flags,mode){return openat(-100,path,flags,mode)};host.sys_readlink=function(path,buffer,size){return readlinkat(-100,path,buffer,size)};host.sys_poll=function(fds,count){return ppoll(fds,count,new Uint32Array(4),null,8)};');
 }
