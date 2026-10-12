@@ -1,0 +1,3 @@
+# Bulk reformatting; git blame --ignore-revs-file .git-blame-ignore-revs skips it.
+# Format all files with Prettier (#250)
+f88dbac39a063e2e529b3d774cfaf47d9f17ed2a
