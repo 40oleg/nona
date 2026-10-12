@@ -15,6 +15,27 @@
  var hex='0123456789ABCDEF';
  var encoder=typeof TextEncoder==='function'?new TextEncoder():null;
  function invalid(input){var error=new TypeError('Invalid URL');error.code='ERR_INVALID_URL';error.input=input;return error}
+ // Scanning helpers without regular expressions: a URL is parsed with few allocations.
+ function search(text,chars,from){for(var i=from||0;i<text.length;i++)if(chars.indexOf(text[i])>=0)return i;return -1}
+ function stop(text,chars){var at=search(text,chars);return at<0?text.length:at}
+ function isAlpha(c){return c>=65&&c<=90||c>=97&&c<=122}
+ function isDigit(c){return c>=48&&c<=57}
+ function allDigits(text){if(text==='')return false;for(var i=0;i<text.length;i++)if(!isDigit(text.charCodeAt(i)))return false;return true}
+ function isSlash(ch,special){return ch==='/'||special&&ch==='\\'}
+ function leadingSlashes(text,special){var n=0;while(n<text.length&&isSlash(text[n],special))n++;return n}
+ function cleanInput(text){
+  var start=0,end=text.length;
+  while(start<end&&text.charCodeAt(start)<=0x20)start++;
+  while(end>start&&text.charCodeAt(end-1)<=0x20)end--;
+  if(start!==0||end!==text.length)text=text.slice(start,end);
+  if(search(text,'\t\n\r')<0)return text;
+  var out='';for(var i=0;i<text.length;i++){var ch=text[i];if(ch!=='\t'&&ch!=='\n'&&ch!=='\r')out+=ch}return out;
+ }
+ function schemeLength(text){
+  if(!text.length||!isAlpha(text.charCodeAt(0)))return -1;
+  for(var i=1;i<text.length;i++){var c=text.charCodeAt(i);if(c===58)return i;if(!(isAlpha(c)||isDigit(c)||c===43||c===45||c===46))return -1}
+  return -1;
+ }
  function utf8(ch){
   if(encoder!==null)return encoder.encode(ch);
   var c=ch.codePointAt(0),out=[];
@@ -22,6 +43,9 @@
   return out;
  }
  function encodeSet(text,extra){
+  var clean=true;
+  for(var k=0;k<text.length;k++){var code0=text.charCodeAt(k);if(code0<=0x20||code0>=0x7f||extra.indexOf(text[k])>=0){clean=false;break}}
+  if(clean)return text;
   var out='';
   for(var i=0;i<text.length;i++){
    var code=text.charCodeAt(i),ch=text[i];
@@ -40,11 +64,12 @@
  var userinfoSet=' "#<>?\x60{}/:;=@[\\]^|';
  var componentSet=userinfoSet+'$%&+,';
  var formSet=componentSet+'!\'()~';
+ function isHex(c){return isDigit(c)||c>=65&&c<=70||c>=97&&c<=102}
  function percentDecodeBytes(text){
   var bytes=[];
   for(var i=0;i<text.length;i++){
    var c=text.charCodeAt(i);
-   if(c===37&&i+2<text.length&&/^[0-9A-Fa-f]{2}$/.test(text.slice(i+1,i+3))){bytes.push(parseInt(text.slice(i+1,i+3),16));i+=2;continue}
+   if(c===37&&i+2<text.length&&isHex(text.charCodeAt(i+1))&&isHex(text.charCodeAt(i+2))){bytes.push(parseInt(text.slice(i+1,i+3),16));i+=2;continue}
    var b=utf8(text[i]);
    if(c>=0xd800&&c<0xdc00&&i+1<text.length){b=utf8(text.slice(i,i+2));i++}
    for(var j=0;j<b.length;j++)bytes.push(b[j]);
@@ -69,7 +94,8 @@
   var parts=host.split('.');
   if(parts[parts.length-1]===''){if(parts.length===1)return false;parts.pop()}
   var last=parts[parts.length-1];
-  if(last!==''&&/^[0-9]+$/.test(last))return true;
+  if(allDigits(last))return true;
+  if(!(last.length>1&&last[0]==='0'&&(last[1]==='x'||last[1]==='X')))return false;
   return !isNaN(parseIPv4Number(last))&&/^(0[xX][0-9A-Fa-f]*|[0-9]+)$/.test(last);
  }
  function parseIPv4(host,input){
@@ -129,17 +155,16 @@
  function parseHost(text,specialScheme,input){
   if(text[0]==='['){if(text[text.length-1]!==']')throw invalid(input);return parseIPv6(text.slice(1,-1),input)}
   if(!specialScheme){
-   if(/[\x00\t\n\r #/:<>?@[\\\]^|]/.test(text))throw invalid(input);
+   if(search(text,'\x00\t\n\r #/:<>?@[\\]^|')>=0)throw invalid(input);
    return encodeSet(text,'');
   }
-  var domain=decodeUtf8(percentDecodeBytes(text)).toLowerCase();
+  var domain=(text.indexOf('%')>=0?decodeUtf8(percentDecodeBytes(text)):text).toLowerCase();
   if(domain==='')throw invalid(input);
-  if(/[^\x00-\x7f]/.test(domain))throw invalid(input);
-  if(/[\x00-\x20#%/:<>?@[\\\]^|\x7f]/.test(domain))throw invalid(input);
+  for(var i=0;i<domain.length;i++){var c=domain.charCodeAt(i);if(c<=0x20||c>=0x7f||'#%/:<>?@[\\]^|'.indexOf(domain[i])>=0)throw invalid(input)}
   if(endsInNumber(domain))return parseIPv4(domain,input);
   return domain;
  }
- function isWindowsDrive(text,normalizedOnly){return text.length===2&&/[A-Za-z]/.test(text[0])&&(text[1]===':'||!normalizedOnly&&text[1]==='|')}
+ function isWindowsDrive(text,normalizedOnly){return text.length===2&&isAlpha(text.charCodeAt(0))&&(text[1]===':'||!normalizedOnly&&text[1]==='|')}
  function startsWithDrive(text){return text.length>=2&&isWindowsDrive(text.slice(0,2),false)&&(text.length===2||'/\\?#'.indexOf(text[2])>=0)}
  function shortenPath(record){
   var path=record.path;
@@ -155,7 +180,7 @@
   var query=rest.indexOf('?');
   if(query>=0){record.query=encodeSet(rest.slice(query+1),specialScheme?specialQuerySet:querySet);rest=rest.slice(0,query)}
   if(startPath===false)return;
-  var segments=specialScheme?rest.split(/[\/\\]/):rest.split('/');
+  var segments=(specialScheme&&rest.indexOf('\\')>=0?rest.split('\\').join('/'):rest).split('/');
   // A leading separator produces an empty first segment, which is not a segment.
   if(segments.length&&segments[0]===''&&rest!=='')segments.shift();
   else if(rest===''){if(!specialScheme)return;segments=[]}
@@ -191,43 +216,43 @@
   else record.host=parseHost(hostText,specialScheme,input);
   if(record.scheme==='file:'&&record.host==='localhost')record.host='';
   if(portText!==''){
-   if(!/^[0-9]+$/.test(portText))throw invalid(input);
+   if(!allDigits(portText))throw invalid(input);
    var port=parseInt(portText,10);
    if(port>65535)throw invalid(input);
    record.port=special[record.scheme]===port?null:port;
   }
  }
  function parse(input,base){
-  input=String(input).replace(/^[\x00-\x20]+|[\x00-\x20]+$/g,'').replace(/[\t\n\r]/g,'');
+  input=cleanInput(String(input));
   var record={scheme:'',username:'',password:'',host:null,port:null,path:[],query:null,fragment:null};
-  var match=/^([A-Za-z][A-Za-z0-9+.\-]*):/.exec(input);
-  if(match){
-   record.scheme=match[1].toLowerCase()+':';
-   var rest=input.slice(match[0].length);
+  var colon=schemeLength(input);
+  if(colon>0){
+   record.scheme=input.slice(0,colon+1).toLowerCase();
+   var rest=input.slice(colon+1);
    var specialScheme=isSpecial(record.scheme);
    if(record.scheme==='file:'){
     // file: always has a host (possibly empty); a missing authority takes the base's.
-    if(/^[\/\\]{2}/.test(rest)){
+    if(leadingSlashes(rest,true)>=2){
      rest=rest.slice(2);
-     var end=rest.search(/[\/\\?#]/);if(end<0)end=rest.length;
+     var end=stop(rest,'/\\?#');
      var authority=rest.slice(0,end);
      if(isWindowsDrive(authority,false)){record.host='';parseTail(record,'/'+rest,input);return record}
      parseAuthority(record,authority,input);parseTail(record,rest.slice(end),input);return record;
     }
-    if(base&&base.scheme==='file:'&&!/^[\/\\]/.test(rest)){return relative(record,rest,base,input)}
-    record.host='';parseTail(record,rest.replace(/^[\/\\]?/,'/'),input);return record;
+    if(base&&base.scheme==='file:'&&!isSlash(rest[0],true)){return relative(record,rest,base,input)}
+    record.host='';parseTail(record,'/'+(isSlash(rest[0],true)?rest.slice(1):rest),input);return record;
    }
    if(specialScheme){
-    if(base&&base.scheme===record.scheme&&!/^[\/\\]/.test(rest))return relative(record,rest,base,input);
-    rest=rest.replace(/^[\/\\]*/,'');
-    var stop=rest.search(/[\/\\?#]/);if(stop<0)stop=rest.length;
-    parseAuthority(record,rest.slice(0,stop),input);
-    parseTail(record,rest.slice(stop)||'/',input);
+    if(base&&base.scheme===record.scheme&&!isSlash(rest[0],true))return relative(record,rest,base,input);
+    rest=rest.slice(leadingSlashes(rest,true));
+    var at=stop(rest,'/\\?#');
+    parseAuthority(record,rest.slice(0,at),input);
+    parseTail(record,rest.slice(at)||'/',input);
     return record;
    }
    if(rest.slice(0,2)==='//'){
     rest=rest.slice(2);
-    var stop2=rest.search(/[\/?#]/);if(stop2<0)stop2=rest.length;
+    var stop2=stop(rest,'/?#');
     parseAuthority(record,rest.slice(0,stop2),input);
     parseTail(record,rest.slice(stop2),input);
     return record;
@@ -238,7 +263,7 @@
    if(hashAt>=0){record.fragment=encodeSet(rest.slice(hashAt+1),fragmentSet);rest=rest.slice(0,hashAt)}
    var queryAt=rest.indexOf('?');
    if(queryAt>=0){record.query=encodeSet(rest.slice(queryAt+1),querySet);rest=rest.slice(0,queryAt)}
-   record.path=encodeSet(rest,'').replace(/%20/g,' ');
+   record.path=rest.indexOf(' ')<0?encodeSet(rest,''):encodeSet(rest,'').split('%20').join(' ');
    return record;
   }
   if(!base)throw invalid(input);
@@ -251,23 +276,22 @@
  }
  function relative(record,rest,base,input){
   var specialScheme=isSpecial(record.scheme);
-  var slash=specialScheme?/^[\/\\]/:/^\//;
-  if(specialScheme?/^[\/\\]{2}/.test(rest):rest.slice(0,2)==='//'){
+  if(leadingSlashes(rest,specialScheme)>=2){
    rest=rest.slice(2);
    if(record.scheme==='file:'){
-    var e=rest.search(/[\/\\?#]/);if(e<0)e=rest.length;
+    var e=stop(rest,'/\\?#');
     var authority=rest.slice(0,e);
     if(isWindowsDrive(authority,false)){record.host='';parseTail(record,'/'+rest,input);return record}
     parseAuthority(record,authority,input);parseTail(record,rest.slice(e),input);return record;
    }
-   var stop=rest.search(specialScheme?/[\/\\?#]/:/[\/?#]/);if(stop<0)stop=rest.length;
-   parseAuthority(record,rest.slice(0,stop),input);
-   parseTail(record,rest.slice(stop)||(specialScheme?'/':''),input);
+   var at=stop(rest,specialScheme?'/\\?#':'/?#');
+   parseAuthority(record,rest.slice(0,at),input);
+   parseTail(record,rest.slice(at)||(specialScheme?'/':''),input);
    return record;
   }
   record.username=base.username;record.password=base.password;record.host=base.host;record.port=base.port;
   if(rest===''){record.path=base.path.slice();record.query=base.query;return record}
-  if(slash.test(rest)){
+  if(isSlash(rest[0],specialScheme)){
    if(record.scheme==='file:'&&base.path.length&&isWindowsDrive(base.path[0],true)&&!startsWithDrive(rest.slice(1)))record.path.push(base.path[0]);
    parseTail(record,rest,input);return record;
   }
@@ -322,7 +346,9 @@
   return out.join('&');
  }
  function toUSV(value){
-  var text=String(value),out='';
+  var text=String(value),out='',k;
+  for(k=0;k<text.length;k++){var c0=text.charCodeAt(k);if(c0>=0xd800&&c0<0xe000)break}
+  if(k===text.length)return text;
   for(var i=0;i<text.length;i++){
    var c=text.charCodeAt(i);
    if(c>=0xd800&&c<0xdc00&&i+1<text.length){var d=text.charCodeAt(i+1);if(d>=0xdc00&&d<0xe000){out+=text[i]+text[i+1];i++;continue}}
