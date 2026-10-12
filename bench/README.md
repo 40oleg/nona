@@ -1,6 +1,6 @@
 # Benchmarks
 
-Micro-benchmarks (`05_*` ... `15_*`), the real-world corpus (`real/`) and the HTTP server cases (`http/`) behind [`PERFORMANCE.md`](../PERFORMANCE.md).
+Micro-benchmarks (`05_*` ... `16_*`), the real-world corpus (`real/`) and the HTTP server cases (`http/`) behind [`PERFORMANCE.md`](../PERFORMANCE.md).
 
 ## Running
 
@@ -21,6 +21,10 @@ node bench/run.mjs [--scale 0.1] [--runs 3] [--timeout 600] [--only 05,06] [--ru
 3. Run `node bench/run.mjs --scale 0.1 --runs 3 --runtimes node,nona` and take the median of the runs per metric. Add Deno and Bun when they are installed (`--runtimes node,deno,bun,nona`).
 4. Compare the `check` values of the runtimes; a mismatch is a correctness bug, not a performance result.
 5. Update `PERFORMANCE.md`: put the date, the commit and the version next to every table you re-measured, and mark the tables you did not re-measure with the version they were measured with.
+
+## Profiling
+
+`node scripts/profile-runtime.mjs <script> [--scale s] [--group]` runs a script compiled for Linux x64 under QEMU's execution trace and prints how many instructions each runtime routine and compiled function executed (Linux x64 host; needs `qemu-user` and `binutils`). The trace takes about 20 bytes per instruction, so keep profiled runs to a few hundred million instructions. [docs/simd.md](../docs/simd.md) describes the method and shows results.
 
 ## Known limitations
 

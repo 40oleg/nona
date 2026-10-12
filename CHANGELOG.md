@@ -4,6 +4,7 @@
 
 ### Development
 
+- `scripts/profile-runtime.mjs` counts the instructions each runtime routine executes (QEMU trace), `bench/16_string_scan.js` measures long-string scans, and [docs/simd.md](docs/simd.md) reports where SIMD would help ([#253](https://github.com/40oleg/nona/issues/253)).
 - All sources, tests, scripts, docs and site pages are formatted with Prettier 3 (4-space indent, other options at their defaults). `npm run format` formats them and the `format` CI job runs `npm run format:check`; `.prettierignore` lists generated files and the prelude templates with substitutions. Target-specific edits of built-in sources now fail loudly when their text is not found ([#250](https://github.com/40oleg/nona/issues/250)).
 
 ### npm packages
