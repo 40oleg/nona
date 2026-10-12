@@ -81,14 +81,14 @@ nona build server.mjs -o server
 Командная строка:
 
 ```text
-nona build <input.js> -o <output> [--target <target>] [--module]
-           [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+nona build <input.js|package directory> -o <output> [--target <target>] [--module]
+           [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. `--full-runtime` подключает всю среду выполнения, а не только достижимые части. `--print-asm` выводит ассемблер x86-64, сгенерированный для собственных функций программы (`-o` тогда можно не указывать). Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
+Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. Входной файл CommonJS компилируется со всем, что он подключает через `require`, а каталог пакета собирает его команду из `"bin"` или модуль `"main"`. `--full-runtime` подключает всю среду выполнения, а не только достижимые части. `--print-asm` выводит ассемблер x86-64, сгенерированный для собственных функций программы (`-o` тогда можно не указывать). Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
 
 ## Что поддерживается
 
@@ -111,7 +111,11 @@ nona --help | --version
 | `node:path` | варианты POSIX и Windows, разбор, разрешение путей, glob | [пути](docs/path.md) |
 | `Buffer`, `Blob`, `File`, `node:buffer` | хранение байтов, стандартные кодировки, числовой доступ; `TextEncoder`/`TextDecoder` | [двоичные данные](docs/host-apis.md#buffer-and-binary-data) |
 | `node:http`, `node:net`, `node:string_decoder` | HTTP/1.1-серверы, клиенты и keep-alive-агенты; TCP-сокеты и серверы (Linux и Windows) | [сеть](docs/network.md) |
+| `URL`, `URLSearchParams`, `node:url` | разбор и сериализация по URL Standard, `fileURLToPath`, `pathToFileURL` | [URL](docs/host-apis.md#url) |
+| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | то, что используют npm-пакеты: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, проверки, случайные значения, хеши и HMAC | [вспомогательные модули](docs/host-apis.md#nodejs-support-modules) |
 | `nona:ffi`, `nona:win32` | вызов любых экспортов DLL в Windows | [FFI](docs/ffi.md) |
+
+**npm-пакеты.** Установите пакеты через npm как обычно и соберите программу: Nona разрешает `node_modules` при компиляции так же, как Node.js (`exports`, `imports`, условия, `main`, `type` из `package.json`, символические ссылки), и компилирует в исполняемый файл модули CommonJS, ES-модули и JSON; `require`, `module.exports`, `require.cache`, циклы и взаимодействие с ES-модулями работают как в Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod и другие проверены на совпадение с Node.js ([npm-пакеты](docs/npm.md)).
 
 **Программы для Windows** могут быть оконными, без консоли (`--subsystem windows`), и содержать иконку, манифест и сведения о версии ([исполняемые файлы Windows](docs/windows-executables.md)).
 
@@ -154,7 +158,7 @@ Nona выигрывает там, где и должен выигрывать и
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходный текст, известный при компиляции.
 - Большинство возможностей новее ES2020, которых нет в списке выше (`WeakRef`, `await` верхнего уровня, …), не поддерживаются.
-- Модули Node.js вне таблицы выше, npm-пакеты, которым они нужны, и браузерные API недоступны. Сеть работает в Linux и Windows.
+- Модули Node.js вне таблицы выше (`zlib`, `https`, `child_process`, …), npm-пакеты, которым они или `Intl` нужны, нативные аддоны и браузерные API недоступны. Сеть работает в Linux и Windows.
 - Обычные вычисления намного медленнее, чем в JIT.
 
 ## Разработка

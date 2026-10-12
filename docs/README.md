@@ -17,6 +17,7 @@ This directory holds the reference documents. Snapshots written for a particular
 | [fs.md](fs.md) | `node:fs` and `nona:fs` | English |
 | [path.md](path.md) | `node:path` and `path` | English |
 | [network.md](network.md) | `node:http` and `node:net` | English |
+| [npm.md](npm.md) | npm packages: `node_modules` resolution, CommonJS, ES module interop, support modules | English |
 | [ffi.md](ffi.md) | Native functions (`nona:ffi`, `nona:win32`) | English |
 | [windows-executables.md](windows-executables.md) | Windows subsystem, icons, manifests and version information | English |
 | [native-platforms.md](native-platforms.md) | The eight native targets and their execution evidence | English |

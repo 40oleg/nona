@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Em um clone do repositório, execute `node dist/cli.js …`; depois de `npm link
 | `-o` | caminho | Arquivo de saída. Obrigatória. Diretórios ausentes são criados. |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compila a entrada como módulo ES. Entradas terminadas em `.mjs` são módulos automaticamente. |
+| `--conditions`, `-C` | nome | Adiciona uma condição de `exports`/`imports` do package.json, testada antes das condições do próprio Nona (`nona`, `node`, `import` ou `require`, `default`); `--conditions=name` também funciona. Pode ser repetida. Veja [pacotes npm](/reference/npm#resolution). |
 | `--print-asm` | — | Imprime no stdout o assembly x86-64 gerado para as funções do próprio programa (não o runtime nem seus prelúdios): o rótulo de cada função e uma linha por instrução com seu deslocamento, seus bytes codificados e seu texto em sintaxe Intel. Com esta opção, `-o` pode ser omitido. Apenas alvos x86-64. |
 | `--subsystem` | `console` (padrão), `windows` | Programa gráfico do Windows sem janela de console. Apenas `win32-x64`. Um programa gráfico sem `--manifest` recebe um manifesto padrão. |
 | `--icon` | arquivo `.ico` | Incorpora todas as imagens do arquivo de ícone. Apenas `win32-x64`. |
@@ -29,11 +30,12 @@ Em um clone do repositório, execute `node dist/cli.js …`; depois de `npm link
 | `--help` | — | Exibe a sinopse. |
 | `--version` | — | Exibe a versão do compilador. |
 
-Cada opção pode aparecer uma única vez. Veja [Executáveis do Windows](/pt/reference/windows-executables) para os formatos dos recursos.
+Cada opção, exceto `--conditions`, pode aparecer uma única vez. Veja [Executáveis do Windows](/pt/reference/windows-executables) para os formatos dos recursos.
 
 ## Entrada e saída
 
-- A entrada é um único arquivo-fonte em UTF-8. Uma entrada do tipo módulo traz junto os módulos que importa; os módulos embutidos `nona:*` e `node:*` fazem parte do compilador.
+- A entrada é um único arquivo-fonte em UTF-8. Uma entrada do tipo módulo traz junto os módulos que importa, e uma entrada CommonJS os módulos que carrega com `require`, incluindo pacotes npm de `node_modules` ([pacotes npm](/reference/npm)); os módulos embutidos `nona:*` e `node:*` fazem parte do compilador.
+- A entrada pode ser um diretório de pacote: o Nona compila o arquivo indicado pelo campo `"bin"` do seu `package.json` (o único comando, ou o que tem o nome do pacote); caso contrário, o seu `"main"` ou `index.js`.
 - A saída é gravada em um arquivo temporário ao lado e depois renomeada para o lugar certo, de modo que um build com falha nunca deixa um executável pela metade e preserva o anterior.
 - O compilador se recusa a sobrescrever sua própria entrada, inclusive por meio de um link físico ou simbólico.
 - As saídas para Linux recebem modo `0755`.

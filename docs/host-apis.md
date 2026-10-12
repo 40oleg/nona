@@ -204,7 +204,7 @@ Global and module `Blob` and `File` constructors provide immutable copied data, 
 
 ### URL and Web Streams dependency boundaries
 
-The global URL constructor currently parses and serializes `blob:nodedata:` object URLs only; unsupported general URLs throw `ERR_INVALID_URL`. Full WHATWG URL parsing belongs to future URL-module support. The global ReadableStream and reader prototypes support streams returned by Blob; arbitrary underlying-source construction, configurable queuing strategies and TransformStream construction are not yet provided. These dependency APIs are independently authored and use no external runtime library.
+The global `URL` and `URLSearchParams` are described in [URL](#url); `URL.createObjectURL` and `URL.revokeObjectURL` register `blob:nodedata:` object URLs for Blobs. The global ReadableStream and reader prototypes support streams returned by Blob; arbitrary underlying-source construction, configurable queuing strategies and TransformStream construction are not yet provided. These dependency APIs are independently authored and use no external runtime library.
 
 Teeing a cancelled or completed stream preserves its terminal state. A tee branch cancellation waits for the other branch to cancel or consume the source to EOF; branch reasons are combined when cancelling the source. Writable sink initialization rejection and controller errors reject acquired writers' `closed` promises, including writers acquired after the failure.
 
@@ -255,3 +255,78 @@ Blob piping retains its startup Promise constructor. Releasing a reader preserve
 Stream constructors and process standard I/O are initialized on first use. Reading process metadata does not create stream queues or standard-stream instances; direct standard-I/O access and warning output retain the canonical Stream constructors.
 
 Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
+
+## URL
+
+The global `URL` and `URLSearchParams` (also exported by `node:url`) follow the
+[URL Standard](https://url.spec.whatwg.org/): special schemes (`http`, `https`,
+`ws`, `wss`, `ftp`, `file`) with default ports, backslashes and dot segments,
+relative references against a base, other schemes with an authority or an
+opaque path (`mailto:`, `data:`, `blob:`), the standard percent-encoding sets,
+IPv4 numbers in any notation and IPv6 addresses. Every component can be read
+and set; `searchParams` stays in sync with `search`. `URL.canParse` and
+`URL.parse` are provided. Hosts are lowercased but not converted with IDNA:
+a URL with a non-ASCII host throws `ERR_INVALID_URL`. The parser is linked
+into a program only when its sources mention `URL` or `URLSearchParams`.
+Its methods and accessors are installed on `URL.prototype` and
+`URLSearchParams.prototype` when the first URL or search parameters object is
+created (or `URL.canParse` is called), which keeps the heap of programs that
+never parse a URL small.
+
+## Node.js support modules
+
+These modules exist mainly for [npm packages](npm.md), which load them at
+startup. Each is available as `node:<name>` and `<name>`.
+
+- `node:os`: `EOL`, `devNull`, `platform`, `arch`, `machine`, `type`,
+  `endianness`, `homedir` (`HOME`, or `USERPROFILE` on Windows), `tmpdir`
+  (`TMPDIR`/`TMP`/`TEMP`), `hostname` (`HOSTNAME`/`COMPUTERNAME` or
+  `localhost`), `userInfo`, `uptime`, `freemem`, `totalmem`, and
+  `constants.signals`/`priority`. `release` and `version` are empty strings,
+  `cpus()` and `networkInterfaces()` are empty, `loadavg()` is zeros and
+  `availableParallelism()` is 1.
+- `node:tty`: `isatty(fd)` reports whether standard input, output or error is
+  a terminal; `ReadStream` and `WriteStream` are minimal classes for feature
+  detection.
+- `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
+  %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
+  `maxArrayLength`, `customInspect`), `inherits`, `promisify` (with
+  `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
+  `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
+  `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` and the legacy
+  `is*` predicates. `inspect` approximates Node.js's layout: objects, arrays,
+  Maps, Sets, typed arrays, functions, classes, errors, dates, boxed values,
+  getters and circular references are shown, but colors, `showHidden`,
+  `sorted` and Node.js's grouping of long arrays into columns are not
+  reproduced exactly. `node:util/types` is `util.types`.
+- `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`
+  (Windows drive letters and UNC hosts on Windows), `urlToHttpOptions`,
+  `domainToASCII`/`domainToUnicode` (ASCII only), and the legacy `parse`,
+  `format` and `resolve`.
+- `node:assert` and `node:assert/strict`: `ok`, `equal`, `notEqual`,
+  `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` and their
+  negations, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`,
+  `doesNotMatch`, `ifError`, `fail` and `AssertionError` (`code`
+  `ERR_ASSERTION`). Failure messages are shorter than Node.js's diffs.
+- `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID`
+  (version 4), `randomInt`, `getRandomValues` and `webcrypto.getRandomValues`
+  read the operating system's random source (`BCryptGenRandom` on Windows,
+  `/dev/urandom` elsewhere). `createHash` (`md5`, `sha1`, `sha256`, `sha384`,
+  `sha512`, with `update`, `digest` in any Buffer encoding and `copy`),
+  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. Ciphers, keys,
+  signatures, key derivation and `crypto.subtle` are not provided, and there
+  is no global `crypto`.
+- `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`,
+  `unescape`.
+- `node:timers`: the global timer functions. `node:timers/promises`:
+  `setTimeout`, `setImmediate` (both with an `AbortSignal`), `setInterval` as
+  an async iterator, and `scheduler.wait`/`yield`.
+- `node:perf_hooks`: `performance`; `PerformanceObserver` and
+  `monitorEventLoopDelay` observe nothing.
+- `node:module`: `builtinModules` and `isBuiltin`. `createRequire` throws
+  `ERR_NONA_UNSUPPORTED`: modules are resolved when the program is built.
+- `node:worker_threads`: `isMainThread` is `true`, `parentPort` and
+  `workerData` are `null`; `Worker` throws `ERR_NONA_UNSUPPORTED`.
+- `node:child_process`: every function and `ChildProcess` throw
+  `ERR_NONA_UNSUPPORTED`. The module exists so that packages which only
+  mention it load.

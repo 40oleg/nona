@@ -29,6 +29,8 @@ export interface ModuleHost {
   candidates?(referrer:string):string[];
   builtinAliases?(path:string):string[]|undefined;
   builtinCandidates?():string[];
+  /** A module the host builds as an AST rather than text (a CommonJS factory, src/frontend/commonjs.ts). */
+  program?(path:string):A.Program|undefined;
 }
 
 function fail(message:string,path:string,node?:A.Node):never {
@@ -259,11 +261,11 @@ export function loadModuleGraph(entryPath:string,entrySource:string|null,host:Mo
   const records:ModuleRecord[]=[],byPath=new Map<string,ModuleRecord>();
   const load=(path:string,source:string,dynamic=false):ModuleRecord=>{
     let ast:A.Program,loadError:string|undefined;
-    try{ast=lowerLiteralEval(lowerDynamicFunctions(parse(lex(source,{module:true}),{module:true})));checkModuleNames(ast,path);}
+    try{ast=host.program?.(path)??lowerLiteralEval(lowerDynamicFunctions(parse(lex(source,{module:true}),{module:true})));checkModuleNames(ast,path);}
     catch(error){
       if(!(error instanceof CompileError))throw error;
       // A module first reached through import() fails when that import runs.
-      if(!dynamic)throw new CompileError(error.diagnostics.map(d=>({...d,file:path})));
+      if(!dynamic)throw new CompileError(error.diagnostics.map(d=>({...d,file:d.file||path})));
       ast={kind:'Program',body:[],module:true,source:'',span:{start:0,end:0}};loadError=error.diagnostics[0]?.message??'Invalid module';
     }
     const builtinAliases=host.builtinAliases?.(path);

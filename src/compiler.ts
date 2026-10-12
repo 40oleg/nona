@@ -17,8 +17,9 @@ import {linkDarwin} from './backend/darwin/index.js';
 import { linkLinux } from './backend/linux/index.js';
 import {linkBsd} from './backend/bsd/index.js';
 import {loadModuleGraph,moduleRequests,builtinModuleRequests,resolveRelative,type ModuleHost} from './frontend/modules.js';
-import {readFileSync} from 'node:fs';
-import {withBuiltinModules} from './frontend/builtin-modules.js';
+import {readFileSync,statSync,realpathSync} from 'node:fs';
+import {NodeModuleHost,hostFileSystem,hasModuleSyntax} from './frontend/commonjs.js';
+import {withBuiltinModules,builtinSpecifiers} from './frontend/builtin-modules.js';
 import {resolve as resolvePath} from 'node:path';
 import {collectSourceUsage,setRegExpValidator} from './frontend/lexer.js';
 import {validateRegExp} from './regexp-validator.js';
@@ -37,7 +38,10 @@ function scriptUrl(path:string):string|undefined {
 export type {Target} from './target.js';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget=detectHostTarget();
-export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string};/** Return the x86-64 assembly of the program's own functions (not the runtime) as `assembly`; x86-64 targets only. */printAsm?:boolean}
+export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string};/** Return the x86-64 assembly of the program's own functions (not the runtime) as `assembly`; x86-64 targets only. */printAsm?:boolean;
+  /** Extra package.json `exports`/`imports` conditions, tried before Nona's own ("nona", "node", "import"/"require", "default"). */
+  conditions?:readonly string[];
+}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -45,14 +49,33 @@ export function modulePath(fileName:string):string {
   const absolute=resolvePath(fileName).replaceAll('\\','/');
   return absolute.startsWith('/')?absolute:'/'+absolute;
 }
-/** Default host: relative specifiers resolve to files next to the referrer. */
+/** Whether script source uses import/export declarations or import.meta (then it is compiled as an ES module). */
+function entryHasModuleSyntax(source:string):boolean {
+  if(!/\b(import|export)\b/.test(source))return false;
+  try{return hasModuleSyntax(parse(lex(source,{module:true}),{module:true}));}catch{return false;}
+}
+/** A host with relative specifiers only: files next to the referrer, read as ES modules. */
 export const fileModuleHost:ModuleHost={
   resolve:(specifier,referrer)=>resolveRelative(specifier,referrer),
   read:path=>{try{return readFileSync(/^\/[A-Za-z]:\//.test(path)?path.slice(1):path,'utf8');}catch{return undefined;}},
 };
+/**
+ * The default host: Node.js resolution over the real file system (node_modules,
+ * package.json exports/imports/main/type), CommonJS and JSON modules
+ * (src/frontend/commonjs.ts). The entry's own text may differ from the file
+ * on disk (or the file may not exist), so it is passed in.
+ */
+export function nodeModuleHost(target:Target,entry?:{fileName:string;source:string},conditions?:readonly string[]):NodeModuleHost {
+  const builtins=builtinSpecifiers(target);
+  return new NodeModuleHost(hostFileSystem({readFileSync,statSync,realpathSync}),{
+    isBuiltin:specifier=>builtins.has(specifier),
+    ...(entry?{overrides:new Map([[modulePath(entry.fileName),entry.source]])}:{}),
+    ...(conditions?.length?{conditions}:{}),
+  });
+}
 /** Frontend and lowering for a module graph rooted at the entry source. */
-export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=fileModuleHost,scriptPrelude='',target:Target=requireHostTarget()):ModuleIR {
-  host=withBuiltinModules(host,target);
+export function compileModuleToIR(source:string,fileName:string,host?:ModuleHost,scriptPrelude='',target:Target=requireHostTarget()):ModuleIR {
+  host=withBuiltinModules(host??nodeModuleHost(target,{fileName,source}),target);
   // An optional classic script (such as a test harness) runs before the graph.
   const script=inPhase('dynamic-functions',()=>lowerDynamicFunctions(inPhase('parse',()=>parse(lex(scriptPrelude)))));
   const records=inPhase('module-graph',()=>loadModuleGraph(modulePath(fileName),source,host,builtinModuleRequests(script,host)));
@@ -62,8 +85,17 @@ export function compileModuleToIR(source:string,fileName:string,host:ModuleHost=
 }
 export type CompileResult = {ok:true;image:Uint8Array;imports:string[];/** With printAsm: the program's functions as assembly text. */assembly?:string}|{ok:false;diagnostics:Diagnostic[]};
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
-export function compileToIR(source:string,fileName?:string,host:ModuleHost=fileModuleHost,target:Target=requireHostTarget()):ModuleIR {
-  host=withBuiltinModules(host,target);
+export function compileToIR(source:string,fileName?:string,host?:ModuleHost,target:Target=requireHostTarget()):ModuleIR {
+  // A script entry that is CommonJS (or an ES module by its syntax) is
+  // compiled as the module graph it starts.
+  if(fileName!==undefined&&(host===undefined||host instanceof NodeModuleHost)){
+    const node=host??nodeModuleHost(target,{fileName,source}),path=modulePath(fileName);
+    const format=node.format(path);
+    if(format==='commonjs'||format==='json')return compileModuleToIR(node.mainSource(path),fileName,node,'',target);
+    if(format==='module'&&(fileName.endsWith('.mjs')||entryHasModuleSyntax(source)))return compileModuleToIR(source,fileName,node,'',target);
+    host=node;
+  }
+  host=withBuiltinModules(host??fileModuleHost,target);
   const parsed=inPhase('parse',()=>parse(lex(source)));
   const script=inPhase('eval',()=>lowerLiteralEval(inPhase('dynamic-functions',()=>lowerDynamicFunctions(parsed))));
   const requests=fileName===undefined?undefined:inPhase('module-requests',()=>moduleRequests(script));
@@ -105,9 +137,10 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     // Every source lexed by the frontend (the program, its modules, agents and
     // compile-time eval/Function sources) decides which optional runtime
     // parts are linked; agents share one runtime with the main program.
+    const moduleHost=options.moduleHost??(options.conditions?.length?nodeModuleHost(options.target,{fileName:options.fileName,source},options.conditions):undefined);
     const {result:{ir,agentIRs},usage}=collectSourceUsage(()=>({
       agentIRs:(options.agents??[]).map(agent=>compileToIR(agentHarness+agent,undefined,undefined,options.target)),
-      ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
+      ir:options.module?compileModuleToIR(source,options.fileName,moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
     const agentPrograms=agentIRs.map(agentIR=>inPhase('codegen',()=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})})));

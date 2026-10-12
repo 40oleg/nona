@@ -7,6 +7,7 @@ import {proxyPreludeSource,preludeCleanupSource} from '../../runtime/proxy-sourc
 import {promisePreludeSource} from '../../runtime/promise-source.js';
 import {encodingPreludeSource} from '../../runtime/encoding-source.js';
 import {bufferPreludeSource} from '../../runtime/buffer-source.js';
+import {urlPreludeSource} from '../../runtime/url-source.js';
 import {processPreludeForTarget} from '../../runtime/process-source.js';
 import {eventsPreludeSource} from '../../runtime/events-source.js';
 import {asyncHooksPreludeSource} from '../../runtime/async-hooks-source.js';
@@ -41,7 +42,7 @@ export function lowerRuntimePrelude(rejectionPolicy:'throw'|'ignore',regexpLink:
     const promiseSource=promisePreludeSource.replace('__NONA_FAIL_ON_UNHANDLED__',rejectionPolicy==='throw'?'true':'false');
     // Order matters: later preludes capture intrinsics installed by earlier ones.
     const parts:[OptionalPrelude|null,string][]=[[null,regexpVmPrelude(regexpLink)],[null,reflectPreludeSource],['objectAnnexB',objectAnnexBPreludeSource],['arraySort',arraySortPreludeSource],
-      ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],
+      ['objectIntegrity',objectIntegrityPreludeSource],['annexB',annexBBuiltinsPreludeSource],['es2021',es2021PreludeSource],[null,promiseSource],['encoding',encodingPreludeSource],['url',urlPreludeSource],
       ['buffer',currentNativeTarget()?.startsWith('win32')?bufferPreludeSource.replace("nativeNewline='\\n'","nativeNewline='\\r\\n'"):bufferPreludeSource],['events',eventsPreludeSource],['asyncHooks',asyncHooksPreludeSource],['eventEmitter',eventEmitterPreludeSource],['stream',streamPreludeForTarget(currentNativeTarget())],['process',processPreludeForTarget(currentNativeTarget())],['timers',timersPreludeSource],['network',''],['proxy',proxyPreludeSource],[null,preludeCleanupSource]];
     prelude=lower(bind(parse(lex(parts.filter(([name])=>name===null||linked.includes(name)).map(([,source])=>source).join('\n')))));
     cachedRuntimePreludes.set(preludeKey,prelude);

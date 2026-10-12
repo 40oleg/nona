@@ -19,14 +19,16 @@ Nona प्रोग्राम Node.js के बिना चलते है
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/hi/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | मॉड्यूल | दोनों | [नेटवर्किंग (अंग्रेज़ी)](/reference/network) |
 | `node:events`, `node:string_decoder` | मॉड्यूल | दोनों | [Node.js सहायक मॉड्यूल (अंग्रेज़ी)](/reference/network#supporting-modules) |
+| `URL`, `URLSearchParams`, `node:url`, `url` | ग्लोबल और मॉड्यूल | सभी आठ | [URL](/hi/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (और प्रीफ़िक्स के बिना उनके नाम) | मॉड्यूल | सभी आठ | [Node.js सहायक मॉड्यूल](/hi/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | मॉड्यूल | Windows (DLL), Linux (सिस्टम कॉल) | [नेटिव फ़ंक्शन (FFI)](/hi/reference/ffi) |
 | `nona:win32` | मॉड्यूल | Windows | नीचे और [FFI](/hi/reference/ffi#nona-win32) में |
 
 ## नियम
 
 - ग्लोबल स्क्रिप्ट और मॉड्यूल दोनों में उपलब्ध हैं।
-- बिल्ट-इन मॉड्यूल मॉड्यूल कोड (`.mjs` या `--module`) से इम्पोर्ट किए जा सकते हैं, और स्क्रिप्ट से लिटरल `import()` के साथ। FFI डिक्लेरेशन (`define`) मॉड्यूल कोड में होने चाहिए।
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- बिल्ट-इन मॉड्यूल मॉड्यूल कोड (`.mjs` या `--module`) से इम्पोर्ट किए जा सकते हैं, CommonJS मॉड्यूल से `require` किए जा सकते हैं (`require('fs')`, `require('node:fs')`), और स्क्रिप्ट से लिटरल `import()` के साथ लोड किए जा सकते हैं। FFI डिक्लेरेशन (`define`) मॉड्यूल कोड में होने चाहिए।
+- समर्थित Node मॉड्यूल: `node:fs`, `node:process`, `node:path` (`path` उपनाम), `node:events` (`events`/`nona:events` उपनाम), `node:async_hooks` (`nona:async_hooks` उपनाम), और `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` उपनाम)। ग्लोबल `Buffer`, `Blob`, `File`, `URL` और `URLSearchParams` उपलब्ध हैं। नेटवर्किंग के लिए `node:http`, `node:net` और `node:string_decoder` उपलब्ध हैं, और [npm पैकेजों](/reference/npm) के लिए `node:os`, `node:tty`, `node:util`, `node:url`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers`, `node:perf_hooks`, `node:module`, `node:worker_threads` और `node:child_process`।
 - `nona:win32` और DLL डिक्लेरेशन केवल `win32-x64` के लिए कंपाइल होते हैं; सिस्टम कॉल डिक्लेरेशन केवल `linux-x64` के लिए।
 
 ## `nona:win32` {#nona-win32}
@@ -97,4 +99,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+ये उपनाम ग्लोबल `Buffer`, `Blob` और `File` कंस्ट्रक्टर, बाइट वैलिडेटर, base64 हेल्पर, ट्रांसकोडिंग, इंस्पेक्शन सेटिंग और कॉन्स्टेंट एक्सपोर्ट करते हैं। Blob की बाइट/टेक्स्ट स्ट्रीम, BYOB रीडर और ऑब्जेक्ट URL का रजिस्ट्रेशन/रिज़ॉल्यूशन उपलब्ध हैं। सामान्य URL पार्सिंग ग्लोबल [`URL`](/hi/reference/host-apis#url) करता है; मनमानी Web Stream बनाना अब भी एक अलग डिपेंडेंसी API है। देखें [बाइनरी डेटा (अंग्रेज़ी)](/reference/host-apis#buffer-and-binary-data) और [चलाने योग्य उदाहरण](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs)।

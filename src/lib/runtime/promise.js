@@ -545,7 +545,7 @@ var __nonaPromiseDrainJobs=(function(){
   var reflectGetOwn=Reflect.getOwnPropertyDescriptor,reflectDefine=Reflect.defineProperty,reflectDelete=Reflect.deleteProperty,reflectOwnKeys=Reflect.ownKeys,reflectGet=Reflect.get;
   var proxyCreate=Function.prototype.__nonaProxyCreateInternal,preventExtensions=Object.preventExtensions,toStringTagSymbol=Symbol.toStringTag;
   function sameValue(a,b){return a===b?a!==0||1/a===1/b:a!==a&&b!==b}
-  __nonaRegexpVm.createImportMeta=function(){return objectCreate(null)};
+  __nonaRegexpVm.createImportMeta=function(url,filename,dirname){var meta=objectCreate(null);if(url!==undefined){meta.dirname=dirname;meta.filename=filename;meta.url=url}return meta};
   // ES2022 class elements. A private name is a record with a WeakMap from
   // each object that has it to its value (fields) or to true (the brand of a
   // private method or accessor, whose functions the record holds). Kinds:

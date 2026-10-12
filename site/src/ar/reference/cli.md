@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | مسار | ملف الناتج. إلزامي. تُنشأ المجلدات الناقصة. |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ترجمة المدخل كوحدة ES. المدخلات المنتهية بـ `.mjs` وحدات تلقائيًا. |
+| `--conditions`, `-C` | اسم | إضافة شرط `exports`/`imports` من package.json يُجرَّب قبل شروط Nona نفسها (`nona` و`node` و`import` أو `require` و`default`)؛ وتعمل الصيغة `--conditions=name` أيضًا. يمكن تكراره. راجع [حزم npm](/reference/npm#resolution). |
 | `--print-asm` | — | طباعة شيفرة التجميع x86-64 المولَّدة لدوال البرنامج نفسه (دون بيئة التشغيل ومقدماتها) على stdout: وسم كل دالة، ثم سطر لكل تعليمة يضم إزاحتها وبايتاتها المرمَّزة ونصها بصياغة Intel. مع هذا الخيار يمكن حذف `-o`. لأهداف x86-64 فقط. |
 | `--subsystem` | `console` (الافتراضي)، `windows` | برنامج Windows رسومي بلا نافذة طرفية. للمنصة `win32-x64` فقط. البرنامج الرسومي بلا `--manifest` يحصل على بيان افتراضي. |
 | `--icon` | ملف `.ico` | تضمين كل صور ملف الأيقونة. للمنصة `win32-x64` فقط. |
@@ -29,11 +30,12 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `--help` | — | طباعة الصيغة العامة. |
 | `--version` | — | طباعة إصدار المترجم. |
 
-يمكن أن يظهر كل خيار مرة واحدة. راجع [الملفات التنفيذية لـ Windows](/ar/reference/windows-executables) لمعرفة صيغ الموارد.
+يمكن أن يظهر كل خيار مرة واحدة باستثناء `--conditions`. راجع [الملفات التنفيذية لـ Windows](/ar/reference/windows-executables) لمعرفة صيغ الموارد.
 
 ## المدخلات والمخرجات
 
-- المدخل ملف مصدري واحد بترميز UTF-8. والمدخل من نوع وحدة يجلب معه الوحدات التي يستوردها؛ أما الوحدات المدمجة `nona:*` و`node:*` فهي جزء من المترجم.
+- المدخل ملف مصدري واحد بترميز UTF-8. والمدخل من نوع وحدة يجلب معه الوحدات التي يستوردها، والمدخل من نوع CommonJS الوحدات التي يطلبها عبر `require`، بما فيها حزم npm من `node_modules` ([حزم npm](/reference/npm))؛ أما الوحدات المدمجة `nona:*` و`node:*` فهي جزء من المترجم.
+- يمكن أن يكون المدخل مجلد حزمة: يبني Nona الملف الذي يسمّيه الحقل `"bin"` في ملف `package.json` الخاص بها (الأمر الوحيد، أو الأمر الذي يحمل اسم الحزمة)، وإلا فالملف المذكور في `"main"` أو `index.js`.
 - يُكتب الناتج في ملف مؤقت بجواره ثم يُعاد تسميته إلى مكانه، لذا لا يترك البناء الفاشل أبدًا ملفًا تنفيذيًا مكتوبًا جزئيًا ويحتفظ بالملف السابق.
 - يرفض المترجم الكتابة فوق ملف المدخل، حتى عبر رابط صلب أو رمزي.
 - تحصل مخرجات Linux على الصلاحيات `0755`.

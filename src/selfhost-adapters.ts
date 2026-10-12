@@ -1,11 +1,15 @@
 import type {Target} from './target.js';
 
-/** Private compiler services; these are not a public node:crypto provider. */
-export function compilerCryptoSource(target:Target):string {
- const entropy=target.startsWith('win32-')?String.raw`
+/**
+ * `randomBytes(size)`: OS entropy through nona:ffi (BCryptGenRandom on
+ * Windows, /dev/urandom elsewhere). Shared by the compiler's own services and
+ * the public node:crypto module.
+ */
+export function entropySource(target:Target):string {
+ return target.startsWith('win32-')?String.raw`
 import {define} from 'nona:ffi';
 const random=define('bcrypt.dll','BCryptGenRandom','i32(ptr,buf,u32,u32)');
-function randomBytes(size){const bytes=new Uint8Array(size);if(random(null,bytes,size,2)!==0)throw new Error('Cannot obtain OS entropy');return bytes;}
+function randomBytes(size){const bytes=new Uint8Array(size);if(size&&random(null,bytes,size,2)!==0)throw new Error('Cannot obtain OS entropy');return bytes;}
 `:String.raw`
 import {define} from 'nona:ffi';
 const open=define('syscall','${target==='linux-arm64'?'56':target==='linux-x64'?'2':'5'}','${target==='linux-arm64'?'i64(i64,buf,i64,i64)':'i64(buf,i64,i64)'}');
@@ -16,8 +20,12 @@ function randomBytes(size){
  if(fd<0)throw new Error('Cannot open OS entropy source');
  try{const bytes=new Uint8Array(size);let at=0;while(at<size){const count=read(fd,bytes.subarray(at),size-at);if(count===-4)continue;if(count<=0)throw new Error('Cannot read OS entropy');at+=count;}return bytes;}finally{close(fd);}
 }
-
 `;
+}
+
+/** Private compiler services; these are not a public node:crypto provider. */
+export function compilerCryptoSource(target:Target):string {
+ const entropy=entropySource(target);
  return entropy+String.raw`
 import {sha256} from './backend/macho/sha256.js';
 export function createHash(algorithm){

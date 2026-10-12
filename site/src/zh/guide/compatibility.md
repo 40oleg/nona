@@ -29,8 +29,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `readFileSync(path)` | 返回 `Uint8Array` | 返回 `Buffer` |
 | 编码 | 仅 `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | 多种 |
 | Windows 上的错误消息 | 包含原样传入的路径 | 包含绝对路径 |
-| 模块 | `nona:*`、`node:fs`, `node:path`、`node:process`, `node:buffer` 和相对路径文件 | 全部 `node:*` 模块和 npm 包 |
-| `require`、`Buffer` | 不可用 | 可用 |
+| 模块 | `nona:*`、[内置模块](/zh/reference/modules)中列出的 `node:*` 模块，以及在构建时解析的文件和 npm 包 | 全部 `node:*` 模块和 npm 包，在运行时解析 |
+| `require` | CommonJS 模块，说明符须为构建时已知的字面量（[npm 包](/reference/npm)） | 运行时的任意说明符 |
 | 没有标准输出时的 `console.log` | 输出被丢弃 | 输出被丢弃或抛出错误 |
 
 ## 性能

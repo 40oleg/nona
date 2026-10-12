@@ -23,6 +23,7 @@ export const pt: Dictionary = {
     process: 'process',
     fs: 'Sistema de arquivos e codificação de texto',
     network: 'Rede: http e net (em inglês)',
+    npm: 'Pacotes npm (em inglês)',
     ffi: 'Funções nativas (FFI)',
     windowsExecutables: 'Executáveis do Windows',
     test262: 'Test262',

@@ -13,6 +13,8 @@ import {netModuleSource} from './net-module.js';
 import {httpModuleSource} from './http-module.js';
 import {pathModuleSourceForTarget} from './path-module.js';
 import {networkStreamModuleSource} from './network-stream-module.js';
+import {commonJsModuleSource} from './commonjs-module.js';
+import {nodeCompatModules,cryptoModuleSource} from './node-compat-modules.js';
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
 const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
@@ -125,6 +127,9 @@ const sources=new Map<string,(target:Target)=>string>([
   ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
   ['nona:internal/stream',()=>networkStreamModuleSource],
   ['nona:internal/native',()=>nativeModuleSource],
+  ['nona:internal/commonjs',()=>commonJsModuleSource],
+  ['node:crypto',cryptoModuleSource],
+  ...nodeCompatModules.map(([name,source])=>[name,()=>source] as [string,()=>string]),
   ['node:net',netModuleSource],
   ['nona:net',()=>aliasOf('node:net')],
   ['node:http',()=>httpModuleSource],
@@ -132,6 +137,11 @@ const sources=new Map<string,(target:Target)=>string>([
 ]);
 
 export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier)||sources.has('node:'+specifier);}
+
+/** The builtin specifiers a program for this target can import or require (`fs`, `node:fs`, `nona:fs`, ...). */
+export function builtinSpecifiers(target:Target):Set<string> {
+  return new Set(builtinInventory(target).flatMap(record=>record.aliases));
+}
 
 /** Resolve provider aliases against the actual implementation for this target. */
 function builtinInventory(target:Target):{path:string;source:string;aliases:string[]}[] {
@@ -166,5 +176,6 @@ export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
     builtinAliases:path=>aliases.get(path)?.aliases,
     builtinCandidates:()=>inventory.map(record=>record.path),
     ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
+    ...(host.program?{program:(path:string)=>host.program!(path)}:{}),
   };
 }

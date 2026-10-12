@@ -79,6 +79,25 @@ function staticLiteralKeys(e:A.ObjectLiteral):string[]|undefined {
   }
   return keys.length&&keys.length<=maxInlineCapacity?keys:undefined;
 }
+/**
+ * import.meta.url, filename and dirname of a module file, as Node.js sets them
+ * (the URL percent-encodes what pathToFileURL encodes):
+ * the module's path when the program was built (paths are canonical, a
+ * Windows drive as `/C:/...`). Builtin modules have none.
+ */
+export function importMetaFields(path:string):{url:string;filename:string;dirname:string}|undefined {
+  if(!path.startsWith('/')||path.includes('?'))return undefined;
+  const drive=/^\/[A-Za-z]:\//.test(path);
+  let url='file://';
+  for(const ch of path){
+    const code=ch.codePointAt(0)!;
+    url+=code>0x20&&code<0x7f&&!'"#%<>?[\\]^`{|}~'.includes(ch)?ch:[...new TextEncoder().encode(ch)].map(b=>'%'+b.toString(16).toUpperCase().padStart(2,'0')).join('');
+  }
+  const native=drive?path.slice(1).split('/').join('\\'):path;
+  const separator=drive?'\\':'/',at=native.lastIndexOf(separator);
+  const dirname=at<=0?separator:drive&&at===2?native.slice(0,3):native.slice(0,at);
+  return {url,filename:native,dirname};
+}
 /** Most elements an array literal created with its element table has (#48); longer literals are built element by element. */
 const maxLiteralElements=4096;
 
@@ -89,7 +108,8 @@ class Lowerer extends ControlLowerer {
     const module=this.bound.modules![this.moduleIndex!]!;
     this.enterScope(module.record.ast);
     for(const fn of this.bound.declarations)if(fn.module===module.record.index)this.store(this.binding(fn.declaration.id!),this.closure(fn));
-    this.store(module.meta,this.preludeCall('createImportMeta',[]));
+    const meta=importMetaFields(module.record.path);
+    this.store(module.meta,this.preludeCall('createImportMeta',meta?[this.constant(meta.url),this.constant(meta.filename),this.constant(meta.dirname)]:[]));
     const names=this.arrayOf(module.exportNames.map(name=>this.constant(name)));
     const getters=this.arrayOf(module.getters.map(getter=>this.closure(getter,'')));
     this.store(module.namespace,this.preludeCall('createNamespace',[names,getters]));

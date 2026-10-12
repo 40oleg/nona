@@ -81,14 +81,14 @@ nona build server.mjs -o server
 Command line:
 
 ```text
-nona build <input.js> -o <output> [--target <target>] [--module]
-           [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+nona build <input.js|package directory> -o <output> [--target <target>] [--module]
+           [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. `--full-runtime` links every runtime part instead of only the reachable ones. `--print-asm` prints the x86-64 assembly generated for the program's own functions (`-o` may then be omitted). The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. A CommonJS input is compiled with everything it `require`s, and a package directory builds its `"bin"` command or `"main"` module. `--full-runtime` links every runtime part instead of only the reachable ones. `--print-asm` prints the x86-64 assembly generated for the program's own functions (`-o` may then be omitted). The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
 
 ## What is supported
 
@@ -111,7 +111,11 @@ nona --help | --version
 | `node:path` | POSIX and Windows variants, parsing, resolution, glob matching | [paths](docs/path.md) |
 | `Buffer`, `Blob`, `File`, `node:buffer` | byte storage, standard encodings, numeric access; `TextEncoder`/`TextDecoder` | [binary data](docs/host-apis.md#buffer-and-binary-data) |
 | `node:http`, `node:net`, `node:string_decoder` | HTTP/1.1 servers, clients and keep-alive agents; TCP sockets and servers (Linux and Windows) | [networking](docs/network.md) |
+| `URL`, `URLSearchParams`, `node:url` | URL Standard parsing and serialization, `fileURLToPath`, `pathToFileURL` | [URL](docs/host-apis.md#url) |
+| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | what npm packages use: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, assertions, random values, hashes and HMAC | [support modules](docs/host-apis.md#nodejs-support-modules) |
 | `nona:ffi`, `nona:win32` | calls to any DLL export on Windows | [FFI](docs/ffi.md) |
+
+**npm packages.** Install packages with npm as usual and build: Nona resolves `node_modules` at compile time as Node.js does (`package.json` `exports`, `imports`, conditions, `main`, `type`, symbolic links) and compiles CommonJS modules, ES modules and JSON into the executable, with `require`, `module.exports`, `require.cache`, cycles and ES module interop working as in Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod and more are tested against Node.js ([npm packages](docs/npm.md)).
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
@@ -154,7 +158,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above, npm packages that need them, and browser APIs are not available. Networking runs on Linux and Windows.
+- Node.js modules outside the table above (`zlib`, `https`, `child_process`, …), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
 - Plain computation is much slower than in a JIT.
 
 ## Development

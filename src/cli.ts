@@ -5,10 +5,16 @@ import {resolve,dirname,basename,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {compile} from './compiler.js';
+import {NodeResolver} from './frontend/node-resolution.js';
+import {hostFileSystem,nativePath} from './frontend/commonjs.js';
 import {position} from './source.js';
 import {nonaVersion} from './version.js';
 
-const help='Nona '+nonaVersion+' — JavaScript subset to native executables\nUsage: nona build <input.js> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona '+nonaVersion+' — JavaScript subset to native executables\n'
+  +'Usage: nona build <input.js|package directory> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n'
+  +'       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n'
+  +'       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n'
+  +'       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
@@ -29,11 +35,13 @@ export function main(args:string[]):number {
     if(args.length===1&&args[0]==='--help'){process.stdout.write(help);return 0;}
     if(args.length===1&&args[0]==='--version'){process.stdout.write(nonaVersion+'\n');return 0;}
     if(args[0]!=='build')throw new Error('Expected build command; use --help');
-    const inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
-    let outputArg:string|undefined,coverage:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target:string|undefined=detectHostTarget(),module=inputArg.endsWith('.mjs'),fullRuntime=false,callStats=false,printAsm=false;const seen=new Set<string>();
+    let inputArg=args[1];if(!inputArg||inputArg.startsWith('-'))throw new Error('An input JavaScript file is required');
+    let outputArg:string|undefined,coverage:string|undefined,icon:string|undefined,manifest:string|undefined,versionInfo:string|undefined,subsystem:'console'|'windows'|undefined,target:string|undefined=detectHostTarget(),module=inputArg.endsWith('.mjs'),fullRuntime=false,callStats=false,printAsm=false;const seen=new Set<string>(),conditions:string[]=[];
     for(let i=2;i<args.length;i+=2){
       const flag=args[i]!,value=args[i+1];
       if(flag==='--module'||flag==='--full-runtime'||flag==='--call-stats'||flag==='--print-asm'){if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);if(flag==='--module')module=true;else if(flag==='--call-stats')callStats=true;else if(flag==='--print-asm')printAsm=true;else fullRuntime=true;i--;continue;}
+      if(flag==='--conditions'||flag==='-C'){if(!value||value.startsWith('-'))throw new Error('Missing value for '+flag);conditions.push(value);continue;}
+      if(flag.startsWith('--conditions=')){if(flag.length===13)throw new Error('Missing value for --conditions');conditions.push(flag.slice(13));i--;continue;}
       if(!['-o','--target','--subsystem','--icon','--manifest','--version-info','--coverage'].includes(flag))throw new Error('Unknown option: '+flag);
       if(seen.has(flag))throw new Error('Duplicate option: '+flag);seen.add(flag);
       if(!value||value.startsWith('-'))throw new Error('Missing value for '+flag);
@@ -50,6 +58,13 @@ export function main(args:string[]):number {
     if(target===undefined)throw new Error('Unsupported native host; supply --target explicitly');
     const descriptor=getTarget(target);
     if(!descriptor)throw new Error('Unsupported target: '+target);
+    // A package directory builds its command ("bin") or its main module.
+    if(statSync(resolve(inputArg),{throwIfNoEntry:false})?.isDirectory()){
+      const directory=resolve(inputArg).split('\\').join('/'),resolver=new NodeResolver(hostFileSystem({readFileSync,statSync,realpathSync}));
+      const entry=resolver.packageEntry(directory.startsWith('/')?directory:'/'+directory);
+      if(entry===undefined)throw new Error('The directory '+inputArg+' has no package.json "bin" or "main" file and no index.js');
+      inputArg=nativePath(entry);if(inputArg.endsWith('.mjs'))module=true;
+    }
     const input=resolve(inputArg),output=outputArg===undefined?undefined:resolve(outputArg),source=readFileSync(input,'utf8');
     if(output!==undefined)assertDifferent(input,output);
     if(subsystem!==undefined&&target!=='win32-x64')throw new Error('--subsystem requires --target win32-x64');
@@ -60,7 +75,7 @@ export function main(args:string[]):number {
     }
     // NONA_CACHE=0 disables the on-disk runtime cache; NONA_CACHE_DIR moves it.
     const baseCache=process.env.NONA_CACHE==='0'?undefined:fileBaseImageCache();
-    const result=compile(source,{fileName:inputArg,target:descriptor.target,module,...(fullRuntime?{fullRuntime}:{}),...(callStats?{callStats}:{}),...(printAsm?{printAsm}:{}),...(coverage!==undefined?{coverage:{directory:resolve(coverage),url:pathToFileURL(input).href}}:{}),...(baseCache?{baseCache}:{}),...(subsystem?{subsystem}:{}),
+    const result=compile(source,{fileName:inputArg,target:descriptor.target,module,...(conditions.length?{conditions}:{}),...(fullRuntime?{fullRuntime}:{}),...(callStats?{callStats}:{}),...(printAsm?{printAsm}:{}),...(coverage!==undefined?{coverage:{directory:resolve(coverage),url:pathToFileURL(input).href}}:{}),...(baseCache?{baseCache}:{}),...(subsystem?{subsystem}:{}),
       ...(icon!==undefined?{icon:readFileSync(resolve(icon))}:{}),
       ...(manifest!==undefined?{manifest:readFileSync(resolve(manifest),'utf8')}:{}),
       ...(versionFields!==undefined?{versionInfo:versionFields}:{})});

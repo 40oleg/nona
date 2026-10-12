@@ -27,6 +27,7 @@ export const preludeTriggers={
   events:['Event','CustomEvent','EventTarget','AbortController','AbortSignal','DOMException','NodeEventTarget','nona.events.internal'],
   proxy:['Proxy'],
   encoding:['TextEncoder','TextDecoder'],
+  url:['URL','URLSearchParams'],
   buffer:['Buffer','Blob','File','URL','ReadableStream','ReadableStreamDefaultReader','ReadableStreamBYOBReader','WritableStream','WritableStreamDefaultWriter','node:buffer','nona:buffer','bufferModule'],
   process:['process'],
   // Timers installs enumerable globals, which a program can list through globalThis.
@@ -43,7 +44,10 @@ export const preludeTriggers={
 export type OptionalPrelude=keyof typeof preludeTriggers;
 export const optionalPreludes=Object.keys(preludeTriggers) as OptionalPrelude[];
 /** Preludes another prelude needs while it initializes. */
-export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={process:['encoding','proxy','timers','eventEmitter'],buffer:['encoding'],events:['timers'],asyncHooks:['events','timers'],eventEmitter:['events','asyncHooks'],stream:['eventEmitter','buffer','process']};
+export const preludeDependencies:Partial<Record<OptionalPrelude,readonly OptionalPrelude[]>>={
+  process:['encoding','proxy','timers','eventEmitter'],buffer:['encoding','url'],url:['encoding'],events:['timers'],asyncHooks:['events','timers'],
+  eventEmitter:['events','asyncHooks'],stream:['eventEmitter','buffer','process'],
+};
 /** Process parses dotenv/memory text and validates masks with original regexes. */
 export function runtimeRegExpLink(link:RuntimeLink,linked:readonly OptionalPrelude[]=[]){
  const regexp=link.regexp||link.preludes.buffer||linked.includes('process');return {regexp,unicodeProperties:regexp&&link.unicodeProperties};

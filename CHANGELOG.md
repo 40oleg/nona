@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### npm packages
+
+- Programs can use npm packages: Nona resolves `node_modules` at build time as Node.js does (`package.json` `exports` with subpath patterns and conditions, `imports`, self-reference, `main`, `type`, symbolic links and pnpm stores) and compiles CommonJS modules, ES modules and JSON into the executable. CommonJS works as in Node.js (the module wrapper, `module.exports`, `require.cache`, `require.resolve`, cycles, sloppy mode, retry after a failed load); ES modules import CommonJS named exports found by a `cjs-module-lexer`-style scan, and `require()` of an ES module returns its namespace. A CommonJS entry file is compiled with everything it requires. Compile errors in packages name the package file. 33 of 36 popular packages tested (lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod, …) print the same as on Node.js; see [docs/npm.md](docs/npm.md) ([#249](https://github.com/40oleg/nona/issues/249)).
+- `nona build <package directory>` builds the package's `"bin"` command or `"main"` module; `--conditions <name>` (`-C`, compile option `conditions`) adds `exports` conditions ([#249](https://github.com/40oleg/nona/issues/249)).
+- New built-in modules for packages: `node:os`, `node:tty`, `node:util` (`format`, `inspect`, `inherits`, `promisify`, `types`, …), `node:url`, `node:assert`, `node:crypto` (OS random values, `randomUUID`, MD5/SHA-1/SHA-256/SHA-384/SHA-512 hashes and HMAC), `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads` and a `node:child_process` whose functions throw `ERR_NONA_UNSUPPORTED` ([#249](https://github.com/40oleg/nona/issues/249)).
+- The global `URL` is a URL Standard parser (it parsed only `blob:` object URLs before), and `URLSearchParams` is available ([#249](https://github.com/40oleg/nona/issues/249)).
+- `import.meta` has `url`, `filename` and `dirname` ([#249](https://github.com/40oleg/nona/issues/249)).
+- Import attributes (`import data from './x.json' with {type: 'json'}`, and the older `assert`) are accepted, and a RegExp literal may follow `export default` ([#249](https://github.com/40oleg/nona/issues/249)).
+
 ## v0.11.0 — 2026-10-11
 
 Highlights since v0.10.0:

@@ -19,14 +19,16 @@ Nona programs run without Node.js. The host APIs below are part of the compiler:
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | modules | both | [Networking](/reference/network) |
 | `node:events`, `node:string_decoder` | modules | both | [Node.js support modules](/reference/network#supporting-modules) |
+| `URL`, `URLSearchParams`, `node:url`, `url` | globals and module | all eight | [URL](/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (and their bare names) | modules | all eight | [Node.js support modules](/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | module | Windows (DLLs), Linux (system calls) | [Native functions (FFI)](/reference/ffi) |
 | `nona:win32` | module | Windows | below and [FFI](/reference/ffi#nona-win32) |
 
 ## Rules
 
 - Globals are available in scripts and modules.
-- Built-in modules can be imported from module code (`.mjs` or `--module`) and with literal `import()` from scripts. FFI declarations (`define`) must be in module code.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- Built-in modules can be imported from module code (`.mjs` or `--module`), required from CommonJS modules (`require('fs')`, `require('node:fs')`) and loaded with literal `import()` from scripts. FFI declarations (`define`) must be in module code.
+- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob`, `File`, `URL` and `URLSearchParams` are available. `node:http`, `node:net` and `node:string_decoder` are available for networking, and `node:os`, `node:tty`, `node:util`, `node:url`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers`, `node:perf_hooks`, `node:module`, `node:worker_threads` and `node:child_process` for [npm packages](/reference/npm).
 - `nona:win32` and DLL declarations require Windows x64 or ARM64; system call declarations use the selected Linux, Darwin or BSD kernel.
 
 ## `nona:win32`
@@ -97,4 +99,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing is the global [`URL`](/reference/host-apis#url); arbitrary Web Stream construction remains a separate dependency API. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

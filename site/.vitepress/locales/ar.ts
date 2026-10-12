@@ -24,6 +24,7 @@ export const ar: Dictionary = {
     process: 'process',
     fs: 'نظام الملفات وترميز النصوص',
     network: 'الشبكات: http وnet (بالإنجليزية)',
+    npm: 'حزم npm (بالإنجليزية)',
     ffi: 'الدوال الأصلية (FFI)',
     windowsExecutables: 'الملفات التنفيذية لـ Windows',
     test262: 'Test262',

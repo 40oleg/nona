@@ -19,14 +19,16 @@ Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describe
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/es/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | módulos | ambos | [Red (en inglés)](/reference/network) |
 | `node:events`, `node:string_decoder` | módulos | ambos | [Módulos de apoyo de Node.js (en inglés)](/reference/network#supporting-modules) |
+| `URL`, `URLSearchParams`, `node:url`, `url` | globales y módulo | los ocho | [URL](/es/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (y sus nombres sin prefijo) | módulos | los ocho | [Módulos de apoyo de Node.js](/es/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | módulo | Windows (DLL), Linux (llamadas al sistema) | [Funciones nativas (FFI)](/es/reference/ffi) |
 | `nona:win32` | módulo | Windows | más abajo y en [FFI](/es/reference/ffi#nona-win32) |
 
 ## Reglas
 
 - Los globales están disponibles en scripts y módulos.
-- Los módulos integrados se pueden importar desde código de módulo (`.mjs` o `--module`) y con `import()` literal desde scripts. Las declaraciones FFI (`define`) deben estar en código de módulo.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- Los módulos integrados se pueden importar desde código de módulo (`.mjs` o `--module`), cargar con `require` desde módulos CommonJS (`require('fs')`, `require('node:fs')`) y cargar con `import()` literal desde scripts. Las declaraciones FFI (`define`) deben estar en código de módulo.
+- Módulos de Node compatibles: `node:fs`, `node:process`, `node:path` (alias `path`), `node:events` (alias `events`/`nona:events`), `node:async_hooks` (alias `nona:async_hooks`), y `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (alias `buffer`/`nona:buffer`). Están disponibles los globales `Buffer`, `Blob`, `File`, `URL` y `URLSearchParams`. `node:http`, `node:net` y `node:string_decoder` están disponibles para redes, y `node:os`, `node:tty`, `node:util`, `node:url`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers`, `node:perf_hooks`, `node:module`, `node:worker_threads` y `node:child_process` para los [paquetes npm](/reference/npm).
 - `nona:win32` y las declaraciones de DLL solo compilan para `win32-x64`; las declaraciones de llamadas al sistema, solo para `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -97,4 +99,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+Los alias exportan los constructores globales `Buffer`, `Blob` y `File`, validadores de bytes, utilidades de base64, transcodificación, ajustes de inspección y constantes. Están disponibles los flujos de bytes y de texto de Blob, los lectores BYOB y el registro y la resolución de URL de objeto. El análisis general de URL lo realiza el [`URL`](/es/reference/host-apis#url) global; la construcción de Web Streams arbitrarios sigue siendo una API de dependencia aparte. Consulta [datos binarios (en inglés)](/reference/host-apis#buffer-and-binary-data) y el [ejemplo ejecutable](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
