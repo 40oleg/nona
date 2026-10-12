@@ -233,7 +233,8 @@ import plain from 'plain-object';
 import dual from 'dual';
 import {createRequire} from './loader.cjs';
 console.log(alpha, beta, gamma, fromStar, fromReexport, typeof lib, lib.alpha === alpha);
-console.log(Object.keys(namespace).sort().join(), namespace.default === lib);
+// Node.js 23 and later add a 'module.exports' export (Nona does too); Node.js 22 does not.
+console.log(Object.keys(namespace).filter(k => k !== 'module.exports').sort().join(), namespace.default === lib, (namespace['module.exports'] ?? lib) === lib);
 console.log(json.items.length, plain.x, plain.y, dual);
 console.log(createRequire().kind, createRequire().value);
 `,
@@ -397,6 +398,11 @@ test('nona build <package directory> builds its command; --conditions selects ex
   result=build(join(directory,'multi'),'-o',executable('multi'));
   assert.notEqual(result.status,0);assert.match(result.stderr,/several commands in "bin" \(a, b\)/);
  }finally{removeTemporaryDirectory(directory);}
+});
+
+test('the namespace of a CommonJS module has a "module.exports" export, as in Node.js 23 and later',()=>{
+ const {native}=runProject({'main.mjs':"import * as ns from './lib.cjs';\nconsole.log(Object.keys(ns).join(), ns['module.exports'] === ns.default);\n",'lib.cjs':'exports.a = 1;'},'main.mjs');
+ assert.equal(native,'a,default,module.exports true\n');
 });
 
 test('import.meta has the url, filename and dirname of the module file',()=>agree({

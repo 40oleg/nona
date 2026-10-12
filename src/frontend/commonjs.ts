@@ -326,7 +326,9 @@ export class NodeModuleHost implements ModuleHost {
   private facadeSource(path:string):string {
     const lines=[`import __nona_cjs_record from ${JSON.stringify(path+factorySuffix)};`,`import {importDefault as __nona_cjs_load} from 'nona:internal/commonjs';`,
       `const __nona_cjs_exports = __nona_cjs_load(__nona_cjs_record);`,`export default __nona_cjs_exports;`];
-    const names=this.format(path)==='json'?[]:this.exportNames(path);
+    const json=this.format(path)==='json',names=json?[]:this.exportNames(path);
+    // Node.js 23 and later also export module.exports itself under the name "module.exports".
+    if(!json)lines.push(`export {__nona_cjs_exports as "module.exports"};`);
     names.forEach((name,index)=>lines.push(
       `const __nona_cjs_${index} = __nona_cjs_exports == null ? undefined : __nona_cjs_exports[${JSON.stringify(name)}];`,
       `export {__nona_cjs_${index} as ${name}};`));

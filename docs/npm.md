@@ -90,7 +90,9 @@ Between the two systems:
   Node.js's `cjs-module-lexer` does: `exports.a = …`, `module.exports.a = …`,
   `Object.defineProperty(exports, 'a', …)`, `module.exports = {a, b: …}`,
   re-exports through `module.exports = require(…)` and TypeScript's
-  `__exportStar(require(…))`. `__esModule` is exported too.
+  `__exportStar(require(…))`. `__esModule` is exported too, and, as in
+  Node.js 23 and later, `module.exports` itself under the name
+  `"module.exports"`.
 - `require()` of an ES module returns its namespace object, as `require(esm)`
   does in Node.js 22 and later. An ES module with top-level `await` cannot be
   required (Nona does not support top-level `await`).
