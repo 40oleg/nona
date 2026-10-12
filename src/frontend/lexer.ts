@@ -128,7 +128,11 @@ export function lex(source: string, options: {module?: boolean} = {}): TokenStre
     else if(kind==='punct'&&text==='{')braces.push(!previous||!(previous.kind==='punct'&&['=','(','[',',',':','?'].includes(previous.text))&&!(previous.kind==='word'&&['return','yield'].includes(String(previous.value))));
     if(kind==='punct'&&text==='}'){regexpAllowed=braces.pop()??true;return;}
     // A keyword before `/` starts a RegExp (`export default /x/`), unless it is a property name (`a.default / 2`).
-    if(kind==='word'){regexpAllowed=!(previous?.kind==='punct'&&(previous.text==='.'||previous.text==='?.'))&&['return','throw','case','delete','void','typeof','instanceof','in','new','yield','await','else','do','default','extends'].includes(String(value));return;}
+    if(kind==='word'){
+      const property=previous?.kind==='punct'&&(previous.text==='.'||previous.text==='?.');
+      regexpAllowed=!property&&['return','throw','case','delete','void','typeof','instanceof','in','new','yield','await','else','do','default','extends'].includes(String(value));
+      return;
+    }
     if(kind==='number'||kind==='string'||kind==='regexp'||kind==='templateTail'||kind==='templateNoSub'){regexpAllowed=false;return;}
     if(kind==='templateHead'||kind==='templateMiddle'){regexpAllowed=true;return;}
     regexpAllowed=kind==='punct'&&!['}',']','++','--'].includes(text);

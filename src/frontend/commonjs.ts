@@ -133,7 +133,11 @@ export interface CommonJsAnalysis {
 
 const isExports=(node:A.Node):boolean=>node.kind==='Identifier'&&(node as A.Identifier).name==='exports'
   ||node.kind==='Member'&&(node as A.Member).object.kind==='Identifier'&&((node as A.Member).object as A.Identifier).name==='module'&&stringOf((node as A.Member).property)==='exports';
-const isModuleExports=(node:A.Node):boolean=>node.kind==='Member'&&(node as A.Member).object.kind==='Identifier'&&((node as A.Member).object as A.Identifier).name==='module'&&stringOf((node as A.Member).property)==='exports';
+const isModuleExports=(node:A.Node):boolean=>{
+  if(node.kind!=='Member')return false;
+  const {object,property}=node as A.Member;
+  return object.kind==='Identifier'&&(object as A.Identifier).name==='module'&&stringOf(property)==='exports';
+};
 const requireCall=(node:A.Node|undefined):string|undefined=>{
   if(node?.kind!=='Call')return undefined;
   const call=node as A.Call;
@@ -148,9 +152,11 @@ export function analyzeCommonJs(program:A.Program):CommonJsAnalysis {
     if(node.kind==='Call'){
       const call=node as A.Call;
       add(requires,requireCall(call));
-      if(call.callee.kind==='Member'&&call.callee.object.kind==='Identifier'&&call.callee.object.name==='require'&&stringOf(call.callee.property)==='resolve')add(resolves,stringOf(call.arguments[0] as A.Node));
+      const method=(object:string,name:string)=>call.callee.kind==='Member'&&call.callee.object.kind==='Identifier'
+        &&call.callee.object.name===object&&stringOf(call.callee.property)===name;
+      if(method('require','resolve'))add(resolves,stringOf(call.arguments[0] as A.Node));
       // Object.defineProperty(exports, 'name', ...): TypeScript's re-exports and getters.
-      if(call.callee.kind==='Member'&&call.callee.object.kind==='Identifier'&&call.callee.object.name==='Object'&&stringOf(call.callee.property)==='defineProperty'&&call.arguments[0]&&isExports(call.arguments[0] as A.Node))add(names,stringOf(call.arguments[1] as A.Node));
+      if(method('Object','defineProperty')&&call.arguments[0]&&isExports(call.arguments[0] as A.Node))add(names,stringOf(call.arguments[1] as A.Node));
       // __exportStar(require('x'), exports) and __export(require('x')).
       if(call.callee.kind==='Identifier'&&/^__export(Star)?$/.test(call.callee.name))add(reexports,requireCall(call.arguments[0] as A.Node));
       if(call.callee.kind==='Member'&&/^__export(Star)?$/.test(stringOf(call.callee.property)??''))add(reexports,requireCall(call.arguments[0] as A.Node));
@@ -171,7 +177,9 @@ export function analyzeCommonJs(program:A.Program):CommonJsAnalysis {
   return {requires,resolves,exportNames:names.filter(name=>name!=='default'),reexports};
 }
 
-const reserved=new Set(['await','break','case','catch','class','const','continue','debugger','default','delete','do','else','enum','export','extends','false','finally','for','function','if','implements','import','in','instanceof','interface','let','new','null','package','private','protected','public','return','static','super','switch','this','throw','true','try','typeof','var','void','while','with','yield','eval','arguments']);
+const reserved=new Set(('await break case catch class const continue debugger default delete do else enum export extends false finally for '
+  +'function if implements import in instanceof interface let new null package private protected public return static super switch this throw '
+  +'true try typeof var void while with yield eval arguments').split(' '));
 const exportable=(name:string):boolean=>/^[A-Za-z_$][\w$]*$/.test(name)&&!reserved.has(name)&&!name.startsWith('__nona');
 
 /** A host path as the running program names it: `C:\x\y.js` for a drive path, `/x/y.js` otherwise. */
@@ -185,7 +193,12 @@ function fail(message:string,path:string,span:{start:number;end:number}={start:0
 }
 
 /** The real file system in canonical paths. */
-export function hostFileSystem(fs:{readFileSync(path:string,encoding:'utf8'):string;statSync(path:string,options?:{throwIfNoEntry:boolean}):{isFile():boolean;isDirectory():boolean}|undefined;realpathSync(path:string):string}):NodeFileSystem {
+export interface NodeFs {
+  readFileSync(path:string,encoding:'utf8'):string;
+  statSync(path:string,options?:{throwIfNoEntry:boolean}):{isFile():boolean;isDirectory():boolean}|undefined;
+  realpathSync(path:string):string;
+}
+export function hostFileSystem(fs:NodeFs):NodeFileSystem {
   const native=(path:string)=>/^\/[A-Za-z]:\//.test(path)?path.slice(1):path;
   const canonical=(path:string)=>{const slashed=path.split('\\').join('/');return slashed.startsWith('/')?slashed:'/'+slashed;};
   const stat=(path:string)=>{try{return fs.statSync(native(path),{throwIfNoEntry:false});}catch{return undefined;}};
@@ -314,7 +327,9 @@ export class NodeModuleHost implements ModuleHost {
     const lines=[`import __nona_cjs_record from ${JSON.stringify(path+factorySuffix)};`,`import {importDefault as __nona_cjs_load} from 'nona:internal/commonjs';`,
       `const __nona_cjs_exports = __nona_cjs_load(__nona_cjs_record);`,`export default __nona_cjs_exports;`];
     const names=this.format(path)==='json'?[]:this.exportNames(path);
-    names.forEach((name,index)=>lines.push(`const __nona_cjs_${index} = __nona_cjs_exports == null ? undefined : __nona_cjs_exports[${JSON.stringify(name)}];`,`export {__nona_cjs_${index} as ${name}};`));
+    names.forEach((name,index)=>lines.push(
+      `const __nona_cjs_${index} = __nona_cjs_exports == null ? undefined : __nona_cjs_exports[${JSON.stringify(name)}];`,
+      `export {__nona_cjs_${index} as ${name}};`));
     return lines.join('\n')+'\n';
   }
 

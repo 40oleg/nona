@@ -10,6 +10,7 @@
         "object-annexb",
         "with",
         "modules",
+        "npm",
         "tail-calls",
         "dynamic-functions",
         "language-audit",

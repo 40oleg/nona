@@ -2,6 +2,7 @@ import { CompileError } from '../diagnostics.js';
 import type { Token,TokenStream } from './token.js';
 import type * as A from './ast.js';
 import {boundNames} from './declarations.js';
+import {skipImportAttributes} from './import-attributes.js';
 
 const reserved = new Set(('break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super yield null true false').split(' '));
 /** Reserved only in strict mode code; the binder rejects them there. */
@@ -22,14 +23,14 @@ class Parser {
   private at(s: string): boolean { return this.token.text === s; }
   private take(): Token {
     const t=this.tokens[this.index++]!;
-    // Bracket depth lets the for-initializer [~In] restriction end inside nested brackets.
+    // Bracket depth ends the for-initializer [~In] restriction inside nested brackets.
     // Each head/middle includes the next ${; its explicit } token closes it.
     if(t.kind==='punct'&&(t.text==='('||t.text==='['||t.text==='{')||t.kind==='templateHead'||t.kind==='templateMiddle')this.depth++;
     else if(t.kind==='punct'&&(t.text===')'||t.text===']'||t.text==='}'))this.depth--;
     return t;
   }
   private depth=0;
-  /** Bracket depth at which `in` is not a relational operator (for-statement initializers), or -1. */
+  /** Bracket depth where `in` is not an operator (for initializers), or -1. */
   private noInDepth=-1;
   private match(s:string): boolean { if (!this.at(s)) return false; this.take(); return true; }
   private error(message:string, token=this.token): never { throw new CompileError([{ code:'E_SYNTAX',message,file:'',span:token.span }]); }
@@ -150,7 +151,7 @@ class Parser {
       if(this.at('static')&&this.token.kind==='word'&&(this.elementNameStart(next)||next?.text==='*')){this.take();isStatic=true;methodStart=this.token.span.start;}
       const isAsync=this.atAsyncMethod()&&!!this.take();
       const afterModifier=this.tokens[this.index+1],afterName=this.tokens[this.index+2];
-      // get/set before a name start an accessor; on another line only when a method follows (`get\n x(){}`).
+      // get/set start an accessor before a name; across a line break only before a method.
       if(!isAsync&&(this.at('get')||this.at('set'))&&this.token.kind==='word'&&this.elementNameStart(afterModifier)&&(!afterModifier!.lineBreakBefore||afterModifier!.text==='['||afterName?.text==='('))accessor=this.take().text as 'get'|'set';
       const generator=this.match('*');if(generator&&accessor)this.error('Generator method cannot be an accessor');
       let key:A.Expression;const keyToken=this.token;
@@ -232,21 +233,8 @@ class Parser {
   }
   private moduleSpecifier():string {
     const token=this.token;if(token.kind!=='string')this.error('Expected a module specifier string');
-    this.take();
-    // Import attributes (`with { type: 'json' }`, and the older `assert`)
-    // are accepted and ignored: the module host decides how a file is read.
-    if((this.at('with')||this.at('assert'))&&this.tokens[this.index+1]?.text==='{'){
-      this.take();this.need('{');
-      while(!this.at('}')){
-        if(this.token.kind!=='string'&&this.token.kind!=='word')this.error('Expected an import attribute key');
-        this.take();this.need(':');
-        if(this.token.kind!=='string')this.error('Expected an import attribute value string');
-        this.take();
-        if(!this.at('}'))this.need(',');
-      }
-      this.need('}');
-    }
-    return String(token.value);
+    this.take();const end=skipImportAttributes(this.tokens,this.index);if(typeof end==='string')this.error(end);
+    this.index=end;return String(token.value);
   }
   /** ModuleExportName: IdentifierName or (later editions) a string literal. */
   private exportName():string {
@@ -360,7 +348,7 @@ class Parser {
     } while(this.match(','));
     if(semicolon)this.semi(); return {kind:'Var',declarationKind,declarations,span:this.span(start)};
   }
-  /** Annex B.3.4: `if (x) function f(){}` behaves like a block around the declaration (sloppy only). */
+  /** Annex B.3.4: `if (x) function f(){}` is a block around the declaration (sloppy only). */
   private ifBody():A.Statement {
     if(this.at('function')&&this.tokens[this.index+1]?.text!=='*'){
       const start=this.token.span.start,declaration=this.statement(true,true);
@@ -387,13 +375,13 @@ class Parser {
     }
     if(this.token.kind==='word'&&this.tokens[this.index+1]?.text===':') {
       const label=this.id();this.need(':');
-      // Annex B.3.2: a labelled plain function declaration (sloppy only; the binder checks strictness).
+      // Annex B.3.2: a labelled function declaration (the binder rejects it in strict code).
       const body=allowDeclaration&&this.at('function')&&this.tokens[this.index+1]?.text!=='*'?this.statement(true,true):this.token.kind==='word'&&this.tokens[this.index+1]?.text===':'?this.statement(allowDeclaration,false):this.statement(false,false);
       return {kind:'Labeled',label,body,span:this.span(start)};
     }
     // In a single-statement position `let` is an identifier unless it starts `let [`.
     const afterLet=this.tokens[this.index+1];
-    // In a declaration position `let` declares only before a binding identifier or pattern.
+    // In a declaration position `let` declares only before a binding.
     const letExpression=allowLexical&&this.at('let')&&!!afterLet&&!(afterLet.text==='['||afterLet.text==='{'||afterLet.kind==='word'&&!['in','instanceof'].includes(afterLet.text));
     const letIdentifier=letExpression||!allowLexical&&this.at('let')&&this.tokens[this.index+1]?.text!=='['&&(this.tokens[this.index+1]?.lineBreakBefore||!['word','punct'].includes(this.tokens[this.index+1]?.kind??'')||this.tokens[this.index+1]?.text!=='{'&&this.tokens[this.index+1]?.kind!=='word');
     if(!letIdentifier&&(this.at('var')||this.at('let')||this.at('const'))) {
@@ -450,7 +438,7 @@ class Parser {
     if(this.match('for')) {
       const isAwait=this.asyncContext&&this.match('await');
       this.need('(');const headStart=this.index;
-      // `let` starts a declaration only before a binding (ES2020 13.7: for ( [lookahead ≠ let [] ...).
+      // `let` starts a declaration only before a binding (ES2020 13.7).
       const next=this.tokens[this.index+1];
       const letDeclaration=this.at('let')&&!!next&&(next.text==='['||next.text==='{'||next.kind==='word'&&next.text!=='in'&&next.text!=='of');
       const savedNoIn=this.noInDepth;this.noInDepth=this.depth;
@@ -468,7 +456,7 @@ class Parser {
         return {kind:'ForIn',left,right:annexInit.right,body,span:this.span(start)};
       }
       if(init?.kind==='Var'&&this.at('in')&&init.declarationKind==='var'&&init.declarations.length===1&&init.declarations[0]!.id.kind==='Identifier'&&init.declarations[0]!.init){
-        // Annex B.3.6: for (var x = init in obj) (sloppy only; the binder rejects it in strict code).
+        // Annex B.3.6: for (var x = init in obj) (the binder rejects it in strict code).
         this.take();const right=this.expression();this.need(')');const body=this.statement(false,false);
         return {kind:'ForIn',left:{...init,annexBInitializer:true},right,body,span:this.span(start)};
       }
@@ -521,7 +509,7 @@ class Parser {
     }
     const expression=this.expression();this.semi();return {kind:'ExpressionStatement',expression,span:this.span(start)};
   }
-  /** Whether an unparenthesized `in` appears where [~In] forbids it (for initializers). */
+  /** Whether a bare `in` appears where [~In] forbids it (for initializers). */
   private topLevelIn(e:A.Expression):boolean {
     if(this.parenthesized.has(e))return false;
     switch(e.kind){
@@ -619,7 +607,7 @@ class Parser {
       // Arrow parameters keep the enclosing yield/await restrictions.
       const inGenerator=this.generatorContext;
       ({parameters,defaults,rest}=this.functionParameters(false,isAsync||this.asyncContext||this.awaitIdentifierForbidden));
-      // ArrowFormalParameters may not contain YieldExpression or AwaitExpression (ES2020 14.2.1, 14.8.1).
+      // Arrow parameters may not contain yield or await (ES2020 14.2.1, 14.8.1).
       const found=(node:unknown):boolean=>{
         if(!node||typeof node!=='object')return false;
         if(Array.isArray(node))return node.some(found);
@@ -794,7 +782,7 @@ class Parser {
     if(t.kind==='templateNoSub'||t.kind==='templateHead')return this.template();
     if(this.match('super')){if(!this.at('.')&&!this.at('[')&&!this.at('('))this.error('Expected super property or call');return {kind:'Super',span:t.span};}
     if(this.match('this'))return {kind:'This',span:t.span};
-    // `#x in obj` (ES2022): the binder checks that the name is only the left operand of in.
+    // `#x in obj` (ES2022): the binder checks the name is only in's left operand.
     if(t.kind==='private'&&this.tokens[this.index+1]?.text==='in'){this.take();return this.privateName(t);}
     if(this.at('import')){
       this.take();

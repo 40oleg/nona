@@ -11,7 +11,8 @@
  * ERR_NONA_UNSUPPORTED when called, so that a package that only mentions
  * them still loads.
  */
-import {modulesOs,modulesTty,modulesUtil,modulesUtilTypes,modulesUrl,modulesAssert,modulesQuerystring,modulesTimers,modulesTimersPromises,modulesPerfHooks,modulesModule,modulesWorkerThreads,modulesChildProcess,modulesCrypto} from '../lib/sources.generated.js';
+import {modulesOs,modulesTty,modulesUtil,modulesUtilTypes,modulesUrl,modulesAssert,modulesQuerystring,modulesTimers,modulesTimersPromises,
+  modulesPerfHooks,modulesModule,modulesWorkerThreads,modulesChildProcess,modulesCrypto} from '../lib/sources.generated.js';
 import {entropySource} from '../selfhost-adapters.js';
 import type {Target} from '../target.js';
 

@@ -10,7 +10,11 @@ import {hostFileSystem,nativePath} from './frontend/commonjs.js';
 import {position} from './source.js';
 import {nonaVersion} from './version.js';
 
-const help='Nona '+nonaVersion+' — JavaScript subset to native executables\nUsage: nona build <input.js|package directory> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
+const help='Nona '+nonaVersion+' — JavaScript subset to native executables\n'
+  +'Usage: nona build <input.js|package directory> -o <output> [--target '+supportedNativeTargets.join('|')+'] [--module]\n'
+  +'       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n'
+  +'       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n'
+  +'       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n';
 function canonical(path:string):string {
   const absolute=resolve(path);
   if(existsSync(absolute)){const real=realpathSync(absolute);return process.platform==='win32'?real.toLowerCase():real;}
