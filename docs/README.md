@@ -6,6 +6,7 @@ This directory holds the reference documents. Snapshots written for a particular
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------- | -------- |
 | [architecture.md](architecture.md)               | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking | English  |
 | [roadmap.md](roadmap.md)                         | Performance and platform plan derived from the V8 blog, with status                                 | English  |
+| [simd.md](simd.md)                               | Where the runtime spends its instructions and which routines vector instructions speed up (#253)    | English  |
 | [status.md](status.md)                           | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures  | Russian  |
 | [es2020-contract.md](es2020-contract.md)         | The ES2020 completion contract: scope, documented exceptions, how completion is judged              | English  |
 | [language-support.md](language-support.md)       | Language feature matrix (checked for Nona 0.5.0; see its note)                                      | Russian  |
