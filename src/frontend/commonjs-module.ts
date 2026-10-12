@@ -80,7 +80,12 @@ function load(record, parent, main) {
   try {
     record.factory.call(module.exports, module.exports, require, module, record.filename, record.dirname, globalThis);
   } catch (error) {
+    // A module that fails is forgotten, as in Node: a later require runs it again.
     delete cache[record.filename];
+    if (parent) {
+      const index = parent.children.indexOf(module);
+      if (index >= 0) parent.children.splice(index, 1);
+    }
     throw error;
   }
   module.loaded = true;

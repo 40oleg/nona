@@ -265,7 +265,7 @@ export function loadModuleGraph(entryPath:string,entrySource:string|null,host:Mo
     catch(error){
       if(!(error instanceof CompileError))throw error;
       // A module first reached through import() fails when that import runs.
-      if(!dynamic)throw new CompileError(error.diagnostics.map(d=>({...d,file:path})));
+      if(!dynamic)throw new CompileError(error.diagnostics.map(d=>({...d,file:d.file||path})));
       ast={kind:'Program',body:[],module:true,source:'',span:{start:0,end:0}};loadError=error.diagnostics[0]?.message??'Invalid module';
     }
     const builtinAliases=host.builtinAliases?.(path);

@@ -232,7 +232,21 @@ class Parser {
   }
   private moduleSpecifier():string {
     const token=this.token;if(token.kind!=='string')this.error('Expected a module specifier string');
-    this.take();return String(token.value);
+    this.take();
+    // Import attributes (`with { type: 'json' }`, and the older `assert`)
+    // are accepted and ignored: the module host decides how a file is read.
+    if((this.at('with')||this.at('assert'))&&this.tokens[this.index+1]?.text==='{'){
+      this.take();this.need('{');
+      while(!this.at('}')){
+        if(this.token.kind!=='string'&&this.token.kind!=='word')this.error('Expected an import attribute key');
+        this.take();this.need(':');
+        if(this.token.kind!=='string')this.error('Expected an import attribute value string');
+        this.take();
+        if(!this.at('}'))this.need(',');
+      }
+      this.need('}');
+    }
+    return String(token.value);
   }
   /** ModuleExportName: IdentifierName or (later editions) a string literal. */
   private exportName():string {

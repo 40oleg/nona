@@ -168,7 +168,7 @@ export function analyzeCommonJs(program:A.Program):CommonJsAnalysis {
       }
     }
   });
-  return {requires,resolves,exportNames:names.filter(name=>name!=='default'&&name!=='__esModule'),reexports};
+  return {requires,resolves,exportNames:names.filter(name=>name!=='default'),reexports};
 }
 
 const reserved=new Set(['await','break','case','catch','class','const','continue','debugger','default','delete','do','else','enum','export','extends','false','finally','for','function','if','implements','import','in','instanceof','interface','let','new','null','package','private','protected','public','return','static','super','switch','this','throw','true','try','typeof','var','void','while','with','yield','eval','arguments']);
@@ -324,7 +324,7 @@ export class NodeModuleHost implements ModuleHost {
     const imports:string[]=[`import {define as __nona_cjs_define} from 'nona:internal/commonjs';`];
     const entries:string[]=[];
     const target=(specifier:string):{path:string;kind:0|1|2;native:string}|undefined=>{
-      if(this.options.isBuiltin?.(specifier))return {path:specifier,kind:2,native:specifier.startsWith('node:')?specifier.slice(5):specifier};
+      if(this.options.isBuiltin?.(specifier))return {path:specifier,kind:2,native:specifier};
       let resolved:string|undefined;
       try{resolved=this.resolver.resolve(specifier,path,'require');}catch{resolved=undefined;}
       if(resolved===undefined)return undefined;
