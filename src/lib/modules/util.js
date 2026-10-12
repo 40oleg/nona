@@ -297,10 +297,19 @@ export function debuglog(section) {
 export const debug = debuglog;
 export function stripVTControlCharacters(text) { return String(text).replace(/[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~]))/g, ''); }
 export function toUSVString(text) { return String(text).toWellFormed ? String(text).toWellFormed() : String(text); }
-export function styleText(style, text) {
+export function styleText(style, text, options) {
   const styles = Array.isArray(style) ? style : [style];
+  for (const name of styles) if (!inspect.colors[name]) throw new TypeError('The argument \'format\' must be a valid style. Received ' + name);
+  const settings = options || {};
+  if (settings.validateStream !== false) {
+    // As in Node.js: colors only for a terminal, unless FORCE_COLOR or NO_COLOR say otherwise.
+    const stream = settings.stream || process.stdout, env = process.env;
+    const forced = env.FORCE_COLOR !== undefined ? env.FORCE_COLOR !== '0' && env.FORCE_COLOR !== 'false' : undefined;
+    const colors = forced !== undefined ? forced : env.NO_COLOR === undefined && env.NODE_DISABLE_COLORS === undefined && !!(stream && stream.isTTY) && env.TERM !== 'dumb';
+    if (!colors) return String(text);
+  }
   let out = String(text);
-  for (const name of styles) { const codes = inspect.colors[name]; if (!codes) throw new TypeError('The argument \'format\' must be a valid style. Received ' + name); out = '\u001b[' + codes[0] + 'm' + out + '\u001b[' + codes[1] + 'm'; }
+  for (const name of styles) { const codes = inspect.colors[name]; out = '\u001b[' + codes[0] + 'm' + out + '\u001b[' + codes[1] + 'm'; }
   return out;
 }
 export const isArray = Array.isArray;

@@ -23,6 +23,7 @@ export const hi: Dictionary = {
     process: 'process',
     fs: 'फ़ाइल सिस्टम और टेक्स्ट एन्कोडिंग',
     network: 'नेटवर्किंग: http और net (अंग्रेज़ी)',
+    npm: 'npm पैकेज (अंग्रेज़ी)',
     ffi: 'नेटिव फ़ंक्शन (FFI)',
     windowsExecutables: 'Windows एक्ज़ीक्यूटेबल',
     test262: 'Test262',

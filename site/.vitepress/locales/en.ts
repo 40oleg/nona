@@ -23,6 +23,7 @@ export const en: Dictionary = {
     process: 'process',
     fs: 'File system and text encoding',
     network: 'Networking: http and net',
+    npm: 'npm packages',
     ffi: 'Native functions (FFI)',
     windowsExecutables: 'Windows executables',
     test262: 'Test262',

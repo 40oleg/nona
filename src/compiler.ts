@@ -38,7 +38,7 @@ function scriptUrl(path:string):string|undefined {
 export type {Target} from './target.js';
 /** The native target of the machine running the compiler (used by tests that compile to IR only). */
 export const hostTarget=detectHostTarget();
-export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string};/** Return the x86-64 assembly of the program's own functions (not the runtime) as `assembly`; x86-64 targets only. */printAsm?:boolean}
+export interface CompileOptions {fileName:string;target:Target|undefined;/** PE subsystem (win32-x64 only). */subsystem?:'console'|'windows';/** Win32 resources (win32-x64 only): .ico bytes, manifest XML, version information. */icon?:Uint8Array;manifest?:string;versionInfo?:VersionInfo;unhandledRejections?:'throw'|'ignore';module?:boolean;moduleHost?:ModuleHost;scriptPrelude?:string;realms?:number;agents?:string[];/** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */fullRuntime?:boolean;/** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */baseCache?:BaseImageCache;/** Count every call by target and print the counts to stderr when the program ends. */callStats?:boolean;/** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */coverage?:{directory:string;url:string};/** Return the x86-64 assembly of the program's own functions (not the runtime) as `assembly`; x86-64 targets only. */printAsm?:boolean;/** Extra package.json `exports`/`imports` conditions, tried before Nona's own ("nona", "node", "import"/"require", "default"). */conditions?:readonly string[]}
 /** $262 inside an agent thread (Test262 host API subset). */
 const agentHarness='var $262={agent:{receiveBroadcast:function(callback){__nonaAgentReceiveBroadcast(callback)},report:function(value){__nonaAgentReport(String(value))},leaving:function(){},sleep:function(ms){__nonaAgentSleep(ms)},monotonicNow:function(){return Date.now()}}};\n';
 /** Canonical '/'-rooted module path for a host file name. */
@@ -62,11 +62,12 @@ export const fileModuleHost:ModuleHost={
  * (src/frontend/commonjs.ts). The entry's own text may differ from the file
  * on disk (or the file may not exist), so it is passed in.
  */
-export function nodeModuleHost(target:Target,entry?:{fileName:string;source:string}):NodeModuleHost {
+export function nodeModuleHost(target:Target,entry?:{fileName:string;source:string},conditions?:readonly string[]):NodeModuleHost {
   const builtins=builtinSpecifiers(target);
   return new NodeModuleHost(hostFileSystem({readFileSync,statSync,realpathSync}),{
     isBuiltin:specifier=>builtins.has(specifier),
     ...(entry?{overrides:new Map([[modulePath(entry.fileName),entry.source]])}:{}),
+    ...(conditions?.length?{conditions}:{}),
   });
 }
 /** Frontend and lowering for a module graph rooted at the entry source. */
@@ -84,8 +85,8 @@ export type CompileResult = {ok:true;image:Uint8Array;imports:string[];/** With 
 export function compileToIR(source:string,fileName?:string,host?:ModuleHost,target:Target=requireHostTarget()):ModuleIR {
   // A script entry that is CommonJS (or an ES module by its syntax) is
   // compiled as the module graph it starts.
-  if(fileName!==undefined&&host===undefined){
-    const node=nodeModuleHost(target,{fileName,source}),path=modulePath(fileName);
+  if(fileName!==undefined&&(host===undefined||host instanceof NodeModuleHost)){
+    const node=host??nodeModuleHost(target,{fileName,source}),path=modulePath(fileName);
     const format=node.format(path);
     if(format==='commonjs'||format==='json')return compileModuleToIR(node.mainSource(path),fileName,node,'',target);
     if(format==='module'&&(fileName.endsWith('.mjs')||entryHasModuleSyntax(source)))return compileModuleToIR(source,fileName,node,'',target);
@@ -133,9 +134,10 @@ function compileOnTarget(source:string,options:CompileOptions):CompileResult {
     // Every source lexed by the frontend (the program, its modules, agents and
     // compile-time eval/Function sources) decides which optional runtime
     // parts are linked; agents share one runtime with the main program.
+    const moduleHost=options.moduleHost??(options.conditions?.length?nodeModuleHost(options.target,{fileName:options.fileName,source},options.conditions):undefined);
     const {result:{ir,agentIRs},usage}=collectSourceUsage(()=>({
       agentIRs:(options.agents??[]).map(agent=>compileToIR(agentHarness+agent,undefined,undefined,options.target)),
-      ir:options.module?compileModuleToIR(source,options.fileName,options.moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,options.moduleHost,options.target),
+      ir:options.module?compileModuleToIR(source,options.fileName,moduleHost,options.scriptPrelude,options.target):compileToIR(source,options.fileName,moduleHost,options.target),
     }));
     const link=options.fullRuntime?fullRuntimeLink:usage;
     const agentPrograms=agentIRs.map(agentIR=>inPhase('codegen',()=>generate(agentIR,{agent:true,unhandledRejections:options.unhandledRejections,link,...(options.baseCache?{baseCache:options.baseCache}:{})})));

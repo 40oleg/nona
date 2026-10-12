@@ -29,8 +29,8 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | `readFileSync(path)` | Returns a `Uint8Array` | Returns a `Buffer` |
 | Encodings | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) only | Many |
 | Error messages on Windows | Contain the path as given | Contain the absolute path |
-| Modules | `nona:*`, `node:fs`, `node:path`, `node:process`, `node:buffer` and relative files | Everything in `node:*` and npm packages |
-| `require` | Not available | Available |
+| Modules | `nona:*`, the `node:*` modules listed in [Built-in modules](/reference/modules), files and npm packages resolved at build time | Everything in `node:*` and npm packages, resolved at run time |
+| `require` | CommonJS modules, with literal specifiers known at build time ([npm packages](/reference/npm)) | Any specifier at run time |
 | `console.log` without standard output | Output is dropped | Output is dropped or an error is raised |
 
 ## Performance

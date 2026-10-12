@@ -38,6 +38,7 @@ export interface Dictionary {
     process: string;
     fs: string;
     network: string;
+    npm: string;
     ffi: string;
     windowsExecutables: string;
     test262: string;

@@ -23,6 +23,7 @@ export const ru: Dictionary = {
     process: 'process',
     fs: 'Файловая система и кодировка текста',
     network: 'Сеть: http и net (англ.)',
+    npm: 'npm-пакеты (англ.)',
     ffi: 'Нативные функции (FFI)',
     windowsExecutables: 'Исполняемые файлы Windows',
     test262: 'Test262',

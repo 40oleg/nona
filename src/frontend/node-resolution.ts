@@ -46,6 +46,7 @@ export interface PackageJson {
   type?:string;
   exports?:unknown;
   imports?:unknown;
+  bin?:unknown;
 }
 
 const dirname=(path:string):string=>{const at=path.lastIndexOf('/');return at<=0?'/':path.slice(0,at);};
@@ -93,6 +94,7 @@ export class NodeResolver {
             if(typeof value.type==='string')cached.type=value.type;
             if(value.exports!==undefined)cached.exports=value.exports;
             if(value.imports!==undefined)cached.imports=value.imports;
+            if(value.bin!==undefined)cached.bin=value.bin;
           }
         }catch{throw new Error(`Invalid package configuration ${path}`);}
       }
@@ -130,6 +132,28 @@ export class NodeResolver {
 
   private real(path:string):string {
     try{return this.fs.realpath(path);}catch{return path;}
+  }
+
+  /**
+   * The program a package directory builds into an executable: its "bin"
+   * when it names one command (or one named after the package), otherwise
+   * what `require(directory)` loads ("main", then index.js). Throws when
+   * "bin" names several commands, none of them the package's own name.
+   */
+  packageEntry(directory:string):string|undefined {
+    const pkg=this.packageAt(directory);
+    let bin=pkg?.bin;
+    if(bin!==null&&typeof bin==='object'){
+      const commands=bin as Record<string,unknown>,names=Object.keys(commands).filter(name=>typeof commands[name]==='string');
+      const own=pkg?.name?.split('/').pop();
+      if(own!==undefined&&typeof commands[own]==='string')bin=commands[own];
+      else if(names.length===1)bin=commands[names[0]!];
+      else if(names.length>1)throw new Error(`${pkg!.path} names several commands in "bin" (${names.join(', ')}); build one of their files`);
+      else bin=undefined;
+    }
+    if(typeof bin==='string'){const found=this.loadFile(normalizePath(join(directory,bin)));if(found)return this.real(found);}
+    const found=this.loadDirectory(directory);
+    return found===undefined?undefined:this.real(found);
   }
 
   /** LOAD_AS_FILE then LOAD_AS_DIRECTORY. */

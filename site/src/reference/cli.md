@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ From a clone of the repository run `node dist/cli.js …`; after `npm link` the 
 | `-o` | path | Output file. Required unless `--print-asm` is given. Missing directories are created. |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | Compile the input as an ES module. Inputs ending in `.mjs` are modules automatically. |
+| `--conditions`, `-C` | name | Add a package.json `exports`/`imports` condition, tried before Nona's own (`nona`, `node`, `import` or `require`, `default`); `--conditions=name` works too. May be repeated. See [npm packages](/reference/npm#resolution). |
 | `--full-runtime` | — | Link the whole runtime. By default the RegExp engine, its Unicode property tables and the Unicode normalization tables are linked only when the program can reach them; see [Linked runtime parts](/guide/compatibility#linked-runtime-parts). |
 | `--call-stats` | — | Count every call the program and its runtime make, by target, and print the counts to stderr when the program ends or fails, most frequent first (`count  target` per line). Calls to function declarations known at compile time are counted under their code label (`js.fn.N`); other JavaScript calls go through `rt.invoke` and are counted there. The executable is larger and slower; use it to find the runtime functions a program spends its calls in. `process.exit()` skips the report. |
 | `--coverage` | directory | Count the calls of every function of the program and, when it ends or a runtime error ends it, write them to `<directory>/coverage-<pid>-<n>-0.json` in the format `NODE_V8_COVERAGE` produces, so `c8 report --temp-directory <directory>` turns them into a report. Coverage is per function (like V8's best-effort mode): each function's source range with its call count. The directory must exist. Method names may be empty, and code from compile-time `eval` strings is reported with offsets into those strings. |
@@ -32,11 +33,12 @@ From a clone of the repository run `node dist/cli.js …`; after `npm link` the 
 | `--help` | — | Print the synopsis. |
 | `--version` | — | Print the compiler version. |
 
-Each option may appear once. See [Windows executables](/reference/windows-executables) for the resource formats.
+Each option except `--conditions` may appear once. See [Windows executables](/reference/windows-executables) for the resource formats.
 
 ## Input and output
 
-- The input is one UTF-8 source file. A module input pulls in the modules it imports; built-in `nona:*` and `node:*` modules are part of the compiler.
+- The input is one UTF-8 source file. A module input pulls in the modules it imports and a CommonJS input the modules it requires, including npm packages from `node_modules` ([npm packages](/reference/npm)); built-in `nona:*` and `node:*` modules are part of the compiler.
+- The input may be a package directory: Nona builds the file its `package.json` `"bin"` names (the only command, or the one named after the package), otherwise its `"main"` or `index.js`.
 - The output is written to a temporary file next to it and renamed into place, so a failed build never leaves a half-written executable and keeps the previous one.
 - The compiler refuses to overwrite its input, including through a hard link or symbolic link.
 - Linux, BSD and Darwin outputs get mode `0755`.

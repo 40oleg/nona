@@ -23,6 +23,7 @@ export const bn: Dictionary = {
     process: 'process',
     fs: 'ফাইল সিস্টেম ও টেক্সট এনকোডিং',
     network: 'নেটওয়ার্কিং: http ও net (ইংরেজি)',
+    npm: 'npm প্যাকেজ (ইংরেজি)',
     ffi: 'নেটিভ ফাংশন (FFI)',
     windowsExecutables: 'Windows এক্সিকিউটেবল',
     test262: 'Test262',

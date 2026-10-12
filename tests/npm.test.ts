@@ -375,3 +375,31 @@ console.log(crypto.randomBytes(8).length, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}
 const n = crypto.randomInt(3, 9); console.log(n >= 3 && n < 9, crypto.timingSafeEqual(Buffer.from('ab'), Buffer.from('ab')), crypto.getRandomValues(new Uint32Array(4)).length);
 try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
 `},'main.js'));
+
+test('nona build <package directory> builds its command; --conditions selects exports',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'nona-npm-cli-'));
+ try{
+  writeTree(directory,{
+   'package.json':JSON.stringify({name:'@me/tool',bin:{tool:'bin/tool.js'}}),
+   'bin/tool.js':"const dep = require('dep'); console.log('tool', dep);",
+   'node_modules/dep/package.json':JSON.stringify({name:'dep',exports:{custom:'./custom.js',default:'./plain.js'}}),
+   'node_modules/dep/custom.js':"module.exports = 'custom';",
+   'node_modules/dep/plain.js':"module.exports = 'plain';",
+   'multi/package.json':JSON.stringify({name:'multi',bin:{a:'a.js',b:'b.js'}}),
+  });
+  const executable=(name:string)=>join(directory,process.platform==='win32'?name+'.exe':name);
+  const build=(...args:string[])=>spawnSync(process.execPath,['dist/cli.js','build',...args],{encoding:'utf8',windowsHide:true});
+  const run=(name:string)=>spawnSync(executable(name),[],{encoding:'utf8',windowsHide:true}).stdout;
+  let result=build(directory,'-o',executable('plain'));assert.equal(result.status,0,result.stderr);
+  assert.equal(run('plain'),'tool plain\n');
+  result=build(directory,'-o',executable('custom'),'--conditions','custom');assert.equal(result.status,0,result.stderr);
+  assert.equal(run('custom'),'tool custom\n');
+  result=build(join(directory,'multi'),'-o',executable('multi'));
+  assert.notEqual(result.status,0);assert.match(result.stderr,/several commands in "bin" \(a, b\)/);
+ }finally{removeTemporaryDirectory(directory);}
+});
+
+test('import.meta has the url, filename and dirname of the module file',()=>agree({
+ 'dir with space/main.mjs':"import {fileURLToPath} from 'node:url';\nimport {meta} from './lib.mjs';\nconsole.log(import.meta.url, import.meta.filename, import.meta.dirname, fileURLToPath(import.meta.url) === import.meta.filename, meta.filename);\n",
+ 'dir with space/lib.mjs':"export const meta = {filename: import.meta.filename};\n",
+},'dir with space/main.mjs'));
