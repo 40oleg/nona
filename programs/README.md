@@ -4,18 +4,18 @@ These 1,000 individually authored deterministic applications exercise combinatio
 They are independent of Test262 and need no network, external files, timers or
 third-party packages. Keep the programs here and the test runner in `tests/`.
 
-| Program | Combined behavior |
-| --- | --- |
-| `001-insertion-sort.js` | Copying arrays, nested loops, short-circuit conditions, duplicate/negative values and indexed mutation |
-| `002-binary-search.js` | Function calls, loop bounds, arithmetic, short-circuiting and empty/missing/duplicate cases |
-| `003-prime-sieve.js` | Sparse arrays, nested loops, continue, truthiness and accumulation |
-| `004-closure-accounts.js` | Classes, private fields, escaped arrows capturing this, independent instances and loop closures |
-| `005-expression-parser.js` | Nested functions, captured mutable state, mutual recursion, precedence, string indexing and numeric conversion |
-| `006-tree-traversal.js` | Object trees, destructuring, recursive generators, yield delegation and for-of |
-| `007-shortest-path.js` | Cyclic graph traversal, a growing queue, Map/Set, for-of, path reconstruction and nullish fallback |
-| `008-matrix-multiply.js` | Nested arrays, typed-array rows, three nested loops, indexed reads/writes and checksums |
-| `009-run-length-encoding.js` | String scanning, record arrays, JSON round trips, destructuring, string concatenation and empty inputs |
-| `010-exception-cleanup.js` | Async/await, promises, exceptions, returns through catch/finally and observable cleanup order |
+| Program                      | Combined behavior                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `001-insertion-sort.js`      | Copying arrays, nested loops, short-circuit conditions, duplicate/negative values and indexed mutation         |
+| `002-binary-search.js`       | Function calls, loop bounds, arithmetic, short-circuiting and empty/missing/duplicate cases                    |
+| `003-prime-sieve.js`         | Sparse arrays, nested loops, continue, truthiness and accumulation                                             |
+| `004-closure-accounts.js`    | Classes, private fields, escaped arrows capturing this, independent instances and loop closures                |
+| `005-expression-parser.js`   | Nested functions, captured mutable state, mutual recursion, precedence, string indexing and numeric conversion |
+| `006-tree-traversal.js`      | Object trees, destructuring, recursive generators, yield delegation and for-of                                 |
+| `007-shortest-path.js`       | Cyclic graph traversal, a growing queue, Map/Set, for-of, path reconstruction and nullish fallback             |
+| `008-matrix-multiply.js`     | Nested arrays, typed-array rows, three nested loops, indexed reads/writes and checksums                        |
+| `009-run-length-encoding.js` | String scanning, record arrays, JSON round trips, destructuring, string concatenation and empty inputs         |
+| `010-exception-cleanup.js`   | Async/await, promises, exceptions, returns through catch/finally and observable cleanup order                  |
 
 ## Run the corpus
 
@@ -70,14 +70,14 @@ The original ten above are preserved. The other programs are organized into
 six directories, each containing 165 independent sources and a `cases.json`
 catalog with the purpose and feature combination of each case:
 
-| Directory | IDs | Focus |
-| --- | --- | --- |
-| `algorithms/` | 11–175 | Graphs, dynamic programming, numerical methods, geometry, search and simulations |
-| `collections/` | 176–340 | Record processing, indexes, joins, reconciliation, histories and collection protocols |
-| `text/` | 341–505 | Parsers, codecs, tokenizers, formatting and text transformations |
-| `async/` | 506–670 | Promise workflows, async iteration, scheduling, recovery and cleanup |
-| `objects/` | 671–835 | Classes, accessors, descriptors, proxies and object protocols |
-| `language/` | 836–1000 | Composed applications involving scope, destructuring, generators and exceptions |
+| Directory      | IDs      | Focus                                                                                 |
+| -------------- | -------- | ------------------------------------------------------------------------------------- |
+| `algorithms/`  | 11–175   | Graphs, dynamic programming, numerical methods, geometry, search and simulations      |
+| `collections/` | 176–340  | Record processing, indexes, joins, reconciliation, histories and collection protocols |
+| `text/`        | 341–505  | Parsers, codecs, tokenizers, formatting and text transformations                      |
+| `async/`       | 506–670  | Promise workflows, async iteration, scheduling, recovery and cleanup                  |
+| `objects/`     | 671–835  | Classes, accessors, descriptors, proxies and object protocols                         |
+| `language/`    | 836–1000 | Composed applications involving scope, destructuring, generators and exceptions       |
 
 The sources are checked in directly. There is no source generator, seed
 expansion or template multiplication. Review both the source and its purpose;

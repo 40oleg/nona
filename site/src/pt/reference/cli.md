@@ -16,19 +16,19 @@ Em um clone do repositório, execute `node dist/cli.js …`; depois de `npm link
 
 ## Opções
 
-| Opção | Valor | Descrição |
-| --- | --- | --- |
-| `-o` | caminho | Arquivo de saída. Obrigatória. Diretórios ausentes são criados. |
-| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
-| `--module` | — | Compila a entrada como módulo ES. Entradas terminadas em `.mjs` são módulos automaticamente. |
-| `--conditions`, `-C` | nome | Adiciona uma condição de `exports`/`imports` do package.json, testada antes das condições do próprio Nona (`nona`, `node`, `import` ou `require`, `default`); `--conditions=name` também funciona. Pode ser repetida. Veja [pacotes npm](/reference/npm#resolution). |
-| `--print-asm` | — | Imprime no stdout o assembly x86-64 gerado para as funções do próprio programa (não o runtime nem seus prelúdios): o rótulo de cada função e uma linha por instrução com seu deslocamento, seus bytes codificados e seu texto em sintaxe Intel. Com esta opção, `-o` pode ser omitido. Apenas alvos x86-64. |
-| `--subsystem` | `console` (padrão), `windows` | Programa gráfico do Windows sem janela de console. Apenas `win32-x64`. Um programa gráfico sem `--manifest` recebe um manifesto padrão. |
-| `--icon` | arquivo `.ico` | Incorpora todas as imagens do arquivo de ícone. Apenas `win32-x64`. |
-| `--manifest` | arquivo XML | Incorpora um manifesto de aplicativo. Ele precisa ser válido: o Windows se recusa a iniciar um programa com manifesto malformado. Apenas `win32-x64`. |
-| `--version-info` | arquivo JSON | Incorpora informações de versão (`FileVersion`, `ProductVersion`, `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName`, `Comments`). Apenas `win32-x64`. |
-| `--help` | — | Exibe a sinopse. |
-| `--version` | — | Exibe a versão do compilador. |
+| Opção                | Valor                                           | Descrição                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-o`                 | caminho                                         | Arquivo de saída. Obrigatória. Diretórios ausentes são criados.                                                                                                                                                                                                                                             |
+| `--target`           | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU.                                                                                                                                                                                                                                                         |
+| `--module`           | —                                               | Compila a entrada como módulo ES. Entradas terminadas em `.mjs` são módulos automaticamente.                                                                                                                                                                                                                |
+| `--conditions`, `-C` | nome                                            | Adiciona uma condição de `exports`/`imports` do package.json, testada antes das condições do próprio Nona (`nona`, `node`, `import` ou `require`, `default`); `--conditions=name` também funciona. Pode ser repetida. Veja [pacotes npm](/reference/npm#resolution).                                        |
+| `--print-asm`        | —                                               | Imprime no stdout o assembly x86-64 gerado para as funções do próprio programa (não o runtime nem seus prelúdios): o rótulo de cada função e uma linha por instrução com seu deslocamento, seus bytes codificados e seu texto em sintaxe Intel. Com esta opção, `-o` pode ser omitido. Apenas alvos x86-64. |
+| `--subsystem`        | `console` (padrão), `windows`                   | Programa gráfico do Windows sem janela de console. Apenas `win32-x64`. Um programa gráfico sem `--manifest` recebe um manifesto padrão.                                                                                                                                                                     |
+| `--icon`             | arquivo `.ico`                                  | Incorpora todas as imagens do arquivo de ícone. Apenas `win32-x64`.                                                                                                                                                                                                                                         |
+| `--manifest`         | arquivo XML                                     | Incorpora um manifesto de aplicativo. Ele precisa ser válido: o Windows se recusa a iniciar um programa com manifesto malformado. Apenas `win32-x64`.                                                                                                                                                       |
+| `--version-info`     | arquivo JSON                                    | Incorpora informações de versão (`FileVersion`, `ProductVersion`, `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName`, `Comments`). Apenas `win32-x64`.                                                                                                   |
+| `--help`             | —                                               | Exibe a sinopse.                                                                                                                                                                                                                                                                                            |
+| `--version`          | —                                               | Exibe a versão do compilador.                                                                                                                                                                                                                                                                               |
 
 Cada opção, exceto `--conditions`, pode aparecer uma única vez. Veja [Executáveis do Windows](/pt/reference/windows-executables) para os formatos dos recursos.
 
@@ -44,10 +44,10 @@ Cada opção, exceto `--conditions`, pode aparecer uma única vez. Veja [Execut�
 
 O runtime e os prelúdios compilados são iguais para todos os programas que ligam as mesmas partes, e gerá-los ocupa a maior parte de uma compilação. A linha de comando os guarda em um diretório de cache, então as compilações seguintes ficam cerca de três vezes mais rápidas (um hello world no Linux: 1,1 s e depois 0,33 s). A saída é idêntica com ou sem cache. As entradas pertencem a uma única versão do compilador e são ignoradas após uma atualização.
 
-| Variável | Efeito |
-| --- | --- |
+| Variável         | Efeito                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NONA_CACHE_DIR` | Diretório do cache. Padrão: `%LOCALAPPDATA%\nona\cache` no Windows, `~/Library/Caches/nona` no macOS e `$XDG_CACHE_HOME/nona` ou `~/.cache/nona` nos demais. |
-| `NONA_CACHE=0` | Não ler nem gravar o cache. |
+| `NONA_CACHE=0`   | Não ler nem gravar o cache.                                                                                                                                  |
 
 ## Diagnósticos e códigos de saída
 
@@ -57,17 +57,17 @@ O status de saída é `0` em caso de sucesso e `1` em qualquer erro. Erros no c�
 <file>:<line>:<column> <CODE>: <message>
 ```
 
-| Código | Significado |
-| --- | --- |
-| `E_LEX`, `E_SYNTAX` | O código-fonte não pode ser tokenizado ou analisado, ou usa sintaxe não suportada. |
-| `E_BIND` | Um early error encontrado ao resolver nomes (declarações duplicadas, alvos de atribuição inválidos, …). |
-| `E_MODULE` | Um módulo não pode ser resolvido, lido ou vinculado, ou há conflito entre exportações. |
-| `E_FFI_STATIC` | Uma chamada a `define()` de `nona:ffi` não tem três literais de string ou tem uma assinatura inválida. |
-| `E_FFI_TARGET` | Uma declaração de DLL compilada para `linux-x64`, ou uma declaração de chamada de sistema compilada para `win32-x64`. |
-| `E_RESOURCE` | Um ícone ou informações de versão inválidos, ou recursos solicitados para `linux-x64`. |
-| `E_TARGET` | Um alvo ou subsistema não suportado. |
-| `E_HOST_MODULE` | Um módulo embutido (como `node:fs`) não está disponível para o destino. |
-| `E_INTERNAL` | Um bug do compilador, não um erro do programa: uma verificação interna falhou na fase indicada na mensagem (`parse`, `bind`, `lower`, `codegen`, `link`, …). Relate-o junto com o programa que o provoca. |
+| Código              | Significado                                                                                                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `E_LEX`, `E_SYNTAX` | O código-fonte não pode ser tokenizado ou analisado, ou usa sintaxe não suportada.                                                                                                                        |
+| `E_BIND`            | Um early error encontrado ao resolver nomes (declarações duplicadas, alvos de atribuição inválidos, …).                                                                                                   |
+| `E_MODULE`          | Um módulo não pode ser resolvido, lido ou vinculado, ou há conflito entre exportações.                                                                                                                    |
+| `E_FFI_STATIC`      | Uma chamada a `define()` de `nona:ffi` não tem três literais de string ou tem uma assinatura inválida.                                                                                                    |
+| `E_FFI_TARGET`      | Uma declaração de DLL compilada para `linux-x64`, ou uma declaração de chamada de sistema compilada para `win32-x64`.                                                                                     |
+| `E_RESOURCE`        | Um ícone ou informações de versão inválidos, ou recursos solicitados para `linux-x64`.                                                                                                                    |
+| `E_TARGET`          | Um alvo ou subsistema não suportado.                                                                                                                                                                      |
+| `E_HOST_MODULE`     | Um módulo embutido (como `node:fs`) não está disponível para o destino.                                                                                                                                   |
+| `E_INTERNAL`        | Um bug do compilador, não um erro do programa: uma verificação interna falhou na fase indicada na mensagem (`parse`, `bind`, `lower`, `codegen`, `link`, …). Relate-o junto com o programa que o provoca. |
 
 Erros de argumentos são exibidos como `nona: <message>`, por exemplo `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` ou `--subsystem requires --target win32-x64`.
 
@@ -88,7 +88,6 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
-
 
 ## Native target availability
 

@@ -1,22 +1,24 @@
-import type {Target} from './target.js';
+import type { Target } from "./target.js";
 
 /**
  * `randomBytes(size)`: OS entropy through nona:ffi (BCryptGenRandom on
  * Windows, /dev/urandom elsewhere). Shared by the compiler's own services and
  * the public node:crypto module.
  */
-export function entropySource(target:Target):string {
- return target.startsWith('win32-')?String.raw`
+export function entropySource(target: Target): string {
+    return target.startsWith("win32-")
+        ? String.raw`
 import {define} from 'nona:ffi';
 const random=define('bcrypt.dll','BCryptGenRandom','i32(ptr,buf,u32,u32)');
 function randomBytes(size){const bytes=new Uint8Array(size);if(size&&random(null,bytes,size,2)!==0)throw new Error('Cannot obtain OS entropy');return bytes;}
-`:String.raw`
+`
+        : String.raw`
 import {define} from 'nona:ffi';
-const open=define('syscall','${target==='linux-arm64'?'56':target==='linux-x64'?'2':'5'}','${target==='linux-arm64'?'i64(i64,buf,i64,i64)':'i64(buf,i64,i64)'}');
-const read=define('syscall','${target==='linux-arm64'?'63':target==='linux-x64'?'0':'3'}','i64(i64,buf,i64)');
-const close=define('syscall','${target==='linux-arm64'?'57':target==='linux-x64'?'3':'6'}','i64(i64)');
+const open=define('syscall','${target === "linux-arm64" ? "56" : target === "linux-x64" ? "2" : "5"}','${target === "linux-arm64" ? "i64(i64,buf,i64,i64)" : "i64(buf,i64,i64)"}');
+const read=define('syscall','${target === "linux-arm64" ? "63" : target === "linux-x64" ? "0" : "3"}','i64(i64,buf,i64)');
+const close=define('syscall','${target === "linux-arm64" ? "57" : target === "linux-x64" ? "3" : "6"}','i64(i64)');
 function randomBytes(size){
- const path=new TextEncoder().encode('/dev/urandom\0'),fd=${target==='linux-arm64'?'open(-100,path,0,0)':'open(path,0,0)'};
+ const path=new TextEncoder().encode('/dev/urandom\0'),fd=${target === "linux-arm64" ? "open(-100,path,0,0)" : "open(path,0,0)"};
  if(fd<0)throw new Error('Cannot open OS entropy source');
  try{const bytes=new Uint8Array(size);let at=0;while(at<size){const count=read(fd,bytes.subarray(at),size-at);if(count===-4)continue;if(count<=0)throw new Error('Cannot read OS entropy');at+=count;}return bytes;}finally{close(fd);}
 }
@@ -24,9 +26,11 @@ function randomBytes(size){
 }
 
 /** Private compiler services; these are not a public node:crypto provider. */
-export function compilerCryptoSource(target:Target):string {
- const entropy=entropySource(target);
- return entropy+String.raw`
+export function compilerCryptoSource(target: Target): string {
+    const entropy = entropySource(target);
+    return (
+        entropy +
+        String.raw`
 import {sha256} from './backend/macho/sha256.js';
 export function createHash(algorithm){
  if(algorithm!=='sha256')throw new Error('Unsupported compiler hash: '+algorithm);
@@ -35,12 +39,13 @@ export function createHash(algorithm){
  digest(encoding){if(finished)throw new Error('Hash already finalized');finished=true;const input=new Uint8Array(length);let at=0;for(const chunk of chunks){input.set(chunk,at);at+=chunk.length;}const output=sha256(input);return encoding==='hex'?Buffer.from(output).toString('hex'):Buffer.from(output);}};
 }
 export function randomUUID(){const bytes=randomBytes(16);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const text=Buffer.from(bytes).toString('hex');return text.slice(0,8)+'-'+text.slice(8,12)+'-'+text.slice(12,16)+'-'+text.slice(16,20)+'-'+text.slice(20);}
-`;
+`
+    );
 }
 
-
-export function compilerHomeSource(target:Target):string {
- if(target.startsWith('win32-'))return String.raw`
+export function compilerHomeSource(target: Target): string {
+    if (target.startsWith("win32-"))
+        return String.raw`
 import {define} from 'nona:ffi';
 const current=define('kernel32.dll','GetCurrentProcess','ptr()');
 const openToken=define('advapi32.dll','OpenProcessToken','bool(ptr,u32,buf)');
@@ -53,7 +58,7 @@ export function homedir(){
  try{const data=new Uint16Array(32768),size=new Uint32Array([data.length]);if(!profile(handle,data,size))throw new Error('Cannot query the current profile directory');let path='';for(let i=0;i<size[0]&&data[i];i++)path+=String.fromCharCode(data[i]);return path;}finally{close(handle);}
 }
 `;
- return String.raw`
+    return String.raw`
 import {readFileSync} from 'node:fs';
 export function homedir(){
  if(process.env.HOME)return process.env.HOME;
@@ -64,7 +69,7 @@ export function homedir(){
 }
 
 /** File URL construction needed for compiler coverage output. */
-export const compilerUrlSource=String.raw`
+export const compilerUrlSource = String.raw`
 import {resolve} from 'node:path';
 export function pathToFileURL(value){
  let path=resolve(value),host='';

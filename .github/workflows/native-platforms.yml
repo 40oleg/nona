@@ -1,252 +1,259 @@
 name: native-platforms
 env:
-  NODE_VERSION: '26.9.0'
+    NODE_VERSION: "26.9.0"
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-  pull_request:
+    push:
+        branches: [main]
+    workflow_dispatch:
+    pull_request:
 permissions:
-  contents: read
+    contents: read
 concurrency:
-  group: native-platforms-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
-  cancel-in-progress: true
+    group: native-platforms-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
+    cancel-in-progress: true
 jobs:
-  browser-compiler:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            site/package-lock.json
-      - run: npm ci
-      - run: npm run build
-      - run: npm ci
-        working-directory: site
-      - run: npm run build
-        working-directory: site
-      - run: npm run check:playground
-        working-directory: site
-      - run: npm run check:samples
-        working-directory: site
-      - run: npm run check:links
-        working-directory: site
-  windows-regression:
-    name: Windows x64 full regression (manual)
-    # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
-    # for manually dispatched full-platform runs as well.
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run compare
-  linux-regression:
-    name: Linux x64 compiler and example regression
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/run-suite.mjs elf native-formats
-      - run: npm run compare:linux
-  loaders:
-    name: ${{ matrix.target }} native and portable suites
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {runner: ubuntu-24.04, target: linux-x64}
-          - {runner: ubuntu-24.04-arm, target: linux-arm64}
-          - {runner: macos-15-intel, target: darwin-x64}
-          - {runner: macos-15, target: darwin-arm64}
-          - {runner: windows-11-arm, target: win32-arm64}
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - name: Build native probes
-        run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
-      - name: Record isolated Windows Node abort behavior
-        if: matrix.target == 'win32-arm64'
-        shell: pwsh
-        run: ./scripts/process-abort-oracle.ps1
-      - name: Execute native loader and runtime probes
-        if: matrix.target == 'win32-arm64'
-        run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
-      - name: Record Node process signal behavior
-        if: matrix.target != 'win32-arm64'
-        run: node scripts/process-signals-oracle.mjs
-      - name: Execute native POSIX loader and runtime probes
-        if: matrix.target != 'win32-arm64'
-        shell: bash
-        run: |
-          ulimit -c 0
-          node scripts/run-platform-probes.mjs ${{ matrix.target }}
-      - name: Verify native process report files
-        run: node scripts/verify-process-reports.mjs
-      - name: Events module oracle suite
-        run: node scripts/run-suite.mjs events event-target
-      - name: Core runtime oracle suites
-        run: node scripts/run-suite.mjs core-runtime async
-      - name: Buffer and Blob oracle suites
-        run: node scripts/run-suite.mjs buffer
-      # These exercise byte memory/FP conversions and the large Unicode/RegExp
-      # preludes in addition to the CPU, math, GC and coroutine probes.
-      - name: Portable language and built-in oracle suites
-        run: node scripts/run-suite.mjs builtins
-      - name: Filesystem oracle suite
-        run: node scripts/run-suite.mjs fs
-      - name: Portable process oracle suite
-        run: node scripts/run-suite.mjs process
-      - name: Compare Linux examples with Node.js
-        run: npm run compare:linux
-        if: matrix.target == 'linux-arm64'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: loader-${{ matrix.target }}
-          path: work/platform-probes
-  linux-distributions:
-    name: Linux userspace ${{ matrix.image }}
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:43', 'alpine:3.22']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/build-platform-probes.mjs work/platform-probes linux-x64
-      # Reuse exactly the same compiler output inside glibc and musl systems.
-      - run: |
-          mkdir -p work/distro-results
-          docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
-            set -eu
-            ulimit -c 0
-            cd /results
-            /probes/linux-x64 > /results/loader.actual
-            for expected in /probes/linux-x64-*.expected; do
-              binary=${expected%.expected}
-              echo "Running $binary"
-              status=0
-              if [ "$(cat "$binary.minimal-environment")" = 1 ]; then env -i "$binary" > "/results/${binary##*/}.actual" || status=$?; else "$binary" > "/results/${binary##*/}.actual" || status=$?; fi
-              expected_status=0
-              if [ -f "$binary.status" ]; then expected_status=$(cat "$binary.status"); fi
-              if [ "$status" -ne "$expected_status" ]; then
-                echo "Unexpected exit status $status (expected $expected_status)"
-                exit 1
-              fi
-            done
-            cat /etc/os-release
-          '
-          cmp work/platform-probes/expected.txt work/distro-results/loader.actual
-          for expected in work/platform-probes/linux-x64-*.expected; do
-            binary=${expected%.expected}
-            cmp "$expected" "work/distro-results/${binary##*/}.actual"
-          done
-      - run: node scripts/verify-process-reports.mjs work/distro-results
-  bsd-loaders:
-    name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [freebsd, openbsd]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.os }}-x64
-      - uses: vmactions/freebsd-vm@v1
-        if: matrix.os == 'freebsd'
-        with:
-          release: '14.3'
-          usesh: true
-          run: |
-            set -eu
-            ulimit -c 0
-            uname -a
-            test "$(uname -s)" = FreeBSD
-            test "$(uname -m)" = amd64
-            chmod 755 work/platform-probes/freebsd-x64
-            work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
-            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
-            for probe in work/platform-probes/freebsd-x64-*.expected; do
-              binary=${probe%.expected}
-              echo "Running $binary"
-              chmod 755 "$binary"
-              minimal=$(cat "$binary.minimal-environment")
-              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then
-                status=0
-              else
-                status=$?
-              fi
-              expected_status=$(cat "$binary.status")
-              if [ "$status" -ne "$expected_status" ]; then
-                if command -v lldb >/dev/null 2>&1; then
-                  lldb --batch -o run -o 'thread backtrace all' -o 'register read' -o 'disassemble --frame --count 12' "$binary" || true
-                fi
-                exit 1
-              fi
-              cmp "$probe" "$binary.actual"
-            done
-            uname -a
-      - uses: vmactions/openbsd-vm@v1
-        if: matrix.os == 'openbsd'
-        with:
-          release: '7.8'
-          usesh: true
-          run: |
-            set -eu
-            ulimit -c 0
-            uname -a
-            test "$(uname -s)" = OpenBSD
-            test "$(uname -m)" = amd64
-            chmod 755 work/platform-probes/openbsd-x64
-            work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
-            cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
-            for probe in work/platform-probes/openbsd-x64-*.expected; do
-              binary=${probe%.expected}
-              echo "Running $binary"
-              chmod 755 "$binary"
-              minimal=$(cat "$binary.minimal-environment")
-              if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then status=0; else status=$?; fi
-              expected_status=$(cat "$binary.status")
-              if [ "$status" -ne "$expected_status" ]; then exit 1; fi
-              cmp "$probe" "$binary.actual"
-            done
-            uname -a
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: loader-${{ matrix.os }}-x64
-          path: work/platform-probes
-      - run: node scripts/verify-process-reports.mjs
+    browser-compiler:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+                  cache-dependency-path: |
+                      package-lock.json
+                      site/package-lock.json
+            - run: npm ci
+            - run: npm run build
+            - run: npm ci
+              working-directory: site
+            - run: npm run build
+              working-directory: site
+            - run: npm run check:playground
+              working-directory: site
+            - run: npm run check:samples
+              working-directory: site
+            - run: npm run check:links
+              working-directory: site
+    windows-regression:
+        name: Windows x64 full regression (manual)
+        # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
+        # for manually dispatched full-platform runs as well.
+        if: github.event_name == 'workflow_dispatch'
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run check
+            - run: npm run compare
+    linux-regression:
+        name: Linux x64 compiler and example regression
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: node scripts/run-suite.mjs elf native-formats
+            - run: npm run compare:linux
+    loaders:
+        name: ${{ matrix.target }} native and portable suites
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { runner: ubuntu-24.04, target: linux-x64 }
+                    - { runner: ubuntu-24.04-arm, target: linux-arm64 }
+                    - { runner: macos-15-intel, target: darwin-x64 }
+                    - { runner: macos-15, target: darwin-arm64 }
+                    - { runner: windows-11-arm, target: win32-arm64 }
+        runs-on: ${{ matrix.runner }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - name: Build native probes
+              run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
+            - name: Record isolated Windows Node abort behavior
+              if: matrix.target == 'win32-arm64'
+              shell: pwsh
+              run: ./scripts/process-abort-oracle.ps1
+            - name: Execute native loader and runtime probes
+              if: matrix.target == 'win32-arm64'
+              run: node scripts/run-platform-probes.mjs ${{ matrix.target }}
+            - name: Record Node process signal behavior
+              if: matrix.target != 'win32-arm64'
+              run: node scripts/process-signals-oracle.mjs
+            - name: Execute native POSIX loader and runtime probes
+              if: matrix.target != 'win32-arm64'
+              shell: bash
+              run: |
+                  ulimit -c 0
+                  node scripts/run-platform-probes.mjs ${{ matrix.target }}
+            - name: Verify native process report files
+              run: node scripts/verify-process-reports.mjs
+            - name: Events module oracle suite
+              run: node scripts/run-suite.mjs events event-target
+            - name: Core runtime oracle suites
+              run: node scripts/run-suite.mjs core-runtime async
+            - name: Buffer and Blob oracle suites
+              run: node scripts/run-suite.mjs buffer
+            # These exercise byte memory/FP conversions and the large Unicode/RegExp
+            # preludes in addition to the CPU, math, GC and coroutine probes.
+            - name: Portable language and built-in oracle suites
+              run: node scripts/run-suite.mjs builtins
+            - name: Filesystem oracle suite
+              run: node scripts/run-suite.mjs fs
+            - name: Portable process oracle suite
+              run: node scripts/run-suite.mjs process
+            - name: Compare Linux examples with Node.js
+              run: npm run compare:linux
+              if: matrix.target == 'linux-arm64'
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: loader-${{ matrix.target }}
+                  path: work/platform-probes
+    linux-distributions:
+        name: Linux userspace ${{ matrix.image }}
+        runs-on: ubuntu-24.04
+        strategy:
+            fail-fast: false
+            matrix:
+                image:
+                    [
+                        "ubuntu:20.04",
+                        "ubuntu:24.04",
+                        "debian:12",
+                        "fedora:43",
+                        "alpine:3.22",
+                    ]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: node scripts/build-platform-probes.mjs work/platform-probes linux-x64
+            # Reuse exactly the same compiler output inside glibc and musl systems.
+            - run: |
+                  mkdir -p work/distro-results
+                  docker run --rm -v "$PWD/work/platform-probes:/probes:ro" -v "$PWD/work/distro-results:/results" '${{ matrix.image }}' sh -c '
+                    set -eu
+                    ulimit -c 0
+                    cd /results
+                    /probes/linux-x64 > /results/loader.actual
+                    for expected in /probes/linux-x64-*.expected; do
+                      binary=${expected%.expected}
+                      echo "Running $binary"
+                      status=0
+                      if [ "$(cat "$binary.minimal-environment")" = 1 ]; then env -i "$binary" > "/results/${binary##*/}.actual" || status=$?; else "$binary" > "/results/${binary##*/}.actual" || status=$?; fi
+                      expected_status=0
+                      if [ -f "$binary.status" ]; then expected_status=$(cat "$binary.status"); fi
+                      if [ "$status" -ne "$expected_status" ]; then
+                        echo "Unexpected exit status $status (expected $expected_status)"
+                        exit 1
+                      fi
+                    done
+                    cat /etc/os-release
+                  '
+                  cmp work/platform-probes/expected.txt work/distro-results/loader.actual
+                  for expected in work/platform-probes/linux-x64-*.expected; do
+                    binary=${expected%.expected}
+                    cmp "$expected" "work/distro-results/${binary##*/}.actual"
+                  done
+            - run: node scripts/verify-process-reports.mjs work/distro-results
+    bsd-loaders:
+        name: ${{ matrix.os }} x64 guest VM on Ubuntu host
+        runs-on: ubuntu-24.04
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [freebsd, openbsd]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.os }}-x64
+            - uses: vmactions/freebsd-vm@v1
+              if: matrix.os == 'freebsd'
+              with:
+                  release: "14.3"
+                  usesh: true
+                  run: |
+                      set -eu
+                      ulimit -c 0
+                      uname -a
+                      test "$(uname -s)" = FreeBSD
+                      test "$(uname -m)" = amd64
+                      chmod 755 work/platform-probes/freebsd-x64
+                      work/platform-probes/freebsd-x64 > work/platform-probes/actual.txt
+                      cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+                      for probe in work/platform-probes/freebsd-x64-*.expected; do
+                        binary=${probe%.expected}
+                        echo "Running $binary"
+                        chmod 755 "$binary"
+                        minimal=$(cat "$binary.minimal-environment")
+                        if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then
+                          status=0
+                        else
+                          status=$?
+                        fi
+                        expected_status=$(cat "$binary.status")
+                        if [ "$status" -ne "$expected_status" ]; then
+                          if command -v lldb >/dev/null 2>&1; then
+                            lldb --batch -o run -o 'thread backtrace all' -o 'register read' -o 'disassemble --frame --count 12' "$binary" || true
+                          fi
+                          exit 1
+                        fi
+                        cmp "$probe" "$binary.actual"
+                      done
+                      uname -a
+            - uses: vmactions/openbsd-vm@v1
+              if: matrix.os == 'openbsd'
+              with:
+                  release: "7.8"
+                  usesh: true
+                  run: |
+                      set -eu
+                      ulimit -c 0
+                      uname -a
+                      test "$(uname -s)" = OpenBSD
+                      test "$(uname -m)" = amd64
+                      chmod 755 work/platform-probes/openbsd-x64
+                      work/platform-probes/openbsd-x64 > work/platform-probes/actual.txt
+                      cmp work/platform-probes/expected.txt work/platform-probes/actual.txt
+                      for probe in work/platform-probes/openbsd-x64-*.expected; do
+                        binary=${probe%.expected}
+                        echo "Running $binary"
+                        chmod 755 "$binary"
+                        minimal=$(cat "$binary.minimal-environment")
+                        if { if [ "$minimal" = 1 ]; then env -i "$binary"; else "$binary"; fi; } > "$binary.actual"; then status=0; else status=$?; fi
+                        expected_status=$(cat "$binary.status")
+                        if [ "$status" -ne "$expected_status" ]; then exit 1; fi
+                        cmp "$probe" "$binary.actual"
+                      done
+                      uname -a
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: loader-${{ matrix.os }}-x64
+                  path: work/platform-probes
+            - run: node scripts/verify-process-reports.mjs

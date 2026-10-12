@@ -1,16 +1,17 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
-function expectOracle(source:string):void {
- const native=runOnHost(source);
- assert.equal(native.error,undefined);
- assert.equal(native.status,0,native.stderr);
- assert.equal(native.stdout,runOracle(source).stdout);
+function expectOracle(source: string): void {
+    const native = runOnHost(source);
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout, runOracle(source).stdout);
 }
 
-test('timers run after microtasks in deadline and registration order',()=>expectOracle(`
+test("timers run after microtasks in deadline and registration order", () =>
+    expectOracle(`
 console.log('sync start');
 setTimeout(function(){ console.log('a', typeof performance.now()); }, 1);
 setTimeout(function(x, y){ console.log('b', x, y, arguments.length); }, 0, 1, 2);
@@ -21,7 +22,8 @@ queueMicrotask(function(){ console.log('microtask'); });
 console.log('sync end');
 `));
 
-test('timers scheduled from jobs and callbacks drain microtasks between callbacks',()=>expectOracle(`
+test("timers scheduled from jobs and callbacks drain microtasks between callbacks", () =>
+    expectOracle(`
 setTimeout(function(){
   console.log('first');
   Promise.resolve().then(function(){ console.log('job after first'); });
@@ -33,7 +35,8 @@ async function later(){ await null; console.log('async'); setTimeout(function(){
 later();
 `));
 
-test('clearTimeout and self-clearing setInterval',()=>expectOracle(`
+test("clearTimeout and self-clearing setInterval", () =>
+    expectOracle(`
 var cancelled = setTimeout(function(){ console.log('never'); }, 500);
 setTimeout(function(){ clearTimeout(cancelled); console.log('cleared'); }, 1);
 clearTimeout(setTimeout(function(){ console.log('never either'); }, 0));
@@ -45,7 +48,8 @@ setTimeout(function(){
 }, 600);
 `));
 
-test('timer argument validation and elapsed time',()=>expectOracle(`
+test("timer argument validation and elapsed time", () =>
+    expectOracle(`
 try { setTimeout('code', 0); } catch (e) { console.log(e instanceof TypeError); }
 try { queueMicrotask(1); } catch (e) { console.log(e instanceof TypeError); }
 var start = Date.now(), t0 = performance.now();
@@ -53,19 +57,23 @@ setTimeout(function(){ console.log(Date.now() - start >= 40, performance.now() -
 clearTimeout(setTimeout(function(){ console.log('never'); }, 0));
 `));
 
-test('many timers survive GC stress and preserve order',()=>expectOracle(`
+test("many timers survive GC stress and preserve order", () =>
+    expectOracle(`
 var out = [];
 for (var i = 0; i < 40; i++) (function(i){ setTimeout(function(){ out.push(i); if (out.length === 40) console.log(out.join(',')); }, i % 2); })(i);
 var ticks = 0, iv = setInterval(function(){ var garbage = []; for (var j = 0; j < 10; j++) garbage.push({j: j}); if (++ticks === 10) { clearInterval(iv); console.log('ticks', ticks); } }, 1);
 `));
 
-test('an uncaught exception in a timer callback fails the process',()=>{
- const native=runOnHost(`setTimeout(function(){ console.log('before'); throw new Error('boom'); }, 1); setTimeout(function(){ console.log('never'); }, 50);`);
- assert.equal(native.stdout,'before\n');
- assert.notEqual(native.status,0);
+test("an uncaught exception in a timer callback fails the process", () => {
+    const native = runOnHost(
+        `setTimeout(function(){ console.log('before'); throw new Error('boom'); }, 1); setTimeout(function(){ console.log('never'); }, 50);`,
+    );
+    assert.equal(native.stdout, "before\n");
+    assert.notEqual(native.status, 0);
 });
 
-test('host primitives are not visible to user code',()=>expectOracle(`
+test("host primitives are not visible to user code", () =>
+    expectOracle(`
 console.log(typeof __nonaHostNow, typeof __nonaHostWait, typeof setTimeout, typeof clearInterval);
 var d = Object.getOwnPropertyDescriptor(globalThis, 'setTimeout');
 console.log(d.writable, d.enumerable, d.configurable);

@@ -8,12 +8,12 @@
 
 Test262 fixado completo no Windows x64 (`scripts/test262-audit.ps1 -Unit`, recursos do ES2020 e anteriores):
 
-| Diretório | Aprovados / aplicáveis | Falhas restantes |
-| --- | --- | --- |
-| `language/` | **22436 / 22492** (26 ignorados) | 44 `eval`, 1 semântica mais nova, 11 outras |
-| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 semântica mais nova, 37 outras |
-| `built-ins/Atomics` (agentes) | **268 / 268** | — |
-| `annexB/` | **996 / 1016** (8 ignorados) | 20 `eval` |
+| Diretório                     | Aprovados / aplicáveis           | Falhas restantes                             |
+| ----------------------------- | -------------------------------- | -------------------------------------------- |
+| `language/`                   | **22436 / 22492** (26 ignorados) | 44 `eval`, 1 semântica mais nova, 11 outras  |
+| `built-ins/`                  | **15868 / 15933**                | 16 `eval`, 12 semântica mais nova, 37 outras |
+| `built-ins/Atomics` (agentes) | **268 / 268**                    | —                                            |
+| `annexB/`                     | **996 / 1016** (8 ignorados)     | 20 `eval`                                    |
 
 A classificação vem de `scripts/test262-summary.mjs`: os testes "`eval`" chamam `eval` ou `$262.evalScript` com código-fonte que o Nona não pode conhecer em tempo de compilação; os testes de "semântica mais nova" verificam comportamento de edições posteriores (a flag `v`, separadores numéricos, `Promise.any`, …) sob uma tag de recurso antiga ou ausente. A suíte unitária roda no Windows e no Linux na CI e compila e executa arquivos PE e ELF reais, muitos sob estresse do GC. Como executar as auditorias está descrito na página [Test262](/pt/reference/test262).
 

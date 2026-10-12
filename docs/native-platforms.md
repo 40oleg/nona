@@ -4,16 +4,16 @@ Nona cross-compiles JavaScript directly to machine code. The compiler runs on
 Node.js 26; the generated program needs neither Node.js nor a C toolchain.
 Choose an output target with `--target`. The default is the host OS and CPU.
 
-| Target | CPU | Format | Native verification |
-| --- | --- | --- | --- |
-| `win32-x64` | x86-64 | PE32+ | Full Windows regression, examples and selected Test262 suites in `check`; also full regression on manual platform runs |
-| `linux-x64` | x86-64 | ELF64 | Ubuntu native loader/runtime probes, portable and host API suites, example comparison; distribution containers |
-| `linux-arm64` | AArch64 | ELF64 | Native Ubuntu ARM loader/runtime and CPU probes, portable and host API suites, example comparison |
-| `win32-arm64` | AArch64 | PE32+ | Native Windows 11 ARM loader/runtime probes, portable and host API suites |
-| `darwin-x64` | x86-64 | Mach-O64 | Intel macOS 15 loader/runtime probes and portable suites |
-| `freebsd-x64` | x86-64 | ELF64 | FreeBSD 14.3 VM loader and runtime/GC/agent probes |
-| `openbsd-x64` | x86-64 | ELF64 | OpenBSD 7.8 VM loader and runtime/GC/agent probes |
-| `darwin-arm64` | AArch64 | Mach-O64 | Native macOS 15 ARM loader/runtime probes, dyld/libSystem signature check and portable suites |
+| Target         | CPU     | Format   | Native verification                                                                                                    |
+| -------------- | ------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `win32-x64`    | x86-64  | PE32+    | Full Windows regression, examples and selected Test262 suites in `check`; also full regression on manual platform runs |
+| `linux-x64`    | x86-64  | ELF64    | Ubuntu native loader/runtime probes, portable and host API suites, example comparison; distribution containers         |
+| `linux-arm64`  | AArch64 | ELF64    | Native Ubuntu ARM loader/runtime and CPU probes, portable and host API suites, example comparison                      |
+| `win32-arm64`  | AArch64 | PE32+    | Native Windows 11 ARM loader/runtime probes, portable and host API suites                                              |
+| `darwin-x64`   | x86-64  | Mach-O64 | Intel macOS 15 loader/runtime probes and portable suites                                                               |
+| `freebsd-x64`  | x86-64  | ELF64    | FreeBSD 14.3 VM loader and runtime/GC/agent probes                                                                     |
+| `openbsd-x64`  | x86-64  | ELF64    | OpenBSD 7.8 VM loader and runtime/GC/agent probes                                                                      |
+| `darwin-arm64` | AArch64 | Mach-O64 | Native macOS 15 ARM loader/runtime probes, dyld/libSystem signature check and portable suites                          |
 
 Apple Silicon executables load the operating system's `/usr/lib/libSystem.B.dylib` through dyld. This macOS exception was authorized by the owner; it adds no bundled runtime, interpreter or C toolchain. PIE data pointers are rebased by dyld, imports are eagerly bound, and an embedded ad-hoc signature covers the final image. Intel macOS retains direct kernel startup.
 

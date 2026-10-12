@@ -2,12 +2,12 @@
 
 ## شروحات خطوة بخطوة
 
-| المثال | ما يعرضه | المنصات |
-| --- | --- | --- |
-| [مرحبًا بالمؤقتات](/ar/examples/hello) | الدوال والقوالب الحرفية والمهام الدقيقة والمؤقتات | Windows وLinux |
-| [Museum: مبدّل خلفيات سطح المكتب](/ar/examples/museum) | ‏`nona:win32` والمؤقتات و`node:fs` و`process` وملف تنفيذي رسومي مع موارد | Windows |
-| [حاسبة المصفوفات](/ar/examples/matrix-calculator) | شيفرة ES2020 عادية مع مصفوفات واستثناءات | Windows وLinux |
-| [عدّ الكلمات](/ar/examples/word-count) | ‏`node:fs` و`process.argv` و`process.exitCode` و`Map` وRegExp مع Unicode | Windows وLinux |
+| المثال                                                 | ما يعرضه                                                                 | المنصات        |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ | -------------- |
+| [مرحبًا بالمؤقتات](/ar/examples/hello)                 | الدوال والقوالب الحرفية والمهام الدقيقة والمؤقتات                        | Windows وLinux |
+| [Museum: مبدّل خلفيات سطح المكتب](/ar/examples/museum) | ‏`nona:win32` والمؤقتات و`node:fs` و`process` وملف تنفيذي رسومي مع موارد | Windows        |
+| [حاسبة المصفوفات](/ar/examples/matrix-calculator)      | شيفرة ES2020 عادية مع مصفوفات واستثناءات                                 | Windows وLinux |
+| [عدّ الكلمات](/ar/examples/word-count)                 | ‏`node:fs` و`process.argv` و`process.exitCode` و`Map` وRegExp مع Unicode | Windows وLinux |
 
 ## أمثلة المستودع
 

@@ -105,16 +105,16 @@ Promise reactions выполняются через очередь jobs; зав�
 
 ## 5. Полный вариант: дополнительные подсистемы
 
-| Подсистема | Граница результата |
-| --- | --- |
-| Базовая библиотека | Object/Function/Array/String/Number/Boolean/Math/Date/JSON/Error и глобальные функции по выбранной редакции |
-| RegExp | Собственный разбор и исполнение, включая Unicode, named groups, lookbehind, s/u/y, matchAll |
-| ES2015 коллекции | Map/Set и слабые коллекции с правильной идентичностью ключей |
-| Бинарная память | ArrayBuffer/DataView/typed arrays, затем BigInt views |
-| Общая память | SharedArrayBuffer/Atomics с проверяемым agent harness; Worker API не следует автоматически из ES2020 |
-| Модули | Граф, циклы, live bindings, namespace objects, linking/evaluation, dynamic import, import.meta |
-| BigInt | Произвольная целочисленная точность, операторы и ошибки смешивания с Number |
-| Синтаксис ES2015–2020 | Каждый пункт пользовательского перечня, включая семантические уточнения, а не только самые заметные операторы |
+| Подсистема            | Граница результата                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Базовая библиотека    | Object/Function/Array/String/Number/Boolean/Math/Date/JSON/Error и глобальные функции по выбранной редакции              |
+| RegExp                | Собственный разбор и исполнение, включая Unicode, named groups, lookbehind, s/u/y, matchAll                              |
+| ES2015 коллекции      | Map/Set и слабые коллекции с правильной идентичностью ключей                                                             |
+| Бинарная память       | ArrayBuffer/DataView/typed arrays, затем BigInt views                                                                    |
+| Общая память          | SharedArrayBuffer/Atomics с проверяемым agent harness; Worker API не следует автоматически из ES2020                     |
+| Модули                | Граф, циклы, live bindings, namespace objects, linking/evaluation, dynamic import, import.meta                           |
+| BigInt                | Произвольная целочисленная точность, операторы и ошибки смешивания с Number                                              |
+| Синтаксис ES2015–2020 | Каждый пункт пользовательского перечня, включая семантические уточнения, а не только самые заметные операторы            |
 | Динамический исходник | eval и динамические конструкторы Function/GeneratorFunction/AsyncFunction/AsyncGeneratorFunction исключены пользователем |
 
 ### Принятое исключение: eval и Function

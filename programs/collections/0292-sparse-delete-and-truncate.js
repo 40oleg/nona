@@ -1,10 +1,13 @@
-const data = ["a","b","c","d","e"];
+const data = ["a", "b", "c", "d", "e"];
 delete data[1];
-data.length=4;
+data.length = 4;
 const before = Object.keys(data);
-data.length=6;
-data[5]="f";
+data.length = 6;
+data[5] = "f";
 const after = Object.keys(data);
-const presence = Array.from({length:data.length},(_,index)=>index in data);
-const result = {before,after,presence,data};
+const presence = Array.from(
+    { length: data.length },
+    (_, index) => index in data,
+);
+const result = { before, after, presence, data };
 console.log(JSON.stringify(result));

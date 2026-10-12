@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: من JavaScript إلى ملفات تنفيذية أصلية
-  tagline: مترجم مسبق (ahead-of-time) يحوّل JavaScript ES2020 إلى ملفات تنفيذية مستقلة لنظامي Windows وLinux x64، بلا مفسّر مضمَّن وبلا سلسلة أدوات C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: ابدأ الآن
-      link: /ar/guide/getting-started
-    - theme: alt
-      text: جرّبه في المتصفح
-      link: /playground
-    - theme: alt
-      text: ما هو Nona
-      link: /ar/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: من JavaScript إلى ملفات تنفيذية أصلية
+    tagline: مترجم مسبق (ahead-of-time) يحوّل JavaScript ES2020 إلى ملفات تنفيذية مستقلة لنظامي Windows وLinux x64، بلا مفسّر مضمَّن وبلا سلسلة أدوات C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: ابدأ الآن
+          link: /ar/guide/getting-started
+        - theme: alt
+          text: جرّبه في المتصفح
+          link: /playground
+        - theme: alt
+          text: ما هو Nona
+          link: /ar/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: يبدأ خلال 2 ms
-    details: يبدأ برنامج hello world المترجَم خلال 1.8 ms ولا تتجاوز ذاكرته 11 MB، في ملف تنفيذي حجمه 3 MB. أما Node.js فيحتاج إلى 28 ms و45 MB، ويبلغ حجم الملف التنفيذي Node SEA نحو 124 MB.
-    link: /ar/guide/performance
-  - title: لغة ES2020
-    details: الأصناف والمولّدات والدوال غير المتزامنة والتفكيك والتسلسل الاختياري وBigInt واستدعاءات الذيل الصحيحة ووحدات ES مع الدورات والارتباطات الحية، مع استثناءات موثّقة.
-    link: /ar/guide/language-support
-  - title: بيئة تشغيل أصلية
-    details: جامع مهملات دقيق من نوع mark-and-sweep، وسلاسل UTF-16، واستثناءات حقيقية، وخطأ RangeError يمكن التقاطه عند طفح المكدس، كلها مربوطة في كل ملف تنفيذي.
-    link: /ar/guide/how-it-works
-  - title: واجهات المضيف
-    details: حلقة أحداث مع مؤقتات، وكائن process عام، وnode:fs متزامن، وTextEncoder وTextDecoder.
-    link: /ar/reference/host-apis
-  - title: FFI وnona:win32
-    details: استدعِ أي دالة مُصدَّرة من DLL على Windows عبر تصريحات تُحَلّ وقت الترجمة، مع ارتباطات جاهزة لـ user32 وkernel32 وadvapi32.
-    link: /ar/reference/ffi
-  - title: برامج Windows الرسومية
-    details: برامج بلا نافذة طرفية، مع أيقونة وبيان تطبيق ومعلومات إصدار.
-    link: /ar/reference/windows-executables
+    - title: يبدأ خلال 2 ms
+      details: يبدأ برنامج hello world المترجَم خلال 1.8 ms ولا تتجاوز ذاكرته 11 MB، في ملف تنفيذي حجمه 3 MB. أما Node.js فيحتاج إلى 28 ms و45 MB، ويبلغ حجم الملف التنفيذي Node SEA نحو 124 MB.
+      link: /ar/guide/performance
+    - title: لغة ES2020
+      details: الأصناف والمولّدات والدوال غير المتزامنة والتفكيك والتسلسل الاختياري وBigInt واستدعاءات الذيل الصحيحة ووحدات ES مع الدورات والارتباطات الحية، مع استثناءات موثّقة.
+      link: /ar/guide/language-support
+    - title: بيئة تشغيل أصلية
+      details: جامع مهملات دقيق من نوع mark-and-sweep، وسلاسل UTF-16، واستثناءات حقيقية، وخطأ RangeError يمكن التقاطه عند طفح المكدس، كلها مربوطة في كل ملف تنفيذي.
+      link: /ar/guide/how-it-works
+    - title: واجهات المضيف
+      details: حلقة أحداث مع مؤقتات، وكائن process عام، وnode:fs متزامن، وTextEncoder وTextDecoder.
+      link: /ar/reference/host-apis
+    - title: FFI وnona:win32
+      details: استدعِ أي دالة مُصدَّرة من DLL على Windows عبر تصريحات تُحَلّ وقت الترجمة، مع ارتباطات جاهزة لـ user32 وkernel32 وadvapi32.
+      link: /ar/reference/ffi
+    - title: برامج Windows الرسومية
+      details: برامج بلا نافذة طرفية، مع أيقونة وبيان تطبيق ومعلومات إصدار.
+      link: /ar/reference/windows-executables
 ---
 
 ## مثال سريع

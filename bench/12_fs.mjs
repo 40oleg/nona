@@ -1,4 +1,5 @@
-const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const SCALE = Number(process.env.SCALE) || 1;
+const S = (n) => Math.round(n * SCALE);
 import fs from "node:fs";
 const chunk = "x".repeat(1024 * 1024);
 let t = performance.now();
@@ -9,4 +10,10 @@ const tWrite = performance.now() - t;
 t = performance.now();
 const data = fs.readFileSync(path, "utf8");
 const tRead = performance.now() - t;
-console.log(JSON.stringify({ write100MB: tWrite, read100MB: tRead, check: data.length }));
+console.log(
+    JSON.stringify({
+        write100MB: tWrite,
+        read100MB: tRead,
+        check: data.length,
+    }),
+);

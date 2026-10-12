@@ -1,12 +1,12 @@
-import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
-import {resolve} from 'node:path';
-import {spawnSync} from 'node:child_process';
-import {compile} from '../dist/src/compiler.js';
+import assert from "node:assert/strict";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { compile } from "../dist/src/compiler.js";
 
-const file = 'examples/compat/matrix-calculator.cjs';
-const source = readFileSync(file, 'utf8');
-mkdirSync('build', {recursive: true});
+const file = "examples/compat/matrix-calculator.cjs";
+const source = readFileSync(file, "utf8");
+mkdirSync("build", { recursive: true });
 const checks = `
 function check(value, label) {
   if (!value) throw new Error(label);
@@ -50,20 +50,27 @@ check(rejected === 8, "invalid inputs");
 console.log("Matrix checks passed");
 `;
 
-for (const [name, program] of [['matrix-calculator', source], ['matrix-calculator-checks', source + checks]]) {
-  const compiled = compile(program, {fileName: file, target: 'win32-x64'});
-  assert.ok(compiled.ok, JSON.stringify(compiled.diagnostics));
-  const executable = resolve('build', name + '.exe');
-  writeFileSync(executable, compiled.image);
-  const options = {timeout: 30000, maxBuffer: 4 * 1024 * 1024, windowsHide: true};
-  const node = spawnSync(process.execPath, ['-e', program], options);
-  const native = spawnSync(executable, [], options);
-  for (const result of [node, native]) {
-    assert.ifError(result.error);
-    assert.equal(result.status, 0, result.stderr?.toString());
-  }
-  assert.deepEqual(native.stdout, node.stdout);
-  assert.deepEqual(native.stderr, node.stderr);
-  console.log(name + ': native EXE matches Node.js');
-  if (name === 'matrix-calculator') process.stdout.write(native.stdout);
+for (const [name, program] of [
+    ["matrix-calculator", source],
+    ["matrix-calculator-checks", source + checks],
+]) {
+    const compiled = compile(program, { fileName: file, target: "win32-x64" });
+    assert.ok(compiled.ok, JSON.stringify(compiled.diagnostics));
+    const executable = resolve("build", name + ".exe");
+    writeFileSync(executable, compiled.image);
+    const options = {
+        timeout: 30000,
+        maxBuffer: 4 * 1024 * 1024,
+        windowsHide: true,
+    };
+    const node = spawnSync(process.execPath, ["-e", program], options);
+    const native = spawnSync(executable, [], options);
+    for (const result of [node, native]) {
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stderr?.toString());
+    }
+    assert.deepEqual(native.stdout, node.stdout);
+    assert.deepEqual(native.stderr, node.stderr);
+    console.log(name + ": native EXE matches Node.js");
+    if (name === "matrix-calculator") process.stdout.write(native.stdout);
 }

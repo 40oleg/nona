@@ -1,24 +1,31 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runModulesOnHost} from './helpers/host.js';
-import {processNetworkProbe} from './probes/process-network-probe.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runModulesOnHost } from "./helpers/host.js";
+import { processNetworkProbe } from "./probes/process-network-probe.js";
 
 // Each program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical. Programs print no ports or dates. Programs that
 // import node:net run without GC stress: a forced collection before every
 // block walks the whole compiled module graph and takes minutes per program.
 // The last test lets the collector run many times with live sockets instead.
-function expectNode(source:string,gcStress:boolean):void {
- const {native,oracle}=runModulesOnHost({'main.mjs':source},'main.mjs',{gcStress});
- assert.equal(native.error,undefined);
- assert.equal(native.status,0,native.stderr);
- assert.ok(oracle.length>0);
- assert.equal(native.stdout,oracle);
+function expectNode(source: string, gcStress: boolean): void {
+    const { native, oracle } = runModulesOnHost(
+        { "main.mjs": source },
+        "main.mjs",
+        { gcStress },
+    );
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.ok(oracle.length > 0);
+    assert.equal(native.stdout, oracle);
 }
 
-test('HTTP, Process streams and Immediates share a live native event loop',()=>expectNode(processNetworkProbe,false));
+test("HTTP, Process streams and Immediates share a live native event loop", () =>
+    expectNode(processNetworkProbe, false));
 
-test('node:http: an HTTP server answers GET and POST requests from http.get and http.request',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: an HTTP server answers GET and POST requests from http.get and http.request", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 const server = http.createServer((req, res) => {
   console.log('server:', req.method, req.url, req.httpVersion, req.headers.host === '127.0.0.1:' + port, req.headers.connection, req.headers['content-type']);
   let body = '';
@@ -66,9 +73,13 @@ server.listen(0, '127.0.0.1', () => {
     res.on('close', () => console.log('client: res close'));
   });
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: headers: duplicates, writeHead, progressive API, validation, HEAD and 204',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: headers: duplicates, writeHead, progressive API, validation, HEAD and 204", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 const server = http.createServer((req, res) => {
   const h = req.headers;
   console.log('cookie', h.cookie, 'set-cookie?', JSON.stringify(h['x-multi']), h['user-agent'], JSON.stringify(req.headersDistinct['x-multi']));
@@ -119,9 +130,13 @@ server.listen(0, '127.0.0.1', async () => {
   await fetch('/other', 'PUT', { 'X-Custom': 'v', 'Content-Length': '0' });
   server.close();
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: the global agent keeps connections alive, agent:false closes them, maxSockets queues requests',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: the global agent keeps connections alive, agent:false closes them, maxSockets queues requests", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 const sockets = new Set();
 const server = http.createServer((req, res) => {
   sockets.add(req.socket);
@@ -148,9 +163,13 @@ server.listen(0, '127.0.0.1', async () => {
   agent.destroy();
   server.close(() => console.log('closed'));
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: large request and response bodies, chunked responses, for await and pipe',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: large request and response bodies, chunked responses, for await and pipe", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 import { Buffer } from 'node:buffer';
 const server = http.createServer(async (req, res) => {
   if (req.url === '/echo') { req.pipe(res); return; }
@@ -188,9 +207,13 @@ server.listen(0, '127.0.0.1', () => {
   });
   req.end(big);
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: refused connections, malformed requests, pipelining, HTTP/1.0, chunked trailers, header overflow, EADDRINUSE',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: refused connections, malformed requests, pipelining, HTTP/1.0, chunked trailers, header overflow, EADDRINUSE", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 import net from 'node:net';
 const req = http.get('http://127.0.0.1:1/');
 req.on('error', e => {
@@ -221,9 +244,13 @@ req.on('error', e => {
     })();
   });
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: the client reads EOF-delimited, chunked and 1xx responses and reports parse errors, hang-ups and timeouts',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: the client reads EOF-delimited, chunked and 1xx responses and reports parse errors, hang-ups and timeouts", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 import net from 'node:net';
 const raw = net.createServer(socket => {
   let request = '';
@@ -254,9 +281,13 @@ raw.listen(0, '127.0.0.1', async () => {
   for (const path of ['/eof', '/chunked', '/continue', '/garbage', '/hangup', '/slow']) await get(path);
   raw.close();
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: status tables, validators, protocol and path checks, Basic auth, array headers and 100-continue',()=>expectNode(String.raw`import http, { STATUS_CODES, METHODS, validateHeaderName, validateHeaderValue } from 'node:http';
+test("node:http: status tables, validators, protocol and path checks, Basic auth, array headers and 100-continue", () =>
+    expectNode(
+        String.raw`import http, { STATUS_CODES, METHODS, validateHeaderName, validateHeaderValue } from 'node:http';
 console.log(STATUS_CODES[404], STATUS_CODES[418], METHODS.length, METHODS.includes('PATCH'), http.maxHeaderSize, typeof http.globalAgent.addRequest);
 try { validateHeaderName('a b'); } catch (e) { console.log(e.code); }
 try { validateHeaderValue('x', 'a\nb'); } catch (e) { console.log(e.code); }
@@ -286,9 +317,13 @@ server.listen({ port: 0, host: '127.0.0.1' }, () => {
   });
   req.end();
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: many concurrent requests with garbage in every handler',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: many concurrent requests with garbage in every handler", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 // Many requests with garbage in every handler: the collector runs many times
 // while sockets, parsers and messages are live.
 let served = 0;
@@ -316,9 +351,13 @@ server.listen(0, '127.0.0.1', async () => {
   console.log('served', served, 'ok', ok);
   server.close(() => console.log('closed'));
 });
-`,false));
+`,
+        false,
+    ));
 
-test('node:http: Upgrade requests hand the socket and the remaining bytes to both sides',()=>expectNode(String.raw`import http from 'node:http';
+test("node:http: Upgrade requests hand the socket and the remaining bytes to both sides", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
 import net from 'node:net';
 const server = http.createServer((req, res) => res.end('plain'));
 server.on('upgrade', (req, socket, head) => {
@@ -337,4 +376,6 @@ server.listen(0, '127.0.0.1', () => {
   });
   req.end();
 });
-`,false));
+`,
+        false,
+    ));

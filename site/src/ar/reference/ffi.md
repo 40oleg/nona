@@ -7,10 +7,14 @@
 يمكن لبرامج Windows استدعاء الدوال المصدَّرة من أي DLL عبر الوحدة المدمجة `nona:ffi`. تُحَلّ التصريحات وقت الترجمة: كل استدعاء لـ `define` يضيف مُدخلًا إلى جدول الاستيراد PE، لذا لا يستخدم البرنامج `LoadLibrary`/`GetProcAddress`.
 
 ```js
-import { define, lastError } from 'nona:ffi';
+import { define, lastError } from "nona:ffi";
 
-const MessageBoxW = define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)');
-MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
+const MessageBoxW = define(
+    "user32.dll",
+    "MessageBoxW",
+    "i32(ptr,wstr,wstr,u32)",
+);
+MessageBoxW(null, "Hello from Nona", "Nona", 0);
 ```
 
 - ‏FFI متاح في شيفرة الوحدات (`.mjs` أو `--module`). يجب استدعاء `define` مباشرةً بثلاث سلاسل حرفية: اسم DLL، واسم التصدير، والتوقيع. وأي شكل آخر خطأ ترجمة (`E_FFI_STATIC`).
@@ -23,16 +27,16 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 
 ‏`result(param, param, ...)`، مثل `bool(u32,u32,wstr,u32)`.
 
-| النوع | المعامل | النتيجة |
-| --- | --- | --- |
-| `i8 i16 i32 i64 u8 u16 u32 u64` | ‏Number (مقطوع باتجاه الصفر) أو Boolean | Number |
-| `ptr` | ‏Number أو Boolean أو `null`/`undefined` ‏(NULL) | Number |
-| `bool` | مثل `i32` | ‏Boolean ‏(`BOOL` في Win32، وأي قيمة غير صفرية تعني `true`) |
-| `f32 f64` | Number | Number |
-| `wstr` | ‏String ← نسخة UTF-16 مؤقتة منتهية بـ NUL؛ و`null`/`undefined` ← NULL | — |
-| `str` | ‏String ← نسخة UTF-8 مؤقتة منتهية بـ NUL؛ و`null`/`undefined` ← NULL | — |
-| `buf` | ‏ArrayBuffer أو SharedArrayBuffer أو مصفوفة منمَّطة أو DataView ← مؤشر إلى بايتاته (عند إزاحة العرض)؛ و`null`/`undefined` ← NULL | — |
-| `void` | — | `undefined` |
+| النوع                           | المعامل                                                                                                                          | النتيجة                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `i8 i16 i32 i64 u8 u16 u32 u64` | ‏Number (مقطوع باتجاه الصفر) أو Boolean                                                                                          | Number                                                      |
+| `ptr`                           | ‏Number أو Boolean أو `null`/`undefined` ‏(NULL)                                                                                 | Number                                                      |
+| `bool`                          | مثل `i32`                                                                                                                        | ‏Boolean ‏(`BOOL` في Win32، وأي قيمة غير صفرية تعني `true`) |
+| `f32 f64`                       | Number                                                                                                                           | Number                                                      |
+| `wstr`                          | ‏String ← نسخة UTF-16 مؤقتة منتهية بـ NUL؛ و`null`/`undefined` ← NULL                                                            | —                                                           |
+| `str`                           | ‏String ← نسخة UTF-8 مؤقتة منتهية بـ NUL؛ و`null`/`undefined` ← NULL                                                             | —                                                           |
+| `buf`                           | ‏ArrayBuffer أو SharedArrayBuffer أو مصفوفة منمَّطة أو DataView ← مؤشر إلى بايتاته (عند إزاحة العرض)؛ و`null`/`undefined` ← NULL | —                                                           |
+| `void`                          | —                                                                                                                                | `undefined`                                                 |
 
 الوسائط من الأنواع الأخرى ترمي `TypeError`، وكذلك الوسائط الناقصة (إلا في أنواع المؤشرات، حيث تعني `undefined` القيمة NULL) والمخازن المفصولة. ويمكن للدالة المستدعاة أن تكتب في ذاكرة `buf`، وهكذا تُعاد معاملات الإخراج: مرِّر `Uint16Array` لمخزن سلسلة UTF-16 أو `Uint8Array(8)` لمقبض. تُحرَّر النسخ المؤقتة من السلاسل بعد الاستدعاء، ويجب ألا تحتفظ الدالة المستدعاة بالمؤشر. أما دوال الاستدعاء الراجع (`cb(...)`) وأنواع معاملات الإخراج فمحجوزة لإصدار لاحق.
 
@@ -47,10 +51,19 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 - الدوال المساعدة `wideString(text)` ‏(`Uint16Array` منتهية بـ NUL) و`fromWideString(buffer)` و`readHandle(buffer)`؛ ويُعاد تصدير `lastError`.
 
 ```js
-import { SystemParametersInfoW, SPI_SETDESKWALLPAPER, SPIF_UPDATEINIFILE, SPIF_SENDCHANGE } from 'nona:win32';
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, 'C:\\Pictures\\painting.jpg', SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+import {
+    SystemParametersInfoW,
+    SPI_SETDESKWALLPAPER,
+    SPIF_UPDATEINIFILE,
+    SPIF_SENDCHANGE,
+} from "nona:win32";
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    "C:\\Pictures\\painting.jpg",
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
-
 
 ## Native target availability
 

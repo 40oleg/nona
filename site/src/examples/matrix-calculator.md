@@ -39,8 +39,14 @@ A + B:
 Edit the matrices at the end of the source and build again:
 
 ```js
-const A = [[2, 1], [1, 1]];
-const B = [[3, 4], [5, 6]];
+const A = [
+    [2, 1],
+    [1, 1],
+];
+const B = [
+    [3, 4],
+    [5, 6],
+];
 ```
 
 Each inner array is a row. Matrices must be non-empty, rectangular and contain finite numbers. Addition and subtraction need equal sizes; multiplication needs as many columns in A as rows in B; the determinant and inverse need a square A. An error in one operation does not stop the others.

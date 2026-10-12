@@ -1,4 +1,5 @@
-import Stream from 'node:stream';
-const promises=Stream.promises;
+import Stream from "node:stream";
+const promises = Stream.promises;
 export default promises;
-export const finished=promises.finished,pipeline=promises.pipeline;
+export const finished = promises.finished,
+    pipeline = promises.pipeline;

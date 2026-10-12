@@ -35,7 +35,6 @@ Path does not initialize the full process object. [Full reference](https://githu
 - يتحقق `tests/stability.test.ts` من أن زيادة عدد مرات انطلاق المؤقتات عشرة أضعاف (مع مهام Promise ومهملات في كل نبضة) لا ترفع ذروة الذاكرة، وأن آلاف الروتينات المشتركة المتروكة تُحرَّر، وأن برنامجًا ينتظر مؤقتًا مدته ثانيتان لا يكاد يستهلك المعالج.
 - قيود معروفة: تخزين الخصائص والعناصر وMap خطي (#36)، لذا تتباطأ البرامج التي فيها مئات المؤقتات الحية أو كائنات كبيرة؛ وعلى Linux كل كتلة من الكومة تعيين ذاكرة مستقل (#37).
 
-
 ## Native target availability
 
 Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
@@ -60,7 +59,6 @@ and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks an
 local context storage. Promise, await, timer and microtask callbacks preserve
 captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
 this API; see the English reference for the precise boundaries.
-
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
 

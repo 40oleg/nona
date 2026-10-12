@@ -1,7 +1,7 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // A function with more locals than liveness.ts pinnedLocalThreshold keeps its
 // locals live everywhere (bundles such as typescript.js wrap thousands of
@@ -12,14 +12,16 @@ import {runOracle} from './helpers/oracle.js';
 // scans thousands of slots).
 // The oracle passes the source on Node's command line, which Windows limits
 // to 32K characters: larger programs give their expected output instead.
-const agree=(source:string,gcStress=true,expected?:string)=>{
- const run=runOnHost(source,{gcStress});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,expected??runOracle(source).stdout);
+const agree = (source: string, gcStress = true, expected?: string) => {
+    const run = runOnHost(source, { gcStress });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, expected ?? runOracle(source).stdout);
 };
-const locals=(count:number)=>Array.from({length:count},(_,i)=>`var v${i} = ${i};`).join('\n');
+const locals = (count: number) =>
+    Array.from({ length: count }, (_, i) => `var v${i} = ${i};`).join("\n");
 
-test('a function with many locals keeps closures, loops and handlers right',()=>agree(`
+test("a function with many locals keeps closures, loops and handlers right", () =>
+    agree(`
 (() => {
   ${locals(300)}
   var out = [];
@@ -36,12 +38,17 @@ test('a function with many locals keeps closures, loops and handlers right',()=>
 })();
 `));
 
-test('a module with thousands of top-level declarations compiles in linear time',()=>agree(`
+test("a module with thousands of top-level declarations compiles in linear time", () =>
+    agree(
+        `
 var __export = (target, all) => { for (var name in all) Object.defineProperty(target, name, {get: all[name], enumerable: true}); };
 var api = {};
 ((module) => {
   ${locals(3000)}
-  __export(api, {${Array.from({length:3000},(_,i)=>`K${i}: () => v${i}`).join(', ')}});
+  __export(api, {${Array.from({ length: 3000 }, (_, i) => `K${i}: () => v${i}`).join(", ")}});
 })({});
 console.log(Object.keys(api).length, api.K0, api.K1234, api.K2999);
-`,false,'3000 0 1234 2999\n'));
+`,
+        false,
+        "3000 0 1234 2999\n",
+    ));

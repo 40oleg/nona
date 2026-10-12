@@ -4,24 +4,24 @@
 
 ## نظرة عامة
 
-| الواجهة | النوع | المنصات | المرجع |
-| --- | --- | --- | --- |
-| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`setImmediate`/`clearImmediate`, `queueMicrotask` و`performance.now()` | عامة | all eight native targets | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis) |
-| `process` | عام | all eight native targets | [process](/ar/reference/process) |
-| `TextEncoder` و`TextDecoder` | عامة | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder) |
-| `console.log` | عام | كلتاهما | يكتب UTF-8 إلى المخرج القياسي |
-| `console.error` و`console.warn` | عام | كلتاهما | يكتب UTF-8 إلى مخرج الأخطاء القياسي (`console.info` و`console.debug`: المخرج القياسي) |
-| `nona:process` و`node:process` | وحدات | all eight native targets | [process](/ar/reference/process) |
-| `nona:fs` و`node:fs` | وحدات | كلتاهما | [نظام الملفات وترميز النصوص](/ar/reference/fs) |
-| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
-| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/ar/reference/host-apis#events) |
-| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ar/reference/host-apis#paths-nodepath) |
-| `nona:http` و`node:http` و`nona:net` و`node:net` | وحدات | كلتاهما | [الشبكات (بالإنجليزية)](/reference/network) |
-| `node:events` و`node:buffer` و`node:string_decoder` | وحدات | كلتاهما | [وحدات دعم Node.js (بالإنجليزية)](/reference/network#supporting-modules) |
-| `URL` و`URLSearchParams` و`node:url` و`url` | عامة ووحدة | الثماني جميعها | [URL](/ar/reference/host-apis#url) |
-| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (وأسماؤها دون بادئة) | وحدات | الثماني جميعها | [وحدات دعم Node.js](/ar/reference/host-apis#nodejs-support-modules) |
-| `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
-| `nona:win32` | وحدة | Windows | أدناه وفي [FFI](/ar/reference/ffi#nona-win32) |
+| الواجهة                                                                                                                                                                                                                                                                  | النوع      | المنصات                                   | المرجع                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `setTimeout` و`setInterval` و`clearTimeout` و`clearInterval` و`setImmediate`/`clearImmediate`, `queueMicrotask` و`performance.now()`                                                                                                                                     | عامة       | all eight native targets                  | [المؤقتات وحلقة الأحداث](/ar/reference/host-apis)                                                                  |
+| `process`                                                                                                                                                                                                                                                                | عام        | all eight native targets                  | [process](/ar/reference/process)                                                                                   |
+| `TextEncoder` و`TextDecoder`                                                                                                                                                                                                                                             | عامة       | كلتاهما                                   | [نظام الملفات وترميز النصوص](/ar/reference/fs#textencoder-and-textdecoder)                                         |
+| `console.log`                                                                                                                                                                                                                                                            | عام        | كلتاهما                                   | يكتب UTF-8 إلى المخرج القياسي                                                                                      |
+| `console.error` و`console.warn`                                                                                                                                                                                                                                          | عام        | كلتاهما                                   | يكتب UTF-8 إلى مخرج الأخطاء القياسي (`console.info` و`console.debug`: المخرج القياسي)                              |
+| `nona:process` و`node:process`                                                                                                                                                                                                                                           | وحدات      | all eight native targets                  | [process](/ar/reference/process)                                                                                   |
+| `nona:fs` و`node:fs`                                                                                                                                                                                                                                                     | وحدات      | كلتاهما                                   | [نظام الملفات وترميز النصوص](/ar/reference/fs)                                                                     |
+| `node:async_hooks`, `nona:async_hooks`                                                                                                                                                                                                                                   | modules    | all native targets                        | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events`                                                                                                                                                                                                                                   | modules    | all native targets                        | [EventEmitter and asynchronous event helpers](/ar/reference/host-apis#events)                                      |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32`                                                                                                                                                                                                                | modules    | all eight                                 | [Paths](/ar/reference/host-apis#paths-nodepath)                                                                    |
+| `nona:http` و`node:http` و`nona:net` و`node:net`                                                                                                                                                                                                                         | وحدات      | كلتاهما                                   | [الشبكات (بالإنجليزية)](/reference/network)                                                                        |
+| `node:events` و`node:buffer` و`node:string_decoder`                                                                                                                                                                                                                      | وحدات      | كلتاهما                                   | [وحدات دعم Node.js (بالإنجليزية)](/reference/network#supporting-modules)                                           |
+| `URL` و`URLSearchParams` و`node:url` و`url`                                                                                                                                                                                                                              | عامة ووحدة | الثماني جميعها                            | [URL](/ar/reference/host-apis#url)                                                                                 |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (وأسماؤها دون بادئة) | وحدات      | الثماني جميعها                            | [وحدات دعم Node.js](/ar/reference/host-apis#nodejs-support-modules)                                                |
+| `nona:ffi`                                                                                                                                                                                                                                                               | وحدة       | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi)                                                                          |
+| `nona:win32`                                                                                                                                                                                                                                                             | وحدة       | Windows                                   | أدناه وفي [FFI](/ar/reference/ffi#nona-win32)                                                                      |
 
 ## القواعد
 
@@ -36,59 +36,58 @@
 
 ### user32
 
-| التصدير | التوقيع |
-| --- | --- |
-| `MessageBoxW` | `i32(ptr hwnd, wstr text, wstr caption, u32 type)` |
-| `GetSystemMetrics` | `i32(i32 index)` |
-| `SystemParametersInfoW` | `bool(u32 action, u32 param, wstr value, u32 flags)`: للمعاملات النصية مثل `SPI_SETDESKWALLPAPER` |
-| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)`: لمعاملات المخازن مثل `SPI_GETDESKWALLPAPER` |
+| التصدير                       | التوقيع                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `MessageBoxW`                 | `i32(ptr hwnd, wstr text, wstr caption, u32 type)`                                                |
+| `GetSystemMetrics`            | `i32(i32 index)`                                                                                  |
+| `SystemParametersInfoW`       | `bool(u32 action, u32 param, wstr value, u32 flags)`: للمعاملات النصية مثل `SPI_SETDESKWALLPAPER` |
+| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)`: لمعاملات المخازن مثل `SPI_GETDESKWALLPAPER`  |
 
 ### kernel32
 
-| التصدير | التوقيع |
-| --- | --- |
-| `CreateMutexW` | `ptr(ptr attributes, bool initialOwner, wstr name)` |
-| `ReleaseMutex` | `bool(ptr mutex)` |
-| `CloseHandle` | `bool(ptr handle)` |
-| `GetModuleFileNameW` | `u32(ptr module, buf path, u32 size)` |
-| `GetCurrentProcessId` | `u32()` |
+| التصدير               | التوقيع                                             |
+| --------------------- | --------------------------------------------------- |
+| `CreateMutexW`        | `ptr(ptr attributes, bool initialOwner, wstr name)` |
+| `ReleaseMutex`        | `bool(ptr mutex)`                                   |
+| `CloseHandle`         | `bool(ptr handle)`                                  |
+| `GetModuleFileNameW`  | `u32(ptr module, buf path, u32 size)`               |
+| `GetCurrentProcessId` | `u32()`                                             |
 
 ### advapi32
 
-| التصدير | التوقيع |
-| --- | --- |
-| `RegCreateKeyExW` | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
-| `RegOpenKeyExW` | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)` |
-| `RegSetValueExW` | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)` |
-| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)` |
-| `RegDeleteValueW` | `i32(ptr key, wstr name)` |
-| `RegDeleteKeyW` | `i32(ptr key, wstr subKey)` |
-| `RegCloseKey` | `i32(ptr key)` |
+| التصدير            | التوقيع                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `RegCreateKeyExW`  | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
+| `RegOpenKeyExW`    | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)`                                                         |
+| `RegSetValueExW`   | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)`                                                    |
+| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)`                                                    |
+| `RegDeleteValueW`  | `i32(ptr key, wstr name)`                                                                                                |
+| `RegDeleteKeyW`    | `i32(ptr key, wstr subKey)`                                                                                              |
+| `RegCloseKey`      | `i32(ptr key)`                                                                                                           |
 
 ### الثوابت
 
-| التصدير | القيمة |
-| --- | --- |
-| `HKEY_CLASSES_ROOT` و`HKEY_CURRENT_USER` و`HKEY_LOCAL_MACHINE` | مفاتيح السجل المعرَّفة مسبقًا (كمقابض موسَّعة الإشارة) |
-| `KEY_READ` و`KEY_WRITE` و`KEY_ALL_ACCESS` | `0x20019` و`0x20006` و`0xF003F` |
-| `REG_SZ` و`REG_DWORD` | `1` و`4` |
-| `ERROR_SUCCESS` و`ERROR_FILE_NOT_FOUND` و`ERROR_ALREADY_EXISTS` | `0` و`2` و`183` |
-| `SPI_GETDESKWALLPAPER` و`SPI_SETDESKWALLPAPER` | `0x73` و`0x14` |
-| `SPIF_UPDATEINIFILE` و`SPIF_SENDCHANGE` | `1` و`2` |
-| `MB_OK` و`MB_ICONERROR` و`MB_ICONINFORMATION` | `0` و`0x10` و`0x40` |
-| `MAX_PATH` | `260` |
+| التصدير                                                         | القيمة                                                 |
+| --------------------------------------------------------------- | ------------------------------------------------------ |
+| `HKEY_CLASSES_ROOT` و`HKEY_CURRENT_USER` و`HKEY_LOCAL_MACHINE`  | مفاتيح السجل المعرَّفة مسبقًا (كمقابض موسَّعة الإشارة) |
+| `KEY_READ` و`KEY_WRITE` و`KEY_ALL_ACCESS`                       | `0x20019` و`0x20006` و`0xF003F`                        |
+| `REG_SZ` و`REG_DWORD`                                           | `1` و`4`                                               |
+| `ERROR_SUCCESS` و`ERROR_FILE_NOT_FOUND` و`ERROR_ALREADY_EXISTS` | `0` و`2` و`183`                                        |
+| `SPI_GETDESKWALLPAPER` و`SPI_SETDESKWALLPAPER`                  | `0x73` و`0x14`                                         |
+| `SPIF_UPDATEINIFILE` و`SPIF_SENDCHANGE`                         | `1` و`2`                                               |
+| `MB_OK` و`MB_ICONERROR` و`MB_ICONINFORMATION`                   | `0` و`0x10` و`0x40`                                    |
+| `MAX_PATH`                                                      | `260`                                                  |
 
 ### الدوال المساعدة
 
-| التصدير | الوصف |
-| --- | --- |
-| `lastError()` | قيمة `GetLastError()` الملتقطة مباشرةً بعد آخر استدعاء FFI (مُعاد تصديرها من `nona:ffi`). |
-| `wideString(text)` | ‏`Uint16Array` منتهية بـ NUL لمعاملات `buf` التي تتوقع سلسلة UTF-16. |
-| `fromWideString(buffer)` | تفك ترميز مخزن UTF-16 منتهٍ بـ NUL. |
-| `readHandle(buffer)` | تقرأ مقبضًا (مثل `HKEY`) كتبته دالة في مخزن بحجم 8 بايت. |
+| التصدير                  | الوصف                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| `lastError()`            | قيمة `GetLastError()` الملتقطة مباشرةً بعد آخر استدعاء FFI (مُعاد تصديرها من `nona:ffi`). |
+| `wideString(text)`       | ‏`Uint16Array` منتهية بـ NUL لمعاملات `buf` التي تتوقع سلسلة UTF-16.                      |
+| `fromWideString(buffer)` | تفك ترميز مخزن UTF-16 منتهٍ بـ NUL.                                                       |
+| `readHandle(buffer)`     | تقرأ مقبضًا (مثل `HKEY`) كتبته دالة في مخزن بحجم 8 بايت.                                  |
 
 أما الدوال غير المدرجة فصرّح عنها بنفسك باستخدام `define` من [`nona:ffi`](/ar/reference/ffi).
-
 
 ## Native target availability
 

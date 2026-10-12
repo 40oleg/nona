@@ -1,5 +1,5 @@
 /** Child-only abort fixture: abrupt termination bypasses every JS lifecycle path. */
-export const processAbortProbeSource=String.raw`
+export const processAbortProbeSource = String.raw`
 process.on('exit',function(){console.log('unexpected exit')});
 process.on('beforeExit',function(){console.log('unexpected beforeExit')});
 process.on('uncaughtException',function(){console.log('unexpected exception')});

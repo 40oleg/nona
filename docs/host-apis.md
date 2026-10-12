@@ -289,7 +289,7 @@ startup. Each is available as `node:<name>` and `<name>`.
   a terminal; `ReadStream` and `WriteStream` are minimal classes for feature
   detection.
 - `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
-  %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
+%%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
   `maxArrayLength`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,

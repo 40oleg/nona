@@ -32,7 +32,12 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
   Properties → Details (`RT_VERSION` 1, language 0409, code page 04B0).
 
 ```json
-{ "FileVersion": "1.0.0.0", "ProductName": "Museum", "FileDescription": "Paintings on the desktop", "CompanyName": "Oleg" }
+{
+    "FileVersion": "1.0.0.0",
+    "ProductName": "Museum",
+    "FileDescription": "Paintings on the desktop",
+    "CompanyName": "Oleg"
+}
 ```
 
 The same options are available as `icon` (bytes), `manifest` (string) and

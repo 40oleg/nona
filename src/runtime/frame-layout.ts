@@ -20,9 +20,20 @@
  * RBP points `bias` bytes above the first value slot, so that the first
  * sixteen slots have 8-bit displacements.
  */
-export const JsFrame={result:72,argc:48,argv:56,callee:64,maps:80,roots:88,savedFrame:112,values:120,bias:248,
- /** Incoming this and new.target pointers: the caller's fifth and sixth arguments, above the return address. */
- incomingThis:40,incomingNewTarget:48} as const;
+export const JsFrame = {
+    result: 72,
+    argc: 48,
+    argv: 56,
+    callee: 64,
+    maps: 80,
+    roots: 88,
+    savedFrame: 112,
+    values: 120,
+    bias: 248,
+    /** Incoming this and new.target pointers: the caller's fifth and sixth arguments, above the return address. */
+    incomingThis: 40,
+    incomingNewTarget: 48,
+} as const;
 /**
  * The static frame descriptor rt.enterFrame reads (one per function, .rdata):
  * 64-bit fields. `clear` is the number of leading value slots that start as
@@ -32,6 +43,13 @@ export const JsFrame={result:72,argc:48,argv:56,callee:64,maps:80,roots:88,saved
  * live, and a location that is not live at entry is written before it is
  * live, so the slots above `clear` need no initial value.
  */
-export const FrameDescriptor={allocation:0,slots:8,parameters:16,maps:24,clear:32,
- /** The this slot's displacement from RBP (it follows the value slots). */thisSlot:40,
- /** The root record's count: -(slots + 3), the value slots and this, new.target and the super receiver. */rootCount:48,size:56} as const;
+export const FrameDescriptor = {
+    allocation: 0,
+    slots: 8,
+    parameters: 16,
+    maps: 24,
+    clear: 32,
+    /** The this slot's displacement from RBP (it follows the value slots). */ thisSlot: 40,
+    /** The root record's count: -(slots + 3), the value slots and this, new.target and the super receiver. */ rootCount: 48,
+    size: 56,
+} as const;

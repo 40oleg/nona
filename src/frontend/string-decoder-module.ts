@@ -1,4 +1,4 @@
-import {modulesStringDecoder} from '../lib/sources.generated.js';
+import { modulesStringDecoder } from "../lib/sources.generated.js";
 
 /** node:string_decoder: decodes byte chunks without splitting multi-byte characters. */
-export const stringDecoderModuleSource=modulesStringDecoder;
+export const stringDecoderModuleSource = modulesStringDecoder;

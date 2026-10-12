@@ -16,19 +16,19 @@ Depuis un clone du dépôt, lancez `node dist/cli.js …` ; après `npm link`, l
 
 ## Options
 
-| Option | Valeur | Description |
-| --- | --- | --- |
-| `-o` | chemin | Fichier de sortie. Obligatoire. Les répertoires manquants sont créés. |
-| `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
-| `--module` | — | Compile l’entrée comme un module ES. Les entrées se terminant par `.mjs` sont automatiquement des modules. |
-| `--conditions`, `-C` | nom | Ajoute une condition `exports`/`imports` de package.json, essayée avant celles de Nona (`nona`, `node`, `import` ou `require`, `default`) ; `--conditions=name` fonctionne aussi. Peut être répétée. Voir [paquets npm](/reference/npm#resolution). |
-| `--print-asm` | — | Affiche sur stdout l’assembleur x86-64 généré pour les fonctions du programme lui-même (ni le runtime ni ses préludes) : l’étiquette de chaque fonction, puis une ligne par instruction avec son décalage, ses octets encodés et son texte en syntaxe Intel. Avec cette option, `-o` peut être omis. Cibles x86-64 uniquement. |
-| `--subsystem` | `console` (par défaut), `windows` | Programme graphique Windows sans fenêtre de console. `win32-x64` uniquement. Un programme graphique sans `--manifest` reçoit un manifeste par défaut. |
-| `--icon` | fichier `.ico` | Intègre toutes les images du fichier d’icône. `win32-x64` uniquement. |
-| `--manifest` | fichier XML | Intègre un manifeste d’application. Il doit être valide : Windows refuse de démarrer un programme dont le manifeste est mal formé. `win32-x64` uniquement. |
-| `--version-info` | fichier JSON | Intègre des informations de version (`FileVersion`, `ProductVersion`, `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName`, `Comments`). `win32-x64` uniquement. |
-| `--help` | — | Affiche le synopsis. |
-| `--version` | — | Affiche la version du compilateur. |
+| Option               | Valeur                                          | Description                                                                                                                                                                                                                                                                                                                    |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `-o`                 | chemin                                          | Fichier de sortie. Obligatoire. Les répertoires manquants sont créés.                                                                                                                                                                                                                                                          |
+| `--target`           | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU.                                                                                                                                                                                                                                                                            |
+| `--module`           | —                                               | Compile l’entrée comme un module ES. Les entrées se terminant par `.mjs` sont automatiquement des modules.                                                                                                                                                                                                                     |
+| `--conditions`, `-C` | nom                                             | Ajoute une condition `exports`/`imports` de package.json, essayée avant celles de Nona (`nona`, `node`, `import` ou `require`, `default`) ; `--conditions=name` fonctionne aussi. Peut être répétée. Voir [paquets npm](/reference/npm#resolution).                                                                            |
+| `--print-asm`        | —                                               | Affiche sur stdout l’assembleur x86-64 généré pour les fonctions du programme lui-même (ni le runtime ni ses préludes) : l’étiquette de chaque fonction, puis une ligne par instruction avec son décalage, ses octets encodés et son texte en syntaxe Intel. Avec cette option, `-o` peut être omis. Cibles x86-64 uniquement. |
+| `--subsystem`        | `console` (par défaut), `windows`               | Programme graphique Windows sans fenêtre de console. `win32-x64` uniquement. Un programme graphique sans `--manifest` reçoit un manifeste par défaut.                                                                                                                                                                          |
+| `--icon`             | fichier `.ico`                                  | Intègre toutes les images du fichier d’icône. `win32-x64` uniquement.                                                                                                                                                                                                                                                          |
+| `--manifest`         | fichier XML                                     | Intègre un manifeste d’application. Il doit être valide : Windows refuse de démarrer un programme dont le manifeste est mal formé. `win32-x64` uniquement.                                                                                                                                                                     |
+| `--version-info`     | fichier JSON                                    | Intègre des informations de version (`FileVersion`, `ProductVersion`, `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName`, `Comments`). `win32-x64` uniquement.                                                                                                              |
+| `--help`             | —                                               | Affiche le synopsis.                                                                                                                                                                                                                                                                                                           |
+| `--version`          | —                                               | Affiche la version du compilateur.                                                                                                                                                                                                                                                                                             |
 
 Chaque option, sauf `--conditions`, ne peut apparaître qu’une fois. Voir [Exécutables Windows](/fr/reference/windows-executables) pour les formats des ressources.
 
@@ -44,10 +44,10 @@ Chaque option, sauf `--conditions`, ne peut apparaître qu’une fois. Voir [Ex�
 
 Le runtime et les préludes compilés sont identiques pour tous les programmes qui lient les mêmes parties, et leur génération représente l'essentiel d'une compilation. La ligne de commande les conserve dans un répertoire de cache : les compilations suivantes sont environ trois fois plus rapides (un hello world sous Linux : 1,1 s, puis 0,33 s). Le résultat est identique avec ou sans cache. Les entrées appartiennent à une seule version du compilateur et sont ignorées après une mise à jour.
 
-| Variable | Effet |
-| --- | --- |
+| Variable         | Effet                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NONA_CACHE_DIR` | Répertoire du cache. Par défaut : `%LOCALAPPDATA%\nona\cache` sous Windows, `~/Library/Caches/nona` sous macOS, `$XDG_CACHE_HOME/nona` ou `~/.cache/nona` ailleurs. |
-| `NONA_CACHE=0` | Ne pas lire ni écrire le cache. |
+| `NONA_CACHE=0`   | Ne pas lire ni écrire le cache.                                                                                                                                     |
 
 ## Diagnostics et codes de sortie
 
@@ -57,17 +57,17 @@ Le code de sortie vaut `0` en cas de succès et `1` pour toute erreur. Les erreu
 <file>:<line>:<column> <CODE>: <message>
 ```
 
-| Code | Signification |
-| --- | --- |
-| `E_LEX`, `E_SYNTAX` | Le source ne peut pas être découpé en jetons ou analysé, ou utilise une syntaxe non prise en charge. |
-| `E_BIND` | Une erreur précoce détectée lors de la résolution des noms (déclarations en double, cibles d’affectation invalides, …). |
-| `E_MODULE` | Un module ne peut pas être résolu, lu ou lié, ou des exports entrent en conflit. |
-| `E_FFI_STATIC` | Un appel `define()` de `nona:ffi` ne comporte pas trois littéraux de chaîne ou a une signature invalide. |
-| `E_FFI_TARGET` | Une déclaration de DLL compilée pour `linux-x64`, ou une déclaration d’appel système compilée pour `win32-x64`. |
-| `E_RESOURCE` | Une icône ou des informations de version invalides, ou des ressources demandées pour `linux-x64`. |
-| `E_TARGET` | Une cible ou un sous-système non pris en charge. |
-| `E_HOST_MODULE` | Un module intégré (comme `node:fs`) n'est pas disponible pour la cible. |
-| `E_INTERNAL` | Un bogue du compilateur, pas une erreur du programme : une vérification interne a échoué dans la phase nommée par le message (`parse`, `bind`, `lower`, `codegen`, `link`, …). Signalez-le avec le programme qui le déclenche. |
+| Code                | Signification                                                                                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `E_LEX`, `E_SYNTAX` | Le source ne peut pas être découpé en jetons ou analysé, ou utilise une syntaxe non prise en charge.                                                                                                                           |
+| `E_BIND`            | Une erreur précoce détectée lors de la résolution des noms (déclarations en double, cibles d’affectation invalides, …).                                                                                                        |
+| `E_MODULE`          | Un module ne peut pas être résolu, lu ou lié, ou des exports entrent en conflit.                                                                                                                                               |
+| `E_FFI_STATIC`      | Un appel `define()` de `nona:ffi` ne comporte pas trois littéraux de chaîne ou a une signature invalide.                                                                                                                       |
+| `E_FFI_TARGET`      | Une déclaration de DLL compilée pour `linux-x64`, ou une déclaration d’appel système compilée pour `win32-x64`.                                                                                                                |
+| `E_RESOURCE`        | Une icône ou des informations de version invalides, ou des ressources demandées pour `linux-x64`.                                                                                                                              |
+| `E_TARGET`          | Une cible ou un sous-système non pris en charge.                                                                                                                                                                               |
+| `E_HOST_MODULE`     | Un module intégré (comme `node:fs`) n'est pas disponible pour la cible.                                                                                                                                                        |
+| `E_INTERNAL`        | Un bogue du compilateur, pas une erreur du programme : une vérification interne a échoué dans la phase nommée par le message (`parse`, `bind`, `lower`, `codegen`, `link`, …). Signalez-le avec le programme qui le déclenche. |
 
 Les erreurs d’arguments s’affichent sous la forme `nona: <message>`, par exemple `Unknown option: --foo`, `Duplicate option: -o`, `Missing value for --target`, `Output is required (-o <output>)`, `Unsupported target: arm64`, `Unsupported subsystem: native` ou `--subsystem requires --target win32-x64`.
 
@@ -88,7 +88,6 @@ node dist/cli.js build app.js -o build/app --target linux-x64
 ```
 
 :::
-
 
 ## Native target availability
 

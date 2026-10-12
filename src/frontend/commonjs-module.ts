@@ -1,4 +1,4 @@
-import {modulesCommonjs} from '../lib/sources.generated.js';
+import { modulesCommonjs } from "../lib/sources.generated.js";
 
 /**
  * `nona:internal/commonjs`: the CommonJS loader the compiled program runs
@@ -16,4 +16,4 @@ import {modulesCommonjs} from '../lib/sources.generated.js';
  * throws while it runs is removed so that a later `require` retries it.
  * The source is src/lib/modules/commonjs.js.
  */
-export const commonJsModuleSource=modulesCommonjs;
+export const commonJsModuleSource = modulesCommonjs;

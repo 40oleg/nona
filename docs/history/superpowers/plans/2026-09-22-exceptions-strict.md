@@ -13,41 +13,41 @@ PE UnwindFunction уже описывает allocation/saved registers, но н�
 само по себе не реализует JavaScript catch/finally.
 
 - [x] Выбрать и записать механизм abrupt completion через source/runtime границы.
-  Сравнить явное распространение completion с native unwinding. Для варианта
-  с переносом управления доказать сохранность Windows x64 nonvolatile state,
-  корректность stack/root restoration и выполнение runtime cleanup.
+      Сравнить явное распространение completion с native unwinding. Для варианта
+      с переносом управления доказать сохранность Windows x64 nonvolatile state,
+      корректность stack/root restoration и выполнение runtime cleanup.
 - [x] Описать handler/completion records: throw Value, catch target, finally
-  target, pending return/break/continue, saved root chain. Все живые Values
-  должны быть видны GC; raw адреса и masks не должны сканироваться как Values.
+      target, pending return/break/continue, saved root chain. Все живые Values
+      должны быть видны GC; raw адреса и masks не должны сканироваться как Values.
 - [x] Сначала добавить throw/try/catch для произвольного Value с проверяемым
-  проходом через вложенные functions, getters/setters и coercion callbacks.
+      проходом через вложенные functions, getters/setters и coercion callbacks.
 - [x] Добавить finally с заменой pending completion: return/throw из finally
-  перекрывает прежний результат; обычное завершение сохраняет его. Проверить
-  labeled break/continue и вложенные finally.
+      перекрывает прежний результат; обычное завершение сохраняет его. Проверить
+      labeled break/continue и вложенные finally.
 - [x] Error/TypeError/ReferenceError/RangeError objects и перевод runtime checks
-  из fatal-only в JS throw. Оставить отдельный fatal path для allocator/system
-  failures. Перехватить реальные ошибки TDZ/readonly/coercion/constructability.
+      из fatal-only в JS throw. Оставить отдельный fatal path для allocator/system
+      failures. Перехватить реальные ошибки TDZ/readonly/coercion/constructability.
 - [x] Проверить cleanup join/stringifying, nested descriptor helpers, bound
-  argv buffers, partially collected descriptors и source new.target roots.
+      argv buffers, partially collected descriptors и source new.target roots.
 
 ## Strict semantics после основы exceptions
 
 - [x] Directive prologue с наследованием strict контекста; strict this без
-  boxing/global substitution. Не распознавать escaped directive как use strict.
+      boxing/global substitution. Не распознавать escaped directive как use strict.
 - [x] Early errors: duplicate parameters, restricted identifiers, delete
-  identifier, legacy literals/escapes, with и запрещённые binding forms.
+      identifier, legacy literals/escapes, with и запрещённые binding forms.
 - [x] Throw при failed strict assignment/delete, const/TDZ, immutable named
-  function binding; сохранить sloppy поведение существующих программ.
+      function binding; сохранить sloppy поведение существующих программ.
 - [x] Unmapped strict arguments, callee/caller restrictions; отдельно учитывать
-  будущие non-simple parameters и arrow lexical bindings.
+      будущие non-simple parameters и arrow lexical bindings.
 
 ## Обязательные проверки
 
 - [x] RED→GREEN semantic tests против Node, GC stress, nesting и reentrancy.
 - [x] После caught exception продолжить allocations/GC и проверить отсутствие
-  stale root records/stack pointers и лишнего удержания heap allocations.
+      stale root records/stack pointers и лишнего удержания heap allocations.
 - [x] Standalone examples: catch primitive/object, nested finally, coercion
-  exceptions, strict receiver/arguments. Совпадение stdout/stderr/status.
+      exceptions, strict receiver/arguments. Совпадение stdout/stderr/status.
 - [x] Full suite, независимое review ABI/GC/unwind, docs/support matrix.
 
 Это не замена оставшегося объёма: arrows/templates, iteration, classes, Symbol,

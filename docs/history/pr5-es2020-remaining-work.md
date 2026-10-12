@@ -20,12 +20,12 @@ array [[Set]]/[[GetOwnProperty]] changes, the `v` RegExp flag, `Error.prototype.
 
 Linux x64 (full catalogs at `c6c3b5b`):
 
-| Catalog | Pass/applicable | Remaining failures |
-| --- | --- | --- |
-| `language/` (all 28 directories) | 16514/17337 (26 skipped) | 801 eval (335 in `eval-code`), 6 post, 16 other (below) |
-| `built-ins/` (51 ES2020 directories) | 15245/15416 | 46 eval, 48 post, 77 other (below) |
-| `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
-| `annexB/` | 518/1016 | 488 eval (469 in `annexB/language/eval-code`), 10 other (below) |
+| Catalog                              | Pass/applicable          | Remaining failures                                              |
+| ------------------------------------ | ------------------------ | --------------------------------------------------------------- |
+| `language/` (all 28 directories)     | 16514/17337 (26 skipped) | 801 eval (335 in `eval-code`), 6 post, 16 other (below)         |
+| `built-ins/` (51 ES2020 directories) | 15245/15416              | 46 eval, 48 post, 77 other (below)                              |
+| `built-ins/Atomics` (agents)         | 268/268                  | 2 `CanBlockIsFalse` files skipped                               |
+| `annexB/`                            | 518/1016                 | 488 eval (469 in `annexB/language/eval-code`), 10 other (below) |
 
 Windows x64 (Node 22 host; native PE executables; full catalogs at
 `c6c3b5b`, then the directories touched by later fixes rerun at `1d60f2f`:
@@ -38,12 +38,12 @@ the Node 22 oracle (`object-collections` function metadata order,
 getters), which CI runs on Node 26. PE, CLI, standalone and runtime-io tests
 pass there.
 
-| Catalog | Pass/applicable | Remaining failures |
-| --- | --- | --- |
-| `language/` | 16516/17337 (26 skipped) | 801 eval, 6 post, 14 other |
-| `built-ins/` (every directory with applicable files) | 15433/15554 | 46 eval, 14 post, 61 other |
-| `built-ins/Atomics` (agents) | 268/268 | 2 `CanBlockIsFalse` files skipped |
-| `annexB/` | 518/1016 | 488 eval, 10 other |
+| Catalog                                              | Pass/applicable          | Remaining failures                |
+| ---------------------------------------------------- | ------------------------ | --------------------------------- |
+| `language/`                                          | 16516/17337 (26 skipped) | 801 eval, 6 post, 14 other        |
+| `built-ins/` (every directory with applicable files) | 15433/15554              | 46 eval, 14 post, 61 other        |
+| `built-ins/Atomics` (agents)                         | 268/268                  | 2 `CanBlockIsFalse` files skipped |
+| `annexB/`                                            | 518/1016                 | 488 eval, 10 other                |
 
 Windows and Linux agree file by file except runner timeouts under load
 (Linux: `Array.prototype.concat_large-typed-array`, two RegExp escape

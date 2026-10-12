@@ -24,8 +24,14 @@ node .\dist\cli.js build .\examples\compat\matrix-calculator.cjs -o .\build\matr
 В конце исходника измените массивы `A` и `B`, например:
 
 ```javascript
-const A = [[2, 1], [1, 1]];
-const B = [[3, 4], [5, 6]];
+const A = [
+    [2, 1],
+    [1, 1],
+];
+const B = [
+    [3, 4],
+    [5, 6],
+];
 ```
 
 Каждый вложенный массив — строка. После изменения повторите команду

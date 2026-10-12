@@ -11,15 +11,15 @@ Museum — фоновая программа, которая каждые нес
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` — исполняемый файл, а `process.argv[1]` — первый аргумент. У GUI-программы нет консоли, поэтому ошибки показываются через `MessageBoxW`:
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## Шаг 3: единственный экземпляр
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 Именованный мьютекс существует, пока жив создавший его процесс. Если он уже есть, значит, другой Museum уже запущен.
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## Шаг 4: установка обоев
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 Параметр `wstr` превращает строку JavaScript во временную копию UTF-16 с завершающим NUL, поэтому работают пути с любыми символами. `SPIF_UPDATEINIFILE` сохраняет обои после выхода из системы, а `SPIF_SENDCHANGE` уведомляет другие программы.
@@ -86,9 +91,26 @@ node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 Чтобы отменить это, удалите значение `NonaMuseum` в этом ключе (например, через `RegDeleteValueW` или в редакторе реестра).

@@ -1,5 +1,5 @@
 /** Module aliases expose the same constructor as the global Buffer. */
-export const bufferModuleSource=`
+export const bufferModuleSource = `
 const buffer = globalThis.Buffer[Symbol.for('nona.buffer.module')];
 export const Buffer = buffer.Buffer, SlowBuffer = buffer.SlowBuffer;
 export const Blob = buffer.Blob, File = buffer.File, resolveObjectURL = buffer.resolveObjectURL;

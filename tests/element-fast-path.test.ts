@@ -1,23 +1,24 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // Element sites (`a[i]`, `a[i] = v`) go through rt.elementGet / rt.elementSet
 // (src/runtime/array-elements.ts): dense slots, typed array elements and
 // string code units are answered directly; everything else is generic.
 
-function expectOracle(source:string):void {
- const expected=runOracle(source).stdout;
- for(const gcStress of [true,false]){
-  const native=runOnHost(source,{gcStress});
-  assert.equal(native.error,undefined);
-  assert.equal(native.status,0,native.stderr);
-  assert.equal(native.stdout,expected,`gcStress: ${gcStress}`);
- }
+function expectOracle(source: string): void {
+    const expected = runOracle(source).stdout;
+    for (const gcStress of [true, false]) {
+        const native = runOnHost(source, { gcStress });
+        assert.equal(native.error, undefined);
+        assert.equal(native.status, 0, native.stderr);
+        assert.equal(native.stdout, expected, `gcStress: ${gcStress}`);
+    }
 }
 
-test('element reads of dense arrays keep holes, prototype elements and getters',()=>expectOracle(`
+test("element reads of dense arrays keep holes, prototype elements and getters", () =>
+    expectOracle(`
 var a = [1, 2, , 4];
 console.log(a[0], a[1], a[2], a[3], a[4], a[-1], a[1.5], a['1'], a[NaN], a[-0], a[2 ** 53]);
 Array.prototype[2] = 'proto'; console.log(a[2], [][2], a.length);
@@ -41,7 +42,8 @@ var sp = []; sp[1000000] = 'far'; console.log(sp[1000000], sp[999999], sp.length
 var sum = 0; for (var j = 0; j < 3000; j++) { g[j % 50] = j; sum += g[j % 50]; } console.log(sum);
 `));
 
-test('element writes respect setters, frozen and non-extensible arrays and readonly elements',()=>expectOracle(`
+test("element writes respect setters, frozen and non-extensible arrays and readonly elements", () =>
+    expectOracle(`
 var w = [0, 0, 0]; w[1] = 'x'; w[3] = 'y'; w[10] = 'z'; console.log(w.length, w[1], w[3], w[10], w[5]);
 var seen = 0;
 Object.defineProperty(Array.prototype, 20, {set(v) { seen = v; }, configurable: true});
@@ -60,7 +62,8 @@ console.log(p[0], p[1]); p[0] = 5;
 var ro = {}; Object.defineProperty(ro, 0, {value: 1}); ro[0] = 2; console.log(ro[0]);
 `));
 
-test('typed array element sites keep integer-indexed semantics',()=>expectOracle(`
+test("typed array element sites keep integer-indexed semantics", () =>
+    expectOracle(`
 var u8 = new Uint8Array(4), i8 = new Int8Array(2), c8 = new Uint8ClampedArray(2), u16 = new Uint16Array(2), i16 = new Int16Array(2);
 var u32 = new Uint32Array(2), i32 = new Int32Array(2), f32 = new Float32Array(2), f64 = new Float64Array(2);
 u8[0] = 300; u8[1] = -1; u8[2] = 1.9; u8[3] = NaN; console.log(u8[0], u8[1], u8[2], u8[3], u8[4], u8[-1], u8[1.5], u8[-0]);
@@ -76,7 +79,8 @@ var calls = 0; u8[0] = {valueOf() { calls++; return 42; }}; u8[1] = '7'; console
 var t = 0; for (var i = 0; i < 4000; i++) { f64[i & 1] = i * 0.5; t += f64[i & 1]; } console.log(t);
 `));
 
-test('string element reads give one-unit strings',()=>expectOracle(`
+test("string element reads give one-unit strings", () =>
+    expectOracle(`
 var s = 'h\\u00e9llo\\u20ac\\ud83d\\ude00';
 console.log(s[0], s[1], s[5], s[6], s[7], s[-1], s[1.5], s['2'], s[s.length], s.length);
 console.log(s[0] === 'h', s[1] === '\\u00e9', typeof s[0], s[0] + s[2], s[0].length, s[255]);
@@ -88,13 +92,19 @@ var box = new String('xy'); console.log(box[0], box[1], box[2]);
 var parts = []; var text = 'abcabc'; for (var k = 0; k < 6000; k++) parts.push(text[k % 6]); console.log(parts.join('').length, parts.slice(0, 7).join(''));
 `));
 
-test('element sites of a detached typed array go generic',()=>{
- const native=runOnHost(`
+test("element sites of a detached typed array go generic", () => {
+    const native = runOnHost(
+        `
 var buffer = new ArrayBuffer(8), view = new Uint8Array(buffer), f = new Float64Array(buffer);
 view[0] = 1; console.log(view[0], f.length);
 ArrayBuffer.__nonaDetachInternal(buffer);
 console.log(view[0], view.length, f[0]); view[0] = 3; f[0] = 1.5; console.log(view[0], f[0], Object.keys(view).length);
-`,{gcStress:true});
- assert.equal(native.status,0,native.stderr);
- assert.equal(native.stdout,'1 1\nundefined 0 undefined\nundefined undefined 0\n');
+`,
+        { gcStress: true },
+    );
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(
+        native.stdout,
+        "1 1\nundefined 0 undefined\nundefined undefined 0\n",
+    );
 });

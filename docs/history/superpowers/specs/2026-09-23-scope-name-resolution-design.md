@@ -99,7 +99,7 @@ declaration. Дополнительная web-совместимая var binding
 - strict assignment использует уже проверенную семантику сохранения исходной
   разрешимости LHS и повторную проверку перед записью;
 - sloppy assignment с unresolvable reference выполняет `Set(globalObject,
-  name, value, false)`, создавая собственное writable/enumerable/configurable
+name, value, false)`, создавая собственное writable/enumerable/configurable
   свойство при обычном отсутствующем имени;
 - delete через `globalThis.name` следует дескриптору свойства; `delete name`
   остаётся существующей операцией над reference согласно strict/sloppy rules;

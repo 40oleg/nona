@@ -2,12 +2,12 @@
 
 ## ধাপে ধাপে উদাহরণ
 
-| উদাহরণ | যা দেখায় | টার্গেট |
-| --- | --- | --- |
-| [Hello, টাইমার](/bn/examples/hello) | ফাংশন, টেমপ্লেট লিটারাল, মাইক্রোটাস্ক ও টাইমার | Windows, Linux |
-| [Museum: ওয়ালপেপার পরিবর্তক](/bn/examples/museum) | `nona:win32`, টাইমার, `node:fs`, `process`, রিসোর্সসহ একটি GUI এক্সিকিউটেবল | Windows |
-| [ম্যাট্রিক্স ক্যালকুলেটর](/bn/examples/matrix-calculator) | অ্যারে ও এক্সেপশনসহ সাধারণ ES2020 কোড | Windows, Linux |
-| [শব্দ গণনা](/bn/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp | Windows, Linux |
+| উদাহরণ                                                    | যা দেখায়                                                                   | টার্গেট        |
+| --------------------------------------------------------- | --------------------------------------------------------------------------- | -------------- |
+| [Hello, টাইমার](/bn/examples/hello)                       | ফাংশন, টেমপ্লেট লিটারাল, মাইক্রোটাস্ক ও টাইমার                              | Windows, Linux |
+| [Museum: ওয়ালপেপার পরিবর্তক](/bn/examples/museum)        | `nona:win32`, টাইমার, `node:fs`, `process`, রিসোর্সসহ একটি GUI এক্সিকিউটেবল | Windows        |
+| [ম্যাট্রিক্স ক্যালকুলেটর](/bn/examples/matrix-calculator) | অ্যারে ও এক্সেপশনসহ সাধারণ ES2020 কোড                                       | Windows, Linux |
+| [শব্দ গণনা](/bn/examples/word-count)                      | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp        | Windows, Linux |
 
 ## রিপোজিটরির উদাহরণ
 

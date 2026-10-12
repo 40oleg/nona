@@ -1,4 +1,4 @@
-import {modulesHttp} from '../lib/sources.generated.js';
+import { modulesHttp } from "../lib/sources.generated.js";
 /**
  * Source of the built-in `node:http` (alias `nona:http`) module: Nona's own
  * HTTP/1.1 server and client behind the Node.js API.
@@ -23,4 +23,4 @@ import {modulesHttp} from '../lib/sources.generated.js';
  * keep-alive and pipelining, errors) matches Node.js; tests/http.test.ts
  * runs the same programs under Node.js and compares the output.
  */
-export const httpModuleSource=modulesHttp;
+export const httpModuleSource = modulesHttp;

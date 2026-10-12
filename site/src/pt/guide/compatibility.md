@@ -21,17 +21,17 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 
 ## Diferenças em relação ao Node.js
 
-| Área | Nona | Node.js |
-| --- | --- | --- |
-| `process.argv` | `[execPath, ...arguments]`: `argv[1]` é o primeiro argumento | `[node, script, ...arguments]` |
-| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Ids de timers | Números | Objetos `Timeout` |
-| `readFileSync(path)` | Retorna um `Uint8Array` | Retorna um `Buffer` |
-| Codificações | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Muitas |
-| Mensagens de erro no Windows | Contêm o caminho como foi passado | Contêm o caminho absoluto |
-| Módulos | `nona:*`, os módulos `node:*` listados em [Módulos embutidos](/pt/reference/modules), arquivos e pacotes npm resolvidos na compilação | Todo o `node:*` e pacotes npm, resolvidos em tempo de execução |
-| `require` | Módulos CommonJS, com especificadores literais conhecidos na compilação ([pacotes npm](/reference/npm)) | Qualquer especificador em tempo de execução |
-| `console.log` sem saída padrão | A saída é descartada | A saída é descartada ou um erro é lançado |
+| Área                           | Nona                                                                                                                                                | Node.js                                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `process.argv`                 | `[execPath, ...arguments]`: `argv[1]` é o primeiro argumento                                                                                        | `[node, script, ...arguments]`                                                 |
+| `process`                      | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
+| Ids de timers                  | Números                                                                                                                                             | Objetos `Timeout`                                                              |
+| `readFileSync(path)`           | Retorna um `Uint8Array`                                                                                                                             | Retorna um `Buffer`                                                            |
+| Codificações                   | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                 | Muitas                                                                         |
+| Mensagens de erro no Windows   | Contêm o caminho como foi passado                                                                                                                   | Contêm o caminho absoluto                                                      |
+| Módulos                        | `nona:*`, os módulos `node:*` listados em [Módulos embutidos](/pt/reference/modules), arquivos e pacotes npm resolvidos na compilação               | Todo o `node:*` e pacotes npm, resolvidos em tempo de execução                 |
+| `require`                      | Módulos CommonJS, com especificadores literais conhecidos na compilação ([pacotes npm](/reference/npm))                                             | Qualquer especificador em tempo de execução                                    |
+| `console.log` sem saída padrão | A saída é descartada                                                                                                                                | A saída é descartada ou um erro é lançado                                      |
 
 ## Desempenho
 

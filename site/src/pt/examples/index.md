@@ -2,12 +2,12 @@
 
 ## Passo a passo
 
-| Exemplo | Mostra | Alvos |
-| --- | --- | --- |
-| [Olá, timers](/pt/examples/hello) | funções, template literals, microtasks e timers | Windows, Linux |
-| [Museum: trocador de papel de parede](/pt/examples/museum) | `nona:win32`, timers, `node:fs`, `process`, um executável gráfico com recursos | Windows |
-| [Calculadora de matrizes](/pt/examples/matrix-calculator) | código ES2020 comum com arrays e exceções | Windows, Linux |
-| [Contagem de palavras](/pt/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode | Windows, Linux |
+| Exemplo                                                    | Mostra                                                                         | Alvos          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------- |
+| [Olá, timers](/pt/examples/hello)                          | funções, template literals, microtasks e timers                                | Windows, Linux |
+| [Museum: trocador de papel de parede](/pt/examples/museum) | `nona:win32`, timers, `node:fs`, `process`, um executável gráfico com recursos | Windows        |
+| [Calculadora de matrizes](/pt/examples/matrix-calculator)  | código ES2020 comum com arrays e exceções                                      | Windows, Linux |
+| [Contagem de palavras](/pt/examples/word-count)            | `node:fs`, `process.argv`, `process.exitCode`, `Map`, RegExp Unicode           | Windows, Linux |
 
 ## Exemplos do repositório
 

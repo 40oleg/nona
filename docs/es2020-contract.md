@@ -13,50 +13,50 @@ The concrete conformance gaps after the merged PR #5 are tracked in
 
 ## Scope decisions
 
-* `eval` and the dynamic `Function` constructors are explicit project exceptions.
+- `eval` and the dynamic `Function` constructors are explicit project exceptions.
   A release with these exceptions must say “ES2020 with documented exceptions”,
   not “fully conformant ES2020”. Their specified behavior (tested by
   `tests/eval-exception.test.ts`, `tests/dynamic-functions.test.ts` and
   `tests/language-audit.test.ts`):
-  * `eval` is the ordinary `%eval%` function object (`name` `"eval"`,
-    `length` 1, writable/configurable global property). A non-string argument
-    is returned unchanged; a string made only of white space and line
-    terminators evaluates to `undefined`.
-  * Source text known at compile time is compiled ahead of time with PerformEval
-    semantics (`src/frontend/eval-aot.ts`, `tests/eval-aot.test.ts`): string
-    literals, concatenations of literals, and variables that are only ever
-    assigned such constants (the value is compared at run time). Direct calls
-    `eval(...)` see the caller's scope, `this`, `arguments`, `new.target` and
-    `super`; sloppy `var`/function declarations become configurable bindings of
-    the caller's variable environment (EvalDeclarationInstantiation, including
-    its SyntaxError and global TypeError checks and Annex B.3.3.3); strict eval
-    code and lexical declarations stay local; the completion value is returned.
-    Indirect forms — `(0, eval)(...)`, `globalThis.eval(...)`, `eval?.(...)`
-    and variables assigned `eval` — run in the global scope. A run-time check
-    falls back to an ordinary call when `eval` is replaced or shadowed. Parse and
-    early errors throw `SyntaxError` when the call is evaluated.
-  * Any other string (computed at run time), direct or indirect, throws
-    `EvalError` (“Nona compiles ahead of time: eval and Function need source
-    text known at compile time”); so do spread arguments to eval and
-    `$262.evalScript`.
-  * `Function`, `GeneratorFunction`, `AsyncFunction` and
-    `AsyncGeneratorFunction` whose arguments are all literals (known at compile
-    time) are compiled ahead of time with CreateDynamicFunction semantics:
-    global scope, own strictness, name `anonymous`, synthesized source text,
-    and `SyntaxError` at the call for invalid source. This covers calls through
-    the constructor name, through a variable bound to
-    `<function expression>.constructor`, `new`, and `Function.call`; a run-time
-    identity check falls back to an ordinary call when the variable no longer
-    holds the intrinsic. Calls with no arguments create empty functions at run
-    time. Any other source throws `EvalError` with the message above.
-  * Issue #11 tracks the remaining run-time sources (an embedded evaluator).
-* `with` is implemented in sloppy script code (`tests/with.test.ts`); strict mode code
+    - `eval` is the ordinary `%eval%` function object (`name` `"eval"`,
+      `length` 1, writable/configurable global property). A non-string argument
+      is returned unchanged; a string made only of white space and line
+      terminators evaluates to `undefined`.
+    - Source text known at compile time is compiled ahead of time with PerformEval
+      semantics (`src/frontend/eval-aot.ts`, `tests/eval-aot.test.ts`): string
+      literals, concatenations of literals, and variables that are only ever
+      assigned such constants (the value is compared at run time). Direct calls
+      `eval(...)` see the caller's scope, `this`, `arguments`, `new.target` and
+      `super`; sloppy `var`/function declarations become configurable bindings of
+      the caller's variable environment (EvalDeclarationInstantiation, including
+      its SyntaxError and global TypeError checks and Annex B.3.3.3); strict eval
+      code and lexical declarations stay local; the completion value is returned.
+      Indirect forms — `(0, eval)(...)`, `globalThis.eval(...)`, `eval?.(...)`
+      and variables assigned `eval` — run in the global scope. A run-time check
+      falls back to an ordinary call when `eval` is replaced or shadowed. Parse and
+      early errors throw `SyntaxError` when the call is evaluated.
+    - Any other string (computed at run time), direct or indirect, throws
+      `EvalError` (“Nona compiles ahead of time: eval and Function need source
+      text known at compile time”); so do spread arguments to eval and
+      `$262.evalScript`.
+    - `Function`, `GeneratorFunction`, `AsyncFunction` and
+      `AsyncGeneratorFunction` whose arguments are all literals (known at compile
+      time) are compiled ahead of time with CreateDynamicFunction semantics:
+      global scope, own strictness, name `anonymous`, synthesized source text,
+      and `SyntaxError` at the call for invalid source. This covers calls through
+      the constructor name, through a variable bound to
+      `<function expression>.constructor`, `new`, and `Function.call`; a run-time
+      identity check falls back to an ordinary call when the variable no longer
+      holds the intrinsic. Calls with no arguments create empty functions at run
+      time. Any other source throws `EvalError` with the message above.
+    - Issue #11 tracks the remaining run-time sources (an embedded evaluator).
+- `with` is implemented in sloppy script code (`tests/with.test.ts`); strict mode code
   rejects it with an early error.
-* Annex B web-compatibility features are tracked separately. Implement the
+- Annex B web-compatibility features are tracked separately. Implement the
   portions applicable to a script host, or publish each deviation explicitly.
-* ECMA-402 internationalization, browser APIs, and Node.js APIs are separate
+- ECMA-402 internationalization, browser APIs, and Node.js APIs are separate
   specifications/hosts. They are not part of this ECMA-262 target.
-* Both script and module source types are in scope. Module resolution is a host
+- Both script and module source types are in scope. Module resolution is a host
   decision and must be specified before module work begins.
 
 ## Completion inventory
@@ -65,25 +65,25 @@ Status is sourced from [language-support.md](language-support.md). “Partial”
 means the currently documented subset works, not that the entire standard
 chapter works. A row closes only with runnable conformance evidence.
 
-| Area | Current status | Required closure evidence |
-| --- | --- | --- |
-| Lexical grammar, ASI, literals, identifiers, early errors | Partial | Test262 lexical and grammar groups; legacy and Unicode cases |
-| Scripts, declarations, lexical environments, `with`, Annex B | Partial | Scope/name-resolution groups, strict/sloppy variants |
-| Expressions, operators, references, coercions | Partial | Operator groups, side-effect order, abrupt completion |
-| Statements, `for...in`, `for...of` | Partial | Control-flow groups, enumeration and iterator closing |
-| Functions, arrows, parameters, destructuring, templates | Partial | Call/construct/`this`/arguments and syntax groups |
-| Proper tail calls in strict code | Missing | Tail-position Test262 groups, bounded native stack use |
-| Objects, descriptors, classes, `super`, symbols | Partial | Internal-method invariants and class groups |
-| Iterators and generators | Partial | Iterator protocol and generator state groups, including delegated `yield*` and abrupt completion |
-| Promises, jobs, async functions/generators | Partial | Job ordering, assimilation, async completion groups |
-| Script and module linking, dynamic import, `import.meta` | Missing | Multi-file graph, cycles, live bindings, errors |
-| BigInt and all numeric semantics | Partial | Numeric and BigInt groups, boundary values |
-| RegExp and Unicode matching | Partial | RegExp syntax, execution and String integration |
-| Collections and weak collections | Partial | Key equality, order, GC and weak reachability |
-| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Partial | Full buffer/typed array Test262 and a multi-agent model for Atomics |
-| Proxy and Reflect | Partial | Every trap and invariant, abrupt completion and cross-realm integration |
-| All ECMA-262 built-in constructors, methods and properties | Partial | Per-object Test262 groups and property descriptors |
-| Native memory safety and portability | Partial | GC stress, callback roots, Windows and Linux native suites |
+| Area                                                            | Current status | Required closure evidence                                                                        |
+| --------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| Lexical grammar, ASI, literals, identifiers, early errors       | Partial        | Test262 lexical and grammar groups; legacy and Unicode cases                                     |
+| Scripts, declarations, lexical environments, `with`, Annex B    | Partial        | Scope/name-resolution groups, strict/sloppy variants                                             |
+| Expressions, operators, references, coercions                   | Partial        | Operator groups, side-effect order, abrupt completion                                            |
+| Statements, `for...in`, `for...of`                              | Partial        | Control-flow groups, enumeration and iterator closing                                            |
+| Functions, arrows, parameters, destructuring, templates         | Partial        | Call/construct/`this`/arguments and syntax groups                                                |
+| Proper tail calls in strict code                                | Missing        | Tail-position Test262 groups, bounded native stack use                                           |
+| Objects, descriptors, classes, `super`, symbols                 | Partial        | Internal-method invariants and class groups                                                      |
+| Iterators and generators                                        | Partial        | Iterator protocol and generator state groups, including delegated `yield*` and abrupt completion |
+| Promises, jobs, async functions/generators                      | Partial        | Job ordering, assimilation, async completion groups                                              |
+| Script and module linking, dynamic import, `import.meta`        | Missing        | Multi-file graph, cycles, live bindings, errors                                                  |
+| BigInt and all numeric semantics                                | Partial        | Numeric and BigInt groups, boundary values                                                       |
+| RegExp and Unicode matching                                     | Partial        | RegExp syntax, execution and String integration                                                  |
+| Collections and weak collections                                | Partial        | Key equality, order, GC and weak reachability                                                    |
+| ArrayBuffer, DataView, typed arrays, SharedArrayBuffer, Atomics | Partial        | Full buffer/typed array Test262 and a multi-agent model for Atomics                              |
+| Proxy and Reflect                                               | Partial        | Every trap and invariant, abrupt completion and cross-realm integration                          |
+| All ECMA-262 built-in constructors, methods and properties      | Partial        | Per-object Test262 groups and property descriptors                                               |
+| Native memory safety and portability                            | Partial        | GC stress, callback roots, Windows and Linux native suites                                       |
 
 ## Exit rule for every area
 

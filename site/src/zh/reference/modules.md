@@ -4,24 +4,24 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 ## 概览
 
-| API | 类型 | 目标平台 | 参考 |
-| --- | --- | --- | --- |
-| `setTimeout`、`setInterval`、`clearTimeout`、`clearInterval`、`setImmediate`/`clearImmediate`, `queueMicrotask`、`performance.now()` | 全局 | all eight native targets | [定时器与事件循环](/zh/reference/host-apis) |
-| `process` | 全局 | all eight native targets | [process](/zh/reference/process) |
-| `TextEncoder`、`TextDecoder` | 全局 | 两者 | [文件系统与文本编码](/zh/reference/fs#textencoder-and-textdecoder) |
-| `console.log` | 全局 | 两者 | 以 UTF-8 写入标准输出 |
-| `console.error`、`console.warn` | 全局 | 两者 | 以 UTF-8 写入标准错误（`console.info`、`console.debug`：标准输出） |
-| `nona:process`、`node:process` | 模块 | all eight native targets | [process](/zh/reference/process) |
-| `nona:fs`、`node:fs` | 模块 | 两者 | [文件系统与文本编码](/zh/reference/fs) |
-| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
-| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/zh/reference/host-apis#events) |
-| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/zh/reference/host-apis#paths-nodepath) |
-| `nona:http`、`node:http`、`nona:net`、`node:net` | 模块 | 两者 | [网络（英文）](/reference/network) |
-| `node:events`、`node:buffer`、`node:string_decoder` | 模块 | 两者 | [Node.js 支持模块（英文）](/reference/network#supporting-modules) |
-| `URL`、`URLSearchParams`、`node:url`、`url` | 全局对象和模块 | 全部八个 | [URL](/zh/reference/host-apis#url) |
-| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process`（及其不带前缀的名称） | 模块 | 全部八个 | [Node.js 支持模块](/zh/reference/host-apis#nodejs-support-modules) |
-| `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
-| `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |
+| API                                                                                                                                                                                                                                                                       | 类型           | 目标平台                          | 参考                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `setTimeout`、`setInterval`、`clearTimeout`、`clearInterval`、`setImmediate`/`clearImmediate`, `queueMicrotask`、`performance.now()`                                                                                                                                      | 全局           | all eight native targets          | [定时器与事件循环](/zh/reference/host-apis)                                                                        |
+| `process`                                                                                                                                                                                                                                                                 | 全局           | all eight native targets          | [process](/zh/reference/process)                                                                                   |
+| `TextEncoder`、`TextDecoder`                                                                                                                                                                                                                                              | 全局           | 两者                              | [文件系统与文本编码](/zh/reference/fs#textencoder-and-textdecoder)                                                 |
+| `console.log`                                                                                                                                                                                                                                                             | 全局           | 两者                              | 以 UTF-8 写入标准输出                                                                                              |
+| `console.error`、`console.warn`                                                                                                                                                                                                                                           | 全局           | 两者                              | 以 UTF-8 写入标准错误（`console.info`、`console.debug`：标准输出）                                                 |
+| `nona:process`、`node:process`                                                                                                                                                                                                                                            | 模块           | all eight native targets          | [process](/zh/reference/process)                                                                                   |
+| `nona:fs`、`node:fs`                                                                                                                                                                                                                                                      | 模块           | 两者                              | [文件系统与文本编码](/zh/reference/fs)                                                                             |
+| `node:async_hooks`, `nona:async_hooks`                                                                                                                                                                                                                                    | modules        | all native targets                | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events`                                                                                                                                                                                                                                    | modules        | all native targets                | [EventEmitter and asynchronous event helpers](/zh/reference/host-apis#events)                                      |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32`                                                                                                                                                                                                                 | modules        | all eight                         | [Paths](/zh/reference/host-apis#paths-nodepath)                                                                    |
+| `nona:http`、`node:http`、`nona:net`、`node:net`                                                                                                                                                                                                                          | 模块           | 两者                              | [网络（英文）](/reference/network)                                                                                 |
+| `node:events`、`node:buffer`、`node:string_decoder`                                                                                                                                                                                                                       | 模块           | 两者                              | [Node.js 支持模块（英文）](/reference/network#supporting-modules)                                                  |
+| `URL`、`URLSearchParams`、`node:url`、`url`                                                                                                                                                                                                                               | 全局对象和模块 | 全部八个                          | [URL](/zh/reference/host-apis#url)                                                                                 |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process`（及其不带前缀的名称） | 模块           | 全部八个                          | [Node.js 支持模块](/zh/reference/host-apis#nodejs-support-modules)                                                 |
+| `nona:ffi`                                                                                                                                                                                                                                                                | 模块           | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi)                                                                               |
+| `nona:win32`                                                                                                                                                                                                                                                              | 模块           | Windows                           | 见下文及 [FFI](/zh/reference/ffi#nona-win32)                                                                       |
 
 ## 规则
 
@@ -36,59 +36,58 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 ### user32
 
-| 导出 | 签名 |
-| --- | --- |
-| `MessageBoxW` | `i32(ptr hwnd, wstr text, wstr caption, u32 type)` |
-| `GetSystemMetrics` | `i32(i32 index)` |
-| `SystemParametersInfoW` | `bool(u32 action, u32 param, wstr value, u32 flags)`——用于字符串参数，例如 `SPI_SETDESKWALLPAPER` |
-| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)`——用于缓冲区参数，例如 `SPI_GETDESKWALLPAPER` |
+| 导出                          | 签名                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `MessageBoxW`                 | `i32(ptr hwnd, wstr text, wstr caption, u32 type)`                                                |
+| `GetSystemMetrics`            | `i32(i32 index)`                                                                                  |
+| `SystemParametersInfoW`       | `bool(u32 action, u32 param, wstr value, u32 flags)`——用于字符串参数，例如 `SPI_SETDESKWALLPAPER` |
+| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)`——用于缓冲区参数，例如 `SPI_GETDESKWALLPAPER`  |
 
 ### kernel32
 
-| 导出 | 签名 |
-| --- | --- |
-| `CreateMutexW` | `ptr(ptr attributes, bool initialOwner, wstr name)` |
-| `ReleaseMutex` | `bool(ptr mutex)` |
-| `CloseHandle` | `bool(ptr handle)` |
-| `GetModuleFileNameW` | `u32(ptr module, buf path, u32 size)` |
-| `GetCurrentProcessId` | `u32()` |
+| 导出                  | 签名                                                |
+| --------------------- | --------------------------------------------------- |
+| `CreateMutexW`        | `ptr(ptr attributes, bool initialOwner, wstr name)` |
+| `ReleaseMutex`        | `bool(ptr mutex)`                                   |
+| `CloseHandle`         | `bool(ptr handle)`                                  |
+| `GetModuleFileNameW`  | `u32(ptr module, buf path, u32 size)`               |
+| `GetCurrentProcessId` | `u32()`                                             |
 
 ### advapi32
 
-| 导出 | 签名 |
-| --- | --- |
-| `RegCreateKeyExW` | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
-| `RegOpenKeyExW` | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)` |
-| `RegSetValueExW` | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)` |
-| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)` |
-| `RegDeleteValueW` | `i32(ptr key, wstr name)` |
-| `RegDeleteKeyW` | `i32(ptr key, wstr subKey)` |
-| `RegCloseKey` | `i32(ptr key)` |
+| 导出               | 签名                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `RegCreateKeyExW`  | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
+| `RegOpenKeyExW`    | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)`                                                         |
+| `RegSetValueExW`   | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)`                                                    |
+| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)`                                                    |
+| `RegDeleteValueW`  | `i32(ptr key, wstr name)`                                                                                                |
+| `RegDeleteKeyW`    | `i32(ptr key, wstr subKey)`                                                                                              |
+| `RegCloseKey`      | `i32(ptr key)`                                                                                                           |
 
 ### 常量
 
-| 导出 | 值 |
-| --- | --- |
-| `HKEY_CLASSES_ROOT`、`HKEY_CURRENT_USER`、`HKEY_LOCAL_MACHINE` | 预定义的注册表键（符号扩展后的句柄） |
-| `KEY_READ`、`KEY_WRITE`、`KEY_ALL_ACCESS` | `0x20019`、`0x20006`、`0xF003F` |
-| `REG_SZ`、`REG_DWORD` | `1`、`4` |
-| `ERROR_SUCCESS`、`ERROR_FILE_NOT_FOUND`、`ERROR_ALREADY_EXISTS` | `0`、`2`、`183` |
-| `SPI_GETDESKWALLPAPER`、`SPI_SETDESKWALLPAPER` | `0x73`、`0x14` |
-| `SPIF_UPDATEINIFILE`、`SPIF_SENDCHANGE` | `1`、`2` |
-| `MB_OK`、`MB_ICONERROR`、`MB_ICONINFORMATION` | `0`、`0x10`、`0x40` |
-| `MAX_PATH` | `260` |
+| 导出                                                            | 值                                   |
+| --------------------------------------------------------------- | ------------------------------------ |
+| `HKEY_CLASSES_ROOT`、`HKEY_CURRENT_USER`、`HKEY_LOCAL_MACHINE`  | 预定义的注册表键（符号扩展后的句柄） |
+| `KEY_READ`、`KEY_WRITE`、`KEY_ALL_ACCESS`                       | `0x20019`、`0x20006`、`0xF003F`      |
+| `REG_SZ`、`REG_DWORD`                                           | `1`、`4`                             |
+| `ERROR_SUCCESS`、`ERROR_FILE_NOT_FOUND`、`ERROR_ALREADY_EXISTS` | `0`、`2`、`183`                      |
+| `SPI_GETDESKWALLPAPER`、`SPI_SETDESKWALLPAPER`                  | `0x73`、`0x14`                       |
+| `SPIF_UPDATEINIFILE`、`SPIF_SENDCHANGE`                         | `1`、`2`                             |
+| `MB_OK`、`MB_ICONERROR`、`MB_ICONINFORMATION`                   | `0`、`0x10`、`0x40`                  |
+| `MAX_PATH`                                                      | `260`                                |
 
 ### 辅助函数
 
-| 导出 | 说明 |
-| --- | --- |
-| `lastError()` | 在最近一次 FFI 调用后立即捕获的 `GetLastError()`（从 `nona:ffi` 重新导出）。 |
-| `wideString(text)` | 以 NUL 结尾的 `Uint16Array`，用于期望 UTF-16 字符串的 `buf` 参数。 |
-| `fromWideString(buffer)` | 解码以 NUL 结尾的 UTF-16 缓冲区。 |
-| `readHandle(buffer)` | 读取函数写入 8 字节缓冲区的句柄（例如 `HKEY`）。 |
+| 导出                     | 说明                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `lastError()`            | 在最近一次 FFI 调用后立即捕获的 `GetLastError()`（从 `nona:ffi` 重新导出）。 |
+| `wideString(text)`       | 以 NUL 结尾的 `Uint16Array`，用于期望 UTF-16 字符串的 `buf` 参数。           |
+| `fromWideString(buffer)` | 解码以 NUL 结尾的 UTF-16 缓冲区。                                            |
+| `readHandle(buffer)`     | 读取函数写入 8 字节缓冲区的句柄（例如 `HKEY`）。                             |
 
 未列出的函数，请用 [`nona:ffi`](/zh/reference/ffi) 中的 `define` 自行声明。
-
 
 ## Native target availability
 

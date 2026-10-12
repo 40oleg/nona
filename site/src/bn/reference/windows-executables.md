@@ -21,7 +21,12 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 - `--version-info` একটি JSON অবজেক্ট পড়ে, যাতে `FileVersion`, `ProductVersion` (`"major.minor.build.revision"`, অংশগুলো 0–65535), `ProductName`, `FileDescription`, `CompanyName`, `LegalCopyright`, `OriginalFilename`, `InternalName` ও `Comments`-এর যেকোনোটি থাকতে পারে; এগুলো ফাইলের Properties → Details-এ দেখা যায় (`RT_VERSION` 1, ভাষা 0409, কোড পেজ 04B0)।
 
 ```json
-{ "FileVersion": "1.0.0.0", "ProductName": "Museum", "FileDescription": "Paintings on the desktop", "CompanyName": "Oleg" }
+{
+    "FileVersion": "1.0.0.0",
+    "ProductName": "Museum",
+    "FileDescription": "Paintings on the desktop",
+    "CompanyName": "Oleg"
+}
 ```
 
 একই অপশনগুলো `compile()`-এ `icon` (বাইট), `manifest` (স্ট্রিং) ও `versionInfo` (অবজেক্ট) হিসেবে পাওয়া যায়। এগুলোর জন্য `--target win32-x64` প্রয়োজন।

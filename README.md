@@ -26,12 +26,12 @@ The executable contains your program's machine code and Nona's runtime, and noth
 
 Download the build for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive contains the executable, the license and a version file; nothing else needs to be installed.
 
-| OS | Release build | Target name | Output format |
-| --- | --- | --- | --- |
-| Windows x64 / ARM64 | `nona-win32-x64.zip`, `nona-win32-arm64.zip` | `win32-x64`, `win32-arm64` | PE32+ |
-| Linux x64 / ARM64 | `nona-linux-x64.zip`, `nona-linux-arm64.zip` | `linux-x64`, `linux-arm64` | ELF64 |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64 |
-| FreeBSD / OpenBSD x64 | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64 |
+| OS                          | Release build                                  | Target name                  | Output format |
+| --------------------------- | ---------------------------------------------- | ---------------------------- | ------------- |
+| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   | PE32+         |
+| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   | ELF64         |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
+| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64         |
 
 On POSIX systems, run `chmod +x nona` if your archive tool drops the permission. The [browser playground](https://40oleg.github.io/nona/playground) compiles and downloads programs for all eight targets without installing anything.
 
@@ -50,7 +50,7 @@ node dist/cli.js --help
 ```js
 // hello.js
 function greet(name) {
-  return `Hello, ${name}!`;
+    return `Hello, ${name}!`;
 }
 
 setTimeout(() => console.log(greet("from Nona")), 10);
@@ -66,12 +66,12 @@ A small HTTP server:
 
 ```js
 // server.mjs
-import http from 'node:http';
+import http from "node:http";
 
 http.createServer((req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify({ path: req.url, time: Date.now() }));
-}).listen(8080, () => console.log('listening on http://localhost:8080'));
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ path: req.url, time: Date.now() }));
+}).listen(8080, () => console.log("listening on http://localhost:8080"));
 ```
 
 ```sh
@@ -100,20 +100,20 @@ nona --help | --version
 
 **Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages:
 
-| Module or global | What it covers | Docs |
-| --- | --- | --- |
-| `process`, `node:process` | `argv`, `env`, `cwd`/`chdir`, `exit`, `nextTick`, standard I/O streams, `hrtime`, `cpuUsage`, `memoryUsage`, signals, `kill`, `abort`, `execve` (POSIX), `title`, credentials and groups, diagnostic reports, `getBuiltinModule`, `loadEnvFile`; all eight targets | [process](docs/process.md) |
-| timers | `setTimeout`, `setInterval`, `setImmediate` and their `clear*`, `queueMicrotask`, `performance.now()` | [host APIs](docs/host-apis.md) |
-| `node:events` | EventEmitter, EventTarget, `AbortController`/`AbortSignal`, asynchronous context helpers | [events](docs/host-apis.md#events) |
-| `node:async_hooks` | `AsyncLocalStorage` and `AsyncResource`, carried through promises, timers and microtasks | [host APIs](docs/host-apis.md) |
-| `node:stream` | Readable, Writable, Duplex, Transform, pipelines, backpressure, async iteration, Web stream adapters | [streams](docs/host-apis.md#streams) |
-| `node:fs` | synchronous file and directory operations on all eight targets | [file system](docs/fs.md) |
-| `node:path` | POSIX and Windows variants, parsing, resolution, glob matching | [paths](docs/path.md) |
-| `Buffer`, `Blob`, `File`, `node:buffer` | byte storage, standard encodings, numeric access; `TextEncoder`/`TextDecoder` | [binary data](docs/host-apis.md#buffer-and-binary-data) |
-| `node:http`, `node:net`, `node:string_decoder` | HTTP/1.1 servers, clients and keep-alive agents; TCP sockets and servers (Linux and Windows) | [networking](docs/network.md) |
-| `URL`, `URLSearchParams`, `node:url` | URL Standard parsing and serialization, `fileURLToPath`, `pathToFileURL` | [URL](docs/host-apis.md#url) |
-| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | what npm packages use: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, assertions, random values, hashes and HMAC | [support modules](docs/host-apis.md#nodejs-support-modules) |
-| `nona:ffi`, `nona:win32` | calls to any DLL export on Windows | [FFI](docs/ffi.md) |
+| Module or global                                                                                                | What it covers                                                                                                                                                                                                                                                     | Docs                                                        |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `process`, `node:process`                                                                                       | `argv`, `env`, `cwd`/`chdir`, `exit`, `nextTick`, standard I/O streams, `hrtime`, `cpuUsage`, `memoryUsage`, signals, `kill`, `abort`, `execve` (POSIX), `title`, credentials and groups, diagnostic reports, `getBuiltinModule`, `loadEnvFile`; all eight targets | [process](docs/process.md)                                  |
+| timers                                                                                                          | `setTimeout`, `setInterval`, `setImmediate` and their `clear*`, `queueMicrotask`, `performance.now()`                                                                                                                                                              | [host APIs](docs/host-apis.md)                              |
+| `node:events`                                                                                                   | EventEmitter, EventTarget, `AbortController`/`AbortSignal`, asynchronous context helpers                                                                                                                                                                           | [events](docs/host-apis.md#events)                          |
+| `node:async_hooks`                                                                                              | `AsyncLocalStorage` and `AsyncResource`, carried through promises, timers and microtasks                                                                                                                                                                           | [host APIs](docs/host-apis.md)                              |
+| `node:stream`                                                                                                   | Readable, Writable, Duplex, Transform, pipelines, backpressure, async iteration, Web stream adapters                                                                                                                                                               | [streams](docs/host-apis.md#streams)                        |
+| `node:fs`                                                                                                       | synchronous file and directory operations on all eight targets                                                                                                                                                                                                     | [file system](docs/fs.md)                                   |
+| `node:path`                                                                                                     | POSIX and Windows variants, parsing, resolution, glob matching                                                                                                                                                                                                     | [paths](docs/path.md)                                       |
+| `Buffer`, `Blob`, `File`, `node:buffer`                                                                         | byte storage, standard encodings, numeric access; `TextEncoder`/`TextDecoder`                                                                                                                                                                                      | [binary data](docs/host-apis.md#buffer-and-binary-data)     |
+| `node:http`, `node:net`, `node:string_decoder`                                                                  | HTTP/1.1 servers, clients and keep-alive agents; TCP sockets and servers (Linux and Windows)                                                                                                                                                                       | [networking](docs/network.md)                               |
+| `URL`, `URLSearchParams`, `node:url`                                                                            | URL Standard parsing and serialization, `fileURLToPath`, `pathToFileURL`                                                                                                                                                                                           | [URL](docs/host-apis.md#url)                                |
+| `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | what npm packages use: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, assertions, random values, hashes and HMAC                                                                                                                | [support modules](docs/host-apis.md#nodejs-support-modules) |
+| `nona:ffi`, `nona:win32`                                                                                        | calls to any DLL export on Windows                                                                                                                                                                                                                                 | [FFI](docs/ffi.md)                                          |
 
 **npm packages.** Install packages with npm as usual and build: Nona resolves `node_modules` at compile time as Node.js does (`package.json` `exports`, `imports`, conditions, `main`, `type`, symbolic links) and compiles CommonJS modules, ES modules and JSON into the executable, with `require`, `module.exports`, `require.cache`, cycles and ES module interop working as in Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod and more are tested against Node.js ([npm packages](docs/npm.md)).
 
@@ -127,13 +127,13 @@ Nona wins where an executable without a runtime should: startup, size and memory
 
 Nona's own HTTP server against Node.js on the same program ([bench/http](bench/http/server.mjs), Linux x64, measured for v0.9.0):
 
-| Case | Node.js req/s | Nona req/s | Memory, Node.js / Nona |
-| --- | --- | --- | --- |
-| hello (keep-alive) | 71–72k | 61–70k | 80 / 16 MB |
-| JSON response | 66–68k | 55–61k | 79 / 16 MB |
-| new connection per request | 25–27k | 22–26k | 70 / 18 MB |
-| 64 KiB response | 20–21k | **33–38k** | 91 / 16 MB |
-| 16 KiB request body | 49–54k | 41k | 78 / 16 MB |
+| Case                       | Node.js req/s | Nona req/s | Memory, Node.js / Nona |
+| -------------------------- | ------------- | ---------- | ---------------------- |
+| hello (keep-alive)         | 71–72k        | 61–70k     | 80 / 16 MB             |
+| JSON response              | 66–68k        | 55–61k     | 79 / 16 MB             |
+| new connection per request | 25–27k        | 22–26k     | 70 / 18 MB             |
+| 64 KiB response            | 20–21k        | **33–38k** | 91 / 16 MB             |
+| 16 KiB request body        | 49–54k        | 41k        | 78 / 16 MB             |
 
 [PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots.
 
@@ -165,6 +165,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 ```sh
 npm run check            # build and run the unit suite
+npm run format           # format the sources with Prettier (CI checks it)
 npm run check:programs   # compare 1,000 standalone programs with Node.js
 npm run compare          # compile the compatibility examples and compare with Node.js
 ```
@@ -193,7 +194,5 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 ## License
 
 [MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-
 
 I want this to be used someday in a mission to Mars.

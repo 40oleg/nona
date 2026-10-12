@@ -9,17 +9,17 @@ How the runtime stores objects and their named properties. Source:
 Every object is a heap block (`HeapLayout`, 40 bytes: next, bytes, kind,
 mark, grey link) whose payload starts with a 72-byte header:
 
-| Offset | Field | Contents |
-| --- | --- | --- |
-| 0 | `kind` | 0 plain object, 1 array, 2 function, … (`*Kind` constants) |
-| 8 | `properties` | the property list (dictionary mode), or 0 |
-| 16 | `length` | array length |
-| 24 | `prototype` | the prototype object, or 0 |
-| 32 | `shape` | the object's shape (shaped mode), or 0 |
-| 40 | `flags` | `ObjectFlags`: non-extensible, readonly length, cached prototype, stringifying, … |
-| 48 | `index` | hash index of a long property list (`property-index.ts`), or 0 |
-| 56 | `elements` | dense array elements (`array-elements.ts`), or 0 |
-| 64 | `keys` | dictionary mode: a filter of the own keys; shaped mode: the out-of-line slots, or 0 |
+| Offset | Field        | Contents                                                                            |
+| ------ | ------------ | ----------------------------------------------------------------------------------- |
+| 0      | `kind`       | 0 plain object, 1 array, 2 function, … (`*Kind` constants)                          |
+| 8      | `properties` | the property list (dictionary mode), or 0                                           |
+| 16     | `length`     | array length                                                                        |
+| 24     | `prototype`  | the prototype object, or 0                                                          |
+| 32     | `shape`      | the object's shape (shaped mode), or 0                                              |
+| 40     | `flags`      | `ObjectFlags`: non-extensible, readonly length, cached prototype, stringifying, …   |
+| 48     | `index`      | hash index of a long property list (`property-index.ts`), or 0                      |
+| 56     | `elements`   | dense array elements (`array-elements.ts`), or 0                                    |
+| 64     | `keys`       | dictionary mode: a filter of the own keys; shaped mode: the out-of-line slots, or 0 |
 
 Kinds with more state (functions, maps, typed arrays, …) put their fields
 after the header (`FunctionLayout`, `MapLayout`, … start at `ObjectLayout.size`).
@@ -29,7 +29,7 @@ after the header (`FunctionLayout`, `MapLayout`, … start at `ObjectLayout.size
 **Shaped objects** (plain objects made by object literals, by `new` with an
 ordinary constructor and by `JSON.parse`): the values of the named properties are 16-byte
 slots, the first `capacity` inline after the header, the rest in a value list
-in `keys`. The *shape* says which key is in which slot. A five-property object
+in `keys`. The _shape_ says which key is in which slot. A five-property object
 is 40 + 72 + 5 × 16 = 192 bytes.
 
 **Dictionary objects** (everything else, and any shaped object that needed
@@ -117,8 +117,8 @@ plain name has a record in the data section.
 
 - Reads (`PropertyCacheLayout`): two entries of (shape, slot, byte offset)
   for shaped receivers - slot -1 records that the key is not own - and four
-  (prototype, node) entries for inherited properties, valid for one *shape
-  epoch*. Every site calls `rt.icGet`, a short hit path: the first shape
+  (prototype, node) entries for inherited properties, valid for one _shape
+  epoch_. Every site calls `rt.icGet`, a short hit path: the first shape
   entry's inline slot, or a method found through the first prototype entry.
   Everything else goes on to `rt.getPropertyCached`. Function objects are
   not shaped: a read record also has an own entry (object, node, epoch) for

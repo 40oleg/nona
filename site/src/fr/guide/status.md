@@ -8,12 +8,12 @@
 
 Test262 figé complet sous Windows x64 (`scripts/test262-audit.ps1 -Unit`, fonctionnalités d’ES2020 et antérieures) :
 
-| Répertoire | Réussis / applicables | Échecs restants |
-| --- | --- | --- |
-| `language/` | **22436 / 22492** (26 ignorés) | 44 `eval`, 1 sémantique plus récente, 11 autres |
-| `built-ins/` | **15868 / 15933** | 16 `eval`, 12 sémantique plus récente, 37 autres |
-| `built-ins/Atomics` (agents) | **268 / 268** | — |
-| `annexB/` | **996 / 1016** (8 ignorés) | 20 `eval` |
+| Répertoire                   | Réussis / applicables          | Échecs restants                                  |
+| ---------------------------- | ------------------------------ | ------------------------------------------------ |
+| `language/`                  | **22436 / 22492** (26 ignorés) | 44 `eval`, 1 sémantique plus récente, 11 autres  |
+| `built-ins/`                 | **15868 / 15933**              | 16 `eval`, 12 sémantique plus récente, 37 autres |
+| `built-ins/Atomics` (agents) | **268 / 268**                  | —                                                |
+| `annexB/`                    | **996 / 1016** (8 ignorés)     | 20 `eval`                                        |
 
 La classification provient de `scripts/test262-summary.mjs` : les tests « `eval` » appellent `eval` ou `$262.evalScript` avec un texte source que Nona ne peut pas connaître à la compilation ; les tests de « sémantique plus récente » vérifient un comportement issu d’éditions ultérieures (le drapeau `v`, les séparateurs numériques, `Promise.any`, …) sous une étiquette de fonctionnalité ancienne ou absente. La suite unitaire s’exécute sous Windows et Linux en CI et compile et exécute de vrais fichiers PE et ELF, souvent sous stress du ramasse-miettes. La façon de lancer les audits est décrite sur la page [Test262](/fr/reference/test262).
 

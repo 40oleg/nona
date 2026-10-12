@@ -1,40 +1,43 @@
 {
-  "name": "nona",
-  "version": "0.11.0",
-  "description": "Experimental JavaScript subset AOT compiler for native Windows, Linux, macOS and BSD executables",
-  "private": true,
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/40oleg/nona.git"
-  },
-  "bugs": {
-    "url": "https://github.com/40oleg/nona/issues"
-  },
-  "homepage": "https://github.com/40oleg/nona#readme",
-  "engines": {
-    "node": ">=26"
-  },
-  "type": "module",
-  "bin": {
-    "nona": "dist/cli.js"
-  },
-  "scripts": {
-    "build": "node scripts/build.mjs",
-    "test": "node --test dist/tests/*.test.js",
-    "check": "npm run build && npm test",
-    "check:proofs": "lake -d verification build",
-    "check:programs": "npm run build && node --test --test-concurrency=4 dist/tests/program-corpus*.test.js",
-    "compare": "npm run build && node scripts/compare.mjs",
-    "compare:linux": "npm run build && node scripts/compare.mjs --linux",
-    "test262:smoke": "npm run build && node scripts/test262-smoke.mjs",
-    "check:weak-memory": "npm run build && node scripts/check-weak-memory.mjs",
-    "site:dev": "npm --prefix site run dev",
-    "site:build": "npm --prefix site run build",
-    "snapshot:programs": "npm run build && node scripts/snapshot-program-corpus.mjs"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.2",
-    "typescript": "^7.0.2"
-  }
+    "name": "nona",
+    "version": "0.11.0",
+    "description": "Experimental JavaScript subset AOT compiler for native Windows, Linux, macOS and BSD executables",
+    "private": true,
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/40oleg/nona.git"
+    },
+    "bugs": {
+        "url": "https://github.com/40oleg/nona/issues"
+    },
+    "homepage": "https://github.com/40oleg/nona#readme",
+    "engines": {
+        "node": ">=26"
+    },
+    "type": "module",
+    "bin": {
+        "nona": "dist/cli.js"
+    },
+    "scripts": {
+        "build": "node scripts/build.mjs",
+        "test": "node --test dist/tests/*.test.js",
+        "check": "npm run build && npm test",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "check:proofs": "lake -d verification build",
+        "check:programs": "npm run build && node --test --test-concurrency=4 dist/tests/program-corpus*.test.js",
+        "compare": "npm run build && node scripts/compare.mjs",
+        "compare:linux": "npm run build && node scripts/compare.mjs --linux",
+        "test262:smoke": "npm run build && node scripts/test262-smoke.mjs",
+        "check:weak-memory": "npm run build && node scripts/check-weak-memory.mjs",
+        "site:dev": "npm --prefix site run dev",
+        "site:build": "npm --prefix site run build",
+        "snapshot:programs": "npm run build && node scripts/snapshot-program-corpus.mjs"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.2",
+        "prettier": "3.9.10",
+        "typescript": "^7.0.2"
+    }
 }

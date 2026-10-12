@@ -1,5 +1,5 @@
 /** Exercise the shared network, timer and Process loop against Node 26. */
-export const processNetworkProbe=String.raw`
+export const processNetworkProbe = String.raw`
 import http from 'node:http';
 import {Writable} from 'node:stream';
 import {EventEmitter} from 'node:events';

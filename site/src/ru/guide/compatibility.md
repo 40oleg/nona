@@ -21,17 +21,17 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Отличия от Node.js
 
-| Область | Nona | Node.js |
-| --- | --- | --- |
-| `process.argv` | `[execPath, ...arguments]`: `argv[1]` — первый аргумент | `[node, script, ...arguments]` |
-| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Идентификаторы таймеров | Числа | Объекты `Timeout` |
-| `readFileSync(path)` | Возвращает `Uint8Array` | Возвращает `Buffer` |
-| Кодировки | Только `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | Много |
-| Сообщения об ошибках на Windows | Содержат путь в том виде, в каком он передан | Содержат абсолютный путь |
-| Модули | `nona:*`, модули `node:*` из списка в разделе [Встроенные модули](/ru/reference/modules), файлы и пакеты npm, разрешаемые при сборке | Всё из `node:*` и пакеты npm, разрешаемые во время выполнения |
-| `require` | Модули CommonJS с литеральными спецификаторами, известными при сборке ([пакеты npm](/reference/npm)) | Любой спецификатор во время выполнения |
-| `console.log` без стандартного вывода | Вывод отбрасывается | Вывод отбрасывается или возникает ошибка |
+| Область                               | Nona                                                                                                                                                | Node.js                                                                        |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `process.argv`                        | `[execPath, ...arguments]`: `argv[1]` — первый аргумент                                                                                             | `[node, script, ...arguments]`                                                 |
+| `process`                             | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
+| Идентификаторы таймеров               | Числа                                                                                                                                               | Объекты `Timeout`                                                              |
+| `readFileSync(path)`                  | Возвращает `Uint8Array`                                                                                                                             | Возвращает `Buffer`                                                            |
+| Кодировки                             | Только `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                 | Много                                                                          |
+| Сообщения об ошибках на Windows       | Содержат путь в том виде, в каком он передан                                                                                                        | Содержат абсолютный путь                                                       |
+| Модули                                | `nona:*`, модули `node:*` из списка в разделе [Встроенные модули](/ru/reference/modules), файлы и пакеты npm, разрешаемые при сборке                | Всё из `node:*` и пакеты npm, разрешаемые во время выполнения                  |
+| `require`                             | Модули CommonJS с литеральными спецификаторами, известными при сборке ([пакеты npm](/reference/npm))                                                | Любой спецификатор во время выполнения                                         |
+| `console.log` без стандартного вывода | Вывод отбрасывается                                                                                                                                 | Вывод отбрасывается или возникает ошибка                                       |
 
 ## Производительность
 

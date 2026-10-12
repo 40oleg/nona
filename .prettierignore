@@ -1,0 +1,26 @@
+# Build output, dependencies and generated files
+dist/
+build/
+work/
+node_modules/
+package-lock.json
+site/package-lock.json
+site/.vitepress/cache/
+site/.vitepress/dist/
+site/generated/
+site/src/public/playground-worker.js
+src/lib/sources.generated.ts
+bench/real/vendor/
+# Written by scripts/snapshot-program-corpus.mjs
+programs/manifest.json
+programs/*/cases.json
+# Templates with ${...} or @@...@@ substitutions, not JavaScript on their own
+# (scripts/lib-sources.mjs fills them in)
+src/lib/runtime/process-extensions.js
+src/lib/runtime/process-system.js
+src/lib/runtime/process.js
+src/lib/runtime/regexp-vm-prelude.js
+src/lib/runtime/regexp-vm.js
+src/lib/runtime/stream.js
+# Generated Unicode tables (see src/runtime/data/README.md)
+src/runtime/data/*-data.ts

@@ -11,15 +11,15 @@ Museum est un programme d’arrière-plan qui affiche un tableau différent en f
 ```js
 const folder = process.argv[1];
 const minutes = Number(process.argv[2] ?? 30);
-const install = process.argv.includes('--install');
+const install = process.argv.includes("--install");
 ```
 
 `process.argv[0]` est l’exécutable et `process.argv[1]` le premier argument. Un programme graphique n’a pas de console ; les erreurs sont donc affichées avec `MessageBoxW` :
 
 ```js
 function fail(message) {
-  MessageBoxW(null, message, 'Museum', MB_OK | MB_ICONERROR);
-  process.exit(1);
+    MessageBoxW(null, message, "Museum", MB_OK | MB_ICONERROR);
+    process.exit(1);
 }
 ```
 
@@ -29,9 +29,9 @@ function fail(message) {
 
 ```js
 const pictures = readdirSync(folder)
-  .filter(name => /\.(jpe?g|png|bmp)$/i.test(name))
-  .sort()
-  .map(name => folder.replace(/[\\/]+$/, '') + '\\' + name);
+    .filter((name) => /\.(jpe?g|png|bmp)$/i.test(name))
+    .sort()
+    .map((name) => folder.replace(/[\\/]+$/, "") + "\\" + name);
 ```
 
 ## Étape 3 : une seule instance
@@ -39,7 +39,7 @@ const pictures = readdirSync(folder)
 Un mutex nommé existe tant que vit le processus qui l’a créé. S’il existe déjà, un autre Museum est en cours d’exécution.
 
 ```js
-CreateMutexW(null, false, 'Local\\NonaMuseum');
+CreateMutexW(null, false, "Local\\NonaMuseum");
 if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ```
 
@@ -48,7 +48,12 @@ if (lastError() === ERROR_ALREADY_EXISTS) process.exit(0);
 ## Étape 4 : définir le fond d’écran
 
 ```js
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, picture, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    picture,
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
 
 Le paramètre `wstr` transforme la chaîne JavaScript en copie UTF-16 temporaire terminée par NUL ; les chemins contenant n’importe quel caractère fonctionnent donc. `SPIF_UPDATEINIFILE` conserve le fond d’écran après la déconnexion et `SPIF_SENDCHANGE` prévient les autres programmes.
@@ -86,9 +91,26 @@ Avec `--install`, Museum écrit sa ligne de commande dans `HKCU\Software\Microso
 
 ```js
 const key = new Uint8Array(8);
-RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, null, 0, KEY_WRITE, null, key, null);
+RegCreateKeyExW(
+    HKEY_CURRENT_USER,
+    runKey,
+    0,
+    null,
+    0,
+    KEY_WRITE,
+    null,
+    key,
+    null,
+);
 const command = wideString(`"${process.execPath}" "${folder}" ${minutes}`);
-RegSetValueExW(readHandle(key), 'NonaMuseum', 0, REG_SZ, command, command.byteLength);
+RegSetValueExW(
+    readHandle(key),
+    "NonaMuseum",
+    0,
+    REG_SZ,
+    command,
+    command.byteLength,
+);
 ```
 
 Pour annuler, supprimez la valeur `NonaMuseum` de cette clé (par exemple avec `RegDeleteValueW` ou dans l’Éditeur du Registre).

@@ -1,7 +1,7 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOracle} from './helpers/oracle.js';
-import {runOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOracle } from "./helpers/oracle.js";
+import { runOnHost } from "./helpers/host.js";
 
 // Ropes (src/runtime/strings.ts): a long `+` result is a rope until something
 // reads its units. The code generator flattens a slot before any operation
@@ -9,7 +9,7 @@ import {runOnHost} from './helpers/host.js';
 // it, so every consumer sees a flat string. Compared with Node.js, under GC
 // stress (every operation collects, so ropes and their halves are marked and
 // flattening allocates in the middle of a collection-heavy heap).
-const ropeSource=String.raw`
+const ropeSource = String.raw`
 const log=(...a)=>console.log(a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' '));
 let s='';for(let i=0;i<300;i++)s+='abc'+i;
 log(s.length,s.slice(0,9),s.slice(-6),s.indexOf('abc299'),s===s.slice(0),s<s+'z',typeof s,!s,!'',s?1:0);
@@ -38,16 +38,18 @@ let shared='';for(let i=0;i<100;i++)shared+='s'+i;const t1=shared,t2=shared+'!';
 class K{constructor(){this.v='';for(let i=0;i<100;i++)this.v+='v'+i}get len(){return this.v.length}}
 log(new K().len,new K().v.slice(-4));
 let tpl='';for(let i=0;i<60;i++)tpl=@T@I{tpl}@I{i}@T;log(tpl.length,tpl.slice(0,5),String(tpl).length,new String(tpl).length,tpl.at(-1));
-`.replace(/@T/g,'`').replace(/@I\{/g,'${');
-test('ropes agree with Node.js under GC stress',()=>{
- const run=runOnHost(ropeSource);
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(ropeSource).stdout);
+`
+    .replace(/@T/g, "`")
+    .replace(/@I\{/g, "${");
+test("ropes agree with Node.js under GC stress", () => {
+    const run = runOnHost(ropeSource);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(ropeSource).stdout);
 });
 
 // Deep ropes: an append loop makes a left-deep tree as deep as the loop is
 // long; flattening and collecting it must not recurse.
-const deepSource=String.raw`
+const deepSource = String.raw`
 let s='';for(let i=0;i<200000;i++)s+='abc'+i;
 console.log(s.length,s.slice(0,12),s.slice(-9));
 let t='';for(let i=0;i<300000;i++)t+='x';
@@ -55,8 +57,8 @@ console.log(t.length,t.indexOf('y'),t===t.slice(0));
 function f(){let r='';for(let i=0;i<100000;i++){r+='<li>'+i+'</li>';if(i%25000===0)r.length}return r}
 console.log(f().length);
 `;
-test('ropes flatten and collect deep append chains',()=>{
- const run=runOnHost(deepSource,{gcStress:false});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(deepSource).stdout);
+test("ropes flatten and collect deep append chains", () => {
+    const run = runOnHost(deepSource, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(deepSource).stdout);
 });

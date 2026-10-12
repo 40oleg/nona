@@ -21,7 +21,12 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 - `--version-info` 读取一个 JSON 对象，其中可以包含 `FileVersion`、`ProductVersion`（`"major.minor.build.revision"`，各部分为 0–65535）、`ProductName`、`FileDescription`、`CompanyName`、`LegalCopyright`、`OriginalFilename`、`InternalName` 和 `Comments`，显示在文件的“属性 → 详细信息”中（`RT_VERSION` 1，语言 0409，代码页 04B0）。
 
 ```json
-{ "FileVersion": "1.0.0.0", "ProductName": "Museum", "FileDescription": "Paintings on the desktop", "CompanyName": "Oleg" }
+{
+    "FileVersion": "1.0.0.0",
+    "ProductName": "Museum",
+    "FileDescription": "Paintings on the desktop",
+    "CompanyName": "Oleg"
+}
 ```
 
 在 `compile()` 中，同样的选项以 `icon`（字节）、`manifest`（字符串）和 `versionInfo`（对象）的形式提供。它们需要 `--target win32-x64`。

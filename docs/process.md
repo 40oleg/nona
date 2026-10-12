@@ -30,23 +30,23 @@ oracle, with no CRT dependency. Native probes require empty stdout and the
 actual POSIX SIGABRT or Windows status 134. CI disables core files and Windows
 error dialogs for these child probes.
 
-| Member | Behavior |
-| --- | --- |
-| `argv` | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules. |
-| `argv0` | The original executable argument before replacement with `execPath`. |
-| `execArgv` | An empty array: generated programs have no Node.js interpreter flags. |
-| `env` | Captured on first access; assignment coerces values to strings and deletion removes entries. Windows keys are case-insensitive. Windows and Darwin mutations update OS environment services; all targets also publish an owned native UTF-8 envp vector. Windows hides `=C:` entries. |
-| `execPath` | Absolute executable path. OpenBSD derives it from the startup executable argument and current directory; it does not resolve symlinks or a bare command through `PATH`. |
-| `platform`, `arch` | `win32`, `linux`, `darwin`, `freebsd` or `openbsd`; `x64` or `arm64`. |
-| `pid`, `ppid` | Native process and parent process identifiers. |
-| `cwd()` | Reads the current working directory from the OS. |
-| `chdir(directory)` | Changes the OS working directory. Requires a string without NUL bytes; OS failures carry `code`, `errno`, `syscall` and `path`. |
-| `exitCode` | Optional integer exit status. Accepts numbers or numeric integer strings; `null`/`undefined` clear it. Non-integers and invalid types throw coded errors. Stored as a signed 32-bit integer. |
-| `exit(code?)` | Immediately terminates with the supplied status or `exitCode` (default 0). POSIX statuses retain the low eight bits. |
-| `hrtime(previous?)` | Monotonic `[seconds, nanoseconds]`; passing a previous two-element array returns a duration. The origin is arbitrary. |
-| `hrtime.bigint()` | Monotonic nanoseconds as a BigInt. Precision is limited by the existing native clock's millisecond floating-point representation. |
-| `uptime()` | Seconds elapsed since process prelude initialization. |
-| `nextTick(callback, ...args)` | Runs callbacks before Promise jobs at the next drain. Nested ticks run in the same tick batch. Ticks added by Promise jobs run after that microtask batch and before timers. |
+| Member                        | Behavior                                                                                                                                                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argv`                        | `[execPath, ...arguments]`. There is no script path: `argv[1]` is the first program argument. Windows uses `CommandLineToArgvW` quoting rules.                                                                                                                                        |
+| `argv0`                       | The original executable argument before replacement with `execPath`.                                                                                                                                                                                                                  |
+| `execArgv`                    | An empty array: generated programs have no Node.js interpreter flags.                                                                                                                                                                                                                 |
+| `env`                         | Captured on first access; assignment coerces values to strings and deletion removes entries. Windows keys are case-insensitive. Windows and Darwin mutations update OS environment services; all targets also publish an owned native UTF-8 envp vector. Windows hides `=C:` entries. |
+| `execPath`                    | Absolute executable path. OpenBSD derives it from the startup executable argument and current directory; it does not resolve symlinks or a bare command through `PATH`.                                                                                                               |
+| `platform`, `arch`            | `win32`, `linux`, `darwin`, `freebsd` or `openbsd`; `x64` or `arm64`.                                                                                                                                                                                                                 |
+| `pid`, `ppid`                 | Native process and parent process identifiers.                                                                                                                                                                                                                                        |
+| `cwd()`                       | Reads the current working directory from the OS.                                                                                                                                                                                                                                      |
+| `chdir(directory)`            | Changes the OS working directory. Requires a string without NUL bytes; OS failures carry `code`, `errno`, `syscall` and `path`.                                                                                                                                                       |
+| `exitCode`                    | Optional integer exit status. Accepts numbers or numeric integer strings; `null`/`undefined` clear it. Non-integers and invalid types throw coded errors. Stored as a signed 32-bit integer.                                                                                          |
+| `exit(code?)`                 | Immediately terminates with the supplied status or `exitCode` (default 0). POSIX statuses retain the low eight bits.                                                                                                                                                                  |
+| `hrtime(previous?)`           | Monotonic `[seconds, nanoseconds]`; passing a previous two-element array returns a duration. The origin is arbitrary.                                                                                                                                                                 |
+| `hrtime.bigint()`             | Monotonic nanoseconds as a BigInt. Precision is limited by the existing native clock's millisecond floating-point representation.                                                                                                                                                     |
+| `uptime()`                    | Seconds elapsed since process prelude initialization.                                                                                                                                                                                                                                 |
+| `nextTick(callback, ...args)` | Runs callbacks before Promise jobs at the next drain. Nested ticks run in the same tick batch. Ticks added by Promise jobs run after that microtask batch and before timers.                                                                                                          |
 
 The implementation is original Nona code. Native FFI thunks and private
 allocation-free memory helpers are compiled into the executable. Windows uses

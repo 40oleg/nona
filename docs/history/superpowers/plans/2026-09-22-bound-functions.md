@@ -20,10 +20,10 @@ Bound invoke объединяет аргументы в rooted buffer. Construct
 Symbol.hasInstance, Reflect/new.target и JS exceptions; они остаются в полной цели.
 
 - [x] RED native tests: captured args/this, rebinding, metadata, custom prototype,
-  construction/return/instanceof, call/apply, ошибки и stress GC.
+      construction/return/instanceof, call/apply, ошибки и stress GC.
 - [x] Layout/GC: FunctionLayout.bound, BoundDataLayout, trace heap kind.
 - [x] function-bind.ts: creation, metadata (own numeric length, string name),
-  static builtin. function-bound-call.ts: rooted combined argv, normal/construct.
+      static builtin. function-bound-call.ts: rooted combined argv, normal/construct.
 - [x] invoke/newInstance/instanceOf, IR invoke.construct и backend dispatch.
 - [x] GREEN targeted tests, independent review, full check and Node comparison.
 - [x] Update matrix, README, runtime memory and development log with evidence.

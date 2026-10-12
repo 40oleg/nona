@@ -21,17 +21,17 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 
 ## Différences avec Node.js
 
-| Domaine | Nona | Node.js |
-| --- | --- | --- |
-| `process.argv` | `[execPath, ...arguments]` : `argv[1]` est le premier argument | `[node, script, ...arguments]` |
-| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Identifiants de minuteurs | Nombres | Objets `Timeout` |
-| `readFileSync(path)` | Renvoie un `Uint8Array` | Renvoie un `Buffer` |
-| Encodages | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) uniquement | Nombreux |
-| Messages d’erreur sous Windows | Contiennent le chemin tel que fourni | Contiennent le chemin absolu |
-| Modules | `nona:*`, les modules `node:*` listés dans [Modules intégrés](/fr/reference/modules), fichiers et paquets npm résolus à la compilation | Tout `node:*` et les paquets npm, résolus à l’exécution |
-| `require` | Modules CommonJS, avec des spécificateurs littéraux connus à la compilation ([paquets npm](/reference/npm)) | N’importe quel spécificateur à l’exécution |
-| `console.log` sans sortie standard | La sortie est ignorée | La sortie est ignorée ou une erreur est levée |
+| Domaine                            | Nona                                                                                                                                                | Node.js                                                                        |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `process.argv`                     | `[execPath, ...arguments]` : `argv[1]` est le premier argument                                                                                      | `[node, script, ...arguments]`                                                 |
+| `process`                          | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
+| Identifiants de minuteurs          | Nombres                                                                                                                                             | Objets `Timeout`                                                               |
+| `readFileSync(path)`               | Renvoie un `Uint8Array`                                                                                                                             | Renvoie un `Buffer`                                                            |
+| Encodages                          | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) uniquement                                                             | Nombreux                                                                       |
+| Messages d’erreur sous Windows     | Contiennent le chemin tel que fourni                                                                                                                | Contiennent le chemin absolu                                                   |
+| Modules                            | `nona:*`, les modules `node:*` listés dans [Modules intégrés](/fr/reference/modules), fichiers et paquets npm résolus à la compilation              | Tout `node:*` et les paquets npm, résolus à l’exécution                        |
+| `require`                          | Modules CommonJS, avec des spécificateurs littéraux connus à la compilation ([paquets npm](/reference/npm))                                         | N’importe quel spécificateur à l’exécution                                     |
+| `console.log` sans sortie standard | La sortie est ignorée                                                                                                                               | La sortie est ignorée ou une erreur est levée                                  |
 
 ## Performances
 

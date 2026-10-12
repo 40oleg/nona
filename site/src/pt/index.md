@@ -2,42 +2,42 @@
 layout: home
 
 hero:
-  name: Nona
-  text: De JavaScript para executáveis nativos
-  tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em executáveis independentes para Windows e Linux x64. Sem interpretador embutido e sem toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
-  actions:
-    - theme: brand
-      text: Começar
-      link: /pt/guide/getting-started
-    - theme: alt
-      text: Experimente no navegador
-      link: /playground
-    - theme: alt
-      text: O que é o Nona
-      link: /pt/guide/what-is-nona
-    - theme: alt
-      text: GitHub
-      link: https://github.com/40oleg/nona
+    name: Nona
+    text: De JavaScript para executáveis nativos
+    tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em executáveis independentes para Windows e Linux x64. Sem interpretador embutido e sem toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    actions:
+        - theme: brand
+          text: Começar
+          link: /pt/guide/getting-started
+        - theme: alt
+          text: Experimente no navegador
+          link: /playground
+        - theme: alt
+          text: O que é o Nona
+          link: /pt/guide/what-is-nona
+        - theme: alt
+          text: GitHub
+          link: https://github.com/40oleg/nona
 
 features:
-  - title: Inicia em 2 ms
-    details: Um hello world compilado inicia em 1,8 ms e atinge no máximo 11 MB de memória, em um executável de 3 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
-    link: /pt/guide/performance
-  - title: A linguagem ES2020
-    details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings — com exceções documentadas.
-    link: /pt/guide/language-support
-  - title: Um runtime nativo
-    details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceções de verdade e um RangeError capturável em caso de estouro de pilha, ligados a cada executável.
-    link: /pt/guide/how-it-works
-  - title: APIs do host
-    details: Um loop de eventos com timers, um process global, node:fs síncrono, TextEncoder e TextDecoder.
-    link: /pt/reference/host-apis
-  - title: FFI e nona:win32
-    details: Chame qualquer função exportada de uma DLL no Windows com declarações em tempo de compilação; bindings prontos para user32, kernel32 e advapi32.
-    link: /pt/reference/ffi
-  - title: Executáveis gráficos do Windows
-    details: Programas sem janela de console, com ícone, manifesto de aplicativo e informações de versão.
-    link: /pt/reference/windows-executables
+    - title: Inicia em 2 ms
+      details: Um hello world compilado inicia em 1,8 ms e atinge no máximo 11 MB de memória, em um executável de 3 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
+      link: /pt/guide/performance
+    - title: A linguagem ES2020
+      details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings — com exceções documentadas.
+      link: /pt/guide/language-support
+    - title: Um runtime nativo
+      details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceções de verdade e um RangeError capturável em caso de estouro de pilha, ligados a cada executável.
+      link: /pt/guide/how-it-works
+    - title: APIs do host
+      details: Um loop de eventos com timers, um process global, node:fs síncrono, TextEncoder e TextDecoder.
+      link: /pt/reference/host-apis
+    - title: FFI e nona:win32
+      details: Chame qualquer função exportada de uma DLL no Windows com declarações em tempo de compilação; bindings prontos para user32, kernel32 e advapi32.
+      link: /pt/reference/ffi
+    - title: Executáveis gráficos do Windows
+      details: Programas sem janela de console, com ícone, manifesto de aplicativo e informações de versão.
+      link: /pt/reference/windows-executables
 ---
 
 ## Exemplo rápido

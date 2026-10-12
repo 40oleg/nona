@@ -1,20 +1,21 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOnHost} from './helpers/host.js';
-import {runOracle} from './helpers/oracle.js';
-import {compileToIR} from '../src/compiler.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
+import { compileToIR } from "../src/compiler.js";
 
 // IR clean-up after lowering (roadmap item 15): dead-zone checks of
 // initialized bindings, copy forwarding, operations on proven Numbers,
 // compare-and-branch fusion and the clearing/safepoint rules for blocks of
 // inline operations. Every program runs under GC stress against Node.js.
-const agree=(source:string)=>{
- const run=runOnHost(source);
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,runOracle(source).stdout);
+const agree = (source: string) => {
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
 };
 
-test('dead-zone checks stay where a binding may be uninitialized',()=>agree(String.raw`
+test("dead-zone checks stay where a binding may be uninitialized", () =>
+    agree(String.raw`
 const out=[];
 function early(){try{x;}catch(e){out.push(e.name)}let x=1;return x}
 function inLoop(){for(let i=0;i<3;i++){try{if(i===1)y;}catch(e){out.push('loop '+i+' '+e.name)}}let y=2;return y}
@@ -27,7 +28,8 @@ let late;try{late=topLevel}catch(e){late=e.name}let topLevel=5;out.push(late,top
 console.log(out.join('|'));
 `));
 
-test('Number operations keep JavaScript semantics when types change',()=>agree(String.raw`
+test("Number operations keep JavaScript semantics when types change", () =>
+    agree(String.raw`
 const out=[];
 function sum(n){let s=0;for(let i=0;i<n;i++)s=s+i;return s}
 function change(){let s=0;for(let i=0;i<5;i++){s=s+i;if(i===2)s=String(s)}return s}
@@ -41,7 +43,8 @@ out.push(sum(100),change(),String(big()),obj(),nan(),zero(),updates(),float());
 console.log(out.join('|'));
 `));
 
-test('forwarded copies observe every later write',()=>agree(String.raw`
+test("forwarded copies observe every later write", () =>
+    agree(String.raw`
 const out=[];
 function swap(){let a=1,b=2;let t=a;a=b;b=t;return a+','+b}
 function snapshot(){let a=1;const b=a;a=2;return b+','+a}
@@ -55,14 +58,31 @@ out.push(swap(),snapshot(),mapped(1),strictArgs(1),destructure(),selfRef(),viaTr
 console.log(out.join('|'));
 `));
 
-test('a counting loop compiles to inline Number operations',()=>{
- const ir=compileToIR('function run(n){let s=0;for(let i=0;i<n;i++)s=s+i;return s}');
- const fn=ir.functions.find(f=>f.name==='run')!;
- const ops=fn.blocks.flatMap(block=>block.operations);
- assert.equal(ops.filter(op=>op.kind==='checkInitialized').length,0);
- const add=ops.find(op=>op.kind==='binary'&&op.operator==='+');
- assert.ok(add&&add.kind==='binary'&&add.numeric,'s + i is a Number addition');
- assert.ok(ops.some(op=>op.kind==='unary'&&op.operator==='increment'&&op.numeric),'i++ is a Number increment');
- // The parameter n is not known to be a Number, so i < n is not marked.
- assert.ok(ops.some(op=>op.kind==='binary'&&op.operator==='<'&&!op.numeric));
+test("a counting loop compiles to inline Number operations", () => {
+    const ir = compileToIR(
+        "function run(n){let s=0;for(let i=0;i<n;i++)s=s+i;return s}",
+    );
+    const fn = ir.functions.find((f) => f.name === "run")!;
+    const ops = fn.blocks.flatMap((block) => block.operations);
+    assert.equal(ops.filter((op) => op.kind === "checkInitialized").length, 0);
+    const add = ops.find((op) => op.kind === "binary" && op.operator === "+");
+    assert.ok(
+        add && add.kind === "binary" && add.numeric,
+        "s + i is a Number addition",
+    );
+    assert.ok(
+        ops.some(
+            (op) =>
+                op.kind === "unary" &&
+                op.operator === "increment" &&
+                op.numeric,
+        ),
+        "i++ is a Number increment",
+    );
+    // The parameter n is not known to be a Number, so i < n is not marked.
+    assert.ok(
+        ops.some(
+            (op) => op.kind === "binary" && op.operator === "<" && !op.numeric,
+        ),
+    );
 });

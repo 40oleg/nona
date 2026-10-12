@@ -4,25 +4,25 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 
 ## সংক্ষিপ্ত বিবরণ
 
-| API | ধরন | টার্গেট | রেফারেন্স |
-| --- | --- | --- | --- |
-| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()` | গ্লোবাল | all eight native targets | [টাইমার ও ইভেন্ট লুপ](/bn/reference/host-apis) |
-| `process` | গ্লোবাল | all eight native targets | [process](/bn/reference/process) |
-| `TextEncoder`, `TextDecoder` | গ্লোবাল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs#textencoder-and-textdecoder) |
-| `console.log` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে |
-| `console.error`, `console.warn` | গ্লোবাল | উভয় | স্ট্যান্ডার্ড এররে UTF-8 লেখে (`console.info`, `console.debug`: স্ট্যান্ডার্ড আউটপুট) |
-| `nona:process`, `node:process` | মডিউল | all eight native targets | [process](/bn/reference/process) |
-| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers` | modules | all eight native targets | [Streams and standard I/O](/bn/reference/process) |
-| `nona:fs`, `node:fs` | মডিউল | উভয় | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs) |
-| `node:async_hooks`, `nona:async_hooks` | modules | all native targets | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
-| `node:events`, `events`, `nona:events` | modules | all native targets | [EventEmitter and asynchronous event helpers](/bn/reference/host-apis#events) |
-| `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/bn/reference/host-apis#paths-nodepath) |
-| `nona:http`, `node:http`, `nona:net`, `node:net` | মডিউল | উভয় | [নেটওয়ার্কিং (ইংরেজি)](/reference/network) |
-| `node:events`, `node:string_decoder` | মডিউল | উভয় | [Node.js সহায়ক মডিউল (ইংরেজি)](/reference/network#supporting-modules) |
-| `URL`, `URLSearchParams`, `node:url`, `url` | গ্লোবাল ও মডিউল | আটটিই | [URL](/bn/reference/host-apis#url) |
-| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (এবং প্রিফিক্স ছাড়া তাদের নাম) | মডিউল | আটটিই | [Node.js সহায়ক মডিউল](/bn/reference/host-apis#nodejs-support-modules) |
-| `nona:ffi` | মডিউল | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi) |
-| `nona:win32` | মডিউল | Windows | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ |
+| API                                                                                                                                                                                                                                                                                 | ধরন             | টার্গেট                           | রেফারেন্স                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `setImmediate`/`clearImmediate`, `queueMicrotask`, `performance.now()`                                                                                                                                                | গ্লোবাল         | all eight native targets          | [টাইমার ও ইভেন্ট লুপ](/bn/reference/host-apis)                                                                     |
+| `process`                                                                                                                                                                                                                                                                           | গ্লোবাল         | all eight native targets          | [process](/bn/reference/process)                                                                                   |
+| `TextEncoder`, `TextDecoder`                                                                                                                                                                                                                                                        | গ্লোবাল         | উভয়                              | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs#textencoder-and-textdecoder)                                      |
+| `console.log`                                                                                                                                                                                                                                                                       | গ্লোবাল         | উভয়                              | স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে                                                                                   |
+| `console.error`, `console.warn`                                                                                                                                                                                                                                                     | গ্লোবাল         | উভয়                              | স্ট্যান্ডার্ড এররে UTF-8 লেখে (`console.info`, `console.debug`: স্ট্যান্ডার্ড আউটপুট)                              |
+| `nona:process`, `node:process`                                                                                                                                                                                                                                                      | মডিউল           | all eight native targets          | [process](/bn/reference/process)                                                                                   |
+| `node:stream`, `stream`, `nona:stream`, `node:stream/promises`, `node:stream/consumers`                                                                                                                                                                                             | modules         | all eight native targets          | [Streams and standard I/O](/bn/reference/process)                                                                  |
+| `nona:fs`, `node:fs`                                                                                                                                                                                                                                                                | মডিউল           | উভয়                              | [ফাইল সিস্টেম ও টেক্সট এনকোডিং](/bn/reference/fs)                                                                  |
+| `node:async_hooks`, `nona:async_hooks`                                                                                                                                                                                                                                              | modules         | all native targets                | Manual async resources, hooks and local context storage; native resource hooks and GC destruction are not emitted. |
+| `node:events`, `events`, `nona:events`                                                                                                                                                                                                                                              | modules         | all native targets                | [EventEmitter and asynchronous event helpers](/bn/reference/host-apis#events)                                      |
+| `node:path`, `path`, `node:path/posix`, `node:path/win32`                                                                                                                                                                                                                           | modules         | all eight                         | [Paths](/bn/reference/host-apis#paths-nodepath)                                                                    |
+| `nona:http`, `node:http`, `nona:net`, `node:net`                                                                                                                                                                                                                                    | মডিউল           | উভয়                              | [নেটওয়ার্কিং (ইংরেজি)](/reference/network)                                                                        |
+| `node:events`, `node:string_decoder`                                                                                                                                                                                                                                                | মডিউল           | উভয়                              | [Node.js সহায়ক মডিউল (ইংরেজি)](/reference/network#supporting-modules)                                             |
+| `URL`, `URLSearchParams`, `node:url`, `url`                                                                                                                                                                                                                                         | গ্লোবাল ও মডিউল | আটটিই                             | [URL](/bn/reference/host-apis#url)                                                                                 |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (এবং প্রিফিক্স ছাড়া তাদের নাম) | মডিউল           | আটটিই                             | [Node.js সহায়ক মডিউল](/bn/reference/host-apis#nodejs-support-modules)                                             |
+| `nona:ffi`                                                                                                                                                                                                                                                                          | মডিউল           | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi)                                                                             |
+| `nona:win32`                                                                                                                                                                                                                                                                        | মডিউল           | Windows                           | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ                                                                     |
 
 ## নিয়ম
 
@@ -37,59 +37,58 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 
 ### user32
 
-| এক্সপোর্ট | সিগনেচার |
-| --- | --- |
-| `MessageBoxW` | `i32(ptr hwnd, wstr text, wstr caption, u32 type)` |
-| `GetSystemMetrics` | `i32(i32 index)` |
-| `SystemParametersInfoW` | `bool(u32 action, u32 param, wstr value, u32 flags)` — `SPI_SETDESKWALLPAPER`-এর মতো স্ট্রিং প্যারামিটারের জন্য |
-| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — `SPI_GETDESKWALLPAPER`-এর মতো বাফার প্যারামিটারের জন্য |
+| এক্সপোর্ট                     | সিগনেচার                                                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `MessageBoxW`                 | `i32(ptr hwnd, wstr text, wstr caption, u32 type)`                                                              |
+| `GetSystemMetrics`            | `i32(i32 index)`                                                                                                |
+| `SystemParametersInfoW`       | `bool(u32 action, u32 param, wstr value, u32 flags)` — `SPI_SETDESKWALLPAPER`-এর মতো স্ট্রিং প্যারামিটারের জন্য |
+| `SystemParametersInfoBufferW` | `bool(u32 action, u32 param, buf value, u32 flags)` — `SPI_GETDESKWALLPAPER`-এর মতো বাফার প্যারামিটারের জন্য    |
 
 ### kernel32
 
-| এক্সপোর্ট | সিগনেচার |
-| --- | --- |
-| `CreateMutexW` | `ptr(ptr attributes, bool initialOwner, wstr name)` |
-| `ReleaseMutex` | `bool(ptr mutex)` |
-| `CloseHandle` | `bool(ptr handle)` |
-| `GetModuleFileNameW` | `u32(ptr module, buf path, u32 size)` |
-| `GetCurrentProcessId` | `u32()` |
+| এক্সপোর্ট             | সিগনেচার                                            |
+| --------------------- | --------------------------------------------------- |
+| `CreateMutexW`        | `ptr(ptr attributes, bool initialOwner, wstr name)` |
+| `ReleaseMutex`        | `bool(ptr mutex)`                                   |
+| `CloseHandle`         | `bool(ptr handle)`                                  |
+| `GetModuleFileNameW`  | `u32(ptr module, buf path, u32 size)`               |
+| `GetCurrentProcessId` | `u32()`                                             |
 
 ### advapi32
 
-| এক্সপোর্ট | সিগনেচার |
-| --- | --- |
-| `RegCreateKeyExW` | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
-| `RegOpenKeyExW` | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)` |
-| `RegSetValueExW` | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)` |
-| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)` |
-| `RegDeleteValueW` | `i32(ptr key, wstr name)` |
-| `RegDeleteKeyW` | `i32(ptr key, wstr subKey)` |
-| `RegCloseKey` | `i32(ptr key)` |
+| এক্সপোর্ট          | সিগনেচার                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `RegCreateKeyExW`  | `i32(ptr key, wstr subKey, u32 reserved, ptr class, u32 options, u32 access, ptr security, buf result, buf disposition)` |
+| `RegOpenKeyExW`    | `i32(ptr key, wstr subKey, u32 options, u32 access, buf result)`                                                         |
+| `RegSetValueExW`   | `i32(ptr key, wstr name, u32 reserved, u32 type, buf data, u32 size)`                                                    |
+| `RegQueryValueExW` | `i32(ptr key, wstr name, ptr reserved, buf type, buf data, buf size)`                                                    |
+| `RegDeleteValueW`  | `i32(ptr key, wstr name)`                                                                                                |
+| `RegDeleteKeyW`    | `i32(ptr key, wstr subKey)`                                                                                              |
+| `RegCloseKey`      | `i32(ptr key)`                                                                                                           |
 
 ### কনস্ট্যান্ট
 
-| এক্সপোর্ট | মান |
-| --- | --- |
-| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE` | পূর্বনির্ধারিত রেজিস্ট্রি কী (sign-extended হ্যান্ডেল হিসেবে) |
-| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS` | `0x20019`, `0x20006`, `0xF003F` |
-| `REG_SZ`, `REG_DWORD` | `1`, `4` |
-| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183` |
-| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER` | `0x73`, `0x14` |
-| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE` | `1`, `2` |
-| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION` | `0`, `0x10`, `0x40` |
-| `MAX_PATH` | `260` |
+| এক্সপোর্ট                                                       | মান                                                           |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE`  | পূর্বনির্ধারিত রেজিস্ট্রি কী (sign-extended হ্যান্ডেল হিসেবে) |
+| `KEY_READ`, `KEY_WRITE`, `KEY_ALL_ACCESS`                       | `0x20019`, `0x20006`, `0xF003F`                               |
+| `REG_SZ`, `REG_DWORD`                                           | `1`, `4`                                                      |
+| `ERROR_SUCCESS`, `ERROR_FILE_NOT_FOUND`, `ERROR_ALREADY_EXISTS` | `0`, `2`, `183`                                               |
+| `SPI_GETDESKWALLPAPER`, `SPI_SETDESKWALLPAPER`                  | `0x73`, `0x14`                                                |
+| `SPIF_UPDATEINIFILE`, `SPIF_SENDCHANGE`                         | `1`, `2`                                                      |
+| `MB_OK`, `MB_ICONERROR`, `MB_ICONINFORMATION`                   | `0`, `0x10`, `0x40`                                           |
+| `MAX_PATH`                                                      | `260`                                                         |
 
 ### সহায়ক ফাংশন
 
-| এক্সপোর্ট | বিবরণ |
-| --- | --- |
-| `lastError()` | সর্বশেষ FFI কলের ঠিক পরে সংরক্ষিত `GetLastError()` (`nona:ffi` থেকে পুনঃএক্সপোর্ট)। |
-| `wideString(text)` | UTF-16 স্ট্রিং প্রত্যাশী `buf` প্যারামিটারের জন্য একটি NUL-terminated `Uint16Array`। |
-| `fromWideString(buffer)` | একটি NUL-terminated UTF-16 বাফার ডিকোড করে। |
-| `readHandle(buffer)` | কোনো ফাংশন 8-বাইট বাফারে যে হ্যান্ডেল (যেমন একটি `HKEY`) লিখেছে, তা পড়ে। |
+| এক্সপোর্ট                | বিবরণ                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `lastError()`            | সর্বশেষ FFI কলের ঠিক পরে সংরক্ষিত `GetLastError()` (`nona:ffi` থেকে পুনঃএক্সপোর্ট)।  |
+| `wideString(text)`       | UTF-16 স্ট্রিং প্রত্যাশী `buf` প্যারামিটারের জন্য একটি NUL-terminated `Uint16Array`। |
+| `fromWideString(buffer)` | একটি NUL-terminated UTF-16 বাফার ডিকোড করে।                                          |
+| `readHandle(buffer)`     | কোনো ফাংশন 8-বাইট বাফারে যে হ্যান্ডেল (যেমন একটি `HKEY`) লিখেছে, তা পড়ে।            |
 
 তালিকায় নেই এমন ফাংশন [`nona:ffi`](/bn/reference/ffi)-এর `define` দিয়ে নিজেই ঘোষণা করুন।
-
 
 ## Native target availability
 

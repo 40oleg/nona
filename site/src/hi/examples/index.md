@@ -2,12 +2,12 @@
 
 ## चरण-दर-चरण उदाहरण
 
-| उदाहरण | क्या दिखाता है | टार्गेट |
-| --- | --- | --- |
-| [Hello, टाइमर](/hi/examples/hello) | फ़ंक्शन, टेम्पलेट लिटरल, माइक्रोटास्क और टाइमर | Windows, Linux |
-| [Museum: वॉलपेपर बदलने वाला](/hi/examples/museum) | `nona:win32`, टाइमर, `node:fs`, `process`, रिसोर्स वाला GUI एक्ज़ीक्यूटेबल | Windows |
-| [मैट्रिक्स कैलकुलेटर](/hi/examples/matrix-calculator) | ऐरे और एक्सेप्शन के साथ सामान्य ES2020 कोड | Windows, Linux |
-| [शब्द गणना](/hi/examples/word-count) | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp | Windows, Linux |
+| उदाहरण                                                | क्या दिखाता है                                                             | टार्गेट        |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- | -------------- |
+| [Hello, टाइमर](/hi/examples/hello)                    | फ़ंक्शन, टेम्पलेट लिटरल, माइक्रोटास्क और टाइमर                             | Windows, Linux |
+| [Museum: वॉलपेपर बदलने वाला](/hi/examples/museum)     | `nona:win32`, टाइमर, `node:fs`, `process`, रिसोर्स वाला GUI एक्ज़ीक्यूटेबल | Windows        |
+| [मैट्रिक्स कैलकुलेटर](/hi/examples/matrix-calculator) | ऐरे और एक्सेप्शन के साथ सामान्य ES2020 कोड                                 | Windows, Linux |
+| [शब्द गणना](/hi/examples/word-count)                  | `node:fs`, `process.argv`, `process.exitCode`, `Map`, Unicode RegExp       | Windows, Linux |
 
 ## रिपॉज़िटरी के उदाहरण
 

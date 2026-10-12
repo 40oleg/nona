@@ -21,17 +21,17 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Node.js-এর সঙ্গে পার্থক্য
 
-| ক্ষেত্র | Nona | Node.js |
-| --- | --- | --- |
-| `process.argv` | `[execPath, ...arguments]`: `argv[1]` হলো প্রথম আর্গুমেন্ট | `[node, script, ...arguments]` |
-| `process` | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| টাইমার id | Number | `Timeout` অবজেক্ট |
-| `readFileSync(path)` | `Uint8Array` ফেরত দেয় | `Buffer` ফেরত দেয় |
-| এনকোডিং | কেবল `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) | অনেক |
-| Windows-এ ত্রুটির বার্তা | যেভাবে দেওয়া হয়েছে সেভাবেই পাথ থাকে | পরম (absolute) পাথ থাকে |
-| মডিউল | `nona:*`, [বিল্ট-ইন মডিউল](/bn/reference/modules)-এ তালিকাভুক্ত `node:*` মডিউল, এবং বিল্ডের সময় রিজলভ হওয়া ফাইল ও npm প্যাকেজ | `node:*`-এর সবকিছু এবং npm প্যাকেজ, রানটাইমে রিজলভ হয় |
-| `require` | CommonJS মডিউল, বিল্ডের সময় জানা লিটারাল স্পেসিফায়ার সহ ([npm প্যাকেজ](/reference/npm)) | রানটাইমে যেকোনো স্পেসিফায়ার |
-| স্ট্যান্ডার্ড আউটপুট ছাড়া `console.log` | আউটপুট বাদ দেওয়া হয় | আউটপুট বাদ দেওয়া হয় বা ত্রুটি ওঠে |
+| ক্ষেত্র                                  | Nona                                                                                                                                                | Node.js                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `process.argv`                           | `[execPath, ...arguments]`: `argv[1]` হলো প্রথম আর্গুমেন্ট                                                                                          | `[node, script, ...arguments]`                                                 |
+| `process`                                | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
+| টাইমার id                                | Number                                                                                                                                              | `Timeout` অবজেক্ট                                                              |
+| `readFileSync(path)`                     | `Uint8Array` ফেরত দেয়                                                                                                                              | `Buffer` ফেরত দেয়                                                             |
+| এনকোডিং                                  | কেবল `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                   | অনেক                                                                           |
+| Windows-এ ত্রুটির বার্তা                 | যেভাবে দেওয়া হয়েছে সেভাবেই পাথ থাকে                                                                                                               | পরম (absolute) পাথ থাকে                                                        |
+| মডিউল                                    | `nona:*`, [বিল্ট-ইন মডিউল](/bn/reference/modules)-এ তালিকাভুক্ত `node:*` মডিউল, এবং বিল্ডের সময় রিজলভ হওয়া ফাইল ও npm প্যাকেজ                     | `node:*`-এর সবকিছু এবং npm প্যাকেজ, রানটাইমে রিজলভ হয়                         |
+| `require`                                | CommonJS মডিউল, বিল্ডের সময় জানা লিটারাল স্পেসিফায়ার সহ ([npm প্যাকেজ](/reference/npm))                                                           | রানটাইমে যেকোনো স্পেসিফায়ার                                                   |
+| স্ট্যান্ডার্ড আউটপুট ছাড়া `console.log` | আউটপুট বাদ দেওয়া হয়                                                                                                                               | আউটপুট বাদ দেওয়া হয় বা ত্রুটি ওঠে                                            |
 
 ## পারফরম্যান্স
 

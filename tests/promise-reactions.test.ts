@@ -1,21 +1,22 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {runOracle} from './helpers/oracle.js';
-import {runOnHost} from './helpers/host.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { runOracle } from "./helpers/oracle.js";
+import { runOnHost } from "./helpers/host.js";
 
 // One reaction record per then (#44): the job order of every path that
 // creates, settles or adopts a promise must stay the one Node.js produces.
-function expectOracle(source:string):void {
- const expected=runOracle(source).stdout;
- for(const gcStress of [true,false]){
-  const run=runOnHost(source,{gcStress});
-  assert.equal(run.error,undefined);
-  assert.equal(run.status,0,run.stderr);
-  assert.equal(run.stdout,expected,`gcStress ${gcStress}`);
- }
+function expectOracle(source: string): void {
+    const expected = runOracle(source).stdout;
+    for (const gcStress of [true, false]) {
+        const run = runOnHost(source, { gcStress });
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(run.stdout, expected, `gcStress ${gcStress}`);
+    }
 }
 
-test('reactions on pending and settled promises run in registration order',()=>expectOracle(`
+test("reactions on pending and settled promises run in registration order", () =>
+    expectOracle(`
  var log=[],resolve,reject;
  var pending=new Promise(function(y){resolve=y}),failing=new Promise(function(y,n){reject=n});
  for(var i=0;i<5;i++)(function(i){pending.then(function(v){log.push('p'+i+':'+v)})})(i);
@@ -31,7 +32,8 @@ test('reactions on pending and settled promises run in registration order',()=>e
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
-test('handler results, thrown errors, thenables and self resolution propagate through chains',()=>expectOracle(`
+test("handler results, thrown errors, thenables and self resolution propagate through chains", () =>
+    expectOracle(`
  var log=[];
  var thenable={then:function(y){log.push('then called');y('t')}};
  Promise.resolve(1).then(function(v){return v+1}).then(function(v){throw new Error('e'+v)})
@@ -47,7 +49,8 @@ test('handler results, thrown errors, thenables and self resolution propagate th
  setTimeout(function(){console.log(log.join('|'))},0);
 `));
 
-test('async functions, await and async generators keep their tick counts',()=>expectOracle(`
+test("async functions, await and async generators keep their tick counts", () =>
+    expectOracle(`
  var log=[];
  async function a(){log.push('a0');await null;log.push('a1');await Promise.resolve();log.push('a2');return 'ra'}
  async function b(){log.push('b0');try{await Promise.reject(new Error('b'))}catch(e){log.push('b caught')}throw new Error('bt')}
@@ -60,7 +63,8 @@ test('async functions, await and async generators keep their tick counts',()=>ex
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
-test('subclasses and foreign capabilities still go through the species constructor',()=>expectOracle(`
+test("subclasses and foreign capabilities still go through the species constructor", () =>
+    expectOracle(`
  var log=[];
  class Sub extends Promise{constructor(executor){log.push('construct');super(executor)}}
  var derived=Sub.resolve(1).then(function(v){return v+1});
@@ -75,7 +79,8 @@ test('subclasses and foreign capabilities still go through the species construct
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
-test('awaiting primitives, promises, thenables and species edge cases keeps the job order',()=>expectOracle(`
+test("awaiting primitives, promises, thenables and species edge cases keeps the job order", () =>
+    expectOracle(`
  var log=[];
  async function prim(tag){for(var v of [undefined,null,0,'s',false,1n,Symbol.iterator])log.push(tag+typeof (await v));return tag}
  prim('x').then(function(t){log.push('done '+t)});
@@ -88,13 +93,13 @@ test('awaiting primitives, promises, thenables and species edge cases keeps the 
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
-test('a chain of 200 000 reactions settles in order',()=>{
- const source=`
+test("a chain of 200 000 reactions settles in order", () => {
+    const source = `
  var p=Promise.resolve(0);
  for(var i=0;i<200000;i++)p=p.then(function(v){return v+1});
  p.then(function(v){console.log('end',v)});
  `;
- const run=runOnHost(source,{gcStress:false});
- assert.equal(run.status,0,run.stderr);
- assert.equal(run.stdout,'end 200000\n');
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, "end 200000\n");
 });

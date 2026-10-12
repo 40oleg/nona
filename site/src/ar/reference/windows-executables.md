@@ -21,7 +21,12 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 - يقرأ `--version-info` كائن JSON يحتوي على أي من `FileVersion` و`ProductVersion` ‏(`"major.minor.build.revision"`، وكل جزء من 0 إلى 65535) و`ProductName` و`FileDescription` و`CompanyName` و`LegalCopyright` و`OriginalFilename` و`InternalName` و`Comments`، وتظهر في الخصائص ← التفاصيل الخاصة بالملف (`RT_VERSION` 1، واللغة 0409، وصفحة الترميز 04B0).
 
 ```json
-{ "FileVersion": "1.0.0.0", "ProductName": "Museum", "FileDescription": "Paintings on the desktop", "CompanyName": "Oleg" }
+{
+    "FileVersion": "1.0.0.0",
+    "ProductName": "Museum",
+    "FileDescription": "Paintings on the desktop",
+    "CompanyName": "Oleg"
+}
 ```
 
 الخيارات نفسها متاحة في `compile()` بالأسماء `icon` (بايتات) و`manifest` (سلسلة) و`versionInfo` (كائن). وتتطلب `--target win32-x64`.

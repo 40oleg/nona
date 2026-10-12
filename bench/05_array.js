@@ -1,4 +1,5 @@
-const SCALE = Number(process.env.SCALE) || 1; const S = n => Math.round(n * SCALE);
+const SCALE = Number(process.env.SCALE) || 1;
+const S = (n) => Math.round(n * SCALE);
 const N = S(1000000);
 let t = performance.now();
 const a = [];
@@ -16,12 +17,28 @@ let s = 0;
 for (let i = 0; i < N; i++) s += a[i];
 const tFor = performance.now() - t;
 t = performance.now();
-const r = a.map(x => x * 2).filter(x => x % 3 === 0).reduce((acc, x) => acc + x, 0);
+const r = a
+    .map((x) => x * 2)
+    .filter((x) => x % 3 === 0)
+    .reduce((acc, x) => acc + x, 0);
 const tMFR = performance.now() - t;
 t = performance.now();
 const d = new Array(N);
 let seed = 12345;
-for (let i = 0; i < N; i++) { seed = (seed * 1103515245 + 12345) % 2147483648; d[i] = seed; }
+for (let i = 0; i < N; i++) {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    d[i] = seed;
+}
 d.sort((x, y) => x - y);
 const tSort = performance.now() - t;
-console.log(JSON.stringify({ push: tPush, from: tFrom, prealloc: tPre, forsum: tFor, mfr: tMFR, sort: tSort, check: s + r + d[0] + b[N-1] + c[N-1] }));
+console.log(
+    JSON.stringify({
+        push: tPush,
+        from: tFrom,
+        prealloc: tPre,
+        forsum: tFor,
+        mfr: tMFR,
+        sort: tSort,
+        check: s + r + d[0] + b[N - 1] + c[N - 1],
+    }),
+);

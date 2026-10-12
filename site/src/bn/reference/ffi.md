@@ -7,10 +7,14 @@
 Windows প্রোগ্রাম বিল্ট-ইন `nona:ffi` মডিউলের মাধ্যমে যেকোনো DLL-এর এক্সপোর্ট করা ফাংশন কল করতে পারে। ডিক্লারেশনগুলো কম্পাইলের সময় রিজলভ হয়: প্রতিটি `define` কল PE ইমপোর্ট টেবিলে একটি এন্ট্রি যোগ করে, তাই প্রোগ্রাম `LoadLibrary`/`GetProcAddress` ব্যবহার করে না।
 
 ```js
-import { define, lastError } from 'nona:ffi';
+import { define, lastError } from "nona:ffi";
 
-const MessageBoxW = define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)');
-MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
+const MessageBoxW = define(
+    "user32.dll",
+    "MessageBoxW",
+    "i32(ptr,wstr,wstr,u32)",
+);
+MessageBoxW(null, "Hello from Nona", "Nona", 0);
 ```
 
 - FFI মডিউল কোডে (`.mjs` বা `--module`) উপলব্ধ। `define` সরাসরি, তিনটি স্ট্রিং লিটারাল দিয়ে কল করতে হবে: DLL-এর নাম, এক্সপোর্টের নাম এবং সিগনেচার। অন্য যেকোনো কিছু কম্পাইল ত্রুটি (`E_FFI_STATIC`)।
@@ -23,16 +27,16 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 
 `result(param, param, ...)`, যেমন `bool(u32,u32,wstr,u32)`।
 
-| টাইপ | প্যারামিটার | ফলাফল |
-| --- | --- | --- |
-| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (শূন্যের দিকে ছাঁটা) বা Boolean | Number |
-| `ptr` | Number, Boolean, `null`/`undefined` (NULL) | Number |
-| `bool` | `i32`-এর মতো | Boolean (Win32 `BOOL`, শূন্য-ভিন্ন মান `true`) |
-| `f32 f64` | Number | Number |
-| `wstr` | String → অস্থায়ী NUL-terminated UTF-16 কপি; `null`/`undefined` → NULL | — |
-| `str` | String → অস্থায়ী NUL-terminated UTF-8 কপি; `null`/`undefined` → NULL | — |
-| `buf` | ArrayBuffer, SharedArrayBuffer, typed array বা DataView → এর বাইটগুলোর পয়েন্টার (view অফসেটে); `null`/`undefined` → NULL | — |
-| `void` | — | `undefined` |
+| টাইপ                            | প্যারামিটার                                                                                                               | ফলাফল                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `i8 i16 i32 i64 u8 u16 u32 u64` | Number (শূন্যের দিকে ছাঁটা) বা Boolean                                                                                    | Number                                         |
+| `ptr`                           | Number, Boolean, `null`/`undefined` (NULL)                                                                                | Number                                         |
+| `bool`                          | `i32`-এর মতো                                                                                                              | Boolean (Win32 `BOOL`, শূন্য-ভিন্ন মান `true`) |
+| `f32 f64`                       | Number                                                                                                                    | Number                                         |
+| `wstr`                          | String → অস্থায়ী NUL-terminated UTF-16 কপি; `null`/`undefined` → NULL                                                    | —                                              |
+| `str`                           | String → অস্থায়ী NUL-terminated UTF-8 কপি; `null`/`undefined` → NULL                                                     | —                                              |
+| `buf`                           | ArrayBuffer, SharedArrayBuffer, typed array বা DataView → এর বাইটগুলোর পয়েন্টার (view অফসেটে); `null`/`undefined` → NULL | —                                              |
+| `void`                          | —                                                                                                                         | `undefined`                                    |
 
 অন্য টাইপের আর্গুমেন্ট `TypeError` ছোড়ে; অনুপস্থিত আর্গুমেন্টও (পয়েন্টার টাইপ ছাড়া, যেখানে `undefined` মানে NULL) এবং detached বাফারও তাই করে। কল করা ফাংশন `buf` মেমরিতে লিখতে পারে, আর আউট-প্যারামিটার এভাবেই ফেরত আসে: UTF-16 স্ট্রিং বাফারের জন্য একটি `Uint16Array` বা হ্যান্ডেলের জন্য একটি `Uint8Array(8)` দিন। অস্থায়ী স্ট্রিং কপিগুলো কলের পরে মুক্ত হয়; কল করা ফাংশন পয়েন্টারটি রেখে দিতে পারবে না। কলব্যাক (`cb(...)`) ও আউট-প্যারামিটার টাইপ পরবর্তী সংস্করণের জন্য সংরক্ষিত।
 
@@ -47,10 +51,19 @@ MessageBoxW(null, 'Hello from Nona', 'Nona', 0);
 - সহায়ক `wideString(text)` (NUL-terminated `Uint16Array`), `fromWideString(buffer)` ও `readHandle(buffer)`; `lastError` পুনঃএক্সপোর্ট করা।
 
 ```js
-import { SystemParametersInfoW, SPI_SETDESKWALLPAPER, SPIF_UPDATEINIFILE, SPIF_SENDCHANGE } from 'nona:win32';
-SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, 'C:\\Pictures\\painting.jpg', SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+import {
+    SystemParametersInfoW,
+    SPI_SETDESKWALLPAPER,
+    SPIF_UPDATEINIFILE,
+    SPIF_SENDCHANGE,
+} from "nona:win32";
+SystemParametersInfoW(
+    SPI_SETDESKWALLPAPER,
+    0,
+    "C:\\Pictures\\painting.jpg",
+    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+);
 ```
-
 
 ## Native target availability
 

@@ -13,7 +13,7 @@ nona build app.js -o app
 
 ```js
 // app.js
-const _ = require('lodash');
+const _ = require("lodash");
 console.log(JSON.stringify(_.chunk([1, 2, 3, 4, 5], 2)));
 ```
 
@@ -112,20 +112,20 @@ own built-in modules. Besides the modules described in [host APIs](host-apis.md)
 these modules exist mainly for packages (see
 [Node.js support modules](host-apis.md#nodejs-support-modules)):
 
-| Module | What it provides |
-| --- | --- |
-| `node:os` | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty |
-| `node:tty` | `isatty`, `ReadStream`, `WriteStream` |
-| `node:util` | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText` |
-| `node:url` | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve` |
-| `node:assert` | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError` |
-| `node:crypto` | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual` |
-| `node:querystring` | `parse`, `stringify`, `escape`, `unescape` |
-| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval` |
-| `node:perf_hooks` | `performance` |
-| `node:module` | `builtinModules`, `isBuiltin`; `createRequire` throws |
-| `node:worker_threads` | `isMainThread` (always `true`) |
-| `node:child_process` | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED` |
+| Module                                | What it provides                                                                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node:os`                             | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty                 |
+| `node:tty`                            | `isatty`, `ReadStream`, `WriteStream`                                                                                                                                   |
+| `node:util`                           | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText`             |
+| `node:url`                            | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve`                                                                  |
+| `node:assert`                         | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError`                                                     |
+| `node:crypto`                         | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual` |
+| `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                              |
+| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                |
+| `node:perf_hooks`                     | `performance`                                                                                                                                                           |
+| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` throws                                                                                                                   |
+| `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                          |
+| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                |
 
 A package that loads a module Nona does not provide (`zlib`, `dns`, `https`,
 `tls`, …) fails to compile with `E_MODULE: Cannot resolve module`.
@@ -145,7 +145,7 @@ validator, zod.
 ## Limitations
 
 - **Code generated at run time.** Packages that compile code with `new
-  Function` or `eval` from strings built at run time fail when they do so:
+Function` or `eval` from strings built at run time fail when they do so:
   `ajv` (schema compilation), `lodash.template` and `_.template`, `ejs`,
   `handlebars.compile`. See [eval and Function](es2020-contract.md).
 - **`Intl`** is not available, so packages that format dates or numbers with it

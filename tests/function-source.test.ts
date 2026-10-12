@@ -1,55 +1,137 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {expectProgram} from './helpers/program.js';
-import {runOracle} from './helpers/oracle.js';
-import {runNative} from './helpers/native.js';
-import {compile} from '../src/compiler.js';
-import {lex} from '../src/frontend/lexer.js';
-import {parse} from '../src/frontend/parser.js';
-import {bind} from '../src/frontend/binder.js';
-import {lower} from '../src/ir/lower.js';
-import {generate} from '../src/backend/x64/codegen.js';
-import {linkHost} from './helpers/program.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { expectProgram } from "./helpers/program.js";
+import { runOracle } from "./helpers/oracle.js";
+import { runNative } from "./helpers/native.js";
+import { compile } from "../src/compiler.js";
+import { lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
+import { bind } from "../src/frontend/binder.js";
+import { lower } from "../src/ir/lower.js";
+import { generate } from "../src/backend/x64/codegen.js";
+import { linkHost } from "./helpers/program.js";
 
-const cases:[string,string][]=[
- ['source preserves whitespace comments and line endings','function /*hello*/ f ( a,\r\n b ) { // внутри\r\n return a+b;\r\n}\nconsole.log(f.toString());'],
- ['anonymous source excludes surrounding expression parentheses','let f=((function /*匿名*/ (a){return a;}));console.log(f.toString());'],
- ['nested function source and closure identity','function make(x){return function inner(y) { return x+y; };}let a=make(1),b=make(2);console.log(a.toString(),a.toString()===b.toString());'],
- ['escaped identifier text and Unicode body remain original','function \\u0066(a){return "🦊"+a;}console.log(f.toString());'],
- ['metadata mutation does not change function source','function f(a) { return a; }delete f.name;delete f.length;console.log(f.toString());'],
- ['native and bound representations','function f(a){}console.log(f.call.toString(),f.apply.toString(),f.bind.toString(),f.toString.toString(),f.__proto__.toString(),f.bind(null).toString());'],
- ['native source unaffected by name deletion','function f(){}let c=f.call;delete c.name;console.log(c.toString());'],
- ['toString call apply and bound receiver','function f(a){return a;}let s=f.toString;console.log(s.call(f),s.apply(f,[]),s.bind(f)());'],
- ['function source participates in primitive conversion and array join','function f(a){return a;}console.log(""+f,""+[f],f==f.toString());'],
- ['deleting inherited toString uses object Function tag','function f(){}delete f.__proto__.toString;console.log(""+f);'],
- ['toString metadata','function f(){}let t=f.toString;console.log(t.name,t.length,typeof t,"prototype" in t);'],
- ['bootstrap functions have native source without exposing the marker',`function user(){};let species=Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get;console.log(RegExp.prototype[Symbol.match].toString().includes('[native code]'),species.toString().includes('[native code]'),Object.prototype.hasOwnProperty.call(Function.prototype,'__nonaMarkNativeInternal'),user.toString().includes('[native code]'));`],
- ['callable Proxy has native function source','let p=new Proxy(new Proxy(function(){},{}),{});console.log(Function.prototype.toString.call(p));'],
+const cases: [string, string][] = [
+    [
+        "source preserves whitespace comments and line endings",
+        "function /*hello*/ f ( a,\r\n b ) { // внутри\r\n return a+b;\r\n}\nconsole.log(f.toString());",
+    ],
+    [
+        "anonymous source excludes surrounding expression parentheses",
+        "let f=((function /*匿名*/ (a){return a;}));console.log(f.toString());",
+    ],
+    [
+        "nested function source and closure identity",
+        "function make(x){return function inner(y) { return x+y; };}let a=make(1),b=make(2);console.log(a.toString(),a.toString()===b.toString());",
+    ],
+    [
+        "escaped identifier text and Unicode body remain original",
+        'function \\u0066(a){return "🦊"+a;}console.log(f.toString());',
+    ],
+    [
+        "metadata mutation does not change function source",
+        "function f(a) { return a; }delete f.name;delete f.length;console.log(f.toString());",
+    ],
+    [
+        "native and bound representations",
+        "function f(a){}console.log(f.call.toString(),f.apply.toString(),f.bind.toString(),f.toString.toString(),f.__proto__.toString(),f.bind(null).toString());",
+    ],
+    [
+        "native source unaffected by name deletion",
+        "function f(){}let c=f.call;delete c.name;console.log(c.toString());",
+    ],
+    [
+        "toString call apply and bound receiver",
+        "function f(a){return a;}let s=f.toString;console.log(s.call(f),s.apply(f,[]),s.bind(f)());",
+    ],
+    [
+        "function source participates in primitive conversion and array join",
+        'function f(a){return a;}console.log(""+f,""+[f],f==f.toString());',
+    ],
+    [
+        "deleting inherited toString uses object Function tag",
+        'function f(){}delete f.__proto__.toString;console.log(""+f);',
+    ],
+    [
+        "toString metadata",
+        'function f(){}let t=f.toString;console.log(t.name,t.length,typeof t,"prototype" in t);',
+    ],
+    [
+        "bootstrap functions have native source without exposing the marker",
+        `function user(){};let species=Object.getOwnPropertyDescriptor(RegExp,Symbol.species).get;console.log(RegExp.prototype[Symbol.match].toString().includes('[native code]'),species.toString().includes('[native code]'),Object.prototype.hasOwnProperty.call(Function.prototype,'__nonaMarkNativeInternal'),user.toString().includes('[native code]'));`,
+    ],
+    [
+        "callable Proxy has native function source",
+        "let p=new Proxy(new Proxy(function(){},{}),{});console.log(Function.prototype.toString.call(p));",
+    ],
 ];
-for(const [name,source] of cases)test(name,()=>expectProgram(source,runOracle(source).stdout));
-for(const source of ['function f(){}let t=f.toString;t();','function f(){}f.toString.call({});','function f(){}f.toString.call(3);','function f(){}new f.toString();','Function.prototype.toString.call(new Proxy({},{}));'])test('function toString protocol error: '+source,()=>{
- const result=compile(source,{fileName:'function-source-error.js',target:'win32-x64'});assert.equal(result.ok,true);if(!result.ok)return;
- const run=runNative(result.image);assert.equal(run.error,undefined);assert.equal(run.status,1);assert.match(run.stderr.toString(),/Nona runtime error/);
+for (const [name, source] of cases)
+    test(name, () => expectProgram(source, runOracle(source).stdout));
+for (const source of [
+    "function f(){}let t=f.toString;t();",
+    "function f(){}f.toString.call({});",
+    "function f(){}f.toString.call(3);",
+    "function f(){}new f.toString();",
+    "Function.prototype.toString.call(new Proxy({},{}));",
+])
+    test("function toString protocol error: " + source, () => {
+        const result = compile(source, {
+            fileName: "function-source-error.js",
+            target: "win32-x64",
+        });
+        assert.equal(result.ok, true);
+        if (!result.ok) return;
+        const run = runNative(result.image);
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 1);
+        assert.match(run.stderr.toString(), /Nona runtime error/);
+    });
+test("source descriptors and callable methods survive GC", () => {
+    const source =
+        'function make(x){return function(a){return x+a;};}let f=make(3),t=f.toString.bind(f);f=null;for(let i=0;i<30;i++){({text:""+i});}console.log(t());';
+    const run = runNative(
+        linkHost(generate(lower(bind(parse(lex(source)))), { gcStress: true })),
+    );
+    assert.equal(run.error, undefined);
+    assert.equal(run.status, 0, run.stderr.toString());
+    assert.equal(run.stdout.toString(), runOracle(source).stdout);
 });
-test('source descriptors and callable methods survive GC',()=>{
- const source='function make(x){return function(a){return x+a;};}let f=make(3),t=f.toString.bind(f);f=null;for(let i=0;i<30;i++){({text:""+i});}console.log(t());';
- const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
- assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
-});
-test('functions keep ranges of one stored module text',()=>{
- // One byte per character for Latin-1 text (é), two bytes otherwise.
- for(const source of [
-  'function outer(é){var inner=(x)=>x*1;class K{m(){return "é";}static s(){}get g(){return 1;}}function* g(){yield 1;}return [inner,K,K.prototype.m,K.s,Object.getOwnPropertyDescriptor(K.prototype,"g").get,g];}\nconsole.log(outer.toString());for(const f of outer(1))console.log(String(f));',
-  'var o={meth(){return "日本";},["k"+1]:function(){},a:()=>"✓"};for(const k in o)console.log(o[k].toString());console.log(o.meth.toString()===o.meth.toString());',
- ]){
-  const run=runNative(linkHost(generate(lower(bind(parse(lex(source)))),{gcStress:true})));
-  assert.equal(run.status,0,run.stderr.toString());assert.equal(run.stdout.toString(),runOracle(source).stdout);
- }
- // Nested functions do not repeat their enclosing text.
- const body=Array.from({length:40},(_,i)=>`function f${i}(){ return ${'"padding".length+'.repeat(20)}${i}; }`).join('\n');
- const nested=`function a(){ function b(){ function c(){ ${body} return f1; } return c; } return b; }\nconsole.log(a()()().toString());`;
- const program=generate(lower(bind(parse(lex(nested)))));
- const stored=program.fragments.filter(f=>f.name.startsWith('source.')||f.name.startsWith('literal.')).reduce((sum,f)=>sum+f.bytes.length,0);
- const flat=generate(lower(bind(parse(lex('console.log(1);'))))).fragments.filter(f=>f.name.startsWith('source.')||f.name.startsWith('literal.')).reduce((sum,f)=>sum+f.bytes.length,0);
- assert.ok(stored-flat<2*nested.length,`${stored-flat} bytes of text for ${nested.length} characters`);
+test("functions keep ranges of one stored module text", () => {
+    // One byte per character for Latin-1 text (é), two bytes otherwise.
+    for (const source of [
+        'function outer(é){var inner=(x)=>x*1;class K{m(){return "é";}static s(){}get g(){return 1;}}function* g(){yield 1;}return [inner,K,K.prototype.m,K.s,Object.getOwnPropertyDescriptor(K.prototype,"g").get,g];}\nconsole.log(outer.toString());for(const f of outer(1))console.log(String(f));',
+        'var o={meth(){return "日本";},["k"+1]:function(){},a:()=>"✓"};for(const k in o)console.log(o[k].toString());console.log(o.meth.toString()===o.meth.toString());',
+    ]) {
+        const run = runNative(
+            linkHost(
+                generate(lower(bind(parse(lex(source)))), { gcStress: true }),
+            ),
+        );
+        assert.equal(run.status, 0, run.stderr.toString());
+        assert.equal(run.stdout.toString(), runOracle(source).stdout);
+    }
+    // Nested functions do not repeat their enclosing text.
+    const body = Array.from(
+        { length: 40 },
+        (_, i) =>
+            `function f${i}(){ return ${'"padding".length+'.repeat(20)}${i}; }`,
+    ).join("\n");
+    const nested = `function a(){ function b(){ function c(){ ${body} return f1; } return c; } return b; }\nconsole.log(a()()().toString());`;
+    const program = generate(lower(bind(parse(lex(nested)))));
+    const stored = program.fragments
+        .filter(
+            (f) =>
+                f.name.startsWith("source.") || f.name.startsWith("literal."),
+        )
+        .reduce((sum, f) => sum + f.bytes.length, 0);
+    const flat = generate(lower(bind(parse(lex("console.log(1);")))))
+        .fragments.filter(
+            (f) =>
+                f.name.startsWith("source.") || f.name.startsWith("literal."),
+        )
+        .reduce((sum, f) => sum + f.bytes.length, 0);
+    assert.ok(
+        stored - flat < 2 * nested.length,
+        `${stored - flat} bytes of text for ${nested.length} characters`,
+    );
 });

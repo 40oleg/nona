@@ -1,11 +1,11 @@
 console.log("Степень:", 2 ** 10);
 
 let player = {
-  name: "Nona",
-  score: 3,
-  describe() {
-    return this.name + " набрала " + this.score + " очков";
-  }
+    name: "Nona",
+    score: 3,
+    describe() {
+        return this.name + " набрала " + this.score + " очков";
+    },
 };
 
 player.score **= 2;

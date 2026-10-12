@@ -6,17 +6,17 @@
 
 تأتي مجموعة فرعية متزامنة من وحدة `fs` في Node.js مدمجةً. يشير المحدِّدان كلاهما إلى التنفيذ نفسه؛ ويعمل كل من `import fs from 'node:fs'` والاستيرادات المسمّاة.
 
-| الدالة | ملاحظات |
-| --- | --- |
-| `readFileSync(path, options?)` | دون ترميز تعيد `Uint8Array` (يعيد Node.js ‏`Buffer`)؛ ومع `'utf8'` تعيد سلسلة. |
-| `writeFileSync(path, data, options?)` | ‏`data`: سلسلة (UTF-8) أو مصفوفة منمَّطة أو DataView أو ArrayBuffer. ‏`{flag: 'a'}` يُلحق بنهاية الملف. `flag`: `w` / `a` / `wx`; POSIX `mode`. |
-| `appendFileSync(path, data)` | |
-| `existsSync(path)` | |
-| `statSync(path, options?)` | `isFile()` و`isDirectory()` و`isSymbolicLink()` و`size` و`mtimeMs` و`mtime` و`mode`؛ و`{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
-| `realpathSync(path)` | المسار المطلق بعد حل الروابط الرمزية. |
-| `readdirSync(path, options?)` | أسماء دون `.` و`..`؛ يعيد `{withFileTypes: true}` عناصر تتضمن `name` و`isFile()` و`isDirectory()` و`isSymbolicLink()`. |
-| `mkdirSync(path, {recursive}?)` | مع `recursive` تعيد أول مجلد أُنشئ. |
-| `rmdirSync` و`unlinkSync` و`renameSync` و`copyFileSync(src, dest, mode?)` | ‏`constants.COPYFILE_EXCL` مدعوم. |
+| الدالة                                                                    | ملاحظات                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readFileSync(path, options?)`                                            | دون ترميز تعيد `Uint8Array` (يعيد Node.js ‏`Buffer`)؛ ومع `'utf8'` تعيد سلسلة.                                                                                          |
+| `writeFileSync(path, data, options?)`                                     | ‏`data`: سلسلة (UTF-8) أو مصفوفة منمَّطة أو DataView أو ArrayBuffer. ‏`{flag: 'a'}` يُلحق بنهاية الملف. `flag`: `w` / `a` / `wx`; POSIX `mode`.                         |
+| `appendFileSync(path, data)`                                              |                                                                                                                                                                         |
+| `existsSync(path)`                                                        |                                                                                                                                                                         |
+| `statSync(path, options?)`                                                | `isFile()` و`isDirectory()` و`isSymbolicLink()` و`size` و`mtimeMs` و`mtime` و`mode`؛ و`{throwIfNoEntry: false}`. `dev`, `ino`; `{bigint: true}` → BigInt `dev` / `ino`. |
+| `realpathSync(path)`                                                      | المسار المطلق بعد حل الروابط الرمزية.                                                                                                                                   |
+| `readdirSync(path, options?)`                                             | أسماء دون `.` و`..`؛ يعيد `{withFileTypes: true}` عناصر تتضمن `name` و`isFile()` و`isDirectory()` و`isSymbolicLink()`.                                                  |
+| `mkdirSync(path, {recursive}?)`                                           | مع `recursive` تعيد أول مجلد أُنشئ.                                                                                                                                     |
+| `rmdirSync` و`unlinkSync` و`renameSync` و`copyFileSync(src, dest, mode?)` | ‏`constants.COPYFILE_EXCL` مدعوم.                                                                                                                                       |
 
 المسارات سلاسل (أو `Uint8Array` بترميز UTF-8). ولا يُدعم إلا الترميز `utf8`. والأخطاء كائنات `Error` تحمل رموز Node.js ‏(`ENOENT` و`EEXIST` و`EISDIR` و`ENOTDIR` و`ENOTEMPTY` و`EACCES` و`EPERM` وغيرها) و`syscall` و`path`، وبصيغة الرسائل نفسها في Node.js (على Windows يعرض Node.js المسار المطلق في الرسائل، بينما يعرض Nona المسار كما مُرِّر).
 

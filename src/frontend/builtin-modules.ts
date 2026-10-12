@@ -1,23 +1,30 @@
-import type {ModuleHost} from './modules.js';
-import {ffiModuleSource} from '../ffi.js';
-import {fsModuleSource} from './fs-module.js';
-import {CompileError} from '../diagnostics.js';
-import {getTarget,type Target} from '../target.js';
-import {eventsModuleForTarget} from './events-module.js';
-import {asyncHooksModuleSource} from './async-hooks-module.js';
-import {bufferModuleSource} from './buffer-module.js';
-import {streamModuleSource,streamPromisesModuleSource,streamConsumersModuleSource} from './stream-module.js';
-import {stringDecoderModuleSource} from './string-decoder-module.js';
-import {nativeModuleSource} from './native-module.js';
-import {netModuleSource} from './net-module.js';
-import {httpModuleSource} from './http-module.js';
-import {pathModuleSourceForTarget} from './path-module.js';
-import {networkStreamModuleSource} from './network-stream-module.js';
-import {commonJsModuleSource} from './commonjs-module.js';
-import {nodeCompatModules,cryptoModuleSource} from './node-compat-modules.js';
+import type { ModuleHost } from "./modules.js";
+import { ffiModuleSource } from "../ffi.js";
+import { fsModuleSource } from "./fs-module.js";
+import { CompileError } from "../diagnostics.js";
+import { getTarget, type Target } from "../target.js";
+import { eventsModuleForTarget } from "./events-module.js";
+import { asyncHooksModuleSource } from "./async-hooks-module.js";
+import { bufferModuleSource } from "./buffer-module.js";
+import {
+    streamModuleSource,
+    streamPromisesModuleSource,
+    streamConsumersModuleSource,
+} from "./stream-module.js";
+import { stringDecoderModuleSource } from "./string-decoder-module.js";
+import { nativeModuleSource } from "./native-module.js";
+import { netModuleSource } from "./net-module.js";
+import { httpModuleSource } from "./http-module.js";
+import { pathModuleSourceForTarget } from "./path-module.js";
+import { networkStreamModuleSource } from "./network-stream-module.js";
+import { commonJsModuleSource } from "./commonjs-module.js";
+import {
+    nodeCompatModules,
+    cryptoModuleSource,
+} from "./node-compat-modules.js";
 
 /** Curated Win32 declarations on top of `nona:ffi`. */
-const win32ModuleSource=`import {define, lastError} from 'nona:ffi';
+const win32ModuleSource = `import {define, lastError} from 'nona:ffi';
 export {lastError};
 export const HKEY_CLASSES_ROOT = -2147483648;
 export const HKEY_CURRENT_USER = -2147483647;
@@ -81,7 +88,7 @@ export function readHandle(buffer) {
 `;
 
 /** node:process / nona:process re-export the global process object. */
-const processModuleSource=`const process = globalThis.process;
+const processModuleSource = `const process = globalThis.process;
 export default process;
 export const argv = process.argv, env = process.env, platform = process.platform, arch = process.arch, pid = process.pid, execPath = process.execPath;
 export function exit(code) { return process.exit(code); }
@@ -102,80 +109,155 @@ export const version = process.version, versions = process.versions, release = p
 `;
 
 /** A `nona:` alias re-exports the `node:` module, so both share one instance (one Buffer, one EventEmitter class). */
-function aliasOf(specifier:string):string {return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;}
-const sources=new Map<string,(target:Target)=>string>([
-  ['node:buffer',()=>bufferModuleSource],
-  ['buffer',()=>bufferModuleSource],
-  ['nona:buffer',()=>bufferModuleSource],
-  ['nona:ffi',()=>ffiModuleSource],
-  ['nona:win32',()=>win32ModuleSource],
-  ['nona:fs',fsModuleSource],
-  ['node:fs',fsModuleSource],
-  ['node:events',eventsModuleForTarget],
-  ['node:async_hooks',()=>asyncHooksModuleSource],
-  ['nona:async_hooks',()=>asyncHooksModuleSource],
-  ['events',eventsModuleForTarget],
-  ['nona:events',eventsModuleForTarget],
-  ['node:path',pathModuleSourceForTarget],
-  ...['posix','win32'].map(flavor=>['node:path/'+flavor,()=>`import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`] as [string,()=>string]),
-  ['nona:process',()=>processModuleSource],
-  ...['node:stream','nona:stream'].map(name=>[name,()=>streamModuleSource] as [string,()=>string]),
-  ...['node:stream/promises','nona:stream/promises'].map(name=>[name,()=>streamPromisesModuleSource] as [string,()=>string]),
-  ...['node:stream/consumers','nona:stream/consumers'].map(name=>[name,()=>streamConsumersModuleSource] as [string,()=>string]),
-  ['node:process',()=>processModuleSource],
-  ['node:string_decoder',()=>stringDecoderModuleSource],
-  ['nona:string_decoder',()=>aliasOf('node:string_decoder')],
-  ['nona:internal/stream',()=>networkStreamModuleSource],
-  ['nona:internal/native',()=>nativeModuleSource],
-  ['nona:internal/commonjs',()=>commonJsModuleSource],
-  ['node:crypto',cryptoModuleSource],
-  ...nodeCompatModules.map(([name,source])=>[name,()=>source] as [string,()=>string]),
-  ['node:net',netModuleSource],
-  ['nona:net',()=>aliasOf('node:net')],
-  ['node:http',()=>httpModuleSource],
-  ['nona:http',()=>aliasOf('node:http')],
+function aliasOf(specifier: string): string {
+    return `export * from '${specifier}';\nexport {default} from '${specifier}';\n`;
+}
+const sources = new Map<string, (target: Target) => string>([
+    ["node:buffer", () => bufferModuleSource],
+    ["buffer", () => bufferModuleSource],
+    ["nona:buffer", () => bufferModuleSource],
+    ["nona:ffi", () => ffiModuleSource],
+    ["nona:win32", () => win32ModuleSource],
+    ["nona:fs", fsModuleSource],
+    ["node:fs", fsModuleSource],
+    ["node:events", eventsModuleForTarget],
+    ["node:async_hooks", () => asyncHooksModuleSource],
+    ["nona:async_hooks", () => asyncHooksModuleSource],
+    ["events", eventsModuleForTarget],
+    ["nona:events", eventsModuleForTarget],
+    ["node:path", pathModuleSourceForTarget],
+    ...["posix", "win32"].map(
+        (flavor) =>
+            [
+                "node:path/" + flavor,
+                () =>
+                    `import {${flavor} as path} from 'node:path'; export default path; export const {resolve,normalize,isAbsolute,join,relative,toNamespacedPath,dirname,basename,extname,format,parse,matchesGlob,sep,delimiter,posix,win32,_makeLong}=path;`,
+            ] as [string, () => string],
+    ),
+    ["nona:process", () => processModuleSource],
+    ...["node:stream", "nona:stream"].map(
+        (name) => [name, () => streamModuleSource] as [string, () => string],
+    ),
+    ...["node:stream/promises", "nona:stream/promises"].map(
+        (name) =>
+            [name, () => streamPromisesModuleSource] as [string, () => string],
+    ),
+    ...["node:stream/consumers", "nona:stream/consumers"].map(
+        (name) =>
+            [name, () => streamConsumersModuleSource] as [string, () => string],
+    ),
+    ["node:process", () => processModuleSource],
+    ["node:string_decoder", () => stringDecoderModuleSource],
+    ["nona:string_decoder", () => aliasOf("node:string_decoder")],
+    ["nona:internal/stream", () => networkStreamModuleSource],
+    ["nona:internal/native", () => nativeModuleSource],
+    ["nona:internal/commonjs", () => commonJsModuleSource],
+    ["node:crypto", cryptoModuleSource],
+    ...nodeCompatModules.map(
+        ([name, source]) => [name, () => source] as [string, () => string],
+    ),
+    ["node:net", netModuleSource],
+    ["nona:net", () => aliasOf("node:net")],
+    ["node:http", () => httpModuleSource],
+    ["nona:http", () => aliasOf("node:http")],
 ]);
 
-export function isBuiltinModule(specifier:string):boolean {return sources.has(specifier)||sources.has('node:'+specifier);}
+export function isBuiltinModule(specifier: string): boolean {
+    return sources.has(specifier) || sources.has("node:" + specifier);
+}
 
 /** The builtin specifiers a program for this target can import or require (`fs`, `node:fs`, `nona:fs`, ...). */
-export function builtinSpecifiers(target:Target):Set<string> {
-  return new Set(builtinInventory(target).flatMap(record=>record.aliases));
+export function builtinSpecifiers(target: Target): Set<string> {
+    return new Set(
+        builtinInventory(target).flatMap((record) => record.aliases),
+    );
 }
 
 /** Resolve provider aliases against the actual implementation for this target. */
-function builtinInventory(target:Target):{path:string;source:string;aliases:string[]}[] {
- const implemented=new Map<string,string>();
- for(const [specifier,provider] of sources){
-  if(specifier==='nona:win32'&&getTarget(target)!.os!=='win32')continue;
-  if(specifier.startsWith('nona:internal/'))continue;
-  if(['node:net','nona:net','node:http','nona:http'].includes(specifier)&&target!=='win32-x64'&&target!=='linux-x64')continue;
-  let source:string;
-  try{source=provider(target)}catch(error){
-   if(error instanceof CompileError&&error.diagnostics.every(d=>d.code==='E_HOST_MODULE'))continue;
-   throw error;
-  }
-  implemented.set(specifier,source);
- }
- const records=new Map<string,{path:string;source:string;aliases:string[]}>();
- for(const [specifier,source] of implemented){
-  const nodeAlias='node:'+(specifier.startsWith('nona:')?specifier.slice(5):specifier);
-  const path=!specifier.startsWith('node:')&&implemented.get(nodeAlias)===source?nodeAlias:specifier;
-  let record=records.get(path);if(!record){record={path,source,aliases:[]};records.set(path,record)}
-  for(const alias of [specifier,...(specifier.startsWith('node:')?[specifier.slice(5)]:[])])if(!record.aliases.includes(alias))record.aliases.push(alias);
- }
- return [...records.values()];
+function builtinInventory(
+    target: Target,
+): { path: string; source: string; aliases: string[] }[] {
+    const implemented = new Map<string, string>();
+    for (const [specifier, provider] of sources) {
+        if (specifier === "nona:win32" && getTarget(target)!.os !== "win32")
+            continue;
+        if (specifier.startsWith("nona:internal/")) continue;
+        if (
+            ["node:net", "nona:net", "node:http", "nona:http"].includes(
+                specifier,
+            ) &&
+            target !== "win32-x64" &&
+            target !== "linux-x64"
+        )
+            continue;
+        let source: string;
+        try {
+            source = provider(target);
+        } catch (error) {
+            if (
+                error instanceof CompileError &&
+                error.diagnostics.every((d) => d.code === "E_HOST_MODULE")
+            )
+                continue;
+            throw error;
+        }
+        implemented.set(specifier, source);
+    }
+    const records = new Map<
+        string,
+        { path: string; source: string; aliases: string[] }
+    >();
+    for (const [specifier, source] of implemented) {
+        const nodeAlias =
+            "node:" +
+            (specifier.startsWith("nona:") ? specifier.slice(5) : specifier);
+        const path =
+            !specifier.startsWith("node:") &&
+            implemented.get(nodeAlias) === source
+                ? nodeAlias
+                : specifier;
+        let record = records.get(path);
+        if (!record) {
+            record = { path, source, aliases: [] };
+            records.set(path, record);
+        }
+        for (const alias of [
+            specifier,
+            ...(specifier.startsWith("node:") ? [specifier.slice(5)] : []),
+        ])
+            if (!record.aliases.includes(alias)) record.aliases.push(alias);
+    }
+    return [...records.values()];
 }
 
 /** Wrap a module host so that `nona:*` (and supported `node:*`) specifiers resolve to built-in modules. */
-export function withBuiltinModules(host:ModuleHost,target:Target):ModuleHost {
-  const inventory=builtinInventory(target),aliases=new Map(inventory.flatMap(record=>record.aliases.map(alias=>[alias,record] as const)));
-  return {
-    resolve:(specifier,referrer)=>aliases.get(specifier)?.path??(sources.has(specifier)?specifier:host.resolve(specifier,referrer)),
-    read:path=>aliases.get(path)?.source??sources.get(path)?.(target)??host.read(path),
-    builtinAliases:path=>aliases.get(path)?.aliases,
-    builtinCandidates:()=>inventory.map(record=>record.path),
-    ...(host.candidates?{candidates:(referrer:string)=>host.candidates!(referrer)}:{}),
-    ...(host.program?{program:(path:string)=>host.program!(path)}:{}),
-  };
+export function withBuiltinModules(
+    host: ModuleHost,
+    target: Target,
+): ModuleHost {
+    const inventory = builtinInventory(target),
+        aliases = new Map(
+            inventory.flatMap((record) =>
+                record.aliases.map((alias) => [alias, record] as const),
+            ),
+        );
+    return {
+        resolve: (specifier, referrer) =>
+            aliases.get(specifier)?.path ??
+            (sources.has(specifier)
+                ? specifier
+                : host.resolve(specifier, referrer)),
+        read: (path) =>
+            aliases.get(path)?.source ??
+            sources.get(path)?.(target) ??
+            host.read(path),
+        builtinAliases: (path) => aliases.get(path)?.aliases,
+        builtinCandidates: () => inventory.map((record) => record.path),
+        ...(host.candidates
+            ? { candidates: (referrer: string) => host.candidates!(referrer) }
+            : {}),
+        ...(host.program
+            ? { program: (path: string) => host.program!(path) }
+            : {}),
+    };
 }

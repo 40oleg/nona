@@ -46,6 +46,7 @@
 ### Task 1: Dynamic global references
 
 **Files:**
+
 - Create: `tests/name-resolution.test.ts`
 - Modify: `src/frontend/bound.ts`
 - Modify: `src/frontend/binder.ts`
@@ -56,6 +57,7 @@
 - Modify: `src/runtime/globals.ts`
 
 **Interfaces:**
+
 - Consumes: existing `Binding`, `readGlobalProperty`, ordinary `Get/Set/Has`, `checkResolvable`.
 - Produces: `{kind:'globalProperty'; name:string}` for every unresolved identifier; `readGlobalProperty` with `allowMissing`; explicit global-reference resolution snapshot used by assignment lowering.
 
@@ -64,36 +66,53 @@
 Create `tests/name-resolution.test.ts` with the following frontend→native helper and cases:
 
 ```ts
-function native(source:string,gcStress=false){
- const image=linkPe(generate(lower(bind(parse(lex(source)))),{gcStress}));
- return runNative(image);
+function native(source: string, gcStress = false) {
+    const image = linkPe(
+        generate(lower(bind(parse(lex(source)))), { gcStress }),
+    );
+    return runNative(image);
 }
-function expectNativeOracle(source:string,options:{gcStress?:boolean}={}){
- const result=native(source,options.gcStress);
- assert.equal(result.error,undefined);
- assert.equal(result.status,0,result.stderr.toString());
- assert.equal(result.stdout.toString(),runOracle(source).stdout);
+function expectNativeOracle(
+    source: string,
+    options: { gcStress?: boolean } = {},
+) {
+    const result = native(source, options.gcStress);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr.toString());
+    assert.equal(result.stdout.toString(), runOracle(source).stdout);
 }
-const cases:[string,string][]=[
- ['sloppy assignment creates global property',
-  'missing=7;let d=Object.getOwnPropertyDescriptor(globalThis,"missing");console.log(missing,globalThis.missing,d.writable,d.enumerable,d.configurable);'],
- ['missing read is catchable ReferenceError',
-  'try{console.log(missing);}catch(e){console.log(e.name);}console.log(typeof missing);'],
- ['missing call and update fail before later effects',
-  'try{missing(console.log("bad"));}catch(e){console.log(e.name);}try{missing++;}catch(e){console.log(e.name);}'],
- ['inherited global binding uses ordinary receiver',
-  'globalThis.__proto__={x:3};console.log(x);x=4;console.log(x,globalThis.hasOwnProperty("x"),globalThis.__proto__.x);'],
- ['sloppy unresolved reference survives RHS creation',
-  'missing=(globalThis.missing=1,2);console.log(missing,globalThis.missing);'],
+const cases: [string, string][] = [
+    [
+        "sloppy assignment creates global property",
+        'missing=7;let d=Object.getOwnPropertyDescriptor(globalThis,"missing");console.log(missing,globalThis.missing,d.writable,d.enumerable,d.configurable);',
+    ],
+    [
+        "missing read is catchable ReferenceError",
+        "try{console.log(missing);}catch(e){console.log(e.name);}console.log(typeof missing);",
+    ],
+    [
+        "missing call and update fail before later effects",
+        'try{missing(console.log("bad"));}catch(e){console.log(e.name);}try{missing++;}catch(e){console.log(e.name);}',
+    ],
+    [
+        "inherited global binding uses ordinary receiver",
+        'globalThis.__proto__={x:3};console.log(x);x=4;console.log(x,globalThis.hasOwnProperty("x"),globalThis.__proto__.x);',
+    ],
+    [
+        "sloppy unresolved reference survives RHS creation",
+        "missing=(globalThis.missing=1,2);console.log(missing,globalThis.missing);",
+    ],
 ];
 ```
 
 Add a historical strict assertion independent of the Node oracle:
 
 ```ts
-test('strict missing reference is preserved across RHS creation',()=>{
- expectProgram('"use strict";try{missing=(globalThis.missing=1,2);}catch(e){console.log(e.name);}console.log(globalThis.missing);',
-   'ReferenceError\n1\n');
+test("strict missing reference is preserved across RHS creation", () => {
+    expectProgram(
+        '"use strict";try{missing=(globalThis.missing=1,2);}catch(e){console.log(e.name);}console.log(globalThis.missing);',
+        "ReferenceError\n1\n",
+    );
 });
 ```
 
@@ -113,15 +132,16 @@ Expected: unknown sloppy identifiers fail in bind with `Undeclared identifier`; 
 In `bound.ts`, keep one observable global reference shape and remove `unknownTypeof`:
 
 ```ts
-export type Binding = StorageBinding |
-  {kind:'builtin';name:string} |
-  {kind:'globalProperty';name:string};
+export type Binding =
+    | StorageBinding
+    | { kind: "builtin"; name: string }
+    | { kind: "globalProperty"; name: string };
 ```
 
 In `binder.ts`, make the final resolution fallback:
 
 ```ts
-if(!b)b={kind:'globalProperty',name:id.name};
+if (!b) b = { kind: "globalProperty", name: id.name };
 ```
 
 Pass the `typeof` mode to lowering so `readGlobalProperty` uses
@@ -146,9 +166,10 @@ Expected: all three suites pass; no bind-time rejection remains for runtime glob
 Add and run:
 
 ```ts
-test('dynamic global values survive callbacks and stress GC',()=>{
- const source='missing={text:""+42};function read(){return missing;}for(let i=0;i<30;i++){({x:""+i});}console.log(read().text);delete globalThis.missing;try{read();}catch(e){console.log(e.name);}';
- expectNativeOracle(source,{gcStress:true});
+test("dynamic global values survive callbacks and stress GC", () => {
+    const source =
+        'missing={text:""+42};function read(){return missing;}for(let i=0;i<30;i++){({x:""+i});}console.log(read().text);delete globalThis.missing;try{read();}catch(e){console.log(e.name);}';
+    expectNativeOracle(source, { gcStress: true });
 });
 ```
 
@@ -159,6 +180,7 @@ Run the Task 1 command from Step 4 again. Expected: PASS and stdout matches Node
 ### Task 2: Ordinary intrinsic globals and shadowable console
 
 **Files:**
+
 - Create: `src/runtime/console.ts`
 - Create: `tests/builtin-shadowing.test.ts`
 - Modify: `src/frontend/parser.ts`
@@ -174,6 +196,7 @@ Run the Task 1 command from Step 4 again. Expected: PASS and stdout matches Node
 - Modify: `src/runtime/intrinsic-order.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1 global-property fallback and `emitNativeFunction`.
 - Produces: `emitConsole(b:RuntimeBuilder):void`, `consoleRoots:string[]`, `consolePropertyRoots:string[]`; ordinary global properties `undefined`, `NaN`, `Infinity`, `console`; no parser-level `console.log` identifier and no `Binding.kind === 'builtin'`.
 
@@ -182,15 +205,23 @@ Run the Task 1 command from Step 4 again. Expected: PASS and stdout matches Node
 Create `tests/builtin-shadowing.test.ts` with:
 
 ```ts
-const cases:[string,string][]=[
- ['function locals shadow immutable globals',
-  'function f(undefined,NaN,Infinity){console.log(undefined,NaN,Infinity);}f(1,2,3);console.log(globalThis.undefined,globalThis.NaN,globalThis.Infinity);'],
- ['nested lexical shadows constructors and console',
-  'let Object=7;{let console={log:function(v){globalThis.saved=v;}};console.log(Object+1);}globalThis.console.log(saved,typeof globalThis.Object);'],
- ['ordinary console method replacement',
-  'let old=console.log;console.log=function(v){globalThis.saved=v;};console.log(9);old(saved);console.log=old;'],
- ['console can be passed and detached',
-  'function use(c){let log=c.log;log("ok");}use(console);'],
+const cases: [string, string][] = [
+    [
+        "function locals shadow immutable globals",
+        "function f(undefined,NaN,Infinity){console.log(undefined,NaN,Infinity);}f(1,2,3);console.log(globalThis.undefined,globalThis.NaN,globalThis.Infinity);",
+    ],
+    [
+        "nested lexical shadows constructors and console",
+        "let Object=7;{let console={log:function(v){globalThis.saved=v;}};console.log(Object+1);}globalThis.console.log(saved,typeof globalThis.Object);",
+    ],
+    [
+        "ordinary console method replacement",
+        "let old=console.log;console.log=function(v){globalThis.saved=v;};console.log(9);old(saved);console.log=old;",
+    ],
+    [
+        "console can be passed and detached",
+        'function use(c){let log=c.log;log("ok");}use(console);',
+    ],
 ];
 ```
 
@@ -199,16 +230,22 @@ Add descriptor assertions against a fresh Node-compatible context for
 Nona source and expected output:
 
 ```ts
-const descriptors='function show(o,k){let d=Object.getOwnPropertyDescriptor(o,k);console.log(d.writable,d.enumerable,d.configurable);}show(globalThis,"undefined");show(globalThis,"NaN");show(globalThis,"Infinity");show(globalThis,"console");show(console,"log");console.log(console.log.name,console.log.length);';
-expectProgram(descriptors,
- 'false false false\nfalse false false\nfalse false false\ntrue false true\ntrue false true\nlog 0\n');
+const descriptors =
+    'function show(o,k){let d=Object.getOwnPropertyDescriptor(o,k);console.log(d.writable,d.enumerable,d.configurable);}show(globalThis,"undefined");show(globalThis,"NaN");show(globalThis,"Infinity");show(globalThis,"console");show(console,"log");console.log(console.log.name,console.log.length);';
+expectProgram(
+    descriptors,
+    "false false false\nfalse false false\nfalse false false\ntrue false true\ntrue false true\nlog 0\n",
+);
 ```
 
 Add compile tests:
 
 ```ts
-assert.equal(compile('let undefined=1;',options).ok,false);
-assert.equal(compile('function f(){let undefined=1;return undefined;}',options).ok,true);
+assert.equal(compile("let undefined=1;", options).ok, false);
+assert.equal(
+    compile("function f(){let undefined=1;return undefined;}", options).ok,
+    true,
+);
 ```
 
 - [x] **Step 2: Run Task 2 tests and record RED**
@@ -228,9 +265,9 @@ In `globals.ts`, add static property nodes with exact attributes:
 
 ```ts
 const immutableGlobals = [
-  {name:'undefined',tag:0,payload:0n},
-  {name:'NaN',tag:3,payload:0x7ff8000000000000n},
-  {name:'Infinity',tag:3,payload:0x7ff0000000000000n},
+    { name: "undefined", tag: 0, payload: 0n },
+    { name: "NaN", tag: 3, payload: 0x7ff8000000000000n },
+    { name: "Infinity", tag: 3, payload: 0x7ff0000000000000n },
 ] as const;
 ```
 
@@ -245,12 +282,14 @@ bindings may use these names.
 Create `runtime/console.ts`:
 
 ```ts
-export const consoleRoots=['rt.console','rt.console.log'];
-export const consolePropertyRoots=[
-  'rt.console.log.property','rt.console.log.name','rt.console.log.length',
-  'rt.globalObject.console',
+export const consoleRoots = ["rt.console", "rt.console.log"];
+export const consolePropertyRoots = [
+    "rt.console.log.property",
+    "rt.console.log.name",
+    "rt.console.log.length",
+    "rt.globalObject.console",
 ];
-export function emitConsole(b:RuntimeBuilder):void;
+export function emitConsole(b: RuntimeBuilder): void;
 ```
 
 `rt.console` is an ordinary object whose `log` property contains a native,
@@ -286,6 +325,7 @@ Expected: all suites pass, including console metadata/shadowing and existing IO 
 ### Task 3: Declaration collection and early errors
 
 **Files:**
+
 - Create: `src/frontend/declarations.ts`
 - Create: `tests/declaration-instantiation.test.ts`
 - Modify: `src/frontend/binder.ts`
@@ -294,23 +334,26 @@ Expected: all suites pass, including console metadata/shadowing and existing IO 
 - Modify: `tests/duplicate-parameters.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 2 intrinsic global descriptor metadata.
 - Produces:
 
 ```ts
-export type LexicalDeclaration={
- name:string; id:A.Identifier; kind:'let'|'const'|'function';
- statement:A.Var|A.Function;
+export type LexicalDeclaration = {
+    name: string;
+    id: A.Identifier;
+    kind: "let" | "const" | "function";
+    statement: A.Var | A.Function;
 };
 export interface DeclarationInfo {
- lexicals:LexicalDeclaration[];
- vars:A.Identifier[];
- bodyFunctions:A.Function[];
+    lexicals: LexicalDeclaration[];
+    vars: A.Identifier[];
+    bodyFunctions: A.Function[];
 }
 export function collectDeclarations(
- statements:readonly A.Statement[],
- functionDeclarationKind:'var'|'lexical',
-):DeclarationInfo;
+    statements: readonly A.Statement[],
+    functionDeclarationKind: "var" | "lexical",
+): DeclarationInfo;
 ```
 
 - [x] **Step 1: Add a complete declaration-conflict table**
@@ -318,25 +361,30 @@ export function collectDeclarations(
 Create `tests/declaration-instantiation.test.ts` with compile-failure cases:
 
 ```ts
-const earlyErrors=[
- 'let x;let x;', 'const x=1;let x;', 'let x;var x;',
- '{let x;{var x;}}', '{function x(){}let x;}',
- 'function f(x){let x;}', 'function f(){let x;var x;}',
- 'try{}catch(e){let e;}', 'try{}catch(e){const e=1;}',
- 'switch(0){case 0:let x;case 1:const x=1;}',
- 'for(let i=0;i<1;i++){var i;}',
+const earlyErrors = [
+    "let x;let x;",
+    "const x=1;let x;",
+    "let x;var x;",
+    "{let x;{var x;}}",
+    "{function x(){}let x;}",
+    "function f(x){let x;}",
+    "function f(){let x;var x;}",
+    "try{}catch(e){let e;}",
+    "try{}catch(e){const e=1;}",
+    "switch(0){case 0:let x;case 1:const x=1;}",
+    "for(let i=0;i<1;i++){var i;}",
 ];
 ```
 
 Add accepted cases and compare with Node:
 
 ```ts
-const accepted=[
- 'var x;var x;console.log(x);',
- 'function f(){var x;function x(){return 3;}var x;console.log(x());}f();',
- 'try{throw 1;}catch(e){var e;console.log(e);}',
- 'function f(a,a){var a;return a;}console.log(f(1,2));',
- 'let x=1;{let x=2;{var y=3;}console.log(x,y);}console.log(x,y);',
+const accepted = [
+    "var x;var x;console.log(x);",
+    "function f(){var x;function x(){return 3;}var x;console.log(x());}f();",
+    "try{throw 1;}catch(e){var e;console.log(e);}",
+    "function f(a,a){var a;return a;}console.log(f(1,2));",
+    "let x=1;{let x=2;{var y=3;}console.log(x,y);}console.log(x,y);",
 ];
 ```
 
@@ -364,11 +412,11 @@ block/switch functions go to `lexicals` when Task 4 enables their syntax.
 Replace `visitVars` and opportunistic conflict checks with:
 
 ```ts
-const info=collectDeclarations(body,functionDeclarationKind);
-declareVarBindings(info.vars,info.bodyFunctions);
-declareLexicalBindings(owner,info.lexicals);
-validateConflicts(scopeRecord,info,parameters,catchParameter);
-resolveStatements(body,scopeChain);
+const info = collectDeclarations(body, functionDeclarationKind);
+declareVarBindings(info.vars, info.bodyFunctions);
+declareLexicalBindings(owner, info.lexicals);
+validateConflicts(scopeRecord, info, parameters, catchParameter);
+resolveStatements(body, scopeChain);
 ```
 
 Use explicit helpers with those responsibilities; do not duplicate recursive
@@ -394,6 +442,7 @@ Expected: all suites pass with the same Node stdout for accepted cases.
 ### Task 4: Lexical block function declarations
 
 **Files:**
+
 - Create: `tests/block-functions.test.ts`
 - Modify: `src/frontend/parser.ts`
 - Modify: `src/frontend/declarations.ts`
@@ -402,6 +451,7 @@ Expected: all suites pass with the same Node stdout for accepted cases.
 - Modify: `src/ir/lower.ts`
 
 **Interfaces:**
+
 - Consumes: Task 3 `collectDeclarations` and existing lexical slot/cell initialization.
 - Produces: `BoundProgram.scopeFunctions:Map<A.Node,BoundFunction[]>`; parser accepts declarations only in StatementList; lowering initializes scope functions immediately after TDZ cell creation.
 
@@ -410,35 +460,45 @@ Expected: all suites pass with the same Node stdout for accepted cases.
 Create `tests/block-functions.test.ts`:
 
 ```ts
-const nodeCases:[string,string][]=[
- ['strict block hoisting and visibility',
-  '"use strict";{console.log(f());function f(){return 3;}}console.log(typeof f);'],
- ['nested block shadow',
-  '"use strict";function f(){return 1;}{console.log(f());function f(){return 2;}console.log(f());}console.log(f());'],
- ['closure captures current block binding',
-  '"use strict";let out;{function f(){return 7;}out=function(){return f();};}console.log(out());'],
- ['switch shares one lexical scope',
-  '"use strict";switch(1){case 1:console.log(f());function f(){return 9;}break;}'],
+const nodeCases: [string, string][] = [
+    [
+        "strict block hoisting and visibility",
+        '"use strict";{console.log(f());function f(){return 3;}}console.log(typeof f);',
+    ],
+    [
+        "nested block shadow",
+        '"use strict";function f(){return 1;}{console.log(f());function f(){return 2;}console.log(f());}console.log(f());',
+    ],
+    [
+        "closure captures current block binding",
+        '"use strict";let out;{function f(){return 7;}out=function(){return f();};}console.log(out());',
+    ],
+    [
+        "switch shares one lexical scope",
+        '"use strict";switch(1){case 1:console.log(f());function f(){return 9;}break;}',
+    ],
 ];
 ```
 
 Add compile failures:
 
 ```ts
-const errors=[
- '"use strict";if(true)function f(){}',
- '"use strict";label:function f(){}',
- '"use strict";{function f(){}function f(){}}',
- '"use strict";switch(0){case 0:function f(){}case 1:function f(){}}',
- '"use strict";{function f(){}let f;}',
+const errors = [
+    '"use strict";if(true)function f(){}',
+    '"use strict";label:function f(){}',
+    '"use strict";{function f(){}function f(){}}',
+    '"use strict";switch(0){case 0:function f(){}case 1:function f(){}}',
+    '"use strict";{function f(){}let f;}',
 ];
 ```
 
 Add a core sloppy test with an explicit expected result rather than Node's Annex B behavior:
 
 ```ts
-expectProgram('{console.log(f());function f(){return 4;}}console.log(typeof f);',
-  '4\nundefined\n');
+expectProgram(
+    "{console.log(f());function f(){return 4;}}console.log(typeof f);",
+    "4\nundefined\n",
+);
 ```
 
 - [x] **Step 2: Run block-function tests and record RED**
@@ -465,7 +525,7 @@ the `BoundFunction`, analyze its body with the current scope chain, and append i
 to:
 
 ```ts
-scopeFunctions.get(owner) ?? []
+scopeFunctions.get(owner) ?? [];
 ```
 
 Script/function-body functions remain in the existing var-scoped declaration
@@ -493,9 +553,10 @@ runtime entry before the function object closes over it.
 Add:
 
 ```ts
-test('each block entry gives captured functions a fresh cell under GC stress',()=>{
- const source='"use strict";let a=[];for(let i=0;i<3;i++){{function f(){return i;}a[i]=f;}}for(let i=0;i<30;i++){({x:""+i});}console.log(a[0](),a[1](),a[2]());';
- expectNativeOracle(source,{gcStress:true});
+test("each block entry gives captured functions a fresh cell under GC stress", () => {
+    const source =
+        '"use strict";let a=[];for(let i=0;i<3;i++){{function f(){return i;}a[i]=f;}}for(let i=0;i<30;i++){({x:""+i});}console.log(a[0](),a[1](),a[2]());';
+    expectNativeOracle(source, { gcStress: true });
 });
 ```
 
@@ -513,6 +574,7 @@ Expected: all suites pass; core sloppy outside visibility is `undefined`.
 ### Task 5: End-to-end compatibility, documentation and completion evidence
 
 **Files:**
+
 - Create: `examples/compat/scope-resolution.cjs`
 - Modify: `docs/language-support.md`
 - Modify: `README.md`
@@ -522,6 +584,7 @@ Expected: all suites pass; core sloppy outside visibility is `undefined`.
 - Modify: `docs/history/superpowers/plans/2026-09-23-scope-name-resolution.md`
 
 **Interfaces:**
+
 - Consumes: completed Tasks 1–4 and `scripts/compare-examples.mjs`.
 - Produces: standalone compatibility report, final support boundaries and reproducible verification logs.
 
@@ -533,17 +596,31 @@ Create `examples/compat/scope-resolution.cjs` with Node-common behavior only:
 missing = 3;
 console.log(missing, globalThis.missing);
 delete globalThis.missing;
-try { console.log(missing); } catch (error) { console.log(error.name); }
+try {
+    console.log(missing);
+} catch (error) {
+    console.log(error.name);
+}
 
 function outer(console, undefined) {
-  "use strict";
-  console.log(undefined);
-  { console.log(block()); function block() { return 7; } }
-  console.log(typeof block);
+    "use strict";
+    console.log(undefined);
+    {
+        console.log(block());
+        function block() {
+            return 7;
+        }
+    }
+    console.log(typeof block);
 }
-outer({log: globalThis.console.log}, 5);
+outer({ log: globalThis.console.log }, 5);
 
-try { throw 1; } catch (value) { var value; console.log(value); }
+try {
+    throw 1;
+} catch (value) {
+    var value;
+    console.log(value);
+}
 ```
 
 - [x] **Step 2: Run all targeted suites**

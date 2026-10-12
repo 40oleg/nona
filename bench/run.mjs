@@ -12,61 +12,105 @@
 // scripts print their own per-phase timings as JSON; run.mjs adds wall time
 // and peak RSS (Linux only, read from /usr/bin/time when present).
 
-import {spawnSync} from 'node:child_process';
-import {readdirSync, existsSync} from 'node:fs';
-import {resolve, dirname, basename, extname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { spawnSync } from "node:child_process";
+import { readdirSync, existsSync } from "node:fs";
+import { resolve, dirname, basename, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
-const opt = (name, def) => {const i = args.indexOf('--' + name); return i < 0 ? def : args[i + 1];};
-const scale = Number(opt('scale', '1'));
-const runs = Number(opt('runs', '3'));
-const timeout = Number(opt('timeout', '600')) * 1000;
-const only = opt('only', '').split(',').filter(Boolean);
-const runtimes = opt('runtimes', 'node,deno,bun,nona').split(',');
-const target = process.platform === 'win32' ? 'win32-x64' : 'linux-x64';
-const exe = process.platform === 'win32' ? '.exe' : '';
+const opt = (name, def) => {
+    const i = args.indexOf("--" + name);
+    return i < 0 ? def : args[i + 1];
+};
+const scale = Number(opt("scale", "1"));
+const runs = Number(opt("runs", "3"));
+const timeout = Number(opt("timeout", "600")) * 1000;
+const only = opt("only", "").split(",").filter(Boolean);
+const runtimes = opt("runtimes", "node,deno,bun,nona").split(",");
+const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
+const exe = process.platform === "win32" ? ".exe" : "";
 
-const real = args.includes('--real');
-const directory = real ? resolve(here, 'real') : here;
-if (real && !existsSync(resolve(directory, 'vendor'))) throw new Error('run `node bench/real/fetch.mjs` first');
-const scripts = readdirSync(directory).filter(f => real ? /\.m?js$/.test(f) && f !== 'fetch.mjs' : /^\d\d_.*\.(m?js)$/.test(f) && !f.startsWith('01_'))
-  .filter(f => only.length === 0 || only.some(p => f.startsWith(p)));
+const real = args.includes("--real");
+const directory = real ? resolve(here, "real") : here;
+if (real && !existsSync(resolve(directory, "vendor")))
+    throw new Error("run `node bench/real/fetch.mjs` first");
+const scripts = readdirSync(directory)
+    .filter((f) =>
+        real
+            ? /\.m?js$/.test(f) && f !== "fetch.mjs"
+            : /^\d\d_.*\.(m?js)$/.test(f) && !f.startsWith("01_"),
+    )
+    .filter((f) => only.length === 0 || only.some((p) => f.startsWith(p)));
 
-function has(cmd) {return spawnSync(cmd, ['--version'], {stdio: 'ignore'}).status === 0;}
-const available = {node: true, deno: has('deno'), bun: has('bun'), nona: true};
+function has(cmd) {
+    return spawnSync(cmd, ["--version"], { stdio: "ignore" }).status === 0;
+}
+const available = {
+    node: true,
+    deno: has("deno"),
+    bun: has("bun"),
+    nona: true,
+};
 
 function build(script) {
-  const out = resolve(here, 'build', basename(script, extname(script)) + exe);
-  const r = spawnSync('node', [resolve(here, '..', 'dist', 'cli.js'), 'build', resolve(directory, script), '-o', out, '--target', target], {encoding: 'utf8'});
-  if (r.status !== 0) throw new Error(`nona build failed for ${script}: ${r.stderr}`);
-  return out;
+    const out = resolve(here, "build", basename(script, extname(script)) + exe);
+    const r = spawnSync(
+        "node",
+        [
+            resolve(here, "..", "dist", "cli.js"),
+            "build",
+            resolve(directory, script),
+            "-o",
+            out,
+            "--target",
+            target,
+        ],
+        { encoding: "utf8" },
+    );
+    if (r.status !== 0)
+        throw new Error(`nona build failed for ${script}: ${r.stderr}`);
+    return out;
 }
 
 function measure(cmd, cmdArgs) {
-  const t0 = performance.now();
-  const r = spawnSync(cmd, cmdArgs, {encoding: 'utf8', timeout, cwd: directory, env: {...process.env, SCALE: String(scale)}});
-  const wall = (performance.now() - t0) / 1000;
-  const out = (r.stdout || '').trim().split('\n').pop() || '';
-  let metrics = null;
-  try {metrics = JSON.parse(out);} catch {}
-  return {rc: r.status, timedOut: r.signal === 'SIGTERM' && wall * 1000 >= timeout, wall: +wall.toFixed(3), metrics, stderr: (r.stderr || '').trim().slice(-200)};
+    const t0 = performance.now();
+    const r = spawnSync(cmd, cmdArgs, {
+        encoding: "utf8",
+        timeout,
+        cwd: directory,
+        env: { ...process.env, SCALE: String(scale) },
+    });
+    const wall = (performance.now() - t0) / 1000;
+    const out = (r.stdout || "").trim().split("\n").pop() || "";
+    let metrics = null;
+    try {
+        metrics = JSON.parse(out);
+    } catch {}
+    return {
+        rc: r.status,
+        timedOut: r.signal === "SIGTERM" && wall * 1000 >= timeout,
+        wall: +wall.toFixed(3),
+        metrics,
+        stderr: (r.stderr || "").trim().slice(-200),
+    };
 }
 
 for (const script of scripts) {
-  const path = resolve(directory, script);
-  let bin = null;
-  for (const rt of runtimes) {
-    if (!available[rt]) continue;
-    for (let i = 0; i < runs; i++) {
-      let m;
-      if (rt === 'nona') {bin ??= build(script); m = measure(bin, []);}
-      else if (rt === 'node') m = measure('node', [path]);
-      else if (rt === 'deno') m = measure('deno', ['run', '-A', path]);
-      else if (rt === 'bun') m = measure('bun', [path]);
-      console.log(JSON.stringify({rt, scale, script, ...m}));
-      if (m.timedOut) break;
+    const path = resolve(directory, script);
+    let bin = null;
+    for (const rt of runtimes) {
+        if (!available[rt]) continue;
+        for (let i = 0; i < runs; i++) {
+            let m;
+            if (rt === "nona") {
+                bin ??= build(script);
+                m = measure(bin, []);
+            } else if (rt === "node") m = measure("node", [path]);
+            else if (rt === "deno") m = measure("deno", ["run", "-A", path]);
+            else if (rt === "bun") m = measure("bun", [path]);
+            console.log(JSON.stringify({ rt, scale, script, ...m }));
+            if (m.timedOut) break;
+        }
     }
-  }
 }
