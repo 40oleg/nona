@@ -101,13 +101,13 @@ if (cliMode) {
     let cli = readFileSync(cliPath, "utf8");
     cli = replaceChecked(
         cli,
-        "from 'node:crypto'",
+        'from "node:crypto"',
         "from './selfhost-crypto.js'",
         "cli.js",
     );
     cli = replaceChecked(
         cli,
-        "from 'node:url'",
+        'from "node:url"',
         "from './selfhost-url.js'",
         "cli.js",
     );
@@ -122,19 +122,19 @@ if (cliMode) {
     let cache = readFileSync(cachePath, "utf8");
     cache = replaceChecked(
         cache,
-        "from 'node:crypto'",
+        'from "node:crypto"',
         "from './selfhost-crypto.js'",
         "cache.js",
     );
     cache = replaceChecked(
         cache,
-        /^import \{ fileURLToPath \} from 'node:url';\r?\n/m,
+        /^import \{ fileURLToPath \} from "node:url";\r?\n/m,
         "",
         "cache.js",
     );
     cache = replaceChecked(
         cache,
-        "from 'node:os'",
+        'from "node:os"',
         "from './selfhost-home.js'",
         "cache.js",
     );
