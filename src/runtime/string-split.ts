@@ -1,3 +1,4 @@
+import { skipToFirstUnit } from "./string-scan.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
 import {
@@ -40,21 +41,10 @@ export function emitStringSplit(b: RuntimeBuilder): void {
         a.load("rdx", slot(48));
         a.add("rdx", 8);
         a.add("rdx", "r10");
-        a.load("r8", slot(72));
-        a.add("r8", 8);
-        a.load("r9", slot(64));
-        const loop = a.unique("copy"),
-            done = a.unique("done");
-        a.label(loop);
-        a.test("r9", "r9");
-        a.jcc("e", done);
-        a.load("rax", { base: "rdx" }, 16);
-        a.store({ base: "r8" }, "rax", 16);
-        a.add("rdx", 2);
-        a.add("r8", 2);
-        a.sub("r9", 1);
-        a.jmp(loop);
-        a.label(done);
+        a.load("rcx", slot(72));
+        a.add("rcx", 8);
+        a.load("r8", slot(64));
+        a.call("rt.copyUnits");
         a.load("rcx", slot(40));
         a.mov("rax", 4);
         a.store({ base: "rcx" }, "rax");
@@ -178,6 +168,7 @@ export function emitStringSplit(b: RuntimeBuilder): void {
                 appendTail = a.unique("appendTail"),
                 appendPiece = a.unique("appendPiece");
             a.label(outer);
+            skipToFirstUnit(a, [256, 120, 208, 136, 216], appendTail);
             a.load("rax", slot(256));
             a.load("r10", slot(216));
             a.add("rax", "r10");

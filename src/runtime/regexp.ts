@@ -2518,14 +2518,8 @@ export function emitRegExp(b: RuntimeBuilder): void {
             const copy = a.unique("copy"),
                 copied = a.unique("copied");
             a.label(copy);
-            a.test("r8", "r8");
-            a.jcc("e", copied);
-            a.load("r10", { base: "rdx" }, 16);
-            a.store({ base: "rax" }, "r10", 16);
-            a.add("rdx", 2);
-            a.add("rax", 2);
-            a.sub("r8", 1);
-            a.jmp(copy);
+            a.mov("rcx", "rax");
+            a.call("rt.copyUnits");
             a.label(copied);
             a.lea("rcx", slot(112));
             a.mov("rdx", 1);

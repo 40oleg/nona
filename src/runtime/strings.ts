@@ -65,6 +65,33 @@ export function emitStrings(b: RuntimeBuilder): void {
         a.load("rsi", slot(40));
         a.load("rdi", slot(48));
     });
+    // RCX destination, RDX source, R8 count of UTF-16 code units (the ranges
+    // do not overlap): sixteen bytes per step, then unit by unit (#253).
+    // Clobbers RCX, RDX, R8, R9 and XMM4.
+    b.fn("rt.copyUnits", 40, (a) => {
+        const vector = a.unique("vector"),
+            tail = a.unique("tail"),
+            done = a.unique("done");
+        a.label(vector);
+        a.cmp("r8", 8);
+        a.jcc("b", tail);
+        a.loadXmm128("xmm4", { base: "rdx" });
+        a.storeXmm128({ base: "rcx" }, "xmm4");
+        a.add("rcx", 16);
+        a.add("rdx", 16);
+        a.sub("r8", 8);
+        a.jmp(vector);
+        a.label(tail);
+        a.test("r8", "r8");
+        a.jcc("e", done);
+        a.load("r9", { base: "rdx" }, 16);
+        a.store({ base: "rcx" }, "r9", 16);
+        a.add("rcx", 2);
+        a.add("rdx", 2);
+        a.sub("r8", 1);
+        a.jmp(tail);
+        a.label(done);
+    });
     b.fn("rt.concat", 104, (a) => {
         a.store(slot(40), "rcx");
         a.load("rdx", { base: "rdx", disp: 8 });
@@ -336,6 +363,51 @@ export function emitStrings(b: RuntimeBuilder): void {
         a.label(ordinary);
         a.add("rcx", 8);
         a.add("rdx", 8);
+        // Eight code units at a time while both strings have eight left: a
+        // 16-bit lane compare, then the byte mask; a mask other than all ones
+        // locates the first differing unit (#253). XMM4/XMM5 are scratch.
+        {
+            const vectorLoop = a.unique("vectorLoop"),
+                scalar = a.unique("scalar"),
+                differ = a.unique("differ"),
+                shorter = a.unique("shorter");
+            a.mov("r11", "r8");
+            a.cmp("r9", "r11");
+            a.jcc("ae", shorter);
+            a.mov("r11", "r9");
+            a.label(shorter);
+            a.mov("rax", a.vectorMaskAll);
+            a.label(vectorLoop);
+            a.cmp("r11", 8);
+            a.jcc("b", scalar);
+            a.loadXmm128("xmm4", { base: "rcx" });
+            a.loadXmm128("xmm5", { base: "rdx" });
+            a.vectorEqual16("xmm4", "xmm5");
+            a.vectorMask("r10", "xmm4");
+            a.cmp("r10", "rax");
+            a.jcc("ne", differ);
+            a.add("rcx", 16);
+            a.add("rdx", 16);
+            a.sub("r8", 8);
+            a.sub("r9", 8);
+            a.sub("r11", 8);
+            a.jmp(vectorLoop);
+            a.label(differ);
+            // The lowest clear bit of the mask is the first differing byte.
+            a.xor("r10", "rax");
+            a.bitScanForward("r10", "r10");
+            if (a.vectorMaskBitsPerByte > 1)
+                a.shr("r10", Math.log2(a.vectorMaskBitsPerByte));
+            a.and("r10", -2);
+            a.add("rcx", "r10");
+            a.add("rdx", "r10");
+            a.load("r10", { base: "rcx" }, 16);
+            a.load("r11", { base: "rdx" }, 16);
+            a.cmp("r10", "r11");
+            a.jcc("b", "rt.compareStrings.less");
+            a.jmp("rt.compareStrings.greater");
+            a.label(scalar);
+        }
         a.label("rt.compareStrings.loop");
         a.test("r8", "r8");
         a.jcc("e", "rt.compareStrings.leftEnd");

@@ -715,12 +715,25 @@ export function emitMemory(b: RuntimeBuilder): void {
             a.jmp(zeroed);
             a.label(loop);
         }
+        // Sixteen bytes per store, then the last eight if the payload's
+        // length is an odd number of words (#253).
         a.label(zero);
-        a.cmp("r10", "r11");
-        a.jcc("ae", zeroed);
-        a.store({ base: "r10" }, "r8");
-        a.add("r10", 8);
-        a.jmp(zero);
+        a.vectorZero("xmm4");
+        {
+            const wide = a.unique("zeroWide"),
+                last = a.unique("zeroLast");
+            a.label(wide);
+            a.lea("r9", { base: "r10", disp: 16 });
+            a.cmp("r9", "r11");
+            a.jcc("a", last);
+            a.storeXmm128({ base: "r10" }, "xmm4");
+            a.mov("r10", "r9");
+            a.jmp(wide);
+            a.label(last);
+            a.cmp("r10", "r11");
+            a.jcc("ae", zeroed);
+            a.store({ base: "r10" }, "r8");
+        }
         a.label(zeroed);
         a.jmp(ready);
         // An empty free list: sweep this class's next unswept chunks first.

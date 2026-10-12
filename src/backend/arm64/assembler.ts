@@ -934,6 +934,55 @@ export class Arm64Assembler extends Assembler {
             (0x9e670000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
         );
     }
+    // The 128-bit vector operations of the x64 Assembler, on NEON.
+    private vectorBinary(dst: Xmm, src: Xmm, opcode: number): void {
+        const d = this.vector(dst);
+        this.nativeWord(
+            (opcode | (this.vector(src) << 16) | (d << 5) | d) >>> 0,
+        );
+    }
+    override vectorEqual16(dst: Xmm, src: Xmm): void {
+        this.vectorBinary(dst, src, 0x6e608c00); // cmeq vd.8h, vd.8h, vs.8h
+    }
+    override vectorEqual8(dst: Xmm, src: Xmm): void {
+        this.vectorBinary(dst, src, 0x6e208c00); // cmeq vd.16b, vd.16b, vs.16b
+    }
+    override vectorOr(dst: Xmm, src: Xmm): void {
+        this.vectorBinary(dst, src, 0x4ea01c00); // orr vd.16b, vd.16b, vs.16b
+    }
+    override vectorAnd(dst: Xmm, src: Xmm): void {
+        this.vectorBinary(dst, src, 0x4e201c00); // and vd.16b, vd.16b, vs.16b
+    }
+    override vectorZero(dst: Xmm): void {
+        this.nativeWord((0x6f00e400 | this.vector(dst)) >>> 0); // movi vd.2d, #0
+    }
+    override vectorBroadcast16(dst: Xmm, src: Reg): void {
+        // dup vd.8h, w(src)
+        this.nativeWord(
+            (0x4e020c00 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
+        );
+    }
+    override vectorMask(dst: Reg, src: Xmm): void {
+        // shrn v31.8b, vs.8h, #4 keeps 4 bits of each byte (the low nibble's
+        // top half and the high nibble's bottom half of each 16-bit lane);
+        // fmov xd, d31 moves the 64-bit mask.
+        this.nativeWord((0x0f0c8400 | (this.vector(src) << 5) | 31) >>> 0);
+        this.nativeWord((0x9e660000 | (31 << 5) | arm64Registers[dst]) >>> 0);
+    }
+    override readonly vectorMaskBitsPerByte: number = 4;
+    override readonly vectorMaskAll: bigint = 0xffffffffffffffffn;
+    override bitScanForward(dst: Reg, src: Reg): void {
+        const d = arm64Registers[dst];
+        // rbit xd, xs; clz xd, xd: the count of trailing zeros.
+        this.nativeWord((0xdac00000 | (arm64Registers[src] << 5) | d) >>> 0);
+        this.nativeWord((0xdac01000 | (d << 5) | d) >>> 0);
+    }
+    override bitScanReverse(dst: Reg, src: Reg): void {
+        const d = arm64Registers[dst];
+        // clz xd, xs; eor xd, xd, #63: 63 - clz for a nonzero value.
+        this.nativeWord((0xdac01000 | (arm64Registers[src] << 5) | d) >>> 0);
+        this.nativeWord((0xd2401400 | (d << 5) | d) >>> 0);
+    }
     override movqFromXmm(dst: Reg, src: Xmm): void {
         this.nativeWord(
             (0x9e660000 | (this.vector(src) << 5) | arm64Registers[dst]) >>> 0,

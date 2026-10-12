@@ -129,3 +129,19 @@ Follow-ups, proposed as separate issues:
 - `--cpu` levels, once an AVX2 kernel shows a gain.
 
 Each implementation PR re-runs the profiles of this page and `bench/16_string_scan.js` before and after, on x64. On ARM64 it runs the native and portable suites.
+
+## Results
+
+Steps 1–4 of the plan are implemented: the vector operations of the machine model, the eight-unit loop of `rt.compareStrings`, the first-unit scan of `indexOf`, `includes`, `lastIndexOf`, `split` and `replaceAll`, the 16-byte copy routine `rt.copyUnits` used by `slice`, `substring`, `substr`, `split` and RegExp captures, and 16-byte zeroing in `rt.alloc`.
+
+Instructions counted with `scripts/profile-runtime.mjs` on x64:
+
+| Program                             |      Before |       After |                                          Change |
+| ----------------------------------- | ----------: | ----------: | ----------------------------------------------: |
+| `16_string_scan.js` (`--scale 0.2`) | 378,843,478 | 178,322,090 |                                            −53% |
+| `07_strings.js` (`--scale 0.02`)    |  85,209,818 |  83,742,461 |                                           −1.7% |
+| `09_gc.js` (`--scale 0.02`)         | 132,339,485 | 134,026,286 | +1.3% (noise: the program is not deterministic) |
+
+`rt.compareStrings` in `16_string_scan.js` went from 3,214 to 439 instructions per call. Wall time of `16_string_scan.js` (`SCALE=1`, native x64): equals 30 → 6 ms, search 52 → 31 ms, split 80 → 62 ms, keys 100 → 55 ms.
+
+The programs of `tests/simd.test.ts` print what Node.js prints on x64 and on ARM64 (under QEMU), including under `gcStress`.

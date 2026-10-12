@@ -93,6 +93,7 @@
                 "array-buffer",
                 "typed-array-fast-path",
                 "string-builtins",
+                "simd",
                 "string-search",
                 "string-split",
                 "string-replace",
