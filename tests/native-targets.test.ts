@@ -71,11 +71,11 @@ test("Darwin and BSD filesystem adapters declare only their native kernel servic
             target,
         );
         const source = host.read("node:fs")!;
-        assert.match(source, /define\('syscall'/);
+        assert.match(source, /define\("syscall"/);
         assert.doesNotMatch(source, /kernel32\.dll|CreateFileW/);
         assert.match(source, /realpathSync/);
         if (target === "openbsd-x64")
-            assert.match(source, /const sysFstat = define\('syscall', '53'/);
+            assert.match(source, /const sysFstat = define\("syscall", "53"/);
     }
 });
 

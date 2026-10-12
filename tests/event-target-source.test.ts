@@ -85,8 +85,8 @@ for (const [name, body] of cases) {
             writeFileSync(
                 join(directory, "events.mjs"),
                 eventsModuleSource.replace(
-                    "'node:async_hooks'",
-                    "'./async.mjs'",
+                    '"node:async_hooks"',
+                    '"./async.mjs"',
                 ),
             );
             writeFileSync(

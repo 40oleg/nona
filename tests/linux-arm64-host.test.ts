@@ -22,7 +22,7 @@ test("Linux ARM64 process uses native syscall IDs and at-style signatures", () =
 test("Linux ARM64 filesystem emits at-style calls and native stat mode layout", () => {
     const source = fsModuleSource("linux-arm64");
     assert.ok(
-        source.includes("define('syscall', '56', 'i64(i64,buf,i64,i64)')"),
+        source.includes('define("syscall", "56", "i64(i64,buf,i64,i64)")'),
     );
     assert.ok(source.includes("getUint32(16, true)"));
     const result = compile(

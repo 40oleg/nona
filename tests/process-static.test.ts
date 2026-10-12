@@ -1788,7 +1788,7 @@ test("promise throw and ignore policies retain their behavior before lazy proces
             {},
             "linux-x64",
             promiseMockBootstrap.replace(
-                "var failOnUnhandled=true",
+                "var failOnUnhandled = true",
                 "var failOnUnhandled=" + fail,
             ),
         );
@@ -2227,9 +2227,11 @@ test("native probe manifest rejects malformed termination and environment metada
         new URL("../../scripts/run-platform-probes.mjs", import.meta.url),
         "utf8",
     );
+    // The validation statements of the runtime probe loop, from the first
+    // check to the line that uses the validated file name.
     const validation = runner.slice(
-        runner.indexOf("  if(typeof probe.file"),
-        runner.indexOf("  const file=join(directory,probe.file)"),
+        runner.lastIndexOf("if (", runner.indexOf("typeof probe.file")),
+        runner.indexOf("const file = join(directory, probe.file)"),
     );
     const validate = (probe: unknown) =>
         runInContext(validation, createContext({ probe }));
@@ -2263,7 +2265,7 @@ test("native probe manifest rejects malformed termination and environment metada
             ),
             "utf8",
         );
-    assert.ok(builder.includes("file+'.minimal-environment'"));
+    assert.ok(builder.includes('file + ".minimal-environment"'));
     assert.equal(
         (workflow.match(/cat "\$binary\.minimal-environment"/g) ?? []).length,
         3,
