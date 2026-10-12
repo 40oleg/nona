@@ -313,3 +313,10 @@ test('compile errors in packages name the file and the line',()=>{
   assert.equal(text.slice(0,diagnostic.span.start).split('\n').length,2,'the error is on line 2');
  }finally{removeTemporaryDirectory(directory);}
 });
+
+test('a RegExp literal may follow export default (uuid), a division may follow a property named default',()=>{
+ const program=parse(lex('export default /^[0-9a-f]{8}$/i;',{module:true}),{module:true});
+ assert.equal(program.body[0]!.kind,'Export');
+ const division=parse(lex('var x = a.default / 2 / 1, y = a?.extends / 3;'));
+ assert.equal(division.body.length,1);
+});
