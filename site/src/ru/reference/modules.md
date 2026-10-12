@@ -19,14 +19,16 @@
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ru/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | модули | обе | [Сеть (англ.)](/reference/network) |
 | `node:events`, `node:string_decoder` | модули | обе | [Вспомогательные модули Node.js (англ.)](/reference/network#supporting-modules) |
+| `URL`, `URLSearchParams`, `node:url`, `url` | глобальные и модуль | все восемь | [URL](/ru/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (и их имена без префикса) | модули | все восемь | [Вспомогательные модули Node.js](/ru/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | модуль | Windows (DLL), Linux (системные вызовы) | [Нативные функции (FFI)](/ru/reference/ffi) |
 | `nona:win32` | модуль | Windows | ниже и в [FFI](/ru/reference/ffi#nona-win32) |
 
 ## Правила
 
 - Глобальные объекты доступны в скриптах и модулях.
-- Встроенные модули можно импортировать из кода модулей (`.mjs` или `--module`) и литеральным `import()` из скриптов. Объявления FFI (`define`) должны находиться в коде модуля.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- Встроенные модули можно импортировать из кода модулей (`.mjs` или `--module`), подключать через `require` из модулей CommonJS (`require('fs')`, `require('node:fs')`) и загружать литеральным `import()` из скриптов. Объявления FFI (`define`) должны находиться в коде модуля.
+- Поддерживаемые модули Node: `node:fs`, `node:process`, `node:path` (псевдоним `path`), `node:events` (псевдонимы `events`/`nona:events`), `node:async_hooks` (псевдоним `nona:async_hooks`), а также `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (псевдонимы `buffer`/`nona:buffer`). Доступны глобальные `Buffer`, `Blob`, `File`, `URL` и `URLSearchParams`. Для работы с сетью доступны `node:http`, `node:net` и `node:string_decoder`, а для [пакетов npm](/reference/npm) — `node:os`, `node:tty`, `node:util`, `node:url`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers`, `node:perf_hooks`, `node:module`, `node:worker_threads` и `node:child_process`.
 - `nona:win32` и объявления DLL компилируются только для `win32-x64`; объявления системных вызовов — только для `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -97,4 +99,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+Эти псевдонимы экспортируют глобальные конструкторы `Buffer`, `Blob` и `File`, проверки байтов, вспомогательные функции base64, перекодирование, настройки инспекции и константы. Доступны байтовые и текстовые потоки Blob, читатели BYOB, а также регистрация и разрешение объектных URL. Общий разбор URL выполняет глобальный [`URL`](/ru/reference/host-apis#url); построение произвольных Web Streams остаётся отдельным зависимым API. См. [двоичные данные (англ.)](/reference/host-apis#buffer-and-binary-data) и [запускаемый пример](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

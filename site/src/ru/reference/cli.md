@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | путь | Выходной файл. Обязателен. Недостающие каталоги создаются. |
 | `--target` | [Платформы](/reference/native-platforms) | PE32+, ELF64 или Mach-O64; по умолчанию ОС и CPU хоста. |
 | `--module` | — | Компилировать вход как ES-модуль. Файлы с окончанием `.mjs` — модули автоматически. |
+| `--conditions`, `-C` | имя | Добавить условие `exports`/`imports` из package.json; оно проверяется раньше собственных условий Nona (`nona`, `node`, `import` или `require`, `default`). Можно писать и `--conditions=name`. Параметр можно повторять. См. [пакеты npm](/reference/npm#resolution). |
 | `--print-asm` | — | Вывести в stdout ассемблер x86-64, сгенерированный для собственных функций программы (без рантайма и прелюдий): метка функции, затем по строке на инструкцию — смещение, закодированные байты и текст в синтаксисе Intel. С этим параметром `-o` можно не указывать. Только цели x86-64. |
 | `--subsystem` | `console` (по умолчанию), `windows` | GUI-программа Windows без консольного окна. Только `win32-x64`. GUI-программа без `--manifest` получает манифест по умолчанию. |
 | `--icon` | файл `.ico` | Встроить все изображения из файла иконки. Только `win32-x64`. |
@@ -29,11 +30,12 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `--help` | — | Вывести синтаксис. |
 | `--version` | — | Вывести версию компилятора. |
 
-Каждый параметр можно указать один раз. Форматы ресурсов описаны в разделе [Исполняемые файлы Windows](/ru/reference/windows-executables).
+Каждый параметр, кроме `--conditions`, можно указать один раз. Форматы ресурсов описаны в разделе [Исполняемые файлы Windows](/ru/reference/windows-executables).
 
 ## Вход и выход
 
-- Вход — один исходный файл в UTF-8. Модуль подтягивает модули, которые он импортирует; встроенные модули `nona:*` и `node:*` — часть компилятора.
+- Вход — один исходный файл в UTF-8. Модуль подтягивает модули, которые он импортирует, а вход CommonJS — модули, которые он подключает через `require`, включая пакеты npm из `node_modules` ([пакеты npm](/reference/npm)); встроенные модули `nona:*` и `node:*` — часть компилятора.
+- Вход может быть каталогом пакета: Nona собирает файл, указанный в поле `"bin"` его `package.json` (единственную команду или команду с именем пакета), а если его нет — файл из `"main"` или `index.js`.
 - Результат записывается во временный файл рядом и затем переименовывается, поэтому неудачная сборка никогда не оставляет недописанный исполняемый файл и сохраняет предыдущий.
 - Компилятор отказывается перезаписывать свой входной файл, в том числе через жёсткую или символическую ссылку.
 - Файлы для Linux получают права `0755`.

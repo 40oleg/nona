@@ -18,14 +18,16 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/zh/reference/host-apis#paths-nodepath) |
 | `nona:http`、`node:http`、`nona:net`、`node:net` | 模块 | 两者 | [网络（英文）](/reference/network) |
 | `node:events`、`node:buffer`、`node:string_decoder` | 模块 | 两者 | [Node.js 支持模块（英文）](/reference/network#supporting-modules) |
+| `URL`、`URLSearchParams`、`node:url`、`url` | 全局对象和模块 | 全部八个 | [URL](/zh/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process`（及其不带前缀的名称） | 模块 | 全部八个 | [Node.js 支持模块](/zh/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | 模块 | Windows（DLL）、Linux（系统调用） | [原生函数（FFI）](/zh/reference/ffi) |
 | `nona:win32` | 模块 | Windows | 见下文及 [FFI](/zh/reference/ffi#nona-win32) |
 
 ## 规则
 
 - 全局对象在脚本和模块中都可用。
-- 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，也可以在脚本中用字面量 `import()` 导入。FFI 声明（`define`）必须位于模块代码中。
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，可以在 CommonJS 模块中通过 `require` 加载（`require('fs')`、`require('node:fs')`），也可以在脚本中用字面量 `import()` 加载。FFI 声明（`define`）必须位于模块代码中。
+- 支持的 Node 模块：`node:fs`、`node:process`、`node:path`（别名 `path`）、`node:events`（别名 `events`/`nona:events`）、`node:async_hooks`（别名 `nona:async_hooks`），以及 `node:stream`、`node:stream/promises`、`node:stream/consumers`、`node:buffer`（别名 `buffer`/`nona:buffer`）。全局 `Buffer`、`Blob`、`File`、`URL` 和 `URLSearchParams` 可用。`node:http`、`node:net` 和 `node:string_decoder` 用于网络，`node:os`、`node:tty`、`node:util`、`node:url`、`node:assert`、`node:crypto`、`node:querystring`、`node:timers`、`node:perf_hooks`、`node:module`、`node:worker_threads` 和 `node:child_process` 用于 [npm 包](/reference/npm)。
 - `nona:win32` 和 DLL 声明只能为 `win32-x64` 编译；系统调用声明只能为 `linux-x64` 编译。
 
 ## `nona:win32` {#nona-win32}
@@ -96,4 +98,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+这些别名导出全局 `Buffer`、`Blob` 和 `File` 构造函数、字节校验函数、base64 辅助函数、转码、inspect 设置和常量。Blob 的字节/文本流、BYOB 读取器以及对象 URL 的注册和解析均可用。通用 URL 解析由全局 [`URL`](/zh/reference/host-apis#url) 提供；任意 Web Stream 的构造仍是单独的依赖 API。参见[二进制数据（英文）](/reference/host-apis#buffer-and-binary-data)和[可运行示例](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs)。

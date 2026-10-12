@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+全局 `URL` 和 `URLSearchParams`（`node:url` 也导出它们）遵循 [URL 标准](https://url.spec.whatwg.org/)：带默认端口的特殊协议（`http`、`https`、`ws`、`wss`、`ftp`、`file`），反斜杠和点路径段，相对于基准 URL 的相对引用，带 authority 或不透明路径的其他协议（`mailto:`、`data:`、`blob:`），标准的百分号编码集，任意写法的 IPv4 数字以及 IPv6 地址。每个组成部分都可以读取和设置；`searchParams` 与 `search` 保持同步。提供 `URL.canParse` 和 `URL.parse`。主机名会转为小写，但不做 IDNA 转换：主机含非 ASCII 字符的 URL 会抛出 `ERR_INVALID_URL`。只有当程序源码中提到 `URL` 或 `URLSearchParams` 时，解析器才会被链接进程序。
+
+## Node.js 支持模块 {#nodejs-support-modules}
+
+这些模块主要为 [npm 包](/reference/npm)而提供，这些包会在启动时加载它们。每个模块都可以通过 `node:<name>` 和 `<name>` 使用。
+
+- `node:os`：`EOL`、`devNull`、`platform`、`arch`、`machine`、`type`、`endianness`、`homedir`（`HOME`，Windows 上为 `USERPROFILE`）、`tmpdir`（`TMPDIR`/`TMP`/`TEMP`）、`hostname`（`HOSTNAME`/`COMPUTERNAME` 或 `localhost`）、`userInfo`、`uptime`、`freemem`、`totalmem` 以及 `constants.signals`/`priority`。`release` 和 `version` 为空字符串，`cpus()` 和 `networkInterfaces()` 为空，`loadavg()` 全为零，`availableParallelism()` 为 1。
+- `node:tty`：`isatty(fd)` 报告标准输入、标准输出或标准错误是否为终端；`ReadStream` 和 `WriteStream` 是用于特性检测的最小类。
+- `node:util`：`format` 和 `formatWithOptions`（`%s %d %i %f %j %o %O %c %%`）、`inspect`（支持 `inspect.custom`、`depth`、`breakLength`、`maxArrayLength`、`customInspect`）、`inherits`、`promisify`（支持 `promisify.custom`）、`callbackify`、`deprecate`（每个代码只警告一次）、`debuglog`（`NODE_DEBUG`）、`isDeepStrictEqual`、`types`、`styleText`、`stripVTControlCharacters`、`TextEncoder`/`TextDecoder` 以及旧式的 `is*` 判断函数。`inspect` 近似 Node.js 的排版：会显示对象、数组、Map、Set、类型化数组、函数、类、错误、日期、包装值、getter 和循环引用，但颜色、`showHidden`、`sorted` 以及 Node.js 将长数组分列显示的方式不会被精确再现。`node:util/types` 即 `util.types`。
+- `node:url`：`URL`、`URLSearchParams`、`fileURLToPath`、`pathToFileURL`（在 Windows 上支持盘符和 UNC 主机）、`urlToHttpOptions`、`domainToASCII`/`domainToUnicode`（仅 ASCII），以及旧式的 `parse`、`format` 和 `resolve`。
+- `node:assert` 和 `node:assert/strict`：`ok`、`equal`、`notEqual`、`strictEqual`、`notStrictEqual`、`deepEqual`、`deepStrictEqual` 及其否定形式，`throws`、`doesNotThrow`、`rejects`、`doesNotReject`、`match`、`doesNotMatch`、`ifError`、`fail` 和 `AssertionError`（`code` 为 `ERR_ASSERTION`）。失败消息比 Node.js 的差异输出更简短。
+- `node:crypto`：`randomBytes`、`randomFill`/`randomFillSync`、`randomUUID`（版本 4）、`randomInt`、`getRandomValues` 和 `webcrypto.getRandomValues` 读取操作系统的随机源（Windows 上为 `BCryptGenRandom`，其他系统为 `/dev/urandom`）。还提供 `createHash`（`md5`、`sha1`、`sha256`、`sha384`、`sha512`，支持 `update`、任意 Buffer 编码的 `digest` 和 `copy`）、`createHmac`、`hash`、`getHashes` 和 `timingSafeEqual`。不提供加密算法、密钥、签名、密钥派生和 `crypto.subtle`，也没有全局 `crypto`。
+- `node:querystring`：`parse`/`decode`、`stringify`/`encode`、`escape`、`unescape`。
+- `node:timers`：全局定时器函数。`node:timers/promises`：`setTimeout`、`setImmediate`（均支持 `AbortSignal`）、作为异步迭代器的 `setInterval`，以及 `scheduler.wait`/`yield`。
+- `node:perf_hooks`：`performance`；`PerformanceObserver` 和 `monitorEventLoopDelay` 不观察任何内容。
+- `node:module`：`builtinModules` 和 `isBuiltin`。`createRequire` 抛出 `ERR_NONA_UNSUPPORTED`：模块在构建程序时解析。
+- `node:worker_threads`：`isMainThread` 为 `true`，`parentPort` 和 `workerData` 为 `null`；`Worker` 抛出 `ERR_NONA_UNSUPPORTED`。
+- `node:child_process`：所有函数和 `ChildProcess` 都抛出 `ERR_NONA_UNSUPPORTED`。该模块的存在只是为了让仅提及它的包能够加载。

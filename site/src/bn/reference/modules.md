@@ -19,14 +19,16 @@ Nona প্রোগ্রাম Node.js ছাড়াই চলে। নি�
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/bn/reference/host-apis#paths-nodepath) |
 | `nona:http`, `node:http`, `nona:net`, `node:net` | মডিউল | উভয় | [নেটওয়ার্কিং (ইংরেজি)](/reference/network) |
 | `node:events`, `node:string_decoder` | মডিউল | উভয় | [Node.js সহায়ক মডিউল (ইংরেজি)](/reference/network#supporting-modules) |
+| `URL`, `URLSearchParams`, `node:url`, `url` | গ্লোবাল ও মডিউল | আটটিই | [URL](/bn/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (এবং প্রিফিক্স ছাড়া তাদের নাম) | মডিউল | আটটিই | [Node.js সহায়ক মডিউল](/bn/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | মডিউল | Windows (DLL), Linux (সিস্টেম কল) | [নেটিভ ফাংশন (FFI)](/bn/reference/ffi) |
 | `nona:win32` | মডিউল | Windows | নিচে এবং [FFI](/bn/reference/ffi#nona-win32)-এ |
 
 ## নিয়ম
 
 - গ্লোবালগুলো স্ক্রিপ্ট ও মডিউল উভয়েই উপলব্ধ।
-- বিল্ট-ইন মডিউল মডিউল কোড (`.mjs` বা `--module`) থেকে ইমপোর্ট করা যায়, আর স্ক্রিপ্ট থেকে লিটারাল `import()` দিয়ে। FFI ডিক্লারেশন (`define`) মডিউল কোডে থাকতে হবে।
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- বিল্ট-ইন মডিউল মডিউল কোড (`.mjs` বা `--module`) থেকে ইমপোর্ট করা যায়, CommonJS মডিউল থেকে `require` করা যায় (`require('fs')`, `require('node:fs')`), আর স্ক্রিপ্ট থেকে লিটারাল `import()` দিয়ে লোড করা যায়। FFI ডিক্লারেশন (`define`) মডিউল কোডে থাকতে হবে।
+- সমর্থিত Node মডিউল: `node:fs`, `node:process`, `node:path` (`path` অ্যালিয়াস), `node:events` (`events`/`nona:events` অ্যালিয়াস), `node:async_hooks` (`nona:async_hooks` অ্যালিয়াস), এবং `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` অ্যালিয়াস)। গ্লোবাল `Buffer`, `Blob`, `File`, `URL` ও `URLSearchParams` উপলব্ধ। নেটওয়ার্কিংয়ের জন্য `node:http`, `node:net` ও `node:string_decoder` উপলব্ধ, আর [npm প্যাকেজের](/reference/npm) জন্য `node:os`, `node:tty`, `node:util`, `node:url`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers`, `node:perf_hooks`, `node:module`, `node:worker_threads` ও `node:child_process`।
 - `nona:win32` ও DLL ডিক্লারেশন কেবল `win32-x64`-এর জন্য কম্পাইল হয়; সিস্টেম কল ডিক্লারেশন কেবল `linux-x64`-এর জন্য।
 
 ## `nona:win32` {#nona-win32}
@@ -97,4 +99,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+এই অ্যালিয়াসগুলো গ্লোবাল `Buffer`, `Blob` ও `File` কনস্ট্রাক্টর, বাইট ভ্যালিডেটর, base64 হেল্পার, ট্রান্সকোডিং, ইন্সপেকশন সেটিং ও কনস্ট্যান্ট এক্সপোর্ট করে। Blob-এর বাইট/টেক্সট স্ট্রিম, BYOB রিডার এবং অবজেক্ট URL নিবন্ধন/রিজলভ উপলব্ধ। সাধারণ URL পার্সিং করে গ্লোবাল [`URL`](/bn/reference/host-apis#url); যেকোনো Web Stream তৈরি এখনও একটি আলাদা ডিপেন্ডেন্সি API। দেখুন [বাইনারি ডেটা (ইংরেজি)](/reference/host-apis#buffer-and-binary-data) ও [চালানোর যোগ্য উদাহরণ](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs)।

@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | পাথ | আউটপুট ফাইল। আবশ্যক। অনুপস্থিত ডিরেক্টরি তৈরি করা হয়। |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | ইনপুটকে ES মডিউল হিসেবে কম্পাইল করে। `.mjs`-এ শেষ হওয়া ইনপুট স্বয়ংক্রিয়ভাবে মডিউল। |
+| `--conditions`, `-C` | নাম | package.json-এর একটি `exports`/`imports` কন্ডিশন যোগ করে, যা Nona-র নিজস্ব কন্ডিশনের (`nona`, `node`, `import` বা `require`, `default`) আগে চেষ্টা করা হয়; `--conditions=name`-ও চলে। একাধিকবার দেওয়া যায়। দেখুন [npm প্যাকেজ](/reference/npm#resolution)। |
 | `--print-asm` | — | প্রোগ্রামের নিজস্ব ফাংশনের (রানটাইম ও তার প্রিলিউড নয়) জন্য তৈরি x86-64 অ্যাসেম্বলি stdout-এ ছাপায়: প্রতিটি ফাংশনের লেবেল, তারপর প্রতিটি নির্দেশের জন্য একটি লাইন — অফসেট, এনকোড করা বাইট ও Intel সিনট্যাক্সে লেখা। এই অপশনের সঙ্গে `-o` বাদ দেওয়া যায়। কেবল x86-64 টার্গেট। |
 | `--subsystem` | `console` (ডিফল্ট), `windows` | কনসোল উইন্ডো ছাড়া Windows GUI প্রোগ্রাম। কেবল `win32-x64`। `--manifest` ছাড়া একটি GUI প্রোগ্রাম একটি ডিফল্ট ম্যানিফেস্ট পায়। |
 | `--icon` | `.ico` ফাইল | আইকন ফাইলের প্রতিটি ছবি যুক্ত করে। কেবল `win32-x64`। |
@@ -29,11 +30,12 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `--help` | — | সারসংক্ষেপ প্রিন্ট করে। |
 | `--version` | — | কম্পাইলারের ভার্সন প্রিন্ট করে। |
 
-প্রতিটি অপশন একবারই আসতে পারে। রিসোর্সের ফরম্যাটের জন্য দেখুন [Windows এক্সিকিউটেবল](/bn/reference/windows-executables)।
+`--conditions` ছাড়া প্রতিটি অপশন একবারই আসতে পারে। রিসোর্সের ফরম্যাটের জন্য দেখুন [Windows এক্সিকিউটেবল](/bn/reference/windows-executables)।
 
 ## ইনপুট ও আউটপুট
 
-- ইনপুট হলো একটি UTF-8 সোর্স ফাইল। একটি মডিউল ইনপুট তার ইমপোর্ট করা মডিউলগুলো টেনে আনে; বিল্ট-ইন `nona:*` ও `node:*` মডিউল কম্পাইলারেরই অংশ।
+- ইনপুট হলো একটি UTF-8 সোর্স ফাইল। একটি মডিউল ইনপুট তার ইমপোর্ট করা মডিউলগুলো টেনে আনে, আর একটি CommonJS ইনপুট তার `require` করা মডিউলগুলো, `node_modules`-এর npm প্যাকেজসহ ([npm প্যাকেজ](/reference/npm)); বিল্ট-ইন `nona:*` ও `node:*` মডিউল কম্পাইলারেরই অংশ।
+- ইনপুট একটি প্যাকেজ ডিরেক্টরিও হতে পারে: Nona তার `package.json`-এর `"bin"` যে ফাইলের নাম দেয় সেটি বিল্ড করে (একমাত্র কমান্ড, অথবা প্যাকেজের নামের কমান্ড), তা না থাকলে তার `"main"` বা `index.js`।
 - আউটপুট প্রথমে তার পাশে একটি অস্থায়ী ফাইলে লেখা হয় এবং তারপর নাম বদলে যথাস্থানে রাখা হয়, তাই ব্যর্থ বিল্ড কখনও অর্ধেক লেখা এক্সিকিউটেবল রেখে যায় না এবং আগেরটি অক্ষত রাখে।
 - কম্পাইলার তার ইনপুট ওভাররাইট করতে অস্বীকার করে, হার্ড লিঙ্ক বা সিম্বলিক লিঙ্কের মাধ্যমেও।
 - Linux আউটপুট `0755` মোড পায়।

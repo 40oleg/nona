@@ -17,7 +17,7 @@ O compilador é escrito em TypeScript e roda no Node.js. Os programas que ele pr
 
 ## O que o Nona não é
 
-- **Não é um substituto do Node.js.** Não há `require`, nem pacotes npm, nem APIs do Node.js além dos [subconjuntos de `fs` e `process`](/pt/reference/modules). As APIs do navegador também não estão disponíveis.
+- **Não é um substituto do Node.js.** Pacotes npm são compilados no programa quando ele é gerado ([pacotes npm](/reference/npm)), mas só as [APIs do Node.js que o Nona implementa](/pt/reference/modules) estão disponíveis, e pacotes que precisam de outras (`zlib`, `https`, `child_process`), de `Intl` ou de addons nativos não funcionam. As APIs do navegador também não estão disponíveis.
 - **Não é uma implementação completa do ES2020.** O Nona implementa o ES2020 com exceções documentadas; veja [Suporte à linguagem](/pt/guide/language-support) e [Compatibilidade e limitações](/pt/guide/compatibility).
 - **Não gera código em tempo de execução.** `eval` e `Function` precisam de código-fonte conhecido em tempo de compilação; strings calculadas em tempo de execução lançam `EvalError`.
 - **Ainda não é rápido em computação.** Sem JIT, chamadas, acesso a propriedades e alocação são de 20 a 100 vezes mais lentos que no V8, e `Map`/`Set`, `sort`, construção de strings e cadeias longas de Promise ainda são superlineares em relação ao tamanho dos dados ([Desempenho](/pt/guide/performance)).

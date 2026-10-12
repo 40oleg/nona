@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+يتبع الكائنان العامان `URL` و`URLSearchParams` (وتصدّرهما `node:url` أيضًا) [معيار URL](https://url.spec.whatwg.org/): المخططات الخاصة (`http` و`https` و`ws` و`wss` و`ftp` و`file`) مع منافذها الافتراضية، والشرطات المائلة العكسية ومقاطع النقاط، والمراجع النسبية إلى عنوان أساس، والمخططات الأخرى ذات الجزء authority أو المسار المعتم (`mailto:` و`data:` و`blob:`)، ومجموعات الترميز بالنسبة المئوية القياسية، وأرقام IPv4 بأي صيغة، وعناوين IPv6. يمكن قراءة كل مكوّن وتعيينه، ويبقى `searchParams` متزامنًا مع `search`. ويتوفر `URL.canParse` و`URL.parse`. تُحوَّل أسماء المضيفين إلى أحرف صغيرة لكنها لا تُحوَّل عبر IDNA: فعنوان URL ذو المضيف غير ASCII يرمي `ERR_INVALID_URL`. ولا يُربط المحلّل بالبرنامج إلا إذا ذكرت مصادره `URL` أو `URLSearchParams`.
+
+## وحدات دعم Node.js {#nodejs-support-modules}
+
+توجد هذه الوحدات أساسًا من أجل [حزم npm](/reference/npm) التي تحمّلها عند بدء التشغيل. وكل منها متاحة باسم `node:<name>` و`<name>`.
+
+- `node:os`: `EOL` و`devNull` و`platform` و`arch` و`machine` و`type` و`endianness`، و`homedir` (`HOME`، أو `USERPROFILE` على Windows)، و`tmpdir` (`TMPDIR`/`TMP`/`TEMP`)، و`hostname` (`HOSTNAME`/`COMPUTERNAME` أو `localhost`)، و`userInfo` و`uptime` و`freemem` و`totalmem`، و`constants.signals`/`priority`. القيمتان `release` و`version` سلسلتان فارغتان، و`cpus()` و`networkInterfaces()` فارغتان، و`loadavg()` أصفار، و`availableParallelism()` تساوي 1.
+- `node:tty`: تخبر `isatty(fd)` إن كان الدخل القياسي أو الخرج القياسي أو خرج الأخطاء طرفيةً؛ و`ReadStream` و`WriteStream` صنفان بسيطان لاكتشاف الميزات.
+- `node:util`: `format` و`formatWithOptions` (`%s %d %i %f %j %o %O %c %%`)، و`inspect` (مع `inspect.custom` و`depth` و`breakLength` و`maxArrayLength` و`customInspect`)، و`inherits`، و`promisify` (مع `promisify.custom`)، و`callbackify`، و`deprecate` (يحذّر مرة واحدة لكل رمز)، و`debuglog` (`NODE_DEBUG`)، و`isDeepStrictEqual` و`types` و`styleText` و`stripVTControlCharacters` و`TextEncoder`/`TextDecoder`، والدوال الشرطية القديمة `is*`. تقارب `inspect` تنسيق Node.js: تُعرض الكائنات والمصفوفات وMap وSet والمصفوفات المنمّطة والدوال والأصناف والأخطاء والتواريخ والقيم المغلّفة والـ getters والمراجع الدائرية، لكن الألوان و`showHidden` و`sorted` وتجميع Node.js للمصفوفات الطويلة في أعمدة لا تُستنسخ بدقة. و`node:util/types` هي `util.types`.
+- `node:url`: `URL` و`URLSearchParams` و`fileURLToPath` و`pathToFileURL` (أحرف الأقراص ومضيفو UNC على Windows) و`urlToHttpOptions` و`domainToASCII`/`domainToUnicode` (ASCII فقط)، والدوال القديمة `parse` و`format` و`resolve`.
+- `node:assert` و`node:assert/strict`: `ok` و`equal` و`notEqual` و`strictEqual` و`notStrictEqual` و`deepEqual` و`deepStrictEqual` ونفيها، و`throws` و`doesNotThrow` و`rejects` و`doesNotReject` و`match` و`doesNotMatch` و`ifError` و`fail`، و`AssertionError` (`code` ‏`ERR_ASSERTION`). رسائل الفشل أقصر من فروق Node.js.
+- `node:crypto`: تقرأ `randomBytes` و`randomFill`/`randomFillSync` و`randomUUID` (الإصدار 4) و`randomInt` و`getRandomValues` و`webcrypto.getRandomValues` من مصدر العشوائية في نظام التشغيل (`BCryptGenRandom` على Windows، و`/dev/urandom` في غيره). وتتوفر كذلك `createHash` (`md5` و`sha1` و`sha256` و`sha384` و`sha512`، مع `update` و`digest` بأي ترميز من ترميزات Buffer و`copy`) و`createHmac` و`hash` و`getHashes` و`timingSafeEqual`. لا تتوفر الشيفرات والمفاتيح والتواقيع واشتقاق المفاتيح و`crypto.subtle`، ولا يوجد `crypto` عام.
+- `node:querystring`: `parse`/`decode` و`stringify`/`encode` و`escape` و`unescape`.
+- `node:timers`: دوال المؤقتات العامة. `node:timers/promises`: `setTimeout` و`setImmediate` (كلتاهما مع `AbortSignal`)، و`setInterval` كمكرّر غير متزامن، و`scheduler.wait`/`yield`.
+- `node:perf_hooks`: `performance`؛ و`PerformanceObserver` و`monitorEventLoopDelay` لا يراقبان شيئًا.
+- `node:module`: `builtinModules` و`isBuiltin`. ترمي `createRequire` الخطأ `ERR_NONA_UNSUPPORTED`: فالوحدات تُحلّ عند بناء البرنامج.
+- `node:worker_threads`: `isMainThread` تساوي `true`، و`parentPort` و`workerData` تساويان `null`؛ وترمي `Worker` الخطأ `ERR_NONA_UNSUPPORTED`.
+- `node:child_process`: ترمي كل الدوال و`ChildProcess` الخطأ `ERR_NONA_UNSUPPORTED`. توجد الوحدة كي تُحمَّل الحزم التي تكتفي بذكرها.

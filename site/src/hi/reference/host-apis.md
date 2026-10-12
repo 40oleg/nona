@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+ग्लोबल `URL` और `URLSearchParams` (जिन्हें `node:url` भी एक्सपोर्ट करता है) [URL Standard](https://url.spec.whatwg.org/) का पालन करते हैं: डिफ़ॉल्ट पोर्ट वाली विशेष स्कीम (`http`, `https`, `ws`, `wss`, `ftp`, `file`), बैकस्लैश और डॉट सेगमेंट, किसी बेस के सापेक्ष रिलेटिव रेफ़रेंस, authority या अपारदर्शी पाथ वाली अन्य स्कीम (`mailto:`, `data:`, `blob:`), मानक प्रतिशत-एन्कोडिंग सेट, किसी भी नोटेशन में IPv4 संख्याएँ और IPv6 पते। हर घटक पढ़ा और सेट किया जा सकता है; `searchParams` `search` के साथ सिंक में रहता है। `URL.canParse` और `URL.parse` उपलब्ध हैं। होस्ट लोअरकेस किए जाते हैं, पर IDNA से रूपांतरित नहीं होते: गैर-ASCII होस्ट वाला URL `ERR_INVALID_URL` थ्रो करता है। पार्सर प्रोग्राम में तभी लिंक होता है जब उसके सोर्स में `URL` या `URLSearchParams` का ज़िक्र हो।
+
+## Node.js सहायक मॉड्यूल {#nodejs-support-modules}
+
+ये मॉड्यूल मुख्य रूप से [npm पैकेजों](/reference/npm) के लिए हैं, जो इन्हें स्टार्टअप पर लोड करते हैं। हर मॉड्यूल `node:<name>` और `<name>` दोनों रूपों में उपलब्ध है।
+
+- `node:os`: `EOL`, `devNull`, `platform`, `arch`, `machine`, `type`, `endianness`, `homedir` (`HOME`, या Windows पर `USERPROFILE`), `tmpdir` (`TMPDIR`/`TMP`/`TEMP`), `hostname` (`HOSTNAME`/`COMPUTERNAME` या `localhost`), `userInfo`, `uptime`, `freemem`, `totalmem` और `constants.signals`/`priority`। `release` और `version` ख़ाली स्ट्रिंग हैं, `cpus()` और `networkInterfaces()` ख़ाली हैं, `loadavg()` शून्य लौटाता है और `availableParallelism()` 1 है।
+- `node:tty`: `isatty(fd)` बताता है कि स्टैंडर्ड इनपुट, आउटपुट या एरर टर्मिनल है या नहीं; `ReadStream` और `WriteStream` फ़ीचर डिटेक्शन के लिए न्यूनतम क्लास हैं।
+- `node:util`: `format` और `formatWithOptions` (`%s %d %i %f %j %o %O %c %%`), `inspect` (`inspect.custom`, `depth`, `breakLength`, `maxArrayLength`, `customInspect` के साथ), `inherits`, `promisify` (`promisify.custom` के साथ), `callbackify`, `deprecate` (हर कोड के लिए एक बार चेतावनी), `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`, `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` और पुराने `is*` प्रेडिकेट। `inspect` Node.js के लेआउट के क़रीब है: ऑब्जेक्ट, ऐरे, Map, Set, टाइप्ड ऐरे, फ़ंक्शन, क्लास, एरर, तारीख़ें, बॉक्स्ड वैल्यू, गेटर और सर्कुलर रेफ़रेंस दिखाए जाते हैं, लेकिन रंग, `showHidden`, `sorted` और लंबे ऐरे को कॉलम में बाँटने का Node.js का तरीक़ा हूबहू नहीं दोहराया जाता। `node:util/types` ही `util.types` है।
+- `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL` (Windows पर ड्राइव अक्षर और UNC होस्ट), `urlToHttpOptions`, `domainToASCII`/`domainToUnicode` (केवल ASCII), और पुराने `parse`, `format` और `resolve`।
+- `node:assert` और `node:assert/strict`: `ok`, `equal`, `notEqual`, `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` और उनके निषेध, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail` और `AssertionError` (`code` `ERR_ASSERTION`)। विफलता संदेश Node.js के diff से छोटे होते हैं।
+- `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID` (वर्ज़न 4), `randomInt`, `getRandomValues` और `webcrypto.getRandomValues` ऑपरेटिंग सिस्टम के रैंडम स्रोत से पढ़ते हैं (Windows पर `BCryptGenRandom`, बाक़ी जगह `/dev/urandom`)। साथ ही `createHash` (`md5`, `sha1`, `sha256`, `sha384`, `sha512`, `update`, किसी भी Buffer एन्कोडिंग में `digest` और `copy` के साथ), `createHmac`, `hash`, `getHashes` और `timingSafeEqual`। साइफ़र, कुंजियाँ, सिग्नेचर, कुंजी व्युत्पत्ति और `crypto.subtle` उपलब्ध नहीं हैं, और कोई ग्लोबल `crypto` नहीं है।
+- `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`।
+- `node:timers`: ग्लोबल टाइमर फ़ंक्शन। `node:timers/promises`: `setTimeout`, `setImmediate` (दोनों `AbortSignal` के साथ), async इटरेटर के रूप में `setInterval`, और `scheduler.wait`/`yield`।
+- `node:perf_hooks`: `performance`; `PerformanceObserver` और `monitorEventLoopDelay` कुछ भी नहीं देखते।
+- `node:module`: `builtinModules` और `isBuiltin`। `createRequire` `ERR_NONA_UNSUPPORTED` थ्रो करता है: मॉड्यूल प्रोग्राम बनाते समय रिज़ॉल्व होते हैं।
+- `node:worker_threads`: `isMainThread` `true` है, `parentPort` और `workerData` `null` हैं; `Worker` `ERR_NONA_UNSUPPORTED` थ्रो करता है।
+- `node:child_process`: हर फ़ंक्शन और `ChildProcess` `ERR_NONA_UNSUPPORTED` थ्रो करते हैं। यह मॉड्यूल इसलिए है कि जो पैकेज इसका सिर्फ़ ज़िक्र करते हैं, वे लोड हो सकें।

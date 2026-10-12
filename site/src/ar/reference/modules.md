@@ -18,14 +18,16 @@
 | `node:path`, `path`, `node:path/posix`, `node:path/win32` | modules | all eight | [Paths](/ar/reference/host-apis#paths-nodepath) |
 | `nona:http` و`node:http` و`nona:net` و`node:net` | وحدات | كلتاهما | [الشبكات (بالإنجليزية)](/reference/network) |
 | `node:events` و`node:buffer` و`node:string_decoder` | وحدات | كلتاهما | [وحدات دعم Node.js (بالإنجليزية)](/reference/network#supporting-modules) |
+| `URL` و`URLSearchParams` و`node:url` و`url` | عامة ووحدة | الثماني جميعها | [URL](/ar/reference/host-apis#url) |
+| `node:os`, `node:tty`, `node:util`, `node:util/types`, `node:assert`, `node:assert/strict`, `node:crypto`, `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads`, `node:child_process` (وأسماؤها دون بادئة) | وحدات | الثماني جميعها | [وحدات دعم Node.js](/ar/reference/host-apis#nodejs-support-modules) |
 | `nona:ffi` | وحدة | Windows ‏(DLL)، وLinux (استدعاءات النظام) | [الدوال الأصلية (FFI)](/ar/reference/ffi) |
 | `nona:win32` | وحدة | Windows | أدناه وفي [FFI](/ar/reference/ffi#nona-win32) |
 
 ## القواعد
 
 - الكائنات العامة متاحة في السكربتات والوحدات.
-- يمكن استيراد الوحدات المدمجة من شيفرة الوحدات (`.mjs` أو `--module`) ومن السكربتات عبر `import()` حرفي. ويجب أن تكون تصريحات FFI ‏(`define`) في شيفرة وحدة.
-- Supported Node modules: `node:fs`, `node:process`, `node:path` (`path` alias), `node:events` (`events`/`nona:events` aliases), `node:async_hooks` (`nona:async_hooks` alias), and `node:stream`, `node:stream/promises`, `node:stream/consumers`, `node:buffer` (`buffer`/`nona:buffer` aliases). Global `Buffer`, `Blob` and `File` are available. CommonJS `require` is not available. `node:http`, `node:net` and `node:string_decoder` are available for networking.
+- يمكن استيراد الوحدات المدمجة من شيفرة الوحدات (`.mjs` أو `--module`)، وطلبها عبر `require` من وحدات CommonJS ‏(`require('fs')` و`require('node:fs')`)، وتحميلها من السكربتات عبر `import()` حرفي. ويجب أن تكون تصريحات FFI ‏(`define`) في شيفرة وحدة.
+- وحدات Node المدعومة: `node:fs` و`node:process` و`node:path` (الاسم البديل `path`) و`node:events` (الأسماء البديلة `events`/`nona:events`) و`node:async_hooks` (الاسم البديل `nona:async_hooks`)، إضافةً إلى `node:stream` و`node:stream/promises` و`node:stream/consumers` و`node:buffer` (الأسماء البديلة `buffer`/`nona:buffer`). الكائنات العامة `Buffer` و`Blob` و`File` و`URL` و`URLSearchParams` متاحة. وتتاح `node:http` و`node:net` و`node:string_decoder` للشبكات، و`node:os` و`node:tty` و`node:util` و`node:url` و`node:assert` و`node:crypto` و`node:querystring` و`node:timers` و`node:perf_hooks` و`node:module` و`node:worker_threads` و`node:child_process` من أجل [حزم npm](/reference/npm).
 - لا تُترجَم `nona:win32` وتصريحات DLL إلا للمنصة `win32-x64`، ولا تُترجَم تصريحات استدعاءات النظام إلا للمنصة `linux-x64`.
 
 ## `nona:win32` {#nona-win32}
@@ -96,4 +98,4 @@ Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available.
 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
-The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte/text streams, BYOB readers and object URL registration/resolution are available. General URL parsing and arbitrary Web Stream construction remain separate dependency APIs. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+تصدّر هذه الأسماء البديلة المُنشئات العامة `Buffer` و`Blob` و`File`، ومدقّقات البايتات، وأدوات base64، والتحويل بين الترميزات، وإعدادات الفحص، والثوابت. وتتاح تدفقات البايتات والنصوص لـ Blob، وقارئات BYOB، وتسجيل عناوين URL للكائنات وحلّها. أما التحليل العام لعناوين URL فيتولاه الكائن العام [`URL`](/ar/reference/host-apis#url)؛ ويبقى إنشاء Web Streams اعتباطية واجهةً تابعة منفصلة. راجع [البيانات الثنائية (بالإنجليزية)](/reference/host-apis#buffer-and-binary-data) و[المثال القابل للتشغيل](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

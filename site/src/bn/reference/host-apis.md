@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+গ্লোবাল `URL` ও `URLSearchParams` (যেগুলো `node:url`-ও এক্সপোর্ট করে) [URL Standard](https://url.spec.whatwg.org/) মেনে চলে: ডিফল্ট পোর্টসহ বিশেষ স্কিম (`http`, `https`, `ws`, `wss`, `ftp`, `file`), ব্যাকস্ল্যাশ ও ডট সেগমেন্ট, একটি বেসের সাপেক্ষে আপেক্ষিক রেফারেন্স, authority বা অস্বচ্ছ পাথসহ অন্যান্য স্কিম (`mailto:`, `data:`, `blob:`), মানক পার্সেন্ট-এনকোডিং সেট, যেকোনো নোটেশনে IPv4 সংখ্যা এবং IPv6 ঠিকানা। প্রতিটি অংশ পড়া ও সেট করা যায়; `searchParams` `search`-এর সঙ্গে সিঙ্কে থাকে। `URL.canParse` ও `URL.parse` দেওয়া আছে। হোস্ট ছোট হাতের অক্ষরে রূপান্তরিত হয়, কিন্তু IDNA দিয়ে রূপান্তরিত হয় না: অ-ASCII হোস্টসহ URL `ERR_INVALID_URL` থ্রো করে। প্রোগ্রামের সোর্সে `URL` বা `URLSearchParams` উল্লেখ থাকলেই কেবল পার্সারটি প্রোগ্রামে লিঙ্ক হয়।
+
+## Node.js সহায়ক মডিউল {#nodejs-support-modules}
+
+এই মডিউলগুলো মূলত [npm প্যাকেজের](/reference/npm) জন্য, যেগুলো স্টার্টআপে এগুলো লোড করে। প্রতিটি `node:<name>` ও `<name>` নামে উপলব্ধ।
+
+- `node:os`: `EOL`, `devNull`, `platform`, `arch`, `machine`, `type`, `endianness`, `homedir` (`HOME`, বা Windows-এ `USERPROFILE`), `tmpdir` (`TMPDIR`/`TMP`/`TEMP`), `hostname` (`HOSTNAME`/`COMPUTERNAME` বা `localhost`), `userInfo`, `uptime`, `freemem`, `totalmem` ও `constants.signals`/`priority`। `release` ও `version` খালি স্ট্রিং, `cpus()` ও `networkInterfaces()` খালি, `loadavg()` শূন্য ফেরত দেয় এবং `availableParallelism()` হলো 1।
+- `node:tty`: `isatty(fd)` জানায় স্ট্যান্ডার্ড ইনপুট, আউটপুট বা এরর টার্মিনাল কি না; `ReadStream` ও `WriteStream` ফিচার শনাক্তকরণের জন্য ন্যূনতম ক্লাস।
+- `node:util`: `format` ও `formatWithOptions` (`%s %d %i %f %j %o %O %c %%`), `inspect` (`inspect.custom`, `depth`, `breakLength`, `maxArrayLength`, `customInspect` সহ), `inherits`, `promisify` (`promisify.custom` সহ), `callbackify`, `deprecate` (প্রতি কোডে একবার সতর্ক করে), `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`, `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` এবং পুরোনো `is*` প্রেডিকেট। `inspect` Node.js-এর বিন্যাসের কাছাকাছি: অবজেক্ট, অ্যারে, Map, Set, টাইপড অ্যারে, ফাংশন, ক্লাস, এরর, তারিখ, বক্সড মান, গেটার ও সার্কুলার রেফারেন্স দেখানো হয়, কিন্তু রং, `showHidden`, `sorted` এবং দীর্ঘ অ্যারেকে কলামে সাজানোর Node.js-এর পদ্ধতি হুবহু পুনরুৎপাদিত হয় না। `node:util/types` হলো `util.types`।
+- `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL` (Windows-এ ড্রাইভ লেটার ও UNC হোস্ট), `urlToHttpOptions`, `domainToASCII`/`domainToUnicode` (কেবল ASCII), এবং পুরোনো `parse`, `format` ও `resolve`।
+- `node:assert` ও `node:assert/strict`: `ok`, `equal`, `notEqual`, `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` ও তাদের নেতিবাচক রূপ, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail` ও `AssertionError` (`code` `ERR_ASSERTION`)। ব্যর্থতার বার্তা Node.js-এর diff-এর চেয়ে ছোট।
+- `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID` (ভার্সন 4), `randomInt`, `getRandomValues` ও `webcrypto.getRandomValues` অপারেটিং সিস্টেমের র‍্যান্ডম উৎস থেকে পড়ে (Windows-এ `BCryptGenRandom`, অন্যত্র `/dev/urandom`)। এ ছাড়া `createHash` (`md5`, `sha1`, `sha256`, `sha384`, `sha512`, `update`, যেকোনো Buffer এনকোডিংয়ে `digest` ও `copy` সহ), `createHmac`, `hash`, `getHashes` ও `timingSafeEqual`। সাইফার, কী, সিগনেচার, কী ডেরিভেশন ও `crypto.subtle` দেওয়া হয় না, এবং কোনো গ্লোবাল `crypto` নেই।
+- `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`।
+- `node:timers`: গ্লোবাল টাইমার ফাংশন। `node:timers/promises`: `setTimeout`, `setImmediate` (দুটিই `AbortSignal` সহ), async ইটারেটর হিসেবে `setInterval`, এবং `scheduler.wait`/`yield`।
+- `node:perf_hooks`: `performance`; `PerformanceObserver` ও `monitorEventLoopDelay` কিছুই পর্যবেক্ষণ করে না।
+- `node:module`: `builtinModules` ও `isBuiltin`। `createRequire` `ERR_NONA_UNSUPPORTED` থ্রো করে: মডিউল প্রোগ্রাম বিল্ডের সময় রিজলভ হয়।
+- `node:worker_threads`: `isMainThread` হলো `true`, `parentPort` ও `workerData` হলো `null`; `Worker` `ERR_NONA_UNSUPPORTED` থ্রো করে।
+- `node:child_process`: প্রতিটি ফাংশন ও `ChildProcess` `ERR_NONA_UNSUPPORTED` থ্রো করে। মডিউলটি আছে যাতে যেসব প্যাকেজ কেবল এর উল্লেখ করে সেগুলো লোড হয়।

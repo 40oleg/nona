@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+Глобальные `URL` и `URLSearchParams` (их также экспортирует `node:url`) следуют [стандарту URL](https://url.spec.whatwg.org/): специальные схемы (`http`, `https`, `ws`, `wss`, `ftp`, `file`) с портами по умолчанию, обратные слеши и сегменты с точками, относительные ссылки относительно базового URL, другие схемы с authority или непрозрачным путём (`mailto:`, `data:`, `blob:`), стандартные наборы процентного кодирования, числа IPv4 в любой записи и адреса IPv6. Каждый компонент можно читать и изменять; `searchParams` синхронизирован с `search`. Есть `URL.canParse` и `URL.parse`. Хосты приводятся к нижнему регистру, но не преобразуются через IDNA: URL с не-ASCII хостом выбрасывает `ERR_INVALID_URL`. Парсер компонуется в программу, только если в её исходниках упоминается `URL` или `URLSearchParams`.
+
+## Вспомогательные модули Node.js {#nodejs-support-modules}
+
+Эти модули нужны в основном [пакетам npm](/reference/npm), которые загружают их при запуске. Каждый доступен как `node:<name>` и `<name>`.
+
+- `node:os`: `EOL`, `devNull`, `platform`, `arch`, `machine`, `type`, `endianness`, `homedir` (`HOME` или `USERPROFILE` на Windows), `tmpdir` (`TMPDIR`/`TMP`/`TEMP`), `hostname` (`HOSTNAME`/`COMPUTERNAME` или `localhost`), `userInfo`, `uptime`, `freemem`, `totalmem` и `constants.signals`/`priority`. `release` и `version` — пустые строки, `cpus()` и `networkInterfaces()` пусты, `loadavg()` возвращает нули, а `availableParallelism()` — 1.
+- `node:tty`: `isatty(fd)` сообщает, является ли терминалом стандартный ввод, вывод или поток ошибок; `ReadStream` и `WriteStream` — минимальные классы для проверки возможностей.
+- `node:util`: `format` и `formatWithOptions` (`%s %d %i %f %j %o %O %c %%`), `inspect` (с `inspect.custom`, `depth`, `breakLength`, `maxArrayLength`, `customInspect`), `inherits`, `promisify` (с `promisify.custom`), `callbackify`, `deprecate` (предупреждает один раз для каждого кода), `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`, `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` и устаревшие предикаты `is*`. `inspect` приближённо воспроизводит раскладку Node.js: показываются объекты, массивы, Map, Set, типизированные массивы, функции, классы, ошибки, даты, объекты-обёртки, геттеры и циклические ссылки, но цвета, `showHidden`, `sorted` и группировка длинных массивов в столбцы, как в Node.js, воспроизводятся неточно. `node:util/types` — это `util.types`.
+- `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL` (буквы дисков и UNC-хосты на Windows), `urlToHttpOptions`, `domainToASCII`/`domainToUnicode` (только ASCII) и устаревшие `parse`, `format` и `resolve`.
+- `node:assert` и `node:assert/strict`: `ok`, `equal`, `notEqual`, `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` и их отрицания, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail` и `AssertionError` (`code` `ERR_ASSERTION`). Сообщения о сбоях короче, чем diff в Node.js.
+- `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID` (версия 4), `randomInt`, `getRandomValues` и `webcrypto.getRandomValues` читают источник случайных данных операционной системы (`BCryptGenRandom` на Windows, `/dev/urandom` на остальных системах). Также есть `createHash` (`md5`, `sha1`, `sha256`, `sha384`, `sha512`, с `update`, `digest` в любой кодировке Buffer и `copy`), `createHmac`, `hash`, `getHashes` и `timingSafeEqual`. Шифров, ключей, подписей, формирования ключей и `crypto.subtle` нет, глобального `crypto` тоже нет.
+- `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`.
+- `node:timers`: глобальные функции таймеров. `node:timers/promises`: `setTimeout`, `setImmediate` (оба с `AbortSignal`), `setInterval` как асинхронный итератор и `scheduler.wait`/`yield`.
+- `node:perf_hooks`: `performance`; `PerformanceObserver` и `monitorEventLoopDelay` ничего не наблюдают.
+- `node:module`: `builtinModules` и `isBuiltin`. `createRequire` выбрасывает `ERR_NONA_UNSUPPORTED`: модули разрешаются при сборке программы.
+- `node:worker_threads`: `isMainThread` равно `true`, `parentPort` и `workerData` равны `null`; `Worker` выбрасывает `ERR_NONA_UNSUPPORTED`.
+- `node:child_process`: все функции и `ChildProcess` выбрасывают `ERR_NONA_UNSUPPORTED`. Модуль существует, чтобы загружались пакеты, которые лишь упоминают его.

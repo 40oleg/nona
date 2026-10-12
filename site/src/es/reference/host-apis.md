@@ -63,3 +63,24 @@ this API; see the English reference for the precise boundaries.
 
 
 AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
+
+## URL {#url}
+
+Los globales `URL` y `URLSearchParams` (exportados también por `node:url`) siguen el [URL Standard](https://url.spec.whatwg.org/): esquemas especiales (`http`, `https`, `ws`, `wss`, `ftp`, `file`) con puertos predeterminados, barras invertidas y segmentos de punto, referencias relativas respecto a una base, otros esquemas con autoridad o con ruta opaca (`mailto:`, `data:`, `blob:`), los conjuntos estándar de codificación porcentual, números IPv4 en cualquier notación y direcciones IPv6. Todos los componentes se pueden leer y asignar; `searchParams` se mantiene sincronizado con `search`. Se proporcionan `URL.canParse` y `URL.parse`. Los hosts se pasan a minúsculas, pero no se convierten con IDNA: una URL con un host no ASCII lanza `ERR_INVALID_URL`. El analizador solo se enlaza en un programa cuando sus fuentes mencionan `URL` o `URLSearchParams`.
+
+## Módulos de apoyo de Node.js {#nodejs-support-modules}
+
+Estos módulos existen sobre todo para los [paquetes npm](/reference/npm), que los cargan al arrancar. Cada uno está disponible como `node:<name>` y como `<name>`.
+
+- `node:os`: `EOL`, `devNull`, `platform`, `arch`, `machine`, `type`, `endianness`, `homedir` (`HOME`, o `USERPROFILE` en Windows), `tmpdir` (`TMPDIR`/`TMP`/`TEMP`), `hostname` (`HOSTNAME`/`COMPUTERNAME` o `localhost`), `userInfo`, `uptime`, `freemem`, `totalmem` y `constants.signals`/`priority`. `release` y `version` son cadenas vacías, `cpus()` y `networkInterfaces()` están vacíos, `loadavg()` devuelve ceros y `availableParallelism()` devuelve 1.
+- `node:tty`: `isatty(fd)` indica si la entrada estándar, la salida estándar o la salida de errores es un terminal; `ReadStream` y `WriteStream` son clases mínimas para la detección de funcionalidades.
+- `node:util`: `format` y `formatWithOptions` (`%s %d %i %f %j %o %O %c %%`), `inspect` (con `inspect.custom`, `depth`, `breakLength`, `maxArrayLength`, `customInspect`), `inherits`, `promisify` (con `promisify.custom`), `callbackify`, `deprecate` (avisa una vez por código), `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`, `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` y los predicados heredados `is*`. `inspect` se aproxima al formato de Node.js: se muestran objetos, arrays, Maps, Sets, arrays tipados, funciones, clases, errores, fechas, valores envueltos, getters y referencias circulares, pero los colores, `showHidden`, `sorted` y la agrupación en columnas de los arrays largos de Node.js no se reproducen exactamente. `node:util/types` es `util.types`.
+- `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL` (letras de unidad y hosts UNC en Windows), `urlToHttpOptions`, `domainToASCII`/`domainToUnicode` (solo ASCII) y los heredados `parse`, `format` y `resolve`.
+- `node:assert` y `node:assert/strict`: `ok`, `equal`, `notEqual`, `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` y sus negaciones, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail` y `AssertionError` (`code` `ERR_ASSERTION`). Los mensajes de fallo son más cortos que los diffs de Node.js.
+- `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID` (versión 4), `randomInt`, `getRandomValues` y `webcrypto.getRandomValues` leen la fuente aleatoria del sistema operativo (`BCryptGenRandom` en Windows, `/dev/urandom` en los demás). También `createHash` (`md5`, `sha1`, `sha256`, `sha384`, `sha512`, con `update`, `digest` en cualquier codificación de Buffer y `copy`), `createHmac`, `hash`, `getHashes` y `timingSafeEqual`. No se proporcionan cifrados, claves, firmas, derivación de claves ni `crypto.subtle`, y no hay `crypto` global.
+- `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`.
+- `node:timers`: las funciones de temporizador globales. `node:timers/promises`: `setTimeout`, `setImmediate` (ambos con un `AbortSignal`), `setInterval` como iterador asíncrono y `scheduler.wait`/`yield`.
+- `node:perf_hooks`: `performance`; `PerformanceObserver` y `monitorEventLoopDelay` no observan nada.
+- `node:module`: `builtinModules` e `isBuiltin`. `createRequire` lanza `ERR_NONA_UNSUPPORTED`: los módulos se resuelven al compilar el programa.
+- `node:worker_threads`: `isMainThread` es `true`, `parentPort` y `workerData` son `null`; `Worker` lanza `ERR_NONA_UNSUPPORTED`.
+- `node:child_process`: todas las funciones y `ChildProcess` lanzan `ERR_NONA_UNSUPPORTED`. El módulo existe para que carguen los paquetes que solo lo mencionan.

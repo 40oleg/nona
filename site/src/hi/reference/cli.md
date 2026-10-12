@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | पाथ | आउटपुट फ़ाइल। ज़रूरी। ग़ायब डायरेक्टरी बना दी जाती हैं। |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | इनपुट को ES मॉड्यूल के रूप में कंपाइल करें। `.mjs` पर ख़त्म होने वाले इनपुट अपने आप मॉड्यूल होते हैं। |
+| `--conditions`, `-C` | नाम | package.json की एक `exports`/`imports` कंडीशन जोड़ें, जिसे Nona की अपनी कंडीशनों (`nona`, `node`, `import` या `require`, `default`) से पहले आज़माया जाता है; `--conditions=name` भी काम करता है। कई बार दिया जा सकता है। देखें [npm पैकेज](/reference/npm#resolution)। |
 | `--print-asm` | — | प्रोग्राम के अपने फ़ंक्शनों (रनटाइम और उसके प्रील्यूड नहीं) के लिए बना x86-64 असेंबली stdout पर छापें: हर फ़ंक्शन का लेबल, फिर हर निर्देश की एक पंक्ति — ऑफ़सेट, एन्कोड किए बाइट और Intel सिंटैक्स में पाठ। इस विकल्प के साथ `-o` छोड़ा जा सकता है। केवल x86-64 टारगेट। |
 | `--subsystem` | `console` (डिफ़ॉल्ट), `windows` | कंसोल विंडो के बिना Windows GUI प्रोग्राम। केवल `win32-x64`। `--manifest` के बिना GUI प्रोग्राम को डिफ़ॉल्ट मैनिफ़ेस्ट मिलता है। |
 | `--icon` | `.ico` फ़ाइल | आइकन फ़ाइल की हर इमेज जोड़ें। केवल `win32-x64`। |
@@ -29,11 +30,12 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `--help` | — | सारांश छापें। |
 | `--version` | — | कंपाइलर का वर्ज़न छापें। |
 
-हर विकल्प एक बार ही आ सकता है। रिसोर्स फ़ॉर्मैट के लिए [Windows एक्ज़ीक्यूटेबल](/hi/reference/windows-executables) देखें।
+`--conditions` को छोड़कर हर विकल्प एक बार ही आ सकता है। रिसोर्स फ़ॉर्मैट के लिए [Windows एक्ज़ीक्यूटेबल](/hi/reference/windows-executables) देखें।
 
 ## इनपुट और आउटपुट
 
-- इनपुट एक UTF-8 सोर्स फ़ाइल है। मॉड्यूल इनपुट अपने इम्पोर्ट किए मॉड्यूल भी साथ ले आता है; बिल्ट-इन `nona:*` और `node:*` मॉड्यूल कंपाइलर का हिस्सा हैं।
+- इनपुट एक UTF-8 सोर्स फ़ाइल है। मॉड्यूल इनपुट अपने इम्पोर्ट किए मॉड्यूल भी साथ ले आता है, और CommonJS इनपुट अपने `require` किए मॉड्यूल, जिनमें `node_modules` के npm पैकेज भी शामिल हैं ([npm पैकेज](/reference/npm)); बिल्ट-इन `nona:*` और `node:*` मॉड्यूल कंपाइलर का हिस्सा हैं।
+- इनपुट एक पैकेज डायरेक्टरी भी हो सकता है: Nona वह फ़ाइल बनाता है जिसका नाम उसके `package.json` का `"bin"` देता है (इकलौती कमांड, या पैकेज के नाम वाली कमांड), नहीं तो उसका `"main"` या `index.js`।
 - आउटपुट पहले पास की एक अस्थायी फ़ाइल में लिखा जाता है और फिर उसका नाम बदलकर सही जगह रखा जाता है, इसलिए फ़ेल हुआ बिल्ड कभी आधा लिखा एक्ज़ीक्यूटेबल नहीं छोड़ता और पिछला वाला बना रहता है।
 - कंपाइलर अपने इनपुट को ओवरराइट करने से मना करता है, हार्ड लिंक या सिम्बॉलिक लिंक के ज़रिए भी।
 - Linux आउटपुट को `0755` मोड मिलता है।

@@ -4,8 +4,8 @@
 
 ```text
 Nona 0.11.0 — JavaScript subset to native executables
-Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--print-asm]
+Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
+       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -21,6 +21,7 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `-o` | 路径 | 输出文件。必填。缺失的目录会被创建。 |
 | `--target` | [Native platforms](/reference/native-platforms) | PE32+, ELF64 or Mach-O64; default: host OS and CPU. |
 | `--module` | — | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。 |
+| `--conditions`, `-C` | 名称 | 添加一个 package.json 的 `exports`/`imports` 条件，它会先于 Nona 自身的条件（`nona`、`node`、`import` 或 `require`、`default`）被尝试；也可以写作 `--conditions=name`。可以重复使用。参见 [npm 包](/reference/npm#resolution)。 |
 | `--print-asm` | — | 把为程序自身函数（不含运行时及其前导代码）生成的 x86-64 汇编输出到 stdout：每个函数的标签，然后每条指令一行，包含偏移、编码字节和 Intel 语法文本。使用此选项时可以省略 `-o`。仅限 x86-64 目标。 |
 | `--subsystem` | `console`（默认）、`windows` | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。 |
 | `--icon` | `.ico` 文件 | 嵌入图标文件中的所有图像。仅限 `win32-x64`。 |
@@ -29,11 +30,12 @@ Usage: nona build <input.js> -o <output> [--target win32-x64|linux-x64|linux-arm
 | `--help` | — | 打印概要。 |
 | `--version` | — | 打印编译器版本。 |
 
-每个选项最多出现一次。资源格式参见 [Windows 可执行文件](/zh/reference/windows-executables)。
+除 `--conditions` 外，每个选项最多出现一次。资源格式参见 [Windows 可执行文件](/zh/reference/windows-executables)。
 
 ## 输入与输出
 
-- 输入是一个 UTF-8 源文件。模块输入会引入它导入的模块；内置的 `nona:*` 和 `node:*` 模块是编译器的一部分。
+- 输入是一个 UTF-8 源文件。模块输入会引入它导入的模块，CommonJS 输入会引入它通过 `require` 加载的模块，包括 `node_modules` 中的 npm 包（[npm 包](/reference/npm)）；内置的 `nona:*` 和 `node:*` 模块是编译器的一部分。
+- 输入也可以是包目录：Nona 构建其 `package.json` 中 `"bin"` 指定的文件（唯一的命令，或与包同名的命令），否则构建 `"main"` 指定的文件或 `index.js`。
 - 输出先写到旁边的临时文件，再重命名到目标位置，因此构建失败绝不会留下写了一半的可执行文件，并会保留之前的版本。
 - 编译器拒绝覆盖自己的输入文件，包括通过硬链接或符号链接的情况。
 - Linux 输出文件的权限为 `0755`。
