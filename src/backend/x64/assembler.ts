@@ -537,6 +537,57 @@ export class Assembler {
     movqFromXmm(d: Reg, s: Xmm): void {
         this.instruction([0x0f, 0x7e], regCode(s), d, true, [0x66]);
     }
+    // 128-bit vector operations (SSE2, the x86-64 baseline; NEON on ARM64,
+    // see Arm64Assembler). They are defined by their effect, not by one x64
+    // instruction, so that the runtime can use them on both machines:
+    // vectorMask's bit layout differs (vectorMaskBitsPerByte) and
+    // bitScanForward sets no flags that callers may rely on.
+    /** Lanes of 16 bits: each lane of d becomes all ones where d and s are equal, zero elsewhere (pcmpeqw). */
+    vectorEqual16(d: Xmm, s: Xmm): void {
+        this.instruction([0x0f, 0x75], regCode(d), s, false, [0x66]);
+    }
+    /** Lanes of 8 bits: all ones where d and s are equal, zero elsewhere (pcmpeqb). */
+    vectorEqual8(d: Xmm, s: Xmm): void {
+        this.instruction([0x0f, 0x74], regCode(d), s, false, [0x66]);
+    }
+    /** d |= s, all 128 bits (por). */
+    vectorOr(d: Xmm, s: Xmm): void {
+        this.instruction([0x0f, 0xeb], regCode(d), s, false, [0x66]);
+    }
+    /** d = 0, all 128 bits (pxor d, d). */
+    vectorZero(d: Xmm): void {
+        this.instruction([0x0f, 0xef], regCode(d), d, false, [0x66]);
+    }
+    /** d &= s, all 128 bits (pand). */
+    vectorAnd(d: Xmm, s: Xmm): void {
+        this.instruction([0x0f, 0xdb], regCode(d), s, false, [0x66]);
+    }
+    /** Every 16-bit lane of d becomes the low 16 bits of s (movd, pshuflw, pshufd). */
+    vectorBroadcast16(d: Xmm, s: Reg): void {
+        this.instruction([0x0f, 0x6e], regCode(d), s, false, [0x66]);
+        this.instruction([0x0f, 0x70], regCode(d), d, false, [0xf2]);
+        this.emit([0x00]);
+        this.instruction([0x0f, 0x70], regCode(d), d, false, [0x66]);
+        this.emit([0x00]);
+    }
+    /**
+     * A mask of the bytes of s whose top bit is set (pmovmskb): byte i of s
+     * gives vectorMaskBitsPerByte bits starting at bit i * vectorMaskBitsPerByte,
+     * and a vector of all-ones bytes gives vectorMaskAll.
+     */
+    vectorMask(d: Reg, s: Xmm): void {
+        this.instruction([0x0f, 0xd7], regCode(d), s, false, [0x66]);
+    }
+    readonly vectorMaskBitsPerByte: number = 1;
+    readonly vectorMaskAll: bigint = 0xffffn;
+    /** d = the index of the lowest set bit of s, which must not be zero (bsf; flags are undefined). */
+    bitScanForward(d: Reg, s: Reg): void {
+        this.instruction([0x0f, 0xbc], regCode(d), s, true);
+    }
+    /** d = the index of the highest set bit of s, which must not be zero (bsr; flags are undefined). */
+    bitScanReverse(d: Reg, s: Reg): void {
+        this.instruction([0x0f, 0xbd], regCode(d), s, true);
+    }
     /** Copies RCX bytes from [RSI] to [RDI], advancing both. */
     repMovsb(): void {
         this.emit([0xf3, 0xa4]);

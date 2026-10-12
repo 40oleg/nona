@@ -1,4 +1,5 @@
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
+import { skipToFirstUnit, skipBackToFirstUnit } from "./string-scan.js";
 import { rootedFn } from "./root-scope.js";
 import {
     prependFunctionBuiltin,
@@ -41,6 +42,7 @@ const stringMethods = [
     ...trimMethods,
     ...padMethods,
 ];
+
 export const stringBuiltinRoots = [
     ...stringMethods.map(
         (name) => "rt.string" + name[0]!.toUpperCase() + name.slice(1) + ".fn",
@@ -936,6 +938,8 @@ export function emitStringBuiltins(b: RuntimeBuilder): void {
                     a.store(slot(144), "rax");
                 }
                 a.label(outer);
+                if (name === "includes")
+                    skipToFirstUnit(a, [144, 72, 152, 88, 160], no);
                 a.load("rax", slot(144));
                 a.load("r10", slot(168));
                 a.cmp("rax", "r10");
@@ -1086,6 +1090,9 @@ export function emitStringBuiltins(b: RuntimeBuilder): void {
                     inner = a.unique("inner"),
                     mismatch = a.unique("mismatch");
                 a.label(outer);
+                if (name === "indexOf")
+                    skipToFirstUnit(a, [112, 72, 120, 88, 128], notFound);
+                else skipBackToFirstUnit(a, 112, notFound);
                 a.load("rax", slot(112));
                 a.load("r10", slot(136));
                 a.cmp("rax", "r10");
@@ -1403,14 +1410,8 @@ export function emitStringBuiltins(b: RuntimeBuilder): void {
                 const copy = a.unique("copy"),
                     copied = a.unique("copied");
                 a.label(copy);
-                a.test("r8", "r8");
-                a.jcc("e", copied);
-                a.load("r10", { base: "rdx" }, 16);
-                a.store({ base: "rax" }, "r10", 16);
-                a.add("rdx", 2);
-                a.add("rax", 2);
-                a.sub("r8", 1);
-                a.jmp(copy);
+                a.mov("rcx", "rax");
+                a.call("rt.copyUnits");
                 a.label(copied);
                 a.load("rcx", slot(40));
                 a.mov("rax", 4);
@@ -1851,14 +1852,8 @@ export function emitStringBuiltins(b: RuntimeBuilder): void {
                 a.add("rdx", "r10");
                 a.load("r8", slot(136));
                 a.label(copy);
-                a.test("r8", "r8");
-                a.jcc("e", copied);
-                a.load("r10", { base: "rdx" }, 16);
-                a.store({ base: "rax" }, "r10", 16);
-                a.add("rdx", 2);
-                a.add("rax", 2);
-                a.sub("r8", 1);
-                a.jmp(copy);
+                a.mov("rcx", "rax");
+                a.call("rt.copyUnits");
                 a.label(copied);
                 a.load("rcx", slot(40));
                 a.mov("rax", 4);

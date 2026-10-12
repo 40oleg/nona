@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- The runtime uses 128-bit SIMD (SSE2 on x86-64, NEON on ARM64) for string comparison, the first-character scan of `indexOf`, `includes`, `lastIndexOf`, `split` and `replaceAll`, the unit copies of `slice`, `substring`, `substr` and RegExp captures, and the zeroing of small allocations. `bench/16_string_scan.js` runs 53% fewer instructions; see [docs/simd.md](docs/simd.md) ([#253](https://github.com/40oleg/nona/issues/253)).
+
 ### Development
 
 - `scripts/profile-runtime.mjs` counts the instructions each runtime routine executes (QEMU trace), `bench/16_string_scan.js` measures long-string scans, and [docs/simd.md](docs/simd.md) reports where SIMD would help ([#253](https://github.com/40oleg/nona/issues/253)).
