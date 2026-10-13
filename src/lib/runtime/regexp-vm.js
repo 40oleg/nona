@@ -783,16 +783,27 @@
     }
   }
   // One atom at pos in direction dir: the position after it, or -1.
+  // Whether the input range [from, to) starts or ends inside a surrogate pair.
+  function splitsPair(from,to){
+    return isLead(from-1)&&isTrail(from)||isLead(to-1)&&isTrail(to)
+  }
+  function isLead(i){var c=i>=0&&i<length?charCodeAt(input,i):-1;return c>=0xd800&&c<=0xdbff}
+  function isTrail(i){var c=i>=0&&i<length?charCodeAt(input,i):-1;return c>=0xdc00&&c<=0xdfff}
   function atom(kind,datum,pos,dir){
     if(dir<0?pos<=0:pos>=length)return -1;
     var unitIndex=dir<0?pos-1:pos,unit=charCodeAt(input,unitIndex);
-    if(kind===6)return unit===datum?pos+dir:-1;
-    if(kind===7)return unit!==datum?pos+dir:-1;
+    if(kind===6||kind===7){
+      if(kind===6?unit!==datum:unit===datum)return -1;
+      // Unicode mode reads code points: one unit never matches half of a pair.
+      if(unicode&&splitsPair(unitIndex,unitIndex+1))return -1;
+      return pos+dir
+    }
     if(kind===1){
       var text=data[datum],textLength=text.length,from=dir<0?pos-textLength:pos;
       if(from<0||from+textLength>length)return -1;
       if(ignore){if(!same(slice(input,from,from+textLength),text))return -1}
       else for(var u=0;u<textLength;u++)if(charCodeAt(input,from+u)!==charCodeAt(text,u))return -1;
+      if(unicode&&splitsPair(from,from+textLength))return -1;
       return pos+dir*textLength
     }
     var width=1,matched=false;

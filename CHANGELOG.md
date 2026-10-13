@@ -25,6 +25,10 @@
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 
+### Fixes
+
+- In unicode mode (`u`), a lone surrogate in a pattern no longer matches half of a surrogate pair, and `matchAll` with such a pattern no longer loops. ([#277](https://github.com/40oleg/nona/issues/277))
+
 ### Documentation
 
 - PERFORMANCE.md compares the current `main` with Node.js, Deno and Bun again: start-up, size, memory, the micro-benchmarks and acorn/marked. ([#267](https://github.com/40oleg/nona/issues/267))
