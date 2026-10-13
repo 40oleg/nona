@@ -546,6 +546,10 @@ export class Assembler {
     vectorEqual16(d: Xmm, s: Xmm): void {
         this.instruction([0x0f, 0x75], regCode(d), s, false, [0x66]);
     }
+    /** Lanes of 32 bits: all ones where d and s are equal, zero elsewhere (pcmpeqd). */
+    vectorEqual32(d: Xmm, s: Xmm): void {
+        this.instruction([0x0f, 0x76], regCode(d), s, false, [0x66]);
+    }
     /** Lanes of 8 bits: all ones where d and s are equal, zero elsewhere (pcmpeqb). */
     vectorEqual8(d: Xmm, s: Xmm): void {
         this.instruction([0x0f, 0x74], regCode(d), s, false, [0x66]);

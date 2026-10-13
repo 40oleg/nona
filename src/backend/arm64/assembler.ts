@@ -944,6 +944,9 @@ export class Arm64Assembler extends Assembler {
     override vectorEqual16(dst: Xmm, src: Xmm): void {
         this.vectorBinary(dst, src, 0x6e608c00); // cmeq vd.8h, vd.8h, vs.8h
     }
+    override vectorEqual32(dst: Xmm, src: Xmm): void {
+        this.vectorBinary(dst, src, 0x6ea08c00); // cmeq vd.4s, vd.4s, vs.4s
+    }
     override vectorEqual8(dst: Xmm, src: Xmm): void {
         this.vectorBinary(dst, src, 0x6e208c00); // cmeq vd.16b, vd.16b, vs.16b
     }
@@ -1139,9 +1142,25 @@ export class Arm64Assembler extends Assembler {
     ): void {
         this.atomic(dst, src, width, "compare");
     }
+    // rep movsb: sixteen bytes per step through v31 unless the destination
+    // lies less than sixteen bytes after the source (there the byte-by-byte
+    // semantics of rep movsb differ), then byte by byte (#253).
     override repMovsb(): void {
         const loop = this.unique("copy"),
+            vector = this.unique("copyVector"),
+            bytes = this.unique("copyBytes"),
             done = this.unique("copied");
+        this.nativeWord(0xcb0500cb); // sub x11, x6, x5
+        this.nativeWord(0xf100417f); // cmp x11, #16
+        this.nativeConditional(3, bytes);
+        this.label(vector);
+        this.nativeWord(0xf100403f); // cmp x1, #16
+        this.nativeConditional(3, bytes);
+        this.nativeWord(0x3cc104bf); // ldr q31, [x5], #16
+        this.nativeWord(0x3c8104df); // str q31, [x6], #16
+        this.nativeWord(0xd1004021); // sub x1, x1, #16
+        this.jmp(vector);
+        this.label(bytes);
         this.nativeWord(0xf100003f);
         this.nativeConditional(0, done);
         this.label(loop);

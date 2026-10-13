@@ -732,6 +732,17 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype),'set',{value:(
   sourceLength=__nonaRegexpVm.arrayBufferTrunc(sourceLength);
  }
  if(targetOffset+sourceLength>targetLength)throw new __nonaRegexpVm.bufferRangeError('Source exceeds TypedArray length');
+ if(sourceIsTyped&&sourceCtor===targetCtor&&sourceLength>0){
+  // Same element type in another buffer: one block copy of the bytes (#253).
+  var width=targetCtor.BYTES_PER_ELEMENT;
+  var sourceBuffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,source);
+  var targetBuffer=__nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayBuffer,this);
+  if(sourceBuffer!==targetBuffer){
+   __nonaRegexpVm.arrayBufferCopy(sourceBuffer,targetBuffer,__nonaRegexpVm.typedArrayRawByteOffset(source),sourceLength*width,
+    __nonaRegexpVm.typedArrayRawByteOffset(this)+targetOffset*width);
+   return;
+  }
+ }
  if(sourceIsTyped){
   // Reading a typed array runs no user code: copy through a Float64Array
   // (exact for all non-BigInt element types) instead of a growing Array.
