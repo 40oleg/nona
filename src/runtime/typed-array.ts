@@ -18,6 +18,7 @@ import {
 } from "./function-builtin.js";
 import { stringLiteral } from "./value.js";
 import { ArrayBufferKind, ArrayBufferLayout } from "./array-buffer.js";
+import { TypedArrayLayout } from "./array-buffer-layout.js";
 import { SharedArrayBufferKind } from "./shared-array-buffer.js";
 import { FunctionLayout as F, FunctionKind } from "./functions.js";
 import {
@@ -28,14 +29,7 @@ import {
 
 /** Common layout for future numeric and BigInt typed-array variants. */
 export const TypedArrayKind = 13;
-export const TypedArrayLayout = {
-    buffer: O.size,
-    byteOffset: O.size + 8,
-    byteLength: O.size + 16,
-    length: O.size + 24,
-    elementType: O.size + 32,
-    size: O.size + 40,
-} as const;
+export { TypedArrayLayout };
 const typedArrayWidths = [
     ["Uint8Array", "uint8array", 1],
     ["Int8Array", "int8array", 1],

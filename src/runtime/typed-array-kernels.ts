@@ -1,8 +1,6 @@
 import { RuntimeBuilder, slot } from "./abi.js";
-import type { Assembler } from "../backend/machine/context.js";
-import type { Reg } from "../backend/x64/encoder.js";
-import { ArrayBufferLayout } from "./array-buffer-layout.js";
-import { TypedArrayLayout } from "./typed-array.js";
+import type { Assembler, Reg } from "../backend/machine/context.js";
+import { ArrayBufferLayout, TypedArrayLayout } from "./array-buffer-layout.js";
 
 // Block kernels of typed arrays and ArrayBuffers (#253): an overlapping
 // copy, a pattern fill and an element search, sixteen bytes per step where

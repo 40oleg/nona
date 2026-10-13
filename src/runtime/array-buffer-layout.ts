@@ -9,3 +9,12 @@ export const ArrayBufferLayout = {
     detached: O.size + 16,
     size: O.size + 24,
 } as const;
+/** Typed arrays (typed-array.ts): an ordinary object followed by the view fields. */
+export const TypedArrayLayout = {
+    buffer: O.size,
+    byteOffset: O.size + 8,
+    byteLength: O.size + 16,
+    length: O.size + 24,
+    elementType: O.size + 32,
+    size: O.size + 40,
+} as const;
