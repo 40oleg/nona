@@ -164,6 +164,7 @@
                 "call-stats",
                 "cli",
                 "closures",
+                "capture-initialization",
                 "coercion-hooks",
                 "conformance",
                 "constant-equality",
