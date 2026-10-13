@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## v0.12.0 — 2026-10-13
+
+Highlights since v0.11.0:
+
+- **npm packages.** Programs can import packages from `node_modules`: Nona resolves them at build time as Node.js does (`exports`, `imports`, conditions, pnpm stores) and compiles CommonJS, ES modules and JSON into the executable. 33 of 36 popular packages tested print the same as on Node.js. `nona build <package directory>` builds a package's `bin`, and new built-in modules (`node:os`, `node:util`, `node:crypto`, `node:url`, `node:assert`, …) cover what packages commonly need.
+- **SIMD in the runtime.** String comparison, substring search, `split`/`replaceAll`, string copies and allocation zeroing use 128-bit vectors (SSE2 on x86-64, NEON on ARM64): long-string scans run 53% fewer instructions.
+- **Typed arrays.** `fill`, `copyWithin`, `slice`, `set` and the searches `indexOf`/`lastIndexOf`/`includes` work on memory in blocks instead of element by element: 10–45× faster, and faster than Node.js on the benchmark.
+- **Faster `===` on strings.** npm packages that compare many strings run 8–10% fewer instructions.
+- **Tooling.** An instruction profiler for the runtime (`scripts/profile-runtime.mjs`), and the whole repository formatted with Prettier.
+
+### npm packages
+
+- Programs can use npm packages: Nona resolves `node_modules` at build time as Node.js does (`package.json` `exports` with subpath patterns and conditions, `imports`, self-reference, `main`, `type`, symbolic links and pnpm stores) and compiles CommonJS modules, ES modules and JSON into the executable. CommonJS works as in Node.js (the module wrapper, `module.exports`, `require.cache`, `require.resolve`, cycles, sloppy mode, retry after a failed load); ES modules import CommonJS named exports found by a `cjs-module-lexer`-style scan, and `require()` of an ES module returns its namespace. A CommonJS entry file is compiled with everything it requires. Compile errors in packages name the package file. 33 of 36 popular packages tested (lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod, …) print the same as on Node.js; see [docs/npm.md](docs/npm.md) ([#249](https://github.com/40oleg/nona/issues/249)).
+- `nona build <package directory>` builds the package's `"bin"` command or `"main"` module; `--conditions <name>` (`-C`, compile option `conditions`) adds `exports` conditions ([#249](https://github.com/40oleg/nona/issues/249)).
+- New built-in modules for packages: `node:os`, `node:tty`, `node:util` (`format`, `inspect`, `inherits`, `promisify`, `types`, …), `node:url`, `node:assert`, `node:crypto` (OS random values, `randomUUID`, MD5/SHA-1/SHA-256/SHA-384/SHA-512 hashes and HMAC), `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads` and a `node:child_process` whose functions throw `ERR_NONA_UNSUPPORTED` ([#249](https://github.com/40oleg/nona/issues/249)).
+- The global `URL` is a URL Standard parser (it parsed only `blob:` object URLs before), and `URLSearchParams` is available ([#249](https://github.com/40oleg/nona/issues/249)).
+- `import.meta` has `url`, `filename` and `dirname` ([#249](https://github.com/40oleg/nona/issues/249)).
+- Import attributes (`import data from './x.json' with {type: 'json'}`, and the older `assert`) are accepted, and a RegExp literal may follow `export default` ([#249](https://github.com/40oleg/nona/issues/249)).
+
 ### Performance
 
 - `===` and `!==` on two strings compare them in `rt.strictEquals` (same record, then the lengths, then the code units 16 bytes per step) instead of going through the generic comparison; `Array.prototype.indexOf`/`includes`, `Map`, `Set` and the other runtime users of strict equality take the same path. npm packages that compare many strings (js-yaml, semver, validator) run 8–10% fewer instructions ([#257](https://github.com/40oleg/nona/issues/257)).
@@ -12,15 +31,6 @@
 
 - `scripts/profile-runtime.mjs` counts the instructions each runtime routine executes (QEMU trace), `bench/16_string_scan.js` measures long-string scans, and [docs/simd.md](docs/simd.md) reports where SIMD would help ([#253](https://github.com/40oleg/nona/issues/253)).
 - All sources, tests, scripts, docs and site pages are formatted with Prettier 3 (4-space indent, other options at their defaults). `npm run format` formats them and the `format` CI job runs `npm run format:check`; `.prettierignore` lists generated files and the prelude templates with substitutions. Target-specific edits of built-in sources now fail loudly when their text is not found ([#250](https://github.com/40oleg/nona/issues/250)).
-
-### npm packages
-
-- Programs can use npm packages: Nona resolves `node_modules` at build time as Node.js does (`package.json` `exports` with subpath patterns and conditions, `imports`, self-reference, `main`, `type`, symbolic links and pnpm stores) and compiles CommonJS modules, ES modules and JSON into the executable. CommonJS works as in Node.js (the module wrapper, `module.exports`, `require.cache`, `require.resolve`, cycles, sloppy mode, retry after a failed load); ES modules import CommonJS named exports found by a `cjs-module-lexer`-style scan, and `require()` of an ES module returns its namespace. A CommonJS entry file is compiled with everything it requires. Compile errors in packages name the package file. 33 of 36 popular packages tested (lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod, …) print the same as on Node.js; see [docs/npm.md](docs/npm.md) ([#249](https://github.com/40oleg/nona/issues/249)).
-- `nona build <package directory>` builds the package's `"bin"` command or `"main"` module; `--conditions <name>` (`-C`, compile option `conditions`) adds `exports` conditions ([#249](https://github.com/40oleg/nona/issues/249)).
-- New built-in modules for packages: `node:os`, `node:tty`, `node:util` (`format`, `inspect`, `inherits`, `promisify`, `types`, …), `node:url`, `node:assert`, `node:crypto` (OS random values, `randomUUID`, MD5/SHA-1/SHA-256/SHA-384/SHA-512 hashes and HMAC), `node:querystring`, `node:timers`, `node:timers/promises`, `node:perf_hooks`, `node:module`, `node:worker_threads` and a `node:child_process` whose functions throw `ERR_NONA_UNSUPPORTED` ([#249](https://github.com/40oleg/nona/issues/249)).
-- The global `URL` is a URL Standard parser (it parsed only `blob:` object URLs before), and `URLSearchParams` is available ([#249](https://github.com/40oleg/nona/issues/249)).
-- `import.meta` has `url`, `filename` and `dirname` ([#249](https://github.com/40oleg/nona/issues/249)).
-- Import attributes (`import data from './x.json' with {type: 'json'}`, and the older `assert`) are accepted, and a RegExp literal may follow `export default` ([#249](https://github.com/40oleg/nona/issues/249)).
 
 ## v0.11.0 — 2026-10-11
 
