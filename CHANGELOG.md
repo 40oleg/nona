@@ -11,6 +11,7 @@
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
 - `%` of two int32 Numbers runs inline (`idiv`, or a mask for a constant power-of-two divisor and a non-negative dividend) instead of calling the runtime; fractions, NaN, Infinity, `-0` and zero divisors keep the runtime's fmod semantics. A loop of `i % 7` and ring-buffer indexing runs about 1.8 times faster. ([#238](https://github.com/40oleg/nona/issues/238))
 - A `switch` whose case tests are literals, with at least four distinct int32 Number cases in a dense range, dispatches through a jump table (a new IR terminator `switch`); other values still take the compare chain, so `'1'`, `1n`, fractions and objects behave as before. A lexer-style loop over character codes runs 22% fewer instructions in the program's own code. ([#241](https://github.com/40oleg/nona/issues/241))
+- A closure's read of a captured `let`/`const`/`class` binding has no dead-zone check when every place that creates the closure runs after the binding is initialized; hoisted declarations and closures created earlier keep their checks. marked compiles with 29% fewer checks (1,768 → 1,261). ([#242](https://github.com/40oleg/nona/issues/242))
 
 ### Tools
 
