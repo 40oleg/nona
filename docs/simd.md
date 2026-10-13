@@ -76,7 +76,7 @@ Cost per call shows whether a routine loops over long data:
     - In acorn, marked and the npm packages it is 3–7% of all instructions, but at 26–45 instructions per call: the strings compared there are short, or differ in their first units.
     - A vector loop compares eight units per iteration. A prototype (16-bit lane compare plus byte mask on SSE2 and NEON) runs the long-string part of `16_string_scan` in 6 ms instead of 30 ms. Its `Map` lookups with 300-unit keys take 58 ms instead of 100 ms (Linux x64, wall time).
 2. **Strict equality of strings costs more in dispatch than in comparing.**
-    - `===` on two different string records goes through `rt.strictEquals` (23–25 instructions), then `rt.strictEq` (37), then `rt.compareStrings`. That is about 100 instructions for an equality that usually fails at the length or the first unit.
+    - `===` on two different string records goes through `rt.strictEquals` (23–25 instructions), then `rt.strictEq` (37), then `rt.compareStrings`. That is about 100 instructions for an equality that usually fails at the length or the first unit. Since [#257](https://github.com/40oleg/nona/issues/257), `rt.strictEquals` compares two strings itself (same record, lengths, then units 16 bytes per step), about 40 instructions per comparison; js-yaml, semver and validator run 8–10% fewer instructions.
     - Together these are 10–17% of js-yaml, semver and validator, and about 9% of acorn and marked.
     - The fix is not SIMD. An equality path that compares lengths and the first unit before any call would remove most of it. It is proposed as a separate issue, because it would gain more on real programs than vectorizing the loop.
 3. **Substring search is a naive double loop.**

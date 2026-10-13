@@ -345,7 +345,7 @@ export function emitObjectIntrospection(b: RuntimeBuilder): void {
                     a.load("rcx", slot(40));
                     a.lea("rdx", slot(64));
                     a.lea("r8", slot(80));
-                    a.call("rt.strictEq");
+                    a.call("rt.strictEquals");
                     a.label(done);
                 }
             },

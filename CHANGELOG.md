@@ -4,6 +4,7 @@
 
 ### Performance
 
+- `===` and `!==` on two strings compare them in `rt.strictEquals` (same record, then the lengths, then the code units 16 bytes per step) instead of going through the generic comparison; `Array.prototype.indexOf`/`includes`, `Map`, `Set` and the other runtime users of strict equality take the same path. npm packages that compare many strings (js-yaml, semver, validator) run 8–10% fewer instructions ([#257](https://github.com/40oleg/nona/issues/257)).
 - Typed arrays: `fill`, `copyWithin`, `slice` and `set` between arrays of one type copy and fill memory in blocks (16 bytes per step), and `indexOf`, `lastIndexOf` and `includes` compare Number elements in place, 16 bytes per step for integer types, instead of reading every element as a value; on ARM64 every block copy of the runtime moves 16 bytes per step. `bench/17_typed_arrays.js` runs 81% fewer instructions ([#253](https://github.com/40oleg/nona/issues/253)).
 - The runtime uses 128-bit SIMD (SSE2 on x86-64, NEON on ARM64) for string comparison, the first-character scan of `indexOf`, `includes`, `lastIndexOf`, `split` and `replaceAll`, the unit copies of `slice`, `substring`, `substr` and RegExp captures, and the zeroing of small allocations. `bench/16_string_scan.js` runs 53% fewer instructions; see [docs/simd.md](docs/simd.md) ([#253](https://github.com/40oleg/nona/issues/253)).
 

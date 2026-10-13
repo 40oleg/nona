@@ -32,7 +32,7 @@ export function emitDescriptorValidation(b: RuntimeBuilder): void {
         a.mov("r8", "rdx");
         a.mov("rdx", "rcx");
         a.lea("rcx", slot(40));
-        a.call("rt.strictEq");
+        a.call("rt.strictEquals");
         a.load("rax", slot(48));
         a.jmp(done);
         a.label(no);
