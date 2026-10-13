@@ -119,6 +119,7 @@ The candidates of this issue, in order:
 2. **`rt.compareStrings`:** eight units per iteration while both strings have eight left.
 3. **Search:** `indexOf`, `lastIndexOf`, `includes`, and the scans of `split` and `replaceAll` skip with a vector scan for the pattern's first unit.
 4. **Copies:** `slice`, `substring` and `substr`, and the zeroing of small blocks in `rt.alloc`.
+5. **Typed arrays:** block kernels for `fill`, `copyWithin`, `set` and `slice`, and an in-place element search for `indexOf`, `lastIndexOf` and `includes` (`bench/17_typed_arrays.js`).
 
 Follow-ups, proposed as separate issues:
 
@@ -145,3 +146,30 @@ Instructions counted with `scripts/profile-runtime.mjs` on x64:
 `rt.compareStrings` in `16_string_scan.js` went from 3,214 to 439 instructions per call. Wall time of `16_string_scan.js` (`SCALE=1`, native x64): equals 30 → 6 ms, search 52 → 31 ms, split 80 → 62 ms, keys 100 → 55 ms.
 
 The programs of `tests/simd.test.ts` print what Node.js prints on x64 and on ARM64 (under QEMU), including under `gcStress`.
+
+### Typed arrays
+
+Step 5 adds `src/runtime/typed-array-kernels.ts`:
+
+- `rt.fillBytes` stores the element, repeated over 16 bytes, along the range; `fill` converts its value once and calls it.
+- `rt.moveBytes` is an overlapping copy (backward, 16 bytes per step, when the target lies inside the source); `copyWithin` makes one call instead of copying byte by byte.
+- `rt.findElements` compares elements in place. Integer types searched forward compare 16 bytes per step (`vectorEqual8`, `vectorEqual16` and the new `vectorEqual32`); float types compare one number per step, so that `+0` finds `-0` and only `includes` finds NaN. `indexOf`, `lastIndexOf` and `includes` used to read each element as a value and call `rt.strictEq`; they still do for BigInt arrays and for searched values that are not Numbers.
+- `arrayBufferCopy` (behind `slice`) copies with `rt.copyBytes` instead of a byte loop, keeping the byte order the specification gives overlapping ranges, and `set` from a typed array of the same type in another buffer is one such copy.
+- On ARM64, `rep movsb` (and so every `rt.copyBytes`) copies 16 bytes per step through `v31` unless the target lies less than 16 bytes after the source.
+
+`17_typed_arrays.js` (`--scale 0.01`) went from 354,145,899 to 66,478,685 instructions (−81%); most of what is left is the program filling its arrays. Wall time (`SCALE=1`, native x64, Node.js 22 in brackets): fill 68 → 5–9 ms (9), copies 850–1070 → 17–26 ms (22), searches 1290–1430 → 33–48 ms (66). The element-wise loops of the benchmark are compiled code and unchanged; vectorizing such loops is a compiler change (only element-wise operations, no reordered floating-point sums) left for later.
+
+The test262 directories `built-ins/TypedArray/prototype/{copyWithin,fill,includes,indexOf,lastIndexOf,set,slice}` pass on Linux x64.
+
+### Garbage collection
+
+The vector work on the collector is the 16-byte zeroing of `rt.alloc` (step 4). Sweeping stays scalar. Its share, from the profiles of this page:
+
+| Workload                                                       |    Sweep | Mark and trace |
+| -------------------------------------------------------------- | -------: | -------------: |
+| `09_gc.js`                                                     |     6.8% |           3.2% |
+| `06_objects.js`, `11_json.js`, `14_calls.js`                   | 1.2–1.3% |       5.1–9.5% |
+| npm packages (diff, js-yaml, mustache, semver, validator, zod) | 1.0–2.7% |     up to 8.2% |
+| acorn, marked, strings and typed array benchmarks              | 0.1–0.5% |     up to 2.4% |
+
+A per-chunk mark bitmap would let the sweep skip live cells 128 at a time, but every dead cell still needs its own work (side tables, the free list), and the bitmap changes marking, allocation and the write barrier. Even a sweep twice as fast would save at most about 3% of `09_gc.js`, a collector stress test, and under 1% of the other workloads. Marking, the larger part, follows pointers and does not vectorize. The bitmap is therefore not part of this issue.

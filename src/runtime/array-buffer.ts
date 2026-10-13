@@ -256,19 +256,13 @@ export function emitArrayBuffer(b: RuntimeBuilder): void {
         a.load("r8", { base: "r8", disp: ArrayBufferLayout.bytes });
         a.load("r11", slot(72));
         a.add("r8", "r11");
-        a.load("r9", slot(64));
-        const copy = a.unique("copy"),
-            done = a.unique("done");
-        a.label(copy);
-        a.test("r9", "r9");
-        a.jcc("e", done);
-        a.load("rax", { base: "rdx" }, 8);
-        a.store({ base: "r8" }, "rax", 8);
-        a.add("rdx", 1);
-        a.add("r8", 1);
-        a.sub("r9", 1);
-        a.jmp(copy);
-        a.label(done);
+        // One block copy (#253). rt.copyBytes keeps the byte-by-byte order
+        // the specification gives overlapping ranges of one buffer.
+        a.store(slot(80), "rcx");
+        a.mov("rcx", "r8");
+        a.load("r8", slot(64));
+        a.call("rt.copyBytes");
+        a.load("rcx", slot(80));
         a.mov("rax", 0);
         a.store({ base: "rcx" }, "rax");
         a.store({ base: "rcx", disp: 8 }, "rax");

@@ -119,6 +119,7 @@ import {
 } from "./weak-collections.js";
 import { emitDataViewPrototype, emitDataView } from "./data-view.js";
 import { emitTypedArrayPrototype, emitTypedArray } from "./typed-array.js";
+import { emitTypedArrayKernels } from "./typed-array-kernels.js";
 import { emitConsole } from "./console.js";
 /** Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts), and the default (empty) agent entry list. */
 function emitRealmTables(b: RuntimeBuilder, realms: number): void {
@@ -227,6 +228,7 @@ export function emitRuntime(
     emitSharedArrayBuffer(b);
     emitDataView(b);
     emitTypedArray(b);
+    emitTypedArrayKernels(b);
     emitNumberBuiltins(b);
     emitUri(b);
     emitSymbols(b);
