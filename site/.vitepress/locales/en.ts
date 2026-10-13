@@ -5,7 +5,7 @@ export const en: Dictionary = {
     lang: "en-US",
     label: "English",
     description:
-        "Ahead-of-time compiler from JavaScript (ES2020) to standalone Windows and Linux x64 executables",
+        "Ahead-of-time compiler from JavaScript (ES2020) to standalone native executables for Windows, Linux, macOS, FreeBSD and OpenBSD",
     nav: {
         guide: "Guide",
         reference: "Reference",
@@ -22,7 +22,10 @@ export const en: Dictionary = {
         compatibility: "Compatibility and limitations",
         performance: "Performance",
         status: "Status and roadmap",
-        reference: "Reference",
+        languageGroup: "Language and compatibility",
+        tools: "Tools and build",
+        apis: "Host APIs",
+        platforms: "Native platforms",
         cli: "Command line",
         api: "compile() API",
         modules: "Built-in modules",

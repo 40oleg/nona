@@ -9,7 +9,7 @@ JavaScript source (script or module graph)
  lexer → parser → early errors and scope binding → compile-time eval/Function
                                                          │
                                                          ▼
-                                     IR lowering → x86-64 code generation
+                                     IR lowering → x86-64/AArch64 generation
                                                          │
                                                          ▼
                        runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
@@ -34,7 +34,7 @@ Avant la génération de code, l’IR de chaque fonction passe par des optimisat
 
 ## Génération de code
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contient un encodeur d’instructions et un assembleur x86-64 ainsi que le générateur de code, qui transforme les opérations de l’IR en appels au runtime et en chemins rapides en ligne. Le code généré et le runtime suivent la convention d’appel Win64 sur les deux cibles.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contient un encodeur d’instructions et un assembleur x86-64 ainsi que le générateur de code, qui transforme les opérations de l’IR en appels au runtime et en chemins rapides en ligne ; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) fait de même pour AArch64. Le code généré suit une convention d’appel logique commune ; des ponts propres à chaque OS la convertissent vers l’ABI native de chaque cible.
 
 ## Runtime
 
@@ -58,7 +58,14 @@ Le ramasse-miettes est précis et non déplaçant : mark-and-sweep sur des racin
 ## Édition de liens
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)) : sections, table d’import (KERNEL32 pour le runtime, plus les DLL déclarées via FFI), relocalisations de base, données de déroulement et ressources (icône, manifeste, informations de version).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)) : chaque fonction KERNEL32 utilisée par le runtime dispose d’une cale (shim) d’appel système Linux avec la même convention d’appel, si bien que le code du runtime est partagé entre les cibles.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)) : chaque fonction KERNEL32 utilisée par le runtime dispose d’une cale (shim) d’appel système avec la même convention d’appel, si bien que le code du runtime est partagé entre les cibles. Linux et les BSD effectuent directement les appels au noyau, sans libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)) : les exécutables macOS Intel utilisent eux aussi des appels directs au noyau ; les exécutables Apple Silicon chargent `libSystem.B.dylib` du système via dyld pour le démarrage et les services de l’OS.
+
+Le même runtime sert les huit cibles ; [Plateformes natives](/reference/native-platforms) indique ce qui est vérifié où.
+
+## Auto-hébergement
+
+Le compilateur se compile lui-même. Le `nona` publié est un exécutable natif construit par Nona, sans Node.js à l’intérieur ; sous Windows et Linux x64, il se reconstruit en un second étage identique octet pour octet. Le [guide d’amorçage](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) décrit la procédure et ses vérifications.
 
 ## FFI
 
@@ -70,20 +77,16 @@ Un appel `define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)')` est ré
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
 
-## Plateformes natives
+## Prototype de vérification formelle
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
-
-## Formal verification prototype
-
-[Lean proofs](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) cover selected slot move rules and a modeled straight-line dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. The production compiler, CFG analysis and native runtime are outside the current formal guarantee.
+Des [preuves Lean](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) couvrent certaines règles de déplacement d’emplacements et un optimiseur modélisé de déplacements morts en code linéaire. Lancez `npm run check:proofs` avec Lean/elan installé. Le compilateur de production, l’analyse du graphe de flot de contrôle et le runtime natif sont hors de la garantie formelle actuelle.

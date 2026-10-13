@@ -1,20 +1,31 @@
 # Начало работы
 
-## Требования
+## Установка
 
-- Для компилятора: Node.js 26 или новее и npm, на Windows или Linux.
-- Цели: Windows 10/11 x64 (`win32-x64`, по умолчанию) и Linux x86-64 (`linux-x64`).
+Скачайте архив для вашей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте его и выполните `nona --help` (`./nona --help` на Linux, macOS и BSD). В архиве лежат исполняемый файл, лицензия и файл версии; компилятор — нативная программа, которой не нужен Node.js. В каждом релизе также есть `SHA256SUMS`.
 
-## Сборка компилятора
+| ОС                          | Архив                                          | Имя цели                     |
+| --------------------------- | ---------------------------------------------- | ---------------------------- |
+| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+
+В POSIX-системах выполните `chmod +x nona`, если архиватор потерял право на исполнение. Чтобы попробовать Nona, ничего не устанавливая, используйте [песочницу](/playground).
+
+### Сборка из исходников
+
+Нужны Node.js 26 или новее и npm на любом хосте, где работает Node.js 26.
 
 ```sh
 git clone https://github.com/40oleg/nona.git
 cd nona
 npm ci
 npm run build
+node dist/cli.js --help
 ```
 
-Точка входа компилятора — `dist/cli.js`; примеры на этом сайте запускают его как `node dist/cli.js`. Пакет также объявляет команду `nona`: `npm link` в репозитории добавляет её в `PATH`.
+Точка входа компилятора — `dist/cli.js`. `npm link` в репозитории добавляет команду `nona` в `PATH`. Остальная часть сайта пишет `nona`; из клона запускайте `node dist/cli.js`.
 
 ## Первая программа
 
@@ -23,12 +34,12 @@ npm run build
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build hello.js -o build/hello.exe
+nona build hello.js -o build/hello.exe
 .\build\hello.exe
 ```
 
-```sh [Linux]
-node dist/cli.js build hello.js -o build/hello --target linux-x64
+```sh [Linux and macOS]
+nona build hello.js -o build/hello
 ./build/hello
 ```
 
@@ -47,16 +58,29 @@ done; at least 30 ms passed: true
 
 ## Цели и кросс-компиляция
 
-Компилятор — кросс-компилятор: на Windows он может собирать исполняемые файлы для Linux, а на Linux — для Windows. `--target` выбирает формат результата; по умолчанию `win32-x64`. Файлы для Linux записываются с правами `0755`.
+Компилятор — кросс-компилятор: любой хост может собирать исполняемые файлы для любой из восьми [нативных платформ](/reference/native-platforms). `--target` выбирает формат результата и процессор; без него целью считаются ОС и процессор хоста.
+
+```sh
+nona build hello.js -o build/hello --target linux-arm64
+nona build hello.js -o build/hello.exe --target win32-x64
+```
+
+Кросс-скомпилированный исполняемый файл работает только на той же ОС и процессоре. Файлы для Linux, BSD и macOS записываются с правами `0755`.
 
 ## Модули
 
-Входной файл `.mjs` или любой файл, скомпилированный с `--module`, — ES-модуль. Относительные импорты (`./util.mjs`, `../lib/x.mjs`) разрешаются относительно импортирующего файла и компилируются в тот же исполняемый файл. Встроенные модули используют префикс `nona:` (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`), а `node:fs` и `node:process` — псевдонимы подмножеств Nona; см. [Встроенные модули](/ru/reference/modules).
+Входной файл `.mjs` или любой файл, скомпилированный с `--module`, — ES-модуль. Относительные импорты (`./util.mjs`, `../lib/x.mjs`) разрешаются относительно импортирующего файла и компилируются в тот же исполняемый файл. Входной файл CommonJS компилируется вместе со всем, что он подключает через `require`.
+
+Встроенные модули используют префикс `nona:` (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`); доступны и многие имена Node.js (`node:fs`, `node:path`, `node:http`, …). См. [Встроенные модули](/ru/reference/modules).
+
+## Пакеты npm
+
+Устанавливайте пакеты через npm как обычно и собирайте программу: Nona разрешает `node_modules` при сборке и компилирует пакеты в исполняемый файл. `nona build <каталог пакета>` собирает команду `"bin"` или модуль `"main"` пакета. См. [пакеты npm](/reference/npm).
 
 ## Программа для Windows без консоли
 
 ```sh
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 `--subsystem windows` запускает программу без консольного окна и встраивает манифест по умолчанию; `--icon` и `--version-info` добавляют ресурсы, которые показывает Проводник. См. [Исполняемые файлы Windows](/ru/reference/windows-executables) и [пример Museum](/ru/examples/museum).
@@ -70,13 +94,14 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 ```
 
 - Неподдерживаемый синтаксис отклоняется при компиляции, а не падает во время исполнения.
-- `E_FFI_TARGET` означает, что объявление DLL скомпилировано для `linux-x64` (или системный вызов — для `win32-x64`).
+- `E_FFI_TARGET` означает, что объявление DLL скомпилировано для цели не на Windows (или системный вызов — для `win32-x64`).
+- `E_HOST_MODULE` означает, что встроенный модуль недоступен для цели.
 - `EvalError` во время исполнения означает, что `eval` или `Function` получили исходный текст, неизвестный при компиляции.
 
 В [справочнике по командной строке](/ru/reference/cli) перечислены все параметры и ошибки.
 
-## Нативные платформы
+## Дальше
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.
+- [Примеры](/ru/examples/) — полные программы с пояснениями.
+- [Поддержка языка](/ru/guide/language-support) и [Совместимость и ограничения](/ru/guide/compatibility) — чего ожидать.
+- [Встроенные модули](/ru/reference/modules) — API хоста.

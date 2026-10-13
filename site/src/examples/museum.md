@@ -72,7 +72,7 @@ A pending interval keeps the process alive. Between ticks the event loop sleeps 
 <<< ../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` starts the program without a console window and embeds a default manifest (asInvoker, Windows 10/11, per-monitor DPI awareness).

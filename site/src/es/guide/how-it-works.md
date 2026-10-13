@@ -9,7 +9,7 @@ JavaScript source (script or module graph)
  lexer → parser → early errors and scope binding → compile-time eval/Function
                                                          │
                                                          ▼
-                                     IR lowering → x86-64 code generation
+                                     IR lowering → x86-64/AArch64 generation
                                                          │
                                                          ▼
                        runtime (native code + JS preludes) → PE32+/ELF64/Mach-O64 linker
@@ -34,7 +34,7 @@ Antes de generar código, la IR de cada función pasa por optimizaciones que con
 
 ## Generación de código
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contiene un codificador de instrucciones y un ensamblador x86-64, además del generador de código, que convierte las operaciones de la IR en llamadas al runtime y rutas rápidas en línea. El código generado y el runtime siguen la convención de llamada Win64 en ambos destinos.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contiene un codificador de instrucciones y un ensamblador x86-64, además del generador de código, que convierte las operaciones de la IR en llamadas al runtime y rutas rápidas en línea; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) hace lo mismo para AArch64. El código generado usa una convención de llamada lógica compartida; los puentes del sistema operativo la adaptan a cada ABI nativa.
 
 ## Runtime
 
@@ -42,7 +42,7 @@ Cada ejecutable contiene el runtime de [`src/runtime`](https://github.com/40oleg
 
 - Los **valores** son pares etiquetados de 16 bytes: undefined, null, booleanos, números binary64, cadenas UTF-16, objetos, símbolos y BigInts.
 - Los **objetos** creados por literales y constructores comparten _shapes_ (clases ocultas): sus propiedades viven en ranuras de 16 bytes que describe la shape, y las cachés en línea del código generado las leen y escriben tras una sola comparación de shape. Lo que una shape no puede describir (accesores, borrado, otros atributos, claves símbolo) convierte el objeto en una lista ordenada de propiedades, que obtiene un índice hash cuando crece.
-- El **código nativo** de los objetos integrados se emite como x86-64 con un pequeño constructor (`RuntimeBuilder`).
+- El **código nativo** de los objetos integrados se emite como x86-64 o AArch64 con un pequeño constructor (`RuntimeBuilder`).
 - Los **preludios de JavaScript** (`src/lib/runtime/*.js`) implementan partes de la biblioteca en JavaScript y se compilan en cada ejecutable: el motor de RegExp, los controladores de Promise y async, los auxiliares de Proxy y Reflect, los temporizadores y el bucle de eventos, `process`, `TextEncoder`/`TextDecoder` y los objetos integrados del Annex B.
 
 ### Recolector de basura
@@ -58,7 +58,14 @@ El recolector es preciso y no mueve objetos: mark-and-sweep sobre raíces explí
 ## Enlazado
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): secciones, la tabla de importaciones (KERNEL32 para el runtime, más las DLL declaradas con FFI), reubicaciones base, datos de unwind y recursos (icono, manifiesto, información de versión).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): cada función de KERNEL32 que usa el runtime tiene un shim de llamada al sistema de Linux con la misma convención de llamada, de modo que el código del runtime se comparte entre destinos.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): cada función de KERNEL32 que usa el runtime tiene un shim de llamada al sistema con la misma convención de llamada, de modo que el código del runtime se comparte entre destinos. Linux y los BSD hacen llamadas al kernel directamente, sin libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): los ejecutables de macOS Intel también usan llamadas directas al kernel; los de Apple Silicon cargan la `libSystem.B.dylib` del sistema mediante dyld para el arranque y los servicios del sistema operativo.
+
+El mismo runtime sirve a los ocho destinos; [Plataformas nativas](/reference/native-platforms) indica qué está verificado dónde.
+
+## Autoalojamiento
+
+El compilador se compila a sí mismo. El `nona` publicado es un ejecutable nativo construido por Nona, sin Node.js dentro; en Windows y Linux x64 se reconstruye a sí mismo en una segunda etapa idéntica byte a byte. La [guía de bootstrap](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) describe el procedimiento y sus comprobaciones.
 
 ## FFI
 
@@ -70,19 +77,15 @@ Una llamada `define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)')` se r
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
-
-## Plataformas nativas
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
 
 ## Formal verification prototype
 

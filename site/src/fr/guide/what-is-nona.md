@@ -1,8 +1,8 @@
 # Qu’est-ce que Nona
 
-Nona est un compilateur ahead-of-time (AOT) pour JavaScript. Il lit un script ou un graphe de modules ES, le vérifie, le traduit dans sa propre représentation intermédiaire, génère du code machine x86-64 et lie un exécutable autonome : une image PE32+ pour Windows ou une image ELF64 pour Linux.
+Nona est un compilateur ahead-of-time (AOT) pour JavaScript. Il lit un script ou un graphe de modules ES, le vérifie, le traduit dans sa propre représentation intermédiaire, génère du code machine x86-64 ou AArch64 et lie une sortie PE32+, ELF64 ou Mach-O64.
 
-Le compilateur est écrit en TypeScript et s’exécute sur Node.js. Les programmes qu’il produit, non : ils ne contiennent ni interpréteur, ni V8, ni bytecode. Un exécutable Windows n’importe que `KERNEL32.dll` (plus les DLL qu’un programme appelle via [FFI](/fr/reference/ffi)) ; un exécutable Linux effectue directement des appels système et n’utilise pas la libc.
+Le compilateur est écrit en TypeScript. Il s’exécute sur Node.js, ou sous la forme de l’exécutable natif `nona` publié, que Nona a construit à partir du code source du compilateur lui-même. Les programmes qu’il produit n’ont besoin ni de l’un ni de l’autre : ils ne contiennent ni interpréteur, ni V8, ni bytecode. Un exécutable Windows n’importe que `KERNEL32.dll` (plus les DLL qu’un programme appelle via [FFI](/fr/reference/ffi)) ; un exécutable Linux effectue directement des appels système et n’utilise pas la libc.
 
 ## Ce que vous obtenez
 
@@ -11,8 +11,10 @@ Le compilateur est écrit en TypeScript et s’exécute sur Node.js. Les program
 - **La bibliothèque standard ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (groupes nommés, lookbehind, drapeaux `s` et `u`, échappements de propriétés Unicode), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView et tous les tableaux typés, SharedArrayBuffer et Atomics, Proxy et Reflect, et Promise avec une file de tâches.
 - **`eval` et `Function` avec un source connu à la compilation.** Un littéral de chaîne, une concaténation de littéraux ou une variable qui ne reçoit que de telles constantes est compilé à l’avance avec la sémantique complète de `eval` direct et indirect.
 - **Un runtime natif.** Un ramasse-miettes mark-and-sweep précis et non déplaçant, des chaînes UTF-16, de vraies exceptions et une `RangeError` interceptable en cas de débordement de pile.
-- **Des API de l’hôte** pour de vrais programmes : une [boucle d’événements avec minuteurs](/fr/reference/host-apis), un [`process`](/fr/reference/process) global, [`node:fs`](/fr/reference/fs) synchrone avec `TextEncoder`/`TextDecoder`, et des [appels de fonctions natives](/fr/reference/ffi) avec des déclarations `nona:win32` prêtes à l’emploi.
-- **Un démarrage rapide et une faible empreinte.** Un hello world compilé démarre en 2 ms environ, culmine à 11 Mo de mémoire et pèse 3 Mo : pas de runtime à initialiser ni de JIT à chauffer ([Performances](/fr/guide/performance)).
+- **Des API de l’hôte à la Node.js** pour de vrais programmes : une [boucle d’événements avec minuteurs](/fr/reference/host-apis), [`process`](/fr/reference/process), [`node:fs`](/fr/reference/fs), `path`, `Buffer`, les flux, les événements, `URL`, [HTTP et TCP](/reference/network), et des [appels de fonctions natives](/fr/reference/ffi) avec des déclarations `nona:win32` prêtes à l’emploi. Les [Modules intégrés](/fr/reference/modules) les listent tous.
+- **Huit cibles.** Windows, Linux et macOS sur x64 et ARM64, FreeBSD et OpenBSD sur x64, en compilation croisée depuis n’importe quel hôte ([Plateformes natives](/reference/native-platforms)).
+- **Des paquets npm.** Les paquets de `node_modules` sont résolus à la compilation et compilés dans l’exécutable ([paquets npm](/reference/npm)).
+- **Un démarrage rapide et une faible empreinte.** Un hello world compilé démarre en 2 ms environ, culmine à 11 Mo de mémoire et pèse environ 2 Mo (jusqu’à 7 Mo quand un programme atteint toutes les parties optionnelles du runtime) : pas de runtime à initialiser ni de JIT à chauffer ([Performances](/fr/guide/performance)).
 - **Des exécutables Windows** sans fenêtre de console, avec icône, manifeste et informations de version ([Exécutables Windows](/fr/reference/windows-executables)).
 
 ## Ce que Nona n’est pas
@@ -20,8 +22,8 @@ Le compilateur est écrit en TypeScript et s’exécute sur Node.js. Les program
 - **Pas un remplaçant de Node.js.** Les paquets npm sont compilés dans le programme lors de sa construction ([paquets npm](/reference/npm)), mais seules les [API Node.js implémentées par Nona](/fr/reference/modules) sont disponibles, et les paquets qui en demandent d’autres (`zlib`, `https`, `child_process`), `Intl` ou des modules natifs ne fonctionnent pas. Les API du navigateur ne sont pas disponibles non plus.
 - **Pas une implémentation complète d’ES2020.** Nona implémente ES2020 avec des exceptions documentées ; voir [Prise en charge du langage](/fr/guide/language-support) et [Compatibilité et limites](/fr/guide/compatibility).
 - **Pas de génération de code à l’exécution.** `eval` et `Function` exigent un texte source connu à la compilation ; les chaînes calculées à l’exécution lèvent `EvalError`.
-- **Pas encore rapide en calcul.** Sans JIT, les appels, l’accès aux propriétés et l’allocation sont 20 à 100 fois plus lents qu’avec V8, et `Map`/`Set`, `sort`, la construction de chaînes et les longues chaînes de Promise restent superlinéaires en fonction de la taille des données ([Performances](/fr/guide/performance)).
-- **Pas portable au-delà de x86-64.** Les cibles sont Windows 10/11 x64 et Linux x86-64.
+- **Pas aussi rapide que V8 en calcul.** Sans JIT, les appels, les fermetures et l’allocation sont de plusieurs fois à plusieurs dizaines de fois plus lents qu’avec V8, et les longues chaînes de Promise ainsi que la correspondance RegExp sont les points les plus lents ([Performances](/fr/guide/performance)).
+- **Pas identique sur toutes les plateformes.** Les API de système de fichiers et de réseau, la FFI et certaines fonctions de `process` diffèrent selon la cible ; voir [Plateformes natives](/reference/native-platforms).
 
 ## Sécurité
 
@@ -29,12 +31,8 @@ Nona n’a fait l’objet d’aucun audit de sécurité. Ne compilez pas de code
 
 ## Pour aller plus loin
 
-- [Prise en main](/fr/guide/getting-started) — compilez le compilateur et votre premier programme.
+- [Prise en main](/fr/guide/getting-started) — installez le compilateur et compilez votre premier programme.
 - [Fonctionnement](/fr/guide/how-it-works) — la chaîne de compilation, le runtime et les éditeurs de liens.
 - [Exemples](/fr/examples/) — d’un hello world à un changeur de fond d’écran.
-
-## Plateformes natives
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plateformes natives](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- [Prise en charge du langage](/fr/guide/language-support) et [Compatibilité et limites](/fr/guide/compatibility) — ce qui fonctionne et ce qui ne fonctionne pas.
+- [Ligne de commande](/fr/reference/cli) et [Modules intégrés](/fr/reference/modules) — la référence.

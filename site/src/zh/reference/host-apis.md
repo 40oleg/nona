@@ -35,10 +35,6 @@ Path does not initialize the full process object. [Full reference](https://githu
 - `tests/stability.test.ts` 检查：定时器触发次数增加十倍（每个节拍都有 Promise 任务和垃圾）不会提高内存峰值；数千个被遗弃的协程会被释放；等待两秒定时器的程序几乎不占用 CPU。
 - 已知限制：属性、元素和 Map 的存储是线性的（#36），因此拥有数百个存活定时器或大对象的程序会变慢；在 Linux 上，每个堆块都是一个单独的内存映射（#37）。
 
-## Native target availability
-
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
-
 ## Events
 
 `node:events`, `events` and `nona:events` share one built-in module. The default
@@ -51,16 +47,6 @@ disposable `addAbortListener` subscriptions under `Symbol.dispose` are also avai
 
 See the [English events reference](/reference/host-apis#events) for the
 complete supported API and limitations.
-
-Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
-`AbortSignal`) and `NodeEventTarget` are supported, including cancellation,
-protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
-and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
-local context storage. Promise, await, timer and microtask callbacks preserve
-captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
-this API; see the English reference for the precise boundaries.
-
-AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
 
 ## URL {#url}
 

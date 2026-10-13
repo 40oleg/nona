@@ -35,10 +35,6 @@ Path does not initialize the full process object. [Full reference](https://githu
 - `tests/stability.test.ts` जाँचता है कि दस गुना अधिक टाइमर फ़ायरिंग (हर टिक में promise जॉब और कचरे के साथ) पीक मेमोरी नहीं बढ़ाती, कि हज़ारों छोड़े गए coroutine मुक्त हो जाते हैं, और कि दो सेकंड के टाइमर का इंतज़ार करने वाला प्रोग्राम लगभग कोई CPU उपयोग नहीं करता।
 - ज्ञात सीमाएँ: प्रॉपर्टी, एलिमेंट और Map स्टोरेज रैखिक (linear) है (#36), इसलिए सैकड़ों जीवित टाइमर या बड़े ऑब्जेक्ट वाले प्रोग्राम धीमे हो जाते हैं; Linux पर हर हीप ब्लॉक एक अलग मेमोरी मैपिंग है (#37)।
 
-## Native target availability
-
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
-
 ## Events
 
 `node:events`, `events` and `nona:events` share one built-in module. The default
@@ -51,16 +47,6 @@ disposable `addAbortListener` subscriptions under `Symbol.dispose` are also avai
 
 See the [English events reference](/reference/host-apis#events) for the
 complete supported API and limitations.
-
-Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
-`AbortSignal`) and `NodeEventTarget` are supported, including cancellation,
-protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
-and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
-local context storage. Promise, await, timer and microtask callbacks preserve
-captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
-this API; see the English reference for the precise boundaries.
-
-AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
 
 ## URL {#url}
 

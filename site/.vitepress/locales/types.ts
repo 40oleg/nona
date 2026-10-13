@@ -30,7 +30,12 @@ export interface Dictionary {
         compatibility: string;
         performance: string;
         status: string;
-        reference: string;
+        /** Group labels of the reference and of the language pages. */
+        languageGroup: string;
+        tools: string;
+        apis: string;
+        /** The native platforms page (English only). */
+        platforms: string;
         cli: string;
         api: string;
         modules: string;

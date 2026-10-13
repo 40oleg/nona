@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 测试集会编译并运行真实的可执行文件：PE 测试在 Windows 上运行，ELF 测试在 Linux 上运行，其中很多在 GC 压力模式下运行。CI（`.github/workflows/check.yml`）在 Windows 上用 Node.js 26 运行完整测试集和 Test262 分组，并在 Linux 上运行原生测试。完整的 Test262 审计见 [Test262](/zh/reference/test262) 页面。
@@ -35,12 +36,16 @@ npm run test262:smoke    # a quick pinned Test262 subset
 - 每个新的 KERNEL32 导入都需要在 `src/backend/linux/shims.ts` 中提供 Linux 系统调用垫片。
 - 生成的可执行文件不能有外部依赖：不用 libc、不用 C 工具链、不捆绑 DLL。
 
+## 性能剖析与基准测试
+
+`node bench/run.mjs` 运行[性能](/zh/guide/performance)页面所依据的基准测试。`scripts/profile-runtime.mjs` 统计每个运行时例程执行的指令数（QEMU 跟踪），[命令行](/zh/reference/cli#options)上的 `--call-stats` 统计程序发起的调用次数。
+
 ## 文档
 
 当某个特性改变了程序可见的行为时，请更新：
 
 - `README.md` 和 `README.ru.md`；
-- `docs/` 中的参考文档（`host-apis.md`、`process.md`、`fs.md`、`ffi.md`、`windows-executables.md`、`test262.md`）——网站会自动包含这些文件；
+- `docs/` 中的参考文档（`host-apis.md`、`process.md`、`fs.md`、`network.md`、`npm.md`、`ffi.md`、`native-platforms.md`、`windows-executables.md`、`test262.md`）——网站会自动包含这些文件；
 - `site/src/` 中描述该特性的网站页面，例如[语言支持](/zh/guide/language-support)或[命令行](/zh/reference/cli)页面；
 - `CHANGELOG.md` 的 `## Unreleased` 部分，并附上 issue 链接。
 
@@ -65,4 +70,4 @@ npm run check:samples      # compiles every program in site/samples
 
 面向代理（agent）的规则——用 `blocked` 标签认领 issue、提交作者身份以及 pull request 检查清单——见 [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md)。
 
-The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.
+[组合程序语料库](https://github.com/40oleg/nona/tree/main/programs)包含 1000 个单独编写的独立应用程序。运行 `npm run check:programs`，可在普通模式和 GC 压力模式下把每个程序与 Node.js 对比。专门的语料库工作流会在每次 push 和 pull request 时于 Linux 和 Windows 上运行所有用例；这些检查也属于 `npm run check`。

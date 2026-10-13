@@ -72,7 +72,7 @@ Un intervalle en attente maintient le processus en vie. Entre deux ticks, la bou
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` démarre le programme sans fenêtre de console et intègre un manifeste par défaut (asInvoker, Windows 10/11, prise en charge du DPI par moniteur).

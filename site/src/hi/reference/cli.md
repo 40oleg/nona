@@ -12,7 +12,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
        nona --help | --version
 ```
 
-रिपॉज़िटरी के क्लोन से `node dist/cli.js …` चलाएँ; `npm link` के बाद यही कमांड `nona` के रूप में उपलब्ध है।
+जारी किया गया `nona` एक्ज़ीक्यूटेबल यही आर्ग्युमेंट लेता है। रिपॉज़िटरी के क्लोन से `node dist/cli.js …` चलाएँ; `npm link` के बाद यही कमांड `nona` के रूप में उपलब्ध है।
 
 ## विकल्प
 
@@ -76,21 +76,21 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 ::: code-group
 
 ```sh [कंसोल प्रोग्राम]
-node dist/cli.js build app.js -o build/app.exe
+nona build app.js -o build/app.exe
 ```
 
 ```sh [रिसोर्स वाला GUI प्रोग्राम]
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 ```sh [Linux]
-node dist/cli.js build app.js -o build/app --target linux-x64
+nona build app.js -o build/app --target linux-x64
 ```
 
 :::
 
-## Native target availability
+## नेटिव कंपाइलर
 
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+हर [रिलीज़](https://github.com/40oleg/nona/releases/latest) में आठों [नेटिव प्लेटफ़ॉर्म](/reference/native-platforms) में से हर एक के लिए `nona` नेटिव एक्ज़ीक्यूटेबल के रूप में आता है। इसे Nona ने ही बनाया है, इसे Node.js की ज़रूरत नहीं और यह `node dist/cli.js` जैसे ही विकल्प लेता है। रिपॉज़िटरी का क्लोन इसके बजाय Node.js 26 पर TypeScript कंपाइलर चलाता है। [बूटस्ट्रैप और सत्यापन गाइड](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) बताती है कि नेटिव कंपाइलर स्वयं को कैसे दोबारा बनाता है।
 
-सफल [self-hosting workflow](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml) से `nona-<target>` मिलता है। निष्पादन योग्य फ़ाइल निकालकर `nona build app.js -o app` (POSIX पर `./nona`) चलाएँ; Node.js या कंपाइलर JavaScript स्रोत आवश्यक नहीं हैं। विकास CLI और प्रारंभिक bootstrap Node.js 26 का उपयोग करते हैं।
+DLL FFI डिक्लेरेशन केवल Windows टार्गेट के लिए कंपाइल होते हैं; रॉ सिस्टम-कॉल डिक्लेरेशन चुने गए Linux, Darwin या BSD टार्गेट के कर्नेल नंबर का उपयोग करते हैं (देखें [FFI](/hi/reference/ffi))।

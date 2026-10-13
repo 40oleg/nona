@@ -12,7 +12,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
        nona --help | --version
 ```
 
-من نسخة مستنسخة من المستودع شغّل `node dist/cli.js …`؛ وبعد `npm link` يصبح الأمر نفسه متاحًا باسم `nona`.
+يقبل الملف التنفيذي المنشور `nona` هذه الوسائط. ومن نسخة مستنسخة من المستودع شغّل `node dist/cli.js …`؛ وبعد `npm link` يصبح الأمر نفسه متاحًا باسم `nona`.
 
 ## الخيارات
 
@@ -76,21 +76,21 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 ::: code-group
 
 ```sh [برنامج طرفي]
-node dist/cli.js build app.js -o build/app.exe
+nona build app.js -o build/app.exe
 ```
 
 ```sh [برنامج رسومي مع موارد]
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 ```sh [Linux]
-node dist/cli.js build app.js -o build/app --target linux-x64
+nona build app.js -o build/app --target linux-x64
 ```
 
 :::
 
-## Native target availability
+## المترجم الأصلي
 
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+يضم كل [إصدار](https://github.com/40oleg/nona/releases/latest) الملف `nona` ملفًا تنفيذيًا أصليًا لكل منصة من [المنصات الأصلية](/reference/native-platforms) الثماني. بناه Nona نفسه، ولا يحتاج إلى Node.js، ويقبل الخيارات نفسها التي يقبلها `node dist/cli.js`. أما النسخة المستنسخة من المستودع فتشغّل مترجم TypeScript على Node.js 26. ويصف [دليل الإقلاع والتحقق](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) كيف يعيد المترجم الأصلي بناء نفسه.
 
-توفر عمليات [self-hosting](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml) الناجحة ملفات `nona-<target>`. استخرج الملف التنفيذي وشغّل `nona build app.js -o app` (باستخدام `./nona` على POSIX)، دون Node.js أو مصادر JavaScript للمترجم. تستخدم واجهة التطوير والبناء الأولي Node.js 26.
+لا تُترجَم تصريحات DLL في FFI إلا لمنصات Windows؛ أما تصريحات استدعاءات النظام الخام فتستخدم أرقام النواة الخاصة بالمنصة المختارة من Linux أو Darwin أو BSD (راجع [FFI](/ar/reference/ffi)).

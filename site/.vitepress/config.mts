@@ -51,6 +51,11 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
                 { text: s.whatIsNona, link: `${p}/guide/what-is-nona` },
                 { text: s.gettingStarted, link: `${p}/guide/getting-started` },
                 { text: s.howItWorks, link: `${p}/guide/how-it-works` },
+            ],
+        },
+        {
+            text: s.languageGroup,
+            items: [
                 {
                     text: s.languageSupport,
                     link: `${p}/guide/language-support`,
@@ -58,33 +63,32 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
                 { text: s.compatibility, link: `${p}/guide/compatibility` },
                 { text: s.performance, link: `${p}/guide/performance` },
                 { text: s.status, link: `${p}/guide/status` },
+                { text: s.test262, link: `${p}/reference/test262` },
             ],
         },
         {
-            text: s.reference,
+            text: s.tools,
             items: [
                 { text: s.cli, link: `${p}/reference/cli` },
                 { text: s.api, link: `${p}/reference/api` },
-                { text: s.modules, link: `${p}/reference/modules` },
-                { text: s.hostApis, link: `${p}/reference/host-apis` },
-                {
-                    text:
-                        d.key === "ru"
-                            ? "Платформы (EN)"
-                            : "Native platforms (EN)",
-                    link: "/reference/native-platforms",
-                },
-                { text: s.process, link: `${p}/reference/process` },
-                { text: s.fs, link: `${p}/reference/fs` },
                 // Not translated yet: every locale links to the English page.
-                { text: s.network, link: "/reference/network" },
                 { text: s.npm, link: "/reference/npm" },
-                { text: s.ffi, link: `${p}/reference/ffi` },
                 {
                     text: s.windowsExecutables,
                     link: `${p}/reference/windows-executables`,
                 },
-                { text: s.test262, link: `${p}/reference/test262` },
+                { text: s.platforms, link: "/reference/native-platforms" },
+            ],
+        },
+        {
+            text: s.apis,
+            items: [
+                { text: s.modules, link: `${p}/reference/modules` },
+                { text: s.hostApis, link: `${p}/reference/host-apis` },
+                { text: s.process, link: `${p}/reference/process` },
+                { text: s.fs, link: `${p}/reference/fs` },
+                { text: s.network, link: "/reference/network" },
+                { text: s.ffi, link: `${p}/reference/ffi` },
             ],
         },
         {

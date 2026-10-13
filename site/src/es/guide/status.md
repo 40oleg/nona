@@ -6,7 +6,7 @@
 
 ## Auditoría de Test262
 
-Test262 fijado completo en Windows x64 (`scripts/test262-audit.ps1 -Unit`, características de ES2020 y anteriores):
+La última auditoría completa de Test262 fijado, en Windows x64 para v0.8.0 (`scripts/test262-audit.ps1 -Unit`, características de ES2020 y anteriores más las posteriores soportadas, como los elementos de clase de ES2022):
 
 | Directorio                    | Superadas / aplicables          | Fallos restantes                               |
 | ----------------------------- | ------------------------------- | ---------------------------------------------- |
@@ -19,24 +19,33 @@ La clasificación la hace `scripts/test262-summary.mjs`: las pruebas «`eval`» 
 
 ## Fallos restantes
 
-Todos los fallos «otros» en Windows están clasificados:
+Estos son los fallos de la auditoría de v0.8.0; las versiones posteriores no han repetido la ejecución completa. Todos los fallos «otros» en Windows están clasificados:
 
-- `built-ins/Function` (25): el código de la función proviene de `toString` de objetos en tiempo de ejecución, es decir, la excepción de `eval`.
-- `is-a-constructor` para `AsyncFunction`, `AsyncGeneratorFunction` y `GeneratorFunction` (4): el arnés de Test262 construye el código fuente en tiempo de ejecución.
-- Otros realms (7): prototipos por defecto de otro realm ([#7](https://github.com/40oleg/nona/issues/7)).
-- Campos privados de clase en objetos no extensibles (2): campos privados de ES2022 sin etiqueta de característica más reciente.
+- `built-ins/Function` (26): el código de la función proviene de `toString` de objetos en tiempo de ejecución, es decir, la excepción de `eval`.
+- `is-a-constructor` para `AsyncFunction`, `AsyncGeneratorFunction` y `GeneratorFunction`, y la prueba de `prototype` de las flechas async (4): el arnés de Test262 construye el código fuente en tiempo de ejecución.
+- Otros realms (8): prototipos por defecto de otro realm ([#7](https://github.com/40oleg/nona/issues/7), cerrado después de la auditoría).
+- Clases creadas mediante `Function`, también en otro realm (10, `language/expressions/class`): código fuente construido en tiempo de ejecución. Las mismas pruebas mediante un alias de `eval` cuentan como fallos de `eval`.
+
+La auditoría de v0.8.0 también encontró siete fallos graves (`Array.prototype.indexOf` sobre `Math` con un elemento, claves heredadas y propias de typed arrays) introducidos con los elementos densos; se corrigieron en [#119](https://github.com/40oleg/nona/issues/119), y la nueva ejecución de `built-ins/Array` y `built-ins/TypedArrayConstructors` tras la corrección (incluida arriba) los supera.
 
 ## Trabajo pendiente
 
+Carencias del lenguaje y de la biblioteca:
+
 - [#11](https://github.com/40oleg/nona/issues/11): `eval` y `Function` con código calculado en tiempo de ejecución.
-- [#7](https://github.com/40oleg/nona/issues/7): prototipos por defecto de otros realms para los constructores de los preludios.
-- [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36): elementos densos de arrays y tablas hash para `Map`/`Set`.
+- [#44](https://github.com/40oleg/nona/issues/44): reacciones de Promise, con un tipo de promesa propio y un registro por cada `then`.
+
+Rendimiento, la línea principal de la [hoja de ruta](https://github.com/40oleg/nona/blob/main/docs/roadmap.md):
+
+- Llamadas y asignación de memoria: [#47](https://github.com/40oleg/nona/issues/47) (coste de las llamadas), [#48](https://github.com/40oleg/nona/issues/48) (objetos de vida corta), [#235](https://github.com/40oleg/nona/issues/235) (inlining), [#236](https://github.com/40oleg/nona/issues/236) (reemplazo escalar).
+- Código generado: [#237](https://github.com/40oleg/nona/issues/237)–[#242](https://github.com/40oleg/nona/issues/242) (encadenamiento opcional, `%`, llamadas directas, bucles sobre typed arrays, tablas de saltos de `switch`, comprobaciones de zona muerta).
+- Biblioteca: [#155](https://github.com/40oleg/nona/issues/155) (`JSON.stringify`), [#258](https://github.com/40oleg/nona/issues/258) (búsqueda del inicio en RegExp), [#262](https://github.com/40oleg/nona/issues/262) (`shift` y `splice` en arrays grandes).
 
 La lista completa está en [GitHub](https://github.com/40oleg/nona/issues).
 
 ## Informes detallados
 
 - [Estado de ES2020 para 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/status.md) (en ruso)
-- [Estado de v0.6](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md) (en inglés)
+- [Historial de versiones](/changelog) y el [registro de desarrollo](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (en ruso)
 - [Hoja de ruta: plan inspirado en V8 y arquitecturas objetivo (en inglés)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [Hoja de ruta de versiones 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (en ruso)

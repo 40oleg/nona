@@ -4,7 +4,6 @@ editLink: false
 
 <!--@include: ../../generated/native-platforms.md-->
 
-Shared event/abort/context module probes run with allocation stress on all eight
-native targets, including the BSD guests. Node host jobs also run EventTarget,
-abort and manual async-resource oracle tests. See the English verification
-reference for the exact coverage.
+::: info Source
+This page is generated from [`docs/native-platforms.md`](https://github.com/40oleg/nona/edit/main/docs/native-platforms.md) in the repository. Edit it there.
+:::

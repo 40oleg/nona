@@ -21,24 +21,54 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 
 ## Diferenças em relação ao Node.js
 
-| Área                           | Nona                                                                                                                                                | Node.js                                                                        |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `process.argv`                 | `[execPath, ...arguments]`: `argv[1]` é o primeiro argumento                                                                                        | `[node, script, ...arguments]`                                                 |
-| `process`                      | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Ids de timers                  | Números                                                                                                                                             | Objetos `Timeout`                                                              |
-| `readFileSync(path)`           | Retorna um `Uint8Array`                                                                                                                             | Retorna um `Buffer`                                                            |
-| Codificações                   | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                 | Muitas                                                                         |
-| Mensagens de erro no Windows   | Contêm o caminho como foi passado                                                                                                                   | Contêm o caminho absoluto                                                      |
-| Módulos                        | `nona:*`, os módulos `node:*` listados em [Módulos embutidos](/pt/reference/modules), arquivos e pacotes npm resolvidos na compilação               | Todo o `node:*` e pacotes npm, resolvidos em tempo de execução                 |
-| `require`                      | Módulos CommonJS, com especificadores literais conhecidos na compilação ([pacotes npm](/reference/npm))                                             | Qualquer especificador em tempo de execução                                    |
-| `console.log` sem saída padrão | A saída é descartada                                                                                                                                | A saída é descartada ou um erro é lançado                                      |
+| Área                           | Nona                                                                                                                                                    | Node.js                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `process.argv`                 | `[execPath, ...arguments]`: `argv[1]` é o primeiro argumento                                                                                            | `[node, script, ...arguments]`                                                                          |
+| `process`                      | Metadados comuns, alteração do ambiente, relógios/ticks, E/S padrão, ciclo de vida/avisos, CPU/recursos e controle nativo de processos (nos oito alvos) | Handlers de sinais, IPC, relatórios de heap do V8, streams assíncronos completos e controle de terminal |
+| Ids de timers                  | Números                                                                                                                                                 | Objetos `Timeout`                                                                                       |
+| `readFileSync(path)`           | Retorna um `Uint8Array` (sem uma codificação)                                                                                                           | Retorna um `Buffer`                                                                                     |
+| Codificações                   | Apenas `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                     | Muitas                                                                                                  |
+| Mensagens de erro no Windows   | Contêm o caminho como foi passado                                                                                                                       | Contêm o caminho absoluto                                                                               |
+| Módulos                        | `nona:*`, os módulos `node:*` listados em [Módulos embutidos](/pt/reference/modules), arquivos e pacotes npm resolvidos na compilação                   | Todo o `node:*` e pacotes npm, resolvidos em tempo de execução                                          |
+| `require`                      | Módulos CommonJS, com especificadores literais conhecidos na compilação ([pacotes npm](/reference/npm))                                                 | Qualquer especificador em tempo de execução                                                             |
+| `console.log` sem saída padrão | A saída é descartada                                                                                                                                    | A saída é descartada ou um erro é lançado                                                               |
 
 ## Desempenho
 
-- Arrays e `Map`/`Set` guardam seus elementos em estruturas encadeadas; coleções muito grandes são mais lentas que no V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
+- Arrays, objetos e `Map`/`Set` usam armazenamento denso e com hash, com shapes e caches inline, mas chamadas, closures e alocação ainda são várias vezes mais lentas que no V8; [Desempenho](/pt/guide/performance) lista os pontos lentos.
 - O motor de RegExp é uma VM com backtracking escrita em JavaScript. Um padrão sem referências inversas nem lookarounds que retrocede em excesso (sem a flag `u`) é concluído por um motor de tempo linear.
 - No Windows, os timers acordam no tick do sistema (normalmente 15,6 ms).
 - Não há JIT: o código é compilado uma única vez, antecipadamente, sem otimização guiada por perfil.
+
+## Partes do runtime ligadas {#linked-runtime-parts}
+
+Todo executável contém o runtime, mas suas partes opcionais grandes só são ligadas quando o programa pode alcançá-las. O compilador decide a partir do texto de cada fonte que compila: o programa, seus módulos e as fontes de `eval`/`Function` em tempo de compilação:
+
+| Parte                                                | Tamanho         | Ligada quando uma fonte contém                                                                                                                                 |
+| ---------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Motor de RegExp                                      | cerca de 1 MB   | um literal RegExp, ou o nome `RegExp`, `match`, `matchAll` ou `search` (como identificador, nome de propriedade ou dentro de um literal de string ou template) |
+| Tabelas de propriedades Unicode para `\p{…}`/`\P{…}` | cerca de 2 MB   | `\p{` ou `\P{` em um literal RegExp ou em uma string, ou um dos nomes acima (um padrão pode ser montado em tempo de execução)                                  |
+| Tabelas de normalização Unicode                      | cerca de 0,7 MB | o nome `normalize` ou `localeCompare`                                                                                                                          |
+
+`split`, `replace` e `replaceAll` com argumentos de string não precisam do motor de RegExp.
+
+As bibliotecas embutidas escritas em JavaScript que apenas instalam globais ou métodos (cerca de 0,7 MB no total) são ligadas da mesma forma, quando uma fonte contém um de seus nomes:
+
+| Parte                                                                                                                                                     | Nomes                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy`                                                                                                                                                   | `Proxy`                                                                                                                                       |
+| `TextEncoder`, `TextDecoder`                                                                                                                              | `TextEncoder`, `TextDecoder` (também ligados com `process`)                                                                                   |
+| `process`                                                                                                                                                 | `process`                                                                                                                                     |
+| Timers, o loop de eventos, `queueMicrotask` e `performance`                                                                                               | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                                    | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` do Annex B e os métodos HTML de strings (`anchor`, `big`, `link`, …) | os mesmos nomes                                                                                                                               |
+| `Array.prototype.sort` estável por merge                                                                                                                  | `sort`                                                                                                                                        |
+| `Object.freeze`, `seal`, `isFrozen`, `isSealed` por meio de traps de Proxy (caso contrário, versões nativas para objetos comuns)                          | os mesmos nomes                                                                                                                               |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                            | os mesmos nomes                                                                                                                               |
+
+Um programa que chama `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` ou `Reflect.ownKeys` liga todas elas, pois poderia listar os objetos embutidos ([#84](https://github.com/40oleg/nona/issues/84)). Um hello world tem cerca de 2,2 MB; com todas as partes, 7 MB.
+
+Um programa ainda pode alcançar uma parte omitida por meio de um nome calculado em tempo de execução, por exemplo `globalThis['Reg' + 'Exp']`. Para o motor de RegExp e as tabelas Unicode, essa chamada lança um `Error` cuja mensagem nomeia a parte ausente; uma global ou um método omitido simplesmente não existe. Compile com `--full-runtime` (ou a opção `fullRuntime` de [`compile()`](/pt/reference/api)) para ligar tudo ([#62](https://github.com/40oleg/nona/issues/62)).
 
 ## Realms
 
@@ -46,16 +76,10 @@ O suporte a código em tempo de execução é acompanhado em [#11](https://githu
 
 ## Plataformas
 
-- Alvos: apenas Windows 10/11 x64 e Linux x86-64.
-- Executáveis do Windows importam apenas `KERNEL32.dll`, `KERNELBASE.dll` e as DLLs declaradas via FFI; executáveis do Linux são estáticos e usam chamadas de sistema diretamente.
-- FFI para DLLs existe apenas no Windows; chamadas de sistema diretas, apenas no Linux.
-
-## Plataformas nativas
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- `process` e `node:fs` estão disponíveis nos oito alvos; HTTP e TCP (`node:http`, `node:net`) no Windows e no Linux.
+- Os executáveis do Windows usam DLLs do SO (incluindo a NTDLL para metadados do processo pai) e as importações FFI declaradas; os executáveis POSIX usam serviços nativos do SO.
+- As chamadas FFI a DLLs exigem o Windows; as chamadas de sistema diretas usam os números de chamada do kernel do alvo Linux, Darwin ou BSD selecionado. Detalhes: [Plataformas nativas](/reference/native-platforms).
 
 ## Buffer
 
-Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
+`Buffer`, `Blob` e `File` globais, e as importações `node:buffer` / `buffer` / `nona:buffer`, estão disponíveis em todos os alvos nativos. O Buffer suporta as codificações de bytes padrão, fatias compartilhadas, cópia, busca e acesso numérico. Blob/File suportam dados imutáveis e metadados. Há streams de bytes/texto de Blob e registro/resolução de URLs de objeto; veja [o contrato da API e as limitações](/pt/reference/host-apis#buffer-and-binary-data).

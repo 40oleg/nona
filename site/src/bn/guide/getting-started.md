@@ -1,20 +1,31 @@
 # শুরু করা
 
-## প্রয়োজনীয়তা
+## ইনস্টল
 
-- কম্পাইলার চালাতে: Windows বা Linux-এ Node.js 26 বা নতুনতর এবং npm।
-- টার্গেট: Windows 10/11 x64 (`win32-x64`, ডিফল্ট) এবং Linux x86-64 (`linux-x64`)।
+আপনার সিস্টেমের আর্কাইভটি [সর্বশেষ রিলিজ](https://github.com/40oleg/nona/releases/latest) থেকে ডাউনলোড করুন, এক্সট্র্যাক্ট করুন এবং `nona --help` চালান (Linux, macOS ও BSD-তে `./nona --help`)। আর্কাইভে থাকে এক্সিকিউটেবল, লাইসেন্স ও একটি ভার্সন ফাইল; কম্পাইলারটি একটি নেটিভ প্রোগ্রাম, যার Node.js লাগে না। প্রতিটি রিলিজে `SHA256SUMS`-ও দেওয়া থাকে।
 
-## কম্পাইলার বিল্ড করুন
+| OS                          | আর্কাইভ                                        | টার্গেটের নাম                |
+| --------------------------- | ---------------------------------------------- | ---------------------------- |
+| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+
+আর্কাইভ টুল অনুমতি বাদ দিলে POSIX সিস্টেমে `chmod +x nona` চালান। কিছু ইনস্টল না করেই Nona চেষ্টা করতে [প্লেগ্রাউন্ড](/playground) ব্যবহার করুন।
+
+### সোর্স থেকে বিল্ড
+
+আপনার Node.js 26 বা নতুনতর এবং npm লাগবে, Node.js 26 চালায় এমন যেকোনো হোস্টে।
 
 ```sh
 git clone https://github.com/40oleg/nona.git
 cd nona
 npm ci
 npm run build
+node dist/cli.js --help
 ```
 
-কম্পাইলারের এন্ট্রি পয়েন্ট হলো `dist/cli.js`; এই সাইটের উদাহরণগুলো একে `node dist/cli.js` হিসেবে চালায়। প্যাকেজটি একটি `nona` কমান্ডও ঘোষণা করে: রিপোজিটরিতে `npm link` চালালে সেটি আপনার `PATH`-এ যুক্ত হয়।
+কম্পাইলারের এন্ট্রি পয়েন্ট হলো `dist/cli.js`। রিপোজিটরিতে `npm link` চালালে আপনার `PATH`-এ একটি `nona` কমান্ড যুক্ত হয়। এই সাইটের বাকি অংশে `nona` লেখা আছে; ক্লোন থেকে এর বদলে `node dist/cli.js` চালান।
 
 ## আপনার প্রথম প্রোগ্রাম
 
@@ -23,12 +34,12 @@ npm run build
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build hello.js -o build/hello.exe
+nona build hello.js -o build/hello.exe
 .\build\hello.exe
 ```
 
-```sh [Linux]
-node dist/cli.js build hello.js -o build/hello --target linux-x64
+```sh [Linux and macOS]
+nona build hello.js -o build/hello
 ./build/hello
 ```
 
@@ -47,16 +58,29 @@ done; at least 30 ms passed: true
 
 ## টার্গেট ও ক্রস-কম্পাইলেশন
 
-কম্পাইলারটি একটি ক্রস-কম্পাইলার: Windows-এ এটি Linux এক্সিকিউটেবল তৈরি করতে পারে, আর Linux-এ Windows এক্সিকিউটেবল। `--target` আউটপুট ফরম্যাট বেছে নেয়; ডিফল্ট হলো `win32-x64`। Linux আউটপুট `0755` মোডে লেখা হয়।
+কম্পাইলারটি একটি ক্রস-কম্পাইলার: যেকোনো হোস্ট আটটি [নেটিভ প্ল্যাটফর্মের](/reference/native-platforms) যেকোনোটির জন্য এক্সিকিউটেবল তৈরি করতে পারে। `--target` আউটপুট ফরম্যাট ও CPU বেছে নেয়; এটি না দিলে টার্গেট হয় হোস্টের OS ও CPU।
+
+```sh
+nona build hello.js -o build/hello --target linux-arm64
+nona build hello.js -o build/hello.exe --target win32-x64
+```
+
+ক্রস-কম্পাইল করা এক্সিকিউটেবল কেবল মিলে যাওয়া OS ও CPU-তে চলে। Linux, BSD ও macOS আউটপুট `0755` মোডে লেখা হয়।
 
 ## মডিউল
 
-একটি `.mjs` ইনপুট, অথবা `--module` দিয়ে কম্পাইল করা যেকোনো ইনপুট, একটি ES মডিউল। আপেক্ষিক ইমপোর্ট (`./util.mjs`, `../lib/x.mjs`) ইমপোর্টকারী ফাইলের পাশ থেকে রিজলভ হয় এবং একই এক্সিকিউটেবলে কম্পাইল হয়। বিল্ট-ইন মডিউল `nona:` প্রিফিক্স ব্যবহার করে (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`), আর `node:fs` ও `node:process` হলো Nona সাবসেটের উপনাম (alias); দেখুন [বিল্ট-ইন মডিউল](/bn/reference/modules)।
+একটি `.mjs` ইনপুট, অথবা `--module` দিয়ে কম্পাইল করা যেকোনো ইনপুট, একটি ES মডিউল। আপেক্ষিক ইমপোর্ট (`./util.mjs`, `../lib/x.mjs`) ইমপোর্টকারী ফাইলের পাশ থেকে রিজলভ হয় এবং একই এক্সিকিউটেবলে কম্পাইল হয়। একটি CommonJS ইনপুট তার `require` করা সবকিছুসহ একসঙ্গে কম্পাইল হয়।
+
+বিল্ট-ইন মডিউল `nona:` প্রিফিক্স ব্যবহার করে (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`); Node.js-এর অনেক নামও (`node:fs`, `node:path`, `node:http`, …) পাওয়া যায়। দেখুন [বিল্ট-ইন মডিউল](/bn/reference/modules)।
+
+## npm প্যাকেজ
+
+npm দিয়ে যথারীতি প্যাকেজ ইনস্টল করে বিল্ড করুন: Nona বিল্টের সময় `node_modules` রিজলভ করে এবং প্যাকেজগুলো এক্সিকিউটেবলে কম্পাইল করে। `nona build <package directory>` প্যাকেজটির `"bin"` কমান্ড বা `"main"` মডিউল বিল্ড করে। দেখুন [npm প্যাকেজ](/reference/npm)।
 
 ## কনসোল ছাড়া Windows প্রোগ্রাম
 
 ```sh
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 `--subsystem windows` প্রোগ্রামটিকে কনসোল উইন্ডো ছাড়া চালু করে এবং একটি ডিফল্ট ম্যানিফেস্ট যুক্ত করে; `--icon` ও `--version-info` এমন রিসোর্স যোগ করে যা Explorer দেখায়। দেখুন [Windows এক্সিকিউটেবল](/bn/reference/windows-executables) এবং [Museum উদাহরণ](/bn/examples/museum)।
@@ -70,13 +94,14 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 ```
 
 - অসমর্থিত সিনট্যাক্স রানটাইমে ব্যর্থ হওয়ার বদলে কম্পাইলের সময়েই প্রত্যাখ্যাত হয়।
-- `E_FFI_TARGET` মানে একটি DLL ডিক্লারেশন `linux-x64`-এর জন্য কম্পাইল হয়েছে (অথবা একটি সিস্টেম কল `win32-x64`-এর জন্য)।
+- `E_FFI_TARGET` মানে একটি DLL ডিক্লারেশন Windows-বহির্ভূত টার্গেটের জন্য কম্পাইল হয়েছে (অথবা একটি সিস্টেম কল `win32-x64`-এর জন্য)।
+- `E_HOST_MODULE` মানে একটি বিল্ট-ইন মডিউল ওই টার্গেটে উপলব্ধ নয়।
 - রানটাইমে `EvalError` মানে `eval` বা `Function` এমন সোর্স টেক্সট পেয়েছে যা কম্পাইলের সময় জানা ছিল না।
 
 [কমান্ড লাইন রেফারেন্সে](/bn/reference/cli) প্রতিটি অপশন ও ত্রুটির তালিকা আছে।
 
-## নেটিভ প্ল্যাটফর্ম
+## পরবর্তী ধাপ
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- [উদাহরণ](/bn/examples/) — ব্যাখ্যাসহ সম্পূর্ণ প্রোগ্রাম।
+- [ভাষা সমর্থন](/bn/guide/language-support) এবং [সামঞ্জস্য ও সীমাবদ্ধতা](/bn/guide/compatibility) — কী আশা করবেন।
+- [বিল্ট-ইন মডিউল](/bn/reference/modules) — হোস্ট API।

@@ -1,29 +1,29 @@
 # ভাষা সমর্থন
 
-Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.8.0** অনুযায়ী কী সমর্থিত তার সারসংক্ষেপ আছে; সংখ্যাগুলো এসেছে [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা Test262 রিভিশন থেকে।
+Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.12.0**-এ কী সমর্থিত তার সারসংক্ষেপ আছে। Test262-এর সংখ্যাগুলো [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা রিভিশনের সর্বশেষ পূর্ণ নিরীক্ষা (v0.8.0) থেকে এসেছে।
 
 **সমর্থিত** মানে বাস্তবায়িত এবং «টীকা» কলামের সীমার মধ্যে ইউনিট টেস্ট ও Test262 দিয়ে যাচাই করা। টেস্টের নামসহ প্রতিটি ফিচারের বিস্তারিত ম্যাট্রিক্স রাখা আছে [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)-এ (রুশ ভাষায়)।
 
 ## ভাষা
 
-| ক্ষেত্র                       | অবস্থা  | টীকা                                                                                                                                                                                                                       |
-| ----------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| লেক্সিক্যাল ব্যাকরণ ও লিটারাল | সমর্থিত | দশমিক, হেক্স, বাইনারি, অক্টাল ও BigInt লিটারাল, আইডেন্টিফায়ার ও স্ট্রিংয়ে Unicode escape, টেমপ্লেট লিটারাল। sloppy স্ক্রিপ্টে Annex B-র পুরোনো অক্টাল ও HTML-সদৃশ মন্তব্য। Numeric separators (ES2021) প্রত্যাখ্যাত হয়। |
-| `var`, `let`, `const`, TDZ    | সমর্থিত | হোয়েস্টিং, ব্লক স্কোপ, প্রতি-ইটারেশন বাইন্ডিং, early error হিসেবে ডিক্লারেশনের সংঘাত।                                                                                                                                     |
-| ফাংশন                         | সমর্থিত | ডিক্লারেশন ও এক্সপ্রেশন, ক্লোজার, `arguments` (mapped ও unmapped), ডিফল্ট ও rest প্যারামিটার, ডিস্ট্রাকচারিং প্যারামিটার, `this`, `new.target`, হুবহু সোর্স টেক্সটসহ `Function.prototype.toString`।                        |
-| অ্যারো ফাংশন                  | সমর্থিত | লেক্সিক্যাল `this`, `arguments`, `new.target` ও `super`; `async` অ্যারো।                                                                                                                                                   |
-| ক্লাস                         | সমর্থিত | ডিক্লারেশন ও এক্সপ্রেশন, কনস্ট্রাক্টর, ইনস্ট্যান্স ও স্ট্যাটিক মেথড এবং অ্যাক্সেসর, computed নাম, বিল্ট-ইন ও `extends null`-সহ ইনহেরিট্যান্স, `super()` ও `super.x`। Class fields ও private names (ES2022) সমর্থিত নয়।    |
-| ডিস্ট্রাকচারিং, spread        | সমর্থিত | ডিক্লারেশন, অ্যাসাইনমেন্ট, প্যারামিটার, `for-in`/`for-of` টার্গেট; অ্যারে, অবজেক্ট, কল ও `new` spread।                                                                                                                     |
-| ইটারেটর ও জেনারেটর            | সমর্থিত | ইটারেটর প্রোটোকল, `for-of`, জেনারেটর ফাংশন ও মেথড, `yield*`, `return`/`throw`।                                                                                                                                             |
-| async ফাংশন                   | সমর্থিত | async ফাংশন, অ্যারো ও মেথড, `await`, async জেনারেটর ও `for await`, ES2020-এর জব ক্রমসহ।                                                                                                                                    |
-| অপারেটর                       | সমর্থিত | `**`, অপশনাল চেইনিং, `??`, `delete`, `in`, `Symbol.hasInstance`-সহ `instanceof`, BigInt অঙ্ক ও তুলনাসহ।                                                                                                                    |
-| নিয়ন্ত্রণ প্রবাহ             | সমর্থিত | সব স্টেটমেন্ট, লেবেল, completion value-সহ `try`/`catch`/`finally`, `switch`, `debugger` (কিছু করে না)।                                                                                                                     |
-| Strict মোড                    | সমর্থিত | Directive prologue, strict `this`, early error ও রানটাইম সীমাবদ্ধতা।                                                                                                                                                       |
-| `with`                        | সমর্থিত | কেবল sloppy স্ক্রিপ্টে, `Symbol.unscopables`-সহ।                                                                                                                                                                           |
-| প্রপার টেইল কল                | সমর্থিত | strict কোডে।                                                                                                                                                                                                               |
-| মডিউল                         | সমর্থিত | সব রূপের `import`/`export`, সাইকেল, লাইভ বাইন্ডিং, namespace অবজেক্ট, `import.meta`, কম্পাইলের সময় জানা মডিউলের `import()`। টপ-লেভেল `await` (ES2022) সমর্থিত নয়।                                                        |
-| `eval`, `Function`            | আংশিক   | কম্পাইলের সময় জানা সোর্স পূর্ণ direct ও indirect `eval` সিমান্টিক্সসহ আগেভাগে কম্পাইল হয়; রানটাইমে গণনা করা সোর্স `EvalError` ছোড়ে। দেখুন [সামঞ্জস্য](/bn/guide/compatibility#eval-and-function)।                       |
-| Annex B                       | সমর্থিত | ব্লকের ভেতরের ফাংশন, `__proto__`, পুরোনো RegExp সিনট্যাক্স, `escape`/`unescape`, String-এর HTML মেথড ইত্যাদির ওয়েব-সামঞ্জস্য সিমান্টিক্স।                                                                                 |
+| ক্ষেত্র                       | অবস্থা  | টীকা                                                                                                                                                                                                                    |
+| ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| লেক্সিক্যাল ব্যাকরণ ও লিটারাল | সমর্থিত | দশমিক, হেক্স, বাইনারি, অক্টাল ও BigInt লিটারাল, আইডেন্টিফায়ার ও স্ট্রিংয়ে Unicode escape, টেমপ্লেট লিটারাল। sloppy স্ক্রিপ্টে Annex B-র পুরোনো অক্টাল ও HTML-সদৃশ মন্তব্য।                                            |
+| `var`, `let`, `const`, TDZ    | সমর্থিত | হোয়েস্টিং, ব্লক স্কোপ, প্রতি-ইটারেশন বাইন্ডিং, early error হিসেবে ডিক্লারেশনের সংঘাত।                                                                                                                                  |
+| ফাংশন                         | সমর্থিত | ডিক্লারেশন ও এক্সপ্রেশন, ক্লোজার, `arguments` (mapped ও unmapped), ডিফল্ট ও rest প্যারামিটার, ডিস্ট্রাকচারিং প্যারামিটার, `this`, `new.target`, হুবহু সোর্স টেক্সটসহ `Function.prototype.toString`।                     |
+| অ্যারো ফাংশন                  | সমর্থিত | লেক্সিক্যাল `this`, `arguments`, `new.target` ও `super`; `async` অ্যারো।                                                                                                                                                |
+| ক্লাস                         | সমর্থিত | ডিক্লারেশন ও এক্সপ্রেশন, কনস্ট্রাক্টর, ইনস্ট্যান্স ও স্ট্যাটিক মেথড এবং অ্যাক্সেসর, computed নাম, বিল্ট-ইন ও `extends null`-সহ ইনহেরিট্যান্স, `super()` ও `super.x`। Class fields ও private names (ES2022) সমর্থিত নয়। |
+| ডিস্ট্রাকচারিং, spread        | সমর্থিত | ডিক্লারেশন, অ্যাসাইনমেন্ট, প্যারামিটার, `for-in`/`for-of` টার্গেট; অ্যারে, অবজেক্ট, কল ও `new` spread।                                                                                                                  |
+| ইটারেটর ও জেনারেটর            | সমর্থিত | ইটারেটর প্রোটোকল, `for-of`, জেনারেটর ফাংশন ও মেথড, `yield*`, `return`/`throw`।                                                                                                                                          |
+| async ফাংশন                   | সমর্থিত | async ফাংশন, অ্যারো ও মেথড, `await`, async জেনারেটর ও `for await`, ES2020-এর জব ক্রমসহ।                                                                                                                                 |
+| অপারেটর                       | সমর্থিত | `**`, অপশনাল চেইনিং, `??`, `delete`, `in`, `Symbol.hasInstance`-সহ `instanceof`, BigInt অঙ্ক ও তুলনাসহ।                                                                                                                 |
+| নিয়ন্ত্রণ প্রবাহ             | সমর্থিত | সব স্টেটমেন্ট, লেবেল, completion value-সহ `try`/`catch`/`finally`, `switch`, `debugger` (কিছু করে না)।                                                                                                                  |
+| Strict মোড                    | সমর্থিত | Directive prologue, strict `this`, early error ও রানটাইম সীমাবদ্ধতা।                                                                                                                                                    |
+| `with`                        | সমর্থিত | কেবল sloppy স্ক্রিপ্টে, `Symbol.unscopables`-সহ।                                                                                                                                                                        |
+| প্রপার টেইল কল                | সমর্থিত | strict কোডে।                                                                                                                                                                                                            |
+| মডিউল                         | সমর্থিত | সব রূপের `import`/`export`, সাইকেল, লাইভ বাইন্ডিং, namespace অবজেক্ট, `import.meta`, কম্পাইলের সময় জানা মডিউলের `import()`। টপ-লেভেল `await` (ES2022) সমর্থিত নয়।                                                     |
+| `eval`, `Function`            | আংশিক   | কম্পাইলের সময় জানা সোর্স পূর্ণ direct ও indirect `eval` সিমান্টিক্সসহ আগেভাগে কম্পাইল হয়; রানটাইমে গণনা করা সোর্স `EvalError` ছোড়ে। দেখুন [সামঞ্জস্য](/bn/guide/compatibility#eval-and-function)।                    |
+| Annex B                       | সমর্থিত | ব্লকের ভেতরের ফাংশন, `__proto__`, পুরোনো RegExp সিনট্যাক্স, `escape`/`unescape`, String-এর HTML মেথড ইত্যাদির ওয়েব-সামঞ্জস্য সিমান্টিক্স।                                                                              |
 
 ## বিল্ট-ইন
 
@@ -44,13 +44,19 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 
 ## ES2020-এর পরে
 
-পরবর্তী সংস্করণের ফিচার সমর্থিত নয়: class fields ও private names, static blocks, `Promise.any`, `WeakRef` ও `FinalizationRegistry`, logical assignment অপারেটর, numeric separators, RegExp-এর `v` ফ্ল্যাগ, টপ-লেভেল `await` এবং `Array.prototype.at`। পরবর্তী লাইব্রেরির কয়েকটি সংযোজন, যেমন `String.prototype.replaceAll`, উপলব্ধ। যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
+পরবর্তী সংস্করণের বেশিরভাগ ফিচার সমর্থিত নয়, যেমন `WeakRef` ও `FinalizationRegistry`, RegExp-এর `v` ফ্ল্যাগ এবং টপ-লেভেল `await`। সমর্থিত সংযোজন:
+
+- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` ও `AggregateError`, `String.prototype.replaceAll`।
+- ES2022: class fields, private মেথড ও অ্যাক্সেসর, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` এবং Error `cause`।
+- ES2023: `findLast` ও `findLastIndex`।
+
+যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
 
 ECMAScript-এর অংশ নয় এমন হোস্ট API — টাইমার, `process`, `node:fs`, `TextEncoder`/`TextDecoder` ও FFI — [রেফারেন্সে](/bn/reference/modules) বর্ণিত।
 
 ## Test262 ফলাফল
 
-Windows x64-এ পিন করা Test262-এর পূর্ণ রান (ES2020 ও তার আগের ফিচার):
+পিন করা Test262-এর সর্বশেষ পূর্ণ রান, Windows x64-এ v0.8.0-এর জন্য (ES2020 ও তার আগের ফিচার, সঙ্গে সমর্থিত পরবর্তী ফিচার):
 
 | ডিরেক্টরি                    | পাস / প্রযোজ্য | বাকি ব্যর্থতা                               |
 | ---------------------------- | -------------- | ------------------------------------------- |
@@ -62,3 +68,5 @@ Windows x64-এ পিন করা Test262-এর পূর্ণ রান (ES
 «`eval`» ব্যর্থতাগুলো রানটাইমে গণনা করা সোর্স টেক্সট, `$262.evalScript` বা অন্য realm ব্যবহার করে; «নতুন সিমান্টিক্স» টেস্টগুলো পুরোনো বা অনুপস্থিত ফিচার ট্যাগের অধীনে পরবর্তী সংস্করণের আচরণ যাচাই করে। [অবস্থা পৃষ্ঠায়](/bn/guide/status) বাকি ব্যর্থতাগুলোর তালিকা আছে।
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
+
+স্ক্রিপ্ট ফাংশন `escape`, `unescape`, `process`, টাইমার ও `TextEncoder`/`TextDecoder`-এর মতো বিল্ট-ইন ও হোস্ট গ্লোবাল নাম শ্যাডো করতে পারে। রানটাইম ইনিশিয়ালাইজেশন আগে শেষ হয়; ডিক্লারেশনগুলো writable, enumerable, nonconfigurable গ্লোবাল প্রপার্টি ইনস্টল করে।

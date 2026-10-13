@@ -7,12 +7,12 @@ Le plus petit programme qui utilise la boucle d’événements.
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build hello.js -o build/hello.exe
+nona build hello.js -o build/hello.exe
 .\build\hello.exe
 ```
 
 ```sh [Linux]
-node dist/cli.js build hello.js -o build/hello --target linux-x64
+nona build hello.js -o build/hello --target linux-x64
 ./build/hello
 ```
 

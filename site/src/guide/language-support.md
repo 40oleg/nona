@@ -1,6 +1,6 @@
 # Language support
 
-Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported as of **v0.8.0**; the numbers come from the pinned Test262 revision described on the [Test262](/reference/test262) page.
+Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.12.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. The detailed per-feature matrix with test names is kept in [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (Russian).
 
@@ -8,7 +8,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 | Area                         | Status    | Notes                                                                                                                                                                                                                                                                                               |
 | ---------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lexical grammar and literals | Supported | Decimal, hex, binary, octal and BigInt literals, Unicode escapes in identifiers and strings, template literals. Annex B legacy octal and HTML-like comments in sloppy scripts. Numeric separators (ES2021) are rejected.                                                                            |
+| Lexical grammar and literals | Supported | Decimal, hex, binary, octal and BigInt literals, Unicode escapes in identifiers and strings, template literals. Annex B legacy octal and HTML-like comments in sloppy scripts.                                                                                                                      |
 | `var`, `let`, `const`, TDZ   | Supported | Hoisting, block scope, per-iteration bindings, declaration conflicts as early errors.                                                                                                                                                                                                               |
 | Functions                    | Supported | Declarations and expressions, closures, `arguments` (mapped and unmapped), default and rest parameters, destructuring parameters, `this`, `new.target`, `Function.prototype.toString` with exact source text.                                                                                       |
 | Arrow functions              | Supported | Lexical `this`, `arguments`, `new.target` and `super`; `async` arrows.                                                                                                                                                                                                                              |
@@ -44,13 +44,19 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 ## Beyond ES2020
 
-Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, the RegExp `v` flag and top-level `await`. Supported additions: class fields, private methods and accessors, static blocks and `#x in obj` (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`. Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
+Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, the RegExp `v` flag and top-level `await`. Supported additions:
+
+- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`.
+- ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` and Error `cause`.
+- ES2023: `findLast` and `findLastIndex`.
+
+Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
 
 Host APIs that are not part of ECMAScript — timers, `process`, `node:fs`, `TextEncoder`/`TextDecoder` and FFI — are described in the [Reference](/reference/modules).
 
 ## Test262 results
 
-Full pinned Test262 run on Windows x64 for v0.8.0 (features from ES2020 and earlier, plus the supported later ones):
+Last full pinned Test262 run, on Windows x64 for v0.8.0 (features from ES2020 and earlier, plus the supported later ones):
 
 | Directory                    | Passed / applicable | Remaining failures                      |
 | ---------------------------- | ------------------- | --------------------------------------- |

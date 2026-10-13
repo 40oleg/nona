@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 The suite compiles and runs real executables: PE tests run on Windows and ELF tests on Linux, many under GC stress. CI (`.github/workflows/check.yml`) runs the full suite and Test262 groups on Windows with Node.js 26 and the native tests on Linux. Full Test262 audits are described on the [Test262](/reference/test262) page.
@@ -35,12 +36,16 @@ Every test file belongs to exactly one suite in `tests/suites.json`; add a new f
 - Every new KERNEL32 import needs a Linux system-call shim in `src/backend/linux/shims.ts`.
 - Generated executables need no C toolchain or bundled libraries. macOS may use the operating system's libSystem for native startup and services; other targets remain libc-free.
 
+## Profiling and benchmarks
+
+`node bench/run.mjs` runs the benchmarks behind the [Performance](/guide/performance) page. `scripts/profile-runtime.mjs` counts the instructions each runtime routine executes (a QEMU trace), and `--call-stats` on the [command line](/reference/cli#options) counts the calls a program makes.
+
 ## Documentation
 
 When a feature changes behaviour visible to programs, update:
 
 - `README.md` and `README.ru.md`;
-- the reference document in `docs/` (`host-apis.md`, `process.md`, `fs.md`, `ffi.md`, `windows-executables.md`, `test262.md`) — the site includes these files automatically;
+- the reference document in `docs/` (`host-apis.md`, `process.md`, `fs.md`, `network.md`, `npm.md`, `ffi.md`, `native-platforms.md`, `windows-executables.md`, `test262.md`) — the site includes these files automatically;
 - the site pages in `site/src/` that describe the feature, such as the [language support](/guide/language-support) or [command line](/reference/cli) pages;
 - `CHANGELOG.md` under `## Unreleased`, with a link to the issue.
 

@@ -6,7 +6,7 @@
 
 ## Test262 ऑडिट
 
-Windows x64 पर पिन किया गया पूरा Test262 (`scripts/test262-audit.ps1 -Unit`, ES2020 और उससे पहले के फ़ीचर):
+पिन किया गया पिछला पूरा Test262 ऑडिट, Windows x64 पर v0.8.0 के लिए (`scripts/test262-audit.ps1 -Unit`, ES2020 और उससे पहले के फ़ीचर, साथ में समर्थित बाद के फ़ीचर जैसे ES2022 क्लास एलिमेंट):
 
 | डायरेक्टरी                  | पास / लागू                      | बचे फ़ेल्योर                         |
 | --------------------------- | ------------------------------- | ------------------------------------ |
@@ -19,24 +19,33 @@ Windows x64 पर पिन किया गया पूरा Test262 (`scrip
 
 ## बचे फ़ेल्योर
 
-Windows पर सभी "अन्य" फ़ेल्योर वर्गीकृत हैं:
+ये v0.8.0 ऑडिट के फ़ेल्योर हैं; बाद की रिलीज़ में पूरा रन दोहराया नहीं गया। Windows पर सभी "अन्य" फ़ेल्योर वर्गीकृत हैं:
 
-- `built-ins/Function` (25): फ़ंक्शन का सोर्स रनटाइम पर ऑब्जेक्ट के `toString` से आता है — यह `eval` वाला अपवाद है।
-- `AsyncFunction`, `AsyncGeneratorFunction` और `GeneratorFunction` के लिए `is-a-constructor` (4): Test262 हार्नेस रनटाइम पर सोर्स टेक्स्ट बनाता है।
-- दूसरे realm (7): दूसरे realm के डिफ़ॉल्ट प्रोटोटाइप ([#7](https://github.com/40oleg/nona/issues/7))।
-- नॉन-एक्सटेंसिबल ऑब्जेक्ट पर प्राइवेट क्लास फ़ील्ड (2): नए फ़ीचर टैग के बिना ES2022 प्राइवेट फ़ील्ड।
+- `built-ins/Function` (26): फ़ंक्शन का सोर्स रनटाइम पर ऑब्जेक्ट के `toString` से आता है — यह `eval` वाला अपवाद है।
+- `AsyncFunction`, `AsyncGeneratorFunction` और `GeneratorFunction` के लिए `is-a-constructor`, और async arrow का `prototype` टेस्ट (4): Test262 हार्नेस रनटाइम पर सोर्स टेक्स्ट बनाता है।
+- दूसरे realm (8): दूसरे realm के डिफ़ॉल्ट प्रोटोटाइप ([#7](https://github.com/40oleg/nona/issues/7), ऑडिट के बाद बंद)।
+- `Function` से बनाई गई क्लास, दूसरे realm में भी (10, `language/expressions/class`): रनटाइम पर बना सोर्स टेक्स्ट। `eval` उपनाम वाले वही टेस्ट `eval` फ़ेल्योर में गिने जाते हैं।
+
+v0.8.0 के ऑडिट में सात क्रैश भी मिले (`Math` पर एलिमेंट के साथ `Array.prototype.indexOf`, टाइप्ड ऐरे की इनहेरिटेड और अपनी कुंजियाँ), जो डेंस एलिमेंट के साथ आए थे; वे [#119](https://github.com/40oleg/nona/issues/119) में ठीक हुए, और सुधार के बाद `built-ins/Array` तथा `built-ins/TypedArrayConstructors` का दोबारा रन (ऊपर शामिल) उन्हें पास करता है।
 
 ## खुला काम
 
+भाषा और लाइब्रेरी की कमियाँ:
+
 - [#11](https://github.com/40oleg/nona/issues/11) — रनटाइम पर बने सोर्स के साथ `eval` और `Function`।
-- [#7](https://github.com/40oleg/nona/issues/7) — प्रील्यूड कंस्ट्रक्टर के लिए दूसरे realm के डिफ़ॉल्ट प्रोटोटाइप।
-- [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — डेंस ऐरे एलिमेंट और `Map`/`Set` के लिए हैश टेबल।
+- [#44](https://github.com/40oleg/nona/issues/44) — Promise रिएक्शन: समर्पित promise प्रकार और हर `then` के लिए एक रिकॉर्ड।
+
+प्रदर्शन, [रोडमैप](https://github.com/40oleg/nona/blob/main/docs/roadmap.md) की मुख्य दिशा:
+
+- कॉल और आवंटन: [#47](https://github.com/40oleg/nona/issues/47) (कॉल ओवरहेड), [#48](https://github.com/40oleg/nona/issues/48) (अल्पजीवी ऑब्जेक्ट), [#235](https://github.com/40oleg/nona/issues/235) (इनलाइनिंग), [#236](https://github.com/40oleg/nona/issues/236) (स्केलर रिप्लेसमेंट)।
+- जनरेट किया गया कोड: [#237](https://github.com/40oleg/nona/issues/237)–[#242](https://github.com/40oleg/nona/issues/242) (ऑप्शनल चेनिंग, `%`, सीधी कॉल, typed-array लूप, `switch` जंप टेबल, डेड-ज़ोन जाँचें)।
+- लाइब्रेरी: [#155](https://github.com/40oleg/nona/issues/155) (`JSON.stringify`), [#258](https://github.com/40oleg/nona/issues/258) (RegExp स्टार्ट स्कैन), [#262](https://github.com/40oleg/nona/issues/262) (बड़े ऐरे पर `shift` और `splice`)।
 
 पूरी सूची [GitHub](https://github.com/40oleg/nona/issues) पर है।
 
 ## विस्तृत रिपोर्ट
 
 - [0.17–0.20 के लिए ES2020 स्थिति](https://github.com/40oleg/nona/blob/main/docs/status.md) (रूसी में)
-- [v0.6 स्थिति](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md) (अंग्रेज़ी में)
+- [रिलीज़ इतिहास](/changelog) और [डेवलपमेंट लॉग](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (रूसी में)
 - [रोडमैप: V8 से प्रेरित योजना और लक्ष्य आर्किटेक्चर (अंग्रेज़ी में)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [रिलीज़ रोडमैप 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (रूसी में)

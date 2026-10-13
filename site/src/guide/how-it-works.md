@@ -34,7 +34,7 @@ Before code generation, each function's IR goes through passes that keep JavaScr
 
 ## Code generation
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contains an x86-64 instruction encoder and assembler and the code generator, which turns IR operations into calls into the runtime and inline fast paths. Generated code uses a shared logical calling convention; OS bridges marshal it to each native ABI.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contains an x86-64 instruction encoder and assembler and the code generator, which turns IR operations into calls into the runtime and inline fast paths; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) does the same for AArch64. Generated code uses a shared logical calling convention; OS bridges marshal it to each native ABI.
 
 ## Runtime
 
@@ -58,7 +58,14 @@ The collector is precise and non-moving: mark-and-sweep over explicit roots (glo
 ## Linking
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): sections, the import table (KERNEL32 for the runtime, plus DLLs declared with FFI), base relocations, unwind data and resources (icon, manifest, version information).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): every KERNEL32 function the runtime uses has a Linux system-call shim with the same calling convention, so the runtime code is shared between targets.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): every KERNEL32 function the runtime uses has a system-call shim with the same calling convention, so the runtime code is shared between targets. Linux and the BSDs make kernel calls directly, without libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): Intel macOS executables also use direct kernel calls; Apple Silicon executables load the system's `libSystem.B.dylib` through dyld for startup and OS services.
+
+The same runtime serves all eight targets; [Native platforms](/reference/native-platforms) lists what is verified where.
+
+## Self-hosting
+
+The compiler compiles itself. The released `nona` is a native executable built by Nona with no Node.js inside; on Windows and Linux x64 it rebuilds itself into a byte-identical second stage. The [bootstrap guide](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) describes the procedure and its checks.
 
 ## FFI
 
@@ -70,19 +77,15 @@ A `define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)')` call is resolv
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
-
-## Native platforms
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
 
 ## Formal verification prototype
 

@@ -90,12 +90,6 @@
 
 Функции, которых нет в списке, объявите сами с помощью `define` из [`nona:ffi`](/ru/reference/ffi).
 
-## Native target availability
-
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
-
-`node:events` is also supported. It provides EventEmitter and asynchronous event helpers; see the linked host API reference for supported operations and limitations. Blob piping uses its AbortController signals and protects cancellation against stopped event propagation.
-
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 Эти псевдонимы экспортируют глобальные конструкторы `Buffer`, `Blob` и `File`, проверки байтов, вспомогательные функции base64, перекодирование, настройки инспекции и константы. Доступны байтовые и текстовые потоки Blob, читатели BYOB, а также регистрация и разрешение объектных URL. Общий разбор URL выполняет глобальный [`URL`](/ru/reference/host-apis#url); построение произвольных Web Streams остаётся отдельным зависимым API. См. [двоичные данные (англ.)](/reference/host-apis#buffer-and-binary-data) и [запускаемый пример](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).

@@ -18,12 +18,12 @@ O diretório [`examples`](https://github.com/40oleg/nona/tree/main/examples) tem
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build examples/fibonacci.js -o build/fibonacci.exe
+nona build examples/fibonacci.js -o build/fibonacci.exe
 .\build\fibonacci.exe
 ```
 
 ```sh [Linux]
-node dist/cli.js build examples/fibonacci.js -o build/fibonacci --target linux-x64
+nona build examples/fibonacci.js -o build/fibonacci --target linux-x64
 ./build/fibonacci
 ```
 

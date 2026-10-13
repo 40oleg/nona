@@ -21,24 +21,54 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Отличия от Node.js
 
-| Область                               | Nona                                                                                                                                                | Node.js                                                                        |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `process.argv`                        | `[execPath, ...arguments]`: `argv[1]` — первый аргумент                                                                                             | `[node, script, ...arguments]`                                                 |
-| `process`                             | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Идентификаторы таймеров               | Числа                                                                                                                                               | Объекты `Timeout`                                                              |
-| `readFileSync(path)`                  | Возвращает `Uint8Array`                                                                                                                             | Возвращает `Buffer`                                                            |
-| Кодировки                             | Только `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                 | Много                                                                          |
-| Сообщения об ошибках на Windows       | Содержат путь в том виде, в каком он передан                                                                                                        | Содержат абсолютный путь                                                       |
-| Модули                                | `nona:*`, модули `node:*` из списка в разделе [Встроенные модули](/ru/reference/modules), файлы и пакеты npm, разрешаемые при сборке                | Всё из `node:*` и пакеты npm, разрешаемые во время выполнения                  |
-| `require`                             | Модули CommonJS с литеральными спецификаторами, известными при сборке ([пакеты npm](/reference/npm))                                                | Любой спецификатор во время выполнения                                         |
-| `console.log` без стандартного вывода | Вывод отбрасывается                                                                                                                                 | Вывод отбрасывается или возникает ошибка                                       |
+| Область                               | Nona                                                                                                                                                                         | Node.js                                                                                        |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `process.argv`                        | `[execPath, ...arguments]`: `argv[1]` — первый аргумент                                                                                                                      | `[node, script, ...arguments]`                                                                 |
+| `process`                             | Общие метаданные, изменение окружения, часы и тики, стандартный ввод-вывод, жизненный цикл и предупреждения, CPU и ресурсы, нативное управление процессом (все восемь целей) | Обработчики сигналов, IPC, отчёты о куче V8, полные асинхронные потоки и управление терминалом |
+| Идентификаторы таймеров               | Числа                                                                                                                                                                        | Объекты `Timeout`                                                                              |
+| `readFileSync(path)`                  | Возвращает `Uint8Array` (без кодировки)                                                                                                                                      | Возвращает `Buffer`                                                                            |
+| Кодировки                             | Только `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                                          | Много                                                                                          |
+| Сообщения об ошибках на Windows       | Содержат путь в том виде, в каком он передан                                                                                                                                 | Содержат абсолютный путь                                                                       |
+| Модули                                | `nona:*`, модули `node:*` из списка в разделе [Встроенные модули](/ru/reference/modules), файлы и пакеты npm, разрешаемые при сборке                                         | Всё из `node:*` и пакеты npm, разрешаемые во время выполнения                                  |
+| `require`                             | Модули CommonJS с литеральными спецификаторами, известными при сборке ([пакеты npm](/reference/npm))                                                                         | Любой спецификатор во время выполнения                                                         |
+| `console.log` без стандартного вывода | Вывод отбрасывается                                                                                                                                                          | Вывод отбрасывается или возникает ошибка                                                       |
 
 ## Производительность
 
-- Массивы и `Map`/`Set` хранят элементы в связных структурах; очень большие коллекции работают медленнее, чем в V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
+- Массивы, объекты и `Map`/`Set` используют плотное и хеш-хранилище с shapes и инлайн-кэшами, но вызовы, замыкания и выделение памяти всё же работают в несколько раз медленнее, чем в V8; медленные места перечислены на странице [Производительность](/ru/guide/performance).
 - Движок RegExp — VM с возвратами, написанная на JavaScript. Шаблон без обратных ссылок и lookaround, который слишком долго перебирает варианты (без флага `u`), доматчивается движком с линейным временем.
 - На Windows таймеры просыпаются по системному тику (обычно 15,6 мс).
 - JIT нет: код компилируется один раз, заранее, без оптимизации по профилю.
+
+## Подключаемые части runtime
+
+Каждый исполняемый файл содержит runtime, но его крупные необязательные части подключаются, только если программа может до них добраться. Компилятор решает по тексту каждого компилируемого исходника — программы, её модулей и исходников `eval`/`Function` времени компиляции:
+
+| Часть                                       | Размер       | Подключается, если исходник содержит                                                                                                              |
+| ------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Движок RegExp                               | около 1 МБ   | литерал RegExp или имя `RegExp`, `match`, `matchAll` или `search` (как идентификатор, имя свойства или внутри строкового или шаблонного литерала) |
+| Таблицы свойств Unicode для `\p{…}`/`\P{…}` | около 2 МБ   | `\p{` или `\P{` в литерале RegExp или строке либо одно из имён выше (шаблон может строиться во время исполнения)                                  |
+| Таблицы нормализации Unicode                | около 0,7 МБ | имя `normalize` или `localeCompare`                                                                                                               |
+
+`split`, `replace` и `replaceAll` со строковыми аргументами движок RegExp не требуют.
+
+Встроенные библиотеки на JavaScript, которые лишь устанавливают глобальные объекты или методы (около 0,7 МБ вместе), подключаются так же, если исходник содержит одно из их имён:
+
+| Часть                                                                                                                                            | Имена                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy`                                                                                                                                          | `Proxy`                                                                                                                                       |
+| `TextEncoder`, `TextDecoder`                                                                                                                     | `TextEncoder`, `TextDecoder` (подключаются также вместе с `process`)                                                                          |
+| `process`                                                                                                                                        | `process`                                                                                                                                     |
+| Таймеры, цикл событий, `queueMicrotask` и `performance`                                                                                          | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                           | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` из Annex B и HTML-методы строк (`anchor`, `big`, `link`, …) | те же имена                                                                                                                                   |
+| Устойчивая сортировка слиянием `Array.prototype.sort`                                                                                            | `sort`                                                                                                                                        |
+| `Object.freeze`, `seal`, `isFrozen`, `isSealed` через ловушки Proxy (для обычных объектов используются нативные версии)                          | те же имена                                                                                                                                   |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                   | те же имена                                                                                                                                   |
+
+Программа, которая вызывает `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` или `Reflect.ownKeys`, подключает все части, так как может перечислить встроенные объекты ([#84](https://github.com/40oleg/nona/issues/84)). Hello world весит около 2,2 МБ; со всеми частями — 7 МБ.
+
+Программа всё же может добраться до пропущенной части через имя, вычисленное во время исполнения, например `globalThis['Reg' + 'Exp']`. Для движка RegExp и таблиц Unicode такой вызов бросает `Error`, в сообщении которого названа отсутствующая часть; пропущенный глобальный объект или метод просто отсутствует. Чтобы подключить всё, компилируйте с `--full-runtime` (или параметром `fullRuntime` функции [`compile()`](/ru/reference/api)) ([#62](https://github.com/40oleg/nona/issues/62)).
 
 ## Realms
 
@@ -46,16 +76,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Платформы
 
-- Цели: только Windows 10/11 x64 и Linux x86-64.
-- Исполняемые файлы Windows импортируют только `KERNEL32.dll`, `KERNELBASE.dll` и DLL, объявленные через FFI; исполняемые файлы Linux статические и используют системные вызовы напрямую.
-- FFI к DLL есть только на Windows; прямые системные вызовы — только на Linux.
-
-## Нативные платформы
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.
+- `process` и `node:fs` доступны на всех восьми целях; HTTP и TCP (`node:http`, `node:net`) — на Windows и Linux.
+- Исполняемые файлы Windows используют DLL ОС (включая NTDLL для метаданных родительского процесса) и объявленные импорты FFI; исполняемые файлы POSIX используют нативные службы ОС.
+- Вызовы DLL через FFI требуют Windows; прямые системные вызовы используют номера ядра выбранной цели Linux, Darwin или BSD. Подробности: [Нативные платформы](/reference/native-platforms).
 
 ## Buffer
 
-Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
+Глобальные `Buffer`, `Blob` и `File`, а также импорты `node:buffer` / `buffer` / `nona:buffer` доступны на каждой нативной цели. Buffer поддерживает стандартные байтовые кодировки, общие срезы, копирование, поиск и числовой доступ. Blob/File поддерживают неизменяемые данные и метаданные. Доступны байтовые и текстовые потоки Blob, а также регистрация и разрешение объектных URL; см. [контракт API и ограничения](/reference/host-apis#buffer-and-binary-data).

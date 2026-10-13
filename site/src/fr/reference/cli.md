@@ -12,7 +12,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
        nona --help | --version
 ```
 
-Depuis un clone du dépôt, lancez `node dist/cli.js …` ; après `npm link`, la même commande est disponible sous le nom `nona`.
+L’exécutable `nona` publié accepte ces arguments. Depuis un clone du dépôt, lancez `node dist/cli.js …` ; après `npm link`, la même commande est disponible sous le nom `nona`.
 
 ## Options
 
@@ -76,21 +76,21 @@ Les erreurs d’arguments s’affichent sous la forme `nona: <message>`, par exe
 ::: code-group
 
 ```sh [Programme console]
-node dist/cli.js build app.js -o build/app.exe
+nona build app.js -o build/app.exe
 ```
 
 ```sh [Programme graphique avec ressources]
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 ```sh [Linux]
-node dist/cli.js build app.js -o build/app --target linux-x64
+nona build app.js -o build/app --target linux-x64
 ```
 
 :::
 
-## Native target availability
+## Le compilateur natif
 
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+Chaque [version](https://github.com/40oleg/nona/releases/latest) fournit `nona` sous forme d’exécutable natif pour chacune des huit [plateformes natives](/reference/native-platforms). Il a été construit par Nona lui-même, n’a pas besoin de Node.js et accepte les mêmes options que `node dist/cli.js`. Un clone du dépôt exécute à la place le compilateur TypeScript sur Node.js 26. Le [guide d’amorçage et de validation](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) décrit comment le compilateur natif se reconstruit lui-même.
 
-Les [workflows de self-hosting](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml) réussis fournissent des artefacts `nona-<target>`. Extrayez le binaire et lancez `nona build app.js -o app` (`./nona` sur POSIX), sans Node.js ni sources JavaScript du compilateur. La CLI de développement et le bootstrap initial utilisent Node.js 26.
+Les déclarations FFI de DLL ne se compilent que pour les cibles Windows ; les déclarations d’appels système bruts utilisent les numéros du noyau de la cible Linux, Darwin ou BSD choisie (voir [FFI](/reference/ffi)).
