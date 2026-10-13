@@ -248,6 +248,8 @@ function successors(terminator: Terminator): number[] {
             return [terminator.target];
         case "branch":
             return [terminator.yes, terminator.no];
+        case "switch":
+            return [...terminator.targets, terminator.otherwise];
         case "throw":
         case "return":
             return [];
@@ -262,6 +264,9 @@ function readTerminator(terminator: Terminator, live: Set<number>): void {
             return;
         case "branch":
             live.add(terminator.condition);
+            return;
+        case "switch":
+            live.add(terminator.value);
             return;
         case "throw":
         case "return":

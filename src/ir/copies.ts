@@ -57,6 +57,7 @@ function rewriteUses(op: Operation, alias: Map_): Operation {
 function rewriteTerminator(t: Terminator, alias: Map_): Terminator {
     if (t.kind === "branch")
         return { ...t, condition: resolve(alias, t.condition) };
+    if (t.kind === "switch") return { ...t, value: resolve(alias, t.value) };
     if (t.kind === "return" && t.value >= 0)
         return { ...t, value: resolve(alias, t.value) };
     if (t.kind === "throw") return { ...t, value: resolve(alias, t.value) };

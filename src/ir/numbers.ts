@@ -1,4 +1,9 @@
-import type { BlockIR, FunctionIR, Operation } from "./model.js";
+import {
+    terminatorTargets,
+    type BlockIR,
+    type FunctionIR,
+    type Operation,
+} from "./model.js";
 import { definitions } from "./copies.js";
 import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
 
@@ -137,12 +142,7 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
         i === 0 ? new Set<number>() : null,
     );
     const successors = (i: number): number[] => {
-        const t = fn.blocks[i]!.terminator;
-        return t.kind === "jump"
-            ? [t.target]
-            : t.kind === "branch"
-              ? [t.yes, t.no]
-              : [];
+        return terminatorTargets(fn.blocks[i]!.terminator);
     };
     const guards = fn.blocks.map(typeofGuard);
     let changed = true;

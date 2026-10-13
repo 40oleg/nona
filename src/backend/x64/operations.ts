@@ -20,6 +20,7 @@ import {
     integerRemainder,
     maskableDivisor,
 } from "./integer-ops.js";
+import { emitSwitchTable } from "./switch-table.js";
 import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
 import type {
@@ -442,20 +443,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         left: number,
         right: number,
     ): { slow: string; done: string } | undefined => {
-        const arithmetic: Record<
-            string,
-            "addsd" | "subsd" | "mulsd" | "divsd"
-        > = { "+": "addsd", "-": "subsd", "*": "mulsd", "/": "divsd" };
-        const relation: Record<string, Condition> = {
-            "<": "b",
-            "<=": "be",
-            ">": "a",
-            ">=": "ae",
-            "==": "e",
-            "===": "e",
-            "!=": "e",
-            "!==": "e",
-        };
+        // As for proven Numbers (below).
+        const arithmetic = knownArithmetic,
+            relation = knownRelation;
         const bitwise = ["&", "|", "^", "<<", ">>", ">>>"];
         if (
             !(operator in arithmetic) &&
@@ -2267,6 +2257,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         switch (term.kind) {
             case "jump":
                 goto(term.target);
+                break;
+            case "switch":
+                emitSwitchTable(a, fragments, fn.id, block.id, term, {
+                    tag: value(term.value),
+                    payload: payload(term.value),
+                });
                 break;
             case "branch": {
                 if (fusedEquality) {

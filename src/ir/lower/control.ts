@@ -831,6 +831,25 @@ export abstract class ControlLowerer extends PatternLowerer {
                     join = this.block();
                 this.enterScope(s);
                 const bodies = s.cases.map(() => this.block());
+                // A dense switch on integers dispatches through a jump table
+                // first; other values take the compare chain below (#241).
+                const table = switchTable(s.cases);
+                if (table) {
+                    const chain = this.block(),
+                        defaultCase = s.cases.findIndex((c) => !c.test),
+                        none =
+                            defaultCase < 0 ? join.id : bodies[defaultCase]!.id;
+                    this.end({
+                        kind: "switch",
+                        value: discriminant,
+                        low: table.low,
+                        targets: table.cases.map((c) =>
+                            c < 0 ? none : bodies[c]!.id,
+                        ),
+                        otherwise: chain.id,
+                    });
+                    this.select(chain);
+                }
                 let fallback = join.id;
                 for (const [i, c] of s.cases.entries()) {
                     if (!c.test) {
@@ -1134,4 +1153,50 @@ export abstract class ControlLowerer extends PatternLowerer {
             }
         }
     }
+}
+
+/**
+ * The jump table of a switch whose case tests are all literals (no effect
+ * is skipped by jumping past them) and at least four of them distinct int32
+ * Numbers in a dense range (#241): for each value from `low`, the index of
+ * the first case with that test, or -1 (the default case or the end).
+ */
+export function switchTable(
+    cases: readonly { test: A.Expression | null }[],
+): { low: number; cases: number[] } | undefined {
+    const first = new Map<number, number>();
+    for (const [index, c] of cases.entries()) {
+        if (!c.test) continue;
+        const test = c.test;
+        let value: unknown;
+        if (test.kind === "Literal") value = test.value;
+        else if (
+            test.kind === "Unary" &&
+            (test.operator === "-" || test.operator === "+") &&
+            test.argument.kind === "Literal" &&
+            typeof test.argument.value === "number"
+        )
+            value =
+                test.operator === "-"
+                    ? -test.argument.value
+                    : test.argument.value;
+        else return undefined;
+        if (
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            Math.abs(value) < 2 ** 31
+        ) {
+            // -0 === 0: both are case 0.
+            const key = value === 0 ? 0 : value;
+            if (!first.has(key)) first.set(key, index);
+        }
+    }
+    if (first.size < 4) return undefined;
+    const keys = [...first.keys()],
+        low = Math.min(...keys),
+        span = Math.max(...keys) - low + 1;
+    if (span > Math.max(16, 4 * first.size) || span > 1024) return undefined;
+    const table: number[] = [];
+    for (let v = low; v < low + span; v++) table.push(first.get(v) ?? -1);
+    return { low, cases: table };
 }

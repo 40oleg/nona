@@ -1,4 +1,10 @@
-import type { BlockIR, Constant, FunctionIR, Terminator } from "./model.js";
+import {
+    terminatorTargets,
+    type BlockIR,
+    type Constant,
+    type FunctionIR,
+    type Terminator,
+} from "./model.js";
 import { definitions } from "./copies.js";
 import { reachable } from "./constants.js";
 
@@ -132,6 +138,16 @@ export function simplifyControlFlow(fn: FunctionIR): FunctionIR {
                 );
             if (yes === no) next = { kind: "jump", target: yes };
             else if (yes !== t.yes || no !== t.no) next = { ...t, yes, no };
+        } else if (t.kind === "switch") {
+            const targets = t.targets.map((target) =>
+                    follow(target, [], block),
+                ),
+                otherwise = follow(t.otherwise, [], block);
+            if (
+                otherwise !== t.otherwise ||
+                targets.some((target, i) => target !== t.targets[i])
+            )
+                next = { ...t, targets, otherwise };
         }
         return next === t ? block : { ...block, terminator: next };
     };
@@ -146,12 +162,8 @@ function mergeBlocks(fn: FunctionIR): FunctionIR {
     const count = (id: number) =>
         predecessors.set(id, (predecessors.get(id) ?? 0) + 1);
     for (const block of fn.blocks) {
-        const t = block.terminator;
-        if (t.kind === "jump") count(t.target);
-        else if (t.kind === "branch") {
-            count(t.yes);
-            count(t.no);
-        }
+        for (const target of new Set(terminatorTargets(block.terminator)))
+            count(target);
         if (block.exceptionTarget !== undefined)
             pinned.add(block.exceptionTarget);
         for (const op of block.operations)
