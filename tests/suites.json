@@ -239,6 +239,7 @@
                 "object-methods",
                 "object-spread",
                 "optional-chaining",
+                "nullish-facts",
                 "optional-chaining-frontend",
                 "optional-chaining-gc",
                 "optional-global-shadow",
