@@ -12,6 +12,7 @@
 - `%` of two int32 Numbers runs inline (`idiv`, or a mask for a constant power-of-two divisor and a non-negative dividend) instead of calling the runtime; fractions, NaN, Infinity, `-0` and zero divisors keep the runtime's fmod semantics. A loop of `i % 7` and ring-buffer indexing runs about 1.8 times faster. ([#238](https://github.com/40oleg/nona/issues/238))
 - A `switch` whose case tests are literals, with at least four distinct int32 Number cases in a dense range, dispatches through a jump table (a new IR terminator `switch`); other values still take the compare chain, so `'1'`, `1n`, fractions and objects behave as before. A lexer-style loop over character codes runs 22% fewer instructions in the program's own code. ([#241](https://github.com/40oleg/nona/issues/241))
 - A closure's read of a captured `let`/`const`/`class` binding has no dead-zone check when every place that creates the closure runs after the binding is initialized; hoisted declarations and closures created earlier keep their checks. marked compiles with 29% fewer checks (1,768 → 1,261). ([#242](https://github.com/40oleg/nona/issues/242))
+- A nullish test (`x?.y`, `x ?? y`) of a value already tested on the same path (`x === null || x === undefined`, `x != null`, `typeof x === 'string'`, …) or known to be an object, function or Number folds away. ([#237](https://github.com/40oleg/nona/issues/237))
 
 ### Tools
 

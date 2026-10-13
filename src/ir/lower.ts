@@ -5,37 +5,11 @@ import { CompileError, internalError } from "../diagnostics.js";
 import { maxInlineCapacity } from "../shape-limits.js";
 import type { FfiDeclarationIR } from "./model.js";
 
-import {
-    initializedCaptures,
-    removeRedundantInitializationChecks,
-} from "./initialization.js";
-import { markNumericOperations } from "./numbers.js";
-import { coalesceMoves, propagateCopies } from "./copies.js";
 import { annotateDirectCalls } from "./calls.js";
-import { foldConstants } from "./constants.js";
-import { simplifyControlFlow } from "./control-flow.js";
+import { optimizeFunction } from "./optimize.js";
+import { initializedCaptures } from "./initialization.js";
 import { ControlLowerer } from "./lower/control.js";
 import type { WithReference } from "./lower/base.js";
-/**
- * IR clean-up after lowering (roadmap item 15): drop dead-zone checks of
- * initialized bindings, fold constants and branches on them, simplify the
- * control-flow graph (#146), forward copies, mark operations on proven
- * Numbers (which may turn ToNumeric into a copy, so copies are forwarded
- * again) and let Number results go straight to their binding.
- */
-function optimizeFunction(
-    fn: FunctionIR,
-    captures: ReadonlyMap<string, ReadonlySet<number>>,
-): FunctionIR {
-    const folded = simplifyControlFlow(
-        foldConstants(
-            removeRedundantInitializationChecks(fn, captures.get(fn.id)),
-        ),
-    );
-    return coalesceMoves(
-        propagateCopies(markNumericOperations(propagateCopies(folded))),
-    );
-}
 export function lower(bound: BoundProgram): ModuleIR {
     const templateCaches = {
         next: bound.globals.length,
