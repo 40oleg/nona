@@ -160,3 +160,16 @@ Step 5 adds `src/runtime/typed-array-kernels.ts`:
 `17_typed_arrays.js` (`--scale 0.01`) went from 354,145,899 to 66,478,685 instructions (−81%); most of what is left is the program filling its arrays. Wall time (`SCALE=1`, native x64, Node.js 22 in brackets): fill 68 → 5–9 ms (9), copies 850–1070 → 17–26 ms (22), searches 1290–1430 → 33–48 ms (66). The element-wise loops of the benchmark are compiled code and unchanged; vectorizing such loops is a compiler change (only element-wise operations, no reordered floating-point sums) left for later.
 
 The test262 directories `built-ins/TypedArray/prototype/{copyWithin,fill,includes,indexOf,lastIndexOf,set,slice}` pass on Linux x64.
+
+### Garbage collection
+
+The vector work on the collector is the 16-byte zeroing of `rt.alloc` (step 4). Sweeping stays scalar. Its share, from the profiles of this page:
+
+| Workload                                                       |    Sweep | Mark and trace |
+| -------------------------------------------------------------- | -------: | -------------: |
+| `09_gc.js`                                                     |     6.8% |           3.2% |
+| `06_objects.js`, `11_json.js`, `14_calls.js`                   | 1.2–1.3% |       5.1–9.5% |
+| npm packages (diff, js-yaml, mustache, semver, validator, zod) | 1.0–2.7% |     up to 8.2% |
+| acorn, marked, strings and typed array benchmarks              | 0.1–0.5% |     up to 2.4% |
+
+A per-chunk mark bitmap would let the sweep skip live cells 128 at a time, but every dead cell still needs its own work (side tables, the free list), and the bitmap changes marking, allocation and the write barrier. Even a sweep twice as fast would save at most about 3% of `09_gc.js`, a collector stress test, and under 1% of the other workloads. Marking, the larger part, follows pointers and does not vectorize. The bitmap is therefore not part of this issue.
