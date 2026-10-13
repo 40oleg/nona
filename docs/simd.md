@@ -98,6 +98,7 @@ Cost per call shows whether a routine loops over long data:
     - The RegExp VM, which is JavaScript, is 11–24% of `07_strings`, acorn, marked and the npm packages.
     - Its time goes to the matching loops (for example `js.regexpVm.fn.30`, 1,574–11,016 instructions per entry). A native, vectorized scan for the first character a pattern can start with would let the VM skip positions where no match can begin.
     - The VM is not runtime assembly, so this is a separate design (native helpers called from the prelude). It is recorded as a follow-up.
+    - Done in #258: compile computes the code units a match can start with (up to eight; none for nullable, anchored or sticky searches) and the search calls the native `__nonaRegexpScan` before each attempt; a leading literal run goes to `indexOf` whole. The hot patterns of acorn and marked are mostly anchored (`^…`), sticky or nullable, so the gain there is small (acorn about 4%, marked about 13% of the engine's instructions); unanchored searches of long texts gain the most.
 
 ## Instruction level
 

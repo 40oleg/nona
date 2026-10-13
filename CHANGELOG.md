@@ -13,6 +13,7 @@
 - A `switch` whose case tests are literals, with at least four distinct int32 Number cases in a dense range, dispatches through a jump table (a new IR terminator `switch`); other values still take the compare chain, so `'1'`, `1n`, fractions and objects behave as before. A lexer-style loop over character codes runs 22% fewer instructions in the program's own code. ([#241](https://github.com/40oleg/nona/issues/241))
 - A closure's read of a captured `let`/`const`/`class` binding has no dead-zone check when every place that creates the closure runs after the binding is initialized; hoisted declarations and closures created earlier keep their checks. marked compiles with 29% fewer checks (1,768 → 1,261). ([#242](https://github.com/40oleg/nona/issues/242))
 - A nullish test (`x?.y`, `x ?? y`) of a value already tested on the same path (`x === null || x === undefined`, `x != null`, `typeof x === 'string'`, …) or known to be an object, function or Number folds away. ([#237](https://github.com/40oleg/nona/issues/237))
+- The RegExp engine skips start positions where no match can begin: a pattern whose matches start with one of up to eight code units (`/[<>&"']/`, `/fox|dog/`, `/k/i`) scans for them natively, eight units per vector step (`__nonaRegexpScan`), and a leading literal run (`abc` of `/abc(\d+)/`) is found with `indexOf` as a whole. Searching a 200 KB string for `/[<>]/` is about 200 times faster; marked spends about 13% fewer instructions in the engine. ([#258](https://github.com/40oleg/nona/issues/258))
 
 ### Tools
 
