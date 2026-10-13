@@ -6,6 +6,10 @@
 
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 
+### Performance
+
+- `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
+
 ### Documentation
 
 - The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).
