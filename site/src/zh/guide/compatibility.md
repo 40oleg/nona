@@ -68,7 +68,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 调用 `Object.getOwnPropertyNames`、`Object.getOwnPropertyDescriptors` 或 `Reflect.ownKeys` 的程序会链接所有这些部件，因为它可能列出内置对象（[#84](https://github.com/40oleg/nona/issues/84)）。hello world 约为 2.2 MB；链接全部部件时为 7 MB。
 
-程序仍可能通过运行时计算出的名称（例如 `globalThis['Reg' + 'Exp']`）访问被省略的部件。对于 RegExp 引擎和 Unicode 表，这样的调用会抛出 `Error`，其消息指出缺少的部件；被省略的全局对象或方法则直接不存在。使用 `--full-runtime`（或 [`compile()`](/reference/api) 的 `fullRuntime` 选项）编译即可链接所有部件（[#62](https://github.com/40oleg/nona/issues/62)）。
+程序仍可能通过运行时计算出的名称（例如 `globalThis['Reg' + 'Exp']`）访问被省略的部件。对于 RegExp 引擎和 Unicode 表，这样的调用会抛出 `Error`，其消息指出缺少的部件；被省略的全局对象或方法则直接不存在。使用 `--full-runtime`（或 [`compile()`](/reference/api) 的 `fullRuntime` 选项）编译即可链接所有部件（[#62](https://github.com/40oleg/nona/issues/62)）。 使用 `--link 部件,...` 可单独添加部件，`--print-link` 会列出已链接的内容以及选中每个部件的名称（[#182](https://github.com/40oleg/nona/issues/182)）。
 
 ## Realms
 

@@ -68,7 +68,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 Программа, которая вызывает `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` или `Reflect.ownKeys`, подключает все части, так как может перечислить встроенные объекты ([#84](https://github.com/40oleg/nona/issues/84)). Hello world весит около 2,2 МБ; со всеми частями — 7 МБ.
 
-Программа всё же может добраться до пропущенной части через имя, вычисленное во время исполнения, например `globalThis['Reg' + 'Exp']`. Для движка RegExp и таблиц Unicode такой вызов бросает `Error`, в сообщении которого названа отсутствующая часть; пропущенный глобальный объект или метод просто отсутствует. Чтобы подключить всё, компилируйте с `--full-runtime` (или параметром `fullRuntime` функции [`compile()`](/ru/reference/api)) ([#62](https://github.com/40oleg/nona/issues/62)).
+Программа всё же может добраться до пропущенной части через имя, вычисленное во время исполнения, например `globalThis['Reg' + 'Exp']`. Для движка RegExp и таблиц Unicode такой вызов бросает `Error`, в сообщении которого названа отсутствующая часть; пропущенный глобальный объект или метод просто отсутствует. Чтобы подключить всё, компилируйте с `--full-runtime` (или параметром `fullRuntime` функции [`compile()`](/ru/reference/api)) ([#62](https://github.com/40oleg/nona/issues/62)). Отдельные части можно добавить через `--link часть,...`, а `--print-link` показывает, что подключено и какое имя выбрало каждую часть ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## Realms
 

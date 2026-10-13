@@ -68,7 +68,7 @@ Built-in libraries written in JavaScript that only install globals or methods (a
 
 A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` or `Reflect.ownKeys` links all of them, since it could list the built-ins ([#84](https://github.com/40oleg/nona/issues/84)). A hello world is about 2.2 MB; with every part it is 7 MB.
 
-A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--full-runtime` (or the `fullRuntime` option of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)).
+A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--link part,...` to add the parts such a program needs, or with `--full-runtime` (or the `link` and `fullRuntime` options of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)). `--print-link` lists what was linked and which name selected each part ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## Realms
 

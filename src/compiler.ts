@@ -43,7 +43,13 @@ import {
 import { resolve as resolvePath } from "node:path";
 import { collectSourceUsage, setRegExpValidator } from "./frontend/lexer.js";
 import { validateRegExp } from "./regexp-validator.js";
-import { fullRuntimeLink } from "./link.js";
+import {
+    fullRuntimeLink,
+    linkReport,
+    requestLink,
+    runtimePartNames,
+    type LinkedPart,
+} from "./link.js";
 import {
     detectHostTarget,
     getTarget,
@@ -79,6 +85,8 @@ export interface CompileOptions {
     realms?: number;
     agents?: string[];
     /** Link the whole runtime, including parts the program does not appear to use (the RegExp engine, Unicode tables). */ fullRuntime?: boolean;
+    /** Also link these optional parts (names from runtimePartNames in src/link.ts), for a program that reaches them only through names built at run time. */ link?: readonly string[];
+    /** Return the linked optional parts and why each was linked as `linked`. */ reportLink?: boolean;
     /** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */ baseCache?: BaseImageCache;
     /** Count every call by target and print the counts to stderr when the program ends. */ callStats?: boolean;
     /** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */ coverage?: {
@@ -185,6 +193,7 @@ export type CompileResult =
           image: Uint8Array;
           imports: string[];
           /** With printAsm: the program's functions as assembly text. */ assembly?: string;
+          /** With reportLink: the linked optional runtime parts and why. */ linked?: LinkedPart[];
       }
     | { ok: false; diagnostics: Diagnostic[] };
 /** Target-independent ECMAScript frontend and IR lowering. Native targets share this path. */
@@ -358,6 +367,7 @@ function compileOnTarget(
         const {
             result: { ir, agentIRs },
             usage,
+            reasons,
         } = collectSourceUsage(() => ({
             agentIRs: (options.agents ?? []).map((agent) =>
                 compileToIR(
@@ -382,7 +392,21 @@ function compileOnTarget(
                       options.target,
                   ),
         }));
-        const link = options.fullRuntime ? fullRuntimeLink : usage;
+        const unknownParts = (options.link ?? []).filter(
+            (part) => !runtimePartNames.includes(part),
+        );
+        if (unknownParts.length)
+            throw new CompileError([
+                {
+                    code: "E_OPTION",
+                    file: options.fileName,
+                    span: { start: 0, end: 0 },
+                    message: `Unknown runtime part ${unknownParts.map((part) => JSON.stringify(part)).join(", ")} (--link takes ${runtimePartNames.join(", ")})`,
+                },
+            ]);
+        const link = options.fullRuntime
+            ? fullRuntimeLink
+            : requestLink(usage, options.link ?? []);
         const agentPrograms = agentIRs.map((agentIR) =>
             inPhase("codegen", () =>
                 generate(agentIR, {
@@ -473,6 +497,16 @@ function compileOnTarget(
                     : [],
             ...(program.assembly !== undefined
                 ? { assembly: program.assembly }
+                : {}),
+            ...(options.reportLink
+                ? {
+                      linked: linkReport(
+                          link,
+                          reasons,
+                          options.fullRuntime ? [] : (options.link ?? []),
+                          options.fullRuntime === true,
+                      ),
+                  }
                 : {}),
         };
     } catch (caught) {

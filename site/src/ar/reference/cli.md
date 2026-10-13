@@ -5,7 +5,8 @@
 ```text
 Nona 0.12.0 — JavaScript subset to native executables
 Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+       [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -23,6 +24,8 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `--module`           | —                                               | ترجمة المدخل كوحدة ES. المدخلات المنتهية بـ `.mjs` وحدات تلقائيًا.                                                                                                                                                                   |
 | `--conditions`, `-C` | اسم                                             | إضافة شرط `exports`/`imports` من package.json يُجرَّب قبل شروط Nona نفسها (`nona` و`node` و`import` أو `require` و`default`)؛ وتعمل الصيغة `--conditions=name` أيضًا. يمكن تكراره. راجع [حزم npm](/reference/npm#resolution).        |
 | `--print-asm`        | —                                               | طباعة شيفرة التجميع x86-64 المولَّدة لدوال البرنامج نفسه (دون بيئة التشغيل ومقدماتها) على stdout: وسم كل دالة، ثم سطر لكل تعليمة يضم إزاحتها وبايتاتها المرمَّزة ونصها بصياغة Intel. مع هذا الخيار يمكن حذف `-o`. لأهداف x86-64 فقط. |
+| `--link`             | أجزاء مفصولة بفواصل                             | اربط أيضًا هذه الأجزاء الاختيارية (مثل `--link proxy,regexp`) لبرنامج لا يصل إليها إلا عبر أسماء تُبنى وقت التشغيل. أرخص من `--full-runtime`؛ يعرض `--print-link` أسماء الأجزاء.                                                     |
+| `--print-link`       | —                                               | اطبع أجزاء بيئة التشغيل الاختيارية المربوطة وسبب ربط كل منها: الاسم في الشيفرة المصدرية الذي اختاره، أو `--link`، أو الجزء الذي يحتاجه. يمكن عندها حذف `-o`.                                                                         |
 | `--subsystem`        | `console` (الافتراضي)، `windows`                | برنامج Windows رسومي بلا نافذة طرفية. للمنصة `win32-x64` فقط. البرنامج الرسومي بلا `--manifest` يحصل على بيان افتراضي.                                                                                                               |
 | `--icon`             | ملف `.ico`                                      | تضمين كل صور ملف الأيقونة. للمنصة `win32-x64` فقط.                                                                                                                                                                                   |
 | `--manifest`         | ملف XML                                         | تضمين بيان تطبيق. يجب أن يكون صالحًا: يرفض Windows تشغيل برنامج ببيان تالف. للمنصة `win32-x64` فقط.                                                                                                                                  |
@@ -66,6 +69,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `E_FFI_TARGET`      | تصريح DLL مترجَم للمنصة `linux-x64`، أو تصريح استدعاء نظام مترجَم للمنصة `win32-x64`.                                                                                        |
 | `E_RESOURCE`        | أيقونة أو معلومات إصدار غير صالحة، أو موارد مطلوبة للمنصة `linux-x64`.                                                                                                       |
 | `E_TARGET`          | منصة مستهدفة أو نظام فرعي غير مدعوم.                                                                                                                                         |
+| `E_OPTION`          | خيار ترجمة غير صالح، مثل اسم جزء غير معروف في `--link`.                                                                                                                      |
 | `E_HOST_MODULE`     | وحدة مدمجة (مثل `node:fs`) غير متاحة للهدف.                                                                                                                                  |
 | `E_INTERNAL`        | خلل في المترجم وليس خطأ في البرنامج: فشل فحص داخلي في المرحلة التي تذكرها الرسالة (`parse`، `bind`، `lower`، `codegen`، `link`، …). يرجى الإبلاغ عنه مع البرنامج الذي يسببه. |
 

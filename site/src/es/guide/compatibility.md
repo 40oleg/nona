@@ -68,7 +68,7 @@ Las bibliotecas integradas escritas en JavaScript que solo instalan globales o m
 
 Un programa que llama a `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` o `Reflect.ownKeys` enlaza todas, ya que podría enumerar los objetos integrados ([#84](https://github.com/40oleg/nona/issues/84)). Un hello world ocupa unos 2,2 MB; con todas las partes, 7 MB.
 
-Un programa aún puede alcanzar una parte omitida mediante un nombre calculado en tiempo de ejecución, por ejemplo `globalThis['Reg' + 'Exp']`. Para el motor de RegExp y las tablas Unicode, esa llamada lanza un `Error` cuyo mensaje nombra la parte que falta; una global o un método omitido simplemente no existe. Compila con `--full-runtime` (o la opción `fullRuntime` de [`compile()`](/es/reference/api)) para enlazarlo todo ([#62](https://github.com/40oleg/nona/issues/62)).
+Un programa aún puede alcanzar una parte omitida mediante un nombre calculado en tiempo de ejecución, por ejemplo `globalThis['Reg' + 'Exp']`. Para el motor de RegExp y las tablas Unicode, esa llamada lanza un `Error` cuyo mensaje nombra la parte que falta; una global o un método omitido simplemente no existe. Compila con `--full-runtime` (o la opción `fullRuntime` de [`compile()`](/es/reference/api)) para enlazarlo todo ([#62](https://github.com/40oleg/nona/issues/62)). Con `--link parte,...` se añaden partes sueltas, y `--print-link` muestra qué se enlazó y qué nombre seleccionó cada parte ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## Realms
 

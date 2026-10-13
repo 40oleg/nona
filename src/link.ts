@@ -195,3 +195,98 @@ export const fullRuntimeLink: RuntimeLink = {
 /** The hint every "not linked" error ends with. */
 export const fullRuntimeHint =
     "Compile with --full-runtime (compile option fullRuntime) to include it.";
+/** Every name `--link` accepts: the native parts and the optional preludes. */
+export const runtimePartNames: readonly string[] = [
+    "regexp",
+    "unicodeProperties",
+    "unicodeNormalization",
+    ...optionalPreludes,
+];
+/**
+ * `link` with the named parts added (`--link`, compile option `link`). A
+ * program that reaches a part only through names built at run time can link
+ * that one part instead of the whole runtime. Unicode properties bring the
+ * RegExp engine with them.
+ */
+export function requestLink(
+    link: RuntimeLink,
+    parts: readonly string[],
+): RuntimeLink {
+    const result: RuntimeLink = { ...link, preludes: { ...link.preludes } };
+    for (const part of parts) {
+        if (part === "regexp") result.regexp = true;
+        else if (part === "unicodeProperties")
+            result.regexp = result.unicodeProperties = true;
+        else if (part === "unicodeNormalization")
+            result.unicodeNormalization = true;
+        else result.preludes[part as OptionalPrelude] = true;
+    }
+    return result;
+}
+/** One linked optional part and the reason it was linked. */
+export interface LinkedPart {
+    part: string;
+    reason: string;
+}
+/**
+ * The optional parts in the order of runtimePartNames, each with its reason:
+ * the name in a source that selected it, the option that requested it, or the
+ * part that needs it.
+ */
+export function linkReport(
+    link: RuntimeLink,
+    reasons: Readonly<Record<string, string>>,
+    requested: readonly string[] = [],
+    full = false,
+): LinkedPart[] {
+    const why = new Map<string, string>();
+    const set = (part: string, reason: string) => {
+        if (!why.has(part)) why.set(part, reason);
+    };
+    for (const part of requested) set(part, "requested with --link");
+    if (requested.includes("unicodeProperties"))
+        set("regexp", "needed by unicodeProperties");
+    const selected = optionalPreludes.filter((name) => link.preludes[name]);
+    for (const name of selected)
+        set(name, full ? "--full-runtime" : (reasons[name] ?? "requested"));
+    // Dependencies (as linkedPreludes resolves them in the backend).
+    const linked = new Set(selected);
+    for (const name of linked)
+        for (const dependency of preludeDependencies[name] ?? []) {
+            linked.add(dependency);
+            set(dependency, `needed by ${name}`);
+        }
+    const linkedList = optionalPreludes.filter((name) => linked.has(name));
+    const regexp = runtimeRegExpLink(link, linkedList);
+    if (link.regexp)
+        set(
+            "regexp",
+            full ? "--full-runtime" : (reasons.regexp ?? "requested"),
+        );
+    else if (regexp.regexp)
+        set(
+            "regexp",
+            `needed by ${link.preludes.buffer ? "buffer" : "process"}`,
+        );
+    if (regexp.unicodeProperties)
+        set(
+            "unicodeProperties",
+            full
+                ? "--full-runtime"
+                : (reasons.unicodeProperties ?? "requested"),
+        );
+    if (link.unicodeNormalization)
+        set(
+            "unicodeNormalization",
+            full
+                ? "--full-runtime"
+                : (reasons.unicodeNormalization ?? "requested"),
+        );
+    const present = new Set<string>(linkedList);
+    if (regexp.regexp) present.add("regexp");
+    if (regexp.unicodeProperties) present.add("unicodeProperties");
+    if (link.unicodeNormalization) present.add("unicodeNormalization");
+    return runtimePartNames
+        .filter((part) => present.has(part))
+        .map((part) => ({ part, reason: why.get(part)! }));
+}

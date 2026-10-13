@@ -30,7 +30,8 @@ const help =
     "Usage: nona build <input.js|package directory> -o <output> [--target " +
     supportedNativeTargets.join("|") +
     "] [--module]\n" +
-    "       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]\n" +
+    "       [--conditions name]... [--full-runtime] [--link part,...] [--print-link]\n" +
+    "       [--call-stats] [--coverage dir] [--print-asm]\n" +
     "       [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]\n" +
     "       [--version-info version.json]\n       (.mjs inputs are compiled as modules)\n       nona --help | --version\n";
 function canonical(path: string): string {
@@ -82,7 +83,9 @@ export function main(args: string[]): number {
             module = inputArg.endsWith(".mjs"),
             fullRuntime = false,
             callStats = false,
-            printAsm = false;
+            printAsm = false,
+            printLink = false;
+        const linkParts: string[] = [];
         const seen = new Set<string>(),
             conditions: string[] = [];
         for (let i = 2; i < args.length; i += 2) {
@@ -92,7 +95,8 @@ export function main(args: string[]): number {
                 flag === "--module" ||
                 flag === "--full-runtime" ||
                 flag === "--call-stats" ||
-                flag === "--print-asm"
+                flag === "--print-asm" ||
+                flag === "--print-link"
             ) {
                 if (seen.has(flag))
                     throw new Error("Duplicate option: " + flag);
@@ -100,8 +104,22 @@ export function main(args: string[]): number {
                 if (flag === "--module") module = true;
                 else if (flag === "--call-stats") callStats = true;
                 else if (flag === "--print-asm") printAsm = true;
+                else if (flag === "--print-link") printLink = true;
                 else fullRuntime = true;
                 i--;
+                continue;
+            }
+            if (flag === "--link" || flag.startsWith("--link=")) {
+                const list = flag === "--link" ? value : flag.slice(7);
+                if (!list || list.startsWith("-"))
+                    throw new Error("Missing value for --link");
+                linkParts.push(
+                    ...list
+                        .split(",")
+                        .map((part) => part.trim())
+                        .filter(Boolean),
+                );
+                if (flag !== "--link") i--;
                 continue;
             }
             if (flag === "--conditions" || flag === "-C") {
@@ -144,8 +162,8 @@ export function main(args: string[]): number {
                 subsystem = value;
             } else target = value;
         }
-        // --print-asm alone only prints the listing; with -o it also writes the executable.
-        if (!outputArg && !printAsm)
+        // --print-asm and --print-link alone only print; with -o they also write the executable.
+        if (!outputArg && !printAsm && !printLink)
             throw new Error("Output is required (-o <output>)");
         if (target === undefined)
             throw new Error(
@@ -213,6 +231,8 @@ export function main(args: string[]): number {
             module,
             ...(conditions.length ? { conditions } : {}),
             ...(fullRuntime ? { fullRuntime } : {}),
+            ...(linkParts.length ? { link: linkParts } : {}),
+            ...(printLink ? { reportLink: true } : {}),
             ...(callStats ? { callStats } : {}),
             ...(printAsm ? { printAsm } : {}),
             ...(coverage !== undefined
@@ -268,6 +288,23 @@ export function main(args: string[]): number {
         }
         if (result.assembly !== undefined)
             process.stdout.write(result.assembly);
+        if (result.linked !== undefined) {
+            const width = Math.max(
+                0,
+                ...result.linked.map((p) => p.part.length),
+            );
+            process.stdout.write(
+                result.linked.length
+                    ? "Linked runtime parts:\n" +
+                          result.linked
+                              .map(
+                                  (p) =>
+                                      `  ${p.part.padEnd(width)}  ${p.reason}\n`,
+                              )
+                              .join("")
+                    : "No optional runtime parts are linked.\n",
+            );
+        }
         if (output === undefined) return 0;
         mkdirSync(dirname(output), { recursive: true });
         temporary = join(dirname(output), ".nona-" + randomUUID() + ".tmp");

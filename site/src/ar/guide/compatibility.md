@@ -68,7 +68,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 يربط البرنامج الذي يستدعي `Object.getOwnPropertyNames` أو `Object.getOwnPropertyDescriptors` أو `Reflect.ownKeys` كل هذه الأجزاء، لأنه قد يسرد الكائنات المدمجة ([#84](https://github.com/40oleg/nona/issues/84)). يبلغ حجم hello world نحو 2.2 MB؛ ومع كل الأجزاء 7 MB.
 
-يستطيع البرنامج مع ذلك الوصول إلى جزء محذوف عبر اسم يُحسب وقت التشغيل، مثل `globalThis['Reg' + 'Exp']`. وفي حالة محرك RegExp وجداول Unicode يرمي هذا الاستدعاء `Error` تسمّي رسالته الجزء المفقود؛ أما الكائن العام أو التابع المحذوف فيكون غائبًا ببساطة. ترجم مع `--full-runtime` (أو الخيار `fullRuntime` في [`compile()`](/ar/reference/api)) لربط كل شيء ([#62](https://github.com/40oleg/nona/issues/62)).
+يستطيع البرنامج مع ذلك الوصول إلى جزء محذوف عبر اسم يُحسب وقت التشغيل، مثل `globalThis['Reg' + 'Exp']`. وفي حالة محرك RegExp وجداول Unicode يرمي هذا الاستدعاء `Error` تسمّي رسالته الجزء المفقود؛ أما الكائن العام أو التابع المحذوف فيكون غائبًا ببساطة. ترجم مع `--full-runtime` (أو الخيار `fullRuntime` في [`compile()`](/ar/reference/api)) لربط كل شيء ([#62](https://github.com/40oleg/nona/issues/62)). يضيف `--link جزء,...` أجزاء منفردة، ويعرض `--print-link` ما رُبط والاسم الذي اختار كل جزء ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## العوالم (Realms)
 
