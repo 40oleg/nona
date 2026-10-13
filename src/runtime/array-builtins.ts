@@ -396,7 +396,7 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
             a.jcc("e", fallback);
             a.cmp("rax", 5);
             a.jcc("ne", construct);
-            // Another realm's %Array% constructor is replaced by this realm's default.
+            // Another realm's %Array% becomes this realm's default.
             const sameRealm = a.unique("sameRealm");
             a.load("rcx", slot(88));
             a.load("rax", { base: "rcx", disp: O.kind });
@@ -1114,7 +1114,7 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
             a.lea("rcx", slot(176));
             a.lea("rdx", slot(144));
             a.lea("r8", slot(160));
-            a.call("rt.strictEq");
+            a.call("rt.strictEquals");
             a.load("rax", slot(184));
             a.test("rax", "rax");
             a.jcc("ne", yes);
@@ -1300,7 +1300,7 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
                 a.lea("rcx", slot(208));
                 a.lea("rdx", slot(160));
                 a.lea("r8", slot(176));
-                a.call("rt.strictEq");
+                a.call("rt.strictEquals");
                 a.load("rax", slot(216));
                 a.test("rax", "rax");
                 a.jcc("ne", found);

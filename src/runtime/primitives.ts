@@ -503,9 +503,11 @@ export function emitPrimitives(b: RuntimeBuilder): void {
     // RCX result, RDX left Value*, R8 right Value*: `left === right` (a
     // Boolean) without a rooted frame. Numbers compare by value (NaN unequal,
     // -0 equal to 0), different tags are unequal, undefined and null equal
-    // themselves, booleans compare by truth, objects and symbols by identity,
-    // strings of the same record are equal; other strings and BigInts take
-    // rt.strictEq.
+    // themselves, booleans compare by truth, objects and symbols by identity.
+    // Strings (flat records: the code generator flattens ropes before a
+    // comparison) are equal when they are the same record, unequal when
+    // their lengths differ, and otherwise compared unit by unit, 16 bytes per
+    // step (#257). BigInts take rt.strictEq. Clobbers XMM4 and XMM5.
     b.fn("rt.strictEquals", 40, (a) => {
         const yes = a.unique("yes"),
             no = a.unique("no"),
@@ -536,7 +538,54 @@ export function emitPrimitives(b: RuntimeBuilder): void {
         a.load("r10", { base: "r8", disp: 8 });
         a.cmp("rax", "r10");
         a.jcc("e", yes);
-        a.jmp(generic);
+        a.load("r9", { base: "rax" });
+        a.load("r11", { base: "r10" });
+        a.cmp("r9", "r11");
+        a.jcc("ne", no);
+        // Equal lengths in R9: compare the units, 16 bytes per step, then 8,
+        // then one unit at a time.
+        {
+            const vector = a.unique("vector"),
+                word = a.unique("word"),
+                unit = a.unique("unit");
+            a.add("rax", 8);
+            a.add("r10", 8);
+            a.mov("r8", a.vectorMaskAll);
+            a.label(vector);
+            a.cmp("r9", 8);
+            a.jcc("b", word);
+            a.loadXmm128("xmm4", { base: "rax" });
+            a.loadXmm128("xmm5", { base: "r10" });
+            a.vectorEqual16("xmm4", "xmm5");
+            a.vectorMask("r11", "xmm4");
+            a.cmp("r11", "r8");
+            a.jcc("ne", no);
+            a.add("rax", 16);
+            a.add("r10", 16);
+            a.sub("r9", 8);
+            a.jmp(vector);
+            a.label(word);
+            a.cmp("r9", 4);
+            a.jcc("b", unit);
+            a.load("r11", { base: "rax" });
+            a.load("rdx", { base: "r10" });
+            a.cmp("r11", "rdx");
+            a.jcc("ne", no);
+            a.add("rax", 8);
+            a.add("r10", 8);
+            a.sub("r9", 4);
+            a.label(unit);
+            a.test("r9", "r9");
+            a.jcc("e", yes);
+            a.load("r11", { base: "rax" }, 16);
+            a.load("rdx", { base: "r10" }, 16);
+            a.cmp("r11", "rdx");
+            a.jcc("ne", no);
+            a.add("rax", 2);
+            a.add("r10", 2);
+            a.sub("r9", 1);
+            a.jmp(unit);
+        }
         a.label(number);
         a.movsd("xmm0", { base: "rdx", disp: 8 });
         a.ucomisd("xmm0", { base: "r8", disp: 8 });

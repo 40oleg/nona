@@ -165,6 +165,7 @@
                 "coercion-hooks",
                 "conformance",
                 "constant-equality",
+                "strict-equality",
                 "constructors",
                 "context-switch",
                 "control-flow",

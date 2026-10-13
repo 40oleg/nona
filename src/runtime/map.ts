@@ -380,7 +380,7 @@ export function emitMap(b: RuntimeBuilder): void {
         a.mov("r8", "rdx");
         a.mov("rdx", "rcx");
         a.lea("rcx", slot(56));
-        a.call("rt.strictEq");
+        a.call("rt.strictEquals");
         a.load("rax", slot(64));
         a.jmp(done);
         a.label(yes);
