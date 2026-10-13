@@ -72,7 +72,7 @@ Um intervalo pendente mantém o processo vivo. Entre os ticks, o loop de eventos
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` inicia o programa sem janela de console e incorpora um manifesto padrão (asInvoker, Windows 10/11, reconhecimento de DPI por monitor).

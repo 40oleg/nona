@@ -5,7 +5,7 @@ export const zh: Dictionary = {
     lang: "zh-CN",
     label: "简体中文",
     description:
-        "将 JavaScript（ES2020）提前编译为独立 Windows 和 Linux x64 可执行文件的编译器",
+        "将 JavaScript（ES2020）提前编译为适用于 Windows、Linux、macOS、FreeBSD 和 OpenBSD 的独立原生可执行文件的编译器",
     nav: {
         guide: "指南",
         reference: "参考",
@@ -22,7 +22,10 @@ export const zh: Dictionary = {
         compatibility: "兼容性与限制",
         performance: "性能",
         status: "状态与路线图",
-        reference: "参考",
+        languageGroup: "语言与兼容性",
+        tools: "工具与构建",
+        apis: "宿主 API",
+        platforms: "原生平台（英文）",
         cli: "命令行",
         api: "compile() API",
         modules: "内置模块",

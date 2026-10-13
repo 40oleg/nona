@@ -1,20 +1,31 @@
 # Primeiros passos
 
-## Requisitos
+## Instalação
 
-- Para executar o compilador: Node.js 26 ou mais recente e npm, no Windows ou no Linux.
-- Alvos: Windows 10/11 x64 (`win32-x64`, o padrão) e Linux x86-64 (`linux-x64`).
+Baixe o arquivo do seu sistema na [versão mais recente](https://github.com/40oleg/nona/releases/latest), extraia-o e execute `nona --help` (`./nona --help` no Linux, macOS e BSD). O arquivo contém o executável, a licença e um arquivo de versão; o compilador é um programa nativo que não precisa do Node.js. Cada versão também lista `SHA256SUMS`.
 
-## Compilar o compilador
+| SO                          | Arquivo                                        | Nome do alvo                 |
+| --------------------------- | ---------------------------------------------- | ---------------------------- |
+| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+
+Em sistemas POSIX, execute `chmod +x nona` se a ferramenta de extração descartar a permissão. Para experimentar o Nona sem instalar nada, use o [playground](/playground).
+
+### Compilar a partir do código-fonte
+
+Você precisa do Node.js 26 ou mais recente e do npm, em qualquer host que execute o Node.js 26.
 
 ```sh
 git clone https://github.com/40oleg/nona.git
 cd nona
 npm ci
 npm run build
+node dist/cli.js --help
 ```
 
-O ponto de entrada do compilador é `dist/cli.js`; os exemplos deste site o executam como `node dist/cli.js`. O pacote também declara um comando `nona`: `npm link` no repositório o coloca no seu `PATH`.
+O ponto de entrada do compilador é `dist/cli.js`. `npm link` no repositório coloca um comando `nona` no seu `PATH`. O restante deste site escreve `nona`; a partir de um clone, execute `node dist/cli.js`.
 
 ## Seu primeiro programa
 
@@ -23,12 +34,12 @@ O ponto de entrada do compilador é `dist/cli.js`; os exemplos deste site o exec
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build hello.js -o build/hello.exe
+nona build hello.js -o build/hello.exe
 .\build\hello.exe
 ```
 
-```sh [Linux]
-node dist/cli.js build hello.js -o build/hello --target linux-x64
+```sh [Linux e macOS]
+nona build hello.js -o build/hello
 ./build/hello
 ```
 
@@ -47,16 +58,29 @@ O programa termina quando não restam timers nem jobs de Promise. O executável 
 
 ## Alvos e compilação cruzada
 
-O compilador é um compilador cruzado: no Windows ele pode gerar executáveis para Linux e no Linux pode gerar executáveis para Windows. `--target` seleciona o formato de saída; o padrão é `win32-x64`. As saídas para Linux são gravadas com modo `0755`.
+O compilador é um compilador cruzado: qualquer host pode gerar executáveis para qualquer uma das oito [plataformas nativas](/reference/native-platforms). `--target` seleciona o formato de saída e a CPU; sem ele, o alvo é o SO e a CPU do host.
+
+```sh
+nona build hello.js -o build/hello --target linux-arm64
+nona build hello.js -o build/hello.exe --target win32-x64
+```
+
+Um executável compilado de forma cruzada só roda no SO e na CPU correspondentes. As saídas para Linux, BSD e macOS são gravadas com modo `0755`.
 
 ## Módulos
 
-Uma entrada `.mjs`, ou qualquer entrada compilada com `--module`, é um módulo ES. Importações relativas (`./util.mjs`, `../lib/x.mjs`) são resolvidas ao lado do arquivo que importa e compiladas no mesmo executável. Os módulos embutidos usam o prefixo `nona:` (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`), e `node:fs` e `node:process` são aliases dos subconjuntos do Nona; veja [Módulos embutidos](/pt/reference/modules).
+Uma entrada `.mjs`, ou qualquer entrada compilada com `--module`, é um módulo ES. Importações relativas (`./util.mjs`, `../lib/x.mjs`) são resolvidas ao lado do arquivo que importa e compiladas no mesmo executável. Uma entrada CommonJS é compilada junto com tudo o que ela carrega com `require`.
+
+Os módulos embutidos usam o prefixo `nona:` (`nona:ffi`, `nona:win32`, `nona:fs`, `nona:process`); muitos nomes do Node.js (`node:fs`, `node:path`, `node:http`, …) também estão disponíveis. Veja [Módulos embutidos](/pt/reference/modules).
+
+## Pacotes npm
+
+Instale os pacotes com o npm como de costume e compile: o Nona resolve `node_modules` em tempo de compilação e compila os pacotes no executável. `nona build <diretório do pacote>` compila o comando `"bin"` ou o módulo `"main"` do pacote. Veja [pacotes npm](/reference/npm).
 
 ## Um programa do Windows sem console
 
 ```sh
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 `--subsystem windows` inicia o programa sem janela de console e incorpora um manifesto padrão; `--icon` e `--version-info` adicionam recursos exibidos pelo Explorer. Veja [Executáveis do Windows](/pt/reference/windows-executables) e o [exemplo Museum](/pt/examples/museum).
@@ -70,13 +94,14 @@ app.mjs:3:12 E_FFI_STATIC: define() arguments must be string literals
 ```
 
 - Sintaxe não suportada é rejeitada em tempo de compilação em vez de falhar em tempo de execução.
-- `E_FFI_TARGET` significa que uma declaração de DLL foi compilada para `linux-x64` (ou uma chamada de sistema para `win32-x64`).
+- `E_FFI_TARGET` significa que uma declaração de DLL foi compilada para um alvo que não é Windows (ou uma chamada de sistema para `win32-x64`).
+- `E_HOST_MODULE` significa que um módulo embutido não está disponível para o alvo.
 - `EvalError` em tempo de execução significa que `eval` ou `Function` recebeu código-fonte que não era conhecido em tempo de compilação.
 
 A [referência da linha de comando](/pt/reference/cli) lista todas as opções e erros.
 
-## Plataformas nativas
+## Próximos passos
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- [Exemplos](/pt/examples/) — programas completos com explicações.
+- [Suporte à linguagem](/pt/guide/language-support) e [Compatibilidade e limitações](/pt/guide/compatibility) — o que esperar.
+- [Módulos embutidos](/pt/reference/modules) — as APIs do host.

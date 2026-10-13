@@ -7,12 +7,12 @@
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build word-count.mjs -o build/word-count.exe
+nona build word-count.mjs -o build/word-count.exe
 .\build\word-count.exe notes.txt README.md
 ```
 
 ```sh [Linux]
-node dist/cli.js build word-count.mjs -o build/word-count --target linux-x64
+nona build word-count.mjs -o build/word-count --target linux-x64
 ./build/word-count notes.txt README.md
 ```
 

@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
 
 ## কোড জেনারেশন
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64)-এ আছে একটি x86-64 ইনস্ট্রাকশন এনকোডার ও অ্যাসেম্বলার এবং কোড জেনারেটর, যা IR অপারেশনগুলোকে রানটাইমে কল ও ইনলাইন fast path-এ রূপান্তর করে। তৈরি কোড ও রানটাইম উভয় টার্গেটেই Win64 কলিং কনভেনশন মেনে চলে।
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64)-এ আছে একটি x86-64 ইনস্ট্রাকশন এনকোডার ও অ্যাসেম্বলার এবং কোড জেনারেটর, যা IR অপারেশনগুলোকে রানটাইমে কল ও ইনলাইন fast path-এ রূপান্তর করে; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) AArch64-এর জন্য একই কাজ করে। তৈরি কোড একটি ভাগ করা লজিক্যাল কলিং কনভেনশন ব্যবহার করে; OS ব্রিজ সেটিকে প্রতিটি নেটিভ ABI-তে রূপান্তর করে।
 
 ## রানটাইম
 
@@ -58,7 +58,14 @@ JavaScript source (script or module graph)
 ## লিঙ্কিং
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): সেকশন, ইমপোর্ট টেবিল (রানটাইমের জন্য KERNEL32, সঙ্গে FFI দিয়ে ঘোষিত DLL), base relocation, unwind ডেটা এবং রিসোর্স (আইকন, ম্যানিফেস্ট, ভার্সন তথ্য)।
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): রানটাইম যে প্রতিটি KERNEL32 ফাংশন ব্যবহার করে, তার জন্য একই কলিং কনভেনশনসহ একটি Linux সিস্টেম-কল শিম আছে, তাই রানটাইম কোড দুই টার্গেটের মধ্যে ভাগ করা যায়।
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): রানটাইম যে প্রতিটি KERNEL32 ফাংশন ব্যবহার করে, তার জন্য একই কলিং কনভেনশনসহ একটি সিস্টেম-কল শিম আছে, তাই রানটাইম কোড টার্গেটগুলোর মধ্যে ভাগ করা যায়। Linux ও BSD libc ছাড়াই সরাসরি কার্নেল কল করে।
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): Intel macOS এক্সিকিউটেবলও সরাসরি কার্নেল কল ব্যবহার করে; Apple Silicon এক্সিকিউটেবল স্টার্টআপ ও OS সেবার জন্য dyld-এর মাধ্যমে সিস্টেমের `libSystem.B.dylib` লোড করে।
+
+একই রানটাইম আটটি টার্গেটেরই কাজ করে; কোথায় কী যাচাই করা হয়েছে তা [নেটিভ প্ল্যাটফর্ম](/reference/native-platforms) পৃষ্ঠায় আছে।
+
+## সেলফ-হোস্টিং
+
+কম্পাইলার নিজেকে কম্পাইল করে। প্রকাশিত `nona` হলো Nona-র তৈরি একটি নেটিভ এক্সিকিউটেবল, যার ভেতরে Node.js নেই; Windows ও Linux x64-এ এটি নিজেকে আবার বিল্ড করে একটি byte-identical দ্বিতীয় স্তর তৈরি করে। [বুটস্ট্র্যাপ নির্দেশিকা](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md)-য় পদ্ধতি ও তার যাচাইগুলো বর্ণিত আছে।
 
 ## FFI
 
@@ -70,20 +77,16 @@ JavaScript source (script or module graph)
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
 
-## নেটিভ প্ল্যাটফর্ম
+## আনুষ্ঠানিক যাচাইয়ের প্রোটোটাইপ
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
-
-## Formal verification prototype
-
-[Lean proofs](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) cover selected slot move rules and a modeled straight-line dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. The production compiler, CFG analysis and native runtime are outside the current formal guarantee.
+[Lean প্রমাণ](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) নির্বাচিত slot move নিয়ম এবং একটি মডেল করা straight-line dead-move অপ্টিমাইজার কভার করে। Lean/elan ইনস্টল করে `npm run check:proofs` চালান। প্রোডাকশন কম্পাইলার, CFG বিশ্লেষণ ও নেটিভ রানটাইম বর্তমান আনুষ্ঠানিক নিশ্চয়তার বাইরে।

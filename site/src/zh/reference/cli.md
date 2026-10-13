@@ -12,7 +12,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
        nona --help | --version
 ```
 
-在仓库的克隆中运行 `node dist/cli.js …`；执行 `npm link` 之后，同样的命令可以用 `nona` 调用。
+发布的 `nona` 可执行文件接受这些参数。在仓库的克隆中运行 `node dist/cli.js …`；执行 `npm link` 之后，同样的命令可以用 `nona` 调用。
 
 ## 选项
 
@@ -76,21 +76,21 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 ::: code-group
 
 ```sh [控制台程序]
-node dist/cli.js build app.js -o build/app.exe
+nona build app.js -o build/app.exe
 ```
 
 ```sh [带资源的图形界面程序]
-node dist/cli.js build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
+nona build app.mjs -o build/app.exe --subsystem windows --icon app.ico --version-info version.json
 ```
 
 ```sh [Linux]
-node dist/cli.js build app.js -o build/app --target linux-x64
+nona build app.js -o build/app --target linux-x64
 ```
 
 :::
 
-## Native target availability
+## 原生编译器
 
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
+每个[发布版本](https://github.com/40oleg/nona/releases/latest)都为八个[原生平台](/reference/native-platforms)各提供一个原生可执行文件形式的 `nona`。它由 Nona 自己构建，不需要 Node.js，接受与 `node dist/cli.js` 相同的选项。克隆的仓库则是在 Node.js 26 上运行 TypeScript 编译器。[引导与验证指南](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md)说明了原生编译器如何重新构建自己。
 
-成功的 [self-hosting 工作流](https://github.com/40oleg/nona/actions/workflows/self-hosting.yml) 提供 `nona-<target>` 构建产物。解压后运行 `nona build app.js -o app`（POSIX 上使用 `./nona`），无需 Node.js 或编译器 JavaScript 源码。开发 CLI 和初始引导仍使用 Node.js 26。
+DLL FFI 声明只能为 Windows 目标编译；原始系统调用声明使用所选 Linux、Darwin 或 BSD 目标的内核调用号（参见 [FFI](/zh/reference/ffi)）。

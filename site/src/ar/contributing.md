@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 تترجم مجموعة الاختبارات ملفات تنفيذية حقيقية وتشغّلها: اختبارات PE تعمل على Windows واختبارات ELF على Linux، وكثير منها تحت ضغط جامع المهملات. يشغّل التكامل المستمر (`.github/workflows/check.yml`) المجموعة الكاملة ومجموعات Test262 على Windows مع Node.js 26، والاختبارات الأصلية على Linux. والتدقيقات الكاملة لـ Test262 موصوفة في صفحة [Test262](/ar/reference/test262).
@@ -35,12 +36,16 @@ npm run test262:smoke    # a quick pinned Test262 subset
 - كل استيراد جديد من KERNEL32 يحتاج إلى طبقة وسيطة على استدعاءات نظام Linux في `src/backend/linux/shims.ts`.
 - تبقى الملفات التنفيذية المولَّدة خالية من الاعتماديات الخارجية: بلا libc، وبلا سلسلة أدوات C، وبلا ملفات DLL مرفقة.
 
+## التحليل والقياس
+
+يشغّل `node bench/run.mjs` المقاييس التي تقوم عليها صفحة [الأداء](/ar/guide/performance). ويحصي `scripts/profile-runtime.mjs` التعليمات التي ينفّذها كل روتين في بيئة التشغيل (أثر QEMU)، ويحصي الخيار `--call-stats` في [سطر الأوامر](/ar/reference/cli#options) الاستدعاءات التي يجريها البرنامج.
+
 ## التوثيق
 
 حين تغيّر ميزةٌ سلوكًا مرئيًا للبرامج، حدّث:
 
 - ‏`README.md` و`README.ru.md`؛
-- الوثيقة المرجعية في `docs/` ‏(`host-apis.md` و`process.md` و`fs.md` و`ffi.md` و`windows-executables.md` و`test262.md`)، إذ يضمّن الموقع هذه الملفات تلقائيًا؛
+- الوثيقة المرجعية في `docs/` ‏(`host-apis.md` و`process.md` و`fs.md` و`network.md` و`npm.md` و`ffi.md` و`native-platforms.md` و`windows-executables.md` و`test262.md`)، إذ يضمّن الموقع هذه الملفات تلقائيًا؛
 - صفحات الموقع في `site/src/` التي تصف الميزة، مثل صفحة [دعم اللغة](/ar/guide/language-support) أو صفحة [سطر الأوامر](/ar/reference/cli)؛
 - ‏`CHANGELOG.md` تحت `## Unreleased` مع رابط إلى الـ issue.
 

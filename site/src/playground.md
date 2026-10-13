@@ -25,7 +25,7 @@ Choose among Windows, Linux and macOS on x64 or ARM64, and FreeBSD or OpenBSD on
 
 - The playground compiles a single file. Built-in [`nona:*` and `node:*` modules](/reference/modules) are available; importing other files is not.
 - The first build loads the compiler (about 0.5 MB compressed) and takes a few seconds; later builds are faster.
-- The executables are the same as those of `node dist/cli.js build` with the same options; see [Getting started](/guide/getting-started) to build locally, add an icon or version information.
+- The executables are the same as those of `nona build` with the same options; see [Getting started](/guide/getting-started) to install the compiler, add an icon or version information.
 - Executables are not signed. Do not run programs from people you do not trust: a compiled program has the same permissions as any other program on your computer.
 
 </div>

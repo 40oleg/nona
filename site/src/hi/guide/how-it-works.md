@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
 
 ## कोड जनरेशन
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) में x86-64 इंस्ट्रक्शन एन्कोडर, असेंबलर और कोड जनरेटर हैं, जो IR ऑपरेशन को रनटाइम कॉल और इनलाइन फ़ास्ट पाथ में बदलता है। दोनों टार्गेट पर जनरेट किया गया कोड और रनटाइम Win64 कॉलिंग कन्वेंशन का पालन करते हैं।
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) में x86-64 इंस्ट्रक्शन एन्कोडर, असेंबलर और कोड जनरेटर हैं, जो IR ऑपरेशन को रनटाइम कॉल और इनलाइन फ़ास्ट पाथ में बदलता है; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) AArch64 के लिए यही करता है। जनरेट किया गया कोड एक साझा लॉजिकल कॉलिंग कन्वेंशन का पालन करता है; OS ब्रिज उसे हर नेटिव ABI में बदलते हैं।
 
 ## रनटाइम
 
@@ -58,7 +58,14 @@ JavaScript source (script or module graph)
 ## लिंकिंग
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): सेक्शन, इम्पोर्ट टेबल (रनटाइम के लिए KERNEL32, और FFI से घोषित DLL), बेस रीलोकेशन, अनवाइंड डेटा और रिसोर्स (आइकन, मैनिफ़ेस्ट, वर्ज़न जानकारी)।
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): रनटाइम जिस भी KERNEL32 फ़ंक्शन का उपयोग करता है, उसके लिए उसी कॉलिंग कन्वेंशन वाला Linux सिस्टम-कॉल शिम है, इसलिए रनटाइम कोड दोनों टार्गेट में साझा होता है।
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): रनटाइम जिस भी KERNEL32 फ़ंक्शन का उपयोग करता है, उसके लिए उसी कॉलिंग कन्वेंशन वाला सिस्टम-कॉल शिम है, इसलिए रनटाइम कोड टार्गेट के बीच साझा होता है। Linux और BSD बिना libc के सीधे कर्नेल कॉल करते हैं।
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): Intel macOS एक्ज़ीक्यूटेबल भी सीधे कर्नेल कॉल का उपयोग करते हैं; Apple Silicon एक्ज़ीक्यूटेबल स्टार्टअप और OS सेवाओं के लिए dyld के ज़रिए सिस्टम की `libSystem.B.dylib` लोड करते हैं।
+
+वही रनटाइम सभी आठ टार्गेट को चलाता है; कहाँ क्या सत्यापित है, यह [नेटिव प्लेटफ़ॉर्म](/reference/native-platforms) पर सूचीबद्ध है।
+
+## सेल्फ़-होस्टिंग
+
+कंपाइलर स्वयं को कंपाइल करता है। जारी किया गया `nona` एक नेटिव एक्ज़ीक्यूटेबल है जिसे Nona ने बनाया है और जिसके अंदर Node.js नहीं है; Windows और Linux x64 पर यह स्वयं को दोबारा बनाकर बाइट-दर-बाइट एक जैसा दूसरा चरण देता है। [बूटस्ट्रैप गाइड](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) प्रक्रिया और उसकी जाँचों का वर्णन करती है।
 
 ## FFI
 
@@ -70,19 +77,15 @@ JavaScript source (script or module graph)
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
-
-## नेटिव प्लेटफ़ॉर्म
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
 
 ## Formal verification prototype
 

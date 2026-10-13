@@ -72,7 +72,7 @@ setInterval(showNext, minutes * 60 * 1000);
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` запускает программу без консольного окна и встраивает манифест по умолчанию (asInvoker, Windows 10/11, поддержка DPI для каждого монитора).

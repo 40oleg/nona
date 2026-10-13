@@ -34,7 +34,7 @@ Antes da geração de código, a IR de cada função passa por otimizações que
 
 ## Geração de código
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contém um codificador de instruções e um assembler x86-64, além do gerador de código, que transforma as operações da IR em chamadas ao runtime e caminhos rápidos inline. O código gerado e o runtime seguem a convenção de chamada Win64 nos dois alvos.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) contém um codificador de instruções e um assembler x86-64, além do gerador de código, que transforma as operações da IR em chamadas ao runtime e caminhos rápidos inline; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) faz o mesmo para AArch64. O código gerado usa uma convenção de chamada lógica compartilhada; pontes do SO a convertem para a ABI nativa de cada plataforma.
 
 ## Runtime
 
@@ -58,7 +58,14 @@ O coletor é preciso e não move objetos: mark-and-sweep sobre raízes explícit
 ## Linkagem
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): seções, a tabela de importação (KERNEL32 para o runtime, mais as DLLs declaradas com FFI), relocações de base, dados de unwind e recursos (ícone, manifesto, informações de versão).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): cada função do KERNEL32 usada pelo runtime tem um shim de chamada de sistema do Linux com a mesma convenção de chamada, de modo que o código do runtime é compartilhado entre os alvos.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): cada função do KERNEL32 usada pelo runtime tem um shim de chamada de sistema com a mesma convenção de chamada, de modo que o código do runtime é compartilhado entre os alvos. Linux e BSDs fazem chamadas ao kernel diretamente, sem libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): os executáveis do macOS Intel também usam chamadas diretas ao kernel; os executáveis do Apple Silicon carregam a `libSystem.B.dylib` do sistema via dyld para a inicialização e os serviços do SO.
+
+O mesmo runtime atende os oito alvos; [Plataformas nativas](/reference/native-platforms) lista o que é verificado onde.
+
+## Autohospedagem
+
+O compilador compila a si mesmo. O `nona` publicado é um executável nativo construído pelo Nona, sem Node.js dentro; no Windows e no Linux x64 ele se reconstrói em um segundo estágio idêntico byte a byte. O [guia de bootstrap](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) descreve o procedimento e suas verificações.
 
 ## FFI
 
@@ -70,19 +77,15 @@ Uma chamada `define('user32.dll', 'MessageBoxW', 'i32(ptr,wstr,wstr,u32)')` é r
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
-
-## Plataformas nativas
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Plataformas nativas](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
 
 ## Formal verification prototype
 

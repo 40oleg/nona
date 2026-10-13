@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
 
 ## Генерация кода
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) содержит кодировщик инструкций и ассемблер x86-64 и генератор кода, который превращает операции IR в вызовы runtime и встроенные быстрые пути. Сгенерированный код и runtime используют соглашение о вызовах Win64 на обеих целях.
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) содержит кодировщик инструкций и ассемблер x86-64 и генератор кода, который превращает операции IR в вызовы runtime и встроенные быстрые пути; [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) делает то же для AArch64. Сгенерированный код использует общее логическое соглашение о вызовах; мосты ОС преобразуют его в нативный ABI каждой платформы.
 
 ## Runtime
 
@@ -58,7 +58,14 @@ JavaScript source (script or module graph)
 ## Линковка
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): секции, таблица импорта (KERNEL32 для runtime и DLL, объявленные через FFI), базовые релокации, unwind-данные и ресурсы (иконка, манифест, сведения о версии).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): у каждой функции KERNEL32, которую использует runtime, есть прослойка на системных вызовах Linux с тем же соглашением о вызовах, поэтому код runtime общий для обеих целей.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf), [`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux), [`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): у каждой функции KERNEL32, которую использует runtime, есть прослойка на системных вызовах с тем же соглашением о вызовах, поэтому код runtime общий для всех целей. Linux и BSD делают вызовы ядра напрямую, без libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho), [`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): исполняемые файлы для macOS на Intel тоже используют прямые вызовы ядра; на Apple Silicon они загружают системную `libSystem.B.dylib` через dyld для запуска и служб ОС.
+
+Один и тот же runtime обслуживает все восемь целей; что и где проверено, перечислено на странице [Нативные платформы](/reference/native-platforms).
+
+## Самосборка
+
+Компилятор компилирует сам себя. Выпускаемый `nona` — нативный исполняемый файл, собранный Nona без Node.js внутри; на Windows и Linux x64 он пересобирает себя во второй этап, побайтово идентичный первому. [Руководство по начальной сборке](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) описывает порядок действий и проверки.
 
 ## FFI
 
@@ -70,19 +77,15 @@ JavaScript source (script or module graph)
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
-
-## Нативные платформы
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Нативные платформы](/reference/native-platforms). `darwin-arm64`: запуск через системные dyld/libSystem.
 
 ## Formal verification prototype
 

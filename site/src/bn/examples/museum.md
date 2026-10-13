@@ -72,7 +72,7 @@ setInterval(showNext, minutes * 60 * 1000);
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` প্রোগ্রামটিকে কনসোল উইন্ডো ছাড়া চালু করে এবং একটি ডিফল্ট ম্যানিফেস্ট যুক্ত করে (asInvoker, Windows 10/11, per-monitor DPI awareness)।

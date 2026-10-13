@@ -26,7 +26,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 | `process.argv`                        | `[execPath, ...arguments]`: `argv[1]` is the first argument                                                                                         | `[node, script, ...arguments]`                                                 |
 | `process`                             | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
 | Timer ids                             | Numbers                                                                                                                                             | `Timeout` objects                                                              |
-| `readFileSync(path)`                  | Returns a `Uint8Array`                                                                                                                              | Returns a `Buffer`                                                             |
+| `readFileSync(path)`                  | Returns a `Uint8Array` (without an encoding)                                                                                                        | Returns a `Buffer`                                                             |
 | Encodings                             | `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer) only                                                                   | Many                                                                           |
 | Error messages on Windows             | Contain the path as given                                                                                                                           | Contain the absolute path                                                      |
 | Modules                               | `nona:*`, the `node:*` modules listed in [Built-in modules](/reference/modules), files and npm packages resolved at build time                      | Everything in `node:*` and npm packages, resolved at run time                  |
@@ -35,7 +35,7 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 
 ## Performance
 
-- Arrays and `Map`/`Set` keep their elements in linked structures; very large collections are slower than in V8 ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36)).
+- Arrays, objects and `Map`/`Set` use dense and hashed storage with shapes and inline caches, but calls, closures and allocation still run several times slower than in V8; [Performance](/guide/performance) lists the slow spots.
 - The RegExp engine is a backtracking VM written in JavaScript. A pattern without backreferences or lookarounds that backtracks excessively (outside the `u` flag) is finished by a linear-time engine instead.
 - On Windows timers wake up on the system tick (typically 15.6 ms).
 - There is no JIT: code is compiled once, ahead of time, without profile-guided optimisation.
@@ -54,17 +54,17 @@ Every executable contains the runtime, but its large optional parts are linked o
 
 Built-in libraries written in JavaScript that only install globals or methods (about 0.7 MB together) are linked the same way, when a source contains one of their names:
 
-| Part                                                                                                                                                      | Names                                                                                                                                               |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Proxy`                                                                                                                                                   | `Proxy`                                                                                                                                             |
-| `TextEncoder`, `TextDecoder`                                                                                                                              | `TextEncoder`, `TextDecoder` (also linked with `process`)                                                                                           |
-| `process`                                                                                                                                                 | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| Timers, the event loop, `queueMicrotask` and `performance`                                                                                                | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis`       |
-| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                                    | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                                 |
-| Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names                                                                                                                                      |
-| Stable merge `Array.prototype.sort`                                                                                                                       | `sort`                                                                                                                                              |
-| `Object.freeze`, `seal`, `isFrozen`, `isSealed` through Proxy traps (otherwise native versions for ordinary objects)                                      | the same names                                                                                                                                      |
-| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                            | the same names                                                                                                                                      |
+| Part                                                                                                                                                      | Names                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy`                                                                                                                                                   | `Proxy`                                                                                                                                       |
+| `TextEncoder`, `TextDecoder`                                                                                                                              | `TextEncoder`, `TextDecoder` (also linked with `process`)                                                                                     |
+| `process`                                                                                                                                                 | `process`                                                                                                                                     |
+| Timers, the event loop, `queueMicrotask` and `performance`                                                                                                | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                                    | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names                                                                                                                                |
+| Stable merge `Array.prototype.sort`                                                                                                                       | `sort`                                                                                                                                        |
+| `Object.freeze`, `seal`, `isFrozen`, `isSealed` through Proxy traps (otherwise native versions for ordinary objects)                                      | the same names                                                                                                                                |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                            | the same names                                                                                                                                |
 
 A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` or `Reflect.ownKeys` links all of them, since it could list the built-ins ([#84](https://github.com/40oleg/nona/issues/84)). A hello world is about 2.2 MB; with every part it is 7 MB.
 
@@ -76,15 +76,9 @@ A program can still reach an omitted part through a name computed at run time, f
 
 ## Platforms
 
-- Process APIs are available on all eight targets; filesystem APIs require Windows or Linux.
+- `process` and `node:fs` are available on all eight targets; HTTP and TCP (`node:http`, `node:net`) on Windows and Linux.
 - Windows executables use OS DLLs (including NTDLL for parent process metadata) and declared FFI imports; POSIX executables use native OS services.
-- FFI DLL calls require Windows; raw system calls use the selected Linux, Darwin or BSD kernel.
-
-## Native platforms
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — Native platforms](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- FFI DLL calls require Windows; raw system calls use the kernel numbers of the selected Linux, Darwin or BSD target. Details: [Native platforms](/reference/native-platforms).
 
 ## Buffer
 

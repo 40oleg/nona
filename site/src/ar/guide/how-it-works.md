@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
 
 ## توليد الشيفرة
 
-يحتوي [`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) على مرمِّز تعليمات ومجمِّع x86-64 وعلى مولّد الشيفرة الذي يحوّل عمليات التمثيل الوسيط إلى استدعاءات لبيئة التشغيل وإلى مسارات سريعة مضمَّنة. وتتبع الشيفرة المولَّدة وبيئة التشغيل اصطلاح الاستدعاء Win64 على المنصتين.
+يحتوي [`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) على مرمِّز تعليمات ومجمِّع x86-64 وعلى مولّد الشيفرة الذي يحوّل عمليات التمثيل الوسيط إلى استدعاءات لبيئة التشغيل وإلى مسارات سريعة مضمَّنة؛ ويفعل [`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) الشيء نفسه لـ AArch64. وتتبع الشيفرة المولَّدة اصطلاح استدعاء منطقيًا مشتركًا؛ وتحوّله جسور نظام التشغيل إلى واجهة ABI الأصلية لكل منصة.
 
 ## بيئة التشغيل
 
@@ -58,7 +58,14 @@ JavaScript source (script or module graph)
 ## الربط
 
 - **PE32+** ([`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)): الأقسام، وجدول الاستيراد (KERNEL32 لبيئة التشغيل، إضافةً إلى ملفات DLL المصرَّح عنها عبر FFI)، وإعادات التموضع الأساسية، وبيانات الفكّ، والموارد (الأيقونة والبيان ومعلومات الإصدار).
-- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf) و[`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)): لكل دالة من KERNEL32 تستخدمها بيئة التشغيل طبقة وسيطة (shim) على استدعاءات نظام Linux باصطلاح الاستدعاء نفسه، لذا تتشارك المنصتان شيفرة بيئة التشغيل.
+- **ELF64** ([`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf) و[`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux) و[`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)): لكل دالة من KERNEL32 تستخدمها بيئة التشغيل طبقة وسيطة (shim) على استدعاءات النظام باصطلاح الاستدعاء نفسه، لذا تتشارك المنصات شيفرة بيئة التشغيل. ويجري Linux وأنظمة BSD استدعاءات النواة مباشرةً دون libc.
+- **Mach-O64** ([`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho) و[`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)): تستخدم الملفات التنفيذية لنظام macOS على Intel استدعاءات النواة المباشرة أيضًا؛ أما الملفات التنفيذية لـ Apple Silicon فتحمّل `libSystem.B.dylib` الخاصة بالنظام عبر dyld للإقلاع وخدمات نظام التشغيل.
+
+تخدم بيئة التشغيل نفسها المنصات الثماني جميعًا؛ وتسرد صفحة [المنصات الأصلية](/reference/native-platforms) ما جرى التحقق منه وأين.
+
+## الاستضافة الذاتية
+
+يترجم المترجم نفسه. إن `nona` المنشور ملف تنفيذي أصلي بناه Nona دون أي Node.js بداخله؛ وعلى Windows وLinux x64 يعيد بناء نفسه إلى مرحلة ثانية مطابقة بايتًا ببايت. يصف [دليل الإقلاع الذاتي](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md) الإجراء وفحوصاته.
 
 ## FFI
 
@@ -70,20 +77,16 @@ JavaScript source (script or module graph)
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
 
-## الأنظمة الأصلية
+## نموذج أولي للتحقق الصوري
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — الأنظمة الأصلية](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
-
-## Formal verification prototype
-
-[Lean proofs](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) cover selected slot move rules and a modeled straight-line dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. The production compiler, CFG analysis and native runtime are outside the current formal guarantee.
+تغطي [براهين Lean](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) قواعد نقل الخانات المختارة ومحسّنًا نموذجيًا لحذف عمليات النقل الميتة في الشيفرة الخطية. نفّذ `npm run check:proofs` مع تثبيت Lean/elan. أما المترجم الإنتاجي وتحليل CFG وبيئة التشغيل الأصلية فخارج الضمان الصوري الحالي.

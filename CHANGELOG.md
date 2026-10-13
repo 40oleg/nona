@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).
+
 ## v0.12.0 — 2026-10-13
 
 Highlights since v0.11.0:

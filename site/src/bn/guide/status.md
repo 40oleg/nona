@@ -6,7 +6,7 @@
 
 ## Test262 নিরীক্ষা
 
-Windows x64-এ পিন করা পূর্ণ Test262 (`scripts/test262-audit.ps1 -Unit`, ES2020 ও তার আগের ফিচার):
+পিন করা Test262-এর সর্বশেষ পূর্ণ নিরীক্ষা, Windows x64-এ v0.8.0-এর জন্য (`scripts/test262-audit.ps1 -Unit`, ES2020 ও তার আগের ফিচার, সঙ্গে সমর্থিত পরবর্তী ফিচার, যেমন ES2022 ক্লাস এলিমেন্ট):
 
 | ডিরেক্টরি                    | পাস / প্রযোজ্য               | বাকি ব্যর্থতা                               |
 | ---------------------------- | ---------------------------- | ------------------------------------------- |
@@ -19,24 +19,33 @@ Windows x64-এ পিন করা পূর্ণ Test262 (`scripts/test262-au
 
 ## বাকি ব্যর্থতা
 
-Windows-এ সব «অন্যান্য» ব্যর্থতা শ্রেণিবদ্ধ করা হয়েছে:
+এগুলো v0.8.0 নিরীক্ষার ব্যর্থতা; পরবর্তী রিলিজগুলোতে পূর্ণ রান আর পুনরাবৃত্তি করা হয়নি। Windows-এ সব «অন্যান্য» ব্যর্থতা শ্রেণিবদ্ধ করা হয়েছে:
 
-- `built-ins/Function` (25): ফাংশনের সোর্স রানটাইমে অবজেক্টের `toString` থেকে আসে — `eval` ব্যতিক্রম।
+- `built-ins/Function` (26): ফাংশনের সোর্স রানটাইমে অবজেক্টের `toString` থেকে আসে — `eval` ব্যতিক্রম।
 - `AsyncFunction`, `AsyncGeneratorFunction` ও `GeneratorFunction`-এর জন্য `is-a-constructor` (4): Test262 হার্নেস রানটাইমে সোর্স টেক্সট তৈরি করে।
-- অন্য realm (7): অন্য realm থেকে ডিফল্ট প্রোটোটাইপ ([#7](https://github.com/40oleg/nona/issues/7))।
-- non-extensible অবজেক্টে private class fields (2): নতুন-ফিচার ট্যাগ ছাড়া ES2022 private fields।
+- অন্য realm (8): অন্য realm থেকে ডিফল্ট প্রোটোটাইপ ([#7](https://github.com/40oleg/nona/issues/7), নিরীক্ষার পরে বন্ধ হয়েছে)।
+- `Function`-এর মাধ্যমে তৈরি ক্লাস, অন্য realm-এও (10, `language/expressions/class`): রানটাইমে তৈরি সোর্স টেক্সট। একই টেস্ট `eval` উপনামের মাধ্যমে চালালে সেগুলো `eval` ব্যর্থতা হিসেবে গণ্য হয়।
+
+v0.8.0 নিরীক্ষায় সাতটি ক্র্যাশও পাওয়া গিয়েছিল (`Math`-এ উপাদানসহ `Array.prototype.indexOf`, typed array-এর উত্তরাধিকারসূত্রে পাওয়া ও নিজস্ব কী), যা dense elements-এর সঙ্গে এসেছিল; সেগুলো [#119](https://github.com/40oleg/nona/issues/119)-এ ঠিক করা হয়েছে, এবং সংশোধনের পরে `built-ins/Array` ও `built-ins/TypedArrayConstructors` পুনরায় চালালে (উপরে অন্তর্ভুক্ত) সেগুলো পাস করে।
 
 ## চলমান কাজ
 
+ভাষা ও লাইব্রেরির ঘাটতি:
+
 - [#11](https://github.com/40oleg/nona/issues/11) — রানটাইমে গণনা করা সোর্সসহ `eval` ও `Function`।
-- [#7](https://github.com/40oleg/nona/issues/7) — প্রিলিউড কনস্ট্রাক্টরের জন্য অন্য realm থেকে ডিফল্ট প্রোটোটাইপ।
-- [#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36) — ঘন (dense) অ্যারে উপাদান এবং `Map`/`Set`-এর জন্য হ্যাশ টেবিল।
+- [#44](https://github.com/40oleg/nona/issues/44) — Promise reaction: আলাদা promise ধরন এবং প্রতিটি `then`-এর জন্য একটি রেকর্ড।
+
+পারফরম্যান্স, [রোডম্যাপের](https://github.com/40oleg/nona/blob/main/docs/roadmap.md) মূল ধারা:
+
+- কল ও মেমরি বরাদ্দ: [#47](https://github.com/40oleg/nona/issues/47) (কল ওভারহেড), [#48](https://github.com/40oleg/nona/issues/48) (স্বল্পায়ু অবজেক্ট), [#235](https://github.com/40oleg/nona/issues/235) (ইনলাইনিং), [#236](https://github.com/40oleg/nona/issues/236) (scalar replacement)।
+- তৈরি কোড: [#237](https://github.com/40oleg/nona/issues/237)–[#242](https://github.com/40oleg/nona/issues/242) (অপশনাল চেইনিং, `%`, সরাসরি কল, typed array লুপ, `switch` jump table, dead-zone যাচাই)।
+- লাইব্রেরি: [#155](https://github.com/40oleg/nona/issues/155) (`JSON.stringify`), [#258](https://github.com/40oleg/nona/issues/258) (RegExp শুরুর স্ক্যান), [#262](https://github.com/40oleg/nona/issues/262) (বড় অ্যারেতে `shift` ও `splice`)।
 
 পূর্ণ তালিকা আছে [GitHub-এ](https://github.com/40oleg/nona/issues)।
 
 ## বিস্তারিত রিপোর্ট
 
 - [0.17–0.20-এর ES2020 অবস্থা](https://github.com/40oleg/nona/blob/main/docs/status.md) (রুশ ভাষায়)
-- [v0.6-এর অবস্থা](https://github.com/40oleg/nona/blob/main/docs/history/v0.6-status.md)
+- [রিলিজ ইতিহাস](/changelog) এবং [ডেভেলপমেন্ট লগ](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (রুশ ভাষায়)
 - [রোডম্যাপ: V8-অনুপ্রাণিত পরিকল্পনা ও লক্ষ্য আর্কিটেকচার (ইংরেজিতে)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [রিলিজ রোডম্যাপ 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (রুশ ভাষায়)

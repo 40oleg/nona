@@ -21,24 +21,54 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## Node.js से अंतर
 
-| क्षेत्र                                | Nona                                                                                                                                                | Node.js                                                                        |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `process.argv`                         | `[execPath, ...arguments]`: `argv[1]` पहला आर्ग्युमेंट है                                                                                           | `[node, script, ...arguments]`                                                 |
-| `process`                              | Common metadata, environment mutation, clocks/ticks, standard I/O, lifecycle/warnings, CPU/resources and native process control (all eight targets) | Signal handlers, IPC, V8 heap reports, full async streams and terminal control |
-| टाइमर id                               | नंबर                                                                                                                                                | `Timeout` ऑब्जेक्ट                                                             |
-| `readFileSync(path)`                   | `Uint8Array` लौटाता है                                                                                                                              | `Buffer` लौटाता है                                                             |
-| एन्कोडिंग                              | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                   | कई                                                                             |
-| Windows पर एरर मैसेज                   | पाथ वैसा ही, जैसा दिया गया                                                                                                                          | एब्सोल्यूट पाथ                                                                 |
-| मॉड्यूल                                | `nona:*`, [बिल्ट-इन मॉड्यूल](/hi/reference/modules) में सूचीबद्ध `node:*` मॉड्यूल, और बिल्ड के समय रिज़ॉल्व होने वाली फ़ाइलें और npm पैकेज          | `node:*` का सब कुछ और npm पैकेज, रनटाइम पर रिज़ॉल्व                            |
-| `require`                              | CommonJS मॉड्यूल, बिल्ड के समय ज्ञात लिटरल स्पेसिफ़ायर के साथ ([npm पैकेज](/reference/npm))                                                         | रनटाइम पर कोई भी स्पेसिफ़ायर                                                   |
-| स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है                                                                                                                            | आउटपुट छोड़ दिया जाता है या एरर आता है                                         |
+| क्षेत्र                                | Nona                                                                                                                                                | Node.js                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `process.argv`                         | `[execPath, ...arguments]`: `argv[1]` पहला आर्ग्युमेंट है                                                                                           | `[node, script, ...arguments]`                                             |
+| `process`                              | सामान्य मेटाडेटा, एनवायरनमेंट में बदलाव, क्लॉक/टिक, स्टैंडर्ड I/O, लाइफ़साइकिल/चेतावनियाँ, CPU/संसाधन और नेटिव प्रोसेस नियंत्रण (सभी आठ टार्गेट पर) | सिग्नल हैंडलर, IPC, V8 हीप रिपोर्ट, पूरी async स्ट्रीम और टर्मिनल नियंत्रण |
+| टाइमर id                               | नंबर                                                                                                                                                | `Timeout` ऑब्जेक्ट                                                         |
+| `readFileSync(path)`                   | `Uint8Array` लौटाता है (एन्कोडिंग के बिना)                                                                                                          | `Buffer` लौटाता है                                                         |
+| एन्कोडिंग                              | केवल `utf8` (fs); UTF-8, UTF-16LE, Latin-1, ASCII, hex, base64/base64url (Buffer)                                                                   | कई                                                                         |
+| Windows पर एरर मैसेज                   | पाथ वैसा ही, जैसा दिया गया                                                                                                                          | एब्सोल्यूट पाथ                                                             |
+| मॉड्यूल                                | `nona:*`, [बिल्ट-इन मॉड्यूल](/hi/reference/modules) में सूचीबद्ध `node:*` मॉड्यूल, और बिल्ड के समय रिज़ॉल्व होने वाली फ़ाइलें और npm पैकेज          | `node:*` का सब कुछ और npm पैकेज, रनटाइम पर रिज़ॉल्व                        |
+| `require`                              | CommonJS मॉड्यूल, बिल्ड के समय ज्ञात लिटरल स्पेसिफ़ायर के साथ ([npm पैकेज](/reference/npm))                                                         | रनटाइम पर कोई भी स्पेसिफ़ायर                                               |
+| स्टैंडर्ड आउटपुट के बिना `console.log` | आउटपुट छोड़ दिया जाता है                                                                                                                            | आउटपुट छोड़ दिया जाता है या एरर आता है                                     |
 
 ## प्रदर्शन
 
-- ऐरे और `Map`/`Set` अपने एलिमेंट लिंक्ड संरचनाओं में रखते हैं; बहुत बड़े कलेक्शन V8 से धीमे हैं ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36))।
+- ऐरे, ऑब्जेक्ट और `Map`/`Set` शेप और इनलाइन कैश के साथ डेंस व हैश्ड स्टोरेज का उपयोग करते हैं, लेकिन कॉल, क्लोज़र और आवंटन अब भी V8 से कई गुना धीमे चलते हैं; धीमे स्थान [प्रदर्शन](/hi/guide/performance) पर सूचीबद्ध हैं।
 - RegExp इंजन JavaScript में लिखी बैकट्रैकिंग VM है। बैकरेफ़रेंस और लुकअराउंड के बिना कोई पैटर्न बहुत ज़्यादा बैकट्रैक करे (`u` फ़्लैग के बिना), तो उसे लीनियर-टाइम इंजन पूरा करता है।
 - Windows पर टाइमर सिस्टम टिक पर जागते हैं (आम तौर पर 15.6 ms)।
 - JIT नहीं है: कोड एक ही बार, पहले से, प्रोफ़ाइल-आधारित ऑप्टिमाइज़ेशन के बिना कंपाइल होता है।
+
+## लिंक किए जाने वाले रनटाइम हिस्से
+
+हर एक्ज़ीक्यूटेबल में रनटाइम होता है, लेकिन उसके बड़े वैकल्पिक हिस्से तभी लिंक होते हैं जब प्रोग्राम उन तक पहुँच सकता हो। कंपाइलर यह कंपाइल किए जाने वाले हर सोर्स के टेक्स्ट से तय करता है — प्रोग्राम, उसके मॉड्यूल और कंपाइल-टाइम `eval`/`Function` सोर्स:
+
+| हिस्सा                                        | आकार        | तब लिंक होता है जब किसी सोर्स में हो                                                                                                            |
+| --------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| RegExp इंजन                                   | लगभग 1 MB   | RegExp लिटरल, या नाम `RegExp`, `match`, `matchAll` या `search` (आइडेंटिफ़ायर, प्रॉपर्टी नाम के रूप में या स्ट्रिंग अथवा टेम्पलेट लिटरल के अंदर) |
+| `\p{…}`/`\P{…}` के लिए Unicode प्रॉपर्टी टेबल | लगभग 2 MB   | RegExp लिटरल या स्ट्रिंग में `\p{` या `\P{`, या ऊपर के नामों में से एक (पैटर्न रनटाइम पर भी बन सकता है)                                         |
+| Unicode नॉर्मलाइज़ेशन टेबल                    | लगभग 0.7 MB | नाम `normalize` या `localeCompare`                                                                                                              |
+
+स्ट्रिंग आर्ग्युमेंट वाले `split`, `replace` और `replaceAll` को RegExp इंजन की ज़रूरत नहीं होती।
+
+JavaScript में लिखी बिल्ट-इन लाइब्रेरी, जो केवल ग्लोबल या मेथड इंस्टॉल करती हैं (कुल लगभग 0.7 MB), इसी तरह लिंक होती हैं, जब किसी सोर्स में उनका कोई नाम हो:
+
+| हिस्सा                                                                                                                                             | नाम                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy`                                                                                                                                            | `Proxy`                                                                                                                                       |
+| `TextEncoder`, `TextDecoder`                                                                                                                       | `TextEncoder`, `TextDecoder` (`process` के साथ भी लिंक होते हैं)                                                                              |
+| `process`                                                                                                                                          | `process`                                                                                                                                     |
+| टाइमर, इवेंट लूप, `queueMicrotask` और `performance`                                                                                                | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                             | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` और स्ट्रिंग के HTML मेथड (`anchor`, `big`, `link`, …) | वही नाम                                                                                                                                       |
+| स्टेबल मर्ज `Array.prototype.sort`                                                                                                                 | `sort`                                                                                                                                        |
+| Proxy ट्रैप के ज़रिए `Object.freeze`, `seal`, `isFrozen`, `isSealed` (साधारण ऑब्जेक्ट के लिए अन्यथा नेटिव संस्करण)                                 | वही नाम                                                                                                                                       |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                     | वही नाम                                                                                                                                       |
+
+जो प्रोग्राम `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` या `Reflect.ownKeys` कॉल करता है, वह इन सभी को लिंक करता है, क्योंकि वह बिल्ट-इन की सूची बना सकता है ([#84](https://github.com/40oleg/nona/issues/84))। एक hello world लगभग 2.2 MB का है; सभी हिस्सों के साथ 7 MB।
+
+प्रोग्राम रनटाइम पर बने नाम के ज़रिए, जैसे `globalThis['Reg' + 'Exp']`, छोड़े गए हिस्से तक फिर भी पहुँच सकता है। RegExp इंजन और Unicode टेबल के लिए ऐसी कॉल एक `Error` फेंकती है जिसके संदेश में छूटे हिस्से का नाम होता है; छोड़ा गया ग्लोबल या मेथड बस मौजूद नहीं होता। सब कुछ लिंक करने के लिए `--full-runtime` (या [`compile()`](/hi/reference/api) का `fullRuntime` विकल्प) के साथ कंपाइल करें ([#62](https://github.com/40oleg/nona/issues/62))।
 
 ## Realm
 
@@ -46,16 +76,10 @@ Test262 के लिए `$262.createRealm` समर्थित है। द�
 
 ## प्लेटफ़ॉर्म
 
-- टार्गेट: केवल Windows 10/11 x64 और Linux x86-64।
-- Windows एक्ज़ीक्यूटेबल केवल `KERNEL32.dll`, `KERNELBASE.dll` और FFI से घोषित DLL इम्पोर्ट करते हैं; Linux एक्ज़ीक्यूटेबल स्टैटिक हैं और सीधे सिस्टम कॉल का उपयोग करते हैं।
-- DLL के लिए FFI केवल Windows पर है; रॉ सिस्टम कॉल केवल Linux पर।
-
-## नेटिव प्लेटफ़ॉर्म
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — नेटिव प्लेटफ़ॉर्म](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- `process` और `node:fs` सभी आठ टार्गेट पर उपलब्ध हैं; HTTP और TCP (`node:http`, `node:net`) Windows और Linux पर।
+- Windows एक्ज़ीक्यूटेबल OS DLL (पैरेंट प्रोसेस मेटाडेटा के लिए NTDLL समेत) और FFI से घोषित इम्पोर्ट का उपयोग करते हैं; POSIX एक्ज़ीक्यूटेबल नेटिव OS सेवाओं का उपयोग करते हैं।
+- DLL के लिए FFI कॉल को Windows चाहिए; रॉ सिस्टम कॉल चुने गए Linux, Darwin या BSD टार्गेट के कर्नेल नंबर का उपयोग करते हैं। विवरण: [नेटिव प्लेटफ़ॉर्म](/reference/native-platforms)।
 
 ## Buffer
 
-Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
+ग्लोबल `Buffer`, `Blob` और `File`, तथा `node:buffer` / `buffer` / `nona:buffer` इम्पोर्ट हर नेटिव टार्गेट पर उपलब्ध हैं। Buffer मानक बाइट एन्कोडिंग, साझा स्लाइस, कॉपी, खोज और संख्यात्मक एक्सेस का समर्थन करता है। Blob/File अपरिवर्तनीय डेटा और मेटाडेटा का समर्थन करते हैं। Blob बाइट/टेक्स्ट स्ट्रीम और ऑब्जेक्ट URL का पंजीकरण/रिज़ॉल्यूशन उपलब्ध हैं; देखें [API अनुबंध और सीमाएँ](/hi/reference/host-apis#buffer-and-binary-data)।

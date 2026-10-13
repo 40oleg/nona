@@ -5,7 +5,7 @@ export const hi: Dictionary = {
     lang: "hi",
     label: "हिन्दी",
     description:
-        "JavaScript (ES2020) को स्वतंत्र Windows और Linux x64 एक्ज़ीक्यूटेबल में बदलने वाला ahead-of-time कंपाइलर",
+        "JavaScript (ES2020) को Windows, Linux, macOS, FreeBSD और OpenBSD के लिए स्वतंत्र नेटिव एक्ज़ीक्यूटेबल में बदलने वाला ahead-of-time कंपाइलर",
     nav: {
         guide: "गाइड",
         reference: "संदर्भ",
@@ -22,7 +22,10 @@ export const hi: Dictionary = {
         compatibility: "संगतता और सीमाएँ",
         performance: "प्रदर्शन",
         status: "स्थिति और रोडमैप",
-        reference: "संदर्भ",
+        languageGroup: "भाषा और संगतता",
+        tools: "टूल और बिल्ड",
+        apis: "होस्ट API",
+        platforms: "नेटिव प्लेटफ़ॉर्म (अंग्रेज़ी)",
         cli: "कमांड लाइन",
         api: "compile() API",
         modules: "बिल्ट-इन मॉड्यूल",

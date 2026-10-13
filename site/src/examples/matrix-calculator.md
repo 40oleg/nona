@@ -7,12 +7,12 @@
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build examples/compat/matrix-calculator.cjs -o build/matrix-calculator.exe
+nona build examples/compat/matrix-calculator.cjs -o build/matrix-calculator.exe
 .\build\matrix-calculator.exe
 ```
 
 ```sh [Linux]
-node dist/cli.js build examples/compat/matrix-calculator.cjs -o build/matrix-calculator --target linux-x64
+nona build examples/compat/matrix-calculator.cjs -o build/matrix-calculator --target linux-x64
 ./build/matrix-calculator
 ```
 

@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 টেস্ট স্যুট আসল এক্সিকিউটেবল কম্পাইল করে চালায়: PE টেস্ট Windows-এ এবং ELF টেস্ট Linux-এ চলে, অনেকগুলো GC স্ট্রেসের অধীনে। CI (`.github/workflows/check.yml`) পূর্ণ স্যুট ও Test262 গ্রুপগুলো Windows-এ Node.js 26 দিয়ে চালায়, আর নেটিভ টেস্টগুলো Linux-এ। পূর্ণ Test262 নিরীক্ষার বর্ণনা আছে [Test262](/bn/reference/test262) পৃষ্ঠায়।
@@ -35,12 +36,16 @@ npm run test262:smoke    # a quick pinned Test262 subset
 - প্রতিটি নতুন KERNEL32 ইমপোর্টের জন্য `src/backend/linux/shims.ts`-এ একটি Linux সিস্টেম-কল শিম দরকার।
 - তৈরি এক্সিকিউটেবল বাহ্যিক নির্ভরতা থেকে মুক্ত থাকে: কোনো libc নেই, কোনো C টুলচেইন নেই, সঙ্গে দেওয়া কোনো DLL নেই।
 
+## প্রোফাইলিং ও বেঞ্চমার্ক
+
+`node bench/run.mjs` [পারফরম্যান্স](/bn/guide/performance) পৃষ্ঠার পেছনের বেঞ্চমার্কগুলো চালায়। `scripts/profile-runtime.mjs` প্রতিটি রানটাইম রুটিন কতগুলো ইনস্ট্রাকশন চালায় তা গোনে (একটি QEMU ট্রেস), আর [কমান্ড লাইনে](/bn/reference/cli#options) `--call-stats` একটি প্রোগ্রামের করা কলের সংখ্যা গোনে।
+
 ## ডকুমেন্টেশন
 
 যখন কোনো ফিচার প্রোগ্রামের কাছে দৃশ্যমান আচরণ বদলায়, তখন হালনাগাদ করুন:
 
 - `README.md` ও `README.ru.md`;
-- `docs/`-এর রেফারেন্স নথি (`host-apis.md`, `process.md`, `fs.md`, `ffi.md`, `windows-executables.md`, `test262.md`) — সাইট এই ফাইলগুলো স্বয়ংক্রিয়ভাবে অন্তর্ভুক্ত করে;
+- `docs/`-এর রেফারেন্স নথি (`host-apis.md`, `process.md`, `fs.md`, `network.md`, `npm.md`, `ffi.md`, `native-platforms.md`, `windows-executables.md`, `test262.md`) — সাইট এই ফাইলগুলো স্বয়ংক্রিয়ভাবে অন্তর্ভুক্ত করে;
 - `site/src/`-এর সেই সাইট পৃষ্ঠাগুলো যা ফিচারটি বর্ণনা করে, যেমন [ভাষা সমর্থন](/bn/guide/language-support) বা [কমান্ড লাইন](/bn/reference/cli) পৃষ্ঠা;
 - `CHANGELOG.md`-এ `## Unreleased`-এর নিচে, issue-এর লিঙ্কসহ।
 

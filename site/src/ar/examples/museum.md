@@ -72,7 +72,7 @@ setInterval(showNext, minutes * 60 * 1000);
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - يشغّل `--subsystem windows` البرنامج دون نافذة طرفية ويضمّن بيانًا افتراضيًا (asInvoker، وWindows 10/11، والوعي بدقة DPI لكل شاشة).

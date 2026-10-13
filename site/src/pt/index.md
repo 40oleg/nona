@@ -4,7 +4,7 @@ layout: home
 hero:
     name: Nona
     text: De JavaScript para executáveis nativos
-    tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em executáveis independentes para Windows e Linux x64. Sem interpretador embutido e sem toolchain de C. Windows/Linux ARM64, macOS Intel, FreeBSD/OpenBSD x64.
+    tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em pequenos executáveis independentes para Windows, Linux, macOS, FreeBSD e OpenBSD. Sem interpretador embutido e sem toolchain de C.
     actions:
         - theme: brand
           text: Começar
@@ -21,23 +21,26 @@ hero:
 
 features:
     - title: Inicia em 2 ms
-      details: Um hello world compilado inicia em 1,8 ms e atinge no máximo 11 MB de memória, em um executável de 3 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
+      details: Um hello world compilado inicia em cerca de 2 ms e atinge no máximo 11 MB de memória, em um arquivo de cerca de 2 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
       link: /pt/guide/performance
+    - title: Oito alvos a partir de qualquer host
+      details: Windows, Linux e macOS em x64 e ARM64, FreeBSD e OpenBSD em x64. Compile de forma cruzada com --target; todo executável é independente.
+      link: /reference/native-platforms
     - title: A linguagem ES2020
-      details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings — com exceções documentadas.
+      details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings, com exceções documentadas.
       link: /pt/guide/language-support
+    - title: Pacotes npm
+      details: Os pacotes de node_modules são resolvidos em tempo de compilação e compilados no executável, junto com os módulos do Node.js de que costumam precisar.
+      link: /reference/npm
+    - title: APIs do host no estilo Node.js
+      details: Timers e um loop de eventos, process, fs, path, Buffer, streams, events, URL e servidores e clientes HTTP e TCP.
+      link: /pt/reference/modules
     - title: Um runtime nativo
-      details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceções de verdade e um RangeError capturável em caso de estouro de pilha, ligados a cada executável.
+      details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceções de verdade, um RangeError capturável em caso de estouro de pilha e um compilador auto-hospedado.
       link: /pt/guide/how-it-works
-    - title: APIs do host
-      details: Um loop de eventos com timers, um process global, node:fs síncrono, TextEncoder e TextDecoder.
-      link: /pt/reference/host-apis
-    - title: FFI e nona:win32
-      details: Chame qualquer função exportada de uma DLL no Windows com declarações em tempo de compilação; bindings prontos para user32, kernel32 e advapi32.
+    - title: FFI e programas gráficos do Windows
+      details: Chame qualquer função exportada de uma DLL com declarações em tempo de compilação e crie programas sem janela de console, com ícone, manifesto e informações de versão.
       link: /pt/reference/ffi
-    - title: Executáveis gráficos do Windows
-      details: Programas sem janela de console, com ícone, manifesto de aplicativo e informações de versão.
-      link: /pt/reference/windows-executables
 ---
 
 ## Exemplo rápido
@@ -47,13 +50,17 @@ features:
 ::: code-group
 
 ```sh [Windows]
-node dist/cli.js build hello.js -o build/hello.exe
+nona build hello.js -o build/hello.exe
 .\build\hello.exe
 ```
 
-```sh [Linux]
-node dist/cli.js build hello.js -o build/hello --target linux-x64
+```sh [Linux e macOS]
+nona build hello.js -o build/hello
 ./build/hello
+```
+
+```sh [Compilação cruzada]
+nona build hello.js -o build/hello --target linux-arm64
 ```
 
 :::
@@ -71,4 +78,8 @@ O executável contém o código de máquina do programa e o runtime do Nona. Ele
 
 ## Status
 
-A versão atual é a **v0.12.0**. A suíte Test262 fixada (recursos do ES2020) passa em 22436/22492 testes de language, 15868/15933 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64; cada falha restante está classificada na [página de status](/pt/guide/status). Inicialização, tamanho do executável e memória são os pontos fortes do Nona; a computação dentro de um programa é de 20 a 100 vezes mais lenta que no V8, e algumas operações (`Map`, `sort`, construção de strings, cadeias longas de Promise) ainda são superlineares; veja [Desempenho](/pt/guide/performance). O Nona é experimental: não é um substituto direto do Node.js e não passou por auditoria de segurança.
+A versão atual é a **v0.12.0**; o Nona é experimental. Ele não é um substituto direto do Node.js e não passou por auditoria de segurança.
+
+- **Conformidade.** Na última auditoria completa (v0.8.0), a suíte Test262 fixada passou em 22436/22492 testes de language, 15868/15933 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64. Cada falha restante está classificada na [página de status](/pt/guide/status).
+- **Velocidade.** Inicialização, tamanho do executável e memória são os pontos fortes do Nona. A computação dentro de um programa não tem JIT: vai de equivalente ao V8 em laços simples a várias ou dezenas de vezes mais lenta em chamadas, alocação e programas reais de longa duração. [Desempenho](/pt/guide/performance) traz as medições e os pontos lentos conhecidos.
+- **Limites.** `eval` e `Function` exigem código-fonte conhecido em tempo de compilação, e só existem as APIs do Node.js que o Nona implementa. Veja [Compatibilidade e limitações](/pt/guide/compatibility).

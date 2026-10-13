@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 A suíte compila e executa executáveis reais: os testes PE rodam no Windows e os ELF no Linux, muitos sob estresse do GC. A CI (`.github/workflows/check.yml`) executa a suíte completa e grupos do Test262 no Windows com Node.js 26, e os testes nativos no Linux. As auditorias completas do Test262 estão descritas na página [Test262](/pt/reference/test262).
@@ -33,14 +34,18 @@ Cada arquivo de testes pertence a exatamente uma suíte em `tests/suites.json`; 
 - Prelúdios não devem adicionar bindings `var` de nível superior; envolva o código em uma IIFE.
 - As funções nativas do runtime seguem a ABI Win64 (shadow space, alinhamento de 16 bytes nas chamadas, registradores preservados pela função chamada). Funções que mantêm valores entre chamadas que podem alocar usam `rootedFn`.
 - Toda nova importação do KERNEL32 precisa de um shim de chamada de sistema do Linux em `src/backend/linux/shims.ts`.
-- Os executáveis gerados continuam livres de dependências externas: sem libc, sem toolchain de C, sem DLLs empacotadas.
+- Os executáveis gerados continuam livres de dependências externas: sem toolchain de C e sem bibliotecas empacotadas. O macOS pode usar a libSystem do sistema operacional para a inicialização nativa e para serviços; os demais alvos continuam sem libc.
+
+## Profiling e benchmarks
+
+`node bench/run.mjs` executa os benchmarks por trás da página de [Desempenho](/pt/guide/performance). `scripts/profile-runtime.mjs` conta as instruções executadas por cada rotina do runtime (um trace do QEMU), e `--call-stats` na [linha de comando](/pt/reference/cli#options) conta as chamadas feitas por um programa.
 
 ## Documentação
 
 Quando um recurso muda um comportamento visível para os programas, atualize:
 
 - `README.md` e `README.ru.md`;
-- o documento de referência em `docs/` (`host-apis.md`, `process.md`, `fs.md`, `ffi.md`, `windows-executables.md`, `test262.md`) — o site inclui esses arquivos automaticamente;
+- o documento de referência em `docs/` (`host-apis.md`, `process.md`, `fs.md`, `network.md`, `npm.md`, `ffi.md`, `native-platforms.md`, `windows-executables.md`, `test262.md`) — o site inclui esses arquivos automaticamente;
 - as páginas do site em `site/src/` que descrevem o recurso, como as de [suporte à linguagem](/pt/guide/language-support) ou [linha de comando](/pt/reference/cli);
 - `CHANGELOG.md` em `## Unreleased`, com um link para a issue.
 

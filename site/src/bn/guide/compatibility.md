@@ -35,10 +35,40 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 ## পারফরম্যান্স
 
-- অ্যারে ও `Map`/`Set` তাদের উপাদান লিঙ্কড কাঠামোয় রাখে; খুব বড় কালেকশন V8-এর চেয়ে ধীর ([#13](https://github.com/40oleg/nona/issues/13), [#36](https://github.com/40oleg/nona/issues/36))।
+- অ্যারে, অবজেক্ট ও `Map`/`Set` shape ও ইনলাইন ক্যাশসহ dense ও hashed স্টোরেজ ব্যবহার করে, কিন্তু কল, ক্লোজার ও মেমরি বরাদ্দ এখনও V8-এর চেয়ে কয়েক গুণ ধীর; ধীর জায়গাগুলো [পারফরম্যান্স](/bn/guide/performance) পৃষ্ঠায় আছে।
 - RegExp ইঞ্জিনটি JavaScript-এ লেখা একটি ব্যাকট্র্যাকিং VM। ব্যাকরেফারেন্স ও লুকঅ্যারাউন্ড ছাড়া কোনো প্যাটার্ন অতিরিক্ত ব্যাকট্র্যাক করলে (`u` ফ্ল্যাগ ছাড়া) একটি লিনিয়ার-টাইম ইঞ্জিন তা শেষ করে।
 - Windows-এ টাইমার সিস্টেম টিকে জাগে (সাধারণত 15.6 ms)।
 - কোনো JIT নেই: কোড একবার, আগেভাগে, profile-guided অপ্টিমাইজেশন ছাড়া কম্পাইল হয়।
+
+## লিঙ্ক করা রানটাইম অংশ
+
+প্রতিটি এক্সিকিউটেবলে রানটাইম থাকে, কিন্তু এর বড় ঐচ্ছিক অংশগুলো কেবল তখনই লিঙ্ক হয় যখন প্রোগ্রাম সেগুলোর কাছে পৌঁছাতে পারে। কম্পাইলার কম্পাইল করা প্রতিটি সোর্সের টেক্সট দেখে সিদ্ধান্ত নেয় — প্রোগ্রাম, তার মডিউল এবং কম্পাইল-টাইম `eval`/`Function` সোর্স:
+
+| অংশ                                             | আকার          | সোর্সে যা থাকলে লিঙ্ক হয়                                                                                                                       |
+| ----------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| RegExp ইঞ্জিন                                   | প্রায় 1 MB   | একটি RegExp লিটারাল, অথবা `RegExp`, `match`, `matchAll` বা `search` নাম (আইডেন্টিফায়ার, প্রপার্টির নাম, বা স্ট্রিং ও টেমপ্লেট লিটারালের ভেতরে) |
+| `\p{…}`/`\P{…}`-এর জন্য Unicode প্রপার্টি টেবিল | প্রায় 2 MB   | একটি RegExp লিটারাল বা স্ট্রিংয়ে `\p{` বা `\P{`, অথবা উপরের নামগুলোর একটি (প্যাটার্ন রানটাইমে তৈরি হতে পারে)                                   |
+| Unicode নরমালাইজেশন টেবিল                       | প্রায় 0.7 MB | `normalize` বা `localeCompare` নাম                                                                                                              |
+
+স্ট্রিং আর্গুমেন্টসহ `split`, `replace` ও `replaceAll`-এর জন্য RegExp ইঞ্জিন লাগে না।
+
+JavaScript-এ লেখা বিল্ট-ইন লাইব্রেরি, যারা কেবল গ্লোবাল বা মেথড ইনস্টল করে (মোট প্রায় 0.7 MB), সোর্সে তাদের কোনো নাম থাকলে একইভাবে লিঙ্ক হয়:
+
+| অংশ                                                                                                                                                 | নাম                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy`                                                                                                                                             | `Proxy`                                                                                                                                       |
+| `TextEncoder`, `TextDecoder`                                                                                                                        | `TextEncoder`, `TextDecoder` (`process`-এর সঙ্গেও লিঙ্ক হয়)                                                                                  |
+| `process`                                                                                                                                           | `process`                                                                                                                                     |
+| টাইমার, ইভেন্ট লুপ, `queueMicrotask` ও `performance`                                                                                                | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                              | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` এবং স্ট্রিংয়ের HTML মেথড (`anchor`, `big`, `link`, …) | একই নামগুলো                                                                                                                                   |
+| স্থিতিশীল merge `Array.prototype.sort`                                                                                                              | `sort`                                                                                                                                        |
+| Proxy ট্র্যাপের মাধ্যমে `Object.freeze`, `seal`, `isFrozen`, `isSealed` (সাধারণ অবজেক্টের জন্য নেটিভ সংস্করণ)                                       | একই নামগুলো                                                                                                                                   |
+| `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                      | একই নামগুলো                                                                                                                                   |
+
+যে প্রোগ্রাম `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` বা `Reflect.ownKeys` কল করে, সে এগুলোর সবই লিঙ্ক করে, কারণ সে বিল্ট-ইনগুলোর তালিকা পেতে পারে ([#84](https://github.com/40oleg/nona/issues/84))। একটি hello world প্রায় 2.2 MB; সব অংশসহ এটি 7 MB।
+
+রানটাইমে গণনা করা নামের মাধ্যমে, যেমন `globalThis['Reg' + 'Exp']`, প্রোগ্রাম তবুও বাদ পড়া অংশে পৌঁছাতে পারে। RegExp ইঞ্জিন ও Unicode টেবিলের ক্ষেত্রে এমন কল একটি `Error` ছোড়ে, যার বার্তায় অনুপস্থিত অংশের নাম থাকে; বাদ পড়া গ্লোবাল বা মেথড কেবল অনুপস্থিত থাকে। সবকিছু লিঙ্ক করতে `--full-runtime` (অথবা [`compile()`](/bn/reference/api)-এর `fullRuntime` অপশন) দিয়ে কম্পাইল করুন ([#62](https://github.com/40oleg/nona/issues/62))।
 
 ## Realm
 
@@ -46,16 +76,10 @@ Test262-এর জন্য `$262.createRealm` সমর্থিত। অন�
 
 ## প্ল্যাটফর্ম
 
-- টার্গেট: কেবল Windows 10/11 x64 ও Linux x86-64।
-- Windows এক্সিকিউটেবল কেবল `KERNEL32.dll`, `KERNELBASE.dll` এবং FFI দিয়ে ঘোষিত DLL ইমপোর্ট করে; Linux এক্সিকিউটেবল স্ট্যাটিক এবং সরাসরি সিস্টেম কল ব্যবহার করে।
-- DLL-এ FFI কেবল Windows-এ; সরাসরি সিস্টেম কল কেবল Linux-এ।
-
-## নেটিভ প্ল্যাটফর্ম
-
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — নেটিভ প্ল্যাটফর্ম](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
+- `process` ও `node:fs` আটটি টার্গেটেই উপলব্ধ; HTTP ও TCP (`node:http`, `node:net`) Windows ও Linux-এ।
+- Windows এক্সিকিউটেবল OS DLL (প্যারেন্ট প্রসেসের মেটাডেটার জন্য NTDLL সহ) এবং ঘোষিত FFI ইমপোর্ট ব্যবহার করে; POSIX এক্সিকিউটেবল নেটিভ OS সেবা ব্যবহার করে।
+- DLL-এ FFI কল Windows-এ দরকার; সরাসরি সিস্টেম কল নির্বাচিত Linux, Darwin বা BSD টার্গেটের কার্নেল নম্বর ব্যবহার করে। বিস্তারিত: [নেটিভ প্ল্যাটফর্ম](/reference/native-platforms)।
 
 ## Buffer
 
-Global `Buffer`, `Blob` and `File`, and `node:buffer` / `buffer` / `nona:buffer` imports are available on every native target. Buffer supports standard byte encodings, shared slices, copying, searching and numeric access. Blob/File support immutable data and metadata. Blob byte/text streams and object URL registration/resolution are available; see [the API contract and limitations](/reference/host-apis#buffer-and-binary-data).
+গ্লোবাল `Buffer`, `Blob` ও `File`, এবং `node:buffer` / `buffer` / `nona:buffer` ইমপোর্ট প্রতিটি নেটিভ টার্গেটে উপলব্ধ। Buffer স্ট্যান্ডার্ড বাইট এনকোডিং, শেয়ার্ড স্লাইস, কপি, অনুসন্ধান ও সংখ্যাভিত্তিক অ্যাক্সেস সমর্থন করে। Blob/File অপরিবর্তনীয় ডেটা ও মেটাডেটা সমর্থন করে। Blob বাইট/টেক্সট স্ট্রিম এবং অবজেক্ট URL নিবন্ধন/রিজলভ করা উপলব্ধ; দেখুন [API চুক্তি ও সীমাবদ্ধতা](/bn/reference/host-apis#buffer-and-binary-data)।

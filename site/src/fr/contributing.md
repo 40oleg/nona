@@ -10,6 +10,7 @@ npm run check            # build and run the unit suite
 npm run compare          # compile examples/compat and compare with Node.js
 npm run compare:linux    # the same for linux-x64
 npm run test262:smoke    # a quick pinned Test262 subset
+npm run format           # Prettier; CI runs npm run format:check
 ```
 
 La suite compile et exécute de vrais exécutables : les tests PE s’exécutent sous Windows et les tests ELF sous Linux, souvent sous stress du ramasse-miettes. La CI (`.github/workflows/check.yml`) exécute la suite complète et des groupes Test262 sous Windows avec Node.js 26, et les tests natifs sous Linux. Les audits Test262 complets sont décrits sur la page [Test262](/fr/reference/test262).
@@ -35,12 +36,16 @@ Chaque fichier de tests appartient à exactement une suite de `tests/suites.json
 - Chaque nouvel import KERNEL32 nécessite une cale d’appel système Linux dans `src/backend/linux/shims.ts`.
 - Les exécutables générés restent sans dépendances externes : pas de libc, pas de chaîne de compilation C, pas de DLL embarquées.
 
+## Profilage et benchmarks
+
+`node bench/run.mjs` lance les benchmarks de la page [Performances](/fr/guide/performance). `scripts/profile-runtime.mjs` compte les instructions exécutées par chaque routine du runtime (une trace QEMU), et `--call-stats` sur la [ligne de commande](/fr/reference/cli#options) compte les appels effectués par un programme.
+
 ## Documentation
 
 Lorsqu’une fonctionnalité modifie un comportement visible par les programmes, mettez à jour :
 
 - `README.md` et `README.ru.md` ;
-- le document de référence dans `docs/` (`host-apis.md`, `process.md`, `fs.md`, `ffi.md`, `windows-executables.md`, `test262.md`) — le site inclut ces fichiers automatiquement ;
+- le document de référence dans `docs/` (`host-apis.md`, `process.md`, `fs.md`, `network.md`, `npm.md`, `ffi.md`, `native-platforms.md`, `windows-executables.md`, `test262.md`) — le site inclut ces fichiers automatiquement ;
 - les pages du site dans `site/src/` qui décrivent la fonctionnalité, comme les pages [Prise en charge du langage](/fr/guide/language-support) ou [Ligne de commande](/fr/reference/cli) ;
 - `CHANGELOG.md` sous `## Unreleased`, avec un lien vers l’issue.
 
@@ -65,4 +70,4 @@ Le site est traduit en plusieurs langues. Les pages anglaises sont la source ; l
 
 Les règles destinées aux agents — réservation des issues avec le label `blocked`, paternité des commits et liste de contrôle des pull requests — se trouvent dans [`AGENTS.md`](https://github.com/40oleg/nona/blob/main/AGENTS.md).
 
-The [combination program corpus](https://github.com/40oleg/nona/tree/main/programs) contains 1,000 individually authored standalone applications. Run `npm run check:programs` to compare each with Node.js in normal and GC-stress execution. The dedicated corpus workflow runs all cases on Linux and Windows for every push and pull request; these checks also belong to `npm run check`.
+Le [corpus de programmes combinés](https://github.com/40oleg/nona/tree/main/programs) contient 1 000 applications autonomes écrites individuellement. Lancez `npm run check:programs` pour comparer chacune avec Node.js en exécution normale et sous stress du ramasse-miettes. Le workflow dédié au corpus exécute tous les cas sous Linux et Windows à chaque push et pull request ; ces vérifications font aussi partie de `npm run check`.

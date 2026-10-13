@@ -72,7 +72,7 @@ setInterval(showNext, minutes * 60 * 1000);
 <<< ../../../samples/museum.version.json
 
 ```sh
-node dist/cli.js build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
+nona build museum.mjs -o build/museum.exe --subsystem windows --icon museum.ico --version-info museum.version.json
 ```
 
 - `--subsystem windows` प्रोग्राम को कंसोल विंडो के बिना शुरू करता है और एक डिफ़ॉल्ट मैनिफ़ेस्ट जोड़ता है (asInvoker, Windows 10/11, per-monitor DPI awareness)।

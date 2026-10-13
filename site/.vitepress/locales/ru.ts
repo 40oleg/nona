@@ -5,7 +5,7 @@ export const ru: Dictionary = {
     lang: "ru",
     label: "Русский",
     description:
-        "Компилятор ahead-of-time из JavaScript (ES2020) в самостоятельные исполняемые файлы Windows и Linux x64",
+        "Компилятор ahead-of-time из JavaScript (ES2020) в самостоятельные нативные исполняемые файлы для Windows, Linux, macOS, FreeBSD и OpenBSD",
     nav: {
         guide: "Руководство",
         reference: "Справочник",
@@ -22,7 +22,10 @@ export const ru: Dictionary = {
         compatibility: "Совместимость и ограничения",
         performance: "Производительность",
         status: "Статус и планы",
-        reference: "Справочник",
+        languageGroup: "Язык и совместимость",
+        tools: "Инструменты и сборка",
+        apis: "API хоста",
+        platforms: "Нативные платформы (англ.)",
         cli: "Командная строка",
         api: "API compile()",
         modules: "Встроенные модули",

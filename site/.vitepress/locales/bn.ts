@@ -5,7 +5,7 @@ export const bn: Dictionary = {
     lang: "bn",
     label: "বাংলা",
     description:
-        "JavaScript (ES2020) থেকে স্বতন্ত্র Windows ও Linux x64 এক্সিকিউটেবল তৈরির ahead-of-time কম্পাইলার",
+        "JavaScript (ES2020) থেকে Windows, Linux, macOS, FreeBSD ও OpenBSD-এর জন্য স্বতন্ত্র নেটিভ এক্সিকিউটেবল তৈরির ahead-of-time কম্পাইলার",
     nav: {
         guide: "গাইড",
         reference: "রেফারেন্স",
@@ -22,7 +22,10 @@ export const bn: Dictionary = {
         compatibility: "সামঞ্জস্য ও সীমাবদ্ধতা",
         performance: "পারফরম্যান্স",
         status: "অবস্থা ও রোডম্যাপ",
-        reference: "রেফারেন্স",
+        languageGroup: "ভাষা ও সামঞ্জস্য",
+        tools: "টুল ও বিল্ড",
+        apis: "হোস্ট API",
+        platforms: "নেটিভ প্ল্যাটফর্ম (ইংরেজি)",
         cli: "কমান্ড লাইন",
         api: "compile() API",
         modules: "বিল্ট-ইন মডিউল",

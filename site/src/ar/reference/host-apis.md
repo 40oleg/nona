@@ -35,33 +35,6 @@ Path does not initialize the full process object. [Full reference](https://githu
 - يتحقق `tests/stability.test.ts` من أن زيادة عدد مرات انطلاق المؤقتات عشرة أضعاف (مع مهام Promise ومهملات في كل نبضة) لا ترفع ذروة الذاكرة، وأن آلاف الروتينات المشتركة المتروكة تُحرَّر، وأن برنامجًا ينتظر مؤقتًا مدته ثانيتان لا يكاد يستهلك المعالج.
 - قيود معروفة: تخزين الخصائص والعناصر وMap خطي (#36)، لذا تتباطأ البرامج التي فيها مئات المؤقتات الحية أو كائنات كبيرة؛ وعلى Linux كل كتلة من الكومة تعيين ذاكرة مستقل (#37).
 
-## Native target availability
-
-Windows/Linux/macOS x64 and ARM64 and FreeBSD/OpenBSD x64 targets are available. Apple Silicon uses the system dyld/libSystem startup path. See the [native platform matrix](/reference/native-platforms) for target names, host API limits and native verification. DLL FFI requires Windows; raw syscall FFI uses Linux, Darwin or BSD kernel numbers.
-
-## Events
-
-`node:events`, `events` and `nona:events` share one built-in module. The default
-export is `EventEmitter`; listener ordering, once/prepend listeners, removal,
-introspection, meta events, error monitoring and rejection capture are supported.
-Promise `once` and async-iterator `on` include cleanup, close events, externally
-supplied abort signals and emitter watermarks. Listener/max-listener helpers and
-disposable `addAbortListener` subscriptions under `Symbol.dispose` are also available.
-`Symbol.dispose` and `Symbol.asyncDispose` have the distinct symbol identities used by Node.js 26.
-
-See the [English events reference](/reference/host-apis#events) for the
-complete supported API and limitations.
-
-Event globals (`Event`, `CustomEvent`, `EventTarget`, `AbortController`,
-`AbortSignal`) and `NodeEventTarget` are supported, including cancellation,
-protected abort subscriptions and target introspection. `EventEmitterAsyncResource`
-and `node:async_hooks` / `nona:async_hooks` provide explicit resources, hooks and
-local context storage. Promise, await, timer and microtask callbacks preserve
-captured context. Saved bind, snapshot and resource stores survive later scope changes; registration reuses immutable contexts without copying a Map per reaction. Native resource hooks and automatic GC destruction are outside
-this API; see the English reference for the precise boundaries.
-
-AbortSignal.timeout uses an unreferenced cancellation timer. The signal and its listeners do not keep a process alive; it can fire while ordinary timers keep the event loop active.
-
 ## URL {#url}
 
 يتبع الكائنان العامان `URL` و`URLSearchParams` (وتصدّرهما `node:url` أيضًا) [معيار URL](https://url.spec.whatwg.org/): المخططات الخاصة (`http` و`https` و`ws` و`wss` و`ftp` و`file`) مع منافذها الافتراضية، والشرطات المائلة العكسية ومقاطع النقاط، والمراجع النسبية إلى عنوان أساس، والمخططات الأخرى ذات الجزء authority أو المسار المعتم (`mailto:` و`data:` و`blob:`)، ومجموعات الترميز بالنسبة المئوية القياسية، وأرقام IPv4 بأي صيغة، وعناوين IPv6. يمكن قراءة كل مكوّن وتعيينه، ويبقى `searchParams` متزامنًا مع `search`. ويتوفر `URL.canParse` و`URL.parse`. تُحوَّل أسماء المضيفين إلى أحرف صغيرة لكنها لا تُحوَّل عبر IDNA: فعنوان URL ذو المضيف غير ASCII يرمي `ERR_INVALID_URL`. ولا يُربط المحلّل بالبرنامج إلا إذا ذكرت مصادره `URL` أو `URLSearchParams`. تُثبَّت توابعه وموصّلاته على `URL.prototype` و`URLSearchParams.prototype` عند إنشاء أول كائن URL أو معاملات بحث (أو عند استدعاء `URL.canParse`)، مما يُبقي كومة البرامج التي لا تحلّل أي URL صغيرة.

@@ -34,7 +34,7 @@ JavaScript source (script or module graph)
 
 ## 代码生成
 
-[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) 包含 x86-64 指令编码器、汇编器和代码生成器，后者把 IR 操作翻译成对运行时的调用和内联快速路径。在两个目标平台上，生成的代码和运行时都遵循 Win64 调用约定。
+[`src/backend/x64`](https://github.com/40oleg/nona/tree/main/src/backend/x64) 包含 x86-64 指令编码器、汇编器和代码生成器，后者把 IR 操作翻译成对运行时的调用和内联快速路径；[`src/backend/arm64`](https://github.com/40oleg/nona/tree/main/src/backend/arm64) 为 AArch64 做同样的事。生成的代码使用共享的逻辑调用约定；各操作系统的桥接层负责把它转换为各自的原生 ABI。
 
 ## 运行时
 
@@ -58,7 +58,14 @@ JavaScript source (script or module graph)
 ## 链接
 
 - **PE32+**（[`src/backend/pe`](https://github.com/40oleg/nona/tree/main/src/backend/pe)）：节、导入表（运行时所需的 KERNEL32，以及通过 FFI 声明的 DLL）、基址重定位、展开数据和资源（图标、清单、版本信息）。
-- **ELF64**（[`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf)、[`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)）：运行时使用的每个 KERNEL32 函数都有一个调用约定相同的 Linux 系统调用垫片（shim），因此运行时代码在两个目标平台之间共享。
+- **ELF64**（[`src/backend/elf`](https://github.com/40oleg/nona/tree/main/src/backend/elf)、[`src/backend/linux`](https://github.com/40oleg/nona/tree/main/src/backend/linux)、[`src/backend/bsd`](https://github.com/40oleg/nona/tree/main/src/backend/bsd)）：运行时使用的每个 KERNEL32 函数都有一个调用约定相同的系统调用垫片（shim），因此运行时代码在各目标平台之间共享。Linux 和 BSD 不经过 libc，直接进行内核调用。
+- **Mach-O64**（[`src/backend/macho`](https://github.com/40oleg/nona/tree/main/src/backend/macho)、[`src/backend/darwin`](https://github.com/40oleg/nona/tree/main/src/backend/darwin)）：Intel macOS 可执行文件同样直接进行内核调用；Apple Silicon 可执行文件通过 dyld 加载系统的 `libSystem.B.dylib`，用于启动和操作系统服务。
+
+同一个运行时服务于全部八个目标；[原生平台](/reference/native-platforms)列出了各平台上验证过的内容。
+
+## 自举（Self-hosting）
+
+编译器可以编译它自己。发布的 `nona` 是由 Nona 构建的原生可执行文件，内部没有 Node.js；在 Windows 和 Linux x64 上，它会重新构建自己，得到字节完全相同的第二阶段产物。[引导指南](https://github.com/40oleg/nona/blob/main/docs/self-hosting.md)描述了这一过程及其检查。
 
 ## FFI
 
@@ -70,20 +77,16 @@ JavaScript source (script or module graph)
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function
 src/ir             intermediate representation, lowering and liveness
 src/backend/x64    x86-64 encoding and code generation
+src/backend/arm64  AArch64 encoding and code generation
 src/backend/pe     PE32+ linker: imports, relocations, unwind data, resources
-src/backend/elf    ELF64 linker; src/backend/linux: system-call shims
+src/backend/elf    ELF64 linker; src/backend/linux, bsd: system-call shims
+src/backend/macho  Mach-O64 linker; src/backend/darwin: macOS services
 src/runtime        native runtime and JavaScript preludes emitted into every executable
 tests              unit, integration, native-execution and compatibility tests
 examples           sample programs
 site               this documentation site
 ```
 
-## 原生平台
+## 形式化验证原型
 
-Windows/Linux: x64, ARM64. macOS: Intel x64. FreeBSD/OpenBSD: x64.
-
-[OS/CPU, API, CI — 原生平台](/reference/native-platforms). `darwin-arm64`: system dyld/libSystem startup.
-
-## Formal verification prototype
-
-[Lean proofs](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md) cover selected slot move rules and a modeled straight-line dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. The production compiler, CFG analysis and native runtime are outside the current formal guarantee.
+[Lean 证明](https://github.com/40oleg/nona/blob/main/docs/formal-verification.md)涵盖了部分槽位移动规则，以及一个经过建模的直线型死移动优化器。安装 Lean/elan 后运行 `npm run check:proofs`。生产环境的编译器、CFG 分析和原生运行时不在当前的形式化保证范围内。

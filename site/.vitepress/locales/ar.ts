@@ -6,7 +6,7 @@ export const ar: Dictionary = {
     label: "العربية",
     dir: "rtl",
     description:
-        "مترجم مسبق (ahead-of-time) يحوّل JavaScript (ES2020) إلى ملفات تنفيذية مستقلة لنظامي Windows وLinux x64",
+        "مترجم مسبق (ahead-of-time) يحوّل JavaScript (ES2020) إلى ملفات تنفيذية أصلية مستقلة لأنظمة Windows وLinux وmacOS وFreeBSD وOpenBSD",
     nav: {
         guide: "الدليل",
         reference: "المرجع",
@@ -23,7 +23,10 @@ export const ar: Dictionary = {
         compatibility: "التوافق والقيود",
         performance: "الأداء",
         status: "الحالة وخارطة الطريق",
-        reference: "المرجع",
+        languageGroup: "اللغة والتوافق",
+        tools: "الأدوات والبناء",
+        apis: "واجهات المضيف",
+        platforms: "المنصات الأصلية (بالإنجليزية)",
         cli: "سطر الأوامر",
         api: "واجهة compile()",
         modules: "الوحدات المدمجة",
