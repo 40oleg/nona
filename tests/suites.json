@@ -21,6 +21,7 @@
                 "stack-overflow",
                 "module-boundaries",
                 "lib-sources",
+                "intrinsics",
                 "source-budget"
             ]
         },
