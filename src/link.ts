@@ -52,6 +52,29 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
+    regexpProtocol: ["replaceAll"],
+    // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
+    // modules and preludes that hand out binary data name these types in their own
+    // sources, and the preludes that do (see preludeDependencies) depend on it.
+    binaryData: [
+        "ArrayBuffer",
+        "SharedArrayBuffer",
+        "DataView",
+        "Atomics",
+        "Int8Array",
+        "Uint8Array",
+        "Uint8ClampedArray",
+        "Int16Array",
+        "Uint16Array",
+        "Int32Array",
+        "Uint32Array",
+        "Float32Array",
+        "Float64Array",
+        "BigInt64Array",
+        "BigUint64Array",
+        "TypedArray",
+    ],
     encoding: ["TextEncoder", "TextDecoder"],
     url: ["URL", "URLSearchParams"],
     buffer: [
@@ -131,9 +154,10 @@ export const optionalPreludes = Object.keys(
 export const preludeDependencies: Partial<
     Record<OptionalPrelude, readonly OptionalPrelude[]>
 > = {
-    process: ["encoding", "proxy", "timers", "eventEmitter"],
-    buffer: ["encoding", "url"],
+    process: ["encoding", "proxy", "timers", "eventEmitter", "binaryData"],
+    buffer: ["encoding", "url", "binaryData"],
     url: ["encoding"],
+    encoding: ["binaryData"],
     events: ["timers"],
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],

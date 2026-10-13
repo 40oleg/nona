@@ -1,6 +1,7 @@
 import { requireHostTarget } from "../src/target.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { runOnHost } from "./helpers/host.js";
 import {
     compile,
     hostTarget,
@@ -131,6 +132,10 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('s.anchor("x")', "d.toGMTString()"), "annexB");
     assert.equal(linked("performance.now()"), "timers");
     assert.equal(linked("Object.keys(globalThis)"), "timers");
+    assert.equal(linked("new Uint8Array(4)"), "binaryData");
+    assert.equal(linked("new DataView(buffer)"), "binaryData");
+    assert.equal(linked("Atomics.add(a, 0, 1)"), "binaryData");
+    assert.equal(linked('"abc".replaceAll("b", "c")'), "regexpProtocol");
     assert.equal(linked("a.sort()"), "arraySort");
     assert.equal(linked("Object.freeze(o)"), "objectIntegrity");
     assert.equal(linked('o.__lookupGetter__("x")'), "objectAnnexB");
@@ -170,4 +175,36 @@ test("a program links only the preludes it names", () => {
             `${target}: ${trimmed} vs ${all} bytes`,
         );
     }
+});
+
+test("binary data methods and the RegExp protocol are linked only when reachable", () => {
+    for (const target of ["win32-x64", "linux-x64"] as const) {
+        const hello = image('console.log("hi");', {}, target).length;
+        const binary = image(
+            "console.log(new Uint8Array([2, 1]).sort().join());",
+            {},
+            target,
+        ).length;
+        const protocol = image(
+            'console.log("a-b".replaceAll("-", "+"));',
+            {},
+            target,
+        ).length;
+        assert.ok(hello < 1_300_000, `${target}: ${hello} bytes`);
+        assert.ok(binary - hello > 150_000, `${target}: ${binary} vs ${hello}`);
+        assert.ok(
+            protocol - hello > 80_000,
+            `${target}: ${protocol} vs ${hello}`,
+        );
+    }
+});
+
+test("built-ins implemented in preludes print as native code", () => {
+    const run = runOnHost(
+        'console.log([String.prototype.match, Promise.prototype.then, Reflect.apply].map(String).join("|"));',
+    );
+    assert.equal(run.status, 0, run.stderr);
+    const parts = run.stdout.trim().split("|");
+    assert.equal(parts.length, 3);
+    for (const part of parts) assert.match(part, /\[native code\]/);
 });

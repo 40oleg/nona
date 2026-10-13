@@ -3,6 +3,8 @@
 import { regexpUnicodeData } from "./data/regexp-unicode-data.js";
 import { fullRuntimeHint } from "../link.js";
 import {
+    runtimeBinaryData,
+    runtimeRegexpProtocol,
     runtimeRegexpVm,
     runtimeRegexpVmPrelude,
 } from "../lib/sources.generated.js";
@@ -52,6 +54,19 @@ export const regexpVmSource = vmCore(fullRegExpLink);
  */
 export function regexpVmPrelude(link: RegExpLink): string {
     return regexpVmPreludeTemplate.replace("@@CORE@@", () => vmCore(link));
+}
+
+/**
+ * The RegExp prelude with the optional parts a hand-assembled test context
+ * needs (the compiler links them separately, see lowerRuntimePrelude): the
+ * protocol methods with the engine, and the binary data methods.
+ */
+export function fullRegexpVmPrelude(link: RegExpLink): string {
+    return [
+        regexpVmPrelude(link),
+        link.regexp ? runtimeRegexpProtocol : "",
+        runtimeBinaryData,
+    ].join("\n");
 }
 
 const regexpVmPreludeTemplate =
