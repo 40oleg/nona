@@ -217,6 +217,7 @@
                 "ir-move-rules",
                 "ir-number-facts",
                 "ir-optimizations",
+                "switch-table",
                 "language-control",
                 "language-lexical",
                 "language-operators",
