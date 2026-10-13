@@ -102,6 +102,7 @@
                 "string-replace-all",
                 "string-match",
                 "regexp-vm",
+                "regexp-scan",
                 "regexp-construction",
                 "regexp-split",
                 "regexp-replace",
