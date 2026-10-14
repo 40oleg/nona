@@ -306,6 +306,16 @@
           else error();
           n=n*16+k
         }
+        // Unicode mode: \uLEAD\uTRAIL is one code point (RegExpUnicodeEscapeSequence).
+        if(c==='u'&&n>=0xd800&&n<=0xdbff&&indexOf(flags,'u')>=0&&pattern[at]==='\\'&&pattern[at+1]==='u'){
+          var trail=0,ok=true;
+          for(var digit=0;digit<4;digit++){
+            var d=charCodeAt(pattern,at+2+digit);
+            if(d>=48&&d<=57)d-=48;else if(d>=65&&d<=70)d-=55;else if(d>=97&&d<=102)d-=87;else{ok=false;break}
+            trail=trail*16+d
+          }
+          if(ok&&trail>=0xdc00&&trail<=0xdfff){at+=6;return {kind:'char',value:String.fromCharCode(n,trail)}}
+        }
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
