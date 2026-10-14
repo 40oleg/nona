@@ -47,6 +47,7 @@ import {
     fullRuntimeLink,
     linkReport,
     requestLink,
+    requiredSyntaxParts,
     runtimePartNames,
     type LinkedPart,
 } from "./link.js";
@@ -404,6 +405,12 @@ function compileOnTarget(
                     message: `Unknown runtime part ${unknownParts.map((part) => JSON.stringify(part)).join(", ")} (--link takes ${runtimePartNames.join(", ")})`,
                 },
             ]);
+        // Syntax helpers (with, eval, class elements, modules) are selected by
+        // the calls of the lowered program and its agents (#278).
+        for (const part of requiredSyntaxParts([ir, ...agentIRs])) {
+            usage.preludes[part] = true;
+            reasons[part] ??= "a helper the compiled program calls";
+        }
         const link = options.fullRuntime
             ? fullRuntimeLink
             : requestLink(usage, options.link ?? []);

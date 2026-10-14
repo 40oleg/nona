@@ -1,3 +1,4 @@
+import type { ModuleIR } from "./ir/model.js";
 /**
  * Optional parts of the runtime. The compiler links a part only when the
  * program's sources can reach it (see collectSourceUsage in the lexer);
@@ -145,6 +146,11 @@ export const preludeTriggers = {
     ],
     // Native helpers of node:net and node:http (no prelude code, only host functions).
     network: ["__nonaNetParse"],
+    // Helpers that syntax needs (#278): no names select them; syntaxHelperParts does.
+    withStatement: [],
+    evalCode: [],
+    classElements: [],
+    moduleRecords: [],
 } as const satisfies Record<string, readonly string[]>;
 export type OptionalPrelude = keyof typeof preludeTriggers;
 export const optionalPreludes = Object.keys(
@@ -294,4 +300,52 @@ export function linkReport(
     return runtimePartNames
         .filter((part) => present.has(part))
         .map((part) => ({ part, reason: why.get(part)! }));
+
+/**
+ * The prelude part that defines each rt.prelude helper only some syntax
+ * needs (#278). The compiler links a part when the lowered program, an
+ * agent or a linked prelude calls one of its helpers (requiredSyntaxParts):
+ * this is exact, unlike the names of preludeTriggers.
+ */
+export const syntaxHelperParts: Readonly<Record<string, OptionalPrelude>> = {
+    withObject: "withStatement",
+    withHasBinding: "withStatement",
+    withGetBindingValue: "withStatement",
+    withSetMutableBinding: "withStatement",
+    isEval: "evalCode",
+    evalDeclareVars: "evalCode",
+    evalGlobalDeclarations: "evalCode",
+    callWithGlobalThis: "evalCode",
+    privateName: "classElements",
+    privateMethod: "classElements",
+    privateBrand: "classElements",
+    privateDefine: "classElements",
+    privateGet: "classElements",
+    privateSet: "classElements",
+    privateIn: "classElements",
+    initializeFields: "classElements",
+    staticMethodKey: "classElements",
+    createImportMeta: "moduleRecords",
+    createNamespace: "moduleRecords",
+    registerModule: "moduleRecords",
+    registerScript: "moduleRecords",
+    dynamicImport: "moduleRecords",
+};
+/** The syntax helper parts that calls in `modules` need. */
+export function requiredSyntaxParts(
+    modules: readonly ModuleIR[],
+): Set<OptionalPrelude> {
+    const parts = new Set<OptionalPrelude>();
+    for (const module of modules)
+        for (const fn of module.functions)
+            for (const block of fn.blocks)
+                for (const op of block.operations)
+                    if (
+                        op.kind === "call" &&
+                        op.target.startsWith("rt.prelude.")
+                    ) {
+                        const part = syntaxHelperParts[op.target.slice(11)];
+                        if (part) parts.add(part);
+                    }
+    return parts;
 }

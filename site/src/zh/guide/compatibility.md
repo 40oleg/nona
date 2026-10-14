@@ -65,8 +65,12 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | 稳定的归并排序 `Array.prototype.sort`                                                                                                                | `sort`                                                                                                                                        |
 | 通过 Proxy 陷阱实现的 `Object.freeze`、`seal`、`isFrozen`、`isSealed`（对普通对象则使用原生版本）                                                    | 同名                                                                                                                                          |
 | `__defineGetter__`、`__defineSetter__`、`__lookupGetter__`、`__lookupSetter__`                                                                       | 同名                                                                                                                                          |
+| `ArrayBuffer`、`SharedArrayBuffer`、`DataView` 和类型化数组的二进制数据方法（`slice`、`subarray`、`sort` 等）                                        | 它们的构造器名称、`Atomics`、`TypedArray`（也随 `process`、`Buffer` 和 `TextEncoder` 链接）                                                   |
+| RegExp 与 String 协议方法（`Symbol.replace`、`String.prototype.match`、`matchAll`、`search`、`replaceAll` 等）                                       | 随 RegExp 引擎链接，或出现 `replaceAll` 时                                                                                                    |
 
-调用 `Object.getOwnPropertyNames`、`Object.getOwnPropertyDescriptors` 或 `Reflect.ownKeys` 的程序会链接所有这些部件，因为它可能列出内置对象（[#84](https://github.com/40oleg/nona/issues/84)）。hello world 约为 2.2 MB；链接全部部件时为 7 MB。
+调用 `Object.getOwnPropertyNames`、`Object.getOwnPropertyDescriptors` 或 `Reflect.ownKeys` 的程序会链接所有这些部件，因为它可能列出内置对象（[#84](https://github.com/40oleg/nona/issues/84)）。hello world 约为 1.1 MB；链接全部部件时为 7 MB。
+
+只有部分语法需要的辅助函数在编译后的程序调用它们时链接，而不是按名称：`with` 语句、字面量 `eval`、类字段与私有名称，以及带 `import()` 和 `import.meta` 的 ES 模块（[#278](https://github.com/40oleg/nona/issues/278)）。
 
 程序仍可能通过运行时计算出的名称（例如 `globalThis['Reg' + 'Exp']`）访问被省略的部件。对于 RegExp 引擎和 Unicode 表，这样的调用会抛出 `Error`，其消息指出缺少的部件；被省略的全局对象或方法则直接不存在。使用 `--full-runtime`（或 [`compile()`](/reference/api) 的 `fullRuntime` 选项）编译即可链接所有部件（[#62](https://github.com/40oleg/nona/issues/62)）。 使用 `--link 部件,...` 可单独添加部件，`--print-link` 会列出已链接的内容以及选中每个部件的名称（[#182](https://github.com/40oleg/nona/issues/182)）。
 
