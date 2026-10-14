@@ -32,6 +32,7 @@ import { addCoverage, type CoverageOptions } from "./coverage.js";
 import { renderListing } from "./listing.js";
 import {
     runtimeRegExpLink,
+    withSyntaxParts,
     fullRuntimeLink,
     type RuntimeLink,
 } from "../../link.js";
@@ -164,7 +165,9 @@ function generateImage(
 ): NativeProgram {
     const userGlobalCount = module.globalCount;
     const rejectionPolicy = options.unhandledRejections ?? "throw";
-    const link = options.link ?? fullRuntimeLink;
+    // Syntax helper parts follow the calls of the program's IR (#278), also
+    // for callers that pass their own source usage as the link.
+    const link = withSyntaxParts(options.link ?? fullRuntimeLink, module);
     const linked = linkedPreludes(link);
     const regexpLink = runtimeRegExpLink(link, linked);
     const hasPrelude = !!module.runtimePrelude;

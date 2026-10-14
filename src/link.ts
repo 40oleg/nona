@@ -349,3 +349,16 @@ export function requiredSyntaxParts(
                     }
     return parts;
 }
+/** `link` with the syntax helper parts that the calls of `module` need. */
+export function withSyntaxParts(
+    link: RuntimeLink,
+    module: ModuleIR,
+): RuntimeLink {
+    const parts = [...requiredSyntaxParts([module])].filter(
+        (part) => !link.preludes[part],
+    );
+    if (!parts.length) return link;
+    const preludes = { ...link.preludes };
+    for (const part of parts) preludes[part] = true;
+    return { ...link, preludes };
+}
