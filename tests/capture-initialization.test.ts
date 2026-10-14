@@ -67,3 +67,18 @@ console.log(results.join("\\n"));`;
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);
 });
+
+test("a function above the pinned locals threshold keeps the checks of its closures", () => {
+    // Analyzing it would cost blocks × locals (#287).
+    const locals = Array.from(
+        { length: 300 },
+        (_, i) => `var v${i} = ${i};`,
+    ).join("");
+    assert.equal(
+        checks(
+            `function t() { ${locals} let x = v1; return function late() { return x + v2; }; }\nconsole.log(t()());`,
+            "late",
+        ),
+        1,
+    );
+});

@@ -1,5 +1,10 @@
 import { terminatorTargets, type FunctionIR, type Operation } from "./model.js";
-import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
+import {
+    analyzeLiveness,
+    isLive,
+    liveFloor,
+    pinnedLocalThreshold,
+} from "./liveness.js";
 
 /**
  * Removes checkInitialized operations whose slot is definitely initialized
@@ -62,6 +67,15 @@ function intersect(a: State, b: ReadonlySet<number>): Set<number> {
     if (a === null) return new Set(b);
     for (const slot of a) if (!b.has(slot)) a.delete(slot);
     return a;
+}
+
+/** A set that remembers every value deleted from it. */
+class TrackedSet extends Set<number> {
+    readonly removed = new Set<number>();
+    override delete(value: number): boolean {
+        this.removed.add(value);
+        return super.delete(value);
+    }
 }
 
 // Global bindings are tracked as -1-index: once initialized, a binding never
@@ -172,11 +186,48 @@ export function removeRedundantInitializationChecks(
  * that creates it. Captures pass from a closure to the closures it creates
  * (through loadCapture), so the facts are iterated to a fixed point; they
  * only grow, starting from none.
+ *
+ * Only creators of closures that check an initialization (themselves or
+ * through closures they create) are analyzed, and none above the pinned
+ * locals threshold: there every local is live in every block, so the
+ * analysis costs blocks × locals, and a function with thousands of `var`s
+ * and closures took minutes and gigabytes to compile (#287). Their closures
+ * keep their checks.
  */
 export function initializedCaptures(
     functions: readonly FunctionIR[],
 ): Map<string, Set<number>> {
     const known = new Map<string, Set<number>>();
+    const created = new Map<string, string[]>(),
+        needed = new Set<string>();
+    for (const fn of functions) {
+        const targets: string[] = [];
+        for (const block of fn.blocks)
+            for (const op of block.operations) {
+                if (op.kind === "newFunction" && op.captures?.length)
+                    targets.push(op.target);
+                if (op.kind === "checkInitialized") needed.add(fn.id);
+            }
+        created.set(fn.id, targets);
+    }
+    // A creator is needed when a closure it creates is.
+    for (let grew = true; grew;) {
+        grew = false;
+        for (const [id, targets] of created)
+            if (!needed.has(id) && targets.some((t) => needed.has(t))) {
+                needed.add(id);
+                grew = true;
+            }
+    }
+    const analyzed = functions.filter(
+        (fn) =>
+            (created.get(fn.id)!.some((t) => needed.has(t)) ||
+                fn.blocks.some((b) =>
+                    b.operations.some((op) => op.kind === "realmFunction"),
+                )) &&
+            fn.localCount <= pinnedLocalThreshold,
+    );
+    const analyzedIds = new Set(analyzed.map((fn) => fn.id));
     for (let round = 0; round < 32; round++) {
         const sites = new Map<string, Set<number> | null>();
         const record = (target: string, facts: Set<number> | null) => {
@@ -192,15 +243,17 @@ export function initializedCaptures(
             for (const index of before)
                 if (!facts.has(index)) before.delete(index);
         };
-        for (const fn of functions) {
-            const creates = fn.blocks.some((block) =>
-                block.operations.some(
-                    (op) =>
-                        (op.kind === "newFunction" && op.captures?.length) ||
-                        op.kind === "realmFunction",
-                ),
-            );
-            if (!creates) continue;
+        // A closure that a skipped function also creates keeps its checks.
+        for (const fn of functions)
+            if (!analyzedIds.has(fn.id))
+                for (const block of fn.blocks)
+                    for (const op of block.operations)
+                        if (
+                            op.kind === "newFunction" ||
+                            op.kind === "realmFunction"
+                        )
+                            record(op.target, null);
+        for (const fn of analyzed) {
             const captures = known.get(fn.id) ?? new Set<number>(),
                 entry = analyze(fn, captures);
             fn.blocks.forEach((block, i) => {
@@ -271,12 +324,16 @@ function analyze(
         fn.blocks.forEach((block, i) => {
             const start = entry[i];
             if (start === null) return;
-            const state = new Set(start);
-            let everywhere = new Set(start);
-            for (const operation of block.operations) {
+            // What holds at every point of the block (for its exception
+            // handler) is the entry state minus every slot an operation
+            // removes; intersecting after each operation made a block of n
+            // operations over n live slots quadratic (#287).
+            const state = new TrackedSet(start);
+            for (const operation of block.operations)
                 step(operation, state, readGlobals, captures);
-                everywhere = intersect(everywhere, state);
-            }
+            const everywhere = new Set<number>();
+            for (const slot of start!)
+                if (!state.removed.has(slot)) everywhere.add(slot);
             const flow = (target: number, out: ReadonlySet<number>) => {
                 const j = index.get(target);
                 if (j === undefined) return;
