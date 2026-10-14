@@ -15,6 +15,7 @@ export type DiagnosticCode =
     | "E_FFI_TARGET"
     | "E_RESOURCE"
     | "E_TARGET"
+    | "E_OPTION"
     | "E_INTERNAL";
 
 /** The compiler phases named by E_INTERNAL diagnostics. */

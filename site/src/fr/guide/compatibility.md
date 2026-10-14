@@ -68,7 +68,7 @@ Les bibliothèques intégrées écrites en JavaScript qui ne font qu’installer
 
 Un programme qui appelle `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` ou `Reflect.ownKeys` les lie toutes, puisqu’il pourrait énumérer les objets intégrés ([#84](https://github.com/40oleg/nona/issues/84)). Un hello world pèse environ 2,2 Mo ; avec toutes les parties, 7 Mo.
 
-Un programme peut tout de même atteindre une partie omise par un nom calculé à l’exécution, par exemple `globalThis['Reg' + 'Exp']`. Pour le moteur RegExp et les tables Unicode, un tel appel lève une `Error` dont le message nomme la partie manquante ; une globale ou une méthode omise est simplement absente. Compilez avec `--full-runtime` (ou l’option `fullRuntime` de [`compile()`](/fr/reference/api)) pour tout lier ([#62](https://github.com/40oleg/nona/issues/62)).
+Un programme peut tout de même atteindre une partie omise par un nom calculé à l’exécution, par exemple `globalThis['Reg' + 'Exp']`. Pour le moteur RegExp et les tables Unicode, un tel appel lève une `Error` dont le message nomme la partie manquante ; une globale ou une méthode omise est simplement absente. Compilez avec `--full-runtime` (ou l’option `fullRuntime` de [`compile()`](/fr/reference/api)) pour tout lier ([#62](https://github.com/40oleg/nona/issues/62)). `--link partie,...` ajoute des parties isolées, et `--print-link` montre ce qui est lié et quel nom a sélectionné chaque partie ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## Realms
 

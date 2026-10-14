@@ -42,9 +42,30 @@ const unicodePropertyEscape = /\\[pP]\{/;
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName = /(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage: SourceUsage | undefined;
+/** Why each part was linked: the first name that selected it (see LinkReasons). */
+let reasons: LinkReasons | undefined;
+/** Runtime part (regexp, unicodeProperties, unicodeNormalization or a prelude name) → why it is linked. */
+export type LinkReasons = Record<string, string>;
+function note(part: string, why: string): void {
+    if (reasons && !(part in reasons)) reasons[part] = why;
+}
+function linkPrelude(name: OptionalPrelude, why: string): void {
+    if (!usage) return;
+    usage.preludes[name] = true;
+    note(name, why);
+}
+function linkRegExp(why: string, unicodeProperties: boolean): void {
+    if (!usage) return;
+    usage.regexp = true;
+    note("regexp", why);
+    if (unicodeProperties) {
+        usage.unicodeProperties = true;
+        note("unicodeProperties", why);
+    }
+}
 /** Select a runtime dependency discovered from parsed source expressions. */
 export function requireRuntimePrelude(name: OptionalPrelude): void {
-    if (usage) usage.preludes[name] = true;
+    linkPrelude(name, "used by the program's syntax");
 }
 // Enumeration links every available prelude. Explicit names still request
 // unavailable host adapters, allowing the compiler to diagnose that request.
@@ -55,8 +76,10 @@ export function collectSourceUsage<T>(
     options: {
         unavailableReflectivePreludes?: readonly OptionalPrelude[];
     } = {},
-): { result: T; usage: SourceUsage } {
+): { result: T; usage: SourceUsage; reasons: LinkReasons } {
     const outer = usage,
+        outerReasons = reasons,
+        currentReasons: LinkReasons = {},
         current: SourceUsage = {
             regexp: false,
             unicodeProperties: false,
@@ -67,10 +90,15 @@ export function collectSourceUsage<T>(
     unavailableReflectivePreludes =
         options.unavailableReflectivePreludes ?? outerUnavailable;
     usage = current;
+    reasons = currentReasons;
     try {
-        return { result: run(), usage: current };
+        return { result: run(), usage: current, reasons: currentReasons };
     } finally {
         usage = outer;
+        reasons = outerReasons;
+        if (outerReasons)
+            for (const [part, why] of Object.entries(currentReasons))
+                if (!(part in outerReasons)) outerReasons[part] = why;
         unavailableReflectivePreludes = outerUnavailable;
         if (outer) {
             outer.regexp ||= current.regexp;
@@ -103,33 +131,47 @@ function recordPreludeName(name: string, inString: boolean): void {
     ) {
         for (const prelude of optionalPreludes)
             if (!unavailableReflectivePreludes.includes(prelude))
-                usage.preludes[prelude] = true;
+                linkPrelude(
+                    prelude,
+                    `${JSON.stringify(name)} can enumerate built-ins`,
+                );
     }
     for (const prelude of preludeByName.get(name) ?? [])
-        usage.preludes[prelude] = true;
+        linkPrelude(
+            prelude,
+            `${JSON.stringify(name)} ${inString ? "in a string" : "in the source"}`,
+        );
     if (inString)
         for (const trigger of longTriggers)
             if (name.includes(trigger))
                 for (const prelude of preludeByName.get(trigger)!)
-                    usage.preludes[prelude] = true;
+                    linkPrelude(
+                        prelude,
+                        `${JSON.stringify(trigger)} inside a string`,
+                    );
 }
 function recordUsage(tokens: TokenStream): void {
     if (!usage) return;
     for (const token of tokens) {
         if (token.kind === "regexp") {
-            usage.regexp = true;
-            if (
+            linkRegExp(
+                "a regular expression literal",
                 unicodePropertyEscape.test(token.pattern ?? "") ||
-                unicodeGroupName.test(token.pattern ?? "")
-            )
-                usage.unicodeProperties = true;
+                    unicodeGroupName.test(token.pattern ?? ""),
+            );
         } else if (token.kind === "word") {
+            const word = String(token.value);
             // A pattern built at run time may use any Unicode property.
-            if (regexpNames.includes(String(token.value)))
-                usage.regexp = usage.unicodeProperties = true;
-            if (normalizationNames.includes(String(token.value)))
+            if (regexpNames.includes(word))
+                linkRegExp(`${JSON.stringify(word)} in the source`, true);
+            if (normalizationNames.includes(word)) {
                 usage.unicodeNormalization = true;
-            recordPreludeName(String(token.value), false);
+                note(
+                    "unicodeNormalization",
+                    `${JSON.stringify(word)} in the source`,
+                );
+            }
+            recordPreludeName(word, false);
         } else if (
             token.kind === "string" ||
             token.kind.startsWith("template")
@@ -137,13 +179,24 @@ function recordUsage(tokens: TokenStream): void {
             const text =
                 typeof token.value === "string" ? token.value : token.text;
             // Names in strings cover computed access (globalThis['RegExp'], s['match']).
-            if (
-                regexpNames.some((name) => text.includes(name)) ||
-                unicodePropertyEscape.test(text)
-            )
-                usage.regexp = usage.unicodeProperties = true;
-            if (normalizationNames.some((name) => text.includes(name)))
+            const regexpName = regexpNames.find((name) => text.includes(name));
+            if (regexpName !== undefined)
+                linkRegExp(
+                    `${JSON.stringify(regexpName)} inside a string`,
+                    true,
+                );
+            else if (unicodePropertyEscape.test(text))
+                linkRegExp("a \\p{…} escape inside a string", true);
+            const normalization = normalizationNames.find((name) =>
+                text.includes(name),
+            );
+            if (normalization !== undefined) {
                 usage.unicodeNormalization = true;
+                note(
+                    "unicodeNormalization",
+                    `${JSON.stringify(normalization)} inside a string`,
+                );
+            }
             recordPreludeName(text, true);
         }
     }

@@ -5,7 +5,8 @@
 ```text
 Nona 0.12.0 — JavaScript subset to native executables
 Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+       [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -23,6 +24,8 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `--module`           | —                                               | 把输入编译为 ES 模块。以 `.mjs` 结尾的输入自动视为模块。                                                                                                                                                                        |
 | `--conditions`, `-C` | 名称                                            | 添加一个 package.json 的 `exports`/`imports` 条件，它会先于 Nona 自身的条件（`nona`、`node`、`import` 或 `require`、`default`）被尝试；也可以写作 `--conditions=name`。可以重复使用。参见 [npm 包](/reference/npm#resolution)。 |
 | `--print-asm`        | —                                               | 把为程序自身函数（不含运行时及其前导代码）生成的 x86-64 汇编输出到 stdout：每个函数的标签，然后每条指令一行，包含偏移、编码字节和 Intel 语法文本。使用此选项时可以省略 `-o`。仅限 x86-64 目标。                                 |
+| `--link`             | 部件，逗号分隔                                  | 额外链接这些可选部件（例如 `--link proxy,regexp`），适用于只通过运行时构造的名称访问它们的程序。比 `--full-runtime` 开销小；部件名称见 `--print-link`。                                                                         |
+| `--print-link`       | —                                               | 打印已链接的可选运行时部件及每个部件的链接原因：源代码中选中它的名称、`--link`，或需要它的部件。此时可省略 `-o`。                                                                                                               |
 | `--subsystem`        | `console`（默认）、`windows`                    | 没有控制台窗口的 Windows 图形界面程序。仅限 `win32-x64`。没有 `--manifest` 的图形界面程序会获得默认清单。                                                                                                                       |
 | `--icon`             | `.ico` 文件                                     | 嵌入图标文件中的所有图像。仅限 `win32-x64`。                                                                                                                                                                                    |
 | `--manifest`         | XML 文件                                        | 嵌入应用程序清单。清单必须有效：Windows 会拒绝启动清单格式错误的程序。仅限 `win32-x64`。                                                                                                                                        |
@@ -66,6 +69,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `E_FFI_TARGET`      | 为 `linux-x64` 编译了 DLL 声明，或为 `win32-x64` 编译了系统调用声明。                                                                    |
 | `E_RESOURCE`        | 图标或版本信息无效，或为 `linux-x64` 请求了资源。                                                                                        |
 | `E_TARGET`          | 不支持的目标平台或子系统。                                                                                                               |
+| `E_OPTION`          | 无效的编译选项，例如 `--link` 中未知的部件名称。                                                                                         |
 | `E_HOST_MODULE`     | 内置模块（例如 `node:fs`）在该目标平台上不可用。                                                                                         |
 | `E_INTERNAL`        | 编译器缺陷，而不是程序错误：消息中指明的阶段（`parse`、`bind`、`lower`、`codegen`、`link` 等）内部检查失败。请附上触发它的程序进行报告。 |
 

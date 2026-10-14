@@ -10,6 +10,10 @@
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
 
+### Tools
+
+- `--link part,...` links single optional runtime parts (for a program that reaches them only through names built at run time), and `--print-link` lists the linked parts with the name or option that selected each. [docs/runtime-linking.md](docs/runtime-linking.md) records the decision to keep the lexical linking rule. ([#182](https://github.com/40oleg/nona/issues/182))
+
 ### Documentation
 
 - The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).

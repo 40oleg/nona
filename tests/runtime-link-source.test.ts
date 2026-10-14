@@ -208,3 +208,34 @@ test("built-ins implemented in preludes print as native code", () => {
     assert.equal(parts.length, 3);
     for (const part of parts) assert.match(part, /\[native code\]/);
 });
+
+test("compile reports why each optional part is linked", () => {
+    const result = compile(
+        'new Proxy({}, {}); "x".normalize(); [3, 1].sort();',
+        {
+            fileName: "/app.js",
+            target: "linux-x64",
+            link: ["url"],
+            reportLink: true,
+        },
+    );
+    assert.ok(result.ok);
+    assert.deepEqual(result.linked, [
+        {
+            part: "unicodeNormalization",
+            reason: '"normalize" in the source',
+        },
+        { part: "proxy", reason: '"Proxy" in the source' },
+        { part: "binaryData", reason: "needed by encoding" },
+        { part: "encoding", reason: "needed by url" },
+        { part: "url", reason: "requested with --link" },
+        { part: "arraySort", reason: '"sort" in the source' },
+    ]);
+    const bad = compile("", {
+        fileName: "/app.js",
+        target: "linux-x64",
+        link: ["nothing"],
+    });
+    assert.ok(!bad.ok);
+    assert.equal(bad.diagnostics[0]!.code, "E_OPTION");
+});

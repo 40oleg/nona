@@ -5,7 +5,8 @@
 ```text
 Nona 0.12.0 — JavaScript subset to native executables
 Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+       [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -23,6 +24,8 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `--module`           | —                                               | इनपुट को ES मॉड्यूल के रूप में कंपाइल करें। `.mjs` पर ख़त्म होने वाले इनपुट अपने आप मॉड्यूल होते हैं।                                                                                                                                                                   |
 | `--conditions`, `-C` | नाम                                             | package.json की एक `exports`/`imports` कंडीशन जोड़ें, जिसे Nona की अपनी कंडीशनों (`nona`, `node`, `import` या `require`, `default`) से पहले आज़माया जाता है; `--conditions=name` भी काम करता है। कई बार दिया जा सकता है। देखें [npm पैकेज](/reference/npm#resolution)।  |
 | `--print-asm`        | —                                               | प्रोग्राम के अपने फ़ंक्शनों (रनटाइम और उसके प्रील्यूड नहीं) के लिए बना x86-64 असेंबली stdout पर छापें: हर फ़ंक्शन का लेबल, फिर हर निर्देश की एक पंक्ति — ऑफ़सेट, एन्कोड किए बाइट और Intel सिंटैक्स में पाठ। इस विकल्प के साथ `-o` छोड़ा जा सकता है। केवल x86-64 टारगेट। |
+| `--link`             | हिस्से, अल्पविराम से अलग                        | इन वैकल्पिक हिस्सों को भी लिंक करें (उदाहरण `--link proxy,regexp`), उस प्रोग्राम के लिए जो इन तक केवल रनटाइम पर बने नामों से पहुँचता है। `--full-runtime` से सस्ता; हिस्सों के नाम `--print-link` दिखाता है।                                                            |
+| `--print-link`       | —                                               | लिंक किए गए वैकल्पिक रनटाइम हिस्से और हर एक का कारण छापें: स्रोत में वह नाम जिसने उसे चुना, `--link`, या वह हिस्सा जिसे उसकी ज़रूरत है। तब `-o` छोड़ा जा सकता है।                                                                                                       |
 | `--subsystem`        | `console` (डिफ़ॉल्ट), `windows`                 | कंसोल विंडो के बिना Windows GUI प्रोग्राम। केवल `win32-x64`। `--manifest` के बिना GUI प्रोग्राम को डिफ़ॉल्ट मैनिफ़ेस्ट मिलता है।                                                                                                                                        |
 | `--icon`             | `.ico` फ़ाइल                                    | आइकन फ़ाइल की हर इमेज जोड़ें। केवल `win32-x64`।                                                                                                                                                                                                                         |
 | `--manifest`         | XML फ़ाइल                                       | ऐप्लिकेशन मैनिफ़ेस्ट जोड़ें। यह मान्य होना चाहिए: ख़राब मैनिफ़ेस्ट वाले प्रोग्राम को Windows शुरू करने से मना कर देता है। केवल `win32-x64`।                                                                                                                             |
@@ -66,6 +69,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `E_FFI_TARGET`      | `linux-x64` के लिए कंपाइल किया गया DLL डिक्लेरेशन, या `win32-x64` के लिए कंपाइल किया गया सिस्टम कॉल डिक्लेरेशन।                                                                             |
 | `E_RESOURCE`        | अमान्य आइकन या वर्ज़न जानकारी, या `linux-x64` के लिए माँगे गए रिसोर्स।                                                                                                                      |
 | `E_TARGET`          | असमर्थित टार्गेट या सबसिस्टम।                                                                                                                                                               |
+| `E_OPTION`          | अमान्य कंपाइल विकल्प, जैसे `--link` में अज्ञात हिस्से का नाम।                                                                                                                               |
 | `E_HOST_MODULE`     | कोई बिल्ट-इन मॉड्यूल (जैसे `node:fs`) इस टारगेट के लिए उपलब्ध नहीं है।                                                                                                                      |
 | `E_INTERNAL`        | प्रोग्राम की नहीं, कंपाइलर की गलती: संदेश में बताए गए चरण (`parse`, `bind`, `lower`, `codegen`, `link`, …) में एक आंतरिक जाँच विफल हुई। इसे ट्रिगर करने वाले प्रोग्राम के साथ रिपोर्ट करें। |
 

@@ -101,6 +101,69 @@ test("CLI --full-runtime links the parts a program does not mention", () =>
         );
         assert.match(cli(["--help"]).stdout, /--full-runtime/);
     }));
+test("CLI --link adds single parts and --print-link explains the link", () =>
+    fixture((dir) => {
+        const input = join(dir, "in.js");
+        writeFileSync(
+            input,
+            'const name = ["Pro", "xy"].join(""); console.log(typeof globalThis[name], "a".match(/a/).length);',
+        );
+        const report = cli([
+            "build",
+            input,
+            "--target",
+            "linux-x64",
+            "--print-link",
+        ]);
+        assert.equal(report.status, 0, report.stderr);
+        assert.match(report.stdout, /^Linked runtime parts:\n/);
+        assert.match(report.stdout, /\n {2}regexp +"match" in the source\n/);
+        assert.match(
+            report.stdout,
+            /\n {2}timers +"globalThis" in the source\n/,
+        );
+        assert.doesNotMatch(report.stdout, /proxy/);
+        const linked = cli([
+            "build",
+            input,
+            "--target",
+            "linux-x64",
+            "--link",
+            "proxy,unicodeNormalization",
+            "--print-link",
+        ]);
+        assert.equal(linked.status, 0, linked.stderr);
+        assert.match(linked.stdout, /\n {2}proxy +requested with --link\n/);
+        assert.match(
+            linked.stdout,
+            /\n {2}unicodeNormalization +requested with --link\n/,
+        );
+        const empty = join(dir, "empty.js");
+        writeFileSync(empty, "");
+        assert.equal(
+            cli(["build", empty, "--target", "linux-x64", "--print-link"])
+                .stdout,
+            "No optional runtime parts are linked.\n",
+        );
+        const unknown = cli([
+            "build",
+            input,
+            "--target",
+            "linux-x64",
+            "--link=proxy,nothing",
+            "--print-link",
+        ]);
+        assert.equal(unknown.status, 1);
+        assert.match(
+            unknown.stderr,
+            /E_OPTION: Unknown runtime part "nothing"/,
+        );
+        assert.equal(
+            cli(["build", input, "-o", join(dir, "x"), "--link"]).status,
+            1,
+        );
+        assert.match(cli(["--help"]).stdout, /--print-link/);
+    }));
 test("CLI rejects missing/unknown/duplicate arguments", () => {
     for (const args of [
         [],

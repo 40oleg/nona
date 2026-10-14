@@ -68,7 +68,7 @@ As bibliotecas embutidas escritas em JavaScript que apenas instalam globais ou m
 
 Um programa que chama `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` ou `Reflect.ownKeys` liga todas elas, pois poderia listar os objetos embutidos ([#84](https://github.com/40oleg/nona/issues/84)). Um hello world tem cerca de 2,2 MB; com todas as partes, 7 MB.
 
-Um programa ainda pode alcançar uma parte omitida por meio de um nome calculado em tempo de execução, por exemplo `globalThis['Reg' + 'Exp']`. Para o motor de RegExp e as tabelas Unicode, essa chamada lança um `Error` cuja mensagem nomeia a parte ausente; uma global ou um método omitido simplesmente não existe. Compile com `--full-runtime` (ou a opção `fullRuntime` de [`compile()`](/pt/reference/api)) para ligar tudo ([#62](https://github.com/40oleg/nona/issues/62)).
+Um programa ainda pode alcançar uma parte omitida por meio de um nome calculado em tempo de execução, por exemplo `globalThis['Reg' + 'Exp']`. Para o motor de RegExp e as tabelas Unicode, essa chamada lança um `Error` cuja mensagem nomeia a parte ausente; uma global ou um método omitido simplesmente não existe. Compile com `--full-runtime` (ou a opção `fullRuntime` de [`compile()`](/pt/reference/api)) para ligar tudo ([#62](https://github.com/40oleg/nona/issues/62)). Com `--link parte,...` adicionam-se partes isoladas, e `--print-link` mostra o que foi ligado e qual nome selecionou cada parte ([#182](https://github.com/40oleg/nona/issues/182)).
 
 ## Realms
 

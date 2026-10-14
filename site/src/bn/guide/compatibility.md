@@ -68,7 +68,7 @@ JavaScript-এ লেখা বিল্ট-ইন লাইব্রেরি, 
 
 যে প্রোগ্রাম `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` বা `Reflect.ownKeys` কল করে, সে এগুলোর সবই লিঙ্ক করে, কারণ সে বিল্ট-ইনগুলোর তালিকা পেতে পারে ([#84](https://github.com/40oleg/nona/issues/84))। একটি hello world প্রায় 2.2 MB; সব অংশসহ এটি 7 MB।
 
-রানটাইমে গণনা করা নামের মাধ্যমে, যেমন `globalThis['Reg' + 'Exp']`, প্রোগ্রাম তবুও বাদ পড়া অংশে পৌঁছাতে পারে। RegExp ইঞ্জিন ও Unicode টেবিলের ক্ষেত্রে এমন কল একটি `Error` ছোড়ে, যার বার্তায় অনুপস্থিত অংশের নাম থাকে; বাদ পড়া গ্লোবাল বা মেথড কেবল অনুপস্থিত থাকে। সবকিছু লিঙ্ক করতে `--full-runtime` (অথবা [`compile()`](/bn/reference/api)-এর `fullRuntime` অপশন) দিয়ে কম্পাইল করুন ([#62](https://github.com/40oleg/nona/issues/62))।
+রানটাইমে গণনা করা নামের মাধ্যমে, যেমন `globalThis['Reg' + 'Exp']`, প্রোগ্রাম তবুও বাদ পড়া অংশে পৌঁছাতে পারে। RegExp ইঞ্জিন ও Unicode টেবিলের ক্ষেত্রে এমন কল একটি `Error` ছোড়ে, যার বার্তায় অনুপস্থিত অংশের নাম থাকে; বাদ পড়া গ্লোবাল বা মেথড কেবল অনুপস্থিত থাকে। সবকিছু লিঙ্ক করতে `--full-runtime` (অথবা [`compile()`](/bn/reference/api)-এর `fullRuntime` অপশন) দিয়ে কম্পাইল করুন ([#62](https://github.com/40oleg/nona/issues/62))। `--link অংশ,...` দিয়ে আলাদা অংশ যোগ করা যায়, আর `--print-link` দেখায় কী লিঙ্ক হয়েছে এবং কোন নাম প্রতিটি অংশ বেছে নিয়েছে ([#182](https://github.com/40oleg/nona/issues/182))।
 
 ## Realm
 

@@ -82,13 +82,14 @@ Command line:
 
 ```text
 nona build <input.js|package directory> -o <output> [--target <target>] [--module]
-           [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+           [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. A CommonJS input is compiled with everything it `require`s, and a package directory builds its `"bin"` command or `"main"` module. `--full-runtime` links every runtime part instead of only the reachable ones. `--print-asm` prints the x86-64 assembly generated for the program's own functions (`-o` may then be omitted). The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
+`.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. A CommonJS input is compiled with everything it `require`s, and a package directory builds its `"bin"` command or `"main"` module. `--full-runtime` links every runtime part instead of only the reachable ones; `--link part,...` adds single parts and `--print-link` shows what was linked and why. `--print-asm` prints the x86-64 assembly generated for the program's own functions (`-o` may then be omitted). The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
 
 ## What is supported
 

@@ -82,13 +82,14 @@ nona build server.mjs -o server
 
 ```text
 nona build <input.js|package directory> -o <output> [--target <target>] [--module]
-           [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+           [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
            [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
            [--version-info version.json]
 nona --help | --version
 ```
 
-Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. Входной файл CommonJS компилируется со всем, что он подключает через `require`, а каталог пакета собирает его команду из `"bin"` или модуль `"main"`. `--full-runtime` подключает всю среду выполнения, а не только достижимые части. `--print-asm` выводит ассемблер x86-64, сгенерированный для собственных функций программы (`-o` тогда можно не указывать). Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
+Файлы `.mjs` (или `--module`) компилируются как ES-модули вместе со всем, что они импортируют. Входной файл CommonJS компилируется со всем, что он подключает через `require`, а каталог пакета собирает его команду из `"bin"` или модуль `"main"`. `--full-runtime` подключает всю среду выполнения, а не только достижимые части; `--link часть,...` добавляет отдельные части, а `--print-link` показывает, что подключено и почему. `--print-asm` выводит ассемблер x86-64, сгенерированный для собственных функций программы (`-o` тогда можно не указывать). Все параметры описаны в [справочнике CLI](https://40oleg.github.io/nona/reference/cli), а в каталоге `examples` есть другие программы, например [матричный калькулятор](docs/matrix-calculator.md).
 
 ## Что поддерживается
 

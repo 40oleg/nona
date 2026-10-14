@@ -5,7 +5,8 @@
 ```text
 Nona 0.12.0 — JavaScript subset to native executables
 Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|linux-x64|linux-arm64|win32-arm64|darwin-x64|darwin-arm64|freebsd-x64|openbsd-x64] [--module]
-       [--conditions name]... [--full-runtime] [--call-stats] [--coverage dir] [--print-asm]
+       [--conditions name]... [--full-runtime] [--link part,...] [--print-link]
+       [--call-stats] [--coverage dir] [--print-asm]
        [--subsystem console|windows] [--icon app.ico] [--manifest app.manifest]
        [--version-info version.json]
        (.mjs inputs are compiled as modules)
@@ -23,6 +24,8 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `--module`           | —                                        | Компилировать вход как ES-модуль. Файлы с окончанием `.mjs` — модули автоматически.                                                                                                                                                                                                      |
 | `--conditions`, `-C` | имя                                      | Добавить условие `exports`/`imports` из package.json; оно проверяется раньше собственных условий Nona (`nona`, `node`, `import` или `require`, `default`). Можно писать и `--conditions=name`. Параметр можно повторять. См. [пакеты npm](/reference/npm#resolution).                    |
 | `--print-asm`        | —                                        | Вывести в stdout ассемблер x86-64, сгенерированный для собственных функций программы (без рантайма и прелюдий): метка функции, затем по строке на инструкцию — смещение, закодированные байты и текст в синтаксисе Intel. С этим параметром `-o` можно не указывать. Только цели x86-64. |
+| `--link`             | части через запятую                      | Также подключить эти необязательные части (например, `--link proxy,regexp`) для программы, которая обращается к ним только через имена, вычисленные во время исполнения. Дешевле, чем `--full-runtime`; имена частей показывает `--print-link`.                                          |
+| `--print-link`       | —                                        | Вывести подключённые необязательные части рантайма и причину для каждой: имя в исходном коде, которое её выбрало, `--link` или часть, которой она нужна. `-o` тогда можно не указывать.                                                                                                  |
 | `--subsystem`        | `console` (по умолчанию), `windows`      | GUI-программа Windows без консольного окна. Только `win32-x64`. GUI-программа без `--manifest` получает манифест по умолчанию.                                                                                                                                                           |
 | `--icon`             | файл `.ico`                              | Встроить все изображения из файла иконки. Только `win32-x64`.                                                                                                                                                                                                                            |
 | `--manifest`         | файл XML                                 | Встроить манифест приложения. Он должен быть корректным: Windows отказывается запускать программу с повреждённым манифестом. Только `win32-x64`.                                                                                                                                         |
@@ -66,6 +69,7 @@ Usage: nona build <input.js|package directory> -o <output> [--target win32-x64|l
 | `E_FFI_TARGET`      | Объявление DLL скомпилировано для `linux-x64` или объявление системного вызова — для `win32-x64`.                                                                                                            |
 | `E_RESOURCE`        | Некорректная иконка или сведения о версии, либо ресурсы запрошены для `linux-x64`.                                                                                                                           |
 | `E_TARGET`          | Неподдерживаемая цель или подсистема.                                                                                                                                                                        |
+| `E_OPTION`          | Неверный параметр компиляции, например неизвестное имя части в `--link`.                                                                                                                                     |
 | `E_HOST_MODULE`     | Встроенный модуль (например, `node:fs`) недоступен для этой цели.                                                                                                                                            |
 | `E_INTERNAL`        | Ошибка компилятора, а не программы: внутренняя проверка не прошла на этапе, указанном в сообщении (`parse`, `bind`, `lower`, `codegen`, `link`, …). Сообщите о ней, приложив программу, которая её вызывает. |
 

@@ -68,7 +68,7 @@ JavaScript में लिखी बिल्ट-इन लाइब्रे�
 
 जो प्रोग्राम `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` या `Reflect.ownKeys` कॉल करता है, वह इन सभी को लिंक करता है, क्योंकि वह बिल्ट-इन की सूची बना सकता है ([#84](https://github.com/40oleg/nona/issues/84))। एक hello world लगभग 2.2 MB का है; सभी हिस्सों के साथ 7 MB।
 
-प्रोग्राम रनटाइम पर बने नाम के ज़रिए, जैसे `globalThis['Reg' + 'Exp']`, छोड़े गए हिस्से तक फिर भी पहुँच सकता है। RegExp इंजन और Unicode टेबल के लिए ऐसी कॉल एक `Error` फेंकती है जिसके संदेश में छूटे हिस्से का नाम होता है; छोड़ा गया ग्लोबल या मेथड बस मौजूद नहीं होता। सब कुछ लिंक करने के लिए `--full-runtime` (या [`compile()`](/hi/reference/api) का `fullRuntime` विकल्प) के साथ कंपाइल करें ([#62](https://github.com/40oleg/nona/issues/62))।
+प्रोग्राम रनटाइम पर बने नाम के ज़रिए, जैसे `globalThis['Reg' + 'Exp']`, छोड़े गए हिस्से तक फिर भी पहुँच सकता है। RegExp इंजन और Unicode टेबल के लिए ऐसी कॉल एक `Error` फेंकती है जिसके संदेश में छूटे हिस्से का नाम होता है; छोड़ा गया ग्लोबल या मेथड बस मौजूद नहीं होता। सब कुछ लिंक करने के लिए `--full-runtime` (या [`compile()`](/hi/reference/api) का `fullRuntime` विकल्प) के साथ कंपाइल करें ([#62](https://github.com/40oleg/nona/issues/62))। `--link हिस्सा,...` से अलग-अलग हिस्से जोड़े जा सकते हैं, और `--print-link` दिखाता है कि क्या लिंक हुआ और किस नाम ने हर हिस्सा चुना ([#182](https://github.com/40oleg/nona/issues/182))।
 
 ## Realm
 
