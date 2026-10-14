@@ -1,4 +1,9 @@
-import type { BlockIR, FunctionIR, Operation } from "./model.js";
+import {
+    terminatorTargets,
+    type BlockIR,
+    type FunctionIR,
+    type Operation,
+} from "./model.js";
 import { definitions } from "./copies.js";
 import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
 
@@ -218,11 +223,8 @@ export function foldNullishTests(fn: FunctionIR): FunctionIR {
             if (t.kind === "branch" && guard) {
                 flow(t.yes, new Set([...state, ...guard.yes]));
                 flow(t.no, new Set([...state, ...guard.no]));
-            } else if (t.kind === "jump") flow(t.target, state);
-            else if (t.kind === "branch") {
-                flow(t.yes, state);
-                flow(t.no, state);
-            }
+            } else
+                for (const target of terminatorTargets(t)) flow(target, state);
             if (block.exceptionTarget !== undefined)
                 flow(block.exceptionTarget, everywhere);
         });
