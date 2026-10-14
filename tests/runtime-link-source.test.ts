@@ -226,6 +226,7 @@ test("compile reports why each optional part is linked", () => {
             reason: '"normalize" in the source',
         },
         { part: "proxy", reason: '"Proxy" in the source' },
+        { part: "binaryData", reason: "needed by encoding" },
         { part: "encoding", reason: "needed by url" },
         { part: "url", reason: "requested with --link" },
         { part: "arraySort", reason: '"sort" in the source' },

@@ -282,6 +282,11 @@ export function linkReport(
                 ? "--full-runtime"
                 : (reasons.unicodeNormalization ?? "requested"),
         );
+    // The RegExp protocol methods come with the engine (backend preludes.ts).
+    if (regexp.regexp && !linked.has("regexpProtocol")) {
+        linkedList.push("regexpProtocol");
+        set("regexpProtocol", "needed by regexp");
+    }
     const present = new Set<string>(linkedList);
     if (regexp.regexp) present.add("regexp");
     if (regexp.unicodeProperties) present.add("unicodeProperties");
