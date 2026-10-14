@@ -7,7 +7,7 @@ import { runOracle } from "./helpers/oracle.js";
 // surrogate in the pattern never matches half of a surrogate pair.
 test("lone surrogates in unicode patterns match Node.js", () => {
     const source = String.raw`const text = "ab 😀 c \ud83d end \ude00 x😀\ud83d";
-const pats = [/\ud83d/u, /\ud83d/gu, /\ude00/gu, /😀/gu, /[\ud83d]/gu, /[\ude00]/gu, /\ud83d/g, /\ude00/g, /\ud83d+/gu, /(?<=\ud83d)./gu, /./gu, /\ud83d|x/gu, /[^a]/gu];
+const pats = [/\ud83d/u, /\ud83d/gu, /\ude00/gu, /😀/gu, /[\ud83d]/gu, /[\ude00]/gu, /\ud83d/g, /\ude00/g, /\ud83d+/gu, /(?<=\ud83d)./gu, /./gu, /\ud83d|x/gu, /[^a]/gu, /\ud83d\ude00/gu, /(x)\1?/gu, /\1(a)/g, /(?<n>\ud83d)\k<n>?/gu];
 for (const p of pats) {
   const all = [...text.matchAll(new RegExp(p.source, p.flags.includes("g") ? p.flags : p.flags + "g"))].map(m => m.index + ":" + m[0].length);
   const first = new RegExp(p.source, p.flags.replace("g", "")).exec(text);
