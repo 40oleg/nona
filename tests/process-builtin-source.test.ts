@@ -7,7 +7,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileToIR, compileModuleToIR } from "../src/compiler.js";
 import { withBuiltinModules } from "../src/frontend/builtin-modules.js";
-import { promisePreludeSource } from "../src/runtime/promise-source.js";
+import {
+    moduleRecordsPreludeSource,
+    promisePreludeSource,
+} from "../src/runtime/promise-source.js";
 import { supportedNativeTargets } from "../src/target.js";
 import {
     processBuiltinProbeCases,
@@ -60,7 +63,9 @@ function boundary() {
     const context = createContext({ __nonaRegexpVm: {} });
     runInContext(
         'Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};Function.prototype.__nonaProxyCreateInternal=function(target,handler){return new Proxy(target,handler)};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;' +
-            promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true"),
+            promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true") +
+            // Module records are a separate part since #278.
+            moduleRecordsPreludeSource,
         context,
     );
     return context;

@@ -1207,6 +1207,7 @@ var __nonaPromiseDrainJobs = (function () {
         enqueue: enqueueCallback,
         settle: settle,
         resolve: resolveState,
+        append: append,
     };
     // Dynamic async function constructors are part of the documented
     // eval/Function exception; they exist for reflection only.
