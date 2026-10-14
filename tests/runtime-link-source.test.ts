@@ -4,12 +4,13 @@ import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
 import {
     compile,
+    compileToIR,
     hostTarget,
     type CompileOptions,
     type Target,
 } from "../src/compiler.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
-import { preludeSet } from "../src/link.js";
+import { preludeSet, requiredSyntaxParts } from "../src/link.js";
 
 function image(
     source: string,
@@ -196,6 +197,31 @@ test("binary data methods and the RegExp protocol are linked only when reachable
             protocol - hello > 80_000,
             `${target}: ${protocol} vs ${hello}`,
         );
+    }
+});
+
+test("syntax helpers are linked by the calls of the lowered program", () => {
+    const parts = (source: string) =>
+        [...requiredSyntaxParts([compileToIR(source)])].sort();
+    assert.deepEqual(parts('console.log("hi");'), []);
+    assert.deepEqual(parts("with ({ a: 1 }) a;"), ["withStatement"]);
+    assert.deepEqual(parts('eval("1 + 1");'), ["evalCode"]);
+    assert.deepEqual(parts("class A { static { g(); } }"), ["classElements"]);
+    assert.deepEqual(parts("class A { #x; m() { return this.#x; } }"), [
+        "classElements",
+    ]);
+    // Plain classes and public fields (defined inline) need none of them.
+    assert.deepEqual(parts("class A { m() {} static s() {} }"), []);
+    assert.deepEqual(parts("class A { x = 1; }"), []);
+    for (const target of ["win32-x64", "linux-x64"] as const) {
+        const hello = image('console.log("hi");', {}, target).length;
+        const fields = image(
+            "class A { #x = 1; get x() { return this.#x; } } console.log(new A().x);",
+            {},
+            target,
+        ).length;
+        assert.ok(hello < 1_150_000, `${target}: ${hello} bytes`);
+        assert.ok(fields - hello > 8_000, `${target}: ${fields} vs ${hello}`);
     }
 });
 

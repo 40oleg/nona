@@ -4,6 +4,7 @@ import type { ModuleIR } from "../../ir/model.js";
 import {
     optionalPreludes,
     preludeDependencies,
+    requiredSyntaxParts,
     type OptionalPrelude,
     type RuntimeLink,
 } from "../../link.js";
@@ -16,7 +17,13 @@ import {
     proxyPreludeSource,
     preludeCleanupSource,
 } from "../../runtime/proxy-source.js";
-import { promisePreludeSource } from "../../runtime/promise-source.js";
+import {
+    classElementsPreludeSource,
+    evalCodePreludeSource,
+    moduleRecordsPreludeSource,
+    promisePreludeSource,
+    withStatementPreludeSource,
+} from "../../runtime/promise-source.js";
 import { encodingPreludeSource } from "../../runtime/encoding-source.js";
 import { bufferPreludeSource } from "../../runtime/buffer-source.js";
 import { urlPreludeSource } from "../../runtime/url-source.js";
@@ -82,6 +89,10 @@ export function lowerRuntimePrelude(
             ["annexB", annexBBuiltinsPreludeSource],
             ["es2021", es2021PreludeSource],
             [null, promiseSource],
+            ["withStatement", withStatementPreludeSource],
+            ["evalCode", evalCodePreludeSource],
+            ["classElements", classElementsPreludeSource],
+            ["moduleRecords", moduleRecordsPreludeSource],
             ["encoding", encodingPreludeSource],
             ["url", urlPreludeSource],
             [
@@ -104,24 +115,39 @@ export function lowerRuntimePrelude(
             ["proxy", proxyPreludeSource],
             [null, preludeCleanupSource],
         ];
-        prelude = lower(
-            bind(
-                parse(
-                    lex(
-                        parts
-                            .filter(
-                                ([name]) =>
-                                    name === null ||
-                                    linked.includes(name) ||
-                                    (name === "regexpProtocol" &&
-                                        regexpLink.regexp),
-                            )
-                            .map(([, source]) => source)
-                            .join("\n"),
+        const build = (selected: readonly OptionalPrelude[]) =>
+            lower(
+                bind(
+                    parse(
+                        lex(
+                            parts
+                                .filter(
+                                    ([name]) =>
+                                        name === null ||
+                                        selected.includes(name) ||
+                                        (name === "regexpProtocol" &&
+                                            regexpLink.regexp),
+                                )
+                                .map(([, source]) => source)
+                                .join("\n"),
+                        ),
                     ),
                 ),
-            ),
-        );
+            );
+        // The preludes themselves may need syntax helper parts (a class with
+        // fields in a stream prelude): add them until nothing is missing.
+        let selected = [...linked];
+        prelude = build(selected);
+        for (let round = 0; round < 4; round++) {
+            const missing = [...requiredSyntaxParts([prelude])].filter(
+                (part) => !selected.includes(part),
+            );
+            if (!missing.length) break;
+            selected = optionalPreludes.filter(
+                (name) => selected.includes(name) || missing.includes(name),
+            );
+            prelude = build(selected);
+        }
         cachedRuntimePreludes.set(preludeKey, prelude);
     }
     return prelude;
