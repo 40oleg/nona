@@ -14,6 +14,10 @@
 
 - `--link part,...` links single optional runtime parts (for a program that reaches them only through names built at run time), and `--print-link` lists the linked parts with the name or option that selected each. [docs/runtime-linking.md](docs/runtime-linking.md) records the decision to keep the lexical linking rule. ([#182](https://github.com/40oleg/nona/issues/182))
 
+### Internals
+
+- [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
+
 ### Documentation
 
 - The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).
