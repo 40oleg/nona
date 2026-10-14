@@ -240,7 +240,42 @@ export type Terminator =
     | { kind: "throw"; value: number }
     | { kind: "jump"; target: number }
     | { kind: "branch"; condition: number; yes: number; no: number }
+    /**
+     * A dense switch on integer Numbers (#241): `value` an int32 Number v
+     * with low <= v < low + targets.length jumps to targets[v - low]; any
+     * other value (another type, a fraction, out of range) to `otherwise`.
+     */
+    | {
+          kind: "switch";
+          value: number;
+          low: number;
+          targets: number[];
+          otherwise: number;
+      }
     | { kind: "return"; value: number };
+/** The blocks a terminator can continue in, in order (duplicates possible). */
+export function terminatorTargets(t: Terminator): number[] {
+    switch (t.kind) {
+        case "jump":
+            return [t.target];
+        case "branch":
+            return [t.yes, t.no];
+        case "switch":
+            return [...t.targets, t.otherwise];
+        default:
+            return [];
+    }
+}
+/** The slot a terminator reads, or -1. */
+export function terminatorUse(t: Terminator): number {
+    return t.kind === "branch"
+        ? t.condition
+        : t.kind === "switch"
+          ? t.value
+          : t.kind === "return" || t.kind === "throw"
+            ? t.value
+            : -1;
+}
 export interface BlockIR {
     id: number;
     exceptionTarget?: number;

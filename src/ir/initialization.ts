@@ -1,4 +1,4 @@
-import type { FunctionIR, Operation } from "./model.js";
+import { terminatorTargets, type FunctionIR, type Operation } from "./model.js";
 import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
 
 /**
@@ -124,12 +124,7 @@ export function removeRedundantInitializationChecks(
         i === 0 ? new Set<number>() : null,
     );
     const successors = (i: number): number[] => {
-        const t = fn.blocks[i]!.terminator;
-        return t.kind === "jump"
-            ? [t.target]
-            : t.kind === "branch"
-              ? [t.yes, t.no]
-              : [];
+        return terminatorTargets(fn.blocks[i]!.terminator);
     };
     // Iterate to a fixed point; states only shrink.
     let changed = true;

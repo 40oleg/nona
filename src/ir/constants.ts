@@ -1,4 +1,11 @@
-import type { Constant, FunctionIR, Operation, Terminator } from "./model.js";
+import {
+    terminatorTargets,
+    terminatorUse,
+    type Constant,
+    type FunctionIR,
+    type Operation,
+    type Terminator,
+} from "./model.js";
 import { operationUses } from "./liveness.js";
 import { definitions } from "./copies.js";
 
@@ -222,8 +229,9 @@ function candidates(blocks: FunctionIR["blocks"]): Set<number> | undefined {
     }
     const useful = blocks.some(
         (block) =>
-            (block.terminator.kind === "branch" &&
-                known.has(block.terminator.condition)) ||
+            ((block.terminator.kind === "branch" ||
+                block.terminator.kind === "switch") &&
+                known.has(terminatorUse(block.terminator))) ||
             block.operations.some(
                 (op) =>
                     op.kind !== "constant" &&
@@ -244,13 +252,7 @@ function upwardExposed(blocks: FunctionIR["blocks"]): Set<number> {
                 if (!written.has(slot)) exposed.add(slot);
             for (const d of definitions(op)) written.add(d);
         }
-        const t = block.terminator;
-        const read =
-            t.kind === "branch"
-                ? t.condition
-                : t.kind === "return" || t.kind === "throw"
-                  ? t.value
-                  : -1;
+        const read = terminatorUse(block.terminator);
         if (read >= 0 && !written.has(read)) exposed.add(read);
     }
     return exposed;
@@ -304,8 +306,7 @@ export function foldConstants(fn: FunctionIR): FunctionIR {
         state: ReadonlyMap<number, Constant>,
     ): number[] => {
         const t = blocks[i]!.terminator;
-        if (t.kind === "jump") return [t.target];
-        if (t.kind !== "branch") return [];
+        if (t.kind !== "branch") return terminatorTargets(t);
         const known = condition(t, state);
         return known === undefined ? [t.yes, t.no] : [known ? t.yes : t.no];
     };
@@ -385,9 +386,7 @@ export function reachable(blocks: FunctionIR["blocks"]): FunctionIR["blocks"] {
         seen.add(id);
         const block = byId.get(id);
         if (!block) continue;
-        const t = block.terminator;
-        if (t.kind === "jump") work.push(t.target);
-        else if (t.kind === "branch") work.push(t.yes, t.no);
+        work.push(...terminatorTargets(block.terminator));
         if (block.exceptionTarget !== undefined)
             work.push(block.exceptionTarget);
         for (const op of block.operations)
