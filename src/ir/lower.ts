@@ -5,7 +5,10 @@ import { CompileError, internalError } from "../diagnostics.js";
 import { maxInlineCapacity } from "../shape-limits.js";
 import type { FfiDeclarationIR } from "./model.js";
 
-import { removeRedundantInitializationChecks } from "./initialization.js";
+import {
+    initializedCaptures,
+    removeRedundantInitializationChecks,
+} from "./initialization.js";
 import { markNumericOperations } from "./numbers.js";
 import { coalesceMoves, propagateCopies } from "./copies.js";
 import { annotateDirectCalls } from "./calls.js";
@@ -20,9 +23,14 @@ import type { WithReference } from "./lower/base.js";
  * Numbers (which may turn ToNumeric into a copy, so copies are forwarded
  * again) and let Number results go straight to their binding.
  */
-function optimizeFunction(fn: FunctionIR): FunctionIR {
+function optimizeFunction(
+    fn: FunctionIR,
+    captures: ReadonlyMap<string, ReadonlySet<number>>,
+): FunctionIR {
     const folded = simplifyControlFlow(
-        foldConstants(removeRedundantInitializationChecks(fn)),
+        foldConstants(
+            removeRedundantInitializationChecks(fn, captures.get(fn.id)),
+        ),
     );
     return coalesceMoves(
         propagateCopies(markNumericOperations(propagateCopies(folded))),
@@ -142,7 +150,10 @@ export function lower(bound: BoundProgram): ModuleIR {
             ...(bound.modules ?? []).map((module) => module.record.path),
         ],
         globalCount: templateCaches.next,
-        functions: functions.map(optimizeFunction),
+        functions: ((captures) =>
+            functions.map((fn) => optimizeFunction(fn, captures)))(
+            initializedCaptures(functions),
+        ),
         globalProperties: bound.globals
             .filter((b) => !b.lexical && !b.module)
             .map(({ name, index }) => ({ name, index })),
