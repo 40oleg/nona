@@ -314,6 +314,77 @@ export function emitArrayElements(b: RuntimeBuilder): void {
         a.load("rax", slot(56));
         a.store({ base: "rcx", disp: O.elements }, "rax");
     });
+    // RCX destination, RDX source, R8 byte count (a multiple of 16): moves
+    // element slots between overlapping ranges in either direction, 64 bytes
+    // per step through XMM0-XMM3 (#262). rep movsb takes a slow path when the
+    // ranges are this close (a shift moves every slot down by one), about
+    // three times slower. Clobbers RCX, RDX, R8 and XMM0-XMM3.
+    b.fn("rt.moveSlots", 40, (a) => {
+        const backward = a.unique("backward"),
+            forwardOne = a.unique("forwardOne"),
+            backwardOne = a.unique("backwardOne"),
+            done = a.unique("done");
+        a.cmp("rcx", "rdx");
+        a.jcc("a", backward);
+        {
+            const loop = a.unique("forward");
+            a.label(loop);
+            a.cmp("r8", 64);
+            a.jcc("b", forwardOne);
+            a.loadXmm128("xmm0", { base: "rdx" });
+            a.loadXmm128("xmm1", { base: "rdx", disp: 16 });
+            a.loadXmm128("xmm2", { base: "rdx", disp: 32 });
+            a.loadXmm128("xmm3", { base: "rdx", disp: 48 });
+            a.storeXmm128({ base: "rcx" }, "xmm0");
+            a.storeXmm128({ base: "rcx", disp: 16 }, "xmm1");
+            a.storeXmm128({ base: "rcx", disp: 32 }, "xmm2");
+            a.storeXmm128({ base: "rcx", disp: 48 }, "xmm3");
+            a.add("rcx", 64);
+            a.add("rdx", 64);
+            a.sub("r8", 64);
+            a.jmp(loop);
+            a.label(forwardOne);
+            a.test("r8", "r8");
+            a.jcc("e", done);
+            a.loadXmm128("xmm0", { base: "rdx" });
+            a.storeXmm128({ base: "rcx" }, "xmm0");
+            a.add("rcx", 16);
+            a.add("rdx", 16);
+            a.sub("r8", 16);
+            a.jmp(forwardOne);
+        }
+        a.label(backward);
+        {
+            const loop = a.unique("backwardLoop");
+            a.add("rcx", "r8");
+            a.add("rdx", "r8");
+            a.label(loop);
+            a.cmp("r8", 64);
+            a.jcc("b", backwardOne);
+            a.sub("rcx", 64);
+            a.sub("rdx", 64);
+            a.sub("r8", 64);
+            a.loadXmm128("xmm0", { base: "rdx" });
+            a.loadXmm128("xmm1", { base: "rdx", disp: 16 });
+            a.loadXmm128("xmm2", { base: "rdx", disp: 32 });
+            a.loadXmm128("xmm3", { base: "rdx", disp: 48 });
+            a.storeXmm128({ base: "rcx" }, "xmm0");
+            a.storeXmm128({ base: "rcx", disp: 16 }, "xmm1");
+            a.storeXmm128({ base: "rcx", disp: 32 }, "xmm2");
+            a.storeXmm128({ base: "rcx", disp: 48 }, "xmm3");
+            a.jmp(loop);
+            a.label(backwardOne);
+            a.test("r8", "r8");
+            a.jcc("e", done);
+            a.sub("rcx", 16);
+            a.sub("rdx", 16);
+            a.sub("r8", 16);
+            a.loadXmm128("xmm0", { base: "rdx" });
+            a.storeXmm128({ base: "rcx" }, "xmm0");
+            a.jmp(backwardOne);
+        }
+        a.label(done);
+    });
     // RCX object Value*, RDX start, R8 delete count, R9 item count, with
     // start + delete count <= length: the element moves and tail deletions of
     // Array.prototype.splice (and shift: 0, 1, 0) done as one move of the slots.
@@ -332,7 +403,6 @@ export function emitArrayElements(b: RuntimeBuilder): void {
             done = a.unique("done"),
             fits = a.unique("fits"),
             moved = a.unique("moved"),
-            backward = a.unique("backward"),
             shrunk = a.unique("shrunk");
         a.load("rax", { base: "rcx" });
         a.cmp("rax", 5);
@@ -414,33 +484,12 @@ export function emitArrayElements(b: RuntimeBuilder): void {
         a.shl("r9", 4);
         a.lea("r9", { base: "r9", disp: E.values });
         a.add("r9", "r11");
-        a.cmp("r9", "r8");
-        a.jcc("a", backward);
-        // Downward (or in place): a forward byte copy never reads a byte it wrote.
         a.mov("rcx", "r9");
         a.mov("rdx", "r8");
         a.mov("r8", "rax");
-        a.call("rt.copyBytes");
+        a.call("rt.moveSlots");
         a.load("r10", slot(40));
         a.load("r11", { base: "r10", disp: O.elements });
-        a.jmp(moved);
-        a.label(backward);
-        {
-            const loop = a.unique("backwardLoop");
-            a.add("r8", "rax");
-            a.add("r9", "rax");
-            a.label(loop);
-            a.test("rax", "rax");
-            a.jcc("e", moved);
-            a.sub("r8", 16);
-            a.sub("r9", 16);
-            a.sub("rax", 16);
-            a.load("rcx", { base: "r8" });
-            a.store({ base: "r9" }, "rcx");
-            a.load("rcx", { base: "r8", disp: 8 });
-            a.store({ base: "r9", disp: 8 }, "rcx");
-            a.jmp(loop);
-        }
         a.label(moved);
         // Shrinking: the slots from the new length to the old one become holes.
         a.load("rax", slot(80));

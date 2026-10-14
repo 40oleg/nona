@@ -41,8 +41,25 @@ console.log(Object.keys(o).length, Date.now() - started < 10000);`;
     assert.equal(run.stdout, oracle(source));
 });
 
+test("splice moves slot ranges of every length in both directions", () => {
+    const source = `const out = [];
+for (let n = 0; n < 12; n++) for (let start = 0; start <= n; start++) for (const [del, ins] of [[0, 1], [1, 0], [2, 1], [1, 3], [0, 5], [5, 0]]) {
+    const a = []; for (let i = 0; i < n; i++) a.push(i * 10);
+    const items = []; for (let i = 0; i < ins; i++) items.push(-i - 1);
+    const removed = a.splice(start, del, ...items);
+    out.push(a.join(",") + "/" + removed.join(","));
+}
+const q = []; for (let i = 0; i < 37; i++) q.push({ i }); let t = 0; while (q.length) t += q.shift().i;
+console.log(out.length, out.join(";").length, out[100], out[400], out[out.length - 1], t);`;
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, oracle(source));
+});
+
 test("shift and splice of large dense arrays move their elements at once", () => {
-    // Element by element this took about a minute; as slot moves, about a second.
+    // Element by element this took about a minute. As one rep movsb per call it
+    // took about ten seconds (the overlapping ranges defeat the fast string
+    // copy); as 64-byte vector moves (rt.moveSlots, #262), about one.
     const source = `const started = Date.now();
 const a = []; for (let i = 0; i < 50000; i++) a.push(i); let s = 0; while (a.length) s += a.shift();
 const b = []; for (let i = 0; i < 50000; i++) b.push(i); for (let i = 0; i < 25000; i++) b.splice(b.length >> 1, 1);
