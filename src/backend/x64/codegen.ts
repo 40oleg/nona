@@ -725,6 +725,9 @@ function generateImage(
         hostGlobal("__nonaHexEncode", "rt.hexEncode.code", 1);
         hostGlobal("__nonaByteCopy", "rt.byteCopy.code", 3);
     }
+    if (hasPrelude && regexpLink.regexp)
+        // First-unit scan of the RegExp engine (#258), captured and removed by the prelude.
+        hostGlobal("__nonaRegexpScan", "rt.regexpScan.code", 3);
     if (hasPrelude && linked.includes("network")) {
         // Captured and removed from the global object by nona:internal/native.
         hostGlobal("__nonaNetParse", "rt.netParse.code", 4);

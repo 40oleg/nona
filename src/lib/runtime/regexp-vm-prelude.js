@@ -30,6 +30,9 @@
     return result
 };
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
+// The native first-unit scan (#258): a host global only where the engine is linked.
+__nonaRegexpVm.regexpScan=typeof __nonaRegexpScan==='function'?__nonaRegexpScan:null;
+delete globalThis.__nonaRegexpScan;
 __nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
 __nonaRegexpVm.isRejectionError=Error.__nonaIsRejectionErrorInternal;
 delete Error.__nonaIsRejectionErrorInternal;

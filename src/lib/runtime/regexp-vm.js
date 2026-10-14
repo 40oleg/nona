@@ -6,6 +6,7 @@
   var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
   var ByteArray=intrinsic?intrinsic.byteArrayConstructor:Uint8Array;
   var byteFill=intrinsic?intrinsic.byteArrayFill:Uint8Array.prototype.fill;
+  var nativeScan=intrinsic&&intrinsic.regexpScan?intrinsic.regexpScan:null;
   // CreateDataProperty at the end: natively in Nona (captured below as
   // __nonaRegexpVm.append), through a reused descriptor elsewhere.
   var appendDescriptor={value:undefined,writable:true,enumerable:true,configurable:true};
@@ -432,7 +433,7 @@
       }
     }
     validateReferences(tree);
-    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false};
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined};
     // A pattern whose every alternative starts with ^ (without the m flag) can
     // only match at index 0: search tries no other start position.
     if(indexOf(flags,'m')<0)compiled.anchored=startsAnchored(tree);
@@ -440,15 +441,106 @@
     // mode) can only match where that literal occurs: execute skips ahead
     // with indexOf instead of trying every position.
     if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0){
-      var first=tree;
-      for(;;){
-        if(first.kind==='sequence'&&first.value.length>0)first=first.value[0];
-        else if(first.kind==='group')first=first.value;
-        else break
+      // The whole literal run at the start ('abc' of /abc(\d+)/), so that
+      // indexOf skips the positions where only the first character matches.
+      var literal=literalPrefix(tree);
+      if(literal.text!=='')compiled.prefix=literal.text
+    }
+    // Otherwise a pattern whose matches must start with one of at most eight
+    // code units skips to the next of them with the native scan (#258).
+    if(compiled.prefix===null&&!compiled.anchored){
+      var unicodeMode=indexOf(flags,'u')>=0,units=firstUnits(tree,indexOf(flags,'i')>=0,unicodeMode);
+      // In unicode mode a match never starts inside a surrogate pair, but the
+      // scan would stop at the trailing half of one: such sets are not used.
+      var usable=!units.nullable&&units.set!==null&&units.set.length>0;
+      for(var u=0;usable&&unicodeMode&&u<units.set.length;u++)if(units.set[u]>=0xdc00&&units.set[u]<=0xdfff)usable=false;
+      if(usable){
+        var text='';
+        for(var u=0;u<units.set.length;u++)text+=String.fromCharCode(units.set[u]);
+        compiled.firstUnits=text
       }
-      if(first.kind==='char')compiled.prefix=first.value
     }
     return compiled
+  }
+  // The literal characters every match of node starts with: {text, whole},
+  // whole when node is nothing but those characters (a following node then
+  // continues the run).
+  function literalPrefix(node){
+    if(node.kind==='char')return {text:node.value,whole:true};
+    if(node.kind==='group')return literalPrefix(node.value);
+    if(node.kind==='sequence'){
+      var text='';
+      for(var i=0;i<node.value.length;i++){
+        var part=literalPrefix(node.value[i]);
+        text+=part.text;
+        if(!part.whole)return {text:text,whole:false}
+      }
+      return {text:text,whole:true}
+    }
+    return {text:'',whole:false}
+  }
+  // The code units a match of node can start with: {set, nullable}. set is
+  // null when it is unknown or has more than eight units; nullable when the
+  // node can match the empty string (a following node may then supply the
+  // first unit). Zero-width assertions are nullable with an empty set.
+  function firstUnits(node,ignore,unicode){
+    var kind=node.kind;
+    if(kind==='char')return {set:charUnits(charCodeAt(node.value,0),ignore,unicode),nullable:false};
+    if(kind==='class'){
+      if(node.value.inverted)return {set:null,nullable:false};
+      var set=[],items=node.value.items;
+      for(var i=0;i<items.length&&set!==null;i++){
+        var item=items[i];
+        if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
+        else if(item.range){for(var p=item.from;p<=item.to&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))}
+        else set=unionUnits(set,charUnits(leadUnit(item.point),ignore,unicode))
+      }
+      return {set:set,nullable:false}
+    }
+    if(kind==='group')return firstUnits(node.value,ignore,unicode);
+    if(kind==='anchor'||kind==='boundary'||kind==='look')return {set:[],nullable:true};
+    if(kind==='repeat'){
+      var inner=firstUnits(node.value,ignore,unicode);
+      return {set:inner.set,nullable:inner.nullable||node.min===0}
+    }
+    if(kind==='sequence'||kind==='alternative'){
+      var result={set:[],nullable:kind==='sequence'};
+      for(var i=0;i<node.value.length;i++){
+        var part=firstUnits(node.value[i],ignore,unicode);
+        result.set=result.set===null||part.set===null?null:unionUnits(result.set,part.set);
+        if(kind==='sequence'){if(!part.nullable){result.nullable=false;break}}
+        else if(part.nullable)result.nullable=true
+      }
+      if(kind==='alternative'&&node.value.length===0)result.nullable=true;
+      return result
+    }
+    return {set:null,nullable:true}
+  }
+  // The code units a character (given by its first unit) can match under the
+  // flags, or null. Ignore case
+  // is handled for ASCII only: in legacy mode no other character
+  // canonicalizes to an ASCII one, and in unicode mode only K (KELVIN SIGN)
+  // and S (LATIN SMALL LETTER LONG S) fold onto ASCII letters.
+  function leadUnit(point){return point>0xffff?0xd800+((point-0x10000)>>10):point}
+  function charUnits(unit,ignore,unicode){
+    if(!ignore)return [unit];
+    if(unit>=128)return null;
+    var lower=unit|32;
+    if(lower<97||lower>122)return [unit];
+    var units=[lower,lower-32];
+    if(unicode&&lower===107)append(units,0x212a);
+    if(unicode&&lower===115)append(units,0x17f);
+    return units
+  }
+  function unionUnits(set,more){
+    if(set===null||more===null)return null;
+    var result=arraySlice.call(set);
+    for(var i=0;i<more.length;i++){
+      var known=false;
+      for(var j=0;j<result.length;j++)if(result[j]===more[i])known=true;
+      if(!known){if(result.length===8)return null;append(result,more[i])}
+    }
+    return result
   }
   function startsAnchored(node){
     if(node.kind==='anchor')return node.value==='^';
@@ -1009,12 +1101,17 @@
     }
     var prefix=sticky?null:compiled.prefix;
     var anchored=compiled.anchored;
+    var scan=sticky||nativeScan===null?undefined:compiled.firstUnits;
     for(var candidate=start;candidate<=length;candidate++){
       if(anchored&&candidate>0)return null;
       if(prefix!==null){
         var found=safeIndexOf.call(input,prefix,candidate);
         if(found<0)return null;
         candidate=found
+      }else if(scan!==undefined){
+        var next=nativeScan(input,candidate,scan);
+        if(next===-1)return null;
+        if(typeof next==='number')candidate=next
       }
       for(var s=0;s<stateSize;s++)state[s]=NONE;
       undoTop=0;frameTop=0;
