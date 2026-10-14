@@ -15,6 +15,11 @@ import {
     LiteralSiteLayout,
 } from "../../runtime/shapes.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
+import {
+    int32Operand,
+    integerRemainder,
+    maskableDivisor,
+} from "./integer-ops.js";
 import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
 import type {
@@ -455,7 +460,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         if (
             !(operator in arithmetic) &&
             !(operator in relation) &&
-            !bitwise.includes(operator)
+            !bitwise.includes(operator) &&
+            operator !== "%"
         )
             return undefined;
         const slow = a.unique("generic"),
@@ -487,25 +493,18 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             a.label(store);
             if (negated) a.xor("rax", 1);
             setBoolean(dest);
+        } else if (operator === "%") {
+            const mask =
+                staticConstant(right) !== undefined
+                    ? maskableDivisor(constants.get(right))
+                    : undefined;
+            integerRemainder(a, payload(left), mask ?? payload(right), slow);
+            setNumber(dest);
         } else {
             // ToInt32 inline only for operands that already are int32 values:
-            // truncation must round-trip and fit in 32 bits, otherwise the
-            // runtime does the modular reduction.
-            const toInt32 = (n: number, reg: "rcx" | "r10") => {
-                a.movsd("xmm0", payload(n));
-                a.cvttsd2si(reg, "xmm0");
-                a.cvtsi2sd("xmm1", reg);
-                a.ucomisd("xmm1", "xmm0");
-                a.jcc("p", slow);
-                a.jcc("ne", slow);
-                a.mov("r11", reg);
-                a.shl("r11", 32);
-                a.sar("r11", 32);
-                a.cmp("r11", reg);
-                a.jcc("ne", slow);
-            };
-            toInt32(left, "r10");
-            toInt32(right, "rcx");
+            // otherwise the runtime does the modular reduction.
+            int32Operand(a, payload(left), "r10", slow);
+            int32Operand(a, payload(right), "rcx", slow);
             switch (operator) {
                 case "&":
                     a.and("r10", "rcx");
