@@ -45,6 +45,18 @@ JavaScript source (script or module graph)
 - 内置对象的**原生代码**由一个小型构建器（`RuntimeBuilder`）以 x86-64 形式生成。
 - **JavaScript 前导代码（prelude）**（`src/lib/runtime/*.js`）用 JavaScript 实现库的一部分，并编译进每个可执行文件：RegExp 引擎、Promise 和 async 驱动、Proxy 和 Reflect 辅助函数、定时器和事件循环、`process`、`TextEncoder`/`TextDecoder` 以及 Annex B 内置对象。
 
+### 向量指令（SIMD）
+
+运行时的热点例程使用 128 位向量指令每次处理 16 字节：x86-64 上为 SSE2，ARM64 上为 NEON。这两种架构的每个 CPU 都具备这些指令，因此可执行文件无需 CPU 检测，可在任何机器上运行；不使用 AVX（[#253](https://github.com/40oleg/nona/issues/253)）。
+
+- **字符串：** 两个字符串的相等与排序比较，`indexOf`、`includes`、`lastIndexOf`、`split` 和 `replaceAll`（向量扫描模式的首个代码单元），以及代码单元复制。
+- **类型化数组：** `fill`、`copyWithin`、`slice`、`set`、`indexOf`、`lastIndexOf` 和 `includes` 按内存块移动或比较。
+- **数组：** `shift` 和 `splice` 每步移动 64 字节的元素槽（[#262](https://github.com/40oleg/nona/issues/262)）。
+- **RegExp：** 匹配只能以最多八个代码单元之一开头的模式，在每次匹配尝试前用向量扫描跳到这些位置（[#258](https://github.com/40oleg/nona/issues/258)）。
+- **内存：** 新的堆块用 16 字节写入清零。
+
+真实程序的指令花在哪里、哪些例程受益于向量，测量结果见 [`docs/simd.md`](https://github.com/40oleg/nona/blob/main/docs/simd.md)（英文）。
+
 ### 垃圾回收器
 
 回收器是精确且不移动对象的：基于显式根（全局变量、安全点处的活跃栈槽、运行时根作用域）进行标记-清除。生成器和异步函数的协程栈（每个 1 MiB）计入回收阈值。在 Linux 上，堆块来自从 1 MiB 区域（arena）中切分出的尺寸类别。内部内存约定见 [`docs/runtime-memory.md`](https://github.com/40oleg/nona/blob/main/docs/runtime-memory.md)（俄文）。

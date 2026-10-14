@@ -45,6 +45,18 @@ Every executable contains the runtime from [`src/runtime`](https://github.com/40
 - **Native code** for built-ins is emitted as x86-64 or AArch64 with a small builder (`RuntimeBuilder`).
 - **JavaScript preludes** (`src/lib/runtime/*.js`) implement parts of the library in JavaScript and are compiled into every executable: the RegExp engine, Promise and async drivers, Proxy and Reflect helpers, timers and the event loop, `process`, `TextEncoder`/`TextDecoder` and Annex B built-ins.
 
+### Vector instructions (SIMD)
+
+The runtime's hot routines work on 16 bytes at a time with 128-bit vector instructions: SSE2 on x86-64 and NEON on ARM64. Every CPU of these architectures has them, so executables need no CPU check and run anywhere; AVX is not used ([#253](https://github.com/40oleg/nona/issues/253)).
+
+- **Strings:** equality and ordering of two strings, `indexOf`, `includes`, `lastIndexOf`, `split` and `replaceAll` (a vector scan for the first unit of the pattern), and copies of code units.
+- **Typed arrays:** `fill`, `copyWithin`, `slice`, `set`, `indexOf`, `lastIndexOf` and `includes` move or compare blocks of memory.
+- **Arrays:** `shift` and `splice` move element slots 64 bytes per step ([#262](https://github.com/40oleg/nona/issues/262)).
+- **RegExp:** a pattern whose matches can only start with one of up to eight code units skips to them with a vector scan before each match attempt ([#258](https://github.com/40oleg/nona/issues/258)).
+- **Memory:** new heap blocks are zeroed with 16-byte stores.
+
+Where the instructions of real programs go, and which routines vectors speed up, is measured in [`docs/simd.md`](https://github.com/40oleg/nona/blob/main/docs/simd.md).
+
 ### Garbage collector
 
 The collector is precise and non-moving: mark-and-sweep over explicit roots (globals, live stack slots at safepoints, runtime root scopes). Coroutine stacks of generators and async functions (1 MiB each) count towards the collection threshold. On Linux, heap blocks come from size classes carved out of 1 MiB arenas. The internal memory contract is described in [`docs/runtime-memory.md`](https://github.com/40oleg/nona/blob/main/docs/runtime-memory.md) (Russian).

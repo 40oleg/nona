@@ -45,6 +45,18 @@ Chaque exécutable contient le runtime de [`src/runtime`](https://github.com/40o
 - Le **code natif** des objets intégrés est émis en x86-64 par un petit constructeur (`RuntimeBuilder`).
 - Les **préludes JavaScript** (`src/lib/runtime/*.js`) implémentent une partie de la bibliothèque en JavaScript et sont compilés dans chaque exécutable : le moteur RegExp, les pilotes de Promise et d’async, les utilitaires Proxy et Reflect, les minuteurs et la boucle d’événements, `process`, `TextEncoder`/`TextDecoder` et les objets intégrés de l’Annex B.
 
+### Instructions vectorielles (SIMD)
+
+Les routines les plus sollicitées du runtime traitent 16 octets à la fois avec des instructions vectorielles 128 bits : SSE2 sur x86-64 et NEON sur ARM64. Tous les processeurs de ces architectures les possèdent : les exécutables ne testent pas le CPU et fonctionnent partout ; AVX n’est pas utilisé ([#253](https://github.com/40oleg/nona/issues/253)).
+
+- **Chaînes :** égalité et ordre de deux chaînes, `indexOf`, `includes`, `lastIndexOf`, `split` et `replaceAll` (recherche vectorielle de la première unité du motif), copies d’unités de code.
+- **Tableaux typés :** `fill`, `copyWithin`, `slice`, `set`, `indexOf`, `lastIndexOf` et `includes` déplacent ou comparent des blocs de mémoire.
+- **Tableaux :** `shift` et `splice` déplacent les emplacements d’éléments 64 octets par pas ([#262](https://github.com/40oleg/nona/issues/262)).
+- **RegExp :** un motif dont les correspondances ne peuvent commencer que par l’une d’au plus huit unités de code y saute par un balayage vectoriel avant chaque tentative ([#258](https://github.com/40oleg/nona/issues/258)).
+- **Mémoire :** les nouveaux blocs du tas sont mis à zéro par écritures de 16 octets.
+
+Où vont les instructions des programmes réels et quelles routines les vecteurs accélèrent est mesuré dans [`docs/simd.md`](https://github.com/40oleg/nona/blob/main/docs/simd.md) (en anglais).
+
 ### Ramasse-miettes
 
 Le ramasse-miettes est précis et non déplaçant : mark-and-sweep sur des racines explicites (variables globales, emplacements de pile vivants aux points sûrs, portées racines du runtime). Les piles de coroutines des générateurs et des fonctions async (1 Mio chacune) comptent dans le seuil de collecte. Sous Linux, les blocs du tas proviennent de classes de taille découpées dans des arènes de 1 Mio. Le contrat mémoire interne est décrit dans [`docs/runtime-memory.md`](https://github.com/40oleg/nona/blob/main/docs/runtime-memory.md) (en russe).

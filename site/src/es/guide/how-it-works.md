@@ -45,6 +45,18 @@ Cada ejecutable contiene el runtime de [`src/runtime`](https://github.com/40oleg
 - El **código nativo** de los objetos integrados se emite como x86-64 o AArch64 con un pequeño constructor (`RuntimeBuilder`).
 - Los **preludios de JavaScript** (`src/lib/runtime/*.js`) implementan partes de la biblioteca en JavaScript y se compilan en cada ejecutable: el motor de RegExp, los controladores de Promise y async, los auxiliares de Proxy y Reflect, los temporizadores y el bucle de eventos, `process`, `TextEncoder`/`TextDecoder` y los objetos integrados del Annex B.
 
+### Instrucciones vectoriales (SIMD)
+
+Las rutinas más usadas del runtime trabajan con 16 bytes a la vez mediante instrucciones vectoriales de 128 bits: SSE2 en x86-64 y NEON en ARM64. Todas las CPU de estas arquitecturas las tienen, así que los ejecutables no comprueban la CPU y funcionan en cualquier máquina; no se usa AVX ([#253](https://github.com/40oleg/nona/issues/253)).
+
+- **Cadenas:** igualdad y orden de dos cadenas, `indexOf`, `includes`, `lastIndexOf`, `split` y `replaceAll` (búsqueda vectorial de la primera unidad del patrón) y copias de unidades de código.
+- **Arrays tipados:** `fill`, `copyWithin`, `slice`, `set`, `indexOf`, `lastIndexOf` e `includes` mueven o comparan bloques de memoria.
+- **Arrays:** `shift` y `splice` mueven las ranuras de elementos de 64 en 64 bytes ([#262](https://github.com/40oleg/nona/issues/262)).
+- **RegExp:** un patrón cuyas coincidencias solo pueden empezar por una de hasta ocho unidades de código salta hasta ellas con un escaneo vectorial antes de cada intento ([#258](https://github.com/40oleg/nona/issues/258)).
+- **Memoria:** los bloques nuevos del heap se ponen a cero con escrituras de 16 bytes.
+
+Dónde van las instrucciones de programas reales y qué rutinas aceleran los vectores se mide en [`docs/simd.md`](https://github.com/40oleg/nona/blob/main/docs/simd.md) (en inglés).
+
 ### Recolector de basura
 
 El recolector es preciso y no mueve objetos: mark-and-sweep sobre raíces explícitas (globales, ranuras de pila vivas en los safepoints, ámbitos raíz del runtime). Las pilas de corrutinas de generadores y funciones async (1 MiB cada una) cuentan para el umbral de recolección. En Linux, los bloques del heap provienen de clases de tamaño recortadas de arenas de 1 MiB. El contrato interno de memoria se describe en [`docs/runtime-memory.md`](https://github.com/40oleg/nona/blob/main/docs/runtime-memory.md) (en ruso).

@@ -45,6 +45,18 @@ Cada executável contém o runtime de [`src/runtime`](https://github.com/40oleg/
 - O **código nativo** dos objetos embutidos é emitido como x86-64 por um pequeno construtor (`RuntimeBuilder`).
 - Os **prelúdios em JavaScript** (`src/lib/runtime/*.js`) implementam partes da biblioteca em JavaScript e são compilados em cada executável: o motor de RegExp, os drivers de Promise e async, os auxiliares de Proxy e Reflect, timers e o loop de eventos, `process`, `TextEncoder`/`TextDecoder` e os objetos embutidos do Annex B.
 
+### Instruções vetoriais (SIMD)
+
+As rotinas mais usadas do runtime trabalham com 16 bytes por vez usando instruções vetoriais de 128 bits: SSE2 em x86-64 e NEON em ARM64. Toda CPU dessas arquiteturas as possui, então os executáveis não verificam a CPU e rodam em qualquer máquina; AVX não é usado ([#253](https://github.com/40oleg/nona/issues/253)).
+
+- **Strings:** igualdade e ordem de duas strings, `indexOf`, `includes`, `lastIndexOf`, `split` e `replaceAll` (busca vetorial da primeira unidade do padrão) e cópias de unidades de código.
+- **Arrays tipados:** `fill`, `copyWithin`, `slice`, `set`, `indexOf`, `lastIndexOf` e `includes` movem ou comparam blocos de memória.
+- **Arrays:** `shift` e `splice` movem os slots de elementos 64 bytes por passo ([#262](https://github.com/40oleg/nona/issues/262)).
+- **RegExp:** um padrão cujas correspondências só podem começar por uma de até oito unidades de código salta até elas com uma varredura vetorial antes de cada tentativa ([#258](https://github.com/40oleg/nona/issues/258)).
+- **Memória:** novos blocos do heap são zerados com escritas de 16 bytes.
+
+Para onde vão as instruções de programas reais e quais rotinas os vetores aceleram está medido em [`docs/simd.md`](https://github.com/40oleg/nona/blob/main/docs/simd.md) (em inglês).
+
 ### Coletor de lixo
 
 O coletor é preciso e não move objetos: mark-and-sweep sobre raízes explícitas (globais, slots de pilha vivos nos safepoints, escopos raiz do runtime). As pilhas de corrotinas de geradores e funções async (1 MiB cada) contam para o limite de coleta. No Linux, os blocos do heap vêm de classes de tamanho recortadas de arenas de 1 MiB. O contrato interno de memória está descrito em [`docs/runtime-memory.md`](https://github.com/40oleg/nona/blob/main/docs/runtime-memory.md) (em russo).
