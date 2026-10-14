@@ -78,7 +78,8 @@ for (const p of [/fox|dog/y, /[<>]/y, /quick/y]) { p.lastIndex = 4; const m = p.
 const big = "x".repeat(300) + "<a>" + "y".repeat(300) + "fox";
 console.log(big.search(/[<>]/), big.search(/fox|dog/), big.search(/[<>]q/), /k/i.test(big), big.replace(/[<>]/g, "").length);
 const re = /[\\n,]/g; let count = 0; for (const piece of ("a,b\\n".repeat(20)).split(re)) count += piece.length; console.log(count);`;
-    const run = runOnHost(source);
+    // Without gcStress, like the groups above: CI runners took over the 60 s limit.
+    const run = runOnHost(source, { gcStress: false });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);
 });
