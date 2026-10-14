@@ -1,0 +1,1 @@
+{"header":{"runtime":"nona","reportVersion":1,"event":"FatalError","trigger":"FatalError","filename":"nona-process-report-oom.json","nonaVersion":"v0.12.0","platform":"linux","arch":"x64","configurationTime":"2026-10-14T05:44:27.569Z"},"javascriptHeap":{"heapTotal":2490368,"heapUsed":2490368,"arrayBuffers":2490368,"managedBlocks":2490368}}

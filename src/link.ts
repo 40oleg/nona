@@ -300,6 +300,7 @@ export function linkReport(
     return runtimePartNames
         .filter((part) => present.has(part))
         .map((part) => ({ part, reason: why.get(part)! }));
+}
 
 /**
  * The prelude part that defines each rt.prelude helper only some syntax
