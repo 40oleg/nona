@@ -13,7 +13,7 @@ import {
     blobStreamCases,
     streamOracle,
 } from "./helpers/buffer-cases.js";
-import { regexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
+import { fullRegexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
 import { runtimeRegExpLink } from "../src/link.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
 
@@ -98,7 +98,7 @@ test("Buffer source links its internal RegExp dependency", () => {
     const run = (regexp: boolean) =>
         runInNewContext(
             bridge +
-                regexpVmPrelude({ regexp, unicodeProperties: false }) +
+                fullRegexpVmPrelude({ regexp, unicodeProperties: false }) +
                 encodingPreludeSource +
                 bufferPreludeSource +
                 body,

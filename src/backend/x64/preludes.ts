@@ -27,6 +27,8 @@ import { eventEmitterPreludeSource } from "../../runtime/event-emitter-source.js
 import { streamPreludeForTarget } from "../../runtime/stream-source.js";
 import { timersPreludeSource } from "../../runtime/timers-source.js";
 import { objectAnnexBPreludeSource } from "../../runtime/object-annexb-source.js";
+import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-source.js";
+import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
@@ -71,6 +73,8 @@ export function lowerRuntimePrelude(
         // Order matters: later preludes capture intrinsics installed by earlier ones.
         const parts: [OptionalPrelude | null, string][] = [
             [null, regexpVmPrelude(regexpLink)],
+            ["regexpProtocol", regexpProtocolPreludeSource],
+            ["binaryData", binaryDataPreludeSource],
             [null, reflectPreludeSource],
             ["objectAnnexB", objectAnnexBPreludeSource],
             ["arraySort", arraySortPreludeSource],
@@ -107,7 +111,10 @@ export function lowerRuntimePrelude(
                         parts
                             .filter(
                                 ([name]) =>
-                                    name === null || linked.includes(name),
+                                    name === null ||
+                                    linked.includes(name) ||
+                                    (name === "regexpProtocol" &&
+                                        regexpLink.regexp),
                             )
                             .map(([, source]) => source)
                             .join("\n"),

@@ -207,8 +207,13 @@ function generateImage(
             blocks: fn.blocks.map((block) => ({
                 ...block,
                 operations: block.operations.map((op) => {
-                    if (op.kind === "newFunction")
-                        return { ...op, target: prefix(op.target) };
+                    if (op.kind === "newFunction") {
+                        // Prelude functions are built-ins: they print as native code, so
+                        // their source text is not embedded in the executable.
+                        const { sourceText, sourceRange, ...rest } = op;
+                        (void sourceText, sourceRange);
+                        return { ...rest, target: prefix(op.target) };
+                    }
                     if (op.kind === "invoke" && op.direct)
                         return { ...op, direct: prefix(op.direct) };
                     if (op.kind === "loadGlobal" || op.kind === "storeGlobal")

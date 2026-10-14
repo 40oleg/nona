@@ -5,7 +5,7 @@ import { types } from "node:util";
 import { compile, compileToIR } from "../src/compiler.js";
 import { collectSourceUsage } from "../src/frontend/lexer.js";
 import { runtimeRegExpLink } from "../src/link.js";
-import { regexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
+import { fullRegexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
 import { captureProcessStartup } from "../src/runtime/process-host.js";
 import { Assembler } from "../src/backend/x64/assembler.js";
 import {
@@ -130,7 +130,7 @@ test("trimmed process programs link the original RegExp engine for internal OS t
             context,
         );
         runInContext(
-            regexpVmPrelude(runtimeRegExpLink(usage, linked)),
+            fullRegexpVmPrelude(runtimeRegExpLink(usage, linked)),
             context,
         );
         const call =
