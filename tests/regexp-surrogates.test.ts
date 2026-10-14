@@ -13,7 +13,9 @@ for (const p of pats) {
   const first = new RegExp(p.source, p.flags.replace("g", "")).exec(text);
   console.log(String(p), text.search(p), all.join(" "), text.split(p).length, text.replace(p, "#").length, first ? first.index : -1);
 }`;
-    const run = runOnHost(source);
+    // Without gcStress: unicode case folding and tables allocate thousands of
+    // objects, which a collection per allocation made exceed 60 s on CI.
+    const run = runOnHost(source, { gcStress: false });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);
 });
