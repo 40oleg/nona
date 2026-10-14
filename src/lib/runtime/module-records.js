@@ -11,7 +11,7 @@
         enqueueCallback = core.enqueue,
         settle = core.settle,
         resolveState = core.resolve,
-        append = __nonaRegexpVm.append,
+        append = core.append,
         objectCreate = Object.create,
         defineProperty = Object.defineProperty,
         hasOwn = Object.prototype.hasOwnProperty;

@@ -13,3 +13,6 @@ site/node_modules/
 site/src/public/playground-worker.js
 bench/real/vendor/
 src/lib/sources.generated.ts
+
+# Written by process.report tests run from the repository root
+nona-process-report-*.json

@@ -22,6 +22,7 @@
 
 ### Internals
 
+- The module records prelude part takes `append` from the promise prelude again, and stray `process.report` test outputs are no longer committed. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 
 ### Documentation
