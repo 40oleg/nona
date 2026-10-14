@@ -16,7 +16,7 @@ The executable contains your program's machine code and Nona's runtime, and noth
 
 ## Why Nona
 
-- **Small and fast to start.** A hello world is about 2.2 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 2 ms and peaks at about 11 MB of memory (Node.js: 28 ms and 45 MB; measured on v0.7.0, see [PERFORMANCE.md](PERFORMANCE.md#14-startup-executable-size-build-time-memory)).
+- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-against-nodejs-deno-and-bun)).
 - **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc. Apple Silicon output uses the system dyld and libSystem.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).

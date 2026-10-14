@@ -26,6 +26,7 @@
 
 ### Documentation
 
+- PERFORMANCE.md compares the current `main` with Node.js, Deno and Bun again: start-up, size, memory, the micro-benchmarks and acorn/marked. ([#267](https://github.com/40oleg/nona/issues/267))
 - The site's How it works page describes where the runtime uses SIMD (SSE2/NEON) and links the measurements of `docs/simd.md`. ([#268](https://github.com/40oleg/nona/issues/268))
 - The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).
 

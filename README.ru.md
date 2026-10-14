@@ -16,7 +16,7 @@ Hello, from Nona!
 
 ## Зачем Nona
 
-- **Маленькие и быстро стартуют.** Hello world весит около 2,2 МБ: движок RegExp, таблицы Unicode и библиотеки вроде `Proxy`, таймеров или `process` попадают в файл, только если программа может до них дойти. Запуск занимает около 2 мс, пик памяти около 11 МБ (у Node.js 28 мс и 45 МБ; замер на v0.7.0, см. [PERFORMANCE.md](PERFORMANCE.md#14-startup-executable-size-build-time-memory)).
+- **Маленькие и быстро стартуют.** Hello world весит около 1,1 МБ: движок RegExp, таблицы Unicode и библиотеки вроде `Proxy`, таймеров или `process` попадают в файл, только если программа может до них дойти. Запуск занимает около 3 мс, пик памяти около 1 МБ (у Node.js 47 мс и 44 МБ, у Deno 41 мс, у Bun 6 мс; см. [PERFORMANCE.md](PERFORMANCE.md#current-release-against-nodejs-deno-and-bun)).
 - **Никаких зависимостей при запуске.** Файлы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI). Файлы для Linux, BSD и macOS на Intel обращаются к ядру напрямую, без libc. Для Apple Silicon используются системные dyld и libSystem.
 - **Восемь целей с любой машины.** Кросс-компиляция через `--target`; один файл для Linux на каждый процессор работает в Mint, Ubuntu, Debian, Fedora и Alpine.
 - **Самосборка.** Компилятор собирает сам себя. Выпущенный `nona` — нативный исполняемый файл, собранный Nona, без Node.js внутри. На Windows и Linux x64 он пересобирает себя во вторую стадию, совпадающую побайтно ([bootstrap](docs/self-hosting.md)).
