@@ -17,6 +17,10 @@ La última auditoría completa de Test262 fijado, en Windows x64 para v0.8.0 (`s
 
 La clasificación la hace `scripts/test262-summary.mjs`: las pruebas «`eval`» llaman a `eval` o `$262.evalScript` con código fuente que Nona no puede conocer en tiempo de compilación; las pruebas de «semántica más reciente» comprueban comportamiento de ediciones posteriores (el flag `v`, separadores numéricos, `Promise.any`, …) bajo una etiqueta de característica antigua o ausente. La suite unitaria se ejecuta en Windows y Linux en CI y compila y ejecuta archivos PE y ELF reales, muchos bajo estrés del GC. Cómo ejecutar las auditorías se describe en la página de [Test262](/es/reference/test262).
 
+## Métodos de copia de arrays
+
+Comprobado después de la auditoría con la revisión fijada de Test262 (Windows x64, [#308](https://github.com/40oleg/nona/issues/308)): los directorios `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` y `Symbol.unscopables` pasan 94 de 94, sin fallos pendientes. Las variantes de `%TypedArray%` no están implementadas; véase la [base de Test262](https://github.com/40oleg/nona/blob/main/docs/test262.md) (en inglés).
+
 ## Fallos restantes
 
 Estos son los fallos de la auditoría de v0.8.0; las versiones posteriores no han repetido la ejecución completa. Todos los fallos «otros» en Windows están clasificados:

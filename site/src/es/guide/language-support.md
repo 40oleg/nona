@@ -48,7 +48,7 @@ La mayoría de las características de ediciones posteriores no están soportada
 
 - ES2021: separadores numéricos, asignación lógica (`&&=`, `||=`, `??=`), `Promise.any` y `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: campos de clase, métodos y accesores privados, bloques estáticos, `#x in obj`, `.at()`, `Object.hasOwn` y `cause` de Error.
-- ES2023: `findLast` y `findLastIndex`.
+- ES2023: `findLast` y `findLastIndex`, y los métodos de copia de `Array` `toSorted`, `toReversed`, `toSpliced` y `with` (no las variantes de `%TypedArray%`).
 
 Cuando la revisión fijada de Test262 ya comprueba semántica más reciente para características de ES2020, Nona sigue a Test262; la página de [Test262](/es/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) enumera esos casos.
 

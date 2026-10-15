@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- **ES2023 change-by-copy methods.** `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with` return a new array and leave the receiver unchanged; `toSorted` sorts with the built-in stable `sort`. Their `Symbol.unscopables` entries are added too. The methods are a prelude part linked only when a source names one of them. The Test262 directories `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables/change-array-by-copy.js` pass (94/94). ([#308](https://github.com/40oleg/nona/issues/308))
+
 ### Runtime
 
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))

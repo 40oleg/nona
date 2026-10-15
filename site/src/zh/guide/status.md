@@ -17,6 +17,10 @@
 
 分类由 `scripts/test262-summary.mjs` 完成：“`eval`”类测试以 Nona 在编译时无法得知的源码调用 `eval` 或 `$262.evalScript`；“新语义”类测试在旧的或缺失的特性标签下检查更新版本中的行为（`v` 标志、数字分隔符、`Promise.any` 等）。单元测试集在 CI 中于 Windows 和 Linux 上运行，编译并执行真实的 PE 和 ELF 文件，其中很多在 GC 压力模式下运行。审计的运行方法见 [Test262](/zh/reference/test262) 页面。
 
+## 复制式数组方法
+
+在审计之后，针对固定版本的 Test262 （Windows x64，[#308](https://github.com/40oleg/nona/issues/308)）进行了检查：`built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` 和 `Symbol.unscopables` 通过 94/94，没有剩余失败。未实现 `%TypedArray%` 变体；参见 [Test262 基线](https://github.com/40oleg/nona/blob/main/docs/test262.md)（英文）。
+
 ## 剩余失败
 
 以下是 v0.8.0 审计的失败项；之后的版本没有重复完整运行。Windows 上所有“其他”类失败都已分类：
