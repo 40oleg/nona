@@ -7,6 +7,8 @@
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
@@ -49,6 +51,8 @@ Highlights since v0.11.0:
 - The global `URL` is a URL Standard parser (it parsed only `blob:` object URLs before), and `URLSearchParams` is available ([#249](https://github.com/40oleg/nona/issues/249)).
 - `import.meta` has `url`, `filename` and `dirname` ([#249](https://github.com/40oleg/nona/issues/249)).
 - Import attributes (`import data from './x.json' with {type: 'json'}`, and the older `assert`) are accepted, and a RegExp literal may follow `export default` ([#249](https://github.com/40oleg/nona/issues/249)).
+
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 ### Performance
 
@@ -266,6 +270,8 @@ Highlights since v0.7.0:
 
 - Added features newer than ES2020: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `.at()` on arrays, strings and typed arrays, `findLast`/`findLastIndex`, `Object.hasOwn` and the `cause` option of error constructors ([#69](https://github.com/40oleg/nona/issues/69)).
 - Added the ES2022 class elements: public and private instance and static fields, private methods and accessors, static initialization blocks and `#x in obj`. Fields are defined (not assigned) when the instance is initialized, at the start of a base constructor or when `super()` returns; private names are checked at compile time and create new names each time the class is evaluated ([#106](https://github.com/40oleg/nona/issues/106)).
+
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 ### Performance
 
