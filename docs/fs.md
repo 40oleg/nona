@@ -1,8 +1,9 @@
 # File system (`nona:fs`, `node:fs`)
 
-A synchronous subset of the Node.js `fs` module is built in. Both specifiers
-resolve to the same implementation; `import fs from 'node:fs'` and named
-imports work.
+A subset of the Node.js `fs` module is built in: the synchronous functions below
+and, for the common ones, the callback functions listed after them. Both
+specifiers resolve to the same implementation; `import fs from 'node:fs'` and
+named imports work.
 
 | Function                                                                  | Notes                                                                                                                                                                                                                       |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -15,6 +16,14 @@ imports work.
 | `readdirSync(path, options?)`                                             | Names without `.` and `..`, in file system order. `{withFileTypes: true}` returns entries with `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()`.                                                                     |
 | `mkdirSync(path, {recursive}?)`                                           | With `recursive`, returns the first directory created.                                                                                                                                                                      |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` is supported.                                                                                                                                                                                     |
+
+Callback functions have the same names without `Sync`: `readFile`, `writeFile`,
+`appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`,
+`rename`, `copyFile` and `exists` (deprecated in Node.js: the callback receives
+only a boolean). Each runs the synchronous function and calls back on a later
+turn of the event loop with `(error, result)`; a wrong argument type (including
+a missing callback) throws synchronously, as in Node.js. `fs.promises` is not
+provided.
 
 Paths are strings (or UTF-8 `Uint8Array`s). Only the `utf8` encoding is
 supported. Errors are `Error` objects with Node.js codes (`ENOENT`, `EEXIST`,

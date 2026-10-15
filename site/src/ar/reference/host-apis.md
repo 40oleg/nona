@@ -52,6 +52,6 @@ Path does not initialize the full process object. [Full reference](https://githu
 - `node:querystring`: `parse`/`decode` و`stringify`/`encode` و`escape` و`unescape`.
 - `node:timers`: دوال المؤقتات العامة. `node:timers/promises`: `setTimeout` و`setImmediate` (كلتاهما مع `AbortSignal`)، و`setInterval` كمكرّر غير متزامن، و`scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`؛ و`PerformanceObserver` و`monitorEventLoopDelay` لا يراقبان شيئًا.
-- `node:module`: `builtinModules` و`isBuiltin`. ترمي `createRequire` الخطأ `ERR_NONA_UNSUPPORTED`: فالوحدات تُحلّ عند بناء البرنامج.
+- `node:module`: `builtinModules` و`isBuiltin`. يُرجع `createRequire` دالة `require` لا تحلّ إلا الوحدات التي يحويها البرنامج عند بنائه، وأي معرّف آخر يرمي `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` تساوي `true`، و`parentPort` و`workerData` تساويان `null`؛ وترمي `Worker` الخطأ `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: ترمي كل الدوال و`ChildProcess` الخطأ `ERR_NONA_UNSUPPORTED`. توجد الوحدة كي تُحمَّل الحزم التي تكتفي بذكرها.
