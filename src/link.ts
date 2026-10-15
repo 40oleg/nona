@@ -115,6 +115,15 @@ export const preludeTriggers = {
         "any",
         "unscopables",
     ],
+    setMethods: [
+        "union",
+        "intersection",
+        "difference",
+        "symmetricDifference",
+        "isSubsetOf",
+        "isSupersetOf",
+        "isDisjointFrom",
+    ],
     annexB: [
         "escape",
         "unescape",
