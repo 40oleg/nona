@@ -277,6 +277,18 @@ runtime root scopes либо проверяемое запрещение GC на
 Исключения обязаны снимать root frames при unwind. Promise jobs/modules добавят
 долгоживущие runtime roots. WeakMap требует ephemeron processing отдельно.
 
+## WeakRef и KeepDuringJob
+
+`WeakRef` (#304) живёт в отдельной prelude-части `weakRef`, которая линкуется
+только при упоминании `WeakRef` в исходнике. Цель хранится единственным ключом
+приватного WeakSet: сборщик не маркирует ключи WeakSet и вычищает мёртвые,
+поэтому ему не нужен код для WeakRef; `__nonaWeakRefTarget` читает ключ
+обратно. После сборки `deref()` возвращает `undefined`. Конструктор и `deref()`
+добавляют цель в множество kept (KeepDuringJob); prelude оборачивает проход
+микрозадач и очищает множество до и после каждого checkpoint (ClearKeptObjects),
+так что основной скрипт и каждый callback таймера считаются заданиями. Символы
+как цели отклоняются, WeakRef клонированных realm держат цель сильно.
+
 ## Проверка
 
 `tests/gc.test.ts` запускает реальные EXE: освобождение блоков/циклов, interior
