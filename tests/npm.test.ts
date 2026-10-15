@@ -749,3 +749,57 @@ test("import.meta has the url, filename and dirname of the module file", () =>
         },
         "dir with space~[x]/main.mjs",
     ));
+
+test("module.createRequire requires files, JSON, packages and builtins from ES modules and CommonJS", () =>
+    agree(
+        {
+            "main.mjs": String.raw`
+import { createRequire } from 'node:module';
+import module from 'module';
+import { fromCjs } from './lib/loader.cjs';
+const require = createRequire(import.meta.url);
+const dep = require('./lib/dep.cjs'), data = require('./data.json'), pkg = require('pkg'), path = require('node:path'), events = require('events');
+console.log(dep.name, data.items.join(), pkg.version, path.basename('/a/b.txt'), typeof events, require('./lib/dep.cjs') === dep);
+console.log(require.resolve('./lib/dep.cjs') === fromCjs.resolved, require.resolve('node:fs'), require.resolve('fs'));
+console.log(fromCjs.dep === dep, fromCjs.json, fromCjs.pkg === pkg);
+console.log(module.createRequire === createRequire, module.createRequire(import.meta.url)('./data.json') === data);
+for (const id of ['./missing.cjs', 'missing-package']) {
+    try { require(id); console.log('found'); } catch (e) { console.log(e.code, e.message.split('\n')[0].includes(id)); }
+}
+try { createRequire('relative/path.js'); } catch (e) { console.log(e.code); }
+`,
+            "data.json": JSON.stringify({ items: [1, 2, 3] }),
+            "lib/dep.cjs": "exports.name = 'dep';",
+            "lib/inner.json": JSON.stringify({ inner: true }),
+            "lib/loader.cjs": String.raw`
+const { createRequire } = require('module');
+const req = createRequire(__filename);
+exports.fromCjs = { dep: req('./dep.cjs'), json: JSON.stringify(req('./inner.json')), pkg: req('pkg'), resolved: req.resolve('./dep.cjs') };
+`,
+            "node_modules/pkg/package.json": JSON.stringify({
+                name: "pkg",
+                version: "1.2.3",
+                main: "main.js",
+            }),
+            "node_modules/pkg/main.js": "exports.version = '1.2.3';",
+        },
+        "main.mjs",
+    ));
+
+test("require() of an ES module returns its module.exports export or its namespace with __esModule", () =>
+    agree(
+        {
+            "main.cjs": String.raw`
+const ui = require('./ui.mjs'), plain = require('./plain.mjs'), named = require('./named.mjs');
+console.log(typeof ui, ui(2), ui.name);
+console.log(Object.keys(plain).join(), plain.__esModule, plain.default(), plain.x, Object.prototype.toString.call(plain));
+console.log(Object.keys(named).join(), '__esModule' in named);
+`,
+            "ui.mjs":
+                "export default function ui(n) { return n + 1; }\nexport { ui as 'module.exports' };\n",
+            "plain.mjs":
+                "export default function f() { return 'f'; }\nexport const x = 1;\n",
+            "named.mjs": "export const a = 1, b = 2;\n",
+        },
+        "main.cjs",
+    ));

@@ -166,10 +166,11 @@ export function compileModuleToIR(
     scriptPrelude = "",
     target: Target = requireHostTarget(),
 ): ModuleIR {
-    host = withBuiltinModules(
-        host ?? nodeModuleHost(target, { fileName, source }),
-        target,
-    );
+    host ??= nodeModuleHost(target, { fileName, source });
+    // The entry's createRequire table, as for the modules it imports.
+    if (host instanceof NodeModuleHost)
+        source = host.moduleSource(modulePath(fileName), source);
+    host = withBuiltinModules(host, target);
     // An optional classic script (such as a test harness) runs before the graph.
     const script = inPhase("dynamic-functions", () =>
         lowerDynamicFunctions(
@@ -225,13 +226,7 @@ export function compileToIR(
             format === "module" &&
             (fileName.endsWith(".mjs") || entryHasModuleSyntax(source))
         )
-            return compileModuleToIR(
-                node.moduleSource(path, source),
-                fileName,
-                node,
-                "",
-                target,
-            );
+            return compileModuleToIR(source, fileName, node, "", target);
         host = node;
     }
     host = withBuiltinModules(host ?? fileModuleHost, target);
