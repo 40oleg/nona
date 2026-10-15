@@ -1,14 +1,132 @@
 # Performance: Nona vs Node.js, Deno and Bun
 
-The current numbers are [the 2026-10-14 comparison](#current-release-against-nodejs-deno-and-bun)
-of `main` after v0.12.0 against Node.js, Deno and Bun. Older sections keep the
+The current numbers are [the v0.13.0 section](#current-release-v0130-against-nodejs-deno-and-bun),
+dated 2026-10-16. It reuses [the 2026-10-14 comparison](#the-2026-10-14-comparison-v0120-superseded)
+of `main` after v0.12.0 against Node.js, Deno and Bun, because Deno and Bun are
+not installed on the release machine. Older sections keep the
 date and version they were measured at: v0.7.0 on 2026-10-01 and
 [the v0.10.0 update](#update-current-release-against-node) against Node.js on
 2026-10-08; they are marked _superseded_ where a later measurement replaces them.
 The scripts live in [`bench/`](bench/); `node bench/run.mjs` reproduces every
 table (protocol in [`bench/README.md`](bench/README.md)).
 
-## Current release against Node.js, Deno and Bun
+## Current release (v0.13.0) against Node.js, Deno and Bun
+
+**These are not new measurements.** The v0.13.0 release commit (2026-10-16) was
+prepared on a shared Windows 11 machine with Node.js 22.23.2 only: Deno and Bun
+are not installed there, and the ELF benchmarks need Linux. Rather than mix
+platforms, the figures below are the 2026-10-14 measurement, reused unchanged.
+The work merged since v0.12.0 was not benchmarked, so the figures say nothing
+about it; re-run `node bench/run.mjs` on the reference VM to refresh them.
+
+Original measurement: 2026-10-14 at `main` b58f0bc (v0.12.0 plus the merged
+#253–#281 work) on a Linux x86-64 cloud VM (Intel Xeon 2.10 GHz, 2 vCPU, 7 GB RAM) with
+Node.js 22.22.0, Deno 2.9.6 and Bun 1.4.3. The VM was shared with other jobs,
+so differences of about ×1.5 or less are noise. Every script printed the same
+checksum on all four runtimes.
+
+### Startup, executable size, build time, memory
+
+Hello world, median of 30 runs after 5 warm-ups; peak RSS from `/usr/bin/time`.
+
+| How the program runs       | Start-up, ms | Executable, MB | Build, s | Peak RSS, MB |
+| -------------------------- | ------------ | -------------- | -------- | ------------ |
+| Nona, compiled ELF         | **2.7**      | **1.1**        | 0.68     | **1.0**      |
+| Bun, `bun build --compile` | 7.4          | 90.8           | **0.25** | 11.6         |
+| Bun, `bun x.js`            | 5.7          | (the runtime)  | —        | 13.1         |
+| Deno, `deno run x.js`      | 41.0         | (the runtime)  | —        | 26.4         |
+| Node, `node x.js`          | 46.7         | (the runtime)  | —        | 43.6         |
+
+`deno compile` could not download its runtime in this sandbox and Node SEA was
+not rebuilt; the v0.7.0 table below has both (104 MB and 124 MB). Nona's build
+time is with the on-disk runtime cache (`NONA_CACHE`) warm; a cold build
+compiles the runtime and preludes once (about 3 s).
+
+### Micro-benchmarks
+
+`node bench/run.mjs --scale 0.1 --runs 3 --runtimes node,deno,bun,nona --only
+05,06,07,08,09,10,11,13,14,15,16,17`, median of 3 runs, ms. `--scale 0.1` is the
+N = 100 000 of the array, object, call and class rows.
+
+| Operation                             | Node  | Deno  | Bun   | Nona  | Nona / Node |
+| ------------------------------------- | ----- | ----- | ----- | ----- | ----------- |
+| `push` × N                            | 5.86  | 4.62  | 4.04  | 4.12  | ×0.7        |
+| `Array.from({length: N})`             | 7.33  | 9.23  | 6.72  | 31.0  | ×4.2        |
+| `new Array(N)` + fill                 | 2.50  | 1.22  | 2.21  | 2.91  | ×1.2        |
+| Sum with a `for` loop                 | 2.45  | 2.54  | 1.80  | 0.91  | ×0.4        |
+| `map` → `filter` → `reduce`           | 7.21  | 5.61  | 17.1  | 9.86  | ×1.4        |
+| `sort` N numbers with a comparator    | 56.2  | 50.2  | 34.7  | 105   | ×1.9        |
+| Create N objects `{id, x, y, name}`   | 21.1  | 11.8  | 11.5  | 22.9  | ×1.1        |
+| Read 3 properties × N                 | 8.21  | 8.87  | 1.17  | 2.68  | ×0.3        |
+| `Map.set` × N                         | 14.2  | 13.4  | 16.9  | 34.6  | ×2.4        |
+| `Map.get` × N                         | 5.75  | 6.70  | 3.58  | 8.05  | ×1.4        |
+| `Set.add` + `Set.has` × N             | 12.9  | 12.1  | 16.2  | 35.4  | ×2.7        |
+| `s += "abc" + i` × 20 000             | 7.77  | 4.07  | 5.93  | 5.48  | ×0.7        |
+| `split("1")` + `join("-")`            | 2.71  | 4.83  | 3.19  | 8.58  | ×3.2        |
+| `indexOf` in a loop                   | 0.28  | 0.35  | 0.07  | 0.25  | ×0.9        |
+| `/abc(\d{3})-/g.exec` in a loop       | 0.35  | 0.28  | 0.25  | 34.6  | ×98         |
+| `fib(32)` recursive                   | 30.3  | 29.7  | 26.2  | 87.2  | ×2.9        |
+| 200×200 matrix multiply               | 41.5  | 41.5  | 54.6  | 197   | ×4.7        |
+| BigInt factorial 3000!                | 0.14  | 0.53  | 0.59  | 1.15  | ×8.4        |
+| 5M short-lived objects (`09_gc`)      | 20.4  | 17.6  | 25.6  | 72.6  | ×3.6        |
+| Promise chain, `.then` × 100 000      | 31.4  | 44.8  | 20.5  | 365   | ×12         |
+| 10 000 sequential `setTimeout(fn, 0)` | 1 210 | 2 280 | 1 180 | 1 240 | ×1.0        |
+| `JSON.stringify`, 30 000 objects      | 23.2  | 10.0  | 11.4  | 34.5  | ×1.5        |
+| `JSON.parse`, 2.9 MB                  | 36.4  | 28.2  | 22.3  | 38.8  | ×1.1        |
+| `Float64Array`: fill, sum, map, 1M    | 19.3  | 42.0  | 32.8  | 54.3  | ×2.8        |
+| Call `add(a, b)` × 10N                | 7.56  | 12.5  | 12.2  | 55.7  | ×7.4        |
+| Create and call N closures            | 29.6  | 33.7  | 39.3  | 97.5  | ×3.3        |
+| `call` + `apply` × 4N                 | 9.56  | 25.7  | 7.42  | 99.4  | ×10         |
+| Method through an inheritance chain   | 8.84  | 3.93  | 13.5  | 47.4  | ×5.4        |
+| Polymorphic call, 3 classes           | 8.85  | 8.52  | 23.5  | 53.9  | ×6.1        |
+| `new Square(i)` × N                   | 19.2  | 11.5  | 24.6  | 37.1  | ×1.9        |
+| Long-string equality (`16`)           | 1.14  | 1.40  | 0.52  | 0.92  | ×0.8        |
+| Substring search (`16`)               | 0.12  | 0.15  | 0.11  | 0.29  | ×2.5        |
+| `split`/`replaceAll` (`16`)           | 0.33  | 0.46  | 0.27  | 0.53  | ×1.6        |
+| Long `Map` keys (`16`)                | 6.18  | 6.50  | 5.96  | 16.6  | ×2.7        |
+| Typed array `fill` (`17`)             | 1.19  | 4.00  | 1.18  | 0.92  | ×0.8        |
+| Typed array `copyWithin`/`set` (`17`) | 2.20  | 1.55  | 2.58  | 3.79  | ×1.7        |
+| Typed array searches (`17`)           | 8.73  | 4.64  | 2.70  | 5.40  | ×0.6        |
+| Typed array loops (`17`)              | 8.65  | 3.65  | 3.59  | 7.50  | ×0.9        |
+
+Whole scripts, wall time including start-up (ms): the short ones favour Nona,
+whose executables start in 3 ms against 40–50 ms for Node and Deno.
+
+| Script            | Node | Deno | Bun | Nona |
+| ----------------- | ---- | ---- | --- | ---- |
+| `05_array`        | 158  | 136  | 84  | 165  |
+| `06_objects`      | 104  | 91   | 59  | 114  |
+| `07_strings`      | 76   | 70   | 20  | 61   |
+| `08_numeric`      | 128  | 127  | 90  | 289  |
+| `11_json`         | 142  | 99   | 56  | 122  |
+| `14_calls`        | 96   | 119  | 76  | 297  |
+| `15_classes`      | 89   | 68   | 73  | 149  |
+| `16_string_scan`  | 65   | 64   | 30  | 31   |
+| `17_typed_arrays` | 95   | 68   | 23  | 30   |
+
+### Real-world code
+
+`node bench/run.mjs --real --runs 3 --runtimes node,deno,bun,nona`, median of 3
+runs, ms (libraries from `node bench/real/fetch.mjs`).
+
+| Program                                     | Node | Deno | Bun | Nona  | Nona / Node |
+| ------------------------------------------- | ---- | ---- | --- | ----- | ----------- |
+| acorn 8.18.0: first parse of its own 230 KB | 231  | 145  | 204 | 807   | ×3.5        |
+| acorn: 10 more parses                       | 497  | 404  | 578 | 6 330 | ×13         |
+| marked 12.0.2: first render                 | 43   | 63   | 66  | 982   | ×23         |
+| marked: 5 more renders                      | 141  | 68   | 116 | 4 330 | ×31         |
+
+### Where Nona stands
+
+- **Start-up, size and memory:** an order of magnitude ahead of all three: 2.7 ms and 1.1 MB for hello world against 6–47 ms and 91 MB (`bun --compile`).
+- **Loops over numbers, arrays and typed arrays, property reads, string building and searching:** at Node's level or faster (×0.3–×1.4): shapes and inline caches (#114), dense elements, ropes (#46), SIMD scans (#253) and typed-array kernels.
+- **Calls, closures, `apply` and polymorphic methods:** ×3–×10 slower, the cost of a call without a JIT that inlines (#47, #235, #239).
+- **Promise chains (×12), allocation-heavy code (×3.6) and the RegExp engine (×98 on the scan-heavy micro-benchmark, ×13–×31 in acorn and marked):** the largest remaining gaps. The RegExp engine is a bytecode VM written in JavaScript; a native matcher and a native promise kind (#44) are the next steps.
+
+## The 2026-10-14 comparison (v0.12.0, superseded)
+
+_Superseded by [the v0.13.0 section](#current-release-v0130-against-nodejs-deno-and-bun), which reuses these figures (see there why)._
+
 
 Measured on 2026-10-14 at `main` b58f0bc (v0.12.0 plus the merged #253–#281
 work) on a Linux x86-64 cloud VM (Intel Xeon 2.10 GHz, 2 vCPU, 7 GB RAM) with
@@ -116,7 +234,7 @@ runs, ms (libraries from `node bench/real/fetch.mjs`).
 
 ## Update: current release against Node
 
-_v0.10.0 against Node.js, superseded by [the 2026-10-14 comparison](#current-release-against-nodejs-deno-and-bun)._
+_v0.10.0 against Node.js, superseded by [the 2026-10-14 comparison](#the-2026-10-14-comparison-v0120-superseded)._
 
 Measured on 2026-10-08 at `main` 6c4b396 (v0.10.0 plus the Lean proofs PR) on
 Windows x64 with Node.js 22.23.2: `node bench/run.mjs --scale 0.1 --runs 3
