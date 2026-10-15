@@ -10,7 +10,7 @@ test("RegExp literals use the Nona grammar during lexing", () => {
     assert.equal(lex(String.raw`/\u{000000003f}/u`)[0]?.kind, "regexp");
     assert.equal(lex("/[𝌆]/u")[0]?.kind, "regexp");
     assert.throws(
-        () => lex("/(?<x>a)|(?<x>b)/"),
+        () => lex("/(?<x>a)(?<x>b)/"),
         /Invalid regular expression pattern/,
     );
     for (const pattern of [
