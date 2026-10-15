@@ -11,6 +11,7 @@
 - `node:tls` (also `tls`, `nona:tls`) on win32-x64 and linux-x64: a TLS 1.3 client (`tls.connect`, `TLSSocket`) with SNI, ALPN, HelloRetryRequest, KeyUpdate, the three TLS 1.3 cipher suites and ECDSA/RSA-PSS certificates, checked against the RFC 8448 handshake trace and Node.js servers. TLS 1.2 is not implemented (`ERR_SSL_UNSUPPORTED_PROTOCOL`). ([#301](https://github.com/40oleg/nona/issues/301))
 - TLS certificate verification: X.509 chains are built and checked like Node.js/OpenSSL do (out-of-order chains, CA flags and path lengths, `serverAuth`, key usage, critical extensions, name constraints, RSA PKCS#1/PSS and ECDSA signatures, validity periods), with Node's error codes; host names per RFC 6125 (`tls.checkServerIdentity`); trust anchors from the `ca` option or the operating system's store (a PEM bundle on Linux, the ROOT/CA system stores on Windows), also listed by `tls.rootCertificates`. No revocation checks. ([#301](https://github.com/40oleg/nona/issues/301))
 - `node:https` (also `https`, `nona:https`) on win32-x64 and linux-x64: `https.request`, `https.get`, `https.Agent` and `globalAgent` with keep-alive pooling keyed by the TLS options, over `node:tls`. The https client is client-only and TLS 1.3-only; there is no global `fetch` yet. Limitations are listed in [networking](docs/network.md#security-limitations). ([#301](https://github.com/40oleg/nona/issues/301))
+- **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
 ### Performance
 
@@ -29,6 +30,10 @@
 
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
+
+### Fixes
+
+- In unicode mode (`u`), a lone surrogate in a pattern no longer matches half of a surrogate pair, and `matchAll` with such a pattern no longer loops. ([#277](https://github.com/40oleg/nona/issues/277))
 
 ### Documentation
 
