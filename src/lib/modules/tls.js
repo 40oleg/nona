@@ -1456,7 +1456,7 @@ export class TLSSocket extends net.Socket {
             if (callback) queueMicrotask(() => invoke(callback, error));
             return false;
         }
-        const ok = this._raw.write(records, callback);
+        const ok = this._raw.write(records, undefined, callback);
         if (!ok) this._needDrain = true;
         return ok;
     }
@@ -1467,7 +1467,7 @@ export class TLSSocket extends net.Socket {
         if (!this._secure || this._destroyed) {
             const copy = new Uint8Array(view);
             if (this._destroyed || this._writeEnded)
-                return this.write(copy, callback);
+                return this.write(copy, undefined, callback);
             this._pending.push({ bytes: copy, callback });
             this._pendingLength += copy.length;
             return this._pendingLength < 16384;
