@@ -75,6 +75,7 @@ import { emitStringBuiltins } from "./string-builtins.js";
 import { emitNumberBuiltins } from "./number-builtins.js";
 import { emitRestArguments } from "./rest-arguments.js";
 import { emitMath } from "./math.js";
+import { emitFloat16 } from "./float16.js";
 import { emitUri } from "./uri.js";
 import { emitStringSplit } from "./string-split.js";
 import { emitStringReplace } from "./string-replace.js";
@@ -159,6 +160,7 @@ export function emitRuntime(
     request: RuntimeRequest = { operations: new Set() },
 ): RuntimeBundle {
     const b = new RuntimeBuilder();
+    const float16 = request.float16 !== false;
     emitMemory(b);
     emitDateClock(b);
     emitDateCalendar(b);
@@ -227,7 +229,7 @@ export function emitRuntime(
     emitWeakCollections(b);
     emitArrayBuffer(b);
     emitSharedArrayBuffer(b);
-    emitDataView(b);
+    emitDataView(b, float16);
     emitTypedArray(b);
     emitTypedArrayKernels(b);
     emitNumberBuiltins(b);
@@ -259,7 +261,8 @@ export function emitRuntime(
     emitStringReplace(b);
     emitStringNormalize(b, request.unicodeNormalization !== false);
     emitStringLocaleCompare(b);
-    emitMath(b);
+    emitMath(b, float16);
+    if (float16) emitFloat16(b);
     emitAtomics(b);
     emitJson(b);
     emitJsonComposite(b);
@@ -278,7 +281,7 @@ export function emitRuntime(
     emitStrict(b);
     orderIntrinsicProperties(b);
     emitObjectCoercion(b);
-    emitGc(b, request.realms ?? 0);
+    emitGc(b, request.realms ?? 0, float16);
     emitIo(b);
     emitRealmTables(b, request.realms ?? 0);
     const n = emitNumericRuntime();

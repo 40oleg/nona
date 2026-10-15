@@ -34,6 +34,7 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
         regexp: false,
         unicodeProperties: false,
         unicodeNormalization: false,
+        float16: false,
         preludes: preludeSet(false),
     };
     assert.deepEqual(
@@ -84,6 +85,16 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
             { ...none, unicodeNormalization: true },
             source,
         );
+    for (const source of [
+        "Math.f16round(x)",
+        "view.getFloat16(0)",
+        "view.setFloat16(0, 1)",
+        "new Float16Array(4)",
+        'Math["f16round"]',
+    ])
+        assert.deepEqual(usage(source), { ...none, float16: true }, source);
+    assert.equal(usage("Object.getOwnPropertyNames(Math)").float16, true);
+    assert.equal(usage("Math.fround(x)").float16, false);
     // Every source lexed inside one collection counts; nested collections report to the outer one.
     const outer = collectSourceUsage(() => {
         lex("1");

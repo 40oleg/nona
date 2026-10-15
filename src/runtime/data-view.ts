@@ -19,6 +19,7 @@ import {
 import { stringLiteral } from "./value.js";
 import { ArrayBufferKind, ArrayBufferLayout } from "./array-buffer.js";
 import { SharedArrayBufferKind } from "./shared-array-buffer.js";
+import { float16DataViewMethods } from "./float16.js";
 
 export const DataViewKind = 12;
 export const DataViewLayout = {
@@ -107,7 +108,7 @@ export function emitDataViewPrototype(b: RuntimeBuilder): void {
     });
 }
 
-export function emitDataView(b: RuntimeBuilder): void {
+export function emitDataView(b: RuntimeBuilder, float16 = true): void {
     const prototype = b.bundle.fragments.find(
         (f) => f.name === "rt.dataviewPrototype",
     )!;
@@ -327,7 +328,11 @@ export function emitDataView(b: RuntimeBuilder): void {
             },
         );
     }
-    for (const name of [...wordMethods, ...floatMethods]) {
+    for (const name of [
+        ...wordMethods,
+        ...floatMethods,
+        ...(float16 ? float16DataViewMethods : []),
+    ]) {
         const write = name.startsWith("set"),
             signed = name.includes("Int") && !name.includes("Uint"),
             floating = name.includes("Float");
@@ -426,7 +431,8 @@ export function emitDataView(b: RuntimeBuilder): void {
                         a.call("rt.toNumber");
                         a.movsd("xmm0", slot(120));
                         if (width === 4) a.cvtsd2ss("xmm0", "xmm0");
-                        a.movqFromXmm("rax", "xmm0");
+                        if (width === 2) a.call("rt.float16FromDouble");
+                        else a.movqFromXmm("rax", "xmm0");
                         a.store(slot(128), "rax");
                     } else {
                         a.call("rt.toInt32");
@@ -508,7 +514,11 @@ export function emitDataView(b: RuntimeBuilder): void {
                     a.store({ base: "rcx" }, "rax");
                     a.store({ base: "rcx", disp: 8 }, "rax");
                 } else {
-                    if (floating) {
+                    if (floating && width === 2) {
+                        a.mov("rcx", "rax");
+                        a.call("rt.float16ToDouble");
+                        a.load("rcx", slot(40));
+                    } else if (floating) {
                         a.movqToXmm("xmm0", "rax");
                         if (width === 4) a.cvtss2sd("xmm0", "xmm0");
                     } else {

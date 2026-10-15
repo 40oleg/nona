@@ -12,6 +12,7 @@ export interface RuntimeRequest {
     operations: ReadonlySet<string>;
     realms?: number;
     /** Link the normalization tables (default true). */ unicodeNormalization?: boolean;
+    /** Link the half-precision built-ins (default true). */ float16?: boolean;
 }
 export interface RuntimeBundle {
     fragments: NamedFragment[];
