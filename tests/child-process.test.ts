@@ -7,10 +7,13 @@ import { runModulesOnHost } from "./helpers/host.js";
 // runner's executable), so both runs see the same child behaviour. Like the
 // node:net tests, they run without GC stress: a forced collection before every
 // block walks the whole compiled module graph and takes minutes.
-// The platform layer exists for Windows so far.
+// Platform layers exist for Windows and Linux.
 const skip =
     process.platform !== "win32" &&
-    "node:child_process has a Windows platform layer only";
+    process.platform !== "linux" &&
+    "node:child_process has Windows and Linux platform layers only";
+const posixSkip =
+    process.platform !== "linux" && "the POSIX tools test runs on Linux";
 const prelude = `const node = ${JSON.stringify(process.execPath)};\n`;
 
 function expectNode(source: string): void {
@@ -165,6 +168,47 @@ server.listen(0, '127.0.0.1', () => {
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', d => lines.push('child said ' + d.trim()));
   child.on('close', code => { lines.push('child close ' + code); done(); });
+});
+`),
+);
+
+test(
+    "child_process runs POSIX tools: shell, exit codes, signals, cwd, env, stdin and large outputs",
+    { skip: posixSkip },
+    () =>
+        expectNode(String.raw`import { spawn, spawnSync, exec, execSync, execFileSync } from 'node:child_process';
+const env = { PATH: '/usr/bin:/bin', NONA_VALUE: 'a b' };
+console.log(JSON.stringify(spawnSync('echo', ['one', 'two words'], { encoding: 'utf8', env }).stdout));
+const failed = spawnSync('/bin/sh', ['-c', 'echo out; echo err >&2; exit 3'], { encoding: 'utf8' });
+console.log(failed.status, failed.signal, JSON.stringify(failed.stdout), JSON.stringify(failed.stderr));
+console.log(execSync('pwd', { cwd: '/', encoding: 'utf8' }).trim());
+console.log(execFileSync('env', { env, encoding: 'utf8' }).split(/\n/).filter(l => l.startsWith('NONA_')).join());
+console.log(spawnSync('cat', { input: 'piped input', encoding: 'utf8' }).stdout);
+console.log(execSync('echo $0', { shell: '/bin/sh', encoding: 'utf8' }).trim());
+const missing = spawnSync('nona-missing-command', { env });
+console.log(missing.error.code, missing.error.errno, missing.error.syscall);
+console.log(spawnSync('/', { env }).error.code, spawnSync('cat', { cwd: '/nona-missing-dir' }).error.code);
+const big = spawnSync('/bin/sh', ['-c', 'head -c 5000000 /dev/zero; head -c 5000000 /dev/zero >&2'], { maxBuffer: 64 << 20 });
+console.log('sync', big.status, big.stdout.length, big.stderr.length);
+const sleeper = spawn('sleep', ['10']);
+sleeper.on('spawn', () => console.log('kill', sleeper.kill()));
+sleeper.on('exit', (code, signal) => console.log('exit', code, signal));
+sleeper.on('close', () => {
+  exec('kill -TERM $$', (error) => {
+    console.log('self', error.killed, error.signal, error.code);
+    const child = spawn('/bin/sh', ['-c', 'head -c 5000000 /dev/zero; head -c 5000000 /dev/zero >&2; cat']);
+    let out = 0, err = 0, tail = '';
+    child.stdout.on('data', d => { out += d.length; tail = String(d).slice(-5); });
+    child.stderr.on('data', d => err += d.length);
+    child.on('close', code => {
+      console.log('async', code, out, err, tail);
+      const early = spawn('/bin/sh', ['-c', 'exec 0<&-; sleep 0.3']);
+      early.stdin.on('error', e => console.log('stdin', e.code));
+      early.on('close', code => console.log('closed stdin', code));
+      early.stdin.write(Buffer.alloc(1 << 20));
+    });
+    child.stdin.end('tail!');
+  });
 });
 `),
 );

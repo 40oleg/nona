@@ -2,6 +2,7 @@ import {
     modulesChildProcessUnsupported,
     modulesChildProcessCommon,
     modulesChildProcessWin32,
+    modulesChildProcessLinux,
 } from "../lib/sources.generated.js";
 /**
  * Source of the built-in `node:child_process` module (aliases
@@ -58,13 +59,30 @@ import {
  * has data or is closed, the parent's stdin end is in PIPE_NOWAIT mode, and
  * between polls the layer waits on the process handles (or sleeps) for a
  * short, growing slice (1 to 16 ms).
+ *
+ * Linux layer (linux-x64): raw system calls. The parent resolves the file
+ * against PATH (execvp's candidate list), maps the argv and envp arrays into
+ * anonymous memory whose address it knows (JavaScript cannot take the address
+ * of its own buffers, so the bytes are copied in through a pipe), creates
+ * O_CLOEXEC pipes and an error pipe, blocks signals and forks. Between fork
+ * and execve the child runs only system calls on numbers and preallocated
+ * buffers: it resets signal dispositions and the mask, dup2s its stdio,
+ * changes directory and tries execve on each candidate; on failure it writes
+ * the negative errno to the error pipe and exits with 127. EOF on the error
+ * pipe tells the parent that execve succeeded. Readiness uses poll(2) on the
+ * non-blocking parent pipe ends and on a pidfd (pidfd_open), or a 10 ms wait4
+ * poll on kernels without pidfd. Writes block SIGPIPE and consume a pending
+ * one, so a closed child stdin fails with EPIPE instead of killing the parent.
  */
 const common = modulesChildProcessCommon;
 
 const win32 = modulesChildProcessWin32;
 
 /** Platform layers by target; other targets get the stub whose functions throw ERR_NONA_UNSUPPORTED. */
-const layers: Record<string, string> = { "win32-x64": win32 };
+const layers: Record<string, string> = {
+    "win32-x64": win32,
+    "linux-x64": modulesChildProcessLinux,
+};
 
 export function childProcessModuleSource(target: string): string {
     const layer = layers[target];
