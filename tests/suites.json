@@ -314,7 +314,8 @@
                 "print-asm",
                 "typeof-compare",
                 "call-overhead",
-                "console-streams"
+                "console-streams",
+                "zlib"
             ]
         }
     }
