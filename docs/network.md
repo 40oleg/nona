@@ -74,7 +74,7 @@ for Nona in JavaScript over `node:net`, with the cryptography of
 | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `connect(options[, callback])`, `connect(port[, host][, options][, callback])`                                               | Options: `host`, `port`, `servername` (SNI; none for IP addresses), `socket` (an existing `net.Socket` to secure), `ALPNProtocols`, `ca`, `rejectUnauthorized` (default `true`), `checkServerIdentity`, `timeout`, `allowHalfOpen`. Returns a `TLSSocket`.                                                                                                                                                                                                                            |
 | `TLSSocket`                                                                                                                  | A `net.Socket`: events `connect`, `secureConnect`, `data`, `end`, `drain`, `timeout`, `error`, `close`; `write`, `end` (sends `close_notify`, then half-closes), `destroy`, `setTimeout`, `setNoDelay`, `setKeepAlive`, `ref`, `unref`, `address`, `remoteAddress`, `remotePort`. `authorized`, `authorizationError`, `alpnProtocol`, `encrypted`, `getPeerCertificate([detailed])`, `getProtocol()` (`'TLSv1.3'`), `getCipher()`, `getEphemeralKeyInfo()`, `exportKeyingMaterial()`. |
-| `checkServerIdentity`, `getCiphers`, `createSecureContext`, `DEFAULT_MIN_VERSION`, `DEFAULT_MAX_VERSION`, `rootCertificates` | `rootCertificates` is empty for now. `createServer` throws `ERR_METHOD_NOT_IMPLEMENTED`.                                                                                                                                                                                                                                                                                                                                                                                              |
+| `checkServerIdentity`, `getCiphers`, `createSecureContext`, `DEFAULT_MIN_VERSION`, `DEFAULT_MAX_VERSION`, `rootCertificates` | `rootCertificates` (on the default export, read on first use) lists the operating system's root certificates as PEM strings. `createServer` throws `ERR_METHOD_NOT_IMPLEMENTED`.                                                                                                                                                                                                                                                                                                      |
 
 The client offers the cipher suites TLS_AES_128_GCM_SHA256,
 TLS_AES_256_GCM_SHA384 and TLS_CHACHA20_POLY1305_SHA256, an X25519 key share
@@ -89,16 +89,71 @@ Limitations, stated plainly:
 
 - **Only TLS 1.3.** A server limited to TLS 1.2 or older fails the connection
   with `ERR_SSL_UNSUPPORTED_PROTOCOL`; `maxVersion` below `'TLSv1.3'` throws.
-- **No system trust store yet.** Only the certificates in `ca` are trusted,
-  so connections to public servers fail with
-  `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` unless `ca` is given or
-  `rejectUnauthorized` is `false` (which accepts any certificate). The path
-  check verifies signatures, validity periods and the CA flag of intermediate
-  certificates, not key usage, name constraints or revocation.
+- **No revocation checks** (CRL, OCSP) and no fetching of missing
+  intermediate certificates (AIA); certificate policies are not processed.
 - No server side, client certificates (a `CertificateRequest` is answered
   with an empty certificate), session resumption or 0-RTT data.
 - The AES and P-256/P-384/RSA code does not run in constant time (X25519,
   Poly1305 and the tag checks do).
+
+### Certificate verification
+
+`nona:internal/x509` parses the server's X.509 certificates and verifies the
+chain the way Node.js does through OpenSSL, with the same error codes and
+messages:
+
+- **Chain building**: issuers are looked up among the trust anchors first,
+  then among the certificates the server sent (in any order; extra
+  certificates are ignored), then among the operating system's intermediate
+  CAs (Windows). Issuers are matched by name (case-insensitive, whitespace
+  folded) and authority/subject key identifier. As in OpenSSL, the chain must
+  end in a self-signed trust anchor.
+- **Checks**, per certificate: unknown critical extensions; `basicConstraints`
+  CA:TRUE for intermediate CAs and `pathLenConstraint`; the TLS server purpose
+  (`extKeyUsage` must allow `serverAuth` when present, on CAs too; the leaf's
+  `keyUsage` must allow `digitalSignature`, `keyEncipherment` or
+  `keyAgreement`); RSA keys of at least 1024 bits; no MD5 or SHA-1 signatures
+  below the anchor; signatures (RSA PKCS#1 v1.5 and RSA-PSS with SHA-256/384/512,
+  ECDSA P-256/P-384); validity periods against the current time, anchor
+  included; name constraints (DNS, IP, directory name and email subtrees).
+  Like Node.js, the reported error is the last one OpenSSL would report.
+- **Host name** (`tls.checkServerIdentity`, as in Node.js, RFC 6125): DNS
+  subject alternative names with at most one wildcard in the left-most label
+  (never `*.tld`, never in a Punycode label), IP address names for IP
+  literals, and the subject CN only when the certificate has no DNS name.
+  Non-ASCII host names are compared in Punycode. `options.checkServerIdentity`
+  replaces the check.
+- Error codes: `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, `UNABLE_TO_GET_ISSUER_CERT`,
+  `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, `DEPTH_ZERO_SELF_SIGNED_CERT`,
+  `SELF_SIGNED_CERT_IN_CHAIN`, `CERT_HAS_EXPIRED`, `CERT_NOT_YET_VALID`,
+  `CERT_SIGNATURE_FAILURE`, `INVALID_CA`, `INVALID_PURPOSE`,
+  `PATH_LENGTH_EXCEEDED`, `ERR_TLS_CERT_ALTNAME_INVALID`, and `UNSPECIFIED`
+  (for example "unhandled critical extension") where Node.js has no name
+  either. With `rejectUnauthorized: false` the connection proceeds and
+  `authorized`/`authorizationError` report the result.
+
+**Trust anchors.** The `ca` option (PEM text or DER, alone or in an array)
+replaces the defaults, as in Node.js. Otherwise the operating system's store
+is read once, on first use:
+
+- **Linux**: the first PEM bundle that exists among
+  `/etc/ssl/certs/ca-certificates.crt`, `/etc/pki/tls/certs/ca-bundle.crt`,
+  `/etc/ssl/ca-bundle.pem`,
+  `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem` and `/etc/ssl/cert.pem`,
+  or the file named by `SSL_CERT_FILE`. Certificate directories
+  (`SSL_CERT_DIR`) are not read.
+- **Windows**: the certificates of the `ROOT` system store are the anchors,
+  and those of the `CA` store help complete chains; they are enumerated
+  through `crypt32.dll` (`CertOpenSystemStoreW`, `CertEnumCertificatesInStore`)
+  with `nona:ffi` and verified by the same JavaScript code as on Linux.
+  `CertGetCertificateChain` is not used, so Windows' automatic root update
+  does not run: a root that Windows would download on demand is unknown
+  until the store holds it. Distrusted certificates (the `Disallowed` store)
+  are not consulted.
+
+Node.js verifies against its bundled Mozilla roots by default, so a
+certificate that chains to a root only one of the two stores holds is
+accepted by one and refused by the other.
 
 ## Event loop
 

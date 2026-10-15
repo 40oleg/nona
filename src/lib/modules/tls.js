@@ -16,14 +16,20 @@
 // with a TLS 1.2 ServerHello rather than an unexplained handshake_failure;
 // the client then aborts.
 //
-// Certificates go through verifyPeer. It parses the X.509 certificates and,
-// for now, only trusts the certificates given in the ca option (the
-// operating system's trust store is not read yet), so connections to public
-// servers fail closed unless rejectUnauthorized is false.
+// Certificates go through verifyPeer of nona:internal/x509: the chain is
+// verified against the ca option or the operating system's trust store, then
+// the host name is checked (checkServerIdentity).
 import { Buffer } from "node:buffer";
 import * as net from "node:net";
 import { randomBytes as osRandomBytes } from "node:crypto";
 import * as t from "nona:internal/tls-crypto";
+import {
+    parseCertificate,
+    peerCertificate,
+    verifyPeer,
+    checkServerIdentity,
+    rootCertificates as systemRootCertificates,
+} from "nona:internal/x509";
 
 const randomBytes = (n) => new Uint8Array(osRandomBytes(n));
 
@@ -926,10 +932,14 @@ export class ClientEngine {
                 code === "CERT_HAS_EXPIRED" || code === "CERT_NOT_YET_VALID"
                     ? 45
                     : code === "UNABLE_TO_GET_ISSUER_CERT_LOCALLY" ||
+                        code === "UNABLE_TO_GET_ISSUER_CERT" ||
+                        code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" ||
                         code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
                         code === "SELF_SIGNED_CERT_IN_CHAIN"
                       ? 48
-                      : 42,
+                      : code === "ERR_TLS_CERT_ALTNAME_INVALID"
+                        ? 42
+                        : 46,
             );
             throw rejection;
         }
@@ -1150,527 +1160,6 @@ export class ClientEngine {
     }
 }
 
-// ---- X.509 ------------------------------------------------------------------
-// A minimal certificate parser: what the handshake needs (the subject public
-// key), getPeerCertificate() and the placeholder verification below.
-const nameKeys = {
-    "2.5.4.3": "CN",
-    "2.5.4.4": "SN",
-    "2.5.4.5": "serialNumber",
-    "2.5.4.6": "C",
-    "2.5.4.7": "L",
-    "2.5.4.8": "ST",
-    "2.5.4.9": "street",
-    "2.5.4.10": "O",
-    "2.5.4.11": "OU",
-    "2.5.4.42": "GN",
-    "1.2.840.113549.1.9.1": "emailAddress",
-    "0.9.2342.19200300.100.1.25": "DC",
-};
-function parseName(bytes, node) {
-    const name = {};
-    for (const rdn of t.derChildren(bytes, node))
-        for (const attribute of t.derChildren(bytes, rdn)) {
-            const [type, value] = t.derChildren(bytes, attribute);
-            const oid = t.derOid(bytes, type),
-                key = nameKeys[oid] || oid,
-                text = t.derString(bytes, value);
-            if (name[key] === undefined) name[key] = text;
-            else if (Array.isArray(name[key])) name[key].push(text);
-            else name[key] = [name[key], text];
-        }
-    return name;
-}
-function latin1(bytes) {
-    let text = "";
-    for (let i = 0; i < bytes.length; i++)
-        text += String.fromCharCode(bytes[i]);
-    return text;
-}
-function formatIP(bytes) {
-    if (bytes.length === 4) return Array.from(bytes).join(".");
-    const groups = [];
-    for (let i = 0; i + 1 < bytes.length; i += 2)
-        groups.push(
-            ((bytes[i] << 8) | bytes[i + 1]).toString(16).toUpperCase(),
-        );
-    return groups.join(":");
-}
-/**
- * Parse a DER certificate: { raw, tbs, signatureAlgorithm, signature,
- * serialNumber, issuer, issuerRaw, subject, subjectRaw, notBefore, notAfter,
- * subjectPublicKeyInfo, altNames: [{ type, value }], ca, extKeyUsage }.
- */
-export function parseCertificate(raw) {
-    const certificate = t.derRead(raw);
-    if (certificate.tag !== 0x30 || certificate.end !== raw.length)
-        throw codedError("ERR_NONA_DER", "Invalid DER: not a certificate");
-    const [tbsNode, algorithmNode, signatureNode] = t.derChildren(
-        raw,
-        certificate,
-    );
-    const fields = t.derChildren(raw, tbsNode);
-    let i = fields[0].tag === 0xa0 ? 1 : 0;
-    const serial = fields[i++],
-        signatureInTbs = fields[i++],
-        issuer = fields[i++],
-        validity = fields[i++],
-        subject = fields[i++],
-        spki = fields[i++];
-    void signatureInTbs;
-    const [notBefore, notAfter] = t.derChildren(raw, validity);
-    const result = {
-        raw,
-        tbs: t.derEncoding(raw, tbsNode),
-        signatureAlgorithm: t.derOid(raw, t.derChildren(raw, algorithmNode)[0]),
-        signatureParameters: t.derChildren(raw, algorithmNode)[1],
-        signature: t.derBitString(raw, signatureNode).bytes,
-        serialNumber: toHex(t.derValue(raw, serial)).toUpperCase(),
-        issuer: parseName(raw, issuer),
-        issuerRaw: t.derEncoding(raw, issuer),
-        subject: parseName(raw, subject),
-        subjectRaw: t.derEncoding(raw, subject),
-        notBefore: t.derTime(raw, notBefore),
-        notAfter: t.derTime(raw, notAfter),
-        subjectPublicKeyInfo: t.derEncoding(raw, spki),
-        altNames: [],
-        ca: undefined,
-        extKeyUsage: undefined,
-    };
-    for (; i < fields.length; i++) {
-        if (fields[i].tag !== 0xa3) continue;
-        const list = t.derChildren(raw, fields[i])[0];
-        for (const extension of t.derChildren(raw, list)) {
-            const parts = t.derChildren(raw, extension);
-            const oid = t.derOid(raw, parts[0]),
-                value = parts[parts.length - 1];
-            const inner = t.derRead(raw, value.start, value.end);
-            if (oid === "2.5.29.17") {
-                for (const name of t.derChildren(raw, inner)) {
-                    const data = t.derValue(raw, name);
-                    if (name.number === 2)
-                        result.altNames.push({
-                            type: "DNS",
-                            value: latin1(data),
-                        });
-                    else if (name.number === 7)
-                        result.altNames.push({
-                            type: "IP Address",
-                            value: formatIP(data),
-                        });
-                    else if (name.number === 1)
-                        result.altNames.push({
-                            type: "email",
-                            value: latin1(data),
-                        });
-                    else if (name.number === 6)
-                        result.altNames.push({
-                            type: "URI",
-                            value: latin1(data),
-                        });
-                }
-            } else if (oid === "2.5.29.19") {
-                const items = t.derChildren(raw, inner);
-                result.ca =
-                    items.length > 0 &&
-                    items[0].tag === 0x01 &&
-                    t.derBoolean(raw, items[0]);
-            } else if (oid === "2.5.29.37") {
-                result.extKeyUsage = t
-                    .derChildren(raw, inner)
-                    .map((node) => t.derOid(raw, node));
-            }
-        }
-    }
-    return result;
-}
-const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-];
-/** OpenSSL's time format, as in Node's valid_from: "Oct  5 19:50:26 2026 GMT". */
-function formatTime(ms) {
-    const date = new Date(ms),
-        two = (n) => (n < 10 ? "0" : "") + n,
-        day = date.getUTCDate();
-    return (
-        months[date.getUTCMonth()] +
-        " " +
-        (day < 10 ? " " : "") +
-        day +
-        " " +
-        two(date.getUTCHours()) +
-        ":" +
-        two(date.getUTCMinutes()) +
-        ":" +
-        two(date.getUTCSeconds()) +
-        " " +
-        date.getUTCFullYear() +
-        " GMT"
-    );
-}
-/** The object of getPeerCertificate() for chain[index]. */
-function peerCertificate(chain, index, detailed, seen) {
-    const parsed = parseCertificate(chain[index]);
-    const result = {
-        subject: parsed.subject,
-        issuer: parsed.issuer,
-        subjectaltname:
-            parsed.altNames.length > 0
-                ? parsed.altNames
-                      .map((name) => name.type + ":" + name.value)
-                      .join(", ")
-                : undefined,
-        ca: parsed.ca === true,
-        valid_from: formatTime(parsed.notBefore),
-        valid_to: formatTime(parsed.notAfter),
-        serialNumber: parsed.serialNumber,
-        fingerprint: toHex(t.digest("sha1", parsed.raw), ":").toUpperCase(),
-        fingerprint256: toHex(
-            t.digest("sha256", parsed.raw),
-            ":",
-        ).toUpperCase(),
-        raw: Buffer.from(parsed.raw),
-    };
-    if (result.subjectaltname === undefined) delete result.subjectaltname;
-    try {
-        const key = t.parseSubjectPublicKeyInfo(parsed.subjectPublicKeyInfo);
-        if (key.type === "rsa") {
-            result.bits = key.bits;
-            result.modulus = toHex(key.n).toUpperCase();
-            result.exponent = "0x" + toHex(key.e).replace(/^0+/, "");
-            result.pubkey = Buffer.from(key.key);
-        } else if (key.type === "ec") {
-            result.bits =
-                key.curve === "P-384" ? 384 : key.curve === "P-521" ? 521 : 256;
-            result.asn1Curve = {
-                "P-256": "prime256v1",
-                "P-384": "secp384r1",
-                "P-521": "secp521r1",
-            }[key.curve];
-            result.nistCurve = key.curve;
-            result.pubkey = Buffer.from(key.key);
-        }
-    } catch {}
-    if (parsed.extKeyUsage !== undefined)
-        result.ext_key_usage = parsed.extKeyUsage;
-    if (detailed) {
-        seen.push(result);
-        let issuerIndex = -1;
-        if (equalBytes(parsed.issuerRaw, parsed.subjectRaw))
-            result.issuerCertificate = result;
-        else
-            for (let j = 0; j < chain.length; j++)
-                if (
-                    j !== index &&
-                    equalBytes(
-                        parseCertificate(chain[j]).subjectRaw,
-                        parsed.issuerRaw,
-                    )
-                )
-                    issuerIndex = j;
-        if (issuerIndex >= 0 && seen.length < chain.length)
-            result.issuerCertificate = peerCertificate(
-                chain,
-                issuerIndex,
-                true,
-                seen,
-            );
-    }
-    return result;
-}
-
-// ---- Certificate verification ------------------------------------------------
-/** Certificates in the ca option (PEM text or DER, alone or in an array) as DER. */
-function certificateList(value) {
-    const out = [];
-    const add = (item) => {
-        if (item === undefined || item === null) return;
-        if (Array.isArray(item)) {
-            for (const entry of item) add(entry);
-            return;
-        }
-        if (typeof item !== "string") {
-            const bytes = new Uint8Array(
-                item.buffer || item,
-                item.byteOffset || 0,
-                item.byteLength,
-            );
-            if (bytes[0] === 0x30) {
-                out.push(bytes.slice());
-                return;
-            }
-            item = Buffer.from(bytes).toString("latin1");
-        }
-        const pattern =
-            /-----BEGIN (?:X509 |TRUSTED )?CERTIFICATE-----([\s\S]*?)-----END (?:X509 |TRUSTED )?CERTIFICATE-----/g;
-        let match;
-        while ((match = pattern.exec(item)) !== null)
-            out.push(
-                new Uint8Array(
-                    Buffer.from(match[1].replace(/\s+/g, ""), "base64"),
-                ),
-            );
-    };
-    add(value);
-    return out;
-}
-function verifyError(code, message) {
-    return codedError(code, message);
-}
-const signatureHashes = {
-    "1.2.840.10045.4.3.2": ["ecdsa", "sha256"],
-    "1.2.840.10045.4.3.3": ["ecdsa", "sha384"],
-    "1.2.840.10045.4.3.4": ["ecdsa", "sha512"],
-    "1.2.840.113549.1.1.11": ["rsa", "sha256"],
-    "1.2.840.113549.1.1.12": ["rsa", "sha384"],
-    "1.2.840.113549.1.1.13": ["rsa", "sha512"],
-};
-/** Does issuer's key verify certificate's signature? */
-function signedBy(certificate, issuer) {
-    const algorithm = signatureHashes[certificate.signatureAlgorithm];
-    if (!algorithm) return false;
-    try {
-        const key = t.parseSubjectPublicKeyInfo(issuer.subjectPublicKeyInfo);
-        if (algorithm[0] === "ecdsa")
-            return (
-                key.type === "ec" &&
-                (key.curve === "P-256" || key.curve === "P-384") &&
-                t.verifyEcdsa(
-                    key.curve,
-                    key.key,
-                    algorithm[1],
-                    certificate.tbs,
-                    certificate.signature,
-                )
-            );
-        return (
-            key.type === "rsa" &&
-            t.verifyRsaPkcs1(
-                key,
-                algorithm[1],
-                certificate.tbs,
-                certificate.signature,
-            )
-        );
-    } catch {
-        return false;
-    }
-}
-function checkValidity(certificate, now) {
-    if (now < certificate.notBefore)
-        return verifyError(
-            "CERT_NOT_YET_VALID",
-            "certificate is not yet valid",
-        );
-    if (now > certificate.notAfter)
-        return verifyError("CERT_HAS_EXPIRED", "certificate has expired");
-    return null;
-}
-/**
- * Build a path from the leaf through the presented certificates to a trusted
- * one. Placeholder for the full X.509 verification (issue #301, step 3): it
- * checks signatures, validity periods and the CA flag of intermediates, not
- * key usage, name constraints or policies.
- */
-function verifyChain(chain, anchors, now) {
-    let current = chain[0];
-    for (let depth = 0; depth < 10; depth++) {
-        const invalid = checkValidity(current, now);
-        if (invalid) return invalid;
-        if (anchors.some((anchor) => equalBytes(anchor.raw, current.raw)))
-            return null;
-        const anchor = anchors.find(
-            (anchor) =>
-                equalBytes(anchor.subjectRaw, current.issuerRaw) &&
-                signedBy(current, anchor),
-        );
-        if (anchor) return checkValidity(anchor, now);
-        const next = chain.find(
-            (candidate) =>
-                candidate !== current &&
-                candidate.ca === true &&
-                equalBytes(candidate.subjectRaw, current.issuerRaw) &&
-                signedBy(current, candidate),
-        );
-        if (next === undefined) {
-            if (
-                equalBytes(current.issuerRaw, current.subjectRaw) &&
-                signedBy(current, current)
-            )
-                return depth === 0
-                    ? verifyError(
-                          "DEPTH_ZERO_SELF_SIGNED_CERT",
-                          "self-signed certificate",
-                      )
-                    : verifyError(
-                          "SELF_SIGNED_CERT_IN_CHAIN",
-                          "self-signed certificate in certificate chain",
-                      );
-            return verifyError(
-                "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
-                "unable to get local issuer certificate",
-            );
-        }
-        current = next;
-    }
-    return verifyError("CERT_CHAIN_TOO_LONG", "certificate chain too long");
-}
-/**
- * The verification hook of the client: chain is the server's certificates
- * (DER, leaf first). Returns { authorized, error }. Without a ca option nothing is
- * trusted yet (the operating system's store is not read), so the result is
- * UNABLE_TO_GET_ISSUER_CERT_LOCALLY and a client with rejectUnauthorized
- * refuses the connection.
- */
-export function verifyPeer(chain, options, hostname) {
-    let certificates;
-    try {
-        certificates = chain.map(parseCertificate);
-    } catch {
-        return {
-            authorized: false,
-            error: verifyError(
-                "UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY",
-                "unable to decode the certificate",
-            ),
-        };
-    }
-    let anchors;
-    try {
-        const ca =
-            options.ca !== undefined
-                ? options.ca
-                : options.secureContext?.context?.ca;
-        anchors = certificateList(ca).map(parseCertificate);
-    } catch {
-        anchors = [];
-    }
-    const error =
-        anchors.length === 0
-            ? verifyError(
-                  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
-                  "unable to get local issuer certificate",
-              )
-            : verifyChain(certificates, anchors, Date.now());
-    if (error) return { authorized: false, error };
-    const check =
-        typeof options.checkServerIdentity === "function"
-            ? options.checkServerIdentity
-            : checkServerIdentity;
-    const identityError = check(hostname, peerCertificate(chain, 0, false, []));
-    if (identityError) return { authorized: false, error: identityError };
-    return { authorized: true, error: null };
-}
-
-function expandIPv6(text) {
-    if (net.isIPv4(text)) return text;
-    const halves = text.split("::");
-    const parse = (part) => (part === "" ? [] : part.split(":"));
-    let head = parse(halves[0]),
-        tail = halves.length > 1 ? parse(halves[1]) : [];
-    if (tail.length > 0 && tail[tail.length - 1].includes(".")) {
-        const v4 = tail.pop().split(".").map(Number);
-        tail.push(
-            ((v4[0] << 8) | v4[1]).toString(16),
-            ((v4[2] << 8) | v4[3]).toString(16),
-        );
-    }
-    const zeros = new Array(Math.max(0, 8 - head.length - tail.length)).fill(
-        "0",
-    );
-    return head
-        .concat(halves.length > 1 ? zeros : [], tail)
-        .map((group) => parseInt(group, 16).toString(16).toUpperCase())
-        .join(":");
-}
-function hostMatches(hostParts, pattern) {
-    const patternParts = pattern.toLowerCase().replace(/\.$/, "").split(".");
-    if (patternParts.length !== hostParts.length || patternParts.includes(""))
-        return false;
-    for (let i = 1; i < hostParts.length; i++)
-        if (patternParts[i] !== hostParts[i]) return false;
-    const first = patternParts[0],
-        host = hostParts[0];
-    if (first === host) return true;
-    if (
-        !first.includes("*") ||
-        patternParts.length < 3 ||
-        first.startsWith("xn--")
-    )
-        return false;
-    const pieces = first.split("*");
-    if (pieces.length > 2) return false;
-    return (
-        host.length >= pieces[0].length + pieces[1].length &&
-        host.startsWith(pieces[0]) &&
-        host.endsWith(pieces[1])
-    );
-}
-/** Node's tls.checkServerIdentity: undefined when the certificate is for hostname. */
-export function checkServerIdentity(hostname, cert) {
-    hostname = String(hostname);
-    const subject = cert.subject,
-        altNames = cert.subjectaltname;
-    const dnsNames = [],
-        ips = [];
-    if (altNames)
-        for (const name of altNames.split(", ")) {
-            if (name.startsWith("DNS:")) dnsNames.push(name.slice(4));
-            else if (name.startsWith("IP Address:"))
-                ips.push(expandIPv6(name.slice(11)));
-        }
-    let valid = false,
-        reason = "Unknown reason";
-    const bare = hostname.replace(/\.$/, "");
-    if (net.isIP(bare)) {
-        valid = ips.includes(expandIPv6(bare));
-        if (!valid)
-            reason =
-                "IP: " +
-                hostname +
-                " is not in the cert's list: " +
-                ips.join(", ");
-    } else if (dnsNames.length > 0 || (subject && subject.CN)) {
-        const hostParts = bare.toLowerCase().split(".");
-        if (dnsNames.length > 0) {
-            valid = dnsNames.some((pattern) => hostMatches(hostParts, pattern));
-            if (!valid)
-                reason =
-                    "Host: " +
-                    hostname +
-                    ". is not in the cert's altnames: " +
-                    altNames;
-        } else {
-            const cn = subject.CN;
-            valid = Array.isArray(cn)
-                ? cn.some((pattern) => hostMatches(hostParts, pattern))
-                : hostMatches(hostParts, cn);
-            if (!valid)
-                reason = "Host: " + hostname + ". is not cert's CN: " + cn;
-        }
-    } else reason = "Cert does not contain a DNS name";
-    if (valid) return undefined;
-    const error = codedError(
-        "ERR_TLS_CERT_ALTNAME_INVALID",
-        "Hostname/IP does not match certificate's altnames: " + reason,
-    );
-    error.reason = reason;
-    error.host = hostname;
-    error.cert = cert;
-    return error;
-}
-
 // ---- TLSSocket -----------------------------------------------------------------
 /** Write callbacks are functions, or (from node:http) objects with a _sent method. */
 function invoke(callback, error) {
@@ -1828,6 +1317,7 @@ export class TLSSocket extends net.Socket {
         engine.onError = (error) => this.destroy(error);
         engine.verify = (chain) => {
             const result = verifyPeer(chain, options, this._hostname);
+            this._verifiedChain = result.path;
             this.authorized = result.authorized;
             this.authorizationError = result.error
                 ? result.error.code || result.error.message
@@ -2077,7 +1567,12 @@ export class TLSSocket extends net.Socket {
     getPeerCertificate(detailed) {
         const engine = this._engine;
         if (engine === null || engine.peerCertificates === null) return {};
-        return peerCertificate(engine.peerCertificates, 0, !!detailed, []);
+        // The detailed form follows the verified chain, anchor included.
+        const chain =
+            detailed && this._verifiedChain
+                ? this._verifiedChain
+                : engine.peerCertificates;
+        return peerCertificate(chain, 0, !!detailed, []);
     }
     getCertificate() {
         return {};
@@ -2103,7 +1598,7 @@ export class TLSSocket extends net.Socket {
         );
     }
 }
-defaults(TLSSocket.prototype, { _rawClosed: false });
+defaults(TLSSocket.prototype, { _rawClosed: false, _verifiedChain: null });
 function defaults(proto, values) {
     for (const key of Object.keys(values))
         Object.defineProperty(proto, key, {
@@ -2182,7 +1677,7 @@ export class Server {
         serverNotImplemented();
     }
 }
-export const rootCertificates = Object.freeze([]);
+export { checkServerIdentity };
 export const DEFAULT_ECDH_CURVE = "auto";
 export const DEFAULT_MIN_VERSION = "TLSv1.3";
 export const DEFAULT_MAX_VERSION = "TLSv1.3";
@@ -2190,7 +1685,12 @@ export const DEFAULT_CIPHERS =
     "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 /** Internal hooks for tests and node:https. */
 export const _internal = { ClientEngine, parseCertificate, verifyPeer };
+// tls.rootCertificates (the operating system's roots as PEM strings) is a
+// getter of the default export, so the store is only read when it is used.
 export default {
+    get rootCertificates() {
+        return systemRootCertificates();
+    },
     TLSSocket,
     Server,
     connect,
@@ -2199,7 +1699,6 @@ export default {
     checkServerIdentity,
     getCiphers,
     convertALPNProtocols,
-    rootCertificates,
     DEFAULT_ECDH_CURVE,
     DEFAULT_MIN_VERSION,
     DEFAULT_MAX_VERSION,

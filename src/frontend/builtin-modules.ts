@@ -20,6 +20,7 @@ import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
 import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
 import { tlsModuleSource } from "./tls-module.js";
+import { x509ModuleSource, x509StoreModuleSource } from "./x509-module.js";
 import {
     nodeCompatModules,
     cryptoModuleSource,
@@ -155,6 +156,8 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:internal/native", () => nativeModuleSource],
     ["nona:internal/commonjs", () => commonJsModuleSource],
     ["nona:internal/tls-crypto", () => tlsCryptoModuleSource],
+    ["nona:internal/x509", () => x509ModuleSource],
+    ["nona:internal/x509-store", x509StoreModuleSource],
     ["node:crypto", cryptoModuleSource],
     ...nodeCompatModules.map(
         ([name, source]) => [name, () => source] as [string, () => string],

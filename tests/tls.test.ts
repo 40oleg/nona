@@ -21,6 +21,24 @@ const fixtures = fileURLToPath(
 const fixture = (name: string) => readFileSync(fixtures + name, "utf8");
 const caPem = fixture("ca.pem");
 
+const chainServers: Record<string, string[]> = {
+    chain: ["leaf", "inter"],
+    leafOnly: ["leaf"],
+    outOfOrder: ["leaf", "untrusted-ca", "expired", "root", "inter"],
+    expired: ["expired", "inter"],
+    future: ["future", "inter"],
+    wrongHost: ["wrong-host", "inter"],
+    selfSigned: ["self-signed"],
+    untrusted: ["untrusted"],
+    untrustedChain: ["untrusted", "untrusted-ca"],
+    badSignature: ["bad-signature", "inter"],
+    clientOnly: ["client-only", "inter"],
+    critical: ["critical", "inter"],
+    deep: ["deep", "inter2", "inter"],
+    belowNotCa: ["below-not-ca", "not-ca"],
+    cnOnly: ["cn-only", "inter"],
+    direct: ["direct"],
+};
 const serverScript = String.raw`
 const tls = require('node:tls'), fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const read = (name) => fs.readFileSync(path.join(process.env.NONA_TLS_FIXTURES, name));
@@ -31,10 +49,14 @@ const configs = {
   rsaRetry: { key: 'rsa-key.pem', cert: 'rsa-cert.pem', ciphers: 'TLS_AES_128_GCM_SHA256', ecdhCurve: 'P-256' },
   tls12: { key: 'ec-key.pem', cert: 'ec-cert.pem', maxVersion: 'TLSv1.2' },
 };
+// Certificate chains of tests/fixtures/tls/chain: name -> certificates sent.
+const chains = ${JSON.stringify(chainServers)};
+for (const [name, certs] of Object.entries(chains))
+  configs[name] = { key: 'chain/leaf-key.pem', cert: certs.map((c) => 'chain/' + c + '.pem') };
 const ports = {}, servers = [];
 let pending = Object.keys(configs).length;
 for (const [name, config] of Object.entries(configs)) {
-  const options = Object.assign({}, config, { key: read(config.key), cert: read(config.cert), allowHalfOpen: true });
+  const options = Object.assign({}, config, { key: read(config.key), cert: [].concat(config.cert).map((c) => read(c).toString()).join(''), allowHalfOpen: true });
   const server = tls.createServer(options, (socket) => {
     socket.write('hello ' + socket.getProtocol() + ' ' + socket.getCipher().standardName + ' ' + socket.alpnProtocol + ' ' + socket.servername + '\n');
     const chunks = [];
@@ -253,14 +275,14 @@ await attempt('tls12', { port: ports.tls12, host: '127.0.0.1', ca });
 await attempt('port-form', null, () => tls.connect(ports.rsa256, 'localhost', { ca }));
 await attempt('wrapped', null, () => tls.connect({ socket: net.connect(ports.ecChacha, '127.0.0.1'), servername: 'localhost', ca }));
 try { tls.connect({ port: 1, maxVersion: 'TLSv1.2' }); } catch (e) { console.log('maxVersion', e.code); }
-console.log(tls.getCiphers().join(), tls.DEFAULT_MAX_VERSION, typeof tls.checkServerIdentity, tls.rootCertificates.length);
+console.log(tls.getCiphers().join(), tls.DEFAULT_MAX_VERSION, typeof tls.checkServerIdentity, tls.rootCertificates.length > 0);
 try { tls.createServer(); } catch (e) { console.log('createServer', e.code); }
 })();
 `);
     assert.deepEqual(lines, [
-        "no-ca error UNABLE_TO_GET_ISSUER_CERT_LOCALLY unable to get local issuer certificate",
+        "no-ca error UNABLE_TO_VERIFY_LEAF_SIGNATURE unable to verify the first certificate",
         "no-ca close true",
-        "unverified secureConnect false UNABLE_TO_GET_ISSUER_CERT_LOCALLY localhost",
+        "unverified secureConnect false UNABLE_TO_VERIFY_LEAF_SIGNATURE localhost",
         `unverified end "ec128 got 4 ${sha16("ping")}"`,
         "unverified close false",
         "wrong-name error ERR_TLS_CERT_ALTNAME_INVALID Hostname/IP does not match certificate's altnames: Host: example.com. is not in the cert's altnames: DNS:localhost, IP Address:127.0.0.1",
@@ -281,7 +303,7 @@ try { tls.createServer(); } catch (e) { console.log('createServer', e.code); }
         `wrapped end "ecChacha got 4 ${sha16("ping")}"`,
         "wrapped close false",
         "maxVersion ERR_SSL_UNSUPPORTED_PROTOCOL",
-        "tls_aes_128_gcm_sha256,tls_aes_256_gcm_sha384,tls_chacha20_poly1305_sha256 TLSv1.3 function 0",
+        "tls_aes_128_gcm_sha256,tls_aes_256_gcm_sha384,tls_chacha20_poly1305_sha256 TLSv1.3 function true",
         "createServer ERR_METHOD_NOT_IMPLEMENTED",
     ]);
     // The server saw the client's alerts.
@@ -294,4 +316,99 @@ try { tls.createServer(); } catch (e) { console.log('createServer', e.code); }
         /^ec128 tlsClientError ERR_SSL_(SSL\/TLS|SSLV3)_ALERT_BAD_CERTIFICATE$/,
     );
     assert.equal(log[2], "tls12 tlsClientError ERR_SSL_UNSUPPORTED_PROTOCOL");
+});
+
+// The chain fixtures, each case as [label, server, options]; ca lists
+// fixture names (default: the test root), servername defaults to localhost.
+const chainPems: Record<string, string> = {};
+for (const name of [
+    "root",
+    "inter",
+    "untrusted-ca",
+    "self-signed",
+    "old-ca",
+] as const)
+    chainPems[name] =
+        name === "old-ca" ? caPem : fixture("chain/" + name + ".pem");
+const chainCases: [string, string, Record<string, unknown>][] = [
+    ["chain", "chain", {}],
+    ["chain-ip", "chain", { servername: null }],
+    ["wildcard", "chain", { servername: "a.nona.test" }],
+    ["wildcard-deep", "chain", { servername: "a.b.nona.test" }],
+    ["wrong-ca", "chain", { ca: ["old-ca"] }],
+    ["leaf-only", "leafOnly", {}],
+    ["leaf-only-inter-ca", "leafOnly", { ca: ["root", "inter"] }],
+    ["inter-anchor", "chain", { ca: ["inter"] }],
+    ["out-of-order", "outOfOrder", {}],
+    ["expired", "expired", {}],
+    ["future", "future", {}],
+    ["wrong-host", "wrongHost", {}],
+    ["self-signed", "selfSigned", {}],
+    ["self-signed-trusted", "selfSigned", { ca: ["self-signed"] }],
+    ["untrusted", "untrusted", {}],
+    ["untrusted-chain", "untrustedChain", {}],
+    ["bad-signature", "badSignature", {}],
+    ["client-only", "clientOnly", {}],
+    ["critical", "critical", {}],
+    ["deep", "deep", {}],
+    ["below-not-ca", "belowNotCa", {}],
+    ["cn-only", "cnOnly", {}],
+    ["cn-only-wrong", "cnOnly", { servername: "example.com" }],
+    ["direct", "direct", {}],
+    ["expired-untrusted", "expired", { ca: ["untrusted-ca"] }],
+    ["expired-unverified", "expired", { rejectUnauthorized: false }],
+    ["system-store", "chain", { ca: null }],
+];
+const chainClient = String.raw`
+import tls from 'node:tls';
+const pems = ${JSON.stringify(chainPems)};
+const cases = ${JSON.stringify(chainCases)};
+const ports = PORTS;
+const only = ONLY;
+function attempt(label, server, extra) {
+  const options = Object.assign({ port: ports[server], host: '127.0.0.1', servername: 'localhost', ca: ['root'] }, extra);
+  if (options.servername === null) delete options.servername;
+  if (options.ca === null) delete options.ca;
+  else options.ca = options.ca.map((name) => pems[name]);
+  return new Promise((resolve) => {
+    const socket = tls.connect(options, () => {
+      const cert = socket.getPeerCertificate(true);
+      const chain = [];
+      for (let c = cert; c && chain.length < 5; c = c.issuerCertificate === c ? null : c.issuerCertificate) chain.push(c.subject.CN);
+      console.log(label, 'secureConnect', socket.authorized, socket.authorizationError, chain.join(' < '));
+      socket.end();
+    });
+    socket.on('error', (e) => console.log(label, 'error', e.code, e.message));
+    socket.on('close', resolve);
+    socket.resume();
+  });
+}
+(async () => {
+  for (const [label, server, extra] of cases)
+    if (only.includes(label)) await attempt(label, server, extra);
+})();
+`;
+
+test("node:tls: certificate chains are verified as Node.js verifies them", () => {
+    const labels = chainCases.map(([label]) => label);
+    // Two programs keep each run well inside the time limit.
+    const halves = [labels.slice(0, 14), labels.slice(14)];
+    for (const only of halves) {
+        const source = chainClient
+            .replace("PORTS", JSON.stringify(ports))
+            .replace("ONLY", JSON.stringify(only));
+        const { native, oracle } = runModulesOnHost(
+            { "main.mjs": source },
+            "main.mjs",
+            { gcStress: false },
+        );
+        assert.equal(native.error, undefined);
+        assert.equal(native.status, 0, native.stdout + native.stderr);
+        const lines = native.stdout.split("\n").filter((line) => line !== "");
+        const expected = oracle.split("\n").filter((line) => line !== "");
+        assert.equal(expected.length, only.length, oracle);
+        // Node.js uses its bundled Mozilla roots, Nona the operating
+        // system's: neither knows the test root.
+        assert.deepEqual(lines, expected);
+    }
 });
