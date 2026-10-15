@@ -63,7 +63,7 @@ export function runModulesOnHost(
     files: Record<string, string>,
     entry: string,
     options: { gcStress?: boolean; oracleSource?: string } = { gcStress: true },
-): { native: HostRun; oracle: string } {
+): { native: HostRun; oracle: string; oracleStatus: number | null } {
     const directory = mkdtempSync(join(tmpdir(), "nona-modules-"));
     try {
         for (const [name, text] of Object.entries(files))
@@ -98,7 +98,11 @@ export function runModulesOnHost(
             encoding: "utf8",
             timeout: 10_000,
         });
-        return { native, oracle: oracle.stdout };
+        return {
+            native,
+            oracle: oracle.stdout,
+            oracleStatus: oracle.status,
+        };
     } finally {
         removeTemporaryDirectory(directory);
     }

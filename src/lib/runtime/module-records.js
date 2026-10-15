@@ -209,6 +209,11 @@
             var failure = graphLinkError(target, objectCreate(null));
             if (failure !== undefined) throw new SyntaxError(failure);
             enqueueCallback(function () {
+                // Asynchronous module evaluation (top-level-await.js).
+                if (core.evaluateImport !== undefined) {
+                    core.evaluateImport(target, promise);
+                    return;
+                }
                 try {
                     evaluateModule(target);
                 } catch (error) {

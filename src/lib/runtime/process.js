@@ -244,6 +244,8 @@ ${processReportSource}
       if(typeof __nonaRegexpVm.hasPendingIO==='function'&&__nonaRegexpVm.hasPendingIO())return;
       if(typeof __nonaRegexpVm.hasPendingNetworkIO==='function'&&__nonaRegexpVm.hasPendingNetworkIO())return
     }
+    // An entry module whose top-level await never settles (top-level-await.js).
+    if(typeof __nonaRegexpVm.unsettledTopLevelAwait==='function'&&__nonaRegexpVm.unsettledTopLevelAwait())created.exitCode=13;
     var code=created.exitCode;
     if(!exitEmitted){exitEmitted=true;if(exitCallback)exitCallback(code||0)}
     code=created.exitCode;

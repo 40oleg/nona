@@ -52,12 +52,34 @@ export function parse(
     return new Parser(tokens, !!options.module).program();
 }
 
+/** An await expression or for await in `body` outside every function. */
+function containsTopLevelAwait(body: A.Statement[]): boolean {
+    const seen = new WeakSet<object>();
+    const found = (node: unknown): boolean => {
+        if (!node || typeof node !== "object" || seen.has(node)) return false;
+        seen.add(node);
+        if (Array.isArray(node)) return node.some(found);
+        const kind = (node as A.Node).kind;
+        if (kind === "Await") return true;
+        if (kind === "ForOf" && (node as A.ForOf).await) return true;
+        // Class field initializers and static blocks are functions too.
+        if (kind === "FunctionExpression" || kind === "Function") return false;
+        for (const key in node)
+            if (key !== "span" && found((node as Record<string, unknown>)[key]))
+                return true;
+        return false;
+    };
+    return found(body);
+}
+
 class Parser {
     private index = 0;
     private generatorContext = false;
     private yieldIdentifierForbidden = false;
     private asyncContext = false;
     private awaitIdentifierForbidden = false;
+    /** Some `await` expression or `for await` was parsed in module code. */
+    private moduleAwait = false;
     private parenthesized = new WeakSet<A.Expression>();
     private computedMembers = new WeakSet<A.Member>();
     constructor(
@@ -760,6 +782,8 @@ class Parser {
     }
     program(): A.Program {
         const body: A.Statement[] = [];
+        // The module body is async: top-level await (ES2022 16.2.1.5).
+        this.asyncContext = this.module;
         while (this.token.kind !== "eof")
             body.push(this.module ? this.moduleItem() : this.statement(true));
         const strict = this.module || this.checkDirective(body);
@@ -768,6 +792,9 @@ class Parser {
             body,
             strict,
             ...(this.module ? { module: true } : {}),
+            ...(this.moduleAwait && containsTopLevelAwait(body)
+                ? { topLevelAwait: true }
+                : {}),
             span: { start: 0, end: this.token.span.end },
             source: this.tokens.source,
         };
@@ -1306,6 +1333,7 @@ class Parser {
         }
         if (this.match("for")) {
             const isAwait = this.asyncContext && this.match("await");
+            if (isAwait && this.module) this.moduleAwait = true;
             this.need("(");
             const headStart = this.index;
             // `let` starts a declaration only before a binding (ES2020 13.7).
@@ -2009,6 +2037,7 @@ class Parser {
         const start = this.token.span.start;
         if (this.asyncContext && this.at("await")) {
             this.take();
+            if (this.module) this.moduleAwait = true;
             const argument = this.unary();
             return { kind: "Await", argument, span: this.span(start) };
         }

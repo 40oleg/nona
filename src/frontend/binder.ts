@@ -778,7 +778,8 @@ export function bind(
                     if (e.argument) expression(e.argument);
                     break;
                 case "Await":
-                    if (!fn?.declaration.async)
+                    // A module body may await at its top level (ES2022).
+                    if (fn ? !fn.declaration.async : !moduleNames)
                         fail(e, "await outside async function");
                     expression(e.argument);
                     break;

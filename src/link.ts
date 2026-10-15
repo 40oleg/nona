@@ -151,6 +151,7 @@ export const preludeTriggers = {
     evalCode: [],
     classElements: [],
     moduleRecords: [],
+    topLevelAwait: [],
 } as const satisfies Record<string, readonly string[]>;
 export type OptionalPrelude = keyof typeof preludeTriggers;
 export const optionalPreludes = Object.keys(
@@ -168,6 +169,7 @@ export const preludeDependencies: Partial<
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],
     stream: ["eventEmitter", "buffer", "process"],
+    topLevelAwait: ["moduleRecords"],
 };
 /** Process parses dotenv/memory text and validates masks with original regexes. */
 export function runtimeRegExpLink(
@@ -348,6 +350,13 @@ export function requiredSyntaxParts(
                         const part = syntaxHelperParts[op.target.slice(11)];
                         if (part) parts.add(part);
                     }
+                    // A module body with top-level await is an async function (#306).
+                    else if (
+                        op.kind === "newFunction" &&
+                        op.async &&
+                        op.target.startsWith("js.module.")
+                    )
+                        parts.add("topLevelAwait");
     return parts;
 }
 /** `link` with the syntax helper parts that the calls of `module` need. */
