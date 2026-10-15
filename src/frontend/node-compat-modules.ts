@@ -1,13 +1,13 @@
 /**
  * Node.js builtin modules that npm packages commonly load and that Nona
  * provides in JavaScript (issue #249): `os`, `tty`, `util`, `url`, `assert`, `crypto`,
- * `querystring`, `timers`, `timers/promises`, `perf_hooks`, `module`,
- * `worker_threads` and `child_process`. Their bodies are in src/lib/modules.
+ * `querystring`, `timers`, `timers/promises`, `perf_hooks`, `module` and
+ * `worker_threads`. Their bodies are in src/lib/modules.
  *
  * They cover what libraries use at load time and in their common paths
  * (feature detection, `util.inherits`, `util.format`, `os.EOL`,
  * `tty.isatty`, `url.fileURLToPath`, ...). Functions that need a service
- * Nona does not have (child processes, worker threads) exist and throw
+ * Nona does not have (worker threads) exist and throw
  * ERR_NONA_UNSUPPORTED when called, so that a package that only mentions
  * them still loads.
  */
@@ -24,7 +24,6 @@ import {
     modulesPerfHooks,
     modulesModule,
     modulesWorkerThreads,
-    modulesChildProcess,
     modulesCrypto,
 } from "../lib/sources.generated.js";
 import { entropySource } from "../selfhost-adapters.js";
@@ -52,5 +51,4 @@ export const nodeCompatModules: readonly (readonly [string, string])[] = [
     ["node:perf_hooks", modulesPerfHooks],
     ["node:module", modulesModule],
     ["node:worker_threads", modulesWorkerThreads],
-    ["node:child_process", modulesChildProcess],
 ];

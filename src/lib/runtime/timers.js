@@ -351,30 +351,68 @@ __nonaPromiseDrainJobs = (function (drain) {
             immediateHead = 0;
         }
     }
-    // The network module registers its native readiness poller on first use.
-    var io = null;
+    // Native I/O modules (node:net, node:child_process) register a readiness
+    // poller on first use: {active(), total(), poll(timeout), run(i)}. active()
+    // counts what keeps the program alive, total() everything to watch, poll()
+    // waits at most timeout ms (-1: forever) and returns the number of ready
+    // entries, and run(i) dispatches one of them. The hook stays installed so
+    // that every module can register.
+    var pollers = [],
+        IO_SLICE = 10;
     defineProperty(globalThis, "__nonaIoLoop", {
         value: function (poller) {
-            io = poller;
+            for (var i = 0; i < pollers.length; i++)
+                if (pollers[i] === poller) return;
+            append(pollers, poller);
         },
         writable: true,
         configurable: true,
     });
     function networkAlive() {
-        return io !== null && io.active() > 0;
+        for (var i = 0; i < pollers.length; i++)
+            if (pollers[i].active() > 0) return true;
+        return false;
+    }
+    function ioWatching() {
+        for (var i = 0; i < pollers.length; i++)
+            if (pollers[i].total() > 0) return true;
+        return false;
     }
     __nonaRegexpVm.hasPendingNetworkIO = networkAlive;
-    function pollNetwork(timeout) {
-        var ready = io.poll(timeout);
+    function runReady(poller, ready) {
         for (var i = 0; i < ready; i++) {
             try {
-                io.run(i);
+                poller.run(i);
             } catch (error) {
                 if (typeof __nonaRegexpVm.dispatchUncaught !== "function")
                     throw error;
                 __nonaRegexpVm.dispatchUncaught(error, "uncaughtException");
             }
             drain();
+        }
+    }
+    // Only one poller can block. With several, the others are polled without
+    // waiting first and the blocking wait is cut into short slices, so that no
+    // poller starves while another one sleeps.
+    function pollNetwork(timeout) {
+        var live = [];
+        for (var i = 0; i < pollers.length; i++)
+            if (pollers[i].total() > 0) append(live, pollers[i]);
+        if (live.length === 0) {
+            if (timeout !== 0) hostWait(timeout < 0 ? IO_SLICE : timeout);
+            return;
+        }
+        if (live.length > 1 && (timeout < 0 || timeout > IO_SLICE))
+            timeout = IO_SLICE;
+        var any = false;
+        for (var j = 0; j < live.length; j++) {
+            var ready = live[j].poll(
+                j === live.length - 1 && !any ? timeout : 0,
+            );
+            if (ready > 0) {
+                any = true;
+                runReady(live[j], ready);
+            }
         }
     }
     return function eventLoop() {
@@ -413,8 +451,7 @@ __nonaPromiseDrainJobs = (function (drain) {
                 readableIO = __nonaRegexpVm.hasReadableIO();
             }
             if (
-                io !== null &&
-                io.total() > 0 &&
+                ioWatching() &&
                 (heap.length === 0 || heap[0].when > hostNow())
             ) {
                 pollNetwork(0);
@@ -462,7 +499,7 @@ __nonaPromiseDrainJobs = (function (drain) {
                         readableIO || signals
                             ? Math.min(5, ceil(remaining))
                             : ceil(remaining);
-                if (io !== null && io.total() > 0) pollNetwork(timeout);
+                if (ioWatching()) pollNetwork(timeout);
                 else hostWait(timeout);
                 continue;
             }
