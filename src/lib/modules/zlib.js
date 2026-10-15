@@ -69,8 +69,8 @@ const zlibConstants = {
 const brotliNames =
     "OPERATION_PROCESS OPERATION_FLUSH OPERATION_FINISH OPERATION_EMIT_METADATA PARAM_MODE MODE_GENERIC MODE_TEXT MODE_FONT DEFAULT_MODE PARAM_QUALITY MIN_QUALITY MAX_QUALITY DEFAULT_QUALITY PARAM_LGWIN MIN_WINDOW_BITS MAX_WINDOW_BITS LARGE_MAX_WINDOW_BITS DEFAULT_WINDOW PARAM_LGBLOCK MIN_INPUT_BLOCK_BITS MAX_INPUT_BLOCK_BITS PARAM_DISABLE_LITERAL_CONTEXT_MODELING PARAM_SIZE_HINT PARAM_LARGE_WINDOW PARAM_NPOSTFIX PARAM_NDIRECT DECODER_RESULT_ERROR DECODER_RESULT_SUCCESS DECODER_RESULT_NEEDS_MORE_INPUT DECODER_RESULT_NEEDS_MORE_OUTPUT DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION DECODER_PARAM_LARGE_WINDOW DECODER_NO_ERROR DECODER_SUCCESS DECODER_NEEDS_MORE_INPUT DECODER_NEEDS_MORE_OUTPUT";
 const brotliValues = [
-    0, 1, 2, 3, 0, 0, 1, 2, 0, 1, 0, 11, 11, 2, 10, 24, 30, 22, 3, 16, 24, 4,
-    5, 6, 7, 8, 0, 1, 2, 3, 0, 1, 0, 1, 2, 3,
+    0, 1, 2, 3, 0, 0, 1, 2, 0, 1, 0, 11, 11, 2, 10, 24, 30, 22, 3, 16, 24, 4, 5,
+    6, 7, 8, 0, 1, 2, 3, 0, 1, 0, 1, 2, 3,
 ];
 const brotliErrors =
     "EXUBERANT_NIBBLE RESERVED EXUBERANT_META_NIBBLE SIMPLE_HUFFMAN_ALPHABET SIMPLE_HUFFMAN_SAME CL_SPACE HUFFMAN_SPACE CONTEXT_MAP_REPEAT BLOCK_LENGTH_1 BLOCK_LENGTH_2 TRANSFORM DICTIONARY WINDOW_BITS PADDING_1 PADDING_2 DISTANCE";
@@ -144,7 +144,12 @@ function describe(value) {
 }
 function invalidArgType(name, expected, value) {
     const error = new TypeError(
-        'The "' + name + '" argument must be ' + expected + "." + describe(value),
+        'The "' +
+            name +
+            '" argument must be ' +
+            expected +
+            "." +
+            describe(value),
     );
     error.code = "ERR_INVALID_ARG_TYPE";
     return error;
@@ -501,8 +506,7 @@ class Inflater {
                 throw dataError("incorrect header check");
             if ((cmf & 15) !== 8) throw dataError("unknown compression method");
             if ((cmf >> 4) + 8 > 15) throw dataError("invalid window size");
-            if (flg & 32)
-                throw zlibError("Missing dictionary", "Z_NEED_DICT");
+            if (flg & 32) throw zlibError("Missing dictionary", "Z_NEED_DICT");
             this.check = 1;
         } else if (this.format === "gzip") {
             const start = this.position - (this.bitCount >> 3);
@@ -545,8 +549,20 @@ class Inflater {
             const code = fixedCode();
             if (code.decoding === null)
                 code.decoding = [
-                    decodingTable(code.literalLengths, 0, 288, false, code.literalCodes),
-                    decodingTable(code.distanceLengths, 0, 32, false, code.distanceCodes),
+                    decodingTable(
+                        code.literalLengths,
+                        0,
+                        288,
+                        false,
+                        code.literalCodes,
+                    ),
+                    decodingTable(
+                        code.distanceLengths,
+                        0,
+                        32,
+                        false,
+                        code.distanceCodes,
+                    ),
                 ];
             this.literals = code.decoding[0];
             this.distances = code.decoding[1];
@@ -569,7 +585,7 @@ class Inflater {
         if (lengthCode === null) throw dataError("invalid code lengths set");
         const count = literalCount + distanceCount,
             lengths = new Uint8Array(count);
-        for (let i = 0; i < count; ) {
+        for (let i = 0; i < count;) {
             const symbol = this.decode(lengthCode);
             if (symbol < 0) throw dataError("invalid code lengths set");
             if (symbol < 16) {
@@ -793,7 +809,8 @@ function codeLengths(frequencies, count, limit) {
             let pair = 0;
             for (let k = 0; k < 2; k++) {
                 const node =
-                    leaf < leaves && (inner >= next || weight[leaf] <= weight[inner])
+                    leaf < leaves &&
+                    (inner >= next || weight[leaf] <= weight[inner])
                         ? leaf++
                         : inner++;
                 parent[node] = next;
@@ -1040,7 +1057,7 @@ function dynamicPlan(literalFrequencies, distanceFrequencies, extraBits) {
         runExtras.push(extra);
         lengthFrequencies[symbol]++;
     };
-    for (let i = 0; i < all.length; ) {
+    for (let i = 0; i < all.length;) {
         const value = all[i];
         let repeat = 1;
         while (i + repeat < all.length && all[i + repeat] === value) repeat++;
@@ -1127,7 +1144,10 @@ class Compressor {
             level = this.level;
         if (this.format === "zlib") {
             writer.bits(0x78, 8);
-            writer.bits(level < 2 ? 0x01 : level < 6 ? 0x5e : level === 6 ? 0x9c : 0xda, 8);
+            writer.bits(
+                level < 2 ? 0x01 : level < 6 ? 0x5e : level === 6 ? 0x9c : 0xda,
+                8,
+            );
         } else if (this.format === "gzip") {
             for (const byte of [0x1f, 0x8b, 8, 0, 0, 0, 0, 0])
                 writer.bits(byte, 8);
