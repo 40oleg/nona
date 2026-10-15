@@ -2,9 +2,10 @@
 // ICU and without data for other locales. en and en-US are the available
 // locales; any other request resolves to the default locale en-US, and
 // resolvedOptions().locale reports that fallback. The formats and the
-// collation order follow ICU's en data as Node.js uses it. Constructors and
-// most intrinsics are captured while the prelude runs; the hot paths call
-// string methods directly, like the other preludes.
+// collation order follow ICU's en data as Node.js uses it. DateTimeFormat
+// knows the Gregorian calendar, UTC (Nona's local time zone) and fixed UTC
+// offsets. Constructors and most intrinsics are captured while the prelude
+// runs; the hot paths call string methods directly, like the other preludes.
 (function () {
     "use strict";
     var defineProperty = Object.defineProperty,
@@ -32,6 +33,10 @@
         stringTrim = StringPrototype.trim,
         stringNormalize = StringPrototype.normalize,
         numberValueOf = Number.prototype.valueOf,
+        hasOwnProperty = ObjectPrototype.hasOwnProperty,
+        DatePrototype = Date.prototype,
+        dateGetTime = DatePrototype.getTime,
+        dateNow = Date.now,
         bigintValueOf =
             typeof BigInt === "function" ? BigInt.prototype.valueOf : undefined;
 
@@ -514,8 +519,11 @@
             }
             var optionsValue = options[key];
             if (optionsValue !== undefined) {
-                optionsValue = asciiLower(optionsValue);
-                if (optionsValue === "") optionsValue = "true";
+                // null (DateTimeFormat's hc with hour12) drops the keyword.
+                if (optionsValue !== null) {
+                    optionsValue = asciiLower(optionsValue);
+                    if (optionsValue === "") optionsValue = "true";
+                }
                 if (optionsValue !== value && contains(values, optionsValue)) {
                     value = optionsValue;
                     addition = "";
@@ -1757,6 +1765,2013 @@
         return slots;
     }
 
+    // ---- Date and time patterns (ECMA-402 11, ICU's en data) ---------------
+    // Formats are ICU date patterns, held as lists of fields { c, n } and
+    // literal strings. A skeleton names the requested fields; bestPattern
+    // follows ICU's DateTimePatternGenerator on CLDR's en data and the range
+    // formats follow ICU's DateIntervalFormat, quirks included, so that the
+    // output matches Node.js. The tables are built on first use.
+
+    var monthNames = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ],
+        weekdayNames = [
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+        ],
+        weekdayShorter = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    // The generator's table in ICU's order of precedence: canonical items,
+    // the style patterns of DateFormat and CLDR's available formats, which
+    // replace the entries with the same fields. Pairs of a specified
+    // skeleton ("" for the pattern's own fields) and a pattern.
+    var generatorTable = [
+        "",
+        "G",
+        "y",
+        "y",
+        "M",
+        "L",
+        "E",
+        "ccc",
+        "d",
+        "d",
+        "",
+        "a",
+        "H",
+        "HH",
+        "",
+        "m",
+        "",
+        "s",
+        "",
+        "S",
+        "",
+        "v",
+        "",
+        "EEEE, MMMM d, y",
+        "",
+        "h:mm:ss\u202fa zzzz",
+        "",
+        "MMMM d, y",
+        "",
+        "h:mm:ss\u202fa z",
+        "yMMMd",
+        "MMM d, y",
+        "",
+        "h:mm:ss\u202fa",
+        "",
+        "M/d/yy",
+        "",
+        "h:mm\u202fa",
+        "Bh",
+        "h B",
+        "Bhm",
+        "h:mm B",
+        "Bhms",
+        "h:mm:ss B",
+        "EBh",
+        "E h B",
+        "EBhm",
+        "E h:mm B",
+        "EBhms",
+        "E h:mm:ss B",
+        "Ed",
+        "d E",
+        "Eh",
+        "E h\u202fa",
+        "Ehm",
+        "E h:mm\u202fa",
+        "EHm",
+        "E HH:mm",
+        "Ehms",
+        "E h:mm:ss\u202fa",
+        "EHms",
+        "E HH:mm:ss",
+        "Gy",
+        "y G",
+        "GyM",
+        "M/y G",
+        "GyMd",
+        "M/d/y G",
+        "GyMEd",
+        "E, M/d/y G",
+        "GyMMM",
+        "MMM y G",
+        "GyMMMd",
+        "MMM d, y G",
+        "GyMMMEd",
+        "E, MMM d, y G",
+        "h",
+        "h\u202fa",
+        "hm",
+        "h:mm\u202fa",
+        "Hm",
+        "HH:mm",
+        "hms",
+        "h:mm:ss\u202fa",
+        "Hms",
+        "HH:mm:ss",
+        "hmsv",
+        "h:mm:ss\u202fa v",
+        "Hmsv",
+        "HH:mm:ss v",
+        "hmv",
+        "h:mm\u202fa v",
+        "Hmv",
+        "HH:mm v",
+        "hv",
+        "h\u202fa v",
+        "Hv",
+        "HH v",
+        "Md",
+        "M/d",
+        "MEd",
+        "E, M/d",
+        "MMM",
+        "LLL",
+        "MMMd",
+        "MMM d",
+        "MMMEd",
+        "E, MMM d",
+        "MMMMd",
+        "MMMM d",
+        "ms",
+        "mm:ss",
+        "yM",
+        "M/y",
+        "yMd",
+        "M/d/y",
+        "yMEd",
+        "E, M/d/y",
+        "yMMM",
+        "MMM y",
+        "yMMMEd",
+        "E, MMM d, y",
+        "yMMMM",
+        "MMMM y",
+    ];
+    // The style patterns of DateFormat, which ICU adds to the generator too.
+    var dateStylePatterns = {
+            full: "EEEE, MMMM d, y",
+            long: "MMMM d, y",
+            medium: "MMM d, y",
+            short: "M/d/yy",
+        },
+        timeStylePatterns = {
+            full: "h:mm:ss\u202fa zzzz",
+            long: "h:mm:ss\u202fa z",
+            medium: "h:mm:ss\u202fa",
+            short: "h:mm\u202fa",
+        };
+    // Interval formats by skeleton and by the letter of the largest
+    // different field.
+    var intervalFormats = {
+        Bh: { B: "h B\u2009\u2013\u2009h B", h: "h\u2009\u2013\u2009h B" },
+        Bhm: {
+            B: "h:mm B\u2009\u2013\u2009h:mm B",
+            h: "h:mm\u2009\u2013\u2009h:mm B",
+            m: "h:mm\u2009\u2013\u2009h:mm B",
+        },
+        d: { d: "d\u2009\u2013\u2009d" },
+        Gy: { G: "y G\u2009\u2013\u2009y G", y: "y\u2009\u2013\u2009y G" },
+        GyM: {
+            G: "M/y G\u2009\u2013\u2009M/y G",
+            M: "M/y\u2009\u2013\u2009M/y G",
+            y: "M/y\u2009\u2013\u2009M/y G",
+        },
+        GyMd: {
+            d: "M/d/y\u2009\u2013\u2009M/d/y G",
+            G: "M/d/y G\u2009\u2013\u2009M/d/y G",
+            M: "M/d/y\u2009\u2013\u2009M/d/y G",
+            y: "M/d/y\u2009\u2013\u2009M/d/y G",
+        },
+        GyMEd: {
+            d: "E, M/d/y\u2009\u2013\u2009E, M/d/y G",
+            G: "E, M/d/y G\u2009\u2013\u2009E, M/d/y G",
+            M: "E, M/d/y\u2009\u2013\u2009E, M/d/y G",
+            y: "E, M/d/y\u2009\u2013\u2009E, M/d/y G",
+        },
+        GyMMM: {
+            G: "MMM y G\u2009\u2013\u2009MMM y G",
+            M: "MMM\u2009\u2013\u2009MMM y G",
+            y: "MMM y\u2009\u2013\u2009MMM y G",
+        },
+        GyMMMd: {
+            d: "MMM d\u2009\u2013\u2009d, y G",
+            G: "MMM d, y G\u2009\u2013\u2009MMM d, y G",
+            M: "MMM d\u2009\u2013\u2009MMM d, y G",
+            y: "MMM d, y\u2009\u2013\u2009MMM d, y G",
+        },
+        GyMMMEd: {
+            d: "E, MMM d\u2009\u2013\u2009E, MMM d, y G",
+            G: "E, MMM d, y G\u2009\u2013\u2009E, MMM d, y G",
+            M: "E, MMM d\u2009\u2013\u2009E, MMM d, y G",
+            y: "E, MMM d, y\u2009\u2013\u2009E, MMM d, y G",
+        },
+        h: {
+            a: "h\u202fa\u2009\u2013\u2009h\u202fa",
+            h: "h\u2009\u2013\u2009h\u202fa",
+        },
+        H: { H: "HH\u2009\u2013\u2009HH" },
+        hm: {
+            a: "h:mm\u202fa\u2009\u2013\u2009h:mm\u202fa",
+            h: "h:mm\u2009\u2013\u2009h:mm\u202fa",
+            m: "h:mm\u2009\u2013\u2009h:mm\u202fa",
+        },
+        Hm: {
+            H: "HH:mm\u2009\u2013\u2009HH:mm",
+            m: "HH:mm\u2009\u2013\u2009HH:mm",
+        },
+        hmv: {
+            a: "h:mm\u202fa\u2009\u2013\u2009h:mm\u202fa v",
+            h: "h:mm\u2009\u2013\u2009h:mm\u202fa v",
+            m: "h:mm\u2009\u2013\u2009h:mm\u202fa v",
+        },
+        Hmv: {
+            H: "HH:mm\u2009\u2013\u2009HH:mm v",
+            m: "HH:mm\u2009\u2013\u2009HH:mm v",
+        },
+        hv: {
+            a: "h\u202fa\u2009\u2013\u2009h\u202fa v",
+            h: "h\u2009\u2013\u2009h\u202fa v",
+        },
+        Hv: { H: "HH\u2009\u2013\u2009HH v" },
+        M: { M: "M\u2009\u2013\u2009M" },
+        Md: { d: "M/d\u2009\u2013\u2009M/d", M: "M/d\u2009\u2013\u2009M/d" },
+        MEd: {
+            d: "E, M/d\u2009\u2013\u2009E, M/d",
+            M: "E, M/d\u2009\u2013\u2009E, M/d",
+        },
+        MMM: { M: "MMM\u2009\u2013\u2009MMM" },
+        MMMd: {
+            d: "MMM d\u2009\u2013\u2009d",
+            M: "MMM d\u2009\u2013\u2009MMM d",
+        },
+        MMMEd: {
+            d: "E, MMM d\u2009\u2013\u2009E, MMM d",
+            M: "E, MMM d\u2009\u2013\u2009E, MMM d",
+        },
+        y: { y: "y\u2009\u2013\u2009y" },
+        yM: { M: "M/y\u2009\u2013\u2009M/y", y: "M/y\u2009\u2013\u2009M/y" },
+        yMd: {
+            d: "M/d/y\u2009\u2013\u2009M/d/y",
+            M: "M/d/y\u2009\u2013\u2009M/d/y",
+            y: "M/d/y\u2009\u2013\u2009M/d/y",
+        },
+        yMEd: {
+            d: "E, M/d/y\u2009\u2013\u2009E, M/d/y",
+            M: "E, M/d/y\u2009\u2013\u2009E, M/d/y",
+            y: "E, M/d/y\u2009\u2013\u2009E, M/d/y",
+        },
+        yMMM: {
+            M: "MMM\u2009\u2013\u2009MMM y",
+            y: "MMM y\u2009\u2013\u2009MMM y",
+        },
+        yMMMd: {
+            d: "MMM d\u2009\u2013\u2009d, y",
+            M: "MMM d\u2009\u2013\u2009MMM d, y",
+            y: "MMM d, y\u2009\u2013\u2009MMM d, y",
+        },
+        yMMMEd: {
+            d: "E, MMM d\u2009\u2013\u2009E, MMM d, y",
+            M: "E, MMM d\u2009\u2013\u2009E, MMM d, y",
+            y: "E, MMM d, y\u2009\u2013\u2009E, MMM d, y",
+        },
+        yMMMM: {
+            M: "MMMM\u2009\u2013\u2009MMMM y",
+            y: "MMMM y\u2009\u2013\u2009MMMM y",
+        },
+    };
+    var rangeSeparator = "\u2009\u2013\u2009";
+
+    function isPatternLetter(c) {
+        return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+    }
+    // Hot paths slice literals instead of building them per character: the
+    // prelude allocates little, which matters for GC stress tests.
+    function parsePattern(pattern) {
+        var items = [],
+            literal = "",
+            quoted = false,
+            i = 0,
+            start = 0,
+            n = pattern.length;
+        while (i < n) {
+            var c = code(pattern, i);
+            if (c === 39) {
+                if (start < i) literal += slice(pattern, start, i);
+                if (i + 1 < n && code(pattern, i + 1) === 39) {
+                    literal += "'";
+                    i += 2;
+                } else {
+                    quoted = !quoted;
+                    i++;
+                }
+                start = i;
+            } else if (!quoted && isPatternLetter(c)) {
+                if (start < i) literal += slice(pattern, start, i);
+                if (literal !== "") push(items, literal);
+                literal = "";
+                var first = i;
+                while (i < n && code(pattern, i) === c) i++;
+                push(items, { c: pattern[first], n: i - first });
+                start = i;
+            } else i++;
+        }
+        if (start < n) literal += slice(pattern, start, n);
+        if (literal !== "") push(items, literal);
+        return items;
+    }
+    function repeatLetter(c, n) {
+        var text = c;
+        while (text.length < n) text += c;
+        return text;
+    }
+    // The pattern string of items; literals with letters are quoted.
+    function patternString(items) {
+        var text = "";
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (typeof item !== "string") {
+                text += repeatLetter(item.c, item.n);
+                continue;
+            }
+            var quote = false,
+                apostrophe = false;
+            for (var j = 0; j < item.length; j++) {
+                if (isPatternLetter(code(item, j))) quote = true;
+                if (code(item, j) === 39) apostrophe = true;
+            }
+            var body = item;
+            if (apostrophe) {
+                body = "";
+                for (var k = 0; k < item.length; k++)
+                    body += item[k] === "'" ? "''" : item[k];
+            }
+            text += quote ? "'" + body + "'" : body;
+        }
+        return text;
+    }
+
+    // DateTimePatternGenerator fields (UDATPG_*_FIELD) and type values.
+    var ERA_FIELD = 0,
+        YEAR_FIELD = 1,
+        MONTH_FIELD = 3,
+        WEEKDAY_FIELD = 6,
+        DAY_FIELD = 9,
+        DAYPERIOD_FIELD = 10,
+        HOUR_FIELD = 11,
+        MINUTE_FIELD = 12,
+        SECOND_FIELD = 13,
+        FRACTIONAL_FIELD = 14,
+        ZONE_FIELD = 15,
+        FIELD_COUNT = 16;
+    var NUMERIC = 0x100,
+        DELTA = 0x10,
+        NARROW = -0x101,
+        SHORTER = -0x102,
+        SHORT = -0x103,
+        LONG = -0x104;
+    // For each letter: its field, then pairs of minimum length and type.
+    var letterTypes = {
+        G: [ERA_FIELD, 1, SHORT, 4, LONG, 5, NARROW],
+        y: [YEAR_FIELD, 1, NUMERIC],
+        M: [MONTH_FIELD, 1, NUMERIC, 3, SHORT, 4, LONG, 5, NARROW],
+        L: [
+            MONTH_FIELD,
+            1,
+            NUMERIC + DELTA,
+            3,
+            SHORT - DELTA,
+            4,
+            LONG - DELTA,
+            5,
+            NARROW - DELTA,
+        ],
+        E: [WEEKDAY_FIELD, 1, SHORT, 4, LONG, 5, NARROW, 6, SHORTER],
+        c: [
+            WEEKDAY_FIELD,
+            1,
+            NUMERIC + 2 * DELTA,
+            3,
+            SHORT - 2 * DELTA,
+            4,
+            LONG - 2 * DELTA,
+            5,
+            NARROW - 2 * DELTA,
+            6,
+            SHORTER - 2 * DELTA,
+        ],
+        d: [DAY_FIELD, 1, NUMERIC],
+        a: [DAYPERIOD_FIELD, 1, SHORT, 4, LONG, 5, NARROW],
+        B: [
+            DAYPERIOD_FIELD,
+            1,
+            SHORT - 3 * DELTA,
+            4,
+            LONG - 3 * DELTA,
+            5,
+            NARROW - 3 * DELTA,
+        ],
+        H: [HOUR_FIELD, 1, NUMERIC + 10 * DELTA],
+        k: [HOUR_FIELD, 1, NUMERIC + 11 * DELTA],
+        h: [HOUR_FIELD, 1, NUMERIC],
+        K: [HOUR_FIELD, 1, NUMERIC + DELTA],
+        m: [MINUTE_FIELD, 1, NUMERIC],
+        s: [SECOND_FIELD, 1, NUMERIC],
+        S: [FRACTIONAL_FIELD, 1, NUMERIC],
+        v: [ZONE_FIELD, 1, SHORT - 2 * DELTA, 4, LONG - 2 * DELTA],
+        z: [ZONE_FIELD, 1, SHORT, 4, LONG],
+        O: [ZONE_FIELD, 1, SHORT - DELTA, 4, LONG - DELTA],
+    };
+    function letterRow(c) {
+        return call(hasOwnProperty, letterTypes, c)
+            ? letterTypes[c]
+            : undefined;
+    }
+    // The position of the type of a field of n letters in its row.
+    function rowIndex(row, n) {
+        var k = 1;
+        while (k + 2 < row.length && row[k + 2] <= n) k += 2;
+        return k;
+    }
+    function rowType(row, k, n) {
+        var type = row[k + 1];
+        return type > 0 ? type + n : type;
+    }
+    // DateTimeMatcher: the fields of a skeleton or pattern, with their
+    // letters, lengths, type values and base lengths.
+    function fieldArray(value) {
+        return [
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+            value,
+        ];
+    }
+    function newMatcher() {
+        return {
+            type: fieldArray(0),
+            c: fieldArray(""),
+            n: fieldArray(0),
+            base: fieldArray(0),
+        };
+    }
+    function setField(m, f, c, n, type, base) {
+        m.type[f] = type;
+        m.c[f] = c;
+        m.n[f] = n;
+        m.base[f] = base;
+    }
+    function addField(m, c, n) {
+        var row = letterRow(c);
+        if (row === undefined) return;
+        var k = rowIndex(row, n);
+        setField(m, row[0], c, n, rowType(row, k, n), row[k]);
+    }
+    function finishMatcher(m) {
+        // Minutes and fractions of a second need the seconds between them.
+        if (
+            m.type[MINUTE_FIELD] &&
+            m.type[FRACTIONAL_FIELD] &&
+            !m.type[SECOND_FIELD]
+        )
+            setField(m, SECOND_FIELD, "s", 1, NUMERIC + 1, 1);
+        // A 12-hour clock needs a day period; a 24-hour clock ignores it.
+        if (m.c[HOUR_FIELD] === "h" || m.c[HOUR_FIELD] === "K") {
+            if (!m.type[DAYPERIOD_FIELD])
+                setField(m, DAYPERIOD_FIELD, "a", 1, SHORT, 1);
+        } else if (m.type[HOUR_FIELD] && m.type[DAYPERIOD_FIELD])
+            setField(m, DAYPERIOD_FIELD, "", 0, 0, 0);
+        return m;
+    }
+    // Fills a matcher from a skeleton or pattern string, without items.
+    function fillMatcher(m, text) {
+        for (var f = 0; f < FIELD_COUNT; f++) setField(m, f, "", 0, 0, 0);
+        var quoted = false,
+            i = 0,
+            n = text.length;
+        while (i < n) {
+            var c = code(text, i);
+            if (c === 39) quoted = !quoted;
+            if (quoted || !isPatternLetter(c)) {
+                i++;
+                continue;
+            }
+            var first = i;
+            while (i < n && code(text, i) === c) i++;
+            addField(m, text[first], i - first);
+        }
+        return finishMatcher(m);
+    }
+    function matcher(text) {
+        return fillMatcher(newMatcher(), text);
+    }
+    function itemsMatcher(items) {
+        var m = newMatcher();
+        for (var i = 0; i < items.length; i++)
+            if (typeof items[i] !== "string")
+                addField(m, items[i].c, items[i].n);
+        return finishMatcher(m);
+    }
+    function fieldMask(m) {
+        var mask = 0;
+        for (var f = 0; f < FIELD_COUNT; f++) if (m.type[f]) mask |= 1 << f;
+        return mask;
+    }
+    // staticGetSkeleton: the fields of a pattern in field order.
+    function skeletonOf(items) {
+        var m = itemsMatcher(items),
+            text = "";
+        for (var f = 0; f < FIELD_COUNT; f++)
+            if (m.n[f]) text += repeatLetter(m.c[f], m.n[f]);
+        return text;
+    }
+
+    // The entries' matchers are filled into one scratch matcher; patterns
+    // and specified skeletons are read when an entry is chosen.
+    var trialMatcher,
+        entryPatterns = [],
+        entrySkeletons = [];
+    function entryPattern(index) {
+        if (entryPatterns[index] === undefined)
+            entryPatterns[index] = parsePattern(generatorTable[2 * index + 1]);
+        return entryPatterns[index];
+    }
+    function entrySpecified(index) {
+        var skeleton = generatorTable[2 * index];
+        if (skeleton === "") return undefined;
+        if (entrySkeletons[index] === undefined)
+            entrySkeletons[index] = matcher(skeleton);
+        return entrySkeletons[index];
+    }
+    function bestRaw(request, mask) {
+        if (trialMatcher === undefined) trialMatcher = newMatcher();
+        var best,
+            bestDistance = 1 / 0,
+            bestMissing = -1,
+            bestExtra = 0;
+        for (var i = 0; 2 * i < generatorTable.length; i++) {
+            var skeleton = generatorTable[2 * i],
+                trial = fillMatcher(
+                    trialMatcher,
+                    skeleton === "" ? generatorTable[2 * i + 1] : skeleton,
+                ),
+                distance = 0,
+                missing = 0,
+                extra = 0;
+            for (var f = 0; f < FIELD_COUNT; f++) {
+                var mine = mask & (1 << f) ? request.type[f] : 0,
+                    other = trial.type[f];
+                if (mine === other) continue;
+                if (mine === 0) {
+                    distance += 0x10000;
+                    extra |= 1 << f;
+                } else if (other === 0) {
+                    distance += 0x1000;
+                    missing |= 1 << f;
+                } else distance += mine > other ? mine - other : other - mine;
+            }
+            if (
+                distance < bestDistance ||
+                (distance === bestDistance && bestMissing < missing)
+            ) {
+                bestDistance = distance;
+                bestMissing = missing;
+                bestExtra = extra;
+                best = i;
+                if (distance === 0) break;
+            }
+        }
+        return { index: best, missing: bestMissing, extra: bestExtra };
+    }
+    // adjustFieldTypes: the widths and letters of the request in a found
+    // pattern. options.hour matches the length of the hour field (V8 asks
+    // for it, DateIntervalFormat does not); options.letter is the hour
+    // letter of the locale's hour cycle.
+    function adjustFieldTypes(items, specified, request, options, fix) {
+        var result = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i],
+                row = typeof item === "string" ? undefined : letterRow(item.c);
+            if (row === undefined) {
+                push(result, item);
+                continue;
+            }
+            var f = row[0];
+            if (fix && f === SECOND_FIELD) {
+                push(result, item);
+                push(result, ".");
+                push(result, {
+                    c: request.c[FRACTIONAL_FIELD],
+                    n: request.n[FRACTIONAL_FIELD],
+                });
+                continue;
+            }
+            if (!request.type[f]) {
+                push(result, item);
+                continue;
+            }
+            var requested = request.c[f],
+                length = request.n[f];
+            if (requested === "E" && length < 3) length = 3;
+            if (
+                f === MINUTE_FIELD ||
+                f === SECOND_FIELD ||
+                (f === HOUR_FIELD && !options.hour)
+            )
+                length = item.n;
+            else if (specified !== undefined && requested !== "c") {
+                var numeric = rowType(row, rowIndex(row, item.n), item.n) > 0,
+                    specifiedNumeric = specified.type[f] > 0;
+                if (specified.n[f] === length || numeric !== specifiedNumeric)
+                    length = item.n;
+            }
+            var c =
+                f !== HOUR_FIELD &&
+                f !== MONTH_FIELD &&
+                f !== WEEKDAY_FIELD &&
+                f !== YEAR_FIELD
+                    ? requested
+                    : item.c;
+            if (f === HOUR_FIELD) {
+                var letter = options.letter;
+                if (requested === letter) c = letter;
+                else if (requested === "h" && letter === "K") c = "K";
+                else if (requested === "H" && letter === "k") c = "k";
+                else if (requested === "k" && letter === "H") c = "H";
+                else if (requested === "K" && letter === "h") c = "h";
+            }
+            push(result, { c: c, n: length });
+        }
+        return result;
+    }
+    // appendItems of en (and root for the fields en leaves out).
+    function appendItem(items, extra, field) {
+        var names = [
+            "era",
+            "year",
+            "quarter",
+            "month",
+            "week",
+            "week of month",
+            "day of the week",
+            "day of year",
+            "weekday of the month",
+            "day",
+            "AM/PM",
+            "hour",
+            "minute",
+            "second",
+            "F14",
+            "time zone",
+        ];
+        if (
+            field === ERA_FIELD ||
+            field === YEAR_FIELD ||
+            field === WEEKDAY_FIELD ||
+            field === ZONE_FIELD
+        )
+            return items.concat([" "], extra);
+        if (
+            field === DAYPERIOD_FIELD ||
+            field === FRACTIONAL_FIELD ||
+            field === 5 ||
+            field === 7 ||
+            field === 8
+        )
+            return items.concat([" \u251c" + names[field] + ": "], extra, [
+                "\u2524",
+            ]);
+        return items.concat([" (" + names[field] + ": "], extra, [")"]);
+    }
+    function topBit(mask) {
+        var bit = -1;
+        while (mask) {
+            mask >>>= 1;
+            bit++;
+        }
+        return bit;
+    }
+    function bestAppending(request, fields, options) {
+        if (!fields) return undefined;
+        var raw = bestRaw(request, fields),
+            result = adjustFieldTypes(
+                entryPattern(raw.index),
+                entrySpecified(raw.index),
+                request,
+                options,
+                false,
+            ),
+            missing = raw.missing,
+            secondAndFraction = (1 << SECOND_FIELD) | (1 << FRACTIONAL_FIELD);
+        while (missing) {
+            if (
+                (missing & secondAndFraction) === 1 << FRACTIONAL_FIELD &&
+                (fields & secondAndFraction) === secondAndFraction
+            ) {
+                result = adjustFieldTypes(
+                    result,
+                    entrySpecified(raw.index),
+                    request,
+                    options,
+                    true,
+                );
+                missing &= ~(1 << FRACTIONAL_FIELD);
+                continue;
+            }
+            var starting = missing;
+            raw = bestRaw(request, missing);
+            missing = raw.missing;
+            var found = starting & ~missing;
+            if (!found) break;
+            result = appendItem(
+                result,
+                adjustFieldTypes(
+                    entryPattern(raw.index),
+                    entrySpecified(raw.index),
+                    request,
+                    options,
+                    false,
+                ),
+                topBit(found),
+            );
+        }
+        return result;
+    }
+    // getBestPattern; options as for adjustFieldTypes, by default V8's
+    // (UDATPG_MATCH_HOUR_FIELD_LENGTH in en).
+    var v8PatternOptions = { hour: true, letter: "h" };
+    function bestPattern(skeleton, options) {
+        if (options === undefined) options = v8PatternOptions;
+        var request = matcher(skeleton),
+            raw = bestRaw(request, -1);
+        if (!raw.missing && !raw.extra)
+            return adjustFieldTypes(
+                entryPattern(raw.index),
+                entrySpecified(raw.index),
+                request,
+                options,
+                false,
+            );
+        var needed = fieldMask(request),
+            datePart = bestAppending(request, needed & 0x3ff, options),
+            timePart = bestAppending(request, needed & ~0x3ff, options);
+        if (datePart === undefined) return timePart;
+        if (timePart === undefined) return datePart;
+        // The date-time combination of the style of the month: full and
+        // long join with "at".
+        return datePart.concat(
+            [request.base[MONTH_FIELD] === 4 ? " at " : ", "],
+            timePart,
+        );
+    }
+    var hourCycleLetters = { h11: "K", h12: "h", h23: "H", h24: "k" };
+    function isHourLetter(c) {
+        return c === "h" || c === "H" || c === "k" || c === "K";
+    }
+    // V8's ReplaceHourCycleInPattern.
+    function replaceHourCycle(items, hourCycle) {
+        var letter = hourCycleLetters[hourCycle],
+            result = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (typeof item !== "string" && isHourLetter(item.c)) {
+                var previous = items[i - 1];
+                if (i > 0 && typeof previous !== "string" && previous.c === "d")
+                    push(result, " ");
+                item = { c: letter, n: item.n };
+            }
+            push(result, item);
+        }
+        return result;
+    }
+    // V8's DateTimeStylePattern: the style patterns, regenerated for an
+    // hour cycle other than en's h12.
+    function stylePattern(dateStyle, timeStyle, hourCycle) {
+        var datePart =
+                dateStyle === undefined
+                    ? undefined
+                    : parsePattern(dateStylePatterns[dateStyle]),
+            timePart =
+                timeStyle === undefined
+                    ? undefined
+                    : parsePattern(timeStylePatterns[timeStyle]);
+        if (timePart === undefined) return datePart;
+        var items =
+            datePart === undefined
+                ? timePart
+                : datePart.concat(
+                      [
+                          dateStyle === "full" || dateStyle === "long"
+                              ? " at "
+                              : ", ",
+                      ],
+                      timePart,
+                  );
+        if (hourCycle === undefined || hourCycle === "h12") return items;
+        var skeleton = skeletonOf(items),
+            letter = hourCycleLetters[hourCycle],
+            replaced = "";
+        for (var i = 0; i < skeleton.length; i++) {
+            var c = skeleton[i];
+            if (c === "a" || c === "b" || c === "B") continue;
+            replaced += isHourLetter(c) ? letter : c;
+        }
+        return replaceHourCycle(bestPattern(replaced), hourCycle);
+    }
+
+    // ---- Date and time format options (ECMA-402 11.1) -----------------------
+
+    var componentOptions = [
+        ["weekday", ["narrow", "short", "long"]],
+        ["era", ["narrow", "short", "long"]],
+        ["year", ["2-digit", "numeric"]],
+        ["month", ["2-digit", "numeric", "narrow", "short", "long"]],
+        ["day", ["2-digit", "numeric"]],
+        ["dayPeriod", ["narrow", "short", "long"]],
+        ["hour", ["2-digit", "numeric"]],
+        ["minute", ["2-digit", "numeric"]],
+        ["second", ["2-digit", "numeric"]],
+        ["fractionalSecondDigits"],
+        [
+            "timeZoneName",
+            [
+                "short",
+                "long",
+                "shortOffset",
+                "longOffset",
+                "shortGeneric",
+                "longGeneric",
+            ],
+        ],
+    ];
+    // V8's skeleton letters for the component options.
+    var skeletonLetters = {
+        weekday: { narrow: "EEEEE", short: "EEE", long: "EEEE" },
+        era: { narrow: "GGGGG", short: "G", long: "GGGG" },
+        year: { "2-digit": "yy", numeric: "y" },
+        month: {
+            "2-digit": "MM",
+            numeric: "M",
+            narrow: "MMMMM",
+            short: "MMM",
+            long: "MMMM",
+        },
+        day: { "2-digit": "dd", numeric: "d" },
+        dayPeriod: { narrow: "BBBBB", short: "B", long: "BBBB" },
+        minute: { "2-digit": "mm", numeric: "m" },
+        second: { "2-digit": "ss", numeric: "s" },
+        timeZoneName: {
+            short: "z",
+            long: "zzzz",
+            shortOffset: "O",
+            longOffset: "OOOO",
+            shortGeneric: "v",
+            longGeneric: "vvvv",
+        },
+    };
+    // V8 reads the resolved components back from the pattern text, quoted
+    // literals included.
+    var resolvedPatterns = [
+        [
+            "weekday",
+            "EEEEE",
+            "narrow",
+            "EEEE",
+            "long",
+            "EEE",
+            "short",
+            "ccccc",
+            "narrow",
+            "cccc",
+            "long",
+            "ccc",
+            "short",
+        ],
+        [
+            "era",
+            "GGGGG",
+            "narrow",
+            "GGGG",
+            "long",
+            "GGG",
+            "short",
+            "GG",
+            "short",
+            "G",
+            "short",
+        ],
+        ["year", "yy", "2-digit", "y", "numeric"],
+        [
+            "month",
+            "MMMMM",
+            "narrow",
+            "MMMM",
+            "long",
+            "MMM",
+            "short",
+            "MM",
+            "2-digit",
+            "M",
+            "numeric",
+            "LLLLL",
+            "narrow",
+            "LLLL",
+            "long",
+            "LLL",
+            "short",
+            "LL",
+            "2-digit",
+            "L",
+            "numeric",
+        ],
+        ["day", "dd", "2-digit", "d", "numeric"],
+        [
+            "dayPeriod",
+            "BBBBB",
+            "narrow",
+            "bbbbb",
+            "narrow",
+            "BBBB",
+            "long",
+            "bbbb",
+            "long",
+            "B",
+            "short",
+            "b",
+            "short",
+        ],
+        [
+            "hour",
+            "HH",
+            "2-digit",
+            "H",
+            "numeric",
+            "hh",
+            "2-digit",
+            "h",
+            "numeric",
+            "kk",
+            "2-digit",
+            "k",
+            "numeric",
+            "KK",
+            "2-digit",
+            "K",
+            "numeric",
+        ],
+        ["minute", "mm", "2-digit", "m", "numeric"],
+        ["second", "ss", "2-digit", "s", "numeric"],
+        [
+            "timeZoneName",
+            "zzzz",
+            "long",
+            "z",
+            "short",
+            "OOOO",
+            "longOffset",
+            "O",
+            "shortOffset",
+            "vvvv",
+            "longGeneric",
+            "v",
+            "shortGeneric",
+        ],
+    ];
+    // Time zones: Nona's local time is UTC, so the host's zone resolves to
+    // UTC. The aliases of UTC and fixed offsets are available; other IANA
+    // names are not.
+    var utcNames = [
+        "utc",
+        "etc/utc",
+        "uct",
+        "etc/uct",
+        "gmt",
+        "etc/gmt",
+        "gmt0",
+        "etc/gmt0",
+        "gmt+0",
+        "etc/gmt+0",
+        "gmt-0",
+        "etc/gmt-0",
+        "greenwich",
+        "etc/greenwich",
+        "universal",
+        "etc/universal",
+        "zulu",
+        "etc/zulu",
+    ];
+    function twoDigits(text, index) {
+        var a = code(text, index) - 48,
+            b = code(text, index + 1) - 48;
+        return a >= 0 && a <= 9 && b >= 0 && b <= 9 ? a * 10 + b : -1;
+    }
+    // A UTC offset (+HH, +HHMM, +HH:MM) in minutes, or undefined.
+    function parseOffset(text) {
+        var n = text.length;
+        if (n < 3 || (text[0] !== "+" && text[0] !== "-")) return undefined;
+        var hours = twoDigits(text, 1),
+            minutes = 0;
+        if (n === 5) minutes = twoDigits(text, 3);
+        else if (n === 6 && text[3] === ":") minutes = twoDigits(text, 4);
+        else if (n !== 3) return undefined;
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+            return undefined;
+        var offset = hours * 60 + minutes;
+        return text[0] === "-" && offset ? -offset : offset;
+    }
+    function pad(value, length) {
+        var text = "" + value;
+        while (text.length < length) text = "0" + text;
+        return text;
+    }
+    function offsetName(offset, prefix, long) {
+        var abs = offset < 0 ? -offset : offset,
+            hours = mathFloor(abs / 60),
+            minutes = abs % 60;
+        return (
+            prefix +
+            (offset < 0 ? "-" : "+") +
+            (long
+                ? pad(hours, 2) + ":" + pad(minutes, 2)
+                : hours + (minutes ? ":" + pad(minutes, 2) : ""))
+        );
+    }
+    function resolveTimeZone(slots, name) {
+        var offset = parseOffset(name);
+        if (offset !== undefined) {
+            slots.timeZone = offsetName(offset, "", true);
+            slots.offset = offset;
+        } else if (contains(utcNames, asciiLower(name))) {
+            slots.timeZone = "UTC";
+            slots.offset = 0;
+        } else
+            throw new RangeErrorConstructor(
+                "Invalid time zone specified: " + name,
+            );
+    }
+    // The locale without a keyword of its Unicode extension (and without
+    // the extension if it is left empty).
+    function removeKeyword(locale, key) {
+        var parts = split(locale, "-"),
+            kept = [],
+            result = [],
+            unicode = false;
+        for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            if (part.length === 1) unicode = part === "u";
+            else if (unicode && part === key) {
+                while (i + 1 < parts.length && parts[i + 1].length > 2) i++;
+                continue;
+            }
+            push(kept, part);
+        }
+        for (var k = 0; k < kept.length; k++)
+            if (
+                kept[k] !== "u" ||
+                (k + 1 < kept.length && kept[k + 1].length > 1)
+            )
+                push(result, kept[k]);
+        return join(result, "-");
+    }
+    // CreateDateTimeFormat (ECMA-402 11.1.2) with V8's pattern selection.
+    function initializeDateTimeFormat(
+        slots,
+        locales,
+        options,
+        required,
+        defaults,
+    ) {
+        var requested = canonicalizeLocaleList(locales);
+        options = coerceOptions(options);
+        var opt = objectCreate(null);
+        opt.localeMatcher = localeMatcherOption(options);
+        var calendar = getOption(
+            options,
+            "calendar",
+            "string",
+            undefined,
+            undefined,
+        );
+        if (calendar !== undefined && !isUnicodeType(calendar))
+            throw new RangeErrorConstructor("Invalid calendar : " + calendar);
+        opt.ca = calendar;
+        var numberingSystem = getOption(
+            options,
+            "numberingSystem",
+            "string",
+            undefined,
+            undefined,
+        );
+        if (numberingSystem !== undefined && !isUnicodeType(numberingSystem))
+            throw new RangeErrorConstructor(
+                "Invalid numberingSystem : " + numberingSystem,
+            );
+        opt.nu = numberingSystem;
+        var hour12 = getOption(options, "hour12", "boolean", undefined);
+        var hourCycle = getOption(
+            options,
+            "hourCycle",
+            "string",
+            ["h11", "h12", "h23", "h24"],
+            undefined,
+        );
+        opt.hc = hour12 !== undefined ? undefined : hourCycle;
+        var r = resolveLocale(requested, opt, ["ca", "hc", "nu"], {
+            ca: ["gregory"],
+            hc: [null, "h11", "h12", "h23", "h24"],
+            nu: ["latn"],
+        });
+        slots.locale = r.locale;
+        slots.calendar = r.ca;
+        slots.numberingSystem = r.nu;
+        var timeZone = options.timeZone;
+        if (timeZone === undefined) {
+            slots.timeZone = "UTC";
+            slots.offset = 0;
+        } else resolveTimeZone(slots, toStr(timeZone));
+        var formatOptions = objectCreate(null),
+            explicit;
+        for (var i = 0; i < componentOptions.length; i++) {
+            var name = componentOptions[i][0],
+                value =
+                    name === "fractionalSecondDigits"
+                        ? getNumberOption(options, name, 1, 3, undefined)
+                        : getOption(
+                              options,
+                              name,
+                              "string",
+                              componentOptions[i][1],
+                              undefined,
+                          );
+            formatOptions[name] = value;
+            if (value !== undefined && explicit === undefined) explicit = name;
+        }
+        getOption(
+            options,
+            "formatMatcher",
+            "string",
+            ["basic", "best fit"],
+            "best fit",
+        );
+        var styles = ["full", "long", "medium", "short"],
+            dateStyle = getOption(
+                options,
+                "dateStyle",
+                "string",
+                styles,
+                undefined,
+            ),
+            timeStyle = getOption(
+                options,
+                "timeStyle",
+                "string",
+                styles,
+                undefined,
+            ),
+            hasStyle = dateStyle !== undefined || timeStyle !== undefined;
+        if (hasStyle) {
+            if (explicit !== undefined)
+                throw new TypeErrorConstructor(
+                    "Can't set option " +
+                        explicit +
+                        " when " +
+                        (dateStyle !== undefined ? "dateStyle" : "timeStyle") +
+                        " is used",
+                );
+            if (required === "date" && timeStyle !== undefined)
+                throw new TypeErrorConstructor("Invalid option : timeStyle");
+            if (required === "time" && dateStyle !== undefined)
+                throw new TypeErrorConstructor("Invalid option : dateStyle");
+        } else {
+            var needDefaults = true,
+                fields =
+                    required === "date"
+                        ? ["weekday", "year", "month", "day"]
+                        : required === "time"
+                          ? [
+                                "dayPeriod",
+                                "hour",
+                                "minute",
+                                "second",
+                                "fractionalSecondDigits",
+                            ]
+                          : [
+                                "weekday",
+                                "year",
+                                "month",
+                                "day",
+                                "dayPeriod",
+                                "hour",
+                                "minute",
+                                "second",
+                                "fractionalSecondDigits",
+                            ];
+            for (var k = 0; k < fields.length; k++)
+                if (formatOptions[fields[k]] !== undefined)
+                    needDefaults = false;
+            if (needDefaults && (defaults === "date" || defaults === "all"))
+                formatOptions.year =
+                    formatOptions.month =
+                    formatOptions.day =
+                        "numeric";
+            if (needDefaults && (defaults === "time" || defaults === "all"))
+                formatOptions.hour =
+                    formatOptions.minute =
+                    formatOptions.second =
+                        "numeric";
+        }
+        // The hour cycle: the option or the locale's hc keyword. hour12
+        // picks the 12- or 24-hour cycle of the keyword (h12 or h23 without
+        // it), and V8 keeps the keyword only when it stays the hour cycle.
+        var hc = r.hc === null ? undefined : r.hc;
+        if (hour12 !== undefined) {
+            var keyword = hc,
+                hasHour = hasStyle
+                    ? timeStyle !== undefined
+                    : formatOptions.hour !== undefined;
+            if (hour12) hc = hc === "h11" || hc === "h12" ? hc : "h12";
+            else hc = hc === "h23" || hc === "h24" ? hc : "h23";
+            if (keyword !== undefined && (!hasHour || hc !== keyword))
+                slots.locale = removeKeyword(slots.locale, "hc");
+        }
+        var pattern;
+        if (hasStyle) pattern = stylePattern(dateStyle, timeStyle, hc);
+        else {
+            var skeleton = "",
+                names = [
+                    "weekday",
+                    "era",
+                    "year",
+                    "month",
+                    "day",
+                    "dayPeriod",
+                    "hour",
+                    "minute",
+                    "second",
+                    "fractionalSecondDigits",
+                    "timeZoneName",
+                ];
+            for (var j = 0; j < names.length; j++) {
+                var option = formatOptions[names[j]];
+                if (option === undefined) continue;
+                if (names[j] === "hour") {
+                    var letter = hc === undefined ? "h" : hourCycleLetters[hc];
+                    skeleton += option === "2-digit" ? letter + letter : letter;
+                } else if (names[j] === "fractionalSecondDigits")
+                    skeleton += slice("SSS", 0, option);
+                else skeleton += skeletonLetters[names[j]][option];
+            }
+            pattern = bestPattern(skeleton);
+            if (hc !== undefined) pattern = replaceHourCycle(pattern, hc);
+        }
+        slots.pattern = pattern;
+        slots.dateStyle = dateStyle;
+        slots.timeStyle = timeStyle;
+        // resolvedOptions reads the hour cycle and the components back
+        // from the pattern, like V8.
+        var text = patternString(pattern);
+        for (var p = 0; p < pattern.length; p++) {
+            var item = pattern[p];
+            if (typeof item !== "string" && isHourLetter(item.c)) {
+                slots.hourCycle =
+                    item.c === "K"
+                        ? "h11"
+                        : item.c === "h"
+                          ? "h12"
+                          : item.c === "H"
+                            ? "h23"
+                            : "h24";
+                break;
+            }
+        }
+        if (!hasStyle) {
+            var resolved = objectCreate(null);
+            for (var q = 0; q < resolvedPatterns.length; q++) {
+                var row = resolvedPatterns[q];
+                for (var e = 1; e < row.length; e += 2)
+                    if (call(stringIndexOf, text, row[e]) >= 0) {
+                        resolved[row[0]] = row[e + 1];
+                        break;
+                    }
+            }
+            var fraction = call(stringIndexOf, text, "S");
+            if (fraction >= 0) {
+                var count = 0;
+                while (text[fraction + count] === "S") count++;
+                resolved.fractionalSecondDigits = count;
+            }
+            slots.components = resolved;
+        }
+        return slots;
+    }
+
+    // ---- Date and time formatting (ECMA-402 11.5) ---------------------------
+
+    // TimeClip with ToNumber; NaN for invalid times.
+    function timeClip(value) {
+        var t = +value;
+        if (t !== t || t > 8.64e15 || t < -8.64e15) return NaN;
+        t = t < 0 ? -mathFloor(-t) : mathFloor(t);
+        return t === 0 ? 0 : t;
+    }
+    function validTime(value) {
+        var t = timeClip(value);
+        if (t !== t) throw new RangeErrorConstructor("Invalid time value");
+        return t;
+    }
+    // The proleptic Gregorian fields of a time in the format's time zone.
+    function dateFields(slots, t) {
+        var local = t + slots.offset * 60000,
+            days = mathFloor(local / 86400000),
+            time = local - days * 86400000,
+            z = days + 719468,
+            era = mathFloor(z / 146097),
+            doe = z - era * 146097,
+            yoe = mathFloor(
+                (doe -
+                    mathFloor(doe / 1460) +
+                    mathFloor(doe / 36524) -
+                    mathFloor(doe / 146096)) /
+                    365,
+            ),
+            doy = doe - (365 * yoe + mathFloor(yoe / 4) - mathFloor(yoe / 100)),
+            mp = mathFloor((5 * doy + 2) / 153),
+            month = mp < 10 ? mp + 2 : mp - 10,
+            weekday = (days + 4) % 7;
+        return {
+            year: yoe + era * 400 + (month < 2 ? 1 : 0),
+            month: month,
+            day: doy - mathFloor((153 * mp + 2) / 5) + 1,
+            weekday: weekday < 0 ? weekday + 7 : weekday,
+            hour: mathFloor(time / 3600000),
+            minute: mathFloor(time / 60000) % 60,
+            second: mathFloor(time / 1000) % 60,
+            millisecond: time % 1000,
+        };
+    }
+    function nameOf(names, index, n) {
+        var name = names[index];
+        return n === 5 ? slice(name, 0, 1) : n === 4 ? name : slice(name, 0, 3);
+    }
+    function timeZoneName(slots, c, n) {
+        var long = n >= 4;
+        if (slots.timeZone === "UTC")
+            return c === "z"
+                ? long
+                    ? "Coordinated Universal Time"
+                    : "UTC"
+                : offsetName(0, "GMT", long);
+        if (slots.offset === 0 && c !== "O")
+            return long ? "Greenwich Mean Time" : "GMT";
+        return offsetName(slots.offset, "GMT", long);
+    }
+    // FormatDateTimePattern: [type, value, letter] for the items.
+    function formatPattern(slots, items, d) {
+        var parts = [],
+            hasMinute = false,
+            hasSecond = false;
+        for (var i = 0; i < items.length; i++)
+            if (typeof items[i] !== "string") {
+                if (items[i].c === "m") hasMinute = true;
+                if (items[i].c === "s") hasSecond = true;
+            }
+        for (var k = 0; k < items.length; k++) {
+            var item = items[k];
+            if (typeof item === "string") {
+                push(parts, ["literal", item, ""]);
+                continue;
+            }
+            var c = item.c,
+                n = item.n,
+                type,
+                value,
+                year = d.year > 0 ? d.year : 1 - d.year;
+            if (c === "G") {
+                type = "era";
+                value =
+                    n === 4
+                        ? d.year > 0
+                            ? "Anno Domini"
+                            : "Before Christ"
+                        : n === 5
+                          ? d.year > 0
+                              ? "A"
+                              : "B"
+                          : d.year > 0
+                            ? "AD"
+                            : "BC";
+            } else if (c === "y") {
+                type = "year";
+                value = n === 2 ? pad(year % 100, 2) : pad(year, n);
+            } else if (c === "M" || c === "L") {
+                type = "month";
+                value =
+                    n <= 2
+                        ? pad(d.month + 1, n)
+                        : nameOf(monthNames, d.month, n);
+            } else if (c === "d") {
+                type = "day";
+                value = pad(d.day, n);
+            } else if (c === "E" || c === "c") {
+                type = "weekday";
+                value =
+                    n === 6
+                        ? weekdayShorter[d.weekday]
+                        : c === "c" && n < 3
+                          ? pad(d.weekday + 1, n)
+                          : nameOf(weekdayNames, d.weekday, n);
+            } else if (c === "a") {
+                type = "dayPeriod";
+                value =
+                    n === 5
+                        ? d.hour < 12
+                            ? "a"
+                            : "p"
+                        : d.hour < 12
+                          ? "AM"
+                          : "PM";
+            } else if (c === "B") {
+                type = "dayPeriod";
+                value =
+                    d.hour === 12 &&
+                    !(hasMinute && d.minute) &&
+                    !(hasSecond && d.second)
+                        ? n === 5
+                            ? "n"
+                            : "noon"
+                        : d.hour < 12
+                          ? "in the morning"
+                          : d.hour < 18
+                            ? "in the afternoon"
+                            : d.hour < 21
+                              ? "in the evening"
+                              : "at night";
+            } else if (isHourLetter(c)) {
+                type = "hour";
+                value = pad(
+                    c === "H"
+                        ? d.hour
+                        : c === "k"
+                          ? d.hour || 24
+                          : c === "K"
+                            ? d.hour % 12
+                            : d.hour % 12 || 12,
+                    n,
+                );
+            } else if (c === "m") {
+                type = "minute";
+                value = pad(d.minute, n);
+            } else if (c === "s") {
+                type = "second";
+                value = pad(d.second, n);
+            } else if (c === "S") {
+                type = "fractionalSecond";
+                value = pad(d.millisecond, 3);
+                value = n <= 3 ? slice(value, 0, n) : value + zeros(n - 3);
+            } else if (c === "z" || c === "O" || c === "v") {
+                type = "timeZoneName";
+                value = timeZoneName(slots, c, n);
+            } else {
+                type = "literal";
+                value = "";
+                for (var j = 0; j < n; j++) value += c;
+            }
+            push(parts, [type, value, c]);
+        }
+        return parts;
+    }
+    function partsToString(parts) {
+        var text = "";
+        for (var i = 0; i < parts.length; i++) text += parts[i][1];
+        return text;
+    }
+    // The parts as objects; adjacent literals of the same source merge.
+    function partsToArray(parts, sources) {
+        var result = [];
+        for (var i = 0; i < parts.length; i++) {
+            if (parts[i][1] === "") continue;
+            var last = result[result.length - 1];
+            if (
+                parts[i][0] === "literal" &&
+                last !== undefined &&
+                last.type === "literal" &&
+                (sources === undefined || last.source === sources[i])
+            ) {
+                last.value += parts[i][1];
+                continue;
+            }
+            var part = { type: parts[i][0], value: parts[i][1] };
+            if (sources !== undefined) part.source = sources[i];
+            push(result, part);
+        }
+        return result;
+    }
+
+    // ---- Date ranges (ICU's DateIntervalFormat) ------------------------------
+
+    // Calendar fields, coarsest first, with their levels, and the levels of
+    // the pattern letters (SimpleDateFormat::isFieldUnitIgnored).
+    var ERA = 0,
+        YEAR = 1,
+        MONTH = 2,
+        DATE = 3,
+        AM_PM = 4,
+        HOUR = 5,
+        MINUTE = 6;
+    var intervalLetters = ["G", "y", "M", "d", "a", "h", "m", "s", "S"];
+    var letterLevels = {
+        G: 0,
+        y: 10,
+        M: 20,
+        L: 20,
+        d: 30,
+        E: 30,
+        c: 30,
+        a: 40,
+        h: 50,
+        H: 50,
+        k: 50,
+        K: 50,
+        m: 60,
+        s: 70,
+        S: 80,
+        z: 0,
+        v: 0,
+        O: 0,
+    };
+    function letterLevel(c) {
+        return call(hasOwnProperty, letterLevels, c) ? letterLevels[c] : -1;
+    }
+    function isFieldUnitIgnored(items, field) {
+        var level = field * 10;
+        for (var i = 0; i < items.length; i++)
+            if (
+                typeof items[i] !== "string" &&
+                level <= letterLevel(items[i].c)
+            )
+                return false;
+        return true;
+    }
+    // getDateTimeSkeleton: the date and time halves of a skeleton and
+    // their normalized forms.
+    function splitSkeleton(skeleton) {
+        var result = { date: "", normDate: "", time: "", normTime: "" },
+            counts = { E: 0, d: 0, M: 0, y: 0, m: 0, v: 0, z: 0 },
+            hour = "";
+        for (var i = 0; i < skeleton.length; i++) {
+            var c = skeleton[i];
+            if (c === "E" || c === "d" || c === "M" || c === "y") {
+                result.date += c;
+                counts[c]++;
+            } else if (call(stringIndexOf, "GYuQqLlWwDFgecUr", c) >= 0) {
+                result.normDate += c;
+                result.date += c;
+            } else if (c === "a") result.time += c;
+            else if (isHourLetter(c)) {
+                result.time += c;
+                if (hour === "") hour = c;
+            } else if (c === "m" || c === "z" || c === "v") {
+                result.time += c;
+                counts[c]++;
+            } else if (call(stringIndexOf, "VZjsSAbB", c) >= 0) {
+                result.time += c;
+                result.normTime += c;
+            }
+        }
+        for (var y = 0; y < counts.y; y++) result.normDate += "y";
+        if (counts.M)
+            result.normDate += counts.M < 3 ? "M" : slice("MMMMM", 0, counts.M);
+        if (counts.E)
+            result.normDate +=
+                counts.E <= 3 ? "E" : slice("EEEEEE", 0, counts.E);
+        if (counts.d) result.normDate += "d";
+        result.normTime += hour;
+        if (counts.m) result.normTime += "m";
+        if (counts.z) result.normTime += "z";
+        if (counts.v) result.normTime += "v";
+        return result;
+    }
+    function letterWidths(skeleton) {
+        var widths = objectCreate(null);
+        for (var i = 0; i < skeleton.length; i++)
+            widths[skeleton[i]] = (widths[skeleton[i]] || 0) + 1;
+        return widths;
+    }
+    // DateIntervalInfo::getBestSkeleton: { skeleton, difference } with
+    // difference 0 (same), 1 (other widths), 2 (v/z, k/K, a differ) or -1
+    // (other fields).
+    function bestIntervalSkeleton(skeleton) {
+        var input = skeleton,
+            replaced = false;
+        for (var i = 0; i < skeleton.length; i++)
+            if (call(stringIndexOf, "zkKab", skeleton[i]) >= 0) replaced = true;
+        if (replaced) {
+            input = "";
+            for (var j = 0; j < skeleton.length; j++) {
+                var c = skeleton[j];
+                if (c === "a" || c === "b") continue;
+                input +=
+                    c === "z" ? "v" : c === "k" ? "H" : c === "K" ? "h" : c;
+            }
+        }
+        var widths = letterWidths(input),
+            best,
+            bestDistance = 1 / 0,
+            difference = 0;
+        for (var key in intervalFormats) {
+            var keyWidths = letterWidths(key),
+                distance = 0,
+                fieldDifference = 1,
+                letters = input + key;
+            for (var k = 0; k < letters.length; k++) {
+                var letter = letters[k];
+                if (call(stringIndexOf, letters, letter) !== k) continue;
+                var a = widths[letter] || 0,
+                    b = keyWidths[letter] || 0;
+                if (a === b) continue;
+                if (!a || !b) {
+                    fieldDifference = -1;
+                    distance += 0x1000;
+                } else if (letter === "M" && a <= 2 !== b <= 2)
+                    distance += 0x100;
+                else distance += a > b ? a - b : b - a;
+            }
+            if (distance < bestDistance) {
+                best = key;
+                bestDistance = distance;
+                difference = fieldDifference;
+            }
+            if (distance === 0) {
+                difference = 0;
+                break;
+            }
+        }
+        if (replaced && difference !== -1) difference = 2;
+        return best === undefined
+            ? undefined
+            : { skeleton: best, difference: difference };
+    }
+    function intervalLookup(skeleton, field) {
+        var formats = call(hasOwnProperty, intervalFormats, skeleton)
+            ? intervalFormats[skeleton]
+            : undefined;
+        if (formats === undefined) return undefined;
+        if (field === HOUR) return formats.h || formats.H;
+        if (field === AM_PM) return formats.a || formats.B;
+        return formats[intervalLetters[field]];
+    }
+    // Replaces a letter outside quotes.
+    function replaceLetter(pattern, from, to) {
+        var result = "",
+            quoted = false;
+        for (var i = 0; i < pattern.length; i++) {
+            var c = pattern[i];
+            if (c === "'") quoted = !quoted;
+            result += !quoted && c === from ? to : c;
+        }
+        return result;
+    }
+    // adjustFieldWidth: widens the fields of an interval pattern to the
+    // requested skeleton.
+    function adjustFieldWidth(input, best, pattern, difference) {
+        var inputWidths = letterWidths(input),
+            bestWidths = letterWidths(best);
+        if (difference === 2) {
+            if (call(stringIndexOf, input, "z") >= 0) {
+                bestWidths.z = bestWidths.v;
+                pattern = replaceLetter(pattern, "v", "z");
+            }
+            if (call(stringIndexOf, input, "K") >= 0)
+                pattern = replaceLetter(pattern, "h", "K");
+            if (call(stringIndexOf, input, "k") >= 0)
+                pattern = replaceLetter(pattern, "H", "k");
+            if (call(stringIndexOf, input, "b") >= 0)
+                pattern = replaceLetter(pattern, "a", "b");
+        }
+        if (call(stringIndexOf, pattern, "a") >= 0 && !bestWidths.a)
+            bestWidths.a = 1;
+        var result = "",
+            quoted = false,
+            i = 0;
+        while (i < pattern.length) {
+            var c = pattern[i];
+            if (c === "'") quoted = !quoted;
+            if (quoted || !isPatternLetter(code(c, 0))) {
+                result += c;
+                i++;
+                continue;
+            }
+            var start = i;
+            while (i < pattern.length && pattern[i] === c) i++;
+            var count = i - start,
+                letter = c === "L" ? "M" : c,
+                fieldCount = bestWidths[letter] || 0,
+                inputCount = inputWidths[letter] || 0;
+            if (fieldCount === count && inputCount > fieldCount)
+                count = inputCount;
+            for (var k = 0; k < count; k++) result += c;
+        }
+        return result;
+    }
+    // splitPatternInto2Part: the parts before and from the first repeated
+    // field, for the earlier and the later date.
+    function splitInterval(pattern) {
+        var seen = "",
+            quoted = false,
+            previous = "",
+            count = 0,
+            repeated = false,
+            i;
+        for (i = 0; i < pattern.length; i++) {
+            var c = pattern[i];
+            if (c !== previous && count > 0) {
+                if (call(stringIndexOf, seen, previous) >= 0) {
+                    repeated = true;
+                    break;
+                }
+                seen += previous;
+                count = 0;
+            }
+            if (c === "'") {
+                if (pattern[i + 1] === "'") i++;
+                else quoted = !quoted;
+            } else if (!quoted && isPatternLetter(code(c, 0))) {
+                previous = c;
+                count++;
+            }
+        }
+        if (count > 0 && !repeated && call(stringIndexOf, seen, previous) < 0)
+            count = 0;
+        var split = i - count;
+        return {
+            first: parsePattern(slice(pattern, 0, split)),
+            second: parsePattern(slice(pattern, split)),
+        };
+    }
+    // setIntervalPattern of DateIntervalFormat; state carries the skeleton,
+    // its best match and the extended skeletons shared between the calls.
+    function setIntervalPattern(info, field, state, extend) {
+        var skeleton = state.skeleton,
+            best = state.best,
+            difference = state.difference,
+            pattern = intervalLookup(best, field);
+        if (pattern === undefined) {
+            if (isFieldUnitIgnored(parsePattern(best), field)) return false;
+            if (field === AM_PM) {
+                pattern = intervalLookup(best, HOUR);
+                if (pattern !== undefined)
+                    info.patterns[field] = splitInterval(
+                        adjustFieldWidth(skeleton, best, pattern, difference),
+                    );
+                return false;
+            }
+            if (extend) {
+                var letter = intervalLetters[field];
+                state.extSkeleton = letter + skeleton;
+                state.extBest = letter + best;
+                pattern = intervalLookup(state.extBest, field);
+                if (pattern === undefined && difference === 0) {
+                    var tmp = bestIntervalSkeleton(state.extBest);
+                    if (tmp !== undefined) difference = tmp.difference;
+                    if (tmp !== undefined && difference !== -1) {
+                        pattern = intervalLookup(tmp.skeleton, field);
+                        best = tmp.skeleton;
+                    }
+                } else best = state.extBest;
+                skeleton = state.extSkeleton;
+            }
+        }
+        if (pattern === undefined) return false;
+        info.patterns[field] = splitInterval(
+            difference !== 0
+                ? adjustFieldWidth(skeleton, best, pattern, difference)
+                : pattern,
+        );
+        return extend && state.extSkeleton !== undefined;
+    }
+    // initializePattern of DateIntervalFormat for the format's skeleton.
+    function intervalInfo(slots) {
+        if (slots.interval !== undefined) return slots.interval;
+        var skeleton = skeletonOf(slots.pattern),
+            parts = splitSkeleton(skeleton),
+            info = { patterns: [] },
+            target = parts.time !== "" ? parts.normTime : parts.normDate,
+            best = bestIntervalSkeleton(target),
+            // DateFormat::getBestPattern in the locale of the hour cycle.
+            options = {
+                hour: false,
+                letter:
+                    slots.hourCycle === undefined
+                        ? "h"
+                        : hourCycleLetters[slots.hourCycle],
+            };
+        slots.interval = info;
+        // The date or the time alone, from the normalized skeletons.
+        if (best !== undefined) {
+            if (parts.date !== "")
+                info.datePattern = bestPattern(parts.normDate, options);
+            if (parts.time !== "")
+                info.timePattern = bestPattern(parts.normTime, options);
+        }
+        var found = best !== undefined && best.difference !== -1;
+        if (found) {
+            var state = {
+                skeleton: target,
+                best: best.skeleton,
+                difference: best.difference,
+            };
+            if (parts.time === "") {
+                setIntervalPattern(info, DATE, state, true);
+                if (setIntervalPattern(info, MONTH, state, true)) {
+                    state.skeleton = state.extSkeleton;
+                    state.best = state.extBest;
+                }
+                setIntervalPattern(info, YEAR, state, true);
+                setIntervalPattern(info, ERA, state, true);
+            } else {
+                setIntervalPattern(info, MINUTE, state, false);
+                setIntervalPattern(info, HOUR, state, false);
+                setIntervalPattern(info, AM_PM, state, false);
+            }
+        }
+        if (parts.time === "" || (!found && parts.date !== "")) return info;
+        if (parts.date === "") {
+            // Different days show the dates too.
+            var withDate = bestPattern("yMd" + parts.time, options);
+            info.patterns[DATE] =
+                info.patterns[MONTH] =
+                info.patterns[YEAR] =
+                    { fallback: withDate };
+            info.patterns[ERA] = {
+                fallback: bestPattern("GyMd" + parts.time, options),
+            };
+            return info;
+        }
+        var extended = skeleton,
+            fields = [DATE, MONTH, YEAR, ERA];
+        for (var i = 0; i < fields.length; i++) {
+            var letter = intervalLetters[fields[i]];
+            if (call(stringIndexOf, parts.date, letter) < 0) {
+                extended = letter + extended;
+                info.patterns[fields[i]] = {
+                    fallback: bestPattern(extended, options),
+                };
+            }
+        }
+        // The date, then the time range.
+        var timeFields = [AM_PM, HOUR, MINUTE],
+            date = patternString(info.datePattern);
+        for (var t = 0; t < timeFields.length; t++) {
+            var interval = info.patterns[timeFields[t]];
+            if (interval !== undefined && interval.first.length)
+                info.patterns[timeFields[t]] = splitInterval(
+                    date +
+                        ", " +
+                        patternString(interval.first) +
+                        patternString(interval.second),
+                );
+        }
+        return info;
+    }
+    function rangeParts(slots, x, y) {
+        var a = dateFields(slots, x),
+            b = dateFields(slots, y),
+            av = [
+                a.year > 0,
+                a.year,
+                a.month,
+                a.day,
+                a.hour < 12,
+                a.hour % 12,
+                a.minute,
+                a.second,
+                a.millisecond,
+            ],
+            bv = [
+                b.year > 0,
+                b.year,
+                b.month,
+                b.day,
+                b.hour < 12,
+                b.hour % 12,
+                b.minute,
+                b.second,
+                b.millisecond,
+            ],
+            field = -1;
+        for (var i = 0; i < av.length && field < 0; i++)
+            if (av[i] !== bv[i]) field = i;
+        var single = { parts: formatPattern(slots, slots.pattern, a) };
+        if (field < 0) return single;
+        var info = intervalInfo(slots),
+            interval = info.patterns[field],
+            sameDay = field >= AM_PM,
+            current = slots.pattern;
+        if (interval === undefined) {
+            if (isFieldUnitIgnored(slots.pattern, field)) return single;
+        } else if (interval.fallback !== undefined) current = interval.fallback;
+        else
+            return {
+                parts: formatPattern(slots, interval.first, a).concat(
+                    formatPattern(slots, interval.second, b),
+                ),
+                range: true,
+            };
+        // The fallback: both dates in full, or the date and the time range.
+        var separator = [["literal", rangeSeparator, ""]];
+        if (
+            sameDay &&
+            info.datePattern !== undefined &&
+            info.timePattern !== undefined
+        )
+            return {
+                parts: formatPattern(slots, info.datePattern, a).concat(
+                    [["literal", ", ", ""]],
+                    formatPattern(slots, info.timePattern, a),
+                    separator,
+                    formatPattern(slots, info.timePattern, b),
+                ),
+                range: true,
+            };
+        return {
+            parts: formatPattern(slots, current, a).concat(
+                separator,
+                formatPattern(slots, current, b),
+            ),
+            range: true,
+        };
+    }
+    // The sources of the range parts: ICU's overlap spans, from the first
+    // to the last field that repeats, for each date.
+    function rangeSources(result) {
+        var parts = result.parts,
+            sources = [],
+            starts = [],
+            position = 0,
+            s1a = 1 / 0,
+            s1b = 0,
+            s2a = 1 / 0,
+            s2b = 0;
+        for (var i = 0; i < parts.length; i++) {
+            starts[i] = position;
+            position += parts[i][1].length;
+        }
+        if (result.range)
+            for (var j = 0; j < parts.length; j++) {
+                if (parts[j][0] === "literal") continue;
+                for (var k = j + 1; k < parts.length; k++)
+                    if (parts[k][2] === parts[j][2]) {
+                        if (starts[j] < s1a) s1a = starts[j];
+                        if (starts[j] + parts[j][1].length > s1b)
+                            s1b = starts[j] + parts[j][1].length;
+                        if (starts[k] < s2a) s2a = starts[k];
+                        if (starts[k] + parts[k][1].length > s2b)
+                            s2b = starts[k] + parts[k][1].length;
+                        break;
+                    }
+            }
+        for (var p = 0; p < parts.length; p++) {
+            var start = starts[p];
+            sources[p] =
+                start >= s1a && start < s1b
+                    ? "startRange"
+                    : start >= s2a && start < s2b
+                      ? "endRange"
+                      : "shared";
+        }
+        return sources;
+    }
+
     // ---- The Intl object --------------------------------------------------
 
     var Intl = objectCreate(ObjectPrototype);
@@ -1805,8 +3820,178 @@
         );
     }
 
-    // Intl.DateTimeFormat (#300) is installed here, before NumberFormat, so
+    // Intl.DateTimeFormat (ECMA-402 11), installed before NumberFormat so
     // that the properties of Intl keep the order of V8.
+    var dateTimeFormatSlots = new WeakMapConstructor(),
+        DateTimeFormatPrototype = objectCreate(ObjectPrototype);
+    function DateTimeFormat(locales, options) {
+        var object = createFrom(
+            new.target === undefined ? DateTimeFormat : new.target,
+            DateTimeFormatPrototype,
+        );
+        var slots = initializeDateTimeFormat(
+            objectCreate(null),
+            locales,
+            options,
+            "any",
+            "date",
+        );
+        call(weakMapSet, dateTimeFormatSlots, object, slots);
+        return object;
+    }
+    installConstructor(
+        "DateTimeFormat",
+        DateTimeFormat,
+        DateTimeFormatPrototype,
+        "Intl.DateTimeFormat",
+    );
+    installSupportedLocalesOf(DateTimeFormat);
+    // format and toLocaleString print U+202F as a space, like V8 (for web
+    // compatibility); formatToParts and the ranges keep it.
+    function formatDate(slots, t) {
+        var parts = formatPattern(slots, slots.pattern, dateFields(slots, t)),
+            text = "";
+        for (var i = 0; i < parts.length; i++) {
+            var value = parts[i][1];
+            if (call(stringIndexOf, value, "\u202f") >= 0) {
+                var spaced = "";
+                for (var j = 0; j < value.length; j++)
+                    spaced += value[j] === "\u202f" ? " " : value[j];
+                value = spaced;
+            }
+            text += value;
+        }
+        return text;
+    }
+    function dateArgument(value) {
+        return validTime(value === undefined ? dateNow() : value);
+    }
+    function rangeArguments(startDate, endDate) {
+        if (startDate === undefined || endDate === undefined)
+            throw new TypeErrorConstructor("Invalid time value");
+        return [validTime(startDate), validTime(endDate)];
+    }
+    method(
+        DateTimeFormatPrototype,
+        "resolvedOptions",
+        0,
+        {
+            resolvedOptions() {
+                var slots = slotsOf(
+                        dateTimeFormatSlots,
+                        this,
+                        "Intl.DateTimeFormat.prototype.resolvedOptions",
+                    ),
+                    result = {};
+                dataProperty(result, "locale", slots.locale);
+                dataProperty(result, "calendar", slots.calendar);
+                dataProperty(result, "numberingSystem", slots.numberingSystem);
+                dataProperty(result, "timeZone", slots.timeZone);
+                if (slots.hourCycle !== undefined) {
+                    dataProperty(result, "hourCycle", slots.hourCycle);
+                    dataProperty(
+                        result,
+                        "hour12",
+                        slots.hourCycle === "h11" || slots.hourCycle === "h12",
+                    );
+                }
+                var components = slots.components;
+                if (components !== undefined)
+                    for (var i = 0; i < componentOptions.length; i++) {
+                        var name = componentOptions[i][0];
+                        if (components[name] !== undefined)
+                            dataProperty(result, name, components[name]);
+                    }
+                if (slots.dateStyle !== undefined)
+                    dataProperty(result, "dateStyle", slots.dateStyle);
+                if (slots.timeStyle !== undefined)
+                    dataProperty(result, "timeStyle", slots.timeStyle);
+                return result;
+            },
+        }.resolvedOptions,
+    );
+    method(
+        DateTimeFormatPrototype,
+        "formatToParts",
+        1,
+        {
+            formatToParts(date) {
+                var slots = slotsOf(
+                        dateTimeFormatSlots,
+                        this,
+                        "Intl.DateTimeFormat.prototype.formatToParts",
+                    ),
+                    t = dateArgument(date);
+                return partsToArray(
+                    formatPattern(slots, slots.pattern, dateFields(slots, t)),
+                );
+            },
+        }.formatToParts,
+    );
+    getter(
+        DateTimeFormatPrototype,
+        "format",
+        getOwnPropertyDescriptor(
+            {
+                get format() {
+                    var slots = slotsOf(
+                        dateTimeFormatSlots,
+                        this,
+                        "get Intl.DateTimeFormat.prototype.format",
+                    );
+                    if (slots.boundFormat === undefined)
+                        slots.boundFormat = setFunction(
+                            (date) => formatDate(slots, dateArgument(date)),
+                            "",
+                            1,
+                        );
+                    return slots.boundFormat;
+                },
+            },
+            "format",
+        ).get,
+    );
+    method(
+        DateTimeFormatPrototype,
+        "formatRange",
+        2,
+        {
+            formatRange(startDate, endDate) {
+                var slots = slotsOf(
+                        dateTimeFormatSlots,
+                        this,
+                        "Intl.DateTimeFormat.prototype.formatRange",
+                    ),
+                    range = rangeArguments(startDate, endDate);
+                return partsToString(
+                    rangeParts(slots, range[0], range[1]).parts,
+                );
+            },
+        }.formatRange,
+    );
+    method(
+        DateTimeFormatPrototype,
+        "formatRangeToParts",
+        2,
+        {
+            formatRangeToParts(startDate, endDate) {
+                var slots = slotsOf(
+                        dateTimeFormatSlots,
+                        this,
+                        "Intl.DateTimeFormat.prototype.formatRangeToParts",
+                    ),
+                    range = rangeArguments(startDate, endDate),
+                    result = rangeParts(slots, range[0], range[1]);
+                return partsToArray(result.parts, rangeSources(result));
+            },
+        }.formatRangeToParts,
+    );
+    defineProperty(Intl, "DateTimeFormat", {
+        value: DateTimeFormat,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+    });
 
     // Intl.NumberFormat (ECMA-402 15).
     var numberFormatSlots = new WeakMapConstructor(),
@@ -2207,6 +4392,82 @@
             },
         }.localeCompare,
     );
-    // Date.prototype.toLocaleString, toLocaleDateString and toLocaleTimeString
-    // delegate to Intl.DateTimeFormat (#300, next step).
+    // Date.prototype.toLocaleString, toLocaleDateString and
+    // toLocaleTimeString format with Intl.DateTimeFormat (ECMA-402 20.4).
+    var defaultDateFormats = objectCreate(null);
+    function dateToLocale(date, locales, options, name, required, defaults) {
+        var x = call(dateGetTime, date);
+        if (x !== x) return "Invalid Date";
+        var slots;
+        if (locales === undefined && options === undefined)
+            slots =
+                defaultDateFormats[name] ||
+                (defaultDateFormats[name] = initializeDateTimeFormat(
+                    objectCreate(null),
+                    undefined,
+                    undefined,
+                    required,
+                    defaults,
+                ));
+        else
+            slots = initializeDateTimeFormat(
+                objectCreate(null),
+                locales,
+                options,
+                required,
+                defaults,
+            );
+        return formatDate(slots, x);
+    }
+    method(
+        DatePrototype,
+        "toLocaleString",
+        0,
+        {
+            toLocaleString() {
+                return dateToLocale(
+                    this,
+                    arguments[0],
+                    arguments[1],
+                    "toLocaleString",
+                    "any",
+                    "all",
+                );
+            },
+        }.toLocaleString,
+    );
+    method(
+        DatePrototype,
+        "toLocaleDateString",
+        0,
+        {
+            toLocaleDateString() {
+                return dateToLocale(
+                    this,
+                    arguments[0],
+                    arguments[1],
+                    "toLocaleDateString",
+                    "date",
+                    "date",
+                );
+            },
+        }.toLocaleDateString,
+    );
+    method(
+        DatePrototype,
+        "toLocaleTimeString",
+        0,
+        {
+            toLocaleTimeString() {
+                return dateToLocale(
+                    this,
+                    arguments[0],
+                    arguments[1],
+                    "toLocaleTimeString",
+                    "time",
+                    "time",
+                );
+            },
+        }.toLocaleTimeString,
+    );
 })();
