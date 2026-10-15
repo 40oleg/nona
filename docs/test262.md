@@ -81,10 +81,31 @@ Following Test262:
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag, top-level
 await, and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
-the release status.
+the release status. RegExp match indices (`d` flag, ES2022) are supported; see below.
+
+## RegExp match indices (ES2022, #307)
+
+The `d` flag, `RegExp.prototype.hasIndices` and the `indices` array of `exec`,
+`match` and `matchAll` results are implemented. The pinned Test262 directories
+pass as follows (runner: `TEST262_JOBS=2 node scripts/test262-smoke.mjs <dir>`
+on Windows x64; the table lists every failure in these directories):
+
+| Directory                                                                      | Result | Remaining failures                                               |
+| ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------- |
+| `built-ins/RegExp/match-indices`                                               | 14/14  | none                                                             |
+| `built-ins/RegExp/prototype/hasIndices`                                        | 8/8    | none                                                             |
+| `built-ins/RegExp/prototype/flags`                                             | 15/16  | `this-val-regexp.js`: `/./v` (`regexp-v-flag`, `post`)           |
+| `built-ins/RegExp/duplicate-flags.js`                                          | 1/1    | none                                                             |
+| `built-ins/RegExp/named-groups/duplicate-names-match-indices.js`               | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+| `built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties.js` | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+
+Those three fail at compile time (`E_LEX`: the flag or the pattern is
+rejected). Both features are in `postEs2020Features`, so
+`TEST262_EXCLUDE_FEATURES=post-es2020` skips them and `test262-summary.mjs`
+classifies them `post`.
 
 Runner features added for the ES2020 gate (2026-09):
 
