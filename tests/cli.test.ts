@@ -33,7 +33,7 @@ test("CLI help and version", () => {
     assert.match(help.stdout, /Nona 0\.12\.0/);
     const version = cli(["--version"]);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout, "0.12.0\n");
+    assert.equal(version.stdout, "0.13.0\n");
 });
 test("CLI builds nested output and runs executable", () =>
     fixture((dir) => {
