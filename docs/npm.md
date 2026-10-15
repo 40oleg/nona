@@ -125,7 +125,7 @@ these modules exist mainly for packages (see
 | `node:perf_hooks`                     | `performance`                                                                                                                                                           |
 | `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` throws                                                                                                                   |
 | `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                          |
-| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                |
+| `node:child_process`                  | `spawn`, `exec`, `execFile` and the sync variants (Linux and Windows); `fork` throws                                                                                    |
 
 A package that loads a module Nona does not provide (`zlib`, `dns`, `https`,
 `tls`, …) fails to compile with `E_MODULE: Cannot resolve module`.

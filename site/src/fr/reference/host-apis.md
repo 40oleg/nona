@@ -58,4 +58,4 @@ Ces modules existent surtout pour les [paquets npm](/reference/npm), qui les cha
 - `node:perf_hooks` : `performance` ; `PerformanceObserver` et `monitorEventLoopDelay` n’observent rien.
 - `node:module` : `builtinModules` et `isBuiltin`. `createRequire` lève `ERR_NONA_UNSUPPORTED` : les modules sont résolus à la compilation du programme.
 - `node:worker_threads` : `isMainThread` vaut `true`, `parentPort` et `workerData` valent `null` ; `Worker` lève `ERR_NONA_UNSUPPORTED`.
-- `node:child_process` : toutes les fonctions et `ChildProcess` lèvent `ERR_NONA_UNSUPPORTED`. Le module existe pour que les paquets qui se contentent de le mentionner se chargent.
+- `node:child_process` : `spawn`, `exec`, `execFile`, leurs variantes synchrones et `ChildProcess` lancent d'autres programmes sous Windows et Linux (x64) ; `fork`, l'IPC et les autres cibles lèvent `ERR_NONA_UNSUPPORTED`. Détails dans [Child processes](/reference/host-apis#child-processes).

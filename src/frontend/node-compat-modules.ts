@@ -9,7 +9,8 @@
  * `tty.isatty`, `url.fileURLToPath`, ...). Functions that need a service
  * Nona does not have (worker threads) exist and throw
  * ERR_NONA_UNSUPPORTED when called, so that a package that only mentions
- * them still loads.
+ * them still loads. `node:child_process` is not here: it has platform
+ * layers and lives in child-process-module.ts (other targets throw there too).
  */
 import {
     modulesOs,

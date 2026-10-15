@@ -327,6 +327,84 @@ startup. Each is available as `node:<name>` and `<name>`.
   `ERR_NONA_UNSUPPORTED`: modules are resolved when the program is built.
 - `node:worker_threads`: `isMainThread` is `true`, `parentPort` and
   `workerData` are `null`; `Worker` throws `ERR_NONA_UNSUPPORTED`.
-- `node:child_process`: every function and `ChildProcess` throw
-  `ERR_NONA_UNSUPPORTED`. The module exists so that packages which only
-  mention it load.
+- `node:child_process` (also `child_process` and `nona:child_process`):
+  `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and
+  `ChildProcess`; `fork` throws `ERR_NONA_UNSUPPORTED`. Details in
+  [Child processes](#child-processes) below.
+
+## Child processes
+
+`node:child_process` (issue [#303](https://github.com/40oleg/nona/issues/303))
+runs other programs on win32-x64 and linux-x64. Other targets (macOS, BSD,
+arm64) link a stub: every function throws `ERR_NONA_UNSUPPORTED`, so that
+packages which only mention the module still load. Support for them is
+tracked in [328](https://github.com/40oleg/nona/issues/328).
+
+```js
+import { spawn, execFileSync } from "node:child_process";
+
+const child = spawn("git", ["status", "--short"], { cwd: "." });
+child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+child.on("close", (code, signal) => console.log("exit", code, signal));
+console.log(execFileSync("git", ["--version"], { encoding: "utf8" }));
+```
+
+- **Functions.** `spawn`, `exec`, `execFile` (callback `(error, stdout,
+stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
+  `spawnSync`, `execSync`, `execFileSync`, and the `ChildProcess` class
+  (`pid`, `exitCode`, `signalCode`, `killed`, `spawnfile`, `spawnargs`,
+  `stdin`, `stdout`, `stderr`, `stdio`, `kill(signal)`, `ref`, `unref`).
+- **Options.** `cwd` (a string or `file:` URL), `env` (default
+  `process.env`), `argv0`, `stdio` (`'pipe'`, `'inherit'`, `'ignore'`, or an
+  array of three of them; `process.stdin`/`stdout`/`stderr` and the numbers
+  0, 1, 2 mean `'inherit'`), `shell` (`true` or a path), `detached`,
+  `windowsHide`, `windowsVerbatimArguments`, `timeout`, `killSignal`,
+  `maxBuffer`, `encoding` and, for the synchronous variants, `input`.
+- **Streams.** `child.stdout` and `child.stderr` are `Readable`, `child.stdin`
+  is a `Writable` of the [stream module](#streams). The pipe ends are
+  non-blocking and watched by the event loop next to sockets and timers, so
+  a pending child keeps the program alive and large outputs do not deadlock.
+  Synchronous variants write `input` and drain stdout and stderr together.
+- **Events**, in order: `spawn` (the process started), then, as the child
+  ends, `exit` (`code`, `signal`) and, after its stdio streams ended,
+  `close` (`code`, `signal`). A child that cannot start emits `error`
+  (`ENOENT`, `EACCES`, …; with `code`, `errno`, `syscall: 'spawn <file>'`,
+  `path` and `spawnargs`) and then `close` with the negative errno as the
+  exit code, as in Node.js, but no `spawn` and no `exit`. A failed `kill()`
+  is an `error` event.
+  The synchronous variants return or throw as in Node.js (`error`, `status`,
+  `signal`, `stdout`, `stderr`; `execSync` and `execFileSync` throw on a
+  non-zero status).
+- **Signals.** On Linux `kill(signal)` delivers any signal; `exit` reports
+  `signal` for a child killed by one. Windows has no signals: `SIGINT`,
+  `SIGQUIT`, `SIGKILL` and `SIGTERM` terminate the process (as in libuv),
+  signal 0 only checks that it runs, and a terminated child reports exit code
+  1 and no `signal`.
+
+### Platform mechanisms
+
+- **Windows.** `CreateProcessW` with anonymous pipes from `CreatePipe`. The
+  command line is quoted as Node.js does (`windowsVerbatimArguments` keeps it
+  as given). `shell: true` runs `%ComSpec%` (`cmd.exe`) as
+  `cmd.exe /d /s /c "command"`. Anonymous pipes cannot be waited for, so the
+  event loop polls them (`PeekNamedPipe`), waiting on the process handles for
+  1 to 16 ms between polls.
+- **Linux.** Raw system calls, no libc: the parent resolves the file against
+  `PATH`, builds `argv` and `envp` in anonymous memory, creates `O_CLOEXEC`
+  pipes with `pipe2` and an error pipe, blocks signals and calls `fork`. The
+  child only runs system calls on preallocated buffers (`dup2`, `chdir`,
+  `execve`); on failure it reports the errno through the error pipe, which is
+  how `ENOENT` reaches the parent. Readiness uses `poll(2)` on the pipes and
+  a `pidfd` (`pidfd_open`); kernels without pidfd fall back to polling
+  `wait4` every 10 ms. `shell: true` runs `/bin/sh -c`. Writes to a closed
+  child stdin fail with `EPIPE` instead of raising `SIGPIPE`.
+
+### Limitations
+
+- `fork()` and the `'ipc'` stdio (and thus `serialization`, `process.send`)
+  throw `ERR_NONA_UNSUPPORTED`; so do `stdio` entries other than `'pipe'`,
+  `'inherit'` and `'ignore'` (streams, file descriptors, extra pipes).
+- `uid`, `gid` and `signal` (`AbortSignal`) are ignored. `detached` starts
+  a new session (Linux) or a process group without a console (Windows).
+- macOS, BSD and arm64 targets: `ERR_NONA_UNSUPPORTED`
+  ([328](https://github.com/40oleg/nona/issues/328)).

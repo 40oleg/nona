@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Host APIs
+
+- `node:child_process` (`child_process`, `nona:child_process`): `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and `ChildProcess` with `pipe`/`inherit`/`ignore` stdio as `stream` streams on the event loop, `cwd`, `env`, `shell`, `timeout`, `kill` and the `spawn`/`exit`/`close`/`error` events. Windows uses `CreateProcessW` with pipes and `cmd.exe /d /s /c`; Linux uses `fork`/`execve`, `pipe2` and `pidfd`/`wait4` through raw system calls. `fork()`/IPC are not supported, and macOS, BSD and arm64 targets throw `ERR_NONA_UNSUPPORTED` ([#328](https://github.com/40oleg/nona/issues/328)). ([#303](https://github.com/40oleg/nona/issues/303))
+
 ### Runtime
 
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
