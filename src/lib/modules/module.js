@@ -34,6 +34,7 @@ export const builtinModules = [
     "util",
     "util/types",
     "worker_threads",
+    "zlib",
 ];
 export function isBuiltin(name) {
     const bare = String(name).startsWith("node:")
