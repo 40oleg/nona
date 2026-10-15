@@ -67,6 +67,12 @@ Windows x64 (Node 22, PE), полный закреплённый Test262 на `6
 (`iterator-chunking`, `iterator-includes`, `Iterator.prototype.join`)
 теперь исключаются как post-ES2020.
 
+RegExp duplicate named groups (ES2025, #319) are no longer excluded by tag:
+16 of the 19 `regexp-duplicate-named-groups` tests pass. The three that also
+need match indices (`regexp-match-indices`) stay `post` with that tag; they
+are listed in [test262.md](test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
+The table above is the last full run and was not re-run for this change.
+
 Сравнение с предыдущим полным прогоном Windows (`71486fb`, который в свою
 очередь сравнён с базой `c6c3b5b` PR #5: 27 исправлено, 0 регрессий):
 **1273 файла исправлены, 0 новых отказов**; `language/eval-code`

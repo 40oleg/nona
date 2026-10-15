@@ -78,6 +78,13 @@ Following Test262:
   no effect and a valid one is OrdinarySet on the Receiver.
 - `String.prototype.{replace,split,match,matchAll,search}` do not look up
   Symbol-keyed methods on primitive arguments (ES2025).
+- RegExp duplicate named groups in different alternatives (ES2025, #319). Of
+  the 19 tests with the `regexp-duplicate-named-groups` feature tag, 16 pass;
+  the three that also need match indices (`regexp-match-indices`, the `d`
+  flag, not implemented) are classified `post`:
+  `built-ins/RegExp/named-groups/duplicate-names-match-indices.js`,
+  `built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties.js`
+  and `built-ins/String/prototype/match/duplicate-named-indices-groups-properties.js`.
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 

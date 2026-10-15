@@ -9,6 +9,10 @@
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
+### Language
+
+- **Duplicate named capture groups (ES2025).** The same group name may appear in different alternatives of a RegExp (`/(?<y>\d{4})-|(?<y>\w+)/`). `groups` and replacement `$<name>` take the group that participated, and `\k<name>` matches it. `indices.groups` is unavailable because the `d` flag is not implemented. ([#319](https://github.com/40oleg/nona/issues/319))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
