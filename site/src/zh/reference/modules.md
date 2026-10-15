@@ -29,7 +29,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 
 - 全局对象在脚本和模块中都可用。
 - 内置模块可以在模块代码（`.mjs` 或 `--module`）中导入，可以在 CommonJS 模块中通过 `require` 加载（`require('fs')`、`require('node:fs')`），也可以在脚本中用字面量 `import()` 加载。FFI 声明（`define`）必须位于模块代码中。
-- 支持的 Node 模块：`node:fs`、`node:process`、`node:path`（别名 `path`）、`node:events`（别名 `events`/`nona:events`）、`node:async_hooks`（别名 `nona:async_hooks`），以及 `node:stream`、`node:stream/promises`、`node:stream/consumers`、`node:zlib`（别名 `zlib`/`nona:zlib`）、`node:buffer`（别名 `buffer`/`nona:buffer`）。全局 `Buffer`、`Blob`、`File`、`URL` 和 `URLSearchParams` 可用。`node:http`、`node:net` 和 `node:string_decoder` 用于网络，`node:os`、`node:tty`、`node:util`、`node:url`、`node:assert`、`node:crypto`、`node:querystring`、`node:timers`、`node:perf_hooks`、`node:module`、`node:worker_threads` 和 `node:child_process` 用于 [npm 包](/reference/npm)。
+- 支持的 Node 模块：`node:fs`、`node:process`、`node:path`（别名 `path`）、`node:events`（别名 `events`/`nona:events`）、`node:async_hooks`（别名 `nona:async_hooks`），以及 `node:stream`、`node:stream/promises`、`node:stream/consumers`、`node:zlib`（别名 `zlib`/`nona:zlib`）、`node:buffer`（别名 `buffer`/`nona:buffer`）。全局 `Buffer`、`Blob`、`File`、`URL`、`URLSearchParams` 和 `crypto` 可用。`node:http`、`node:net` 和 `node:string_decoder` 用于网络，`node:os`、`node:tty`、`node:util`、`node:url`、`node:assert`、`node:crypto`、`node:querystring`、`node:timers`、`node:perf_hooks`、`node:module`、`node:worker_threads` 和 `node:child_process` 用于 [npm 包](/reference/npm)。
 - `nona:win32` 和 DLL 声明只能为 `win32-x64` 编译；系统调用声明只能为 `linux-x64` 编译。
 
 ## `nona:win32` {#nona-win32}
