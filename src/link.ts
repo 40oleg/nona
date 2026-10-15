@@ -111,6 +111,7 @@ export const preludeTriggers = {
         "findLast",
         "findLastIndex",
         "hasOwn",
+        "groupBy",
         "AggregateError",
         "any",
         "unscopables",

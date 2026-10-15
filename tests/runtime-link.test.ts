@@ -122,12 +122,13 @@ const p = new Proxy({}, {get: (t, k) => k + "!"});
 console.log(p.x, new TextDecoder().decode(new TextEncoder().encode("é")), typeof process.argv[0]);
 setTimeout(() => console.log("timer"), 1);
 console.log([1, 2, 3].at(-1), [3, 1, 2].findLast(x => x < 3), Object.hasOwn({a: 1}, "a"));
+console.log(Object.groupBy([1, 2, 3], x => x % 2 ? "odd" : "even").odd.join(), Map.groupBy([1, 2, 3], x => x % 2).get(0).join());
 console.log(escape("a b"), "abc".substr(1), [3, 1, 2].sort().join(""), Object.isFrozen(Object.freeze({})));
 const o = {}; o.__defineGetter__("g", () => 7); console.log(o.g, typeof o.__lookupGetter__("g"));
 Promise.any([Promise.reject(1)]).catch(e => console.log(e instanceof AggregateError));
 `;
     const expected =
-        "x! é string\n3 2 true\na%20b bc 123 true\n7 function\ntrue\ntimer\n";
+        "x! é string\n3 2 true\n1,3 2\na%20b bc 123 true\n7 function\ntrue\ntimer\n";
     assert.equal(run(source), expected);
     assert.equal(run(source, { fullRuntime: true }), expected);
 });
