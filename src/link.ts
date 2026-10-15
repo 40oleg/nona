@@ -115,6 +115,8 @@ export const preludeTriggers = {
         "any",
         "unscopables",
     ],
+    // WeakRef and its microtask-checkpoint hook; the native part is linked with it.
+    weakRef: ["WeakRef"],
     annexB: [
         "escape",
         "unescape",
