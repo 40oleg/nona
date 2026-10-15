@@ -43,7 +43,7 @@ export function emitStringNormalize(b: RuntimeBuilder, tables = true): void {
         b.bundle.fragments.push(
             stringLiteral(
                 "rt.normalize.missing",
-                "Nona: this program was compiled without the Unicode normalization tables because its source does not mention normalize or localeCompare. " +
+                "Nona: this program was compiled without the Unicode normalization tables because its source does not mention normalize, localeCompare or Intl. " +
                     fullRuntimeHint,
             ),
         );
