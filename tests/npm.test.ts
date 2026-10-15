@@ -691,6 +691,40 @@ try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
         "main.js",
     ));
 
+// Packages such as uuid read random bytes from the Web Crypto global without importing node:crypto (#296).
+test("the global crypto is node:crypto's webcrypto in ES modules and CommonJS", () => {
+    const uses = String.raw`
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const bytes = crypto.getRandomValues(new Uint8Array(16));
+export const report = [typeof crypto, typeof globalThis.crypto, bytes.length, bytes.constructor.name,
+  crypto.getRandomValues(new Uint8Array(16)) !== bytes, uuid.test(crypto.randomUUID()),
+  crypto.randomUUID() !== crypto.randomUUID()].join(' ');
+`;
+    agree(
+        {
+            "rng.mjs": uses,
+            "rng.cjs": uses.replace("export const report", "exports.report"),
+            "main.mjs": String.raw`
+import {webcrypto} from 'node:crypto';
+import {report} from './rng.mjs';
+import cjs from './rng.cjs';
+console.log(report);
+console.log(cjs.report);
+const d = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+console.log(typeof d.get, d.get.name, d.enumerable, d.configurable, globalThis.crypto === webcrypto, Object.keys(globalThis).includes('crypto'));
+`,
+        },
+        "main.mjs",
+    );
+    agree(
+        {
+            "main.js":
+                "console.log(typeof crypto, crypto.getRandomValues(new Uint32Array(3)).length, crypto.randomUUID().length);",
+        },
+        "main.js",
+    );
+});
+
 test("nona build <package directory> builds its command; --conditions selects exports", () => {
     const directory = mkdtempSync(join(tmpdir(), "nona-npm-cli-"));
     try {

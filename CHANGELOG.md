@@ -8,6 +8,8 @@
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 - **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
+- **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
@@ -26,8 +28,13 @@
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 
+### Fixes
+
+- In unicode mode (`u`), a lone surrogate in a pattern no longer matches half of a surrogate pair, and `matchAll` with such a pattern no longer loops. ([#277](https://github.com/40oleg/nona/issues/277))
+
 ### Documentation
 
+- `AGENTS.md` has a release checklist: every release re-measures `PERFORMANCE.md` and updates the figures the READMEs and the site quote. ([#283](https://github.com/40oleg/nona/issues/283))
 - PERFORMANCE.md compares the current `main` with Node.js, Deno and Bun again: start-up, size, memory, the micro-benchmarks and acorn/marked. ([#267](https://github.com/40oleg/nona/issues/267))
 - The site's How it works page describes where the runtime uses SIMD (SSE2/NEON) and links the measurements of `docs/simd.md`. ([#268](https://github.com/40oleg/nona/issues/268))
 - The documentation site is restructured and brought up to date with v0.12: a new install section and a clearer sidebar (language and compatibility, tools, host APIs), one platforms page instead of a pasted paragraph on every page, repaired tables, no stale issue links or Test262 labels, and translations aligned with the English pages ([#263](https://github.com/40oleg/nona/issues/263)).
