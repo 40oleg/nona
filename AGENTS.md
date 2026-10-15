@@ -76,6 +76,19 @@ exactly.
   `site/src/<locale>/` too, or at least keep them consistent with it (see
   `site/README.md`).
 
+## Releases
+
+- A release bumps the version in `package.json`, moves the `## Unreleased`
+  entries of `CHANGELOG.md` under the new version and tags `vX.Y.Z`.
+- **Refresh `PERFORMANCE.md` for every release.** Re-run the benchmarks
+  (`node bench/run.mjs`, protocol in `bench/README.md`) against the current
+  Node.js, Deno and Bun on one machine, add a dated section for the new
+  version at the top of `PERFORMANCE.md` (machine, runtime versions, commit),
+  and mark the section it replaces _superseded_. Keep the old sections.
+- Update the figures quoted elsewhere to the new measurement: `README.md`,
+  `README.ru.md` and the site's performance pages under `site/src/` (the
+  translated pages at least link the new numbers).
+
 ## Code conventions
 
 - The compiler is TypeScript (`src/`); runtime code is emitted as x86-64 via
