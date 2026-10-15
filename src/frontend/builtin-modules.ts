@@ -18,6 +18,7 @@ import { httpModuleSource } from "./http-module.js";
 import { pathModuleSourceForTarget } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
+import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
 import {
     nodeCompatModules,
     cryptoModuleSource,
@@ -152,6 +153,7 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:internal/stream", () => networkStreamModuleSource],
     ["nona:internal/native", () => nativeModuleSource],
     ["nona:internal/commonjs", () => commonJsModuleSource],
+    ["nona:internal/tls-crypto", () => tlsCryptoModuleSource],
     ["node:crypto", cryptoModuleSource],
     ...nodeCompatModules.map(
         ([name, source]) => [name, () => source] as [string, () => string],
