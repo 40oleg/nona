@@ -148,6 +148,11 @@ validator, zod.
 Function` or `eval` from strings built at run time fail when they do so:
   `ajv` (schema compilation), `lodash.template` and `_.template`, `ejs`,
   `handlebars.compile`. See [eval and Function](es2020-contract.md).
+- **Stack traces.** `Error.captureStackTrace`, `Error.stackTraceLimit` and
+  `Error.prepareStackTrace` exist, but Nona does not walk the stack: the call
+  sites passed to `prepareStackTrace` are placeholders with unknown file,
+  line and function (`depd` and similar packages load, and report no real
+  locations), and `Error` instances have no `stack` property.
 - **`Intl`** is not available, so packages that format dates or numbers with it
   (`luxon`, `Intl`-based `date-fns-tz`) fail when they use it.
 - **Version checks.** `process.version` is Nona's version and Nona does not

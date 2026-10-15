@@ -53,6 +53,7 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
     // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
