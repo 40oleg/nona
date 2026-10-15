@@ -293,6 +293,10 @@ export function analyzeCommonJs(program: A.Program): CommonJsAnalysis {
             }
         }
     });
+    // The literal requires through module.createRequire resolve from this file too.
+    const created = analyzeCreateRequire(program);
+    for (const specifier of created.requires) add(requires, specifier);
+    for (const specifier of created.resolves) add(resolves, specifier);
     return {
         requires,
         resolves,
@@ -302,10 +306,11 @@ export function analyzeCommonJs(program: A.Program): CommonJsAnalysis {
 }
 
 /**
- * The literal `require('x')` and `require.resolve('x')` calls of an ES module
+ * The literal `require('x')` and `require.resolve('x')` calls of a module
  * through the functions `module.createRequire` makes: `const require =
- * createRequire(import.meta.url)` (also through `module.createRequire` or an
- * imported alias) and `createRequire(...)('x')`.
+ * createRequire(import.meta.url)` (also through `module.createRequire`, an
+ * imported alias or `const { createRequire: alias } = require('module')`) and
+ * `createRequire(...)('x')`.
  */
 export function analyzeCreateRequire(
     program: A.Program,
@@ -331,6 +336,23 @@ export function analyzeCreateRequire(
                 stringOf(callee.property) === "createRequire")
         );
     };
+    walk(program.body, (node) => {
+        if (node.kind !== "Var") return;
+        for (const { id, init } of (node as A.Var).declarations) {
+            if (
+                id.kind !== "ObjectPattern" ||
+                !/^(node:)?module$/.test(requireCall(init ?? undefined) ?? "")
+            )
+                continue;
+            for (const property of id.properties)
+                if (
+                    !property.computed &&
+                    stringOf(property.key) === "createRequire" &&
+                    property.value.id.kind === "Identifier"
+                )
+                    factories.add(property.value.id.name);
+        }
+    });
     const names = new Set<string>();
     walk(program.body, (node) => {
         if (node.kind === "Var")
@@ -535,8 +557,7 @@ export class NodeModuleHost implements ModuleHost {
             }
             this.moduleRequires.set(path, analysis);
         }
-        if (!analysis.requires.length && !analysis.resolves.length)
-            return text;
+        if (!analysis.requires.length && !analysis.resolves.length) return text;
         return text + `\nimport ${JSON.stringify(path + requireSuffix)};\n`;
     }
 

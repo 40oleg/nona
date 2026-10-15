@@ -133,16 +133,22 @@
             pictographic = 0, // 1: ExtPict Extend*, 2: ExtPict Extend* ZWJ
             regional = 0, // regional indicators directly before
             conjunct = 0; // 1: Consonant [Extend ZWJ]*, 2: ... with a Linker
-        for (var i = 0; i < length; ) {
+        for (var i = 0; i < length;) {
             var cp = string.codePointAt(i);
             var c = classOf(cp);
             var split;
             if (previous === -1) split = true;
             else if (previous === CR && c === LF) split = false;
             else if (isControl(previous) || isControl(c)) split = true;
-            else if (previous === L && (c === L || c === V || c === LV || c === LVT))
+            else if (
+                previous === L &&
+                (c === L || c === V || c === LV || c === LVT)
+            )
                 split = false;
-            else if ((previous === LV || previous === V) && (c === V || c === T))
+            else if (
+                (previous === LV || previous === V) &&
+                (c === V || c === T)
+            )
                 split = false;
             else if ((previous === LVT || previous === T) && c === T)
                 split = false;
@@ -178,8 +184,7 @@
     function segmentData(data, start) {
         var string = data.string,
             breaks = data.breaks;
-        var end =
-            start + 1 < breaks.length ? breaks[start + 1] : string.length;
+        var end = start + 1 < breaks.length ? breaks[start + 1] : string.length;
         return {
             segment: string.slice(breaks[start], end),
             index: breaks[start],
@@ -190,8 +195,7 @@
     var localePattern = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/;
     function requestedLocales(locales) {
         if (locales === undefined) return [];
-        var list =
-            typeof locales === "string" ? [locales] : Object(locales);
+        var list = typeof locales === "string" ? [locales] : Object(locales);
         var result = [];
         var length = toIntegerOrInfinity(list.length);
         for (var i = 0; i < length; i++) {
@@ -255,11 +259,14 @@
             granularity: granularity,
         });
     }
-    install(Segmenter, "supportedLocalesOf", 1, function supportedLocalesOf(
-        locales,
-    ) {
-        return requestedLocales(locales);
-    });
+    install(
+        Segmenter,
+        "supportedLocalesOf",
+        1,
+        function supportedLocalesOf(locales) {
+            return requestedLocales(locales);
+        },
+    );
     defineProperty(Segmenter, "prototype", { writable: false });
     install(Segmenter.prototype, "segment", 1, function segment(string) {
         var state = getSegmenter(this);

@@ -96,7 +96,8 @@ function makeRequire(record, module) {
         const target = entry[1]();
         if (entry[2] === 0) return load(target, module);
         // A builtin module's require() value is its default export (fs, events, path ...).
-        if (entry[2] === 2) return "default" in target ? target.default : target;
+        if (entry[2] === 2)
+            return "default" in target ? target.default : target;
         return requiredNamespace(target);
     };
     require.resolve = function resolve(id) {
@@ -195,7 +196,9 @@ function resolvePath(directory, path) {
 }
 
 function fileUrlPath(url) {
-    let path = decodeURIComponent(url.slice("file://".length).replace(/^[^/]*/, ""));
+    let path = decodeURIComponent(
+        url.slice("file://".length).replace(/^[^/]*/, ""),
+    );
     if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1).split("/").join("\\");
     return path;
 }
@@ -239,7 +242,12 @@ function programModules() {
  */
 export function createRequire(filename) {
     let path = filename;
-    if (path !== null && typeof path === "object" && typeof path.href === "string" && path.protocol === "file:")
+    if (
+        path !== null &&
+        typeof path === "object" &&
+        typeof path.href === "string" &&
+        path.protocol === "file:"
+    )
         path = path.href;
     if (typeof path === "string" && path.startsWith("file:"))
         path = fileUrlPath(path);
@@ -253,20 +261,25 @@ export function createRequire(filename) {
         error.code = "ERR_INVALID_ARG_VALUE";
         throw error;
     }
-    const directory = /[\\/]$/.test(path)
-        ? path
-        : resolvePath(path, "..");
+    const directory = /[\\/]$/.test(path) ? path : resolvePath(path, "..");
     const own = moduleTables.get(path) || (records.get(path) || {}).table;
     const table = {
         get(id) {
             const entry = own && own.get(id);
             if (entry !== undefined) return entry;
             const { byName, bySpecifier } = programModules();
-            if (!relative(id) && !isAbsolute(id))
-                return bySpecifier.get(id);
+            if (!relative(id) && !isAbsolute(id)) return bySpecifier.get(id);
             const base = resolvePath(directory, id),
                 separator = windowsPath(base) ? "\\" : "/";
-            for (const suffix of ["", ".js", ".json", ".cjs", ".mjs", separator + "index.js", separator + "index.json"]) {
+            for (const suffix of [
+                "",
+                ".js",
+                ".json",
+                ".cjs",
+                ".mjs",
+                separator + "index.js",
+                separator + "index.json",
+            ]) {
                 const entry = byName.get(base + suffix);
                 if (entry !== undefined) return entry;
             }

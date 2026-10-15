@@ -128,10 +128,7 @@ function graphemeTable(): string {
         ["P", fixed.P!],
         ["X", control],
         ["O", notSpacingMark],
-        [
-            "S",
-            [...property("gc=Mc"), [0x0e33, 0x0e33], [0x0eb3, 0x0eb3]],
-        ],
+        ["S", [...property("gc=Mc"), [0x0e33, 0x0e33], [0x0eb3, 0x0eb3]]],
         ["G", property("Extended_Pictographic")],
         ["K", fixed.K!],
         ["l", fixed.l!],

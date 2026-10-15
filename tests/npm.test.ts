@@ -771,10 +771,12 @@ try { createRequire('relative/path.js'); } catch (e) { console.log(e.code); }
             "data.json": JSON.stringify({ items: [1, 2, 3] }),
             "lib/dep.cjs": "exports.name = 'dep';",
             "lib/inner.json": JSON.stringify({ inner: true }),
+            "lib/only-created.cjs": "module.exports = 'only-created';",
             "lib/loader.cjs": String.raw`
-const { createRequire } = require('module');
+const { createRequire } = require('module'), { createRequire: makeRequire } = require('node:module');
 const req = createRequire(__filename);
 exports.fromCjs = { dep: req('./dep.cjs'), json: JSON.stringify(req('./inner.json')), pkg: req('pkg'), resolved: req.resolve('./dep.cjs') };
+console.log(makeRequire(__filename)('./only-created.cjs'), require('module').createRequire(__filename)('./only-created.cjs'));
 `,
             "node_modules/pkg/package.json": JSON.stringify({
                 name: "pkg",
