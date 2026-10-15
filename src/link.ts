@@ -114,6 +114,9 @@ export const preludeTriggers = {
         "AggregateError",
         "any",
         "unscopables",
+        "toSorted",
+        "toReversed",
+        "with",
     ],
     annexB: [
         "escape",
