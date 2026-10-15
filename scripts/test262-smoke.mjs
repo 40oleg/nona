@@ -107,7 +107,6 @@ const postEs2020Features = [
     "promise-try",
     "promise-with-resolvers",
     "Promise.allKeyed",
-    "RegExp.escape",
     "regexp-duplicate-named-groups",
     "regexp-match-indices",
     "regexp-modifiers",
