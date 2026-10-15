@@ -106,7 +106,7 @@ function readChunks(sizeHint, readInto) {
     chunks.push(chunk.subarray(0, used));
     return concat(chunks, total);
 }
-class Stats {
+export class Stats {
     constructor(kind, size, mtimeMs, mode) {
         this.size = size;
         this.mtimeMs = mtimeMs;
@@ -123,6 +123,63 @@ class Stats {
     isSymbolicLink() {
         return this._kind === "link";
     }
+    isBlockDevice() {
+        return typeOf(this._kind, this.mode) === 0o060000;
+    }
+    isCharacterDevice() {
+        return typeOf(this._kind, this.mode) === 0o020000;
+    }
+    isFIFO() {
+        return typeOf(this._kind, this.mode) === 0o010000;
+    }
+    isSocket() {
+        return typeOf(this._kind, this.mode) === 0o140000;
+    }
+}
+/** The S_IFMT bits of an entry that is neither a file, a directory nor a link. */
+function typeOf(kind, mode) {
+    return kind === "other" ? mode & 0o170000 : 0;
+}
+export class Dirent {
+    constructor(name, parentPath, kind, mode) {
+        this.name = name;
+        this.parentPath = parentPath;
+        this.path = parentPath;
+        Object.defineProperty(this, "_kind", { value: kind });
+        Object.defineProperty(this, "_mode", { value: mode });
+    }
+    isFile() {
+        return this._kind === "file";
+    }
+    isDirectory() {
+        return this._kind === "dir";
+    }
+    isSymbolicLink() {
+        return this._kind === "link";
+    }
+    isBlockDevice() {
+        return typeOf(this._kind, this._mode) === 0o060000;
+    }
+    isCharacterDevice() {
+        return typeOf(this._kind, this._mode) === 0o020000;
+    }
+    isFIFO() {
+        return typeOf(this._kind, this._mode) === 0o010000;
+    }
+    isSocket() {
+        return typeOf(this._kind, this._mode) === 0o140000;
+    }
+}
+function statsOf(result, options) {
+    const value = new Stats(
+        result.kind,
+        result.size,
+        result.mtimeMs,
+        result.mode,
+    );
+    value.dev = options && options.bigint ? result.dev : Number(result.dev);
+    value.ino = options && options.bigint ? result.ino : Number(result.ino);
+    return value;
 }
 export function readFileSync(path, options) {
     path = pathString(path, "path");
@@ -150,6 +207,10 @@ export function writeFileSync(path, data, options) {
 export function appendFileSync(path, data) {
     sys.writeAll(pathString(path, "path"), bytesOf(data), true);
 }
+export function accessSync(path, mode) {
+    path = pathString(path, "path");
+    if (sys.stat(path) === null) fail("ENOENT", "access", path);
+}
 export function existsSync(path) {
     try {
         return sys.stat(pathString(path, "path")) !== null;
@@ -164,37 +225,36 @@ export function statSync(path, options) {
         if (options && options.throwIfNoEntry === false) return undefined;
         fail("ENOENT", "stat", path);
     }
-    const value = new Stats(
-        result.kind,
-        result.size,
-        result.mtimeMs,
-        result.mode,
-    );
-    value.dev = options && options.bigint ? result.dev : Number(result.dev);
-    value.ino = options && options.bigint ? result.ino : Number(result.ino);
-    return value;
+    return statsOf(result, options);
 }
-export function realpathSync(path) {
+export function lstatSync(path, options) {
+    path = pathString(path, "path");
+    const result = sys.lstat(path);
+    if (result === null) {
+        if (options && options.throwIfNoEntry === false) return undefined;
+        fail("ENOENT", "lstat", path);
+    }
+    return statsOf(result, options);
+}
+export function readlinkSync(path, options) {
+    path = pathString(path, "path");
+    checkEncoding(encodingOf(options));
+    return sys.readlink(path);
+}
+export function realpathSync(path, options) {
+    checkEncoding(encodingOf(options));
     return sys.realpath(resolve(pathString(path, "path")));
 }
+realpathSync.native = realpathSync;
 export function readdirSync(path, options) {
     path = pathString(path, "path");
     const names = sys.readdir(path);
     if (options && typeof options === "object" && options.withFileTypes)
         return names.map((name) => {
             const info = sys.lstat(join(path, name));
-            return {
-                name,
-                isDirectory() {
-                    return info.kind === "dir";
-                },
-                isFile() {
-                    return info.kind === "file";
-                },
-                isSymbolicLink() {
-                    return info.kind === "link";
-                },
-            };
+            return info === null
+                ? new Dirent(name, path, "other", 0)
+                : new Dirent(name, path, info.kind, info.mode);
         });
     return names;
 }
@@ -237,6 +297,31 @@ export function mkdirSync(path, options) {
     }
     return parts.length ? parts[parts.length - 1] : undefined;
 }
+export function rmSync(path, options) {
+    path = pathString(path, "path");
+    const recursive = !!(options && options.recursive),
+        force = !!(options && options.force);
+    const info = sys.lstat(path);
+    if (info === null) {
+        if (force) return undefined;
+        fail("ENOENT", "rm", path);
+    }
+    if (info.kind !== "dir") {
+        sys.unlink(path);
+        return undefined;
+    }
+    if (!recursive) {
+        const error = new Error(
+            "Path is a directory: rm returned EISDIR (is a directory) " + path,
+        );
+        error.code = "ERR_FS_EISDIR";
+        throw error;
+    }
+    for (const name of sys.readdir(path))
+        rmSync(join(path, name), { recursive: true, force });
+    sys.rmdir(path);
+    return undefined;
+}
 export function rmdirSync(path) {
     sys.rmdir(pathString(path, "path"));
 }
@@ -253,6 +338,77 @@ export function copyFileSync(from, to, mode) {
         fail("EEXIST", "copyfile", from, to);
     sys.copy(from, to);
 }
+/** A callback API over a synchronous one: the callback runs on a later tick, an error first. */
+function callbackForm(operation) {
+    return function (...args) {
+        const callback = args.pop();
+        if (typeof callback !== "function") {
+            const error = new TypeError(
+                'The "cb" argument must be of type function. Received ' +
+                    (callback === undefined ? "undefined" : typeof callback),
+            );
+            error.code = "ERR_INVALID_ARG_TYPE";
+            throw error;
+        }
+        let result,
+            error = null;
+        try {
+            result = operation(...args);
+        } catch (e) {
+            error = e;
+        }
+        process.nextTick(() =>
+            error === null ? callback(null, result) : callback(error),
+        );
+    };
+}
+/** A promise API over a synchronous one. */
+function promiseForm(operation) {
+    return function (...args) {
+        return new Promise((resolve) => resolve(operation(...args)));
+    };
+}
+const synchronous = {
+    readFile: readFileSync,
+    writeFile: writeFileSync,
+    appendFile: appendFileSync,
+    access: accessSync,
+    stat: statSync,
+    lstat: lstatSync,
+    readlink: readlinkSync,
+    realpath: realpathSync,
+    readdir: readdirSync,
+    mkdir: mkdirSync,
+    rm: rmSync,
+    rmdir: rmdirSync,
+    unlink: unlinkSync,
+    rename: renameSync,
+    copyFile: copyFileSync,
+};
+export const readFile = callbackForm(readFileSync),
+    writeFile = callbackForm(writeFileSync),
+    appendFile = callbackForm(appendFileSync),
+    access = callbackForm(accessSync),
+    stat = callbackForm(statSync),
+    lstat = callbackForm(lstatSync),
+    readlink = callbackForm(readlinkSync),
+    realpath = callbackForm(realpathSync),
+    readdir = callbackForm(readdirSync),
+    mkdir = callbackForm(mkdirSync),
+    rm = callbackForm(rmSync),
+    rmdir = callbackForm(rmdirSync),
+    unlink = callbackForm(unlinkSync),
+    rename = callbackForm(renameSync),
+    copyFile = callbackForm(copyFileSync);
+realpath.native = realpath;
+export function exists(path, callback) {
+    const result = existsSync(path);
+    process.nextTick(() => callback(result));
+}
+/** fs.promises, also the node:fs/promises module. */
+export const promises = {};
+for (const name of Object.keys(synchronous))
+    promises[name] = promiseForm(synchronous[name]);
 export const constants = {
     COPYFILE_EXCL: 1,
     F_OK: 0,
@@ -264,14 +420,37 @@ export default {
     readFileSync,
     writeFileSync,
     appendFileSync,
+    accessSync,
     existsSync,
     statSync,
+    lstatSync,
+    readlinkSync,
     realpathSync,
     readdirSync,
     mkdirSync,
+    rmSync,
     rmdirSync,
     unlinkSync,
     renameSync,
     copyFileSync,
+    readFile,
+    writeFile,
+    appendFile,
+    access,
+    exists,
+    stat,
+    lstat,
+    readlink,
+    realpath,
+    readdir,
+    mkdir,
+    rm,
+    rmdir,
+    unlink,
+    rename,
+    copyFile,
+    promises,
+    Dirent,
+    Stats,
     constants,
 };

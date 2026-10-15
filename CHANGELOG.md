@@ -4,6 +4,7 @@
 
 ### Runtime
 
+- `node:fs` gains `lstatSync`, `readlinkSync` (symbolic links, and junctions on Windows), `realpathSync.native`, `accessSync`, `rmSync`, a full `fs.Dirent` (all `is*()` methods, `parentPath`, `path`) for `readdirSync(path, {withFileTypes: true})`, the `Stats` device/FIFO/socket tests, Node.js callback forms of the common functions and `fs.promises`, also as the new `node:fs/promises` module (`fs/promises`, `nona:fs/promises`). Packages such as glob's path-scurry now compile. ([#297](https://github.com/40oleg/nona/issues/297))
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 

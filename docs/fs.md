@@ -1,20 +1,25 @@
 # File system (`nona:fs`, `node:fs`)
 
-A synchronous subset of the Node.js `fs` module is built in. Both specifiers
-resolve to the same implementation; `import fs from 'node:fs'` and named
-imports work.
+A synchronous subset of the Node.js `fs` module is built in, with callback
+and promise forms of the common functions on top of it. Both specifiers
+resolve to the same implementation; `import fs from 'node:fs'`, named imports
+and `require('fs')` work.
 
-| Function                                                                  | Notes                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `readFileSync(path, options?)`                                            | Without an encoding returns a `Uint8Array` (Node.js returns a `Buffer`); `'utf8'` returns a string.                                                                                                                         |
-| `writeFileSync(path, data, options?)`                                     | `data`: string (UTF-8), typed array, DataView or ArrayBuffer. Flags: `w` replaces, `a` appends, `wx` creates exclusively. `mode` controls new POSIX file permissions.                                                       |
-| `appendFileSync(path, data)`                                              |                                                                                                                                                                                                                             |
-| `existsSync(path)`                                                        |                                                                                                                                                                                                                             |
-| `statSync(path, options?)`                                                | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `size`, `mtimeMs`, `mtime`, `mode`, `dev`, `ino`; `{throwIfNoEntry: false}`. `{bigint: true}` preserves exact `dev`/`ino` identities; other numeric fields remain numbers. |
-| `realpathSync(path)`                                                      | Canonical absolute path after resolving symbolic links.                                                                                                                                                                     |
-| `readdirSync(path, options?)`                                             | Names without `.` and `..`, in file system order. `{withFileTypes: true}` returns entries with `name`, `isFile()`, `isDirectory()`, `isSymbolicLink()`.                                                                     |
-| `mkdirSync(path, {recursive}?)`                                           | With `recursive`, returns the first directory created.                                                                                                                                                                      |
-| `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` is supported.                                                                                                                                                                                     |
+| Function                                                                  | Notes                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readFileSync(path, options?)`                                            | Without an encoding returns a `Uint8Array` (Node.js returns a `Buffer`); `'utf8'` returns a string.                                                                                                                                                                                             |
+| `writeFileSync(path, data, options?)`                                     | `data`: string (UTF-8), typed array, DataView or ArrayBuffer. Flags: `w` replaces, `a` appends, `wx` creates exclusively. `mode` controls new POSIX file permissions.                                                                                                                           |
+| `appendFileSync(path, data)`                                              |                                                                                                                                                                                                                                                                                                 |
+| `existsSync(path)`                                                        |                                                                                                                                                                                                                                                                                                 |
+| `accessSync(path, mode?)`                                                 | Throws `ENOENT` when the path does not exist; permission bits are not checked.                                                                                                                                                                                                                  |
+| `statSync(path, options?)`                                                | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `isBlockDevice()`, `isCharacterDevice()`, `isFIFO()`, `isSocket()`, `size`, `mtimeMs`, `mtime`, `mode`, `dev`, `ino`; `{throwIfNoEntry: false}`. `{bigint: true}` preserves exact `dev`/`ino` identities; other numeric fields remain numbers. |
+| `lstatSync(path, options?)`                                               | Like `statSync` for the link itself, not its target; `{throwIfNoEntry: false}`. On Windows, symbolic links and junctions are links.                                                                                                                                                             |
+| `readlinkSync(path)`                                                      | Target of a symbolic link (or Windows junction) as stored; `EINVAL` for other files.                                                                                                                                                                                                            |
+| `realpathSync(path)`, `realpathSync.native(path)`                         | Canonical absolute path after resolving symbolic links.                                                                                                                                                                                                                                         |
+| `readdirSync(path, options?)`                                             | Names without `.` and `..`, in file system order. `{withFileTypes: true}` returns `fs.Dirent` objects with `name`, `parentPath`, `path` and the `is*()` methods of `Stats`.                                                                                                                     |
+| `mkdirSync(path, {recursive}?)`                                           | With `recursive`, returns the first directory created.                                                                                                                                                                                                                                          |
+| `rmSync(path, {recursive, force}?)`                                       | Removes a file, or a directory tree with `recursive`; `force` ignores a missing path.                                                                                                                                                                                                           |
+| `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` is supported.                                                                                                                                                                                                                                                         |
 
 Paths are strings (or UTF-8 `Uint8Array`s). Only the `utf8` encoding is
 supported. Errors are `Error` objects with Node.js codes (`ENOENT`, `EEXIST`,
@@ -35,6 +40,18 @@ documented syscall numbers and 64-bit stat/directory-entry layouts:
 [Darwin ABI](https://github.com/apple-oss-distributions/xnu/tree/main/bsd/sys).
 Windows canonical paths can expand DOS short names; compare exact `dev`/`ino`
 identities when deciding whether paths refer to the same file.
+
+## Callbacks and promises
+
+`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`,
+`realpath` (with `realpath.native`), `readdir`, `mkdir`, `rm`, `rmdir`,
+`unlink`, `rename`, `copyFile` and `exists` take a Node.js callback
+(`(error, result)`; `exists` passes only a boolean). The same functions without
+`exists` return promises from `fs.promises` and from the `node:fs/promises`
+module (`fs/promises`, `nona:fs/promises`), which is the same object as
+`fs.promises`. Both forms run the synchronous operation when called and only
+defer the callback to a later tick or settle the promise: they do not overlap
+file system work with other code.
 
 ## TextEncoder and TextDecoder
 
