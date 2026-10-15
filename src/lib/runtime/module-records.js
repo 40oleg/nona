@@ -154,9 +154,28 @@
         };
         modulePaths[path] = index;
         if (aliases)
-            for (var i = 0; i < aliases.length; i++)
+            for (var i = 0; i < aliases.length; i++) {
                 builtinModules[aliases[i]] = index;
+                if (aliases[i] === "node:crypto") installWebCrypto();
+            }
     };
+    // The global crypto (Web Crypto) is node:crypto's webcrypto. The compiler
+    // links node:crypto when a program names crypto (builtinModuleRequests),
+    // and the module is evaluated on first access, as Node.js does.
+    function installWebCrypto() {
+        if (hasOwn.call(globalThis, "crypto")) return;
+        var accessor = reflectGetOwn(
+            {
+                get crypto() {
+                    return __nonaRegexpVm.getBuiltinModule("node:crypto")
+                        .webcrypto;
+                },
+            },
+            "crypto",
+        );
+        accessor.enumerable = true;
+        defineProperty(globalThis, "crypto", accessor);
+    }
     var scriptRecord;
     __nonaRegexpVm.registerScript = function (path, specifiers, targets) {
         var resolved = objectCreate(null);
