@@ -225,7 +225,13 @@ export function compileToIR(
             format === "module" &&
             (fileName.endsWith(".mjs") || entryHasModuleSyntax(source))
         )
-            return compileModuleToIR(source, fileName, node, "", target);
+            return compileModuleToIR(
+                node.moduleSource(path, source),
+                fileName,
+                node,
+                "",
+                target,
+            );
         host = node;
     }
     host = withBuiltinModules(host ?? fileModuleHost, target);

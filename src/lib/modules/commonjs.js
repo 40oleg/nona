@@ -42,6 +42,44 @@ export function define(filename, dirname, factory, table) {
     return record;
 }
 
+// The require tables of ES modules that call module.createRequire, by file
+// name: the literal requires through the functions it makes.
+const moduleTables = new Map();
+
+export function defineRequire(filename, table) {
+    if (!moduleTables.has(filename)) moduleTables.set(filename, table);
+}
+
+const interopNamespaces = new WeakMap();
+
+/**
+ * require() of an ES module, as in Node.js 22.12 and later: its export named
+ * "module.exports" when it has one; otherwise its namespace, which also has
+ * __esModule: true when it has a default export (for code compiled to
+ * CommonJS that checks __esModule).
+ */
+function requiredNamespace(namespace) {
+    if ("module.exports" in namespace) return namespace["module.exports"];
+    if (!("default" in namespace) || "__esModule" in namespace)
+        return namespace;
+    let object = interopNamespaces.get(namespace);
+    if (object === undefined) {
+        object = Object.create(null);
+        for (const key of [...Object.keys(namespace), "__esModule"].sort())
+            Object.defineProperty(
+                object,
+                key,
+                key === "__esModule"
+                    ? { value: true, enumerable: true }
+                    : { get: () => namespace[key], enumerable: true },
+            );
+        Object.defineProperty(object, Symbol.toStringTag, { value: "Module" });
+        Object.preventExtensions(object);
+        interopNamespaces.set(namespace, object);
+    }
+    return object;
+}
+
 function makeRequire(record, module) {
     const require = function require(id) {
         if (typeof id !== "string") throw invalidArgument("id", id);
@@ -58,8 +96,8 @@ function makeRequire(record, module) {
         const target = entry[1]();
         if (entry[2] === 0) return load(target, module);
         // A builtin module's require() value is its default export (fs, events, path ...).
-        if (entry[2] === 2 && "default" in target) return target.default;
-        return target;
+        if (entry[2] === 2) return "default" in target ? target.default : target;
+        return requiredNamespace(target);
     };
     require.resolve = function resolve(id) {
         if (typeof id !== "string") throw invalidArgument("request", id);
@@ -166,10 +204,13 @@ function fileUrlPath(url) {
 function programModules() {
     const byName = new Map(),
         bySpecifier = new Map();
+    const tables = [...moduleTables.values()];
     for (const record of records.values()) {
         byName.set(record.filename, [record.filename, () => record, 0]);
-        if (!record.table) continue;
-        for (const [specifier, entry] of record.table) {
+        tables.push(record.table);
+    }
+    for (const table of tables)
+        for (const [specifier, entry] of table) {
             if (entry[1] === undefined) continue;
             if (entry[2] !== 2 && !byName.has(entry[0]))
                 byName.set(entry[0], entry);
@@ -184,16 +225,17 @@ function programModules() {
                 }
             }
         }
-    }
     return { byName, bySpecifier };
 }
 
 /**
  * module.createRequire: a require function for a file. Modules are resolved
- * when the program is compiled, so it finds only what the program contains:
- * its CommonJS files, and the modules and builtins that some CommonJS file of
- * the program requires. Anything else throws MODULE_NOT_FOUND, as a
- * require(variable) does.
+ * when the program is compiled: the function finds what the file itself
+ * requires with a literal string through createRequire (its table, defined
+ * by the compiler) or, for a CommonJS file, through its own require. Other
+ * ids are looked up among the program's CommonJS files and the modules that
+ * some file of the program requires; anything else throws MODULE_NOT_FOUND,
+ * as a require(variable) does.
  */
 export function createRequire(filename) {
     let path = filename;
@@ -214,8 +256,11 @@ export function createRequire(filename) {
     const directory = /[\\/]$/.test(path)
         ? path
         : resolvePath(path, "..");
+    const own = moduleTables.get(path) || (records.get(path) || {}).table;
     const table = {
         get(id) {
+            const entry = own && own.get(id);
+            if (entry !== undefined) return entry;
             const { byName, bySpecifier } = programModules();
             if (!relative(id) && !isAbsolute(id))
                 return bySpecifier.get(id);
