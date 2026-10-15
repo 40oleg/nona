@@ -256,6 +256,71 @@ Stream constructors and process standard I/O are initialized on first use. Readi
 
 Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
 
+## zlib
+
+`node:zlib`, `zlib` and `nona:zlib` are one module: Nona's own DEFLATE codec
+(RFC 1951) with zlib (RFC 1950) and gzip (RFC 1952) framing, Adler-32 and
+CRC-32. No zlib library, C code or DLL is bundled. The module exports the
+synchronous, callback and stream APIs of Node.js:
+
+- Synchronous: `deflateSync`, `inflateSync`, `gzipSync`, `gunzipSync`,
+  `deflateRawSync`, `inflateRawSync` and `unzipSync` take a string, Buffer,
+  TypedArray, DataView or ArrayBuffer and return a Buffer. `unzipSync` reads
+  either gzip or zlib framing.
+- Callback: `deflate`, `inflate`, `gzip`, `gunzip`, `deflateRaw`,
+  `inflateRaw` and `unzip` take the same input and call `callback(error,
+result)` asynchronously.
+- Streams: `createDeflate`, `createInflate`, `createGzip`, `createGunzip`,
+  `createDeflateRaw`, `createInflateRaw` and `createUnzip` return Transform
+  streams from the [stream module](#streams), and the classes `Deflate`,
+  `Inflate`, `Gzip`, `Gunzip`, `DeflateRaw`, `InflateRaw` and `Unzip` are
+  exported. They support `pipe`, `pipeline`, `for await`, `flush(kind,
+callback)`, `params(level, strategy, callback)`, `reset()`, `close()` and
+  `bytesWritten`.
+- `crc32(data[, value])` computes CRC-32 of a string or view, continuing from
+  `value` when it is given. Adler-32 is used internally and is not exported,
+  as in Node.js.
+
+Options, for every function and stream: `chunkSize` (at least 64, default 16384), `windowBits`
+(8–15; 0 on inflate reads the window size from the header; gzip rejects 8),
+`level` (-1–9), `memLevel` (1–9), `strategy` (`Z_DEFAULT_STRATEGY`,
+`Z_FILTERED`, `Z_HUFFMAN_ONLY`, `Z_RLE`, `Z_FIXED`), `dictionary` (for raw
+and zlib framing), `flush` and `finishFlush` (`Z_NO_FLUSH` to `Z_BLOCK`),
+`maxOutputLength` (inflate raises `ERR_BUFFER_TOO_LARGE` above it) and `info`
+(the result is `{ buffer, engine }`). Stream options such as `highWaterMark`
+are passed to the stream. Invalid option values raise `ERR_INVALID_ARG_TYPE`
+or `ERR_OUT_OF_RANGE` with Node.js's messages.
+
+`constants` has Node.js's names and values for the flush modes, return codes,
+levels, strategies, modes and window and memory limits. The `Z_*` names are
+also properties of the module, as in Node.js. `codes` maps each return code
+to its name and back.
+
+Corrupt or truncated input raises an `Error` with Node.js's message, `errno`
+and `code` (`Z_DATA_ERROR`, `Z_BUF_ERROR` or `Z_NEED_DICT`). The same input
+produces the same code and message as in Node.js in the tests, which compare
+the results with the Node.js oracle; the callback and stream forms emit the
+same error, the callback through `callback(error)` and streams through
+`'error'`.
+
+Limitations:
+
+- Brotli is not provided: `brotliCompressSync`, `brotliDecompressSync`,
+  `brotliCompress`, `brotliDecompress`, `createBrotliCompress` and
+  `createBrotliDecompress` throw `ERR_NONA_UNSUPPORTED`. The `BROTLI_*`
+  constants exist for compatibility only. Brotli is tracked in a separate
+  issue.
+- The compressed bytes are valid DEFLATE, zlib and gzip, and the tests check
+  that Node.js decodes them, but they are not byte-identical to Node.js's zlib
+  output for the same options. Decompressing a stream gives the same bytes
+  from either implementation.
+- The `http` client does not decompress response bodies, as in Node.js. Pipe
+  a `Content-Encoding: gzip` response through `createGunzip()` (or
+  `createInflate()` for `deflate`) to decode it.
+
+A [runnable zlib sample](../site/samples/zlib.mjs) compresses and decompresses
+data with the sync, callback and stream APIs.
+
 ## URL
 
 The global `URL` and `URLSearchParams` (also exported by `node:url`) follow the
