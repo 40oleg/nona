@@ -360,7 +360,11 @@ const poller = {
     total() {
         return handleCount + immediates.length;
     },
-    /** nextTimer: when the earliest timer is due, in performance.now() time. */
+    /**
+     * nextTimer: when the earliest timer is due, in performance.now() time.
+     * Expired socket deadlines not before nextTimer stay pending: the loop
+     * runs the due timers, then calls poll(0), which reports them.
+     */
     poll(timeout, nextTimer = Infinity) {
         if (immediates.length > 0) timeout = 0;
         if (dirty.length > 0) {
