@@ -55,6 +55,8 @@ console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(Int8Array.prototype
 const a=new Int8Array([3,1,2]);a.toSorted();a.toReversed();a.with(0,9);console.log(Array.from(a));
 const e=new Float32Array(0);console.log(e.toSorted().length,e.toReversed().length,e.toSorted()!==e);try{e.with(0,1);}catch(x){console.log(x.constructor.name);}
 console.log(Array.from(new Uint8ClampedArray([1,2]).with(0,300)),Array.from(new Uint8ClampedArray([1,2]).with(1,-5)));`,
+    "program that names no typed array": `
+console.log(typeof [].with,typeof [].toSorted,[3,1,2].toSorted().join());`,
 };
 for (const [name, source] of Object.entries(programs))
     test(`TypedArray change-by-copy: ${name}`, () => {
