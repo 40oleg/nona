@@ -609,6 +609,22 @@ var __nonaPromiseDrainJobs = (function () {
             return combinator(this, iterable, 3);
         },
     }.any;
+    var tryMethod = {
+        try(callback, ...args) {
+            if (
+                (typeof this !== "object" && typeof this !== "function") ||
+                this === null
+            )
+                throw new TypeError("Promise.try called on a non-object");
+            var next = capability(this);
+            try {
+                next.resolve(reflectApply(callback, undefined, args));
+            } catch (error) {
+                next.reject(error);
+            }
+            return next.promise;
+        },
+    }.try;
     function method(target, name, value) {
         Object.defineProperty(target, name, {
             value: value,
@@ -630,6 +646,7 @@ var __nonaPromiseDrainJobs = (function () {
     method(Promise, "allSettled", allSettled);
     method(Promise, "race", race);
     method(Promise, "any", any);
+    method(Promise, "try", tryMethod);
     var speciesGetter = Object.getOwnPropertyDescriptor(
         {
             get [Symbol.species]() {

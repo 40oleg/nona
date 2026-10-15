@@ -149,3 +149,23 @@ test("Proxy forwarding to Promise validates executor before newTarget prototype"
  var boundWrapped=new Proxy(Promise.bind(null,1),{});
  try{Reflect.construct(boundWrapped,[],newTarget)}catch(error){console.log('bound',error.name)}
 `));
+
+test("Promise.try runs a callback and settles with its result", () =>
+    expectStress(`
+ console.log(Promise.try.length,Promise.try.name,Object.getOwnPropertyDescriptor(Promise,'try').enumerable);
+ var log=[];
+ Promise.try((a,b)=>{log.push('call');return [a,b]},1,2).then(v=>console.log('sync',JSON.stringify(v)));
+ log.push('after');
+ Promise.try(()=>{throw new RangeError('boom')}).catch(e=>console.log('throw',e.name,e.message));
+ Promise.try(()=>Promise.resolve(5)).then(v=>console.log('promise',v));
+ Promise.try(()=>({then(f){f('thenable')}})).then(v=>console.log(v));
+ Promise.try(function(){'use strict';return this}).then(v=>console.log('this',v));
+ Promise.try(1).catch(e=>console.log('noncallable',e.name));
+ class P extends Promise{}
+ var p=P.try(()=>1);
+ console.log(p instanceof P,p.constructor===P);
+ try{Promise.try.call(1,()=>1)}catch(e){console.log('nonobject',e.name)}
+ try{Promise.try.call(undefined,()=>1)}catch(e){console.log('undef',e.name)}
+ try{Promise.try.call({},()=>1)}catch(e){console.log('notctor',e.name)}
+ console.log(log.join());
+`));

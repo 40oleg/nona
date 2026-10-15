@@ -46,7 +46,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, the RegExp `v` flag and top-level `await`. Supported additions:
 
-- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`.
+- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `Promise.try` (ES2025), `String.prototype.replaceAll`.
 - ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` and Error `cause`.
 - ES2023: `findLast` and `findLastIndex`.
 
