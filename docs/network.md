@@ -1,7 +1,7 @@
-# Networking (`node:http`, `node:net`, `node:tls`)
+# Networking (`node:http`, `node:net`, `node:tls`, `node:https`)
 
-Nona compiles HTTP/1.1 servers and clients and plain TCP sockets into the
-executable. The modules follow the Node.js APIs and wire behaviour closely
+Nona compiles HTTP/1.1 servers and clients, plain TCP sockets and TLS 1.3
+clients into the executable. The modules follow the Node.js APIs and wire behaviour closely
 enough that the tests run the same programs under Node.js and compare the
 output byte for byte. Like [`node:fs`](fs.md), they are JavaScript compiled
 into programs that import them, over a small platform layer: raw system calls
@@ -41,7 +41,9 @@ are answered with `400 Bad Request` (`431` for headers over 16 KiB) unless the
 server has a `clientError` listener; parse errors carry the llhttp codes
 (`HPE_INVALID_METHOD`, `HPE_HEADER_OVERFLOW`, …).
 
-Not supported: HTTPS (`node:https`; see [`node:tls`](#nodetls) for TLS), HTTP/2, `headersTimeout` and
+`https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
+
+Not supported: HTTP/2, `headersTimeout` and
 `requestTimeout` (the values exist but are not enforced), `insecureHTTPParser`,
 `maxHeadersCount`, Unix domain sockets (`socketPath`).
 
@@ -68,7 +70,8 @@ to its first IPv4 address).
 A TLS 1.3 client ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) written
 for Nona in JavaScript over `node:net`, with the cryptography of
 `nona:internal/tls-crypto`; no TLS library is linked into the executable
-([#301](https://github.com/40oleg/nona/issues/301)).
+([#301](https://github.com/40oleg/nona/issues/301)). The module is built for
+win32-x64 and linux-x64 only; macOS, the BSDs and arm64 are not supported yet.
 
 | Export                                                                                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,16 +88,8 @@ session tickets. Failures are errors with Node-style codes (`ERR_SSL_…`,
 `ERR_TLS_CERT_ALTNAME_INVALID`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, …), and
 the client sends the matching alert.
 
-Limitations, stated plainly:
-
-- **Only TLS 1.3.** A server limited to TLS 1.2 or older fails the connection
-  with `ERR_SSL_UNSUPPORTED_PROTOCOL`; `maxVersion` below `'TLSv1.3'` throws.
-- **No revocation checks** (CRL, OCSP) and no fetching of missing
-  intermediate certificates (AIA); certificate policies are not processed.
-- No server side, client certificates (a `CertificateRequest` is answered
-  with an empty certificate), session resumption or 0-RTT data.
-- The AES and P-256/P-384/RSA code does not run in constant time (X25519,
-  Poly1305 and the tag checks do).
+The limitations of the client, and of the `https` module built on it, are
+listed in [Security limitations](#security-limitations).
 
 ### Certificate verification
 
@@ -154,6 +149,46 @@ is read once, on first use:
 Node.js verifies against its bundled Mozilla roots by default, so a
 certificate that chains to a root only one of the two stores holds is
 accepted by one and refused by the other.
+
+## `node:https`
+
+`https`, `node:https` and `nona:https` run the HTTP/1.1 client of
+[`node:http`](#nodehttp) over TLS sockets of [`node:tls`](#nodetls), with the
+same requests, responses, keep-alive and errors. Only the client is
+implemented, and there is no global `fetch` yet, so `https:` URLs are requested
+with `https.request` and `https.get`.
+
+| Export                                            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request(url[, options][, callback])`, `get(...)` | `url` is a string or an object with `href`/`hostname`. The default port is 443 and the default agent is `globalAgent`. The options are those of `http.request` plus the TLS options `ca`, `rejectUnauthorized`, `servername`, `checkServerIdentity`, `ALPNProtocols` and `maxVersion` (only `'TLSv1.3'`). `ciphers` and `minVersion` are accepted but have no effect; client certificates (`cert`, `key`, `pfx`) are not supported. |
+| `Agent`, `globalAgent`                            | Pools TLS connections as `http.Agent` pools TCP ones: `keepAlive`, `maxSockets`, `maxFreeSockets`, `timeout`, `scheduling`. `globalAgent` keeps connections alive with a 5 s idle timeout. Pool keys include the TLS options, so requests with different `ca` or `rejectUnauthorized` never share a connection. `maxCachedSessions` is accepted; sessions are not resumed.                                                          |
+| `createServer`, `Server`                          | Throw `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`: an https server is not implemented yet.                                                                                                                                                                                                                                                                                                                                                |
+
+Certificate checks, trust anchors and host name checks are those of `node:tls`
+(see [Certificate verification](#certificate-verification)). A failed check is
+an `error` event on the request with the Node.js code, for example
+`UNABLE_TO_GET_ISSUER_CERT_LOCALLY`.
+
+## Security limitations
+
+Stated plainly, for the TLS client and the `https` module:
+
+- **Only TLS 1.3.** There is no TLS 1.2 fallback: a server that supports only
+  TLS 1.2 or older fails the connection with `ERR_SSL_UNSUPPORTED_PROTOCOL`, and
+  `maxVersion` below `'TLSv1.3'` throws.
+- **No revocation checks** (CRL, OCSP), no fetching of missing intermediate
+  certificates (AIA), and certificate policies are not processed.
+- **No session resumption and no 0-RTT data.** Client certificates are not
+  supported: a `CertificateRequest` is answered with an empty certificate.
+- **Not audited and not constant-time.** The cryptography is written in
+  JavaScript and has not been audited. The AES, P-256/P-384 and RSA code does
+  not run in constant time (X25519, Poly1305 and the tag checks do), so do not
+  rely on it where local timing attacks matter.
+- **Trust comes from the operating system**: the Linux bundle or the Windows
+  ROOT store, not the Mozilla roots bundled with Node.js. `rejectUnauthorized: false` and a replaced `checkServerIdentity` turn checks off; that choice is the caller's responsibility.
+- **Client only.** `tls.createServer` and `https.createServer` throw, and there
+  is no `fetch` over `https:` yet.
+- **Platforms.** win32-x64 and linux-x64 only.
 
 ## Event loop
 
