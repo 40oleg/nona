@@ -20,13 +20,26 @@ export const RegExpLayout = {
     flags: O.size + 8,
     size: O.size + 16,
 } as const;
+// Spec order of the flags getter (hasIndices first).
 const flagGetters = [
+    ["hasIndices", "d"],
     ["global", "g"],
     ["ignoreCase", "i"],
     ["multiline", "m"],
     ["dotAll", "s"],
     ["unicode", "u"],
     ["sticky", "y"],
+] as const;
+// Flag bits returned by rt.validateRegExpFlags, in the canonical order of
+// the stored flags string.
+const constructorFlagBits = [
+    ["d", 64],
+    ["g", 1],
+    ["i", 2],
+    ["m", 4],
+    ["s", 8],
+    ["u", 16],
+    ["y", 32],
 ] as const;
 export const regexpRoots = [
     "rt.regexpCopyInternal",
@@ -2265,6 +2278,12 @@ export function emitRegExp(b: RuntimeBuilder): void {
             a.jcc("ne", notSticky);
             a.or("r11", 2);
             a.label(notSticky);
+            // d (hasIndices): the VM builds the indices array.
+            a.cmp("rax", 100);
+            const notIndices = a.unique("notIndices");
+            a.jcc("ne", notIndices);
+            a.or("r11", 16);
+            a.label(notIndices);
             a.add("r8", 2);
             a.sub("r9", 1);
             a.jmp(flagScan);
@@ -2321,7 +2340,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
                 nativeMatch = a.unique("nativeMatch"),
                 vmMatch = a.unique("vmMatch");
             a.load("rax", slot(312));
-            a.and("rax", 12);
+            a.and("rax", 28);
             a.test("rax", "rax");
             a.jcc("ne", vmMatch);
             a.load("r10", slot(72));
@@ -2647,14 +2666,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
         a.test("rdx", "rdx");
         a.jcc("e", done);
         a.load("rax", { base: "r8" }, 16);
-        for (const [flag, bit] of [
-            ["g", 1],
-            ["i", 2],
-            ["m", 4],
-            ["s", 8],
-            ["u", 16],
-            ["y", 32],
-        ] as const) {
+        for (const [flag, bit] of constructorFlagBits) {
             const next = a.unique("next");
             a.cmp("rax", flag.charCodeAt(0));
             a.jcc("ne", next);
@@ -2905,7 +2917,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
             a.call("rt.invoke");
             a.label(withoutVm);
             a.mov("rdx", 0);
-            for (const bit of [1, 2, 4, 8, 16, 32]) {
+            for (const [, bit] of constructorFlagBits) {
                 const next = a.unique("next");
                 a.load("rax", slot(72));
                 a.and("rax", bit);
@@ -2923,14 +2935,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
             a.store({ base: "rax" }, "r10");
             a.store(slot(104), "rax");
             a.lea("rdx", { base: "rax", disp: 8 });
-            for (const [flag, bit] of [
-                ["g", 1],
-                ["i", 2],
-                ["m", 4],
-                ["s", 8],
-                ["u", 16],
-                ["y", 32],
-            ] as const) {
+            for (const [flag, bit] of constructorFlagBits) {
                 const next = a.unique("next");
                 a.load("rax", slot(72));
                 a.and("rax", bit);

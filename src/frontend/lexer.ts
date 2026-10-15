@@ -709,7 +709,7 @@ export function lex(
                 i += codePoint().length;
             const flags = source.slice(flagStart, i);
             if (
-                !/^[gimsuy]*$/.test(flags) ||
+                !/^[dgimsuy]*$/.test(flags) ||
                 new Set(flags).size !== flags.length
             )
                 fail("Invalid regular expression flags", flagStart);
