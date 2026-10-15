@@ -375,3 +375,325 @@ show('crcLarge', () => zlib.crc32('x', 2 ** 32));
 show('crcMax', () => zlib.crc32('x', 2 ** 32 - 1));
 `,
     ));
+
+test("callback functions call back asynchronously with the sync API's results and errors", () =>
+    agree(
+        String.raw`import zlib from 'node:zlib';
+import util from 'node:util';
+const log = [];
+const text = Buffer.from('callback data '.repeat(300));
+zlib.gzip(text, (err, out) => log.push('gzip ' + err + ' ' + zlib.gunzipSync(out).equals(text)));
+zlib.inflate(Buffer.from('not zlib data'), (err, out) => log.push('inflate ' + err.code + ' ' + err.errno + ' ' + err.message + ' ' + out));
+zlib.deflateRaw('abc', { level: 9 }, (err, out) => log.push('deflateRaw ' + zlib.inflateRawSync(out)));
+process.nextTick(() => log.push('nextTick'));
+log.push('sync');
+setTimeout(async () => {
+  console.log(log.join(', '));
+  const round = async (enc, dec, input, options) => (await util.promisify(dec)(await util.promisify(enc)(input, options))).toString('latin1');
+  console.log(await round(zlib.deflate, zlib.inflate, 'deflate/inflate'), await round(zlib.gzip, zlib.gunzip, 'gzip/gunzip', { level: 1 }), await round(zlib.deflateRaw, zlib.inflateRaw, 'raw'), await round(zlib.gzip, zlib.unzip, 'gzip/unzip'), await round(zlib.deflate, zlib.unzip, 'deflate/unzip'));
+  const failing = [
+    ['gunzip', () => util.promisify(zlib.gunzip)(Buffer.from('1f8b0800000000000003ffff', 'hex'))],
+    ['empty', () => util.promisify(zlib.inflate)(Buffer.alloc(0))],
+    ['undefined', () => util.promisify(zlib.gunzip)(undefined)],
+    ['truncated', () => util.promisify(zlib.inflate)(zlib.deflateSync(text).subarray(0, 20))],
+    ['max', () => util.promisify(zlib.inflate)(zlib.deflateSync(text), { maxOutputLength: 100 })],
+  ];
+  for (const [name, f] of failing)
+    try { console.log(name, (await f()).length); } catch (e) { console.log(name, e.name, e.code, e.errno, e.message); }
+  const { buffer, engine } = await util.promisify(zlib.gzip)('info', { info: true });
+  console.log('info', zlib.gunzipSync(buffer).toString(), engine instanceof zlib.Gzip, engine.bytesWritten);
+  console.log((await util.promisify(zlib.gzip)(new Uint16Array([1, 2, 3]))).length > 0, zlib.gunzipSync(await util.promisify(zlib.gzip)(new ArrayBuffer(5))).length);
+  const invalid = [['callback', () => zlib.gzip('x')], ['input', () => zlib.deflate(5, () => {})], ['object', () => zlib.deflate({}, () => {})], ['options', () => zlib.gzip('x', { level: 42 }, () => {})]];
+  for (const [name, f] of invalid)
+    try { f(); console.log(name, 'ok'); } catch (e) { console.log(name, e.name, e.code, e.message); }
+}, 20);
+`,
+    ));
+
+test("streams decode input split at any byte boundary", () => {
+    const make = new Function(
+        "Buffer",
+        data + "return { repeated, textBytes, randomBytes };",
+    )(Buffer) as Record<string, (n: number, seed?: number) => Buffer>;
+    const sample = Buffer.concat([
+        make.textBytes!(30000),
+        make.randomBytes!(5000, 9),
+        make.repeated!(40000),
+    ]);
+    const sources = JSON.stringify(
+        [
+            ["Gunzip", zlib.gzipSync(sample)],
+            ["Inflate", zlib.deflateSync(sample, { level: 9 })],
+            ["InflateRaw", zlib.deflateRawSync(sample, { level: 1 })],
+            ["Unzip", zlib.gzipSync(sample, { strategy: 1 })],
+            ["Unzip", zlib.deflateSync(sample, { level: 0 })],
+            [
+                "Gunzip",
+                Buffer.concat([
+                    zlib.gzipSync(sample.subarray(0, 1000)),
+                    zlib.gzipSync(sample.subarray(1000)),
+                ]),
+            ],
+        ].map(([name, bytes]) => [name, (bytes as Buffer).toString("base64")]),
+    );
+    agree(
+        "import zlib from 'node:zlib';" +
+            data +
+            String.raw`
+const sample = Buffer.concat([textBytes(30000), randomBytes(5000, 9), repeated(40000)]);
+const sources = ${sources}.map(([name, text]) => [name, Buffer.from(text, 'base64')]);
+function run(stream, input, size) {
+  return new Promise((resolve) => {
+    const parts = [];
+    stream.on('data', (chunk) => parts.push(chunk));
+    stream.on('error', (e) => resolve('error ' + e.code));
+    stream.on('end', () => { const out = Buffer.concat(parts); resolve([out.length, out.equals(sample.subarray(0, out.length)), parts.length, parts[0].length, stream.bytesWritten].join(' ')); });
+    for (let i = 0; i < input.length; i += size) stream.write(input.subarray(i, i + size));
+    stream.end();
+  });
+}
+(async () => {
+  // Every write takes a turn of the event loop: 1- and 7-byte writes cover the start of each stream.
+  for (const [name, input] of sources) {
+    for (const [size, prefix] of [[1, 1500], [7, 12000]])
+      console.log(name, size, await run(new zlib[name]({ finishFlush: zlib.constants.Z_SYNC_FLUSH }), input.subarray(0, prefix), size));
+    for (const size of [4093, 65536]) console.log(name, size, await run(new zlib[name](), input, size));
+  }
+  console.log('chunkSize', await run(zlib.createGunzip({ chunkSize: 1000 }), sources[0][1], 999));
+  // Nona's own stream output, compressed in chunks.
+  for (const [create, decode] of [['createGzip', 'gunzipSync'], ['createDeflate', 'inflateSync'], ['createDeflateRaw', 'inflateRawSync']])
+    for (const size of [1, 7, 65536]) {
+      const parts = [], stream = zlib[create]({ level: size === 7 ? 1 : 6 });
+      stream.on('data', (c) => parts.push(c));
+      const input = sample.subarray(0, size === 1 ? 3000 : size === 7 ? 10000 : sample.length);
+      await new Promise((resolve) => { stream.on('end', resolve); for (let i = 0; i < input.length; i += size) stream.write(input.subarray(i, i + size)); stream.end(); });
+      console.log(create, size, zlib[decode](Buffer.concat(parts)).equals(input), stream.bytesWritten);
+    }
+})();
+`,
+    );
+});
+
+test("streams: pipeline, pipe, for await, flush, params, reset and close", () =>
+    agree(
+        "import zlib from 'node:zlib';" +
+            data +
+            String.raw`
+import { pipeline, Readable, Writable } from 'node:stream';
+import { pipeline as pipelinePromise } from 'node:stream/promises';
+const text = textBytes(50000);
+const sink = (parts) => new Writable({ write(chunk, encoding, callback) { parts.push(chunk); callback(); } });
+(async () => {
+  const parts = [];
+  await new Promise((resolve) => pipeline(Readable.from([text.subarray(0, 20000), text.subarray(20000)]), zlib.createGzip(), zlib.createGunzip(), sink(parts), (err) => { console.log('pipeline', err, Buffer.concat(parts).equals(text)); resolve(); }));
+  const piped = [];
+  await new Promise((resolve) => Readable.from([text]).pipe(zlib.createDeflate({ level: 1 })).pipe(zlib.createInflate()).pipe(sink(piped)).on('finish', () => { console.log('pipe', Buffer.concat(piped).equals(text)); resolve(); }));
+  const raw = [];
+  await pipelinePromise(Readable.from([text]), zlib.createDeflateRaw(), zlib.createInflateRaw(), sink(raw));
+  console.log('stream/promises', Buffer.concat(raw).equals(text));
+  let total = 0, chunks = 0;
+  const gunzip = zlib.createGunzip();
+  gunzip.end(zlib.gzipSync(text));
+  for await (const chunk of gunzip) { total += chunk.length; chunks++; }
+  console.log('for await', total, chunks);
+  // flush() kinds give output that decodes up to the flushed point.
+  for (const kind of [zlib.constants.Z_PARTIAL_FLUSH, zlib.constants.Z_SYNC_FLUSH, zlib.constants.Z_FULL_FLUSH, undefined]) {
+    const out = [], stream = zlib.createDeflate();
+    stream.on('data', (c) => out.push(c));
+    stream.write('flushed part, ');
+    await new Promise((resolve) => kind === undefined ? stream.flush(resolve) : stream.flush(kind, resolve));
+    const partial = Buffer.concat(out);
+    console.log('flush', kind, zlib.inflateSync(partial, { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString());
+    stream.end('and the rest');
+    await new Promise((resolve) => stream.on('end', resolve));
+    console.log('flush end', zlib.inflateSync(Buffer.concat(out)).toString());
+  }
+  // params() mid-stream: level and strategy change after a sync flush.
+  const out = [], deflate = zlib.createDeflate({ level: 1 });
+  deflate.on('data', (c) => out.push(c));
+  deflate.write(text.subarray(0, 10000));
+  await new Promise((resolve) => deflate.params(9, zlib.constants.Z_FILTERED, resolve));
+  console.log('params', deflate._level, deflate._strategy);
+  deflate.write(text.subarray(10000, 30000));
+  await new Promise((resolve) => deflate.params(0, 0, resolve));
+  deflate.write(text.subarray(30000, 40000));
+  await new Promise((resolve) => deflate.params(6, zlib.constants.Z_HUFFMAN_ONLY, resolve));
+  deflate.end(text.subarray(40000));
+  await new Promise((resolve) => deflate.on('end', resolve));
+  console.log('params round trip', zlib.inflateSync(Buffer.concat(out)).equals(text));
+  await new Promise((resolve) => deflate.params(6, zlib.constants.Z_HUFFMAN_ONLY, () => { console.log('params unchanged'); resolve(); }));
+  try { zlib.createGzip().params(10, 0); } catch (e) { console.log(e.name, e.code, e.message); }
+  // reset(), close(), flush after the end, options of the stream.
+  const reset = [], gzip = zlib.createGzip();
+  gzip.on('data', (c) => reset.push(c));
+  gzip.reset();
+  gzip.end('after reset');
+  await new Promise((resolve) => gzip.on('end', resolve));
+  console.log('reset', zlib.gunzipSync(Buffer.concat(reset)).toString());
+  const closing = zlib.createInflate();
+  console.log('closed', closing._closed, typeof closing._handle);
+  await new Promise((resolve) => closing.close(() => { console.log('close', closing._closed, closing.destroyed); resolve(); }));
+  try { closing.reset(); } catch (e) { console.log('reset after close', e.code); }
+  const ended = zlib.createDeflate();
+  ended.resume();
+  ended.end('x');
+  await new Promise((resolve) => ended.flush(resolve));
+  console.log('flush after end', ended.writableFinished);
+  const options = zlib.Deflate({ level: 3, chunkSize: 1024, flush: zlib.constants.Z_SYNC_FLUSH });
+  console.log('fields', options instanceof zlib.Deflate, Object.getPrototypeOf(zlib.Deflate.prototype) === Object.getPrototypeOf(zlib.Unzip.prototype), options._level, options._strategy, options._chunkSize, options._defaultFlushFlag, options._finishFlushFlag, options.bytesWritten);
+  const synced = [];
+  options.on('data', (c) => synced.push(c.length));
+  options.write('a'.repeat(5000));
+  options.end('b');
+  await new Promise((resolve) => options.on('end', resolve));
+  console.log('sync flush option', synced.join(','));
+  try { zlib.createGunzip({ chunkSize: 10 }); } catch (e) { console.log(e.name, e.code, e.message); }
+})();
+`,
+    ));
+
+test("Nona's stream output with flushes and params() decodes in Node", () => {
+    const { native } = runModulesOnHost(
+        {
+            "main.mjs":
+                "import zlib from 'node:zlib';" +
+                data +
+                String.raw`
+const text = textBytes(40000);
+const kinds = [zlib.constants.Z_SYNC_FLUSH, zlib.constants.Z_FULL_FLUSH, zlib.constants.Z_PARTIAL_FLUSH, zlib.constants.Z_BLOCK];
+(async () => {
+  for (const create of ['createGzip', 'createDeflate', 'createDeflateRaw']) {
+    const out = [], stream = zlib[create]({ level: 2 });
+    stream.on('data', (c) => out.push(c));
+    for (let i = 0; i < 8; i++) {
+      stream.write(text.subarray(i * 5000, i * 5000 + 5000));
+      if (i % 2) await new Promise((resolve) => stream.params([0, 9, 1, 6][i >> 1], i >> 1, resolve));
+      else await new Promise((resolve) => stream.flush(kinds[i >> 1], resolve));
+    }
+    stream.end();
+    await new Promise((resolve) => stream.on('end', resolve));
+    console.log(create, Buffer.concat(out).toString('base64'));
+  }
+})();
+`,
+        },
+        "main.mjs",
+        { gcStress: false },
+    );
+    assert.equal(native.status, 0, JSON.stringify(native));
+    const make = new Function("Buffer", data + "return { textBytes };")(
+        Buffer,
+    ) as Record<string, (n: number) => Buffer>;
+    const text = make.textBytes!(40000);
+    const lines = native.stdout.trim().split(/\r?\n/);
+    assert.equal(lines.length, 3);
+    const decoders: Record<string, (input: Buffer) => Buffer> = {
+        createGzip: zlib.gunzipSync,
+        createDeflate: zlib.inflateSync,
+        createDeflateRaw: zlib.inflateRawSync,
+    };
+    for (const line of lines) {
+        const [create, encoded] = line.split(" ");
+        assert.deepEqual(
+            decoders[create!]!(Buffer.from(encoded!, "base64")),
+            text,
+            create!,
+        );
+    }
+});
+
+test("corrupt stream input emits 'error' with Node's code, errno and message", () => {
+    const make = new Function("Buffer", data + "return { textBytes };")(
+        Buffer,
+    ) as Record<string, (n: number) => Buffer>;
+    const text = make.textBytes!(60000);
+    const gzipped = zlib.gzipSync(text).toString("base64");
+    const deflated = zlib.deflateSync(text).toString("base64");
+    agree(
+        String.raw`import zlib from 'node:zlib';
+import { pipeline, Writable } from 'node:stream';
+const gzipped = Buffer.from('${gzipped}', 'base64'), deflated = Buffer.from('${deflated}', 'base64');
+const flip = (bytes, at, mask) => { const copy = Buffer.from(bytes); copy[at < 0 ? copy.length + at : at] ^= mask; return copy; };
+function run(name, stream, input, size) {
+  return new Promise((resolve) => {
+    const events = [];
+    let bytes = 0;
+    stream.on('data', (c) => { bytes += c.length; });
+    stream.on('error', (e) => events.push('error ' + e.code + ' ' + e.errno + ' ' + e.message + ' ' + (e instanceof Error) + ' ' + stream.destroyed));
+    stream.on('end', () => events.push('end ' + stream.bytesWritten));
+    stream.on('close', () => { console.log(name, bytes, events.join(' | ')); resolve(); });
+    if (size) for (let i = 0; i < input.length; i += size) stream.write(input.subarray(i, i + size));
+    stream.end(size ? undefined : input);
+  });
+}
+(async () => {
+  await run('gzipCrc', zlib.createGunzip(), flip(gzipped, -5, 1));
+  await run('gzipLength', zlib.createGunzip(), flip(gzipped, -1, 1), 1000);
+  await run('gzipMagic', zlib.createGunzip(), Buffer.from('hello world'));
+  await run('gzipTruncated', zlib.createGunzip(), gzipped.subarray(0, 100));
+  await run('gzipTruncatedSync', zlib.createGunzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH }), gzipped.subarray(0, 100));
+  await run('gzipTrailingJunk', zlib.createGunzip(), Buffer.concat([gzipped, Buffer.from('junk')]));
+  await run('gzipTrailingZeros', zlib.createGunzip(), Buffer.concat([gzipped, Buffer.alloc(9)]), 7);
+  await run('gzipEmpty', zlib.createGunzip(), Buffer.alloc(0));
+  await run('inflateHeader', zlib.createInflate(), Buffer.from('01020304', 'hex'));
+  await run('inflateAdler', zlib.createInflate(), flip(deflated, -1, 1), 3);
+  await run('inflateTrailing', zlib.createInflate(), Buffer.concat([deflated, Buffer.from('junk')]));
+  await run('inflateDictionary', zlib.createInflate(), Buffer.from('78bb000000010300', 'hex'));
+  await run('inflateCorrupt', zlib.createInflate(), flip(deflated, 300, 0x40));
+  await run('rawStored', zlib.createInflateRaw(), Buffer.from('010500050001020304', 'hex'));
+  await run('unzipRaw', zlib.createUnzip(), zlib.deflateRawSync('x'));
+  const source = zlib.createGunzip();
+  await new Promise((resolve) => { pipeline(source, new Writable({ write(c, e, cb) { cb(); } }), (err) => { console.log('pipeline', err.code, err.errno, err.message); resolve(); }); source.end(flip(gzipped, -5, 1)); });
+  const stream = zlib.createInflate();
+  stream.on('error', () => {});
+  stream.write(Buffer.from('bad data'), (err) => console.log('write callback', err));
+  setTimeout(() => console.log('destroyed', stream.destroyed, stream._closed), 20);
+})();
+`,
+    );
+});
+
+test("http: res.pipe(createGunzip()) decodes a gzip response; createGzip().pipe(res) compresses one", () =>
+    agree(
+        String.raw`import http from 'node:http';
+import zlib from 'node:zlib';
+import { pipeline } from 'node:stream';
+const body = Buffer.from('compressed body line\n'.repeat(4000));
+const server = http.createServer((req, res) => {
+  if (req.url === '/static') {
+    res.writeHead(200, { 'Content-Encoding': 'gzip', 'Content-Type': 'text/plain' });
+    res.end(zlib.gzipSync(body));
+  } else if (req.url === '/pipe') {
+    res.writeHead(200, { 'Content-Encoding': 'deflate' });
+    const deflate = zlib.createDeflate();
+    deflate.pipe(res);
+    for (let i = 0; i < body.length; i += 5000) deflate.write(body.subarray(i, i + 5000));
+    deflate.end();
+  } else {
+    res.writeHead(200, { 'Content-Encoding': 'gzip' });
+    const gzip = zlib.createGzip();
+    pipeline(gzip, res, (err) => console.log('server pipeline', err));
+    gzip.end(body);
+  }
+});
+function get(path) {
+  return new Promise((resolve) => http.get('http://127.0.0.1:' + server.address().port + path, (res) => {
+    const encoding = res.headers['content-encoding'];
+    const parts = [];
+    let compressed = 0;
+    res.on('data', (c) => { compressed += c.length; });
+    res.pipe(encoding === 'gzip' ? zlib.createGunzip() : zlib.createInflate()).on('data', (c) => parts.push(c)).on('end', () => {
+      const out = Buffer.concat(parts);
+      console.log(path, res.statusCode, encoding, compressed < body.length / 10, out.length, out.equals(body));
+      resolve();
+    });
+  }));
+}
+server.listen(0, '127.0.0.1', async () => {
+  await get('/static');
+  await get('/pipe');
+  await get('/pipeline');
+  server.close(() => console.log('closed'));
+});
+`,
+    ));

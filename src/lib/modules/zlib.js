@@ -3,8 +3,11 @@
 // incremental: an Inflater takes input in chunks and resumes where the
 // previous chunk ended, a Deflater compresses chunk by chunk and honours the
 // zlib flush modes, so that the stream classes can drive them.
+// The stream classes (Deflate ... Unzip) are Transform streams that drive
+// the same engines; the callback functions run their input through them.
 // Brotli and Zstandard are not provided.
 import { Buffer } from "node:buffer";
+import { Transform, finished } from "node:stream";
 
 // ---- constants ------------------------------------------------------------
 
@@ -1302,6 +1305,18 @@ class Deflater {
     get ended() {
         return this.finished;
     }
+    /** zlib's deflateParams; the caller has flushed the pending input (Z_SYNC_FLUSH). */
+    setParams(level, strategy) {
+        if (level === -1) level = 6;
+        const config = CONFIG[level];
+        this.level = level;
+        this.strategy = strategy;
+        this.goodMatch = config[0];
+        this.maxLazy = config[1];
+        this.niceMatch = config[2];
+        this.maxChain = config[3];
+        this.func = config[4];
+    }
     setDictionary(dictionary) {
         if (this.format === ZLIB)
             this.dictId = adler32Update(1, dictionary, 0, dictionary.length);
@@ -2121,6 +2136,417 @@ function unzipSync(buffer, opts) {
     return zlibBufferSync(UNZIP, buffer, opts);
 }
 
+// ---- streams ---------------------------------------------------------------
+
+// Zero-length chunks that carry a flush kind through the write queue, so
+// that flush() keeps its place among the pending writes (as in Node).
+const kFlushFlag = Symbol("kFlushFlag");
+const kFlushBuffers = [];
+for (let kind = Z_NO_FLUSH; kind <= Z_BLOCK; kind++) {
+    const chunk = Buffer.alloc(0);
+    chunk[kFlushFlag] = kind;
+    kFlushBuffers[kind] = chunk;
+}
+// Flush kinds ordered by how much they flush (Node's maxFlush).
+const flushiness = [];
+[
+    Z_NO_FLUSH,
+    Z_BLOCK,
+    Z_PARTIAL_FLUSH,
+    Z_SYNC_FLUSH,
+    Z_FULL_FLUSH,
+    Z_FINISH,
+].forEach((kind, rank) => (flushiness[kind] = rank));
+function maxFlush(a, b) {
+    return flushiness[a] > flushiness[b] ? a : b;
+}
+
+/** The internal-assertion error Node throws when a closed stream is used. */
+function bindingClosed() {
+    const error = new Error(
+        "zlib binding closed\nThis is caused by either a bug in Node.js or incorrect usage of Node.js internals.\nPlease open an issue with this stack trace at https://github.com/nodejs/node/issues\n",
+    );
+    error.code = "ERR_INTERNAL_ASSERTION";
+    return error;
+}
+
+/**
+ * The state behind a zlib stream (Node's _handle): the engine and what is
+ * needed to reset it. write() runs the engine synchronously.
+ */
+class ZlibHandle {
+    constructor(mode, options) {
+        this.mode = mode;
+        this.options = options;
+        this.engine = null;
+        this.reset();
+    }
+    reset() {
+        // Streams have no output limit; maxOutputLength applies to the callback API.
+        const options = Object.assign({}, this.options, {
+            maxOutputLength: kMaxLength,
+        });
+        this.engine = createEngine(this.mode, options);
+    }
+    params(level, strategy) {
+        if (this.engine instanceof Deflater) {
+            this.engine.setParams(level, strategy);
+            this.options.level = level;
+            this.options.strategy = strategy;
+        }
+    }
+    close() {
+        this.engine = null;
+    }
+    /**
+     * Compress or decompress bytes. Returns the output, the input bytes
+     * consumed and whether input is left over after the end of the stream.
+     */
+    write(flushFlag, bytes) {
+        const engine = this.engine;
+        if (engine instanceof Deflater)
+            return {
+                output: engine.push(bytes, flushFlag),
+                used: bytes.length,
+                rest: false,
+                error: null,
+            };
+        let used = 0,
+            error = null;
+        if (!engine.ended) {
+            try {
+                engine.push(bytes, flushFlag === Z_FINISH);
+            } catch (reason) {
+                error = reason;
+            }
+            used = bytes.length;
+            if (engine.ended) used -= Math.min(used, engine.remaining);
+        }
+        return {
+            output: engine.takeOutput(),
+            used,
+            rest: engine.ended && used < bytes.length,
+            error,
+        };
+    }
+}
+
+/** The common base of the zlib stream classes (Node's ZlibBase and Zlib). */
+function Zlib(opts, mode) {
+    const options = zlibOptions(mode, opts);
+    if (
+        opts != null &&
+        typeof opts === "object" &&
+        (opts.encoding || opts.objectMode || opts.writableObjectMode)
+    ) {
+        opts = Object.assign({}, opts);
+        opts.encoding = null;
+        opts.objectMode = false;
+        opts.writableObjectMode = false;
+    }
+    const streamOptions = Object.assign(
+        { autoDestroy: true },
+        opts != null && typeof opts === "object" ? opts : {},
+    );
+    // The flush kind is not a Transform flush function (Node ignores it).
+    delete streamOptions.flush;
+    Transform.call(this, streamOptions);
+    this._error = null;
+    this.bytesWritten = 0;
+    this._handle = new ZlibHandle(mode, options);
+    this._outOffset = 0;
+    this._chunkSize = options.chunkSize;
+    this._defaultFlushFlag = options.flush;
+    this._finishFlushFlag = options.finishFlush;
+    this._defaultFullFlushFlag = Z_FULL_FLUSH;
+    this._info = opts != null && typeof opts === "object" && opts.info;
+    this._maxOutputLength = options.maxOutputLength;
+    this._level = options.level;
+    this._strategy = options.strategy;
+}
+Object.setPrototypeOf(Zlib.prototype, Transform.prototype);
+Object.setPrototypeOf(Zlib, Transform);
+Object.defineProperty(Zlib.prototype, "_closed", {
+    configurable: true,
+    enumerable: true,
+    get() {
+        return !this._handle;
+    },
+});
+// The deprecated alias of bytesWritten.
+Object.defineProperty(Zlib.prototype, "bytesRead", {
+    configurable: true,
+    enumerable: true,
+    get() {
+        return this.bytesWritten;
+    },
+    set(value) {
+        this.bytesWritten = value;
+    },
+});
+Zlib.prototype.reset = function reset() {
+    if (!this._handle) throw bindingClosed();
+    this._handle.reset();
+};
+Zlib.prototype._flush = function _flush(callback) {
+    this._transform(Buffer.alloc(0), "", callback);
+};
+Zlib.prototype.flush = function flush(kind, callback) {
+    if (typeof kind === "function" || (kind === undefined && !callback)) {
+        callback = kind;
+        kind = this._defaultFullFlushFlag;
+    }
+    if (this.writableFinished) {
+        if (callback) process.nextTick(callback);
+    } else if (this.writableEnded) {
+        if (callback) this.once("end", callback);
+    } else this.write(kFlushBuffers[kind], "", callback);
+};
+Zlib.prototype.close = function close(callback) {
+    if (callback) finished(this, callback);
+    this.destroy();
+};
+Zlib.prototype._destroy = function _destroy(error, callback) {
+    if (this._handle) {
+        this._handle.close();
+        this._handle = null;
+    }
+    callback(error);
+};
+Zlib.prototype.params = function params(level, strategy, callback) {
+    checkRange(level, "level", -1, 9);
+    checkRange(strategy, "strategy", Z_DEFAULT_STRATEGY, Z_FIXED);
+    if (this._level !== level || this._strategy !== strategy) {
+        this.flush(Z_SYNC_FLUSH, () => {
+            if (!this._handle) throw bindingClosed();
+            this._handle.params(level, strategy);
+            if (!this.destroyed) {
+                this._level = level;
+                this._strategy = strategy;
+                if (callback) callback();
+            }
+        });
+    } else process.nextTick(callback);
+};
+Zlib.prototype._transform = function _transform(chunk, encoding, callback) {
+    let flushFlag = this._defaultFlushFlag;
+    if (typeof chunk[kFlushFlag] === "number") flushFlag = chunk[kFlushFlag];
+    // The last chunk (or the empty one from _flush) finishes the stream.
+    if (this.writableEnded && this.writableLength === chunk.byteLength)
+        flushFlag = maxFlush(flushFlag, this._finishFlushFlag);
+    // Node compresses on the thread pool and returns to JavaScript in a later
+    // turn of the event loop each time an output buffer is full; Nona runs
+    // the engine at once but pushes the pieces in the same turns.
+    let result = null,
+        next = 0;
+    const step = () => {
+        if (this.destroyed) {
+            callback();
+            return;
+        }
+        if (result === null) result = this._run(chunk, flushFlag);
+        const pieces = result.pieces;
+        if (next < pieces.length) {
+            this.push(pieces[next++]);
+            if (next < pieces.length || result.error) {
+                setImmediate(step);
+                return;
+            }
+        }
+        // After an error the stream is destroyed and the write never completes.
+        if (result.error) {
+            this._error = result.error;
+            this.destroy(result.error);
+            return;
+        }
+        // Input after the end of the compressed data ends the readable side.
+        if (result.rest) this.push(null);
+        callback();
+    };
+    setImmediate(step);
+};
+/** Run the engine; returns the output split as Node splits it and the error, if any. */
+Zlib.prototype._run = function _run(chunk, flushFlag) {
+    const handle = this._handle;
+    if (!handle) return { pieces: [], rest: false, error: bindingClosed() };
+    const result = handle.write(flushFlag, viewBytes(chunk)),
+        error = result.error;
+    if (!error) this.bytesWritten += result.used;
+    // Output fills buffers of chunkSize bytes; each write pushes what it
+    // produced, so a piece ends at a buffer boundary or at the end of a write.
+    // On an error, Node has only pushed the buffers that were filled.
+    const output = result.output,
+        pieces = [],
+        size = this._chunkSize;
+    let pos = 0;
+    while (pos < output.length) {
+        const n = Math.min(size - this._outOffset, output.length - pos);
+        if (error && this._outOffset + n < size) break;
+        pieces.push(Buffer.from(output.buffer, output.byteOffset + pos, n));
+        pos += n;
+        this._outOffset += n;
+        if (this._outOffset >= size) this._outOffset = 0;
+    }
+    return { pieces, rest: result.rest, error };
+};
+/** Node's internal processing hook, synchronous without cb (used by some packages). */
+Zlib.prototype._processChunk = function _processChunk(chunk, flushFlag, cb) {
+    if (typeof cb === "function") {
+        const flagged = Buffer.from(chunk);
+        flagged[kFlushFlag] = flushFlag;
+        this._transform(flagged, "", cb);
+        return undefined;
+    }
+    const result = this._run(chunk, flushFlag);
+    if (result.error) {
+        this._error = result.error;
+        this.destroy(result.error);
+        throw result.error;
+    }
+    return Buffer.concat(result.pieces);
+};
+
+/** The stream class of a mode: callable with or without new, as in Node. */
+function zlibClass(name, mode) {
+    const Class = {
+        [name]: function (opts) {
+            if (!(this instanceof Class)) return new Class(opts);
+            Zlib.call(this, opts, mode);
+        },
+    }[name];
+    Object.setPrototypeOf(Class.prototype, Zlib.prototype);
+    Object.setPrototypeOf(Class, Zlib);
+    return Class;
+}
+const Deflate = zlibClass("Deflate", DEFLATE),
+    Inflate = zlibClass("Inflate", INFLATE),
+    Gzip = zlibClass("Gzip", GZIP),
+    Gunzip = zlibClass("Gunzip", GUNZIP),
+    DeflateRaw = zlibClass("DeflateRaw", DEFLATERAW),
+    InflateRaw = zlibClass("InflateRaw", INFLATERAW),
+    Unzip = zlibClass("Unzip", UNZIP);
+
+function createDeflate(options) {
+    return new Deflate(options);
+}
+function createInflate(options) {
+    return new Inflate(options);
+}
+function createGzip(options) {
+    return new Gzip(options);
+}
+function createGunzip(options) {
+    return new Gunzip(options);
+}
+function createDeflateRaw(options) {
+    return new DeflateRaw(options);
+}
+function createInflateRaw(options) {
+    return new InflateRaw(options);
+}
+function createUnzip(options) {
+    return new Unzip(options);
+}
+
+// ---- callback API ----------------------------------------------------------
+
+function zlibBufferOnData(chunk) {
+    if (this.buffers === null) this.buffers = [chunk];
+    else this.buffers.push(chunk);
+    this.nread += chunk.length;
+    if (this.nread > this._maxOutputLength) {
+        this.close();
+        this.removeAllListeners("end");
+        const error = new RangeError(
+            "Cannot create a Buffer larger than " +
+                this._maxOutputLength +
+                " bytes",
+        );
+        error.code = "ERR_BUFFER_TOO_LARGE";
+        this.cb(error);
+    }
+}
+function zlibBufferOnError(error) {
+    this.removeAllListeners("end");
+    this.cb(error);
+}
+function zlibBufferOnEnd() {
+    let buffer;
+    if (this.nread === 0) buffer = Buffer.alloc(0);
+    else {
+        const buffers = this.buffers;
+        buffer =
+            buffers.length === 1
+                ? buffers[0]
+                : Buffer.concat(buffers, this.nread);
+    }
+    this.close();
+    if (this._info) this.cb(null, { buffer, engine: this });
+    else this.cb(null, buffer);
+}
+
+/** Node's zlibBuffer: run the whole input through a stream, then call back. */
+function zlibBuffer(Class, buffer, opts, callback) {
+    if (typeof opts === "function") {
+        callback = opts;
+        opts = {};
+    }
+    const engine = new Class(opts);
+    if (typeof callback !== "function")
+        throw invalidArgType("callback", "of type function", callback);
+    if (ArrayBuffer.isView(buffer) && !(buffer instanceof Uint8Array))
+        buffer = Buffer.from(
+            buffer.buffer,
+            buffer.byteOffset,
+            buffer.byteLength,
+        );
+    else if (
+        buffer instanceof ArrayBuffer ||
+        (typeof SharedArrayBuffer === "function" &&
+            buffer instanceof SharedArrayBuffer)
+    )
+        buffer = Buffer.from(buffer);
+    else if (
+        buffer != null &&
+        typeof buffer !== "string" &&
+        !(buffer instanceof Uint8Array)
+    )
+        throw invalidArgType(
+            "chunk",
+            "of type string or an instance of Buffer, TypedArray, or DataView",
+            buffer,
+        );
+    engine.buffers = null;
+    engine.nread = 0;
+    engine.cb = callback;
+    engine.on("data", zlibBufferOnData);
+    engine.on("error", zlibBufferOnError);
+    engine.on("end", zlibBufferOnEnd);
+    engine.end(buffer);
+}
+
+function deflate(buffer, opts, callback) {
+    zlibBuffer(Deflate, buffer, opts, callback);
+}
+function inflate(buffer, opts, callback) {
+    zlibBuffer(Inflate, buffer, opts, callback);
+}
+function gzip(buffer, opts, callback) {
+    zlibBuffer(Gzip, buffer, opts, callback);
+}
+function gunzip(buffer, opts, callback) {
+    zlibBuffer(Gunzip, buffer, opts, callback);
+}
+function deflateRaw(buffer, opts, callback) {
+    zlibBuffer(DeflateRaw, buffer, opts, callback);
+}
+function inflateRaw(buffer, opts, callback) {
+    zlibBuffer(InflateRaw, buffer, opts, callback);
+}
+function unzip(buffer, opts, callback) {
+    zlibBuffer(Unzip, buffer, opts, callback);
+}
+
 const brotliCompressSync = unsupported("brotliCompressSync"),
     brotliDecompressSync = unsupported("brotliDecompressSync"),
     brotliCompress = unsupported("brotliCompress"),
@@ -2139,6 +2565,27 @@ const zlib = {
     deflateRawSync,
     inflateRawSync,
     unzipSync,
+    deflate,
+    inflate,
+    gzip,
+    gunzip,
+    deflateRaw,
+    inflateRaw,
+    unzip,
+    Deflate,
+    Inflate,
+    Gzip,
+    Gunzip,
+    DeflateRaw,
+    InflateRaw,
+    Unzip,
+    createDeflate,
+    createInflate,
+    createGzip,
+    createGunzip,
+    createDeflateRaw,
+    createInflateRaw,
+    createUnzip,
     brotliCompressSync,
     brotliDecompressSync,
     brotliCompress,
@@ -2166,6 +2613,27 @@ export {
     deflateRawSync,
     inflateRawSync,
     unzipSync,
+    deflate,
+    inflate,
+    gzip,
+    gunzip,
+    deflateRaw,
+    inflateRaw,
+    unzip,
+    Deflate,
+    Inflate,
+    Gzip,
+    Gunzip,
+    DeflateRaw,
+    InflateRaw,
+    Unzip,
+    createDeflate,
+    createInflate,
+    createGzip,
+    createGunzip,
+    createDeflateRaw,
+    createInflateRaw,
+    createUnzip,
     brotliCompressSync,
     brotliDecompressSync,
     brotliCompress,
