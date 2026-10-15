@@ -44,9 +44,9 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 
 ## ES2020 के बाद
 
-बाद के संस्करणों के ज़्यादातर फ़ीचर समर्थित नहीं हैं, जिनमें `FinalizationRegistry`, RegExp का `v` फ़्लैग और टॉप-लेवल `await` शामिल हैं। समर्थित जोड़:
+बाद के संस्करणों के ज़्यादातर फ़ीचर समर्थित नहीं हैं, जिनमें RegExp का `v` फ़्लैग और टॉप-लेवल `await` शामिल हैं। समर्थित जोड़:
 
-- ES2021: न्यूमेरिक सेपरेटर, लॉजिकल असाइनमेंट (`&&=`, `||=`, `??=`), `Promise.any` और `AggregateError`, `String.prototype.replaceAll`, `WeakRef`।
+- ES2021: न्यूमेरिक सेपरेटर, लॉजिकल असाइनमेंट (`&&=`, `||=`, `??=`), `Promise.any` और `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`।
 - ES2022: क्लास फ़ील्ड, प्राइवेट मेथड और एक्सेसर, स्टैटिक ब्लॉक, `#x in obj`, `.at()`, `Object.hasOwn` और Error `cause`।
 - ES2023: `findLast` और `findLastIndex`।
 

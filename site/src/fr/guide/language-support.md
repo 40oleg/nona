@@ -44,9 +44,9 @@ Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions document�
 
 ## Au-delà d’ES2020
 
-La plupart des fonctionnalités des éditions ultérieures ne sont pas prises en charge, notamment `FinalizationRegistry`, le drapeau RegExp `v` et `await` de premier niveau. Ajouts pris en charge :
+La plupart des fonctionnalités des éditions ultérieures ne sont pas prises en charge, notamment le drapeau RegExp `v` et `await` de premier niveau. Ajouts pris en charge :
 
-- ES2021 : séparateurs numériques, affectation logique (`&&=`, `||=`, `??=`), `Promise.any` et `AggregateError`, `String.prototype.replaceAll`, `WeakRef`.
+- ES2021 : séparateurs numériques, affectation logique (`&&=`, `||=`, `??=`), `Promise.any` et `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
 - ES2022 : champs de classe, méthodes et accesseurs privés, blocs statiques, `#x in obj`, `.at()`, `Object.hasOwn` et `cause` des erreurs.
 - ES2023 : `findLast` et `findLastIndex`.
 
