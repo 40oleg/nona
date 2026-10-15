@@ -1,4 +1,4 @@
-# Networking (`node:http`, `node:net`)
+# Networking (`node:http`, `node:net`, `node:tls`)
 
 Nona compiles HTTP/1.1 servers and clients and plain TCP sockets into the
 executable. The modules follow the Node.js APIs and wire behaviour closely
@@ -41,7 +41,7 @@ are answered with `400 Bad Request` (`431` for headers over 16 KiB) unless the
 server has a `clientError` listener; parse errors carry the llhttp codes
 (`HPE_INVALID_METHOD`, `HPE_HEADER_OVERFLOW`, …).
 
-Not supported: HTTPS (`node:https`, TLS), HTTP/2, `headersTimeout` and
+Not supported: HTTPS (`node:https`; see [`node:tls`](#nodetls) for TLS), HTTP/2, `headersTimeout` and
 `requestTimeout` (the values exist but are not enforced), `insecureHTTPParser`,
 `maxHeadersCount`, Unix domain sockets (`socketPath`).
 
@@ -60,8 +60,45 @@ Host names are resolved synchronously: `localhost` is `127.0.0.1`; on Linux the
 module reads `/etc/hosts` and then asks the first `nameserver` of
 `/etc/resolv.conf` (IPv4 `A` records over UDP); on Windows it calls
 `getaddrinfo`. A failed lookup is `ENOTFOUND` with `syscall: 'getaddrinfo'`.
-Not supported: IPC paths, `node:dns`, `node:tls`, `autoSelectFamily` (a host
-name connects to its first IPv4 address).
+Not supported: IPC paths, `node:dns`, `autoSelectFamily` (a host name connects
+to its first IPv4 address).
+
+## `node:tls`
+
+A TLS 1.3 client ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) written
+for Nona in JavaScript over `node:net`, with the cryptography of
+`nona:internal/tls-crypto`; no TLS library is linked into the executable
+([#301](https://github.com/40oleg/nona/issues/301)).
+
+| Export                                                                                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connect(options[, callback])`, `connect(port[, host][, options][, callback])`                                               | Options: `host`, `port`, `servername` (SNI; none for IP addresses), `socket` (an existing `net.Socket` to secure), `ALPNProtocols`, `ca`, `rejectUnauthorized` (default `true`), `checkServerIdentity`, `timeout`, `allowHalfOpen`. Returns a `TLSSocket`.                                                                                                                                                                                                                            |
+| `TLSSocket`                                                                                                                  | A `net.Socket`: events `connect`, `secureConnect`, `data`, `end`, `drain`, `timeout`, `error`, `close`; `write`, `end` (sends `close_notify`, then half-closes), `destroy`, `setTimeout`, `setNoDelay`, `setKeepAlive`, `ref`, `unref`, `address`, `remoteAddress`, `remotePort`. `authorized`, `authorizationError`, `alpnProtocol`, `encrypted`, `getPeerCertificate([detailed])`, `getProtocol()` (`'TLSv1.3'`), `getCipher()`, `getEphemeralKeyInfo()`, `exportKeyingMaterial()`. |
+| `checkServerIdentity`, `getCiphers`, `createSecureContext`, `DEFAULT_MIN_VERSION`, `DEFAULT_MAX_VERSION`, `rootCertificates` | `rootCertificates` is empty for now. `createServer` throws `ERR_METHOD_NOT_IMPLEMENTED`.                                                                                                                                                                                                                                                                                                                                                                                              |
+
+The client offers the cipher suites TLS_AES_128_GCM_SHA256,
+TLS_AES_256_GCM_SHA384 and TLS_CHACHA20_POLY1305_SHA256, an X25519 key share
+(P-256 after a HelloRetryRequest), and accepts ECDSA (P-256, P-384) and
+RSA-PSS handshake signatures. It handles HelloRetryRequest, KeyUpdate and
+`close_notify`, splits application data into 16 KiB records and ignores
+session tickets. Failures are errors with Node-style codes (`ERR_SSL_…`,
+`ERR_TLS_CERT_ALTNAME_INVALID`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, …), and
+the client sends the matching alert.
+
+Limitations, stated plainly:
+
+- **Only TLS 1.3.** A server limited to TLS 1.2 or older fails the connection
+  with `ERR_SSL_UNSUPPORTED_PROTOCOL`; `maxVersion` below `'TLSv1.3'` throws.
+- **No system trust store yet.** Only the certificates in `ca` are trusted,
+  so connections to public servers fail with
+  `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` unless `ca` is given or
+  `rejectUnauthorized` is `false` (which accepts any certificate). The path
+  check verifies signatures, validity periods and the CA flag of intermediate
+  certificates, not key usage, name constraints or revocation.
+- No server side, client certificates (a `CertificateRequest` is answered
+  with an empty certificate), session resumption or 0-RTT data.
+- The AES and P-256/P-384/RSA code does not run in constant time (X25519,
+  Poly1305 and the tag checks do).
 
 ## Event loop
 

@@ -19,6 +19,7 @@ import { pathModuleSourceForTarget } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
 import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
+import { tlsModuleSource } from "./tls-module.js";
 import {
     nodeCompatModules,
     cryptoModuleSource,
@@ -162,6 +163,8 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:net", () => aliasOf("node:net")],
     ["node:http", () => httpModuleSource],
     ["nona:http", () => aliasOf("node:http")],
+    ["node:tls", () => tlsModuleSource],
+    ["nona:tls", () => aliasOf("node:tls")],
 ]);
 
 export function isBuiltinModule(specifier: string): boolean {
@@ -185,9 +188,14 @@ function builtinInventory(
             continue;
         if (specifier.startsWith("nona:internal/")) continue;
         if (
-            ["node:net", "nona:net", "node:http", "nona:http"].includes(
-                specifier,
-            ) &&
+            [
+                "node:net",
+                "nona:net",
+                "node:http",
+                "nona:http",
+                "node:tls",
+                "nona:tls",
+            ].includes(specifier) &&
             target !== "win32-x64" &&
             target !== "linux-x64"
         )

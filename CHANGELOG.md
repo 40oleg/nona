@@ -8,6 +8,7 @@
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 
 - `crypto.hkdf` and `crypto.hkdfSync` (HKDF, RFC 5869, with Node's argument checks and an `ArrayBuffer` result), and the internal module `nona:internal/tls-crypto` with the primitives of the coming TLS client: TLS 1.3 HKDF-Expand-Label, AES-128/256-GCM, ChaCha20-Poly1305, X25519, P-256/P-384 ECDH, ECDSA and RSA (PKCS#1 v1.5, PSS) signature verification and a DER reader, in JavaScript without external code. ([#301](https://github.com/40oleg/nona/issues/301))
+- `node:tls` (also `tls`, `nona:tls`) on win32-x64 and linux-x64: a TLS 1.3 client (`tls.connect`, `TLSSocket`) with SNI, ALPN, HelloRetryRequest, KeyUpdate, the three TLS 1.3 cipher suites and ECDSA/RSA-PSS certificates, checked against the RFC 8448 handshake trace and Node.js servers. TLS 1.2 is not implemented (`ERR_SSL_UNSUPPORTED_PROTOCOL`), and until the system trust store is read only certificates in the `ca` option are trusted. ([#301](https://github.com/40oleg/nona/issues/301))
 
 ### Performance
 
