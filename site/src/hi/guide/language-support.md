@@ -27,20 +27,20 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 
 ## बिल्ट-इन
 
-| क्षेत्र                                  | स्थिति  | टिप्पणियाँ                                                                                                                                                         |
-| ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Object, Function, Boolean, Symbol, Error | समर्थित | प्रॉपर्टी डिस्क्रिप्टर, इंटीग्रिटी ऑपरेशन और ग्लोबल व well-known सिंबल सहित।                                                                                       |
-| Number, Math, URI फ़ंक्शन                | समर्थित | सबसे छोटा राउंड-ट्रिप नंबर फ़ॉर्मैटिंग, `toFixed`/`toExponential`/`toPrecision`, ES2020 के सभी `Math` फ़ंक्शन।                                                     |
-| String                                   | समर्थित | ES2020 मेथड, Unicode नॉर्मलाइज़ेशन, ECMA-402 लोकेल डेटा के बिना `localeCompare`।                                                                                   |
-| RegExp                                   | समर्थित | नामित ग्रुप, lookbehind, `s`, `u`, `y` और `g` फ़्लैग, Unicode property escapes, `matchAll`। इंजन प्रील्यूड के रूप में लिखी गई बैकट्रैकिंग VM है; यह V8 से धीमा है। |
-| Array                                    | समर्थित | ES2020 के सभी मेथड, species, होल और बहुत बड़ी लंबाई।                                                                                                               |
-| Date, JSON                               | समर्थित | UTC और लोकल समय में तारीख़ पार्स और फ़ॉर्मैट करना, reviver के साथ `JSON.parse`, replacer और इंडेंटेशन के साथ `JSON.stringify`।                                     |
-| Map, Set, WeakMap, WeakSet               | समर्थित | वीक कलेक्शन के लिए ephemeron सिमैंटिक्स।                                                                                                                           |
-| ArrayBuffer, DataView, टाइप्ड ऐरे        | समर्थित | BigInt ऐरे सहित सभी 11 तरह के टाइप्ड ऐरे, डिटैचमेंट, species।                                                                                                      |
-| SharedArrayBuffer, Atomics               | समर्थित | वर्कर एजेंट के साथ `Atomics.wait`/`notify` सहित (Test262 इनका उपयोग करता है)।                                                                                      |
-| Proxy, Reflect                           | समर्थित | सभी ट्रैप और इनवेरिएंट।                                                                                                                                            |
-| Promise                                  | समर्थित | `all`, `allSettled`, `race`, `finally`, thenable और अनहैंडल्ड रिजेक्शन की रिपोर्टिंग।                                                                              |
-| `globalThis`, `console.log`              | समर्थित | `console.log` स्टैंडर्ड आउटपुट पर UTF-8 लिखता है। `console.info` और `console.debug` भी यही करते हैं; `console.error` और `console.warn` स्टैंडर्ड एरर पर लिखते हैं। |
+| क्षेत्र                                  | स्थिति  | टिप्पणियाँ                                                                                                                                                                                             |
+| ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Object, Function, Boolean, Symbol, Error | समर्थित | प्रॉपर्टी डिस्क्रिप्टर, इंटीग्रिटी ऑपरेशन और ग्लोबल व well-known सिंबल सहित।                                                                                                                           |
+| Number, Math, URI फ़ंक्शन                | समर्थित | सबसे छोटा राउंड-ट्रिप नंबर फ़ॉर्मैटिंग, `toFixed`/`toExponential`/`toPrecision`, ES2020 के सभी `Math` फ़ंक्शन।                                                                                         |
+| String                                   | समर्थित | ES2020 मेथड, Unicode नॉर्मलाइज़ेशन, ECMA-402 लोकेल डेटा के बिना `localeCompare`।                                                                                                                       |
+| RegExp                                   | समर्थित | नामित ग्रुप, lookbehind, `s`, `u`, `y` और `g` फ़्लैग, Unicode property escapes, `matchAll`, पैटर्न मॉडिफ़ायर `(?i:…)` (ES2025)। इंजन प्रील्यूड के रूप में लिखी गई बैकट्रैकिंग VM है; यह V8 से धीमा है। |
+| Array                                    | समर्थित | ES2020 के सभी मेथड, species, होल और बहुत बड़ी लंबाई।                                                                                                                                                   |
+| Date, JSON                               | समर्थित | UTC और लोकल समय में तारीख़ पार्स और फ़ॉर्मैट करना, reviver के साथ `JSON.parse`, replacer और इंडेंटेशन के साथ `JSON.stringify`।                                                                         |
+| Map, Set, WeakMap, WeakSet               | समर्थित | वीक कलेक्शन के लिए ephemeron सिमैंटिक्स।                                                                                                                                                               |
+| ArrayBuffer, DataView, टाइप्ड ऐरे        | समर्थित | BigInt ऐरे सहित सभी 11 तरह के टाइप्ड ऐरे, डिटैचमेंट, species।                                                                                                                                          |
+| SharedArrayBuffer, Atomics               | समर्थित | वर्कर एजेंट के साथ `Atomics.wait`/`notify` सहित (Test262 इनका उपयोग करता है)।                                                                                                                          |
+| Proxy, Reflect                           | समर्थित | सभी ट्रैप और इनवेरिएंट।                                                                                                                                                                                |
+| Promise                                  | समर्थित | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable और अनहैंडल्ड रिजेक्शन की रिपोर्टिंग।                                                                                                 |
+| `globalThis`, `console.log`              | समर्थित | `console.log` स्टैंडर्ड आउटपुट पर UTF-8 लिखता है। `console.info` और `console.debug` भी यही करते हैं; `console.error` और `console.warn` स्टैंडर्ड एरर पर लिखते हैं।                                     |
 
 ## ES2020 के बाद
 
