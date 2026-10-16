@@ -203,7 +203,7 @@ ${processReportNetworkIntrinsicsSource}
     processEmitter=__nonaRegexpVm.eventEmitterModule;
     function Process(){apply(processEmitter,this,[])}
     Process.prototype=createObject(processEmitter.prototype);defineProperty(Process.prototype,'constructor',{value:Process,writable:true,configurable:true});setPrototype(Process,processEmitter);defineProperty(Process,'name',{value:'process',configurable:true});
-    var process=new Process();
+    var process=new Process();defineProperty(process,Symbol.toStringTag,{value:'process',writable:true,enumerable:false,configurable:false});
     function value(name,v){defineProperty(process,name,{value:v,writable:true,enumerable:true,configurable:true})}
     value('argv',argv);value('env',env);value('execPath',execPath);
     defineProperty(process,'platform',{value:platform,enumerable:true,configurable:true});defineProperty(process,'arch',{value:'__NONA_PROCESS_ARCH__',enumerable:true,configurable:true});
