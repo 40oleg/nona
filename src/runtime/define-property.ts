@@ -334,7 +334,7 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             a.jcc("e", no);
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             a.jcc("ne", no);
             a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "r11");
@@ -442,7 +442,7 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             a.add("rax", "r11");
             // Detached by the value conversion: TypedArraySetElement ignores the write and [[DefineOwnProperty]] succeeds (ES2021+).
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             a.jcc("ne", yes);
             a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rdx", { base: "rdx", disp: ArrayBufferLayout.bytes });

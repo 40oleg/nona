@@ -1100,10 +1100,6 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "set", {
         set(source) {
             "use strict";
             __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues, this);
-            var targetLength = __nonaRegexpVm.safeCall(
-                __nonaRegexpVm.typedArrayLength,
-                this,
-            );
             var offset = arguments[1];
             var targetOffset = offset === undefined ? 0 : +offset;
             if (targetOffset !== targetOffset) targetOffset = 0;
@@ -1117,6 +1113,11 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "set", {
                     "Invalid TypedArray offset",
                 );
             __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues, this);
+            // After the offset coercion, which may resize the buffer.
+            var targetLength = __nonaRegexpVm.safeCall(
+                __nonaRegexpVm.typedArrayLength,
+                this,
+            );
             if (source === null || source === undefined)
                 throw new __nonaRegexpVm.bufferTypeError(
                     "Source is null or undefined",
@@ -1227,7 +1228,13 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "subarray", {
                 end === undefined
                     ? length
                     : __nonaRegexpVm.typedArrayRelativeIndex(end, length);
-            var newLength = __nonaRegexpVm.arrayBufferMax(final - first, 0);
+            // A length-tracking source without an end gives a length-tracking
+            // view (ES2024 23.2.3.29 step 15).
+            var newLength =
+                end === undefined &&
+                __nonaRegexpVm.typedArrayRawLength(this, true)
+                    ? undefined
+                    : __nonaRegexpVm.arrayBufferMax(final - first, 0);
             var defaultConstructor = __nonaRegexpVm.safeCall(
                 __nonaRegexpVm.typedArrayDefaultConstructor,
                 undefined,
@@ -1270,6 +1277,16 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "slice", {
             var result = __nonaRegexpVm.typedArraySpeciesCreate(this, count);
             if (count > 0) {
                 __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues, this);
+                // The coercions and the species constructor may have shrunk a
+                // resizable buffer (ES2024 23.2.3.27 step 14).
+                final = __nonaRegexpVm.arrayBufferMin(
+                    final,
+                    __nonaRegexpVm.safeCall(
+                        __nonaRegexpVm.typedArrayLength,
+                        this,
+                    ),
+                );
+                count = __nonaRegexpVm.arrayBufferMax(final - first, 0);
                 var sourceConstructor = __nonaRegexpVm.safeCall(
                     __nonaRegexpVm.typedArrayDefaultConstructor,
                     undefined,

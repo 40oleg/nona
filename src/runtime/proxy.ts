@@ -1149,7 +1149,7 @@ export function emitProxy(b: RuntimeBuilder): void {
                 a.cmp("rax", -2);
                 a.jcc("e", done);
                 emitViewCheck(a, "r10");
- a.test("r11", "r11");
+                a.test("r11", "r11");
                 a.jcc("ne", done);
                 a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
                 a.cmp("rax", "r11");

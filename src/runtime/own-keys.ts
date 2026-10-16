@@ -222,7 +222,7 @@ export function emitOwnKeys(b: RuntimeBuilder): void {
             a.jcc("ne", notTyped);
             a.load("rax", slot(56));
             emitViewCheck(a, "rax");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             const attached = a.unique("attached");
             a.jcc("e", attached);
             a.mov("rax", 0);

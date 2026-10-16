@@ -231,7 +231,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.label(accepted);
             a.store(slot(64), "r10");
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.mov("rax", 0);
             a.store(slot(80), "rax");
@@ -408,7 +408,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             failIf(a, "b", "rt.throwTypeError");
             a.label(valid);
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.mov("rax", 0);
             a.store(slot(80), "rax");
@@ -441,7 +441,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.store(slot(96), "rax");
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rdx", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "rdx");
@@ -574,7 +574,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             failIf(a, "b", "rt.throwTypeError");
             a.label(valid);
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.mov("rax", 0);
             a.store(slot(80), "rax");
@@ -607,7 +607,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.store(slot(96), "rax");
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rdx", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "rdx");
@@ -665,7 +665,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.label(converted);
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rax", slot(96));
             // RevalidateAtomicAccess (ES2024 25.4.3.18): the conversion may have shrunk the buffer.
@@ -1043,7 +1043,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
                 failIf(a, "b", "rt.throwTypeError");
                 a.label(valid);
                 emitViewCheck(a, "r10");
- a.test("r11", "r11");
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.mov("rax", 0);
                 a.store(slot(80), "rax");
@@ -1076,7 +1076,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
                 a.store(slot(96), "rax");
                 a.load("r10", slot(64));
                 emitViewCheck(a, "r10");
- a.test("r11", "r11");
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rdx", { base: "r10", disp: TypedArrayLayout.length });
                 a.cmp("rax", "rdx");
@@ -1116,7 +1116,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
                 a.label(converted);
                 a.load("r10", slot(64));
                 emitViewCheck(a, "r10");
- a.test("r11", "r11");
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", slot(96));
                 // RevalidateAtomicAccess (ES2024 25.4.3.18): the conversion may have shrunk the buffer.
@@ -1275,7 +1275,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             failIf(a, "b", "rt.throwTypeError");
             a.label(valid);
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.mov("rax", 0);
             a.store(slot(80), "rax");
@@ -1308,7 +1308,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.store(slot(96), "rax");
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rdx", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "rdx");
@@ -1358,7 +1358,7 @@ export function emitAtomics(b: RuntimeBuilder): void {
             }
             a.load("r10", slot(64));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rax", slot(96));
             // RevalidateAtomicAccess (ES2024 25.4.3.18): the conversion may have shrunk the buffer.

@@ -41,7 +41,10 @@ export function emitViewBounds(b: RuntimeBuilder): void {
             a.mov("rcx", 0);
             if (typed) {
                 const ready = a.unique("shift");
-                a.load("rax", { base: "r8", disp: TypedArrayLayout.elementType });
+                a.load("rax", {
+                    base: "r8",
+                    disp: TypedArrayLayout.elementType,
+                });
                 for (const [limit, shift] of [
                     [4, 0],
                     [6, 1],

@@ -404,7 +404,7 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.jcc("e", typedMissing);
         a.load("rcx", slot(48));
         emitViewCheck(a, "rcx");
- a.test("r11", "r11");
+        a.test("r11", "r11");
         a.jcc("ne", typedMissing);
         a.load("r10", { base: "rcx", disp: TypedArrayLayout.length });
         a.cmp("rax", "r10");
@@ -628,7 +628,7 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.test("rax", "rax");
         a.jcc("s", slow);
         emitViewCheck(a, "r10");
- a.test("r11", "r11");
+        a.test("r11", "r11");
         a.jcc("ne", slow);
         a.load("r9", { base: "r10", disp: TypedArrayLayout.length });
         a.cmp("rax", "r9");
@@ -1584,7 +1584,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.jcc("e", done);
             a.load("r10", slot(72));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             a.jcc("ne", done);
             a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "r11");
@@ -1611,7 +1611,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.load("r11", { base: "r10", disp: TypedArrayLayout.byteOffset });
             a.add("rax", "r11");
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             a.jcc("ne", done);
             a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rdx", { base: "rdx", disp: ArrayBufferLayout.bytes });
@@ -1727,7 +1727,7 @@ export function emitObjects(b: RuntimeBuilder): void {
                 a.jcc("e", done);
                 a.load("r10", slot(80));
                 emitViewCheck(a, "r10");
- a.test("r11", "r11");
+                a.test("r11", "r11");
                 a.jcc("ne", done);
                 a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
                 a.cmp("rax", "r11");
@@ -2134,7 +2134,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.jcc("e", yes);
             a.load("r10", slot(72));
             emitViewCheck(a, "r10");
- a.test("r11", "r11");
+            a.test("r11", "r11");
             a.jcc("ne", yes);
             a.load("r10", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "r10");

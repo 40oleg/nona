@@ -96,7 +96,7 @@ export function emitObjectIntrospection(b: RuntimeBuilder): void {
         // IsValidIntegerIndex: a detached buffer has no elements (ES2021+, checked by the pinned Test262).
         a.load("r10", slot(56));
         emitViewCheck(a, "r10");
- a.test("r11", "r11");
+        a.test("r11", "r11");
         a.jcc("ne", missing);
         a.load("r10", slot(56));
         a.load("r10", { base: "r10", disp: TypedArrayLayout.length });
