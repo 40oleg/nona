@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- **ES2024: Resizable ArrayBuffer and SharedArrayBuffer.** `ArrayBuffer` constructor accepts `options.maxByteLength`, and instances have `resize`, `resizable`, `maxByteLength`, `transfer`, `transferToFixedLength` and `detached` properties; `SharedArrayBuffer` also supports `grow` and growable sizes; length-tracking typed arrays and DataViews re-check their source buffers in method calls. Test262: `built-ins/ArrayBuffer` 192/192, `built-ins/SharedArrayBuffer` 104/104, `built-ins/TypedArray` 1304/1453 and `built-ins/DataView` 506/506 (post-ES2020 API and eval-exception mismatches excluded). ([#315](https://github.com/40oleg/nona/issues/315))
+
 ### Runtime
 
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
