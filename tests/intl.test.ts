@@ -80,8 +80,16 @@ for (const [name, source] of Object.entries(programs))
     });
 
 // DateTimeFormat and the Date methods, compared with Node.js in the UTC time
-// zone (Nona's local time zone is UTC).
+// zone (Nona's local time zone is UTC). Each DateTimeFormat runs a few
+// thousand prelude operations to resolve its pattern, too many to collect
+// before each one in programs that build dozens of formats; "DateTimeFormat
+// under GC stress" covers the rooting of every method.
 const dateTimePrograms: Record<string, string> = {
+    "DateTimeFormat under GC stress": `
+const d=Date.UTC(2026,0,5,13,4,5,9),f=new Intl.DateTimeFormat("en-US",{weekday:"short",month:"long",day:"numeric",hour:"numeric",minute:"2-digit",fractionalSecondDigits:2,timeZoneName:"short",timeZone:"UTC"}),s=new Intl.DateTimeFormat("en-US",{dateStyle:"full",timeStyle:"short",timeZone:"+05:30"});
+console.log(f.format(d),"|",s.format(d),"|",JSON.stringify(f.formatToParts(d)),JSON.stringify(f.resolvedOptions()),JSON.stringify(s.resolvedOptions()));
+console.log(JSON.stringify(s.formatRangeToParts(d,d+3600e3)),"|",[0,1e12].map(f.format).join(" | "));
+const x=new Date(d);console.log(x.toLocaleTimeString("en-US",{timeZone:"UTC"}),"|",new Date(NaN).toLocaleString());`,
     "DateTimeFormat dateStyle and timeStyle": `
 const S=[undefined,"full","long","medium","short"],dates=[Date.UTC(2026,0,5,13,4,5,9),Date.UTC(2026,9,16,0,0,0),Date.UTC(999,11,31,23,59,59),Date.UTC(-5,6,1,12,0,0)];
 for(const dateStyle of S)for(const timeStyle of S){if(!dateStyle&&!timeStyle)continue;const f=new Intl.DateTimeFormat("en-US",{dateStyle,timeStyle,timeZone:"UTC"});console.log(dateStyle,timeStyle,dates.map(d=>f.format(d)).join(" | "));}
@@ -132,7 +140,9 @@ let order=[];new Intl.DateTimeFormat("en-US",new Proxy({},{get(t,k){order.push(S
 for (const [name, source] of Object.entries(dateTimePrograms))
     test(`Intl: ${name}`, () => {
         const expected = runOracle(source, { timezone: "UTC" }).stdout;
-        const run = runOnHost(source, { gcStress: true });
+        const run = runOnHost(source, {
+            gcStress: name === "DateTimeFormat under GC stress",
+        });
         assert.equal(run.error, undefined);
         assert.equal(run.status, 0, run.stderr);
         assert.equal(run.stdout, expected);

@@ -2318,7 +2318,7 @@
 
     // The entries' matchers are filled into one scratch matcher; patterns
     // and specified skeletons are read when an entry is chosen.
-    var trialMatcher,
+    var entryFieldList = [],
         entryPatterns = [],
         entrySkeletons = [];
     function entryPattern(index) {
@@ -2333,40 +2333,92 @@
             entrySkeletons[index] = matcher(skeleton);
         return entrySkeletons[index];
     }
+    // The field types and the field mask of every entry, read once:
+    // matching runs for each DateTimeFormat, and GC stress collects before
+    // every operation. This is fillMatcher without the letters and lengths.
+    function entryOf(text) {
+        var type = fieldArray(0),
+            mask = 0,
+            hour = "",
+            quoted = false,
+            i = 0,
+            n = text.length;
+        while (i < n) {
+            var c = code(text, i);
+            if (c === 39) quoted = !quoted;
+            if (quoted || !isPatternLetter(c)) {
+                i++;
+                continue;
+            }
+            var first = i;
+            while (i < n && code(text, i) === c) i++;
+            var letter = text[first],
+                row = letterRow(letter);
+            if (row === undefined) continue;
+            var f = row[0];
+            type[f] = rowType(row, rowIndex(row, i - first), i - first);
+            mask |= 1 << f;
+            if (f === HOUR_FIELD) hour = letter;
+        }
+        if (
+            type[MINUTE_FIELD] &&
+            type[FRACTIONAL_FIELD] &&
+            !type[SECOND_FIELD]
+        ) {
+            type[SECOND_FIELD] = NUMERIC + 1;
+            mask |= 1 << SECOND_FIELD;
+        }
+        if (hour === "h" || hour === "K") {
+            if (!type[DAYPERIOD_FIELD]) {
+                type[DAYPERIOD_FIELD] = SHORT;
+                mask |= 1 << DAYPERIOD_FIELD;
+            }
+        } else if (type[HOUR_FIELD] && type[DAYPERIOD_FIELD]) {
+            type[DAYPERIOD_FIELD] = 0;
+            mask &= ~(1 << DAYPERIOD_FIELD);
+        }
+        return { type: type, mask: mask };
+    }
+    function entryFields() {
+        if (entryFieldList.length === 0)
+            for (var i = 0; 2 * i < generatorTable.length; i++) {
+                var skeleton = generatorTable[2 * i];
+                push(
+                    entryFieldList,
+                    entryOf(
+                        skeleton === "" ? generatorTable[2 * i + 1] : skeleton,
+                    ),
+                );
+            }
+        return entryFieldList;
+    }
     function bestRaw(request, mask) {
-        if (trialMatcher === undefined) trialMatcher = newMatcher();
-        var best,
+        var entries = entryFields(),
+            wanted = fieldMask(request) & mask,
+            mine = [],
+            best,
             bestDistance = 1 / 0,
             bestMissing = -1,
             bestExtra = 0;
-        for (var i = 0; 2 * i < generatorTable.length; i++) {
-            var skeleton = generatorTable[2 * i],
-                trial = fillMatcher(
-                    trialMatcher,
-                    skeleton === "" ? generatorTable[2 * i + 1] : skeleton,
-                ),
-                distance = 0,
-                missing = 0,
-                extra = 0;
-            for (var f = 0; f < FIELD_COUNT; f++) {
-                var mine = mask & (1 << f) ? request.type[f] : 0,
-                    other = trial.type[f];
-                if (mine === other) continue;
-                if (mine === 0) {
-                    distance += 0x10000;
-                    extra |= 1 << f;
-                } else if (other === 0) {
-                    distance += 0x1000;
-                    missing |= 1 << f;
-                } else distance += mine > other ? mine - other : other - mine;
+        for (var f = 0; f < FIELD_COUNT; f++)
+            if (wanted & (1 << f)) push(mine, f);
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i],
+                distance = 0;
+            for (var k = 0; k < mine.length; k++) {
+                var a = request.type[mine[k]],
+                    b = entry.type[mine[k]];
+                if (b === 0) distance += 0x1000;
+                else distance += a > b ? a - b : b - a;
             }
-            if (
-                distance < bestDistance ||
-                (distance === bestDistance && bestMissing < missing)
-            ) {
+            for (var extra = entry.mask & ~wanted; extra; extra &= extra - 1)
+                distance += 0x10000;
+            if (distance > bestDistance) continue;
+            var missing = wanted & ~entry.mask;
+            if (distance < bestDistance || bestMissing < missing) {
                 bestDistance = distance;
                 bestMissing = missing;
-                bestExtra = extra;
+                bestExtra = entry.mask & ~wanted;
                 best = i;
                 if (distance === 0) break;
             }
@@ -3847,21 +3899,26 @@
     );
     installSupportedLocalesOf(DateTimeFormat);
     // format and toLocaleString print U+202F as a space, like V8 (for web
-    // compatibility); formatToParts and the ranges keep it.
-    function formatDate(slots, t) {
-        var parts = formatPattern(slots, slots.pattern, dateFields(slots, t)),
-            text = "";
+    // compatibility), and so does formatRange when both dates format alike;
+    // formatToParts, formatRangeToParts and the true ranges keep it.
+    function spaceParts(parts) {
         for (var i = 0; i < parts.length; i++) {
             var value = parts[i][1];
-            if (call(stringIndexOf, value, "\u202f") >= 0) {
+            if (call(stringIndexOf, value, " ") >= 0) {
                 var spaced = "";
                 for (var j = 0; j < value.length; j++)
-                    spaced += value[j] === "\u202f" ? " " : value[j];
-                value = spaced;
+                    spaced += value[j] === " " ? " " : value[j];
+                parts[i][1] = spaced;
             }
-            text += value;
         }
-        return text;
+        return parts;
+    }
+    function formatDate(slots, t) {
+        return partsToString(
+            spaceParts(
+                formatPattern(slots, slots.pattern, dateFields(slots, t)),
+            ),
+        );
     }
     function dateArgument(value) {
         return validTime(value === undefined ? dateNow() : value);
@@ -3958,13 +4015,14 @@
         {
             formatRange(startDate, endDate) {
                 var slots = slotsOf(
-                        dateTimeFormatSlots,
-                        this,
-                        "Intl.DateTimeFormat.prototype.formatRange",
-                    ),
-                    range = rangeArguments(startDate, endDate);
+                    dateTimeFormatSlots,
+                    this,
+                    "Intl.DateTimeFormat.prototype.formatRange",
+                );
+                var range = rangeArguments(startDate, endDate),
+                    result = rangeParts(slots, range[0], range[1]);
                 return partsToString(
-                    rangeParts(slots, range[0], range[1]).parts,
+                    result.range ? result.parts : spaceParts(result.parts),
                 );
             },
         }.formatRange,
