@@ -13,6 +13,8 @@
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
+- **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
