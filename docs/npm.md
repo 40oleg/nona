@@ -50,7 +50,7 @@ A specifier that cannot be resolved is a compile error (`E_MODULE`) that names
 the importing file. Specifiers computed at run time cannot be resolved ahead of
 time: `require(name)` with a variable `name` throws `MODULE_NOT_FOUND` when it
 runs, unless the same string is also required literally elsewhere in that
-file.
+file, or through [`module.createRequire`](#modulecreaterequire).
 
 ## CommonJS and ES modules
 
@@ -104,6 +104,19 @@ Between the two systems:
 A CommonJS module is compiled once with the rest of the program; its code runs
 when it is first required or imported, not before.
 
+## module.createRequire
+
+`createRequire(filename)` from `node:module` (or `module`) returns a `require`
+for a file, as in Node.js. Modules are resolved when the program is compiled,
+so the function finds only what the program contains: the literal
+`require('x')` calls of the file that makes the `require` function (for
+example `createRequire(import.meta.url)` or `createRequire(__filename)`, also
+through a destructured `{ createRequire }` or `module.createRequire`), the
+program's CommonJS files and the modules that other files of the program
+require with a literal string. Any other id, including one computed at run
+time, throws `MODULE_NOT_FOUND`, as `require(variable)` does. A relative or
+non-absolute `filename` throws a `TypeError`.
+
 ## Built-in modules
 
 `require('fs')`, `require('node:fs')` and `import fs from 'fs'` load Nona's
@@ -123,7 +136,7 @@ these modules exist mainly for packages (see
 | `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                                                                                     |
 | `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                                                                       |
 | `node:perf_hooks`                     | `performance`                                                                                                                                                                                                                  |
-| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` throws                                                                                                                                                                          |
+| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` (resolves only what the program contains, see [module.createRequire](#modulecreaterequire))                                                                                     |
 | `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                 |
 | `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                       |
 | `node:https`                          | `Agent` and `globalAgent` (Linux and Windows); there is no TLS, so `request`, `get` and `createServer` throw `ERR_NONA_UNSUPPORTED`                                                                                            |
@@ -143,7 +156,21 @@ acorn, ansi-styles, axios (HTTP requests to `http:` URLs), big.js, bignumber.js,
 date-fns, dayjs, debug, decimal.js, deepmerge, diff, escape-html,
 fast-deep-equal, immer, js-yaml, kleur, lodash, marked, minimist, ms,
 mustache, nanoid, picocolors, qs, ramda, semver, strip-ansi, underscore, uuid,
-validator, zod.
+validator, yargs, zod.
+
+yargs (18.2, with `yargs-parser` 22) was checked from its ESM and CommonJS
+entries with options and their types, aliases, defaults, `demandOption`,
+commands with positional arguments and a handler, `.strict()`, `.parse()` of
+fixed argument arrays, `--help`, `--version` and the errors for unknown and
+missing options, both through `.fail()` and on the real command line. Two
+differences follow from Nona's design:
+
+- `process.version` is Nona's version and `process.versions` has no `node`, so
+  `yargs-parser` stops at import with its "minimum Node.js version" check
+  unless the environment sets `YARGS_MIN_NODE_VERSION=0`.
+- `process.argv` has no script path (see [process](process.md)), so
+  `hideBin(process.argv)` drops the first real argument; use
+  `process.argv.slice(1)` instead.
 
 ## Limitations
 
@@ -151,17 +178,21 @@ validator, zod.
 Function` or `eval` from strings built at run time fail when they do so:
   `ajv` (schema compilation), `lodash.template` and `_.template`, `ejs`,
   `handlebars.compile`. See [eval and Function](es2020-contract.md).
-- **`Intl`** is not available, so packages that format dates or numbers with it
-  (`luxon`, `Intl`-based `date-fns-tz`) fail when they use it.
+- **`Intl`** has only `Intl.Segmenter` (grapheme clusters, which `string-width`
+  and `cliui` use for terminal columns). Packages that format dates or numbers
+  with the other `Intl` services (`luxon`, `Intl`-based `date-fns-tz`) fail when
+  they use them.
 - **Version checks.** `process.version` is Nona's version and Nona does not
   report a Node.js version (see [process](process.md)). Packages that refuse
-  to run below a Node.js version (`yargs-parser` 22) stop with their own error.
+  to run below a Node.js version (`yargs-parser` 22) stop with their own error,
+  unless they have a way to turn the check off (see [yargs](#tested-packages)).
 - **TLS and Brotli.** `https:` requests and Brotli compression fail with
   `ERR_NONA_UNSUPPORTED`.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and
-  `Module._load` hooks do nothing, and `module.createRequire` throws.
+  `Module._load` hooks do nothing. `module.createRequire` resolves only the
+  modules the program contains (see [module.createRequire](#modulecreaterequire)).
 - **`console.log` of objects** prints `String(value)` rather than Node.js's
   `util.inspect` format; use `util.inspect` or `JSON.stringify`.
 - The `"browser"` field and `"browser"` condition are ignored: Nona builds
