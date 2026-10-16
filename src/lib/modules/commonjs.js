@@ -32,6 +32,19 @@ function notFound(id, module) {
     return error;
 }
 
+// require() of an ES module graph with top-level await (#306).
+function asyncModule(filename, module) {
+    const error = new Error(
+        "require() cannot be used on an ESM graph with top-level await. Use import() instead. To see where the top-level await comes from, use --experimental-print-required-tla.\n  From " +
+            module.filename +
+            " \n  Requiring " +
+            filename +
+            " ",
+    );
+    error.code = "ERR_REQUIRE_ASYNC_MODULE";
+    return error;
+}
+
 export function define(filename, dirname, factory, table) {
     return { filename, dirname, factory, table };
 }
@@ -47,6 +60,8 @@ function makeRequire(record, module) {
             throw error;
         }
         const entry = record.table.get(id);
+        if (entry !== undefined && entry[2] === 3)
+            throw asyncModule(entry[0], module);
         if (entry === undefined || entry[1] === undefined)
             throw notFound(id, module);
         const target = entry[1]();

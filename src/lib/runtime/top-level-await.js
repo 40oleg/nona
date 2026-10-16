@@ -162,11 +162,12 @@
     function asyncModuleExecutionRejected(module, error) {
         if (module.status === 2) return;
         fail(module, error);
+        // The module's own promise first, then its ancestors' (leaf to root).
+        if (module.capability !== undefined)
+            settle(module.capability, 2, error);
         var parents = module.asyncParentModules;
         for (var i = 0; i < parents.length; i++)
             asyncModuleExecutionRejected(parents[i], error);
-        if (module.capability !== undefined)
-            settle(module.capability, 2, error);
     }
     // import(): the namespace once the evaluation has finished.
     core.evaluateImport = function (index, promise) {
