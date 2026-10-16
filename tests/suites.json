@@ -316,7 +316,8 @@
                 "print-asm",
                 "typeof-compare",
                 "call-overhead",
-                "console-streams"
+                "console-streams",
+                "pick-runner"
             ]
         }
     }
