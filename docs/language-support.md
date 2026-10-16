@@ -75,7 +75,7 @@
 
 ## Возможности после ES2020
 
-Поддержаны отдельные возможности ES2021–ES2023 (#69): разделители в числовых литералах (`1_000`), логическое присваивание `&&=`, `||=`, `??=` (с NamedEvaluation для анонимных функций), `Promise.any` и `AggregateError`, `Array.prototype.at`, `String.prototype.at`, `%TypedArray%.prototype.at`, `findLast`/`findLastIndex` у массивов и typed arrays (и в `Array.prototype[@@unscopables]`), `Object.hasOwn`, `cause` в конструкторах ошибок. Их Test262-функции больше не исключаются из аудита (`scripts/test262-smoke.mjs`). Тесты: `post-es2020.test.ts`.
+Поддержаны отдельные возможности ES2021–ES2024 (#69, #311): разделители в числовых литералах (`1_000`), логическое присваивание `&&=`, `||=`, `??=` (с NamedEvaluation для анонимных функций), `Promise.any` и `AggregateError`, `Array.prototype.at`, `String.prototype.at`, `%TypedArray%.prototype.at`, `findLast`/`findLastIndex` у массивов и typed arrays (и в `Array.prototype[@@unscopables]`), `Object.hasOwn`, `Object.groupBy` и `Map.groupBy` (ES2024; подключаются, только если программа называет `groupBy`), `cause` в конструкторах ошибок. Их Test262-функции больше не исключаются из аудита (`scripts/test262-smoke.mjs`). Тесты: `post-es2020.test.ts`.
 
 Модификаторы шаблона RegExp ES2025 (#320): `(?i:…)`, `(?-i:…)` и `(?ims-ims:…)` меняют флаги `i`, `m` и `s` для атомов внутри группы. Ранние ошибки стандарта — SyntaxError: повторенный или противоречивый флаг (один и тот же флаг добавлен и убран), `(?-:`, другие буквы и отсутствие `:`. Такие группы не захватывают. Тесты: `regexp-modifiers.test.ts`.
 

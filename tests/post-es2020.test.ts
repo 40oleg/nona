@@ -28,6 +28,36 @@ const log=[];Promise.any([Promise.reject(1),Promise.resolve(2),3]).then(v=>log.p
 Promise.any([Promise.reject(1),Promise.reject(2)]).catch(e=>log.push(e.constructor.name+" "+e.errors.join()));
 Promise.any([]).catch(e=>log.push("empty "+e.errors.length));
 setTimeout(()=>console.log(log.join("|")),0);`,
+    "Object.groupBy and Map.groupBy": `
+const show=v=>JSON.stringify(v);
+const a=Object.groupBy([1,2,3,4,5],(x,i)=>x%2?"odd":"even");
+console.log(show(a),Object.getPrototypeOf(a)===null,Object.keys(a).join());
+console.log(show(Object.groupBy("a𝒜b𝒜",c=>c)),show(Object.groupBy(new Set([1,2,3]),x=>x>1)));
+function*g(){yield 1;yield 2;yield 3;}
+console.log(show(Object.groupBy(g(),(x,i)=>i)),show([...Map.groupBy(g(),x=>x%2)]));
+const sym=Symbol("s"),ts={toString(){return "ts";}};
+const c=Object.groupBy([1,2,3,4],x=>[0,sym,ts,1.5,null][x]);
+console.log(Object.getOwnPropertyNames(c).join(),c[sym].join(),c.ts.join(),c["1.5"].join(),c["null"].join());
+console.log(Object.keys(Object.groupBy([-0,0],x=>x)).join(),show(Object.groupBy([2,1],x=>x)));
+const m=Map.groupBy([-0,0,NaN,NaN,"x",1],x=>x);
+console.log(m instanceof Map,m.size,[...m.keys()].map(k=>Object.is(k,-0)?"-0":String(k)).join(),show([...m.values()]));
+const ks=Symbol("k"),vk=Object.groupBy([1],()=>({[Symbol.toPrimitive](){return ks;}}));console.log(Object.getOwnPropertySymbols(vk).length);
+const o1={},o2={};const m2=Map.groupBy([o1,o2,o1],x=>x);console.log(m2.size,m2.get(o1).length,[...Map.groupBy([3,1,2],x=>-x).keys()].join());
+const ps=Map.prototype.set,MM=Map;Map.prototype.set=function(){throw new Error("patched");};
+try{console.log(Map.groupBy([1,2],x=>x).size);}catch(e){console.log("bad",e.message);}
+Map.prototype.set=ps;
+for(const f of [()=>Object.groupBy(null,x=>x),()=>Map.groupBy(undefined,x=>x),()=>Object.groupBy([1]),()=>Map.groupBy([1],{}),()=>Object.groupBy(5,x=>x),()=>Map.groupBy({},x=>x)])
+try{f();console.log("no throw");}catch(e){console.log(e.constructor.name);}
+function it(log){return{[Symbol.iterator](){return{i:0,next(){return{value:this.i++,done:false};},return(){log.push("return");return{};}};}};}
+let log=[];try{Object.groupBy(it(log),()=>{throw new RangeError("cb");});}catch(e){log.push(e.constructor.name);}
+try{Map.groupBy(it(log),()=>{throw new EvalError("cb");});}catch(e){log.push(e.constructor.name);}
+try{Object.groupBy(it(log),()=>({toString(){throw new SyntaxError("k");}}));}catch(e){log.push(e.constructor.name);}
+try{Object.groupBy(it(log),()=>({[Symbol.toPrimitive](){return {};}}));}catch(e){log.push(e.constructor.name);}
+console.log(log.join());
+for(const [o,n] of [[Object,"Object"],[Map,"Map"]]){const d=Object.getOwnPropertyDescriptor(o,"groupBy");
+console.log(n,d.writable,d.enumerable,d.configurable,o.groupBy.name,o.groupBy.length,Function.prototype.toString.call(o.groupBy).includes("native code"));}
+let seen=[];Object.groupBy([5,6],function(){seen.push(this===undefined,arguments.length);return "k";});console.log(seen.join());
+const d2=Object.getOwnPropertyDescriptor(a,"odd");console.log(d2.writable,d2.enumerable,d2.configurable,Array.isArray(a.odd));`,
 };
 for (const [name, source] of Object.entries(programs))
     test(`post-ES2020: ${name}`, () => {
