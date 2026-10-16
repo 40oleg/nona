@@ -62,6 +62,7 @@ jobs:
                       test/language/statements/for-of
                       test/language/statements/function
                       test/built-ins/Symbol
+                      test/built-ins/Iterator
                       test/built-ins/Array/prototype
                       test/built-ins/Math
                       test/built-ins/Number
