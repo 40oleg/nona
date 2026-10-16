@@ -293,15 +293,16 @@ const integerRanges: Record<number, [number, number]> = {
  * compared in place by rt.findElements instead of being read as values. Other
  * searches (BigInt arrays, values that are not Numbers) jump to `generic`.
  * Slots: the receiver value at `receiver` (its object at +8), the searched
- * value at `search` and the start index at `start`, where a found index is
- * stored before the jump to `found`. The length read at the start of the
- * method may exceed the current one: elements past the end are undefined and
- * equal no Number.
+ * value at `search`, the start index at `start`, where a found index is
+ * stored before the jump to `found`, and the length read at the start of the
+ * method at `length`. Only elements below both that length and the current
+ * one are searched: elements past the current end are undefined and equal no
+ * Number, and a grown buffer adds no elements to the search.
  */
 export function emitTypedSearch(
     a: Assembler,
     name: "includes" | "indexOf" | "lastIndexOf",
-    slots: { receiver: number; search: number; start: number },
+    slots: { receiver: number; search: number; start: number; length: number },
     labels: { generic: string; found: string; notFound: string },
 ): void {
     const { notFound } = labels;
@@ -324,6 +325,12 @@ export function emitTypedSearch(
     a.add("rcx", "rax");
     a.load("rdx", slot(slots.start));
     a.load("r8", { base: "r10", disp: TypedArrayLayout.length });
+    const bounded = a.unique("bounded");
+    a.load("r9", slot(slots.length));
+    a.cmp("r8", "r9");
+    a.jcc("be", bounded);
+    a.mov("r8", "r9");
+    a.label(bounded);
     if (name === "lastIndexOf") {
         const inside = a.unique("inside");
         a.test("r8", "r8");

@@ -1247,7 +1247,10 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
                 a.store(slot(64), "rax");
                 a.jmp(startReady);
                 a.label(negative);
+                // lastIndexOf finds nothing below -length (its integer part
+                // -length still starts at index 0); indexOf starts at 0.
                 a.load("rax", slot(72));
+                if (name === "lastIndexOf") a.add("rax", 1);
                 a.neg("rax");
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");

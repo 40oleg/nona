@@ -310,3 +310,21 @@ examples pass 74/74 on Windows and Linux.
 search, functional replacement, replacement patterns, and custom
 `Symbol.replace` are covered. Positive smoke is 140/140; compatible
 examples pass 75/75 on Windows and Linux.
+
+Resizable and transferable ArrayBuffers and growable SharedArrayBuffers
+([#315](https://github.com/40oleg/nona/issues/315)) are supported, so
+`resizable-arraybuffer` and `arraybuffer-transfer` are no longer in
+`postEs2020Features`. With `TEST262_EXCLUDE_FEATURES=post-es2020`,
+`built-ins/ArrayBuffer` passes 192/192, `built-ins/SharedArrayBuffer` 104/104,
+`built-ins/DataView` 506/506 and `built-ins/Atomics` 272/272 (2 skips). The
+whole `built-ins/TypedArray` directory, without exclusions, passes 1304/1453:
+51 failures need later APIs (`toReversed`, `toSorted`, `with`), and 98 include
+`resizableArrayBufferUtils.js`, whose `subClass` helper creates
+`MyUint8Array`, `MyFloat32Array` and `MyBigInt64Array` with `new Function` from a
+string built at run time (the documented dynamic function exception;
+`scripts/test262-summary.mjs` classifies them `eval`). With that helper
+replaced by class expressions, all 304 tests that use the feature in
+`built-ins/Array`, `built-ins/TypedArray` and `built-ins/TypedArrayConstructors`
+pass except the 10 `TypedArray.prototype.with` tests. The Array
+`includes`, `indexOf`, `lastIndexOf`, `sort` and `toLocaleString` cases
+attributed to resizable buffers above are among them.

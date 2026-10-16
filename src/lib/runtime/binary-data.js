@@ -750,7 +750,12 @@ __nonaRegexpVm.typedArraySpeciesCreateView = function (
                 ? defaultConstructor
                 : species;
     }
-    var result = new constructor(buffer, offset, length);
+    // A length-tracking view is requested without a length argument
+    // (ES2024 23.2.3.29 step 15).
+    var result =
+        length === undefined
+            ? new constructor(buffer, offset)
+            : new constructor(buffer, offset, length);
     __nonaRegexpVm.safeCall(__nonaRegexpVm.typedArrayValues, result);
     var resultConstructor = __nonaRegexpVm.safeCall(
         __nonaRegexpVm.typedArrayDefaultConstructor,
@@ -1202,17 +1207,10 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "set", {
                     this[targetOffset + j] = values[j];
                 return;
             }
-            for (var i = 0; i < sourceLength; i++) {
-                var value = sourceIsTyped ? values[i] : source[i];
-                if (
-                    targetOffset + i <
-                    __nonaRegexpVm.safeCall(
-                        __nonaRegexpVm.typedArrayLength,
-                        this,
-                    )
-                )
-                    this[targetOffset + i] = value;
-            }
+            // [[Set]] converts each value before it checks the index, which
+            // the conversion may have moved out of a resized buffer.
+            for (var i = 0; i < sourceLength; i++)
+                this[targetOffset + i] = source[i];
         },
     }.set,
     writable: true,
@@ -1297,7 +1295,9 @@ Object.defineProperty(Object.getPrototypeOf(Uint8Array.prototype), "slice", {
                     undefined,
                     result,
                 );
-                if (sourceConstructor === resultConstructor) {
+                // A shrunk source may leave nothing to copy; its start can then
+                // lie past the end of the buffer.
+                if (count > 0 && sourceConstructor === resultConstructor) {
                     var width = sourceConstructor.BYTES_PER_ELEMENT;
                     var sourceBuffer = __nonaRegexpVm.safeCall(
                         __nonaRegexpVm.typedArrayBuffer,

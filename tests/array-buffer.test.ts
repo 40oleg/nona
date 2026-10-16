@@ -1157,3 +1157,42 @@ var g=new SharedArrayBuffer(4,{maxByteLength:12});var gd=new DataView(g),gu=new 
 var x=new Uint8Array(new ArrayBuffer(4,{maxByteLength:8}));console.log(Object.prototype.toString.call(x),ArrayBuffer.isView(x),JSON.stringify(Array.from(x)),x.buffer.resizable);
 var s=new ArrayBuffer(4,{maxByteLength:8});var sv=new Uint8Array(s,1,2);s.resize(2);console.log(sv.length,sv.byteLength,sv.byteOffset,error(()=>sv.slice()),error(()=>sv.subarray(0)),error(()=>new Uint8Array(sv)),error(()=>Uint8Array.from(sv)),error(()=>new Uint8Array(4).set(sv)));
 `));
+
+test("typed array slice, set and searches after a resize in user code", () =>
+    expectOracle(`${bufferHelpers}
+function mk(){var b=new ArrayBuffer(4,{maxByteLength:8});var u=new Uint8Array(b);u.fill(1);return [b,u];}
+var [b,u]=mk();
+for(var s=0;s<=4;s++){[b,u]=mk();var r=u.slice({valueOf(){b.resize(0);return s}});console.log(r.length,r.join());}
+[b,u]=mk();u.constructor={[Symbol.species]:Int16Array};var r2=u.slice({valueOf(){b.resize(0);return 1}});console.log(r2.constructor.name,r2.join());
+var grow={valueOf(){b.resize(b.byteLength+1);return 9}},shrink={valueOf(){b.resize(b.byteLength-1);return 5}};
+[b,u]=mk();b.resize(5);u.set({length:5,0:shrink,1:shrink,2:shrink,3:grow,4:grow});console.log(u.join(),b.byteLength);
+[b,u]=mk();console.log(u.includes(0,{valueOf(){b.resize(6);return 0}}),u.indexOf(0,{valueOf(){b.resize(8);return 0}}),u.join());
+[b,u]=mk();u[0]=7;console.log(u.includes(7,{valueOf(){b.resize(6);return -4}}),u.indexOf(7,{valueOf(){b.resize(8);return -4}}));
+[b,u]=mk();console.log(Array.prototype.lastIndexOf.call(u,0,{valueOf(){b.resize(6);return -1}}),Array.prototype.includes.call(u,0));
+var vals=[-0.5,-1,-3.5,-4,-4.5,-5];
+for(var a of [[0,1,0,1],new Uint8Array([0,1,0,1])]){var out=[];for(var v of vals)out.push(a.lastIndexOf(0,v),a.indexOf(0,v),a.includes(0,v),Array.prototype.lastIndexOf.call(a,0,v),Array.prototype.indexOf.call(a,1,v));console.log(out.join());}
+`));
+
+function expectOutput(source: string, expected: string): void {
+    for (const gcStress of [false, true]) {
+        const run = runOnHost(source, { gcStress });
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(run.stdout, expected);
+    }
+}
+
+// Node.js 22 predates these ES2024 rules, so the expected output is spelled
+// out instead of taken from the oracle.
+test("TypedArray.of sets elements after a resize and subarray species omit the length of a length-tracking view", () =>
+    expectOutput(
+        `var b=new ArrayBuffer(3,{maxByteLength:4});var t=new Int8Array(b);
+var r=Int8Array.of.call(function(){return t},{valueOf(){b.resize(0);return 1}},{valueOf(){b.resize(4);return 2}},3);
+console.log(r===t,t.join());
+console.log(Float64Array.of(1,2.5,"3").join(),Uint8Array.of().length);
+try{Uint8Array.of.call(function(){return new Uint8Array(1)},1,2)}catch(e){console.log(e.name)}
+for(var resizable of [false,true]){var buf=resizable?new ArrayBuffer(3,{maxByteLength:8}):new ArrayBuffer(3);var u=new Uint8Array(buf);u.set([40,41,42]);var args;
+u.constructor={[Symbol.species]:function(x,o,l){args=arguments;return new Uint8Array(x,o,l)}};
+var s=u.subarray(1);console.log(args.length,args[1],s.join());buf.resize&&buf.resizable&&buf.resize(4);console.log(s.length,u.subarray(1,2).length,args.length);}
+`,
+        "true 0,2,3,0\n1,2.5,3 0\nTypeError\n3 1 41,42\n2 1 3\n2 1 41,42\n3 1 3\n",
+    ));

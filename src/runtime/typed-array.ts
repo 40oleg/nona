@@ -528,10 +528,18 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.load("rax", { base: "rdx", disp: n });
                 a.store(slot(112 + n), "rax");
             }
+            // Set(newObj, k, value, true): a conversion that shrinks the
+            // buffer makes the later writes no-ops (ES2024 23.2.2.2).
+            a.mov("rax", 3);
+            a.store(slot(176), "rax");
+            a.load("rax", slot(160));
+            a.cvtsi2sd("xmm0", "rax");
+            a.storesd(slot(184), "xmm0");
             a.lea("rcx", slot(96));
-            a.load("rdx", slot(160));
+            a.lea("rdx", slot(176));
             a.lea("r8", slot(112));
-            a.call("rt.arrayFromDefine");
+            a.mov("r9", 2);
+            a.call("rt.setProperty");
             a.load("rax", slot(160));
             a.add("rax", 1);
             a.store(slot(160), "rax");
@@ -1247,15 +1255,17 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(160), "rax");
                 a.jmp(startReady);
                 a.label(negative);
+                // lastIndexOf finds nothing below -length (its integer part
+                // -length still starts at index 0); the others start at 0.
                 a.load("rax", slot(168));
+                if (name === "lastIndexOf") a.add("rax", 1);
                 a.neg("rax");
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                a.jcc(
-                    name === "lastIndexOf" ? "b" : "be",
-                    name === "lastIndexOf" ? notFound : startZero,
-                );
+                a.jcc("be", name === "lastIndexOf" ? notFound : startZero);
                 a.cvttsd2si("rax", "xmm0");
+                a.test("rax", "rax");
+                a.jcc("e", startZero);
                 a.load("r10", slot(168));
                 a.add("rax", "r10");
                 a.store(slot(160), "rax");
@@ -1301,7 +1311,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 emitTypedSearch(
                     a,
                     name,
-                    { receiver: 64, search: 80, start: 160 },
+                    { receiver: 64, search: 80, start: 160, length: 168 },
                     { generic, found, notFound },
                 );
                 a.label(generic);
