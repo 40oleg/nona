@@ -71,3 +71,21 @@ server.listen(0, '127.0.0.1', () => {
 `,
         false,
     ));
+
+test("a socket timeout fires after a timer with the same delay set before it (issue #292)", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+const server = http.createServer((req, res) => setTimeout(() => res.end('late'), 400));
+server.listen(0, '127.0.0.1', () => {
+  const req = http.get('http://127.0.0.1:' + server.address().port + '/');
+  req.on('socket', socket => {
+    setTimeout(() => console.log('timer'), 100);
+    socket.setTimeout(100);
+    socket.on('timeout', () => { console.log('socket timeout'); socket.destroy(); });
+  });
+  req.on('error', e => console.log('error', e.code));
+  req.on('close', () => { console.log('close'); server.close(); });
+});
+`,
+        false,
+    ));
