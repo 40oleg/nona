@@ -778,7 +778,6 @@ export function bind(
                     if (e.argument) expression(e.argument);
                     break;
                 case "Await":
-                    // A module body may await at its top level (ES2022).
                     if (fn ? !fn.declaration.async : !moduleNames)
                         fail(e, "await outside async function");
                     expression(e.argument);
@@ -1496,8 +1495,6 @@ export function bind(
         getters: [],
     }));
     const mainLexicals: StorageBinding[] = [...scriptLexicals];
-    // The `export default` expression binding of each module, in TDZ until set.
-    const defaultBindings = new Map<number, StorageBinding>();
     for (const record of moduleRecords) {
         const names = moduleNames[record.index]!;
         for (const statement of record.ast.body) {
@@ -1548,7 +1545,6 @@ export function bind(
                 globals.push(binding);
                 names.set("*default*", binding);
                 bindings.set(statement.defaultId!, binding);
-                defaultBindings.set(record.index, binding);
             }
         }
     }
@@ -1562,8 +1558,8 @@ export function bind(
             moduleNames[record.index],
         );
         const lexicals = lexicalScopes.get(record.ast) ?? [];
-        const defaultBinding = defaultBindings.get(record.index);
-        if (defaultBinding) lexicals.push(defaultBinding);
+        const dflt = moduleNames[record.index]!.get("*default*");
+        if (dflt) lexicals.push(dflt as StorageBinding);
         lexicalScopes.set(record.ast, lexicals);
         mainLexicals.push(...lexicals);
     }

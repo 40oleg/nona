@@ -22,7 +22,8 @@
                 "module-boundaries",
                 "lib-sources",
                 "intrinsics",
-                "source-budget"
+                "source-budget",
+                "top-level-await"
             ]
         },
         "path": {
