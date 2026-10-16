@@ -108,6 +108,7 @@
                 "regexp-split",
                 "regexp-replace",
                 "regexp-match-all",
+                "regexp-modifiers",
                 "map",
                 "set",
                 "weak-collections",
@@ -316,7 +317,8 @@
                 "typeof-compare",
                 "call-overhead",
                 "console-streams",
-                "zlib"
+                "zlib",
+                "pick-runner"
             ]
         }
     }
