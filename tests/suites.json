@@ -104,6 +104,7 @@
                 "string-match",
                 "regexp-vm",
                 "regexp-scan",
+                "regexp-surrogates",
                 "regexp-construction",
                 "regexp-split",
                 "regexp-replace",

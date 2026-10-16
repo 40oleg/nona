@@ -318,8 +318,9 @@ startup. Each is available as `node:<name>` and `<name>`.
   `/dev/urandom` elsewhere). `createHash` (`md5`, `sha1`, `sha256`, `sha384`,
   `sha512`, with `update`, `digest` in any Buffer encoding and `copy`),
   `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. Ciphers, keys,
-  signatures, key derivation and `crypto.subtle` are not provided, and there
-  is no global `crypto`.
+  signatures, key derivation and `crypto.subtle` are not provided. The global
+  `crypto` is `webcrypto` (`getRandomValues` and `randomUUID`); a program
+  that names `crypto` links `node:crypto`, which is evaluated on first access.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`,
   `unescape`.
 - `node:timers`: the global timer functions. `node:timers/promises`:
