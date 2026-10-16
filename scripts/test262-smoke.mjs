@@ -70,9 +70,10 @@ const excludePathFilters = [
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
 // this list: AggregateError, Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Promise.any, and the ES2022 class elements (fields, private methods and
+// Promise.any, the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
-// non-extensible objects), and RegExp pattern modifiers.
+// non-extensible objects), RegExp pattern modifiers and the ES2025 iterator
+// helpers (#322).
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
@@ -97,7 +98,6 @@ const postEs2020Features = [
     "import-defer",
     "import-bytes",
     "import-text",
-    "iterator-helpers",
     "iterator-sequencing",
     "joint-iteration",
     "json-modules",
