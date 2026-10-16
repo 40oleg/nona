@@ -109,6 +109,7 @@
                 "regexp-split",
                 "regexp-replace",
                 "regexp-match-all",
+                "regexp-modifiers",
                 "map",
                 "set",
                 "weak-collections",
