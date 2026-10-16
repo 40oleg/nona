@@ -4,8 +4,10 @@
 
 ### Runtime
 
+- **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 - `crypto.hkdf` and `crypto.hkdfSync` (HKDF, RFC 5869, with Node's argument checks and an `ArrayBuffer` result), and the internal module `nona:internal/tls-crypto` with the primitives of the coming TLS client: TLS 1.3 HKDF-Expand-Label, AES-128/256-GCM, ChaCha20-Poly1305, X25519, P-256/P-384 ECDH, ECDSA and RSA (PKCS#1 v1.5, PSS) signature verification and a DER reader, in JavaScript without external code. ([#301](https://github.com/40oleg/nona/issues/301))
 - `node:tls` (also `tls`, `nona:tls`) on win32-x64 and linux-x64: a TLS 1.3 client (`tls.connect`, `TLSSocket`) with SNI, ALPN, HelloRetryRequest, KeyUpdate, the three TLS 1.3 cipher suites and ECDSA/RSA-PSS certificates, checked against the RFC 8448 handshake trace and Node.js servers. TLS 1.2 is not implemented (`ERR_SSL_UNSUPPORTED_PROTOCOL`). ([#301](https://github.com/40oleg/nona/issues/301))
@@ -28,6 +30,8 @@
 
 ### Internals
 
+- CI: a pull request runs about 190 instead of 452 runner-minutes. The platform suites (`native-platforms`, `self-hosting`) run on `main` and on pull requests labelled `full-ci`; on `main` the heavy workflows check the last commit of a burst of merges while `check` still runs on every commit; a new push to a pull request now cancels its previous `native-platforms` run. ([#353](https://github.com/40oleg/nona/issues/353))
+- `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 

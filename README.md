@@ -93,7 +93,7 @@ nona --help | --version
 
 ## What is supported
 
-**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
+**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s` and `u` flags, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
@@ -159,7 +159,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above (`zlib`, `child_process`, …), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
+- Node.js modules outside the table above (`dns`, `dgram`, …), compression and child processes (`node:zlib`, `node:http2` and `node:child_process` load, but their functions throw), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
 - Plain computation is much slower than in a JIT.
 
 ## Development

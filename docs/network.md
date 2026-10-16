@@ -197,7 +197,9 @@ waits for readiness with `poll` (Linux) or `WSAPoll` (Windows) instead of
 sleeping until the next timer, so socket callbacks and timers interleave as in
 Node.js. Open servers and sockets keep the program running; `unref()` releases
 them, and free keep-alive sockets of an agent are unreferenced. Socket
-inactivity timeouts (`setTimeout`) do not keep the program alive. Events that
+inactivity timeouts (`setTimeout`) do not keep the program alive, and they
+fire in timer order: a timer set before `socket.setTimeout` with the same
+delay runs first, as in Node.js. Events that
 Node.js defers with `process.nextTick` are deferred with microtasks.
 
 ## Supporting modules

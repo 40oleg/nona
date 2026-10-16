@@ -628,6 +628,26 @@ require('timers/promises').setTimeout(1, 'later').then(v => console.log(v));
         "main.js",
     ));
 
+test("HTTP clients load https, tls, http2 and zlib and detect process (issue #292)", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const http = require('http'), https = require('https'), tls = require('tls'), http2 = require('http2'), zlib = require('zlib');
+const { isBuiltin } = require('module');
+console.log(Object.prototype.toString.call(process), process[Symbol.toStringTag], JSON.stringify(Object.getOwnPropertyDescriptor(process, Symbol.toStringTag)));
+console.log(typeof https.request, typeof https.get, typeof https.createServer, https.globalAgent instanceof https.Agent, https.globalAgent instanceof http.Agent);
+const agent = new https.Agent({ keepAlive: true });
+console.log(agent.defaultPort, agent.protocol, agent.keepAlive, new http.Agent().defaultPort);
+console.log(typeof tls.connect, typeof tls.TLSSocket, tls.DEFAULT_MAX_VERSION);
+console.log(typeof http2.connect, http2.constants.HTTP2_HEADER_STATUS, http2.constants.HTTP2_HEADER_CONTENT_TYPE, http2.constants.HTTP2_METHOD_GET);
+console.log(zlib.constants.Z_SYNC_FLUSH, zlib.constants.BROTLI_OPERATION_FLUSH, zlib.constants.ZSTD_e_flush, zlib.constants.Z_MAX_CHUNK, zlib.codes.Z_DATA_ERROR, zlib.codes[-3]);
+console.log(typeof zlib.createGunzip, typeof zlib.createUnzip, typeof zlib.createBrotliDecompress, typeof zlib.gunzipSync);
+console.log(['https', 'node:tls', 'http2', 'zlib'].map(isBuiltin).join());
+`,
+        },
+        "main.js",
+    ));
+
 test("URL and URLSearchParams follow the URL Standard", () =>
     agree(
         {
