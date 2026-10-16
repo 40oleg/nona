@@ -72,7 +72,8 @@ const excludePathFilters = [
 // error cause, logical assignment, numeric separators, Object.hasOwn,
 // Promise.any, and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
-// non-extensible objects) and RegExp match indices (the d flag).
+// non-extensible objects), RegExp match indices (the d flag) and RegExp pattern
+// modifiers.
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
@@ -109,7 +110,6 @@ const postEs2020Features = [
     "Promise.allKeyed",
     "RegExp.escape",
     "regexp-duplicate-named-groups",
-    "regexp-modifiers",
     "regexp-v-flag",
     "resizable-arraybuffer",
     "set-methods",
