@@ -7,7 +7,10 @@ on:
     workflow_dispatch:
     # release.yml builds the eight nona-<target> packages with this workflow.
     workflow_call:
+    # On a pull request the jobs run only with the full-ci label (#353); they
+    # always run on main, on manual dispatch and for releases.
     pull_request:
+        types: [opened, synchronize, reopened, labeled]
         paths:
             - "src/**"
             - "scripts/bootstrap-selfhost.mjs"
@@ -26,12 +29,15 @@ permissions:
     contents: read
 concurrency:
     # A pull request has one group (head_ref): a newer push cancels the older
-    # run. A push to main has one group per commit (sha), so the next merge
-    # does not cancel the check of the previous one (#42).
-    group: self-hosting-${{ github.head_ref || github.sha }}
-    cancel-in-progress: true
+    # run. Otherwise the group is the ref and nothing is cancelled: on main the
+    # running build finishes and a newer merge replaces the pending one, so a
+    # burst of merges is built once (#353); a release tag has a group of its
+    # own. check.yml still checks every commit of main (#42).
+    group: self-hosting-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     bootstrap:
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
         strategy:
             fail-fast: false
             matrix:
@@ -76,6 +82,7 @@ jobs:
                       work/selfhost
                       work/selfhost-cli
     native-cli-platforms:
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
         strategy:
             fail-fast: false
             matrix:
@@ -122,6 +129,7 @@ jobs:
                   name: native-cli-${{ matrix.target }}
                   path: work/native-cli
     native-cli-bsd:
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
