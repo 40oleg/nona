@@ -49,6 +49,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 - ES2021: न्यूमेरिक सेपरेटर, लॉजिकल असाइनमेंट (`&&=`, `||=`, `??=`), `Promise.any` और `AggregateError`, `String.prototype.replaceAll`।
 - ES2022: क्लास फ़ील्ड, प्राइवेट मेथड और एक्सेसर, स्टैटिक ब्लॉक, `#x in obj`, `.at()`, `Object.hasOwn` और Error `cause`।
 - ES2023: `findLast` और `findLastIndex`।
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` और `setFloat16` (सॉफ़्टवेयर round-to-nearest-even रूपांतरण)।
 
 जहाँ पिन किया गया Test262 रिविज़न ES2020 फ़ीचर के लिए पहले से नई सिमैंटिक्स जाँचता है, वहाँ Nona Test262 का पालन करता है; [Test262](/hi/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) पेज पर ये मामले सूचीबद्ध हैं।
 

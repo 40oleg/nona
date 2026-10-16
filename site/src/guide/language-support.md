@@ -49,6 +49,7 @@ Most features from later editions are not supported, among them `WeakRef` and `F
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` and Error `cause`.
 - ES2023: `findLast` and `findLastIndex`.
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` and `setFloat16` (software round-to-nearest-even conversion).
 
 Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
 
