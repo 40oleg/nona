@@ -16,6 +16,11 @@ export interface HostRun {
     stderr: string;
     error?: Error;
 }
+// A run under gcStress collects on every allocation; initialising the stdio
+// streams alone takes most of a minute on a busy CI runner, so allow longer.
+const GC_STRESS_TIMEOUT_MS = 180_000;
+const TIMEOUT_MS = 60_000;
+
 /** Compile with the runtime prelude for the host's native target and run it. */
 export function runOnHost(
     source: string,
@@ -25,8 +30,9 @@ export function runOnHost(
         gcStress: options.gcStress,
         ...(options.realms ? { realms: options.realms } : {}),
     });
+    const timeout = options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS;
     if (process.platform !== "linux") {
-        const result = runNative(linkHost(program));
+        const result = runNative(linkHost(program), timeout);
         return {
             status: result.status,
             stdout: result.stdout.toString(),
@@ -44,7 +50,7 @@ export function runOnHost(
         chmodSync(executable, 0o755);
         const result = spawnSync(executable, [], {
             encoding: "utf8",
-            timeout: 60_000,
+            timeout,
         });
         return {
             status: result.status,
@@ -82,7 +88,7 @@ export function runModulesOnHost(
         const result = spawnSync(executable, [], {
             cwd: directory,
             encoding: "utf8",
-            timeout: 60_000,
+            timeout: options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS,
             windowsHide: true,
         });
         const native: HostRun = {
