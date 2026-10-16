@@ -16,6 +16,8 @@ export const builtinModules = [
     "module",
     "net",
     "http",
+    "http2",
+    "https",
     "os",
     "path",
     "path/posix",
@@ -29,11 +31,13 @@ export const builtinModules = [
     "string_decoder",
     "timers",
     "timers/promises",
+    "tls",
     "tty",
     "url",
     "util",
     "util/types",
     "worker_threads",
+    "zlib",
 ];
 export function isBuiltin(name) {
     const bare = String(name).startsWith("node:")

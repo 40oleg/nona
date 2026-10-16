@@ -335,6 +335,15 @@ export function builtinModuleRequests(
         else if (first.kind !== "Literal") computed = true;
     };
     walk(ast.body, (node, parent) => {
+        // The global crypto is node:crypto's webcrypto (module-records.js).
+        if (
+            (node.kind === "Identifier" &&
+                (node as A.Identifier).name === "crypto") ||
+            (node.kind === "Member" &&
+                globalObject((node as A.Member).object) &&
+                text((node as A.Member).property) === "crypto")
+        )
+            literals.add("node:crypto");
         if (
             ["Identifier", "Member", "Call"].includes(node.kind) &&
             processObject(node as A.Expression)

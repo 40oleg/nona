@@ -628,6 +628,26 @@ require('timers/promises').setTimeout(1, 'later').then(v => console.log(v));
         "main.js",
     ));
 
+test("HTTP clients load https, tls, http2 and zlib and detect process (issue #292)", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const http = require('http'), https = require('https'), tls = require('tls'), http2 = require('http2'), zlib = require('zlib');
+const { isBuiltin } = require('module');
+console.log(Object.prototype.toString.call(process), process[Symbol.toStringTag], JSON.stringify(Object.getOwnPropertyDescriptor(process, Symbol.toStringTag)));
+console.log(typeof https.request, typeof https.get, typeof https.createServer, https.globalAgent instanceof https.Agent, https.globalAgent instanceof http.Agent);
+const agent = new https.Agent({ keepAlive: true });
+console.log(agent.defaultPort, agent.protocol, agent.keepAlive, new http.Agent().defaultPort);
+console.log(typeof tls.connect, typeof tls.TLSSocket, tls.DEFAULT_MIN_VERSION, tls.DEFAULT_MAX_VERSION);
+console.log(typeof http2.connect, http2.constants.HTTP2_HEADER_STATUS, http2.constants.HTTP2_HEADER_CONTENT_TYPE, http2.constants.HTTP2_METHOD_GET);
+console.log(zlib.constants.Z_SYNC_FLUSH, zlib.constants.BROTLI_OPERATION_FLUSH, zlib.constants.ZSTD_e_flush, zlib.constants.Z_MAX_CHUNK, zlib.codes.Z_DATA_ERROR, zlib.codes[-3]);
+console.log(typeof zlib.createGunzip, typeof zlib.createUnzip, typeof zlib.createBrotliDecompress, typeof zlib.gunzipSync);
+console.log(['https', 'node:tls', 'http2', 'zlib'].map(isBuiltin).join());
+`,
+        },
+        "main.js",
+    ));
+
 test("URL and URLSearchParams follow the URL Standard", () =>
     agree(
         {
@@ -670,6 +690,40 @@ try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
         },
         "main.js",
     ));
+
+// Packages such as uuid read random bytes from the Web Crypto global without importing node:crypto (#296).
+test("the global crypto is node:crypto's webcrypto in ES modules and CommonJS", () => {
+    const uses = String.raw`
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const bytes = crypto.getRandomValues(new Uint8Array(16));
+export const report = [typeof crypto, typeof globalThis.crypto, bytes.length, bytes.constructor.name,
+  crypto.getRandomValues(new Uint8Array(16)) !== bytes, uuid.test(crypto.randomUUID()),
+  crypto.randomUUID() !== crypto.randomUUID()].join(' ');
+`;
+    agree(
+        {
+            "rng.mjs": uses,
+            "rng.cjs": uses.replace("export const report", "exports.report"),
+            "main.mjs": String.raw`
+import {webcrypto} from 'node:crypto';
+import {report} from './rng.mjs';
+import cjs from './rng.cjs';
+console.log(report);
+console.log(cjs.report);
+const d = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+console.log(typeof d.get, d.get.name, d.enumerable, d.configurable, globalThis.crypto === webcrypto, Object.keys(globalThis).includes('crypto'));
+`,
+        },
+        "main.mjs",
+    );
+    agree(
+        {
+            "main.js":
+                "console.log(typeof crypto, crypto.getRandomValues(new Uint32Array(3)).length, crypto.randomUUID().length);",
+        },
+        "main.js",
+    );
+});
 
 test("nona build <package directory> builds its command; --conditions selects exports", () => {
     const directory = mkdtempSync(join(tmpdir(), "nona-npm-cli-"));
