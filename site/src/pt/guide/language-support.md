@@ -48,7 +48,7 @@ A maioria dos recursos de edições posteriores não é suportada, entre eles `W
 
 - ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: campos de classe, métodos e acessores privados, blocos estáticos, `#x in obj`, `.at()`, `Object.hasOwn` e `cause` em Error.
-- ES2023: `findLast` e `findLastIndex`.
+- ES2023: `findLast`, `findLastIndex` e os métodos de TypedArray `toSorted`, `toReversed` e `with`.
 
 Quando a revisão fixada do Test262 já verifica semântica mais nova para recursos do ES2020, o Nona segue o Test262; a página [Test262](/pt/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) lista esses casos.
 

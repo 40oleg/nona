@@ -114,6 +114,9 @@ export const preludeTriggers = {
         "AggregateError",
         "any",
         "unscopables",
+        "toSorted",
+        "toReversed",
+        "with",
     ],
     annexB: [
         "escape",
@@ -164,6 +167,7 @@ export const preludeDependencies: Partial<
     buffer: ["encoding", "url", "binaryData"],
     url: ["encoding"],
     encoding: ["binaryData"],
+    es2021: ["binaryData"],
     events: ["timers"],
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],
