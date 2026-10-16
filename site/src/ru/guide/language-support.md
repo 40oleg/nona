@@ -48,7 +48,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 
 - ES2021: разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any` и `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: поля классов, приватные методы и аксессоры, статические блоки, `#x in obj`, `.at()`, `Object.hasOwn` и `cause` у ошибок.
-- ES2023: `findLast` и `findLastIndex`.
+- ES2023: `findLast` и `findLastIndex`, символы как ключи `WeakMap` и значения `WeakSet`. Принимаются не зарегистрированные символы, включая well-known; символы из `Symbol.for` отклоняются.
 
 Там, где закреплённая ревизия Test262 уже проверяет более новую семантику возможностей ES2020, Nona следует Test262; эти случаи перечислены на странице [Test262](/ru/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262).
 

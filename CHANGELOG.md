@@ -9,6 +9,8 @@
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
+- **Symbols as weak keys (ES2023).** `WeakMap` keys and `WeakSet` values may be non-registered symbols, well-known ones included; `Symbol.for` symbols are rejected with a TypeError by `set`/`add`, as other values that cannot be held weakly are, and `get`/`has`/`delete` report them as absent. The collector holds such keys weakly. Test262 `built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85 with post-ES2020 features excluded. ([#310](https://github.com/40oleg/nona/issues/310))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
