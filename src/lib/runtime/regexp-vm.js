@@ -77,6 +77,143 @@
     var result=charCodeAt(upper,0);
     return point>=128&&result<128?point:result
   }
+  // Character sets of UnicodeSets mode (the v flag), evaluated when the
+  // pattern is compiled: ranges is a sorted list of disjoint, non-adjacent
+  // [from, to] code point ranges; strings lists the members that are not one
+  // code point (the empty string or several code points).
+  function rangeUnion(a,b){
+    var out=[],i=0,j=0;
+    while(i<a.length||j<b.length){
+      var next=j>=b.length||i<a.length&&a[i][0]<=b[j][0]?a[i++]:b[j++],last=out.length-1;
+      if(last>=0&&next[0]<=out[last][1]+1){if(next[1]>out[last][1])out[last]=[out[last][0],next[1]]}
+      else append(out,[next[0],next[1]])
+    }
+    return out
+  }
+  function rangeIntersect(a,b){
+    var out=[],i=0,j=0;
+    while(i<a.length&&j<b.length){
+      var from=a[i][0]>b[j][0]?a[i][0]:b[j][0],to=a[i][1]<b[j][1]?a[i][1]:b[j][1];
+      if(from<=to)append(out,[from,to]);
+      if(a[i][1]<b[j][1])i++;else j++
+    }
+    return out
+  }
+  function rangeComplement(a){
+    var out=[],from=0;
+    for(var i=0;i<a.length;i++){if(a[i][0]>from)append(out,[from,a[i][0]-1]);from=a[i][1]+1}
+    if(from<=0x10ffff)append(out,[from,0x10ffff]);
+    return out
+  }
+  function rangeSize(a){
+    var size=0;
+    for(var i=0;i<a.length;i++)size+=a[i][1]-a[i][0]+1;
+    return size
+  }
+  function stringKeys(strings){
+    var keys={};
+    for(var i=0;i<strings.length;i++)keys['$'+strings[i]]=true;
+    return keys
+  }
+  // The strings of a that are (keep) or are not (!keep) strings of b.
+  function stringFilter(a,b,keep){
+    var keys=stringKeys(b),out=[];
+    for(var i=0;i<a.length;i++)if((keys['$'+a[i]]===true)===keep)append(out,a[i]);
+    return out
+  }
+  // The strings of a and then those of b, without duplicates.
+  function stringUnion(a,b){
+    var out=[],keys={};
+    for(var i=0;i<a.length+b.length;i++){
+      var string=i<a.length?a[i]:b[i-a.length];
+      if(keys['$'+string]!==true){keys['$'+string]=true;append(out,string)}
+    }
+    return out
+  }
+  function setUnion(a,b){return {ranges:rangeUnion(a.ranges,b.ranges),strings:stringUnion(a.strings,b.strings)}}
+  function setIntersect(a,b){return {ranges:rangeIntersect(a.ranges,b.ranges),strings:stringFilter(a.strings,b.strings,true)}}
+  function setSubtract(a,b){return {ranges:rangeIntersect(a.ranges,rangeComplement(b.ranges)),strings:stringFilter(a.strings,b.strings,false)}}
+  // Simple case folding (MaybeSimpleCaseFolding): the folding table parsed
+  // once, with the entries ordered by target and the ranges of the code
+  // points that fold to another one.
+  var foldTable=null;
+  function foldEntries(){
+    if(foldTable!==null)return foldTable;
+    var encoded=unicodeData.folds,sources=[],targets=[],order=[],sourceRanges=[];
+    for(var i=0;i<encoded.length;i+=12){
+      var source=parseInt(slice(encoded,i,i+6),16);
+      append(sources,source);append(targets,parseInt(slice(encoded,i+6,i+12),16));append(order,order.length);
+      var last=sourceRanges.length-1;
+      if(last>=0&&sourceRanges[last][1]+1===source)sourceRanges[last]=[sourceRanges[last][0],source];
+      else append(sourceRanges,[source,source])
+    }
+    // Bottom-up merge sort of the entry indices by target.
+    for(var width=1;width<order.length;width*=2){
+      var merged=[];
+      for(var begin=0;begin<order.length;begin+=2*width){
+        var left=begin,middle=begin+width<order.length?begin+width:order.length,right=middle;
+        var end=begin+2*width<order.length?begin+2*width:order.length;
+        while(left<middle||right<end){
+          if(right>=end||left<middle&&targets[order[left]]<=targets[order[right]])append(merged,order[left++]);
+          else append(merged,order[right++])
+        }
+      }
+      order=merged
+    }
+    foldTable={sources:sources,targets:targets,order:order,fixed:rangeComplement(sourceRanges)};
+    return foldTable
+  }
+  function foldRanges(ranges){
+    if(rangeSize(ranges)<=64){
+      var points=[];
+      for(var i=0;i<ranges.length;i++)for(var p=ranges[i][0];p<=ranges[i][1];p++){var f=foldPoint(p);points=rangeUnion(points,[[f,f]])}
+      return points
+    }
+    var table=foldEntries(),extra=[];
+    for(var k=0;k<table.order.length;k++){
+      var entry=table.order[k],target=table.targets[entry],last=extra.length-1;
+      if(!propertyMatch(ranges,table.sources[entry]))continue;
+      if(last>=0&&extra[last][1]+1>=target){if(target>extra[last][1])extra[last]=[extra[last][0],target]}
+      else append(extra,[target,target])
+    }
+    return rangeUnion(rangeIntersect(ranges,table.fixed),extra)
+  }
+  function foldString(string){
+    var out='';
+    for(var i=0;i<string.length;){var point=string.codePointAt(i);out+=String.fromCodePoint(foldPoint(point));i+=point>0xffff?2:1}
+    return out
+  }
+  function foldSet(set){
+    var strings=[];
+    for(var i=0;i<set.strings.length;i++)append(strings,foldString(set.strings[i]));
+    return {ranges:foldRanges(set.ranges),strings:stringUnion(strings,[])}
+  }
+  // CharacterComplement: under ignore case, of the code points that simple
+  // case folding leaves unchanged.
+  function setComplement(set,ignore){
+    var ranges=rangeComplement(set.ranges);
+    return {ranges:ignore?rangeIntersect(ranges,foldEntries().fixed):ranges,strings:[]}
+  }
+  function pointLength(string){
+    var count=0;
+    for(var i=0;i<string.length;i++){var unit=charCodeAt(string,i);if(unit<0xd800||unit>0xdbff||i+1>=string.length||charCodeAt(string,i+1)<0xdc00||charCodeAt(string,i+1)>0xdfff)count++;else{count++;i++}}
+    return count
+  }
+  // The pattern node of a set: its strings longest first, then the single
+  // code points, then the empty string (CompileAtom of a v-mode class).
+  function classSetNode(set){
+    var single={kind:'class',value:{inverted:false,items:[{ranges:set.ranges}]}};
+    if(set.strings.length===0)return single;
+    var lengths=[],longest=0,branches=[],empty=false;
+    for(var i=0;i<set.strings.length;i++){var size=pointLength(set.strings[i]);append(lengths,size);if(size>longest)longest=size}
+    for(var size=longest;size>0;size--)for(var i=0;i<set.strings.length;i++)if(lengths[i]===size)append(branches,{kind:'char',value:set.strings[i]});
+    for(var i=0;i<set.strings.length;i++)if(lengths[i]===0)empty=true;
+    if(set.ranges.length>0)append(branches,single);
+    if(empty)append(branches,{kind:'sequence',value:[]});
+    return {kind:'group',capture:0,value:{kind:'alternative',value:branches}}
+  }
+  var digitRanges=[[48,57]],wordRanges=[[48,57],[65,90],[95,95],[97,122]];
+  var spaceRanges=[[9,13],[32,32],[0xa0,0xa0],[0x1680,0x1680],[0x2000,0x200a],[0x2028,0x2029],[0x202f,0x202f],[0x205f,0x205f],[0x3000,0x3000],[0xfeff,0xfeff]];
   // Compiled patterns are immutable: a regular expression that is executed
   // repeatedly (every global match loop does this) is parsed once.
   var compileCache=new Map();
@@ -91,12 +228,14 @@
     return compiled
   }
   function compileUncached(pattern,flags){
-    var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false;
+    var at=0,groups=0,names=[],totalGroups=0,inClass=0,hasNamedGroup=false;
+    var unicodeSets=indexOf(flags,'v')>=0,ignoreSets=unicodeSets&&indexOf(flags,'i')>=0;
+    // Classes nest in v mode: inClass is the depth of the open classes.
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
       if(mark==='\\'){scan++;continue}
-      if(inClass){if(mark===']')inClass=false;continue}
-      if(mark==='['){inClass=true;continue}
+      if(inClass>0){if(mark===']')inClass--;else if(mark==='['&&unicodeSets)inClass++;continue}
+      if(mark==='['){inClass=1;continue}
       if(mark==='('&&pattern[scan+1]==='?'&&pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!')hasNamedGroup=true;
       if(mark==='('&&!(pattern[scan+1]==='?'&&(pattern[scan+2]===':'||pattern[scan+2]==='='||pattern[scan+2]==='!'||pattern[scan+2]==='<'&&(pattern[scan+3]==='='||pattern[scan+3]==='!'))))totalGroups++
     }
@@ -235,6 +374,116 @@
       }
       return {inverted:inverted,items:items}
     }
+    // ClassContents of v mode (ClassSetExpression), read from the pattern.
+    // An operand is {set, strings, point}: its set (case folded under the i
+    // flag), whether it MayContainStrings, and the code point of a lone
+    // ClassSetCharacter (or -1), which may start a range.
+    function leaf(set){return ignoreSets?foldSet(set):set}
+    function classSetCharacter(){
+      if(at>=pattern.length)error();
+      var c=pattern[at];
+      if(c==='\\'){
+        var e=pattern[at+1];
+        if(e==='b'){at+=2;return 8}
+        // \ ClassSetReservedPunctuator.
+        if(e!==undefined&&indexOf('&-!#%,:;<=>@\x60~',e)>=0){at+=2;return charCodeAt(e,0)}
+        if(e==='0'&&!digit(pattern[at+2])){at+=2;return 0}
+        if(e===undefined||digit(e)||e==='k'||e==='B')error();
+        at++;
+        var escape=escaped();
+        if(escape.kind!=='char')error();
+        return escape.value.codePointAt(0)
+      }
+      // ClassSetSyntaxCharacter and ClassSetReservedDoublePunctuator.
+      if(indexOf('()[]{}/-|',c)>=0)error();
+      if(pattern[at+1]===c&&indexOf('&!#$%*+,.:;<=>?@^\x60~',c)>=0)error();
+      var point=pattern.codePointAt(at);
+      at+=point>0xffff?2:1;
+      return point
+    }
+    function classSetOperand(){
+      if(pattern[at]==='['){at++;var nested=nestedClass();return {set:nested.set,strings:nested.strings,point:-1}}
+      if(pattern[at]==='\\'&&pattern[at+1]==='q'){
+        // ClassStringDisjunction: \q{a|bc|}.
+        at+=2;
+        if(pattern[at++]!=='{')error();
+        var ranges=[],strings=[],text='',count=0,may=false;
+        for(;;){
+          if(at>=pattern.length)error();
+          var k=pattern[at];
+          if(k==='|'||k==='}'){
+            at++;
+            if(count===1){var point=text.codePointAt(0);ranges=rangeUnion(ranges,[[point,point]])}
+            else{may=true;append(strings,text)}
+            text='';count=0;
+            if(k==='}')break;
+            continue
+          }
+          text+=String.fromCodePoint(classSetCharacter());count++
+        }
+        return {set:leaf({ranges:ranges,strings:stringUnion(strings,[])}),strings:may,point:-1}
+      }
+      if(pattern[at]==='\\'&&at+1<pattern.length&&indexOf('dDsSwWpP',pattern[at+1])>=0){
+        var kind=pattern[at+1],base;
+        at+=2;
+        if(kind==='p'||kind==='P'){
+          if(pattern[at++]!=='{')error();
+          var begin=at;
+          while(at<pattern.length&&pattern[at]!=='}')at++;
+          if(at===begin||pattern[at]!=='}')error();
+          base=propertyRanges(slice(pattern,begin,at++))
+        }
+        else base=kind==='d'||kind==='D'?digitRanges:kind==='w'||kind==='W'?wordRanges:spaceRanges;
+        var set=leaf({ranges:base,strings:[]});
+        if(kind==='D'||kind==='W'||kind==='S'||kind==='P')set=setComplement(set,ignoreSets);
+        return {set:set,strings:false,point:-1}
+      }
+      var single=classSetCharacter();
+      return {set:leaf({ranges:[[single,single]],strings:[]}),strings:false,point:single}
+    }
+    // After an opening [: the class up to and including its ], as
+    // {set, strings} (strings: whether it MayContainStrings).
+    function nestedClass(){
+      var negated=pattern[at]==='^';
+      if(negated)at++;
+      var contents=classContents();
+      if(pattern[at++]!==']')error();
+      if(!negated)return contents;
+      if(contents.strings)error();
+      return {set:setComplement(contents.set,ignoreSets),strings:false}
+    }
+    function classContents(){
+      if(pattern[at]===']')return {set:{ranges:[],strings:[]},strings:false};
+      var item=classSetOperand(),set=item.set,may=item.strings;
+      var range=item.point>=0&&pattern[at]==='-'&&pattern[at+1]!=='-';
+      if(!range&&(pattern[at]==='&'&&pattern[at+1]==='&'||pattern[at]==='-'&&pattern[at+1]==='-')){
+        // ClassIntersection or ClassSubtraction: operands (no ranges) joined
+        // by one operator.
+        var operator=pattern[at];
+        while(pattern[at]===operator&&pattern[at+1]===operator){
+          at+=2;
+          if(operator==='&'&&pattern[at]==='&')error();
+          var operand=classSetOperand();
+          if(operator==='&'){set=setIntersect(set,operand.set);may=may&&operand.strings}
+          else set=setSubtract(set,operand.set)
+        }
+        if(pattern[at]!==']')error();
+        return {set:set,strings:may}
+      }
+      // ClassUnion of operands and ranges.
+      set={ranges:[],strings:[]};
+      for(;;){
+        if(item.point>=0&&pattern[at]==='-'){
+          at++;
+          var last=classSetCharacter();
+          if(item.point>last)error();
+          item={set:leaf({ranges:[[item.point,last]],strings:[]}),strings:false}
+        }
+        set=setUnion(set,item.set);may=may||item.strings;
+        if(pattern[at]===']')return {set:set,strings:may};
+        item=classSetOperand()
+      }
+    }
     function decimal(){
       var n=0,seen=false;
       while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(charCodeAt(pattern,at)-48);at++}
@@ -249,6 +498,9 @@
         while(at<pattern.length&&pattern[at]!=='}')at++;
         if(at===begin||pattern[at]!=='}')error();
         var property=slice(pattern,begin,at++);
+        // v mode with ignore case: \P is the complement of the folded
+        // property, over the code points that folding leaves unchanged.
+        if(ignoreSets&&c==='P')return classSetNode(setComplement(foldSet({ranges:propertyRanges(property),strings:[]}),true));
         return {kind:'property',value:propertyRanges(property),negated:c==='P'}
       }
       if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {kind:'classEscape',value:c};
@@ -372,6 +624,7 @@
         if(look!==undefined)return {kind:'look',value:inner,behind:look.behind,positive:look.positive};
         return {kind:'group',value:inner,capture:capture}
       }
+      if(c==='['&&unicodeSets)return classSetNode(nestedClass().set);
       if(c==='['){
         var start=at,escapedClass=false;
         while(at<pattern.length){
@@ -503,7 +756,12 @@
       var set=[],items=node.value.items;
       for(var i=0;i<items.length&&set!==null;i++){
         var item=items[i];
-        if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
+        if(item.ranges!==undefined){
+          // A v-mode set: its code points, when there are few of them.
+          if(rangeSize(item.ranges)>8)set=null;
+          else for(var r=0;r<item.ranges.length&&set!==null;r++)for(var p=item.ranges[r][0];p<=item.ranges[r][1]&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))
+        }
+        else if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
         else if(item.range){for(var p=item.from;p<=item.to&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))}
         else set=unionUnits(set,charUnits(leadUnit(item.point),ignore,unicode))
       }
@@ -747,7 +1005,9 @@
     var yes=false,point=c.codePointAt(0);
     for(var i=0;i<spec.items.length;i++){
       var item=spec.items[i];
-      if(item.range){
+      // A v-mode set holds case-folded code points under ignore case.
+      if(item.ranges!==undefined){if(propertyMatch(item.ranges,ignore?foldPoint(point):point))yes=true}
+      else if(item.range){
         if(ignore&&unicode){
           var canonical=foldPoint(point),alternates=foldAlternates(canonical);
           if(canonical>=item.from&&canonical<=item.to)yes=true;

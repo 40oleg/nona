@@ -86,3 +86,102 @@ console.log("a1b2".replace(/\p{Nd}/gv, "#"));
 `,
         false,
     ));
+
+test("v-mode classes nest and support union, intersection and subtraction", () =>
+    sameAsNode(String.raw`
+const show = (re, input) => { const m = re.exec(input); return m === null ? "null" : m[0] + "@" + m.index; };
+console.log(show(/[[a-z]--[aeiou]]+/v, "queue strength"), show(/[[a-z]&&[^aeiou]]+/v, "aeiubcd"));
+console.log(show(/[a--b--c]/v, "cba"), show(/[\d--3]+/v, "3456"), show(/[a&&a&&a]/v, "a"));
+console.log(show(/[[a-f]&&[d-z]&&[^e]]+/v, "abcdefg"), show(/[[a-z]--[b-y]--a]+/v, "abz"));
+console.log(show(/[[[a-c]--b][x-z]]+/v, "abcxyz"), show(/[\w--\d--_]+/v, "_9ab_"));
+console.log(show(/[]/v, "a"), show(/[^]/v, "a"), show(/[[]]/v, "a"), show(/[^[]]/v, "a"), show(/[^[^a]]/v, "ba"));
+console.log(show(/[a&b]+/v, "x&ab&"), show(/[\-\&\!\#\%\,\:\;\<\=\>\@\~]+/v, "a-&!#%,:;<=>@~"));
+console.log(show(/[\s--\n]+/v, "a\n \t"), show(/[\b]/v, "a\b"), show(/[^\d\s]+/v, "12 ab3"));
+console.log("a1b2c3".replace(/[\w--\d]/gv, "*"), /^[[\x00-\u{10FFFF}]--\x01]$/v.test("\x01"));
+`));
+
+test("\\q{} string disjunctions match the longest string first", () =>
+    sameAsNode(String.raw`
+const show = (re, input) => { const m = re.exec(input); return m === null ? "null" : m[0] + "@" + m.index; };
+console.log(show(/[\q{abc|ab|a}]/v, "xabcd"), show(/[\q{a|ab|abc}]/v, "xabd"), show(/[\q{a|ab}c]/v, "abc"));
+console.log(show(/[\q{abc|ab}d]/v, "dab"), show(/[\q{abc|ab}]d/v, "abd"), show(/^[\q{abc|ab}]+$/v, "ababcab"));
+console.log(show(/[\q{|x}]/v, "y"), show(/[\q{|x}]y/v, "y"), show(/[\q{}]/v, "z"), show(/a[\q{}]b/v, "ab"));
+console.log(show(/[\q{ab|cd}--\q{ab}]/v, "abcd"), show(/[\q{ab|c}&&\q{ab}]/v, "cab"), show(/[\q{ab|c}--c]/v, "cab"));
+console.log(show(/[\q{a\-b|\u{1F600}\u{1F601}}]/v, "a-b"), show(/(?<=[\q{ab|b}])c/v, "abc"), show(/[\q{ab|abc}]+?d/v, "ababcd"));
+console.log("xababcab".replace(/[\q{abc|ab}]/gv, "<$&>"), "ab-abc".split(/[\q{ab|\-}]/v).join("|"));
+const m = /([\q{ab|a}])(b?)/v.exec("ab");
+console.log(m[1], JSON.stringify(m[2]), /[^\q{a|b}]/v.test("c"));
+`));
+
+test("v mode with ignore case folds operands before set operations", () =>
+    // Without gcStress: loading the property tables allocates heavily.
+    sameAsNode(
+        String.raw`
+console.log(/\P{Ll}/vi.test("A"), /\P{Ll}/ui.test("A"), /[^\P{Ll}]/vi.test("A"), /[^\P{Ll}]/ui.test("A"));
+console.log(/[\p{Lowercase_Letter}--[a-z]]/vi.test("A"), /[\p{Lowercase_Letter}--[a-z]]/vi.test("\u00e9"), /[\p{Lowercase_Letter}--[a-z]]/vi.test("\u00c9"));
+console.log(/[\w--a]/vi.test("a"), /[\w--a]/vi.test("A"), /[\w--a]/vi.test("B"), /[\w&&A]/vi.test("a"));
+console.log(/[\w--[a-z]]/vi.test("K"), /[\w--[a-z]]/vi.test("\u212a"), /[^a]/vi.test("A"), /[^[a]]/vi.test("b"));
+console.log(/[\q{KK|ss}]/vi.exec("xkK")[0], /[\q{ss}]/vi.test("\u017f\u017f"), /[A-Z]/vi.test("\u212a"));
+console.log(/\W/vi.test("\u017f"), /[^\W]/vi.test("\u017f"), /\D/vi.test("A"), /[^\d]/vi.test("A"));
+console.log(/[\p{Lu}&&[A-F]]+/vi.exec("xdEfg")[0], /[^\p{Lu}]/vi.test("a"), /\p{Lu}/vi.test("a"));
+console.log("aBcD".replace(/[[a-z]--b]/giv, "_"), "\u212aK".replace(/k/giv, "k"));
+`,
+        false,
+    ));
+
+test("v-mode classes on surrogate pairs through the RegExp protocol", () =>
+    sameAsNode(String.raw`
+const text = "a\u{1F600}b\u{1F601}c\u{1F602}";
+const emoji = /[[\u{1F600}-\u{1F64F}]--\u{1F601}]/gv;
+console.log(text.match(emoji).join(","), text.replace(emoji, "_"), text.split(/[\u{1F600}-\u{1F64F}]/v).join("|"));
+console.log([...text.matchAll(/[\q{\u{1F600}b|c}[\u{1F601}]]/gv)].map(m => m[0].length + "@" + m.index).join());
+console.log(/[\uD83D\uDE00]/v.exec(text).index, /[^\u{1F600}]/v.exec("\u{1F600}x")[0], /^[^a]$/v.test("\u{1F600}"));
+console.log(text.search(/[\q{c\u{1F602}}]/v), /[\uD83D]/v.test("\u{1F600}"), /[\uD83D]/v.test("\uD83D"));
+const sticky = /[\q{\u{1F600}b}]/vy; sticky.lastIndex = 1;
+console.log(sticky.test(text), sticky.lastIndex);
+`));
+
+test("invalid v-mode classes throw a SyntaxError", () =>
+    sameAsNode(String.raw`
+const sources = [
+  "[(]", "[)]", "[[]", "[{]", "[}]", "[/]", "[|]", "[a-]", "[-a]", "[--]", "[a", "[[a]", "[^", "[\\",
+  "[!!]", "[a##]", "[$$]", "[%%]", "[**]", "[++]", "[,,]", "[..]", "[::]", "[;;]", "[<<]", "[==]", "[>>]",
+  "[??]", "[@@]", "[^^^]", "[\x60\x60]", "[~~]", "[a&&&b]", "[&&a]", "[a&&]", "[a--]", "[--a]",
+  "[a&&b--c]", "[a--b&&c]", "[a-z&&b]", "[ab&&b]", "[ab--c]", "[a-c--b]", "[[a]&&[b]c]", "[a-&&b]",
+  "[z-a]", "[\\x41-\\x40]", "[\\q{abc}-z]", "[a-\\q{b}]", "[\\d-z]", "[a-[b]]",
+  "[\\q]", "\\q{a}", "[\\q{a|b\\}]", "[\\q{a(}]", "[\\q{a&&b}]", "[\\q{a-b}]", "[\\q{a",
+  "[\\B]", "[\\1]", "[\\k<a>]", "[\\c]", "[\\01]", "[\\z]", "[\\u{110000}]", "[\\p{L}", "[\\p{Nope}]",
+  "[^\\q{ab}]", "[^[\\q{ab}]]", "[^\\q{}]", "[^\\q{ab}--\\q{ab}]", "[^\\q{ab|c}&&\\q{ab}]", "[a[^\\q{ab|}]]",
+];
+for (const source of sources) {
+  try { new RegExp(source, "v"); console.log("accepted", source); }
+  catch (e) { console.log(e.name, source); }
+}
+const valid = ["[\\-]", "[\\&\\!\\#\\%\\,\\:\\;\\<\\=\\>\\@\\\x60\\~]", "[\\b]", "[!]", "[!a!]", "[a&b]", "[\\cA]", "[\\0]",
+  "[\\q{a\\-b}]", "[^\\q{a|b}]", "[^\\q{ab}&&a]", "[^a&&\\q{ab}]", "[^[^\\q{ab}]--\\q{ab}]", "[\\q{ab}--\\q{ab}]"];
+for (const source of valid) {
+  try { new RegExp(source, "v"); console.log("accepted", source); }
+  catch (e) { console.log(e.name, source); }
+}
+`));
+
+test("invalid v-mode class literals are compile-time errors", () => {
+    for (const source of [
+        "[a&&&b]",
+        "[a&&b--c]",
+        "[a-z&&b]",
+        "[(]",
+        "[!!]",
+        "[z-a]",
+        "[^\\q{ab}]",
+        "\\q{a}",
+        "[\\q{a-b}]",
+    ])
+        assert.throws(
+            () => compileToIR(`const r = /${source}/v;`),
+            /Invalid regular expression/,
+            source,
+        );
+    compileToIR(String.raw`const r = /[a&&b]/u;`);
+    compileToIR(String.raw`const r = /[[a-z]--\q{ab}]/v;`);
+});
