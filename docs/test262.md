@@ -94,6 +94,12 @@ String and `flags` tests) passes except two (185/187):
 `prototype/unicodeSets/this-val-regexp.js` also use the `d` flag, so they stay
 classified `post`.
 
+RegExp pattern modifiers (ES2025, `regexp-modifiers`, issue #320) are supported
+and no longer in `postEs2020Features`: `built-ins/RegExp/regexp-modifiers`, the
+modifier early errors in `built-ins/RegExp` and `language/literals/regexp` run
+and pass (result recorded in commit `58ac9c40`; the full-directory counts are
+not in the tables above yet).
+
 Runner features added for the ES2020 gate (2026-09):
 
 - `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests
