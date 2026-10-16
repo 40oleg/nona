@@ -1496,6 +1496,8 @@ export function bind(
         getters: [],
     }));
     const mainLexicals: StorageBinding[] = [...scriptLexicals];
+    // The `export default` expression binding of each module, in TDZ until set.
+    const defaultBindings = new Map<number, StorageBinding>();
     for (const record of moduleRecords) {
         const names = moduleNames[record.index]!;
         for (const statement of record.ast.body) {
@@ -1546,7 +1548,7 @@ export function bind(
                 globals.push(binding);
                 names.set("*default*", binding);
                 bindings.set(statement.defaultId!, binding);
-                mainLexicals.push(binding);
+                defaultBindings.set(record.index, binding);
             }
         }
     }
@@ -1559,7 +1561,11 @@ export function bind(
             [],
             moduleNames[record.index],
         );
-        mainLexicals.push(...(lexicalScopes.get(record.ast) ?? []));
+        const lexicals = lexicalScopes.get(record.ast) ?? [];
+        const defaultBinding = defaultBindings.get(record.index);
+        if (defaultBinding) lexicals.push(defaultBinding);
+        lexicalScopes.set(record.ast, lexicals);
+        mainLexicals.push(...lexicals);
     }
     currentModule = undefined;
     lexicalScopes.set(ast, mainLexicals);

@@ -85,6 +85,48 @@ const cases: [string, Record<string, string>][] = [
             "dep.mjs": "await 0;\nconsole.log('dep done');\n",
         },
     ],
+    [
+        "await in exports, and an importer without await runs after its asynchronous dependency",
+        {
+            "main.mjs":
+                "import value, {named, later} from './exports.mjs';\nimport {seen} from './plain.mjs';\nconsole.log(value, named, later, seen);\n",
+            "exports.mjs":
+                "export default await Promise.resolve('default');\nexport const named = await 'named';\nexport let later = 'early';\nawait null;\nlater = 'late';\nconsole.log('exports done');\n",
+            "plain.mjs":
+                "import value, {later} from './exports.mjs';\nexport const seen = value + ' ' + later;\nconsole.log('plain', seen);\n",
+        },
+    ],
+    [
+        "a self-import sees the default export in TDZ until the awaited value is set",
+        {
+            "main.mjs":
+                "var x = 'sync';\nPromise.resolve().then(() => x = 'tick');\nimport self from './main.mjs';\nimport './cycle.mjs';\ntry { self; } catch (e) { console.log(x, e.name); }\nexport default await Promise.resolve(42);\nconsole.log(x, self);\n",
+            "cycle.mjs":
+                "import d from './main.mjs';\ntry { d; } catch (e) { console.log('cycle', e.name); }\n",
+        },
+    ],
+    [
+        "a throw before the first await rejects importers",
+        {
+            "main.mjs":
+                "try { await import('./early.mjs'); } catch (e) { console.log('early', e.message); }\ntry { await import('./importer.mjs'); } catch (e) { console.log('importer', e.message); }\n",
+            "early.mjs":
+                "console.log('early start');\nif (true) throw new RangeError('before await');\nawait 0;\nconsole.log('never');\n",
+            "importer.mjs": "import './early.mjs';\nconsole.log('never');\n",
+        },
+    ],
+    [
+        "require() of an ES module graph with top-level await throws ERR_REQUIRE_ASYNC_MODULE",
+        {
+            "main.mjs":
+                "import {tryIt} from './loader.cjs';\nconsole.log('main', tryIt());\nimport {v} from './tla.mjs';\nconsole.log('v', v);\n",
+            "loader.cjs":
+                "exports.tryIt = () => { try { require('./tla.mjs'); return 'no error'; } catch (e) { return e.code + ' ' + (e instanceof Error); } };\ntry { require('./indirect.mjs'); } catch (e) { console.log('indirect', e.code); }\nconsole.log('sync', require('./sync.mjs').s);\n",
+            "tla.mjs": "console.log('tla runs');\nexport const v = await 1;\n",
+            "indirect.mjs": "import './tla.mjs';\nconsole.log('indirect runs');\n",
+            "sync.mjs": "export const s = 's';\n",
+        },
+    ],
 ];
 for (const [name, files] of cases)
     test("top-level await: " + name, () => {
@@ -185,6 +227,18 @@ test("top-level await: only the module goal accepts it", () => {
         "await: 1;",
     ])
         assert.equal(compiles({ "main.mjs": source }), false, source);
+    // In scripts `await` stays an identifier outside async functions.
+    assert.equal(
+        compiles(
+            {
+                "main.js":
+                    "var await = 1; function f(await) { return await; } await: f(await); (() => await)(); class C { x = await; }",
+            },
+            "main.js",
+            false,
+        ),
+        true,
+    );
     // Scripts and CommonJS modules keep rejecting it.
     assert.equal(compiles({ "main.js": "await 1;" }, "main.js", false), false);
     assert.equal(

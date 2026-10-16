@@ -81,10 +81,28 @@ Following Test262:
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
-await, and the other features in `postEs2020Features`. Remaining known
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices,
+and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
 the release status.
+
+Top-level await (ES2022, [#306](https://github.com/40oleg/nona/issues/306)) is
+implemented and no longer classified `post`. With `TEST262_RUN_ASYNC=1`,
+`language/module-code/top-level-await` passes 244 of 251 tests:
+
+- `fulfillment-order.js`, `rejection-order.js` and
+  `unobservable-global-async-evaluation-count-reset.js` use
+  `Promise.withResolvers` (ES2024, feature `promise-with-resolvers`). With a
+  local replacement for it they produce the order Test262 expects (Node.js 22
+  differs in the last two).
+- `await-dynamic-import-rejection.js`, `module-import-rejection.js`,
+  `module-import-rejection-body.js` and `module-import-rejection-tick.js` are
+  runtime-negative tests, which the adapter skips. Imported with `import()`
+  they reject with the expected error type.
+
+`language/expressions/dynamic-import` and the rest of `language/module-code`
+fail only tests of later proposals (`import-defer`, `source-phase-imports`,
+the `import()` options argument and duplicate keys of `import-attributes`).
 
 Runner features added for the ES2020 gate (2026-09):
 
