@@ -119,6 +119,24 @@ a(?-i:b*?)c i ["5:abbC"]
 (?i:a|b)c  ["0:Ac","3:bc"]
 (?<x>a)(?i:b)(?<y>c)  ["0:aBc|a|c"]
 `,
+        false,
+    );
+});
+
+// The full table above runs without gcStress to stay inside the host timeout.
+test("modifier groups survive stress GC", () => {
+    const source =
+        String.raw`const cases = [
+  ["(?i:a)b", "", "Ab AB ab aB"],
+  ["(?i:a(?-i:b)c)", "", "ABC AbC abc"],
+  ["(a)(?i:\\1)", "", "aA aa ab"],
+];` + matchAll;
+    expectOracle(
+        source,
+        String.raw`(?i:a)b  ["0:Ab","6:ab"]
+(?i:a(?-i:b)c)  ["4:AbC","8:abc"]
+(a)(?i:\1)  ["0:aA|a","3:aa|a"]
+`,
         true,
     );
 });
