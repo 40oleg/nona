@@ -38,6 +38,7 @@ import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-sourc
 import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
+import { arrayFromAsyncPreludeSource } from "../../runtime/array-from-async-source.js";
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
 import { annexBBuiltinsPreludeSource } from "../../runtime/annexb-builtins-source.js";
 import { lex } from "../../frontend/lexer.js";
@@ -89,6 +90,7 @@ export function lowerRuntimePrelude(
             ["annexB", annexBBuiltinsPreludeSource],
             ["es2021", es2021PreludeSource],
             [null, promiseSource],
+            ["arrayFromAsync", arrayFromAsyncPreludeSource],
             ["withStatement", withStatementPreludeSource],
             ["evalCode", evalCodePreludeSource],
             ["classElements", classElementsPreludeSource],
