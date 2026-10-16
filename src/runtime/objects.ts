@@ -1270,6 +1270,10 @@ export function emitObjects(b: RuntimeBuilder): void {
                     const byteIndex = a.unique("byteIndex"),
                         wordIndex = a.unique("wordIndex"),
                         doubleIndex = a.unique("doubleIndex");
+                    if (b.float16) {
+                        a.cmp("r10", 12);
+                        a.jcc("e", wordIndex);
+                    }
                     a.cmp("r10", 4);
                     a.jcc("b", byteIndex);
                     a.cmp("r10", 6);
@@ -1303,6 +1307,10 @@ export function emitObjects(b: RuntimeBuilder): void {
                         doubleLoad = a.unique("doubleLoad"),
                         loaded = a.unique("loaded"),
                         unsigned = a.unique("unsigned");
+                    if (b.float16) {
+                        a.cmp("r10", 12);
+                        a.jcc("e", wordLoad);
+                    }
                     a.cmp("r10", 4);
                     a.jcc("b", byteLoad);
                     a.cmp("r10", 6);
@@ -1321,7 +1329,12 @@ export function emitObjects(b: RuntimeBuilder): void {
                     a.load("rax", { base: "rdx" }, 8);
                     a.label(loaded);
                     const integer = a.unique("integer"),
-                        bigint = a.unique("bigint");
+                        bigint = a.unique("bigint"),
+                        half = a.unique("half");
+                    if (b.float16) {
+                        a.cmp("r10", 12);
+                        a.jcc("e", half);
+                    }
                     a.cmp("r10", 8);
                     a.jcc("b", integer);
                     a.cmp("r10", 10);
@@ -1335,6 +1348,14 @@ export function emitObjects(b: RuntimeBuilder): void {
                     a.label(float64);
                     a.mov("r10", 3);
                     a.jmp(save + ".tag");
+                    if (b.float16) {
+                        a.label(half);
+                        a.mov("rcx", "rax");
+                        a.call("rt.float16ToDouble");
+                        a.movqFromXmm("rax", "xmm0");
+                        a.mov("r10", 3);
+                        a.jmp(save + ".tag");
+                    }
                     a.label(bigint);
                     a.mov("rdx", "rax");
                     a.mov("r8", 0);
@@ -1528,6 +1549,10 @@ export function emitObjects(b: RuntimeBuilder): void {
                 byteReady = a.unique("byteReady");
             a.load("r10", slot(72));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
+            if (b.float16) {
+                a.cmp("rax", 12);
+                a.jcc("e", floating);
+            }
             a.cmp("rax", 10);
             a.jcc("ae", bigint);
             a.cmp("rax", 8);
@@ -1551,6 +1576,14 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.movsd("xmm0", slot(104));
             a.load("r10", slot(72));
             a.load("r10", { base: "r10", disp: TypedArrayLayout.elementType });
+            if (b.float16) {
+                const single = a.unique("single");
+                a.cmp("r10", 12);
+                a.jcc("ne", single);
+                a.call("rt.float16FromDouble");
+                a.jmp(byteReady);
+                a.label(single);
+            }
             a.cmp("r10", 8);
             const rawFloat = a.unique("rawFloat");
             a.jcc("ne", rawFloat);
@@ -1595,6 +1628,10 @@ export function emitObjects(b: RuntimeBuilder): void {
             const byteAddress = a.unique("byteAddress"),
                 wordAddress = a.unique("wordAddress"),
                 doubleAddress = a.unique("doubleAddress");
+            if (b.float16) {
+                a.cmp("r11", 12);
+                a.jcc("e", wordAddress);
+            }
             a.cmp("r11", 4);
             a.jcc("b", byteAddress);
             a.cmp("r11", 6);
@@ -1622,6 +1659,10 @@ export function emitObjects(b: RuntimeBuilder): void {
             const storeByte = a.unique("storeByte"),
                 storeWord = a.unique("storeWord"),
                 storeDouble = a.unique("storeDouble");
+            if (b.float16) {
+                a.cmp("r10", 12);
+                a.jcc("e", storeWord);
+            }
             a.cmp("r10", 4);
             a.jcc("b", storeByte);
             a.cmp("r10", 6);

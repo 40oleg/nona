@@ -36,7 +36,8 @@ function validateRegExpPattern(pattern: string, flags: string): void {
  */
 export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
-    normalizationNames = ["normalize", "localeCompare"];
+    normalizationNames = ["normalize", "localeCompare"],
+    float16Names = ["Float16Array", "f16round", "getFloat16", "setFloat16"];
 const unicodePropertyEscape = /\\[pP]\{/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.
@@ -44,7 +45,7 @@ const unicodeGroupName = /(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage: SourceUsage | undefined;
 /** Why each part was linked: the first name that selected it (see LinkReasons). */
 let reasons: LinkReasons | undefined;
-/** Runtime part (regexp, unicodeProperties, unicodeNormalization or a prelude name) → why it is linked. */
+/** Runtime part (regexp, unicodeProperties, unicodeNormalization, float16 or a prelude name) → why it is linked. */
 export type LinkReasons = Record<string, string>;
 function note(part: string, why: string): void {
     if (reasons && !(part in reasons)) reasons[part] = why;
@@ -84,6 +85,7 @@ export function collectSourceUsage<T>(
             regexp: false,
             unicodeProperties: false,
             unicodeNormalization: false,
+            float16: false,
             preludes: preludeSet(false),
         };
     const outerUnavailable = unavailableReflectivePreludes;
@@ -104,6 +106,7 @@ export function collectSourceUsage<T>(
             outer.regexp ||= current.regexp;
             outer.unicodeProperties ||= current.unicodeProperties;
             outer.unicodeNormalization ||= current.unicodeNormalization;
+            outer.float16 ||= current.float16;
             for (const name of optionalPreludes)
                 outer.preludes[name] ||= current.preludes[name];
         }
@@ -122,6 +125,11 @@ for (const name of optionalPreludes)
 const longTriggers = [...preludeByName.keys()].filter(
     (name) => name.length >= 6,
 );
+function linkFloat16(why: string): void {
+    if (!usage) return;
+    usage.float16 = true;
+    note("float16", why);
+}
 function recordPreludeName(name: string, inString: boolean): void {
     if (!usage) return;
     if (
@@ -129,6 +137,8 @@ function recordPreludeName(name: string, inString: boolean): void {
         (inString &&
             reflectiveNames.some((reflective) => name.includes(reflective)))
     ) {
+        // Enumerating Math or DataView.prototype would observe the methods.
+        linkFloat16(`${JSON.stringify(name)} can enumerate built-ins`);
         for (const prelude of optionalPreludes)
             if (!unavailableReflectivePreludes.includes(prelude))
                 linkPrelude(
@@ -171,6 +181,8 @@ function recordUsage(tokens: TokenStream): void {
                     `${JSON.stringify(word)} in the source`,
                 );
             }
+            if (float16Names.includes(word))
+                linkFloat16(`${JSON.stringify(word)} in the source`);
             recordPreludeName(word, false);
         } else if (
             token.kind === "string" ||
@@ -197,6 +209,9 @@ function recordUsage(tokens: TokenStream): void {
                     `${JSON.stringify(normalization)} inside a string`,
                 );
             }
+            const float16 = float16Names.find((name) => text.includes(name));
+            if (float16 !== undefined)
+                linkFloat16(`${JSON.stringify(float16)} inside a string`);
             recordPreludeName(text, true);
         }
     }

@@ -180,6 +180,7 @@ function generateImage(
         realms,
         regexpLink,
         unicodeNormalization: link.unicodeNormalization,
+        float16: link.float16,
         linked,
     });
     // A call-statistics build counts the runtime's calls too: it is generated afresh.
@@ -247,6 +248,7 @@ function generateImage(
             operations: new Set(),
             realms,
             unicodeNormalization: link.unicodeNormalization,
+            float16: link.float16,
         });
         fragments = [...runtime.fragments];
         functions = [...runtime.functions];

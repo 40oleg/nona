@@ -61,3 +61,18 @@ Option 1 now; option 2 as the direction for the size of executables.
 - `linkReport` in `src/link.ts` mirrors the dependency resolution of
   `linkedPreludes` and `runtimeRegExpLink`; a change to either must keep
   the report in step (`tests/runtime-link-source.test.ts`).
+
+## Native part `float16`
+
+`float16` ([#321](https://github.com/40oleg/nona/issues/321)) holds the
+half-precision built-ins: the conversion helpers `rt.float16FromDouble` and
+`rt.float16ToDouble` (`src/runtime/float16.ts`), `Math.f16round`,
+`DataView.prototype.getFloat16`/`setFloat16` and the `Float16Array` typed-array
+constructor (element type 12, with its prototype and per-realm intrinsics). The names `Float16Array`,
+`f16round`, `getFloat16` and `setFloat16` select it, as identifiers or inside
+strings, and so do the enumerating names (`getOwnPropertyNames`, …), because
+listing `Math` would observe the method. Without the part the helpers, the
+methods and their GC roots are not emitted (`RuntimeRequest.float16`), so a
+program that does not name them has the same size as before the feature.
+`--link float16` adds it to a program that reaches the methods only through
+computed names.

@@ -146,6 +146,12 @@ import {
     numberBuiltinPropertyRoots,
 } from "./number-builtins.js";
 import { mathRoots, mathPropertyRoots } from "./math.js";
+import {
+    float16Roots,
+    float16PropertyRoots,
+    float16TypedArrayRoots,
+    float16TypedArrayPropertyRoots,
+} from "./float16.js";
 import { jsonRoots, jsonPropertyRoots } from "./json.js";
 import { bigintRoots, bigintPropertyRoots } from "./bigint.js";
 import { uriRoots, uriPropertyRoots } from "./uri.js";
@@ -175,7 +181,11 @@ export { minimumGcThreshold };
 
 /** No allocation and no recursive graph walk. Called only at compiler safepoints. */
 /** extraRealms: cloned realms (see codegen realm cloning) whose roots must be marked too. */
-export function emitGc(b: RuntimeBuilder, extraRealms = 0): void {
+export function emitGc(
+    b: RuntimeBuilder,
+    extraRealms = 0,
+    float16 = true,
+): void {
     for (const name of [
         "gcGlobals",
         "gcGlobalCount",
@@ -1084,6 +1094,7 @@ export function emitGc(b: RuntimeBuilder, extraRealms = 0): void {
             "uint32arrayPrototype",
             "int32arrayPrototype",
             "uint32arrayPrototype",
+            ...(float16 ? ["float16arrayPrototype"] : []),
             "float32arrayPrototype",
             "float64arrayPrototype",
             "bigint64arrayPrototype",
@@ -1136,6 +1147,7 @@ export function emitGc(b: RuntimeBuilder, extraRealms = 0): void {
             ...stringNormalizeRoots,
             ...stringLocaleCompareRoots,
             ...mathRoots,
+            ...(float16 ? [...float16Roots, ...float16TypedArrayRoots] : []),
             ...jsonRoots,
             ...bigintRoots,
             ...inspectionRoots,
@@ -1197,6 +1209,9 @@ export function emitGc(b: RuntimeBuilder, extraRealms = 0): void {
             ...stringNormalizePropertyRoots,
             ...stringLocaleComparePropertyRoots,
             ...mathPropertyRoots,
+            ...(float16
+                ? [...float16PropertyRoots, ...float16TypedArrayPropertyRoots]
+                : []),
             ...jsonPropertyRoots,
             ...bigintPropertyRoots,
             ...inspectionPropertyRoots,

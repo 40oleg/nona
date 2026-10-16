@@ -34,6 +34,7 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
         regexp: false,
         unicodeProperties: false,
         unicodeNormalization: false,
+        float16: false,
         preludes: preludeSet(false),
     };
     assert.deepEqual(
@@ -84,6 +85,25 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
             { ...none, unicodeNormalization: true },
             source,
         );
+    for (const source of [
+        "Math.f16round(x)",
+        "view.getFloat16(0)",
+        "view.setFloat16(0, 1)",
+        'Math["f16round"]',
+    ])
+        assert.deepEqual(usage(source), { ...none, float16: true }, source);
+    // Float16Array also needs the %TypedArray% methods of binaryData.
+    assert.deepEqual(usage("new Float16Array(4)"), {
+        ...none,
+        float16: true,
+        preludes: { ...none.preludes, binaryData: true },
+    });
+    assert.equal(usage("Object.getOwnPropertyNames(Math)").float16, true);
+    assert.equal(usage("Math.fround(x)").float16, false);
+    // Float16Array is a global: enumerating the global object observes it.
+    assert.equal(usage("Object.getOwnPropertyNames(globalThis)").float16, true);
+    assert.equal(usage("globalThis['Float16' + 'Array']").float16, false);
+    assert.equal(usage("new Float32Array(4).sort()").float16, false);
     // Every source lexed inside one collection counts; nested collections report to the outer one.
     const outer = collectSourceUsage(() => {
         lex("1");
