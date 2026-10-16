@@ -33,7 +33,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 | Number、Math、URI 函数                   | 支持 | 最短往返数字格式化、`toFixed`/`toExponential`/`toPrecision`、ES2020 的全部 `Math` 函数。                                                                              |
 | String                                   | 支持 | ES2020 方法、Unicode 规范化、不带 ECMA-402 区域数据的 `localeCompare`。                                                                                               |
 | RegExp                                   | 支持 | 命名分组、后行断言、`s`、`u`、`y` 和 `g` 标志、Unicode 属性转义、`matchAll`。引擎是以前导代码形式编写的回溯虚拟机，对回溯过多的模式有线性时间的回退方案；它比 V8 慢。 |
-| Array                                    | 支持 | ES2020 的全部方法、species、空位和超大长度。                                                                                                                          |
+| Array                                    | 支持 | ES2020 的全部方法、species、空位和超大长度 和 `Array.fromAsync`。                                                                                                     |
 | Date、JSON                               | 支持 | UTC 和本地时间的日期解析与格式化、带 reviver 的 `JSON.parse`、带 replacer 和缩进的 `JSON.stringify`。                                                                 |
 | Map、Set、WeakMap、WeakSet               | 支持 | 弱集合采用 ephemeron 语义。                                                                                                                                           |
 | ArrayBuffer、DataView、类型化数组        | 支持 | 全部 11 种类型化数组（包括 BigInt 数组）、分离（detach）、species。                                                                                                   |

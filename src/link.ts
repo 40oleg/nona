@@ -137,6 +137,7 @@ export const preludeTriggers = {
         "sup",
     ],
     arraySort: ["sort"],
+    arrayFromAsync: ["fromAsync"],
     objectIntegrity: ["freeze", "seal", "isFrozen", "isSealed"],
     objectAnnexB: [
         "__defineGetter__",
