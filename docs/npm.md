@@ -127,9 +127,11 @@ these modules exist mainly for packages (see
 | `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                 |
 | `node:zlib`                           | `inflate`, `gunzip`, `unzip` (complete, incremental), `deflate`, `gzip` (valid but not byte-identical to zlib), sync/callback/stream/promisified forms, `crc32`; Brotli and Zstandard throw `ERR_NONA_UNSUPPORTED`             |
 | `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                       |
+| `node:https`                          | `Agent` and `globalAgent` (Linux and Windows); there is no TLS, so `request`, `get` and `createServer` throw `ERR_NONA_UNSUPPORTED`                                                                                            |
+| `node:tls`, `node:http2`              | exist so that packages mentioning them load: the constants of Node.js (`http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                                              |
 
-A package that loads a module Nona does not provide (`dns`, `https`,
-`tls`, …) fails to compile with `E_MODULE: Cannot resolve module`.
+A package that loads a module Nona does not provide (`dns`, `dgram`,
+`cluster`, …) fails to compile with `E_MODULE: Cannot resolve module`.
 
 ## Tested packages
 
@@ -137,7 +139,7 @@ Every package below is compiled with a small program and its output compared
 with Node.js (`tests/npm.test.ts` covers the mechanisms; the package list is
 checked by hand for now):
 
-acorn, ansi-styles, big.js, bignumber.js, chalk, classnames, commander,
+acorn, ansi-styles, axios (HTTP requests to `http:` URLs), big.js, bignumber.js, chalk, classnames, commander,
 date-fns, dayjs, debug, decimal.js, deepmerge, diff, escape-html, express
 (5.3.0: routing, params, `express.json()`/`urlencoded()`, `Router`, redirects,
 error middleware, served over `node:http`), fast-deep-equal, immer, js-yaml, kleur, lodash, marked, minimist, ms,
@@ -160,6 +162,8 @@ Function` or `eval` from strings built at run time fail when they do so:
 - **Version checks.** `process.version` is Nona's version and Nona does not
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error.
+- **TLS and compression.** `https:` requests, and responses with a
+  `Content-Encoding` that needs `zlib`, fail with `ERR_NONA_UNSUPPORTED`.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and
