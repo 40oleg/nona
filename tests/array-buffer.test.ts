@@ -5,6 +5,8 @@ import { compileToIR } from "../src/compiler.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { linkHost } from "./helpers/program.js";
 import { runNative } from "./helpers/native.js";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 test("ArrayBuffer, SharedArrayBuffer and DataView use intrinsic prototypes for primitive newTarget prototypes", () =>
     expectProgram(
@@ -908,3 +910,168 @@ test("bootstrap buffer and typed array methods are not constructors", () =>
 `,
         "map false false true\nfilter false false true\ngetBigInt64 false false true\ntoLocaleString false false true\nfrom false false true\n",
     ));
+
+// ES2024 resizable and transferable buffers (#315), compared with Node.js.
+function expectOracle(source: string): void {
+    const expected = runOracle(source);
+    assert.equal(expected.status, 0, expected.stderr);
+    for (const gcStress of [false, true]) {
+        const run = runOnHost(source, { gcStress });
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(run.stdout, expected.stdout);
+    }
+}
+const bufferHelpers = `function bytes(b){return Array.from(new Uint8Array(b.slice(0))).join()}
+function error(f){try{f();return 'ok'}catch(e){return e.constructor.name}}`;
+
+test("ArrayBuffer and SharedArrayBuffer constructors read maxByteLength in order", () =>
+    expectOracle(`${bufferHelpers}
+var log=[];
+var length={valueOf(){log.push('length');return 2}};
+var options={get maxByteLength(){log.push('get');return {valueOf(){log.push('max');return 8}}}};
+var a=new ArrayBuffer(length,options);
+console.log(log.join(),a.byteLength,a.maxByteLength,a.resizable);
+log=[];
+var s=new SharedArrayBuffer(length,options);
+console.log(log.join(),s.byteLength,s.maxByteLength,s.growable);
+for(var C of [ArrayBuffer,SharedArrayBuffer]){
+  console.log(C.name,
+    error(()=>new C(5,{maxByteLength:4})),
+    error(()=>new C(0,{maxByteLength:-1})),
+    error(()=>new C(0,{maxByteLength:2**53})),
+    error(()=>new C(0,{maxByteLength:7*1024**5})),
+    error(()=>new C(0,{maxByteLength:1n})),
+    new C(3,{maxByteLength:undefined}).maxByteLength,
+    new C(3,{}).maxByteLength,
+    new C(3,null).maxByteLength,
+    new C(3,1).maxByteLength,
+    new C(0,{maxByteLength:NaN}).maxByteLength,
+    new C(1,{maxByteLength:1.9}).maxByteLength);
+  var poisoned=error(()=>new C(-1,{get maxByteLength(){throw new SyntaxError()}}));
+  var poisonedOptions=error(()=>new C(1,{get maxByteLength(){throw new SyntaxError()}}));
+  var newTarget=Object.defineProperty(function(){}.bind(null),'prototype',{get(){throw new EvalError()}});
+  console.log(poisoned,poisonedOptions,
+    error(()=>Reflect.construct(C,[0,{maxByteLength:2**40}],newTarget)));
+}
+console.log(bytes(new ArrayBuffer(3,{maxByteLength:5})));
+`));
+
+// V8 reads newTarget.prototype before this check; ES2024 25.1.3.1 compares first.
+test("ArrayBuffer and SharedArrayBuffer compare maxByteLength before reading the prototype", () =>
+    expectProgram(
+        `var newTarget=Object.defineProperty(function(){}.bind(null),'prototype',{get(){throw new EvalError()}});
+for(var C of [ArrayBuffer,SharedArrayBuffer])try{Reflect.construct(C,[10,{maxByteLength:0}],newTarget)}catch(e){console.log(e.name)}`,
+        "RangeError\nRangeError\n",
+    ));
+
+test("ArrayBuffer getters report resizable, maxByteLength and detached", () =>
+    expectOracle(`${bufferHelpers}
+var proto=ArrayBuffer.prototype;
+for(var name of ['maxByteLength','resizable','detached']){
+  var d=Object.getOwnPropertyDescriptor(proto,name);
+  console.log(name,typeof d.get,d.set,d.enumerable,d.configurable,d.get.name,d.get.length,
+    error(()=>d.get.call({})),error(()=>d.get.call(new SharedArrayBuffer(1))),error(()=>d.get.call(1)));
+}
+var fixed=new ArrayBuffer(3),rab=new ArrayBuffer(2,{maxByteLength:6});
+console.log(fixed.maxByteLength,fixed.resizable,fixed.detached,rab.maxByteLength,rab.resizable,rab.detached);
+fixed.transfer();rab.transfer();
+console.log(fixed.maxByteLength,fixed.resizable,fixed.detached,fixed.byteLength,rab.maxByteLength,rab.resizable,rab.detached,rab.byteLength);
+`));
+
+test("ArrayBuffer resize shrinks, grows and zeroes exposed bytes", () =>
+    expectOracle(`${bufferHelpers}
+var d=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'resize');
+console.log(d.writable,d.enumerable,d.configurable,d.value.name,d.value.length);
+var rab=new ArrayBuffer(4,{maxByteLength:8});
+new DataView(rab).setUint32(0,0x01020304);
+console.log(rab.resize(2),rab.byteLength,bytes(rab));
+rab.resize(6);console.log(rab.byteLength,bytes(rab));
+rab.resize(8);rab.resize(0);rab.resize();console.log(rab.byteLength,bytes(rab));
+rab.resize(5.7);console.log(rab.byteLength);
+console.log(error(()=>rab.resize(9)),error(()=>rab.resize(-1)),error(()=>rab.resize(2**53)),
+  error(()=>new ArrayBuffer(4).resize(2)),error(()=>rab.resize(1n)),
+  error(()=>d.value.call(new SharedArrayBuffer(1,{maxByteLength:2}),1)),error(()=>d.value.call({},1)));
+var log=[];
+var rab2=new ArrayBuffer(1,{maxByteLength:2});
+console.log(error(()=>new ArrayBuffer(4).resize({valueOf(){log.push('fixed');return 1}})),log.join());
+console.log(error(()=>rab2.resize({valueOf(){rab2.transfer();log.push('detach');return 1}})),log.join());
+console.log(rab.slice(1,4).byteLength,rab.slice(-2).byteLength);
+`));
+
+test("ArrayBuffer slice copies from the current length after species", () =>
+    expectOracle(`${bufferHelpers}
+var rab=new ArrayBuffer(4,{maxByteLength:8});
+new Uint8Array(rab,0,4).set([1,2,3,4]);
+var shrink=false;
+rab.constructor={[Symbol.species]:function(n){if(shrink)rab.resize(1);return new ArrayBuffer(n)}};
+console.log(bytes(rab.slice(0,3)));
+shrink=true;
+console.log(bytes(rab.slice(0,3)),rab.byteLength);
+rab.constructor={[Symbol.species]:function(n){rab.resize(0);return new ArrayBuffer(n)}};
+rab.resize(4);
+console.log(bytes(rab.slice(2,4)));
+rab.constructor={[Symbol.species]:function(n){rab.transfer();return new ArrayBuffer(n)}};
+console.log(error(()=>rab.slice(0,1)));
+`));
+
+test("ArrayBuffer transfer and transferToFixedLength copy, resize and detach", () =>
+    expectOracle(`${bufferHelpers}
+for(var name of ['transfer','transferToFixedLength']){
+  var d=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,name);
+  console.log(name,d.writable,d.enumerable,d.configurable,d.value.name,d.value.length);
+}
+function make(resizable){var b=resizable?new ArrayBuffer(4,{maxByteLength:10}):new ArrayBuffer(4);new Uint8Array(b,0,4).set([1,2,3,4]);return b}
+for(var resizable of [false,true]){
+  for(var name of ['transfer','transferToFixedLength']){
+    for(var length of [undefined,2,6]){
+      var source=make(resizable),result=source[name](length);
+      console.log(resizable,name,length,source.detached,source.byteLength,result.byteLength,result.resizable,result.maxByteLength,bytes(result),result===source);
+    }
+  }
+}
+var source=make(true);
+console.log(error(()=>source.transfer(11)),source.detached,source.transferToFixedLength(11).byteLength,source.detached);
+console.log(error(()=>source.transfer()),error(()=>source.transferToFixedLength()),error(()=>source.transfer(-1)));
+var transfer=ArrayBuffer.prototype.transfer;
+console.log(error(()=>transfer.call(new SharedArrayBuffer(1))),error(()=>transfer.call({})),error(()=>transfer.call(undefined)));
+var log=[];source=make(false);
+console.log(error(()=>source.transfer({valueOf(){log.push('length');source.transfer();return 1}})),log.join());
+console.log(error(()=>make(false).transfer(2n)),make(false).transfer(1.9).byteLength,make(false).transfer(NaN).byteLength);
+`));
+
+test("SharedArrayBuffer grow, growable and maxByteLength", () =>
+    expectOracle(`${bufferHelpers}
+var proto=SharedArrayBuffer.prototype;
+for(var name of ['growable','maxByteLength']){
+  var d=Object.getOwnPropertyDescriptor(proto,name);
+  console.log(name,d.get.name,d.get.length,d.enumerable,d.configurable,error(()=>d.get.call(new ArrayBuffer(1))),error(()=>d.get.call({})));
+}
+var d=Object.getOwnPropertyDescriptor(proto,'grow');
+console.log(d.value.name,d.value.length,d.writable,d.enumerable,d.configurable);
+var fixed=new SharedArrayBuffer(3),gsab=new SharedArrayBuffer(2,{maxByteLength:8});
+console.log(fixed.growable,fixed.maxByteLength,gsab.growable,gsab.maxByteLength,gsab.byteLength);
+new Uint8Array(gsab,0,2).set([7,8]);
+console.log(gsab.grow(2),gsab.byteLength,bytes(gsab));
+gsab.grow(5.5);console.log(gsab.byteLength,bytes(gsab));
+gsab.grow(8);console.log(gsab.byteLength,bytes(gsab.slice(6)));
+console.log(error(()=>gsab.grow(7)),error(()=>gsab.grow(9)),error(()=>gsab.grow(-1)),
+  error(()=>fixed.grow(3)),error(()=>d.value.call(new ArrayBuffer(1,{maxByteLength:2}),2)),error(()=>gsab.grow(1n)));
+var log=[];
+console.log(error(()=>fixed.grow({valueOf(){log.push('fixed');return 3}})),log.join());
+var small=new SharedArrayBuffer(1,{maxByteLength:2});
+console.log(error(()=>small.grow({valueOf(){log.push('length');return 3}})),log.join());
+`));
+
+test("resizable buffers keep their reserved storage under GC", () =>
+    expectOracle(`${bufferHelpers}
+var kept=new ArrayBuffer(2,{maxByteLength:64}),shared=new SharedArrayBuffer(2,{maxByteLength:64});
+new Uint8Array(kept,0,2).set([5,6]);new Uint8Array(shared,0,2).set([7,8]);
+for(var i=0;i<40;i++){
+  kept.resize(2+i);shared.grow(2+i);
+  var moved=new ArrayBuffer(i,{maxByteLength:i+4}).transfer(i+1);
+  String(i)+moved.byteLength;
+}
+console.log(kept.byteLength,bytes(kept.slice(0,4)),shared.byteLength,bytes(shared.slice(0,4)));
+var last=kept.transfer(50);
+console.log(kept.detached,last.byteLength,last.maxByteLength,bytes(last.slice(0,3)));
+`));

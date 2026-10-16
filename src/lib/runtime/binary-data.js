@@ -13,8 +13,182 @@ __nonaRegexpVm.arrayBufferLength = Object.getOwnPropertyDescriptor(
 __nonaRegexpVm.arrayBufferCopy = ArrayBuffer.__nonaCopyInternal;
 __nonaRegexpVm.arrayBufferAlignment = ArrayBuffer.__nonaAlignmentInternal;
 __nonaRegexpVm.arrayBufferDetach = ArrayBuffer.__nonaDetachInternal;
+__nonaRegexpVm.arrayBufferResizable = ArrayBuffer.__nonaResizableInternal;
 delete ArrayBuffer.__nonaAlignmentInternal;
 delete ArrayBuffer.__nonaCopyInternal;
+delete ArrayBuffer.__nonaResizableInternal;
+// ToIndex (ES2024 7.1.22).
+__nonaRegexpVm.bufferToIndex = function (value) {
+    if (typeof value === "bigint")
+        throw new __nonaRegexpVm.bufferTypeError(
+            "Cannot convert BigInt to Number",
+        );
+    var number = __nonaRegexpVm.arrayBufferNumber(value);
+    if (number !== number) return 0;
+    number = __nonaRegexpVm.arrayBufferTrunc(number);
+    if (number < 0 || number > 9007199254740991)
+        throw new __nonaRegexpVm.bufferRangeError(
+            "Invalid array buffer length",
+        );
+    return number + 0;
+};
+// The buffer state of an ArrayBuffer (shared === false) or SharedArrayBuffer
+// (shared === true): maxByteLength, -1 for a fixed-length buffer, or -2 / -3
+// for a detached fixed-length / resizable one. Other receivers throw.
+__nonaRegexpVm.bufferState = function (buffer, shared) {
+    if (
+        buffer === null ||
+        (typeof buffer !== "object" && typeof buffer !== "function")
+    )
+        throw new __nonaRegexpVm.bufferTypeError("Receiver is not a buffer");
+    if (shared)
+        __nonaRegexpVm.safeCall(__nonaRegexpVm.sharedArrayBufferLength, buffer);
+    else __nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength, buffer);
+    return __nonaRegexpVm.arrayBufferResizable(buffer);
+};
+// ArrayBufferCopyAndDetach (ES2024 25.1.3.3).
+__nonaRegexpVm.arrayBufferCopyAndDetach = function (
+    buffer,
+    newLength,
+    preserve,
+) {
+    var state = __nonaRegexpVm.bufferState(buffer, false);
+    var newByteLength =
+        newLength === undefined
+            ? __nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength, buffer)
+            : __nonaRegexpVm.bufferToIndex(newLength);
+    if (__nonaRegexpVm.arrayBufferResizable(buffer) <= -2)
+        throw new __nonaRegexpVm.bufferTypeError("ArrayBuffer is detached");
+    var options;
+    if (preserve && state >= 0) {
+        if (newByteLength > state)
+            throw new __nonaRegexpVm.bufferRangeError(
+                "Invalid array buffer length",
+            );
+        options = { maxByteLength: state };
+    }
+    var result = new __nonaRegexpVm.arrayBufferConstructor(
+        newByteLength,
+        options,
+    );
+    var copyLength = __nonaRegexpVm.arrayBufferMin(
+        newByteLength,
+        __nonaRegexpVm.safeCall(__nonaRegexpVm.arrayBufferLength, buffer),
+    );
+    __nonaRegexpVm.arrayBufferCopy(buffer, result, 0, copyLength);
+    __nonaRegexpVm.arrayBufferDetach(buffer);
+    return result;
+};
+(function (prototype, sharedPrototype) {
+    function accessor(target, name, get) {
+        Object.defineProperty(target, name, {
+            get: get,
+            configurable: true,
+        });
+    }
+    function method(target, name, value) {
+        Object.defineProperty(target, name, {
+            value: value,
+            writable: true,
+            configurable: true,
+        });
+    }
+    var getters = {
+        get maxByteLength() {
+            var state = __nonaRegexpVm.bufferState(this, false);
+            if (state <= -2) return 0;
+            if (state >= 0) return state;
+            return __nonaRegexpVm.safeCall(
+                __nonaRegexpVm.arrayBufferLength,
+                this,
+            );
+        },
+        get resizable() {
+            var state = __nonaRegexpVm.bufferState(this, false);
+            return state >= 0 || state === -3;
+        },
+        get detached() {
+            return __nonaRegexpVm.bufferState(this, false) <= -2;
+        },
+    };
+    var sharedGetters = {
+        get growable() {
+            return __nonaRegexpVm.bufferState(this, true) >= 0;
+        },
+        get maxByteLength() {
+            var state = __nonaRegexpVm.bufferState(this, true);
+            if (state >= 0) return state;
+            return __nonaRegexpVm.safeCall(
+                __nonaRegexpVm.sharedArrayBufferLength,
+                this,
+            );
+        },
+    };
+    for (var name of ["maxByteLength", "resizable", "detached"])
+        accessor(
+            prototype,
+            name,
+            Object.getOwnPropertyDescriptor(getters, name).get,
+        );
+    for (var name of ["growable", "maxByteLength"])
+        accessor(
+            sharedPrototype,
+            name,
+            Object.getOwnPropertyDescriptor(sharedGetters, name).get,
+        );
+    var methods = {
+        resize(newLength) {
+            var state = __nonaRegexpVm.bufferState(this, false);
+            if (state === -1 || state === -2)
+                throw new __nonaRegexpVm.bufferTypeError(
+                    "ArrayBuffer is not resizable",
+                );
+            var newByteLength = __nonaRegexpVm.bufferToIndex(newLength);
+            state = __nonaRegexpVm.arrayBufferResizable(this);
+            if (state <= -2)
+                throw new __nonaRegexpVm.bufferTypeError(
+                    "ArrayBuffer is detached",
+                );
+            if (newByteLength > state)
+                throw new __nonaRegexpVm.bufferRangeError(
+                    "Invalid array buffer length",
+                );
+            __nonaRegexpVm.arrayBufferResizable(this, newByteLength);
+        },
+        transfer() {
+            return __nonaRegexpVm.arrayBufferCopyAndDetach(
+                this,
+                arguments.length > 0 ? arguments[0] : undefined,
+                true,
+            );
+        },
+        transferToFixedLength() {
+            return __nonaRegexpVm.arrayBufferCopyAndDetach(
+                this,
+                arguments.length > 0 ? arguments[0] : undefined,
+                false,
+            );
+        },
+        grow(newLength) {
+            if (__nonaRegexpVm.bufferState(this, true) < 0)
+                throw new __nonaRegexpVm.bufferTypeError(
+                    "SharedArrayBuffer is not growable",
+                );
+            var newByteLength = __nonaRegexpVm.bufferToIndex(newLength);
+            if (
+                newByteLength > __nonaRegexpVm.arrayBufferResizable(this) ||
+                !__nonaRegexpVm.arrayBufferResizable(this, newByteLength)
+            )
+                throw new __nonaRegexpVm.bufferRangeError(
+                    "SharedArrayBuffer cannot shrink",
+                );
+        },
+    };
+    method(prototype, "resize", methods.resize);
+    method(prototype, "transfer", methods.transfer);
+    method(prototype, "transferToFixedLength", methods.transferToFixedLength);
+    method(sharedPrototype, "grow", methods.grow);
+})(ArrayBuffer.prototype, SharedArrayBuffer.prototype);
 Object.defineProperty(ArrayBuffer.prototype, "slice", {
     value: {
         slice(start, end) {
@@ -69,7 +243,25 @@ Object.defineProperty(ArrayBuffer.prototype, "slice", {
                 throw new __nonaRegexpVm.bufferTypeError(
                     "ArrayBuffer species returned a short buffer",
                 );
-            __nonaRegexpVm.arrayBufferCopy(this, result, first, newLength);
+            // The species constructor may have resized this buffer.
+            var currentLength = __nonaRegexpVm.safeCall(
+                __nonaRegexpVm.arrayBufferLength,
+                this,
+            );
+            if (first < currentLength)
+                __nonaRegexpVm.arrayBufferCopy(
+                    this,
+                    result,
+                    first,
+                    __nonaRegexpVm.arrayBufferMin(
+                        newLength,
+                        currentLength - first,
+                    ),
+                );
+            else if (__nonaRegexpVm.arrayBufferResizable(this) <= -2)
+                throw new __nonaRegexpVm.bufferTypeError(
+                    "ArrayBuffer is detached",
+                );
             return result;
         },
     }.slice,

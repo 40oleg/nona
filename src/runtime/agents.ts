@@ -52,7 +52,7 @@ export function emitAgents(b: RuntimeBuilder): void {
         "agent.acks",
     ])
         b.data(name, new Uint8Array(8), ".data");
-    b.data("agent.mailbox", new Uint8Array(32), ".data");
+    b.data("agent.mailbox", new Uint8Array(40), ".data");
     b.bundle.imports.push({
         dll: "KERNELBASE.dll",
         name: "WakeByAddressSingle",
@@ -278,6 +278,8 @@ export function emitAgents(b: RuntimeBuilder): void {
         a.load("rax", { base: "r10", disp: ArrayBufferLayout.byteLength });
         a.store({ rip: "agent.mailbox", addend: 16 }, "rax");
         a.store({ rip: "agent.mailbox", addend: 24 }, "r9");
+        a.load("rax", { base: "r10", disp: ArrayBufferLayout.maxByteLength });
+        a.store({ rip: "agent.mailbox", addend: 32 }, "rax");
         a.load("rax", { rip: "agent.mailbox" });
         a.add("rax", 1);
         a.store({ rip: "agent.mailbox" }, "rax");
@@ -337,6 +339,11 @@ export function emitAgents(b: RuntimeBuilder): void {
             a.store({ base: "rax", disp: ArrayBufferLayout.bytes }, "r10");
             a.load("r10", { rip: "agent.mailbox", addend: 16 });
             a.store({ base: "rax", disp: ArrayBufferLayout.byteLength }, "r10");
+            a.load("r10", { rip: "agent.mailbox", addend: 32 });
+            a.store(
+                { base: "rax", disp: ArrayBufferLayout.maxByteLength },
+                "r10",
+            );
             a.mov("r10", 5);
             a.store(slot(64), "r10");
             a.store(slot(72), "rax");

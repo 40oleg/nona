@@ -12,7 +12,9 @@ import { stringLiteral } from "./value.js";
 import {
     ArrayBufferLayout,
     SharedArrayBufferKind,
+    SharedLengthHeader,
 } from "./array-buffer-layout.js";
+import { emitBufferConstructLengths } from "./array-buffer.js";
 
 export { SharedArrayBufferKind };
 export const sharedArrayBufferRoots = [
@@ -197,7 +199,19 @@ export function emitSharedArrayBuffer(b: RuntimeBuilder): void {
         a.load("rax", { base: "rdx", disp: O.kind });
         a.cmp("rax", SharedArrayBufferKind);
         failIf(a, "ne", "rt.throwTypeError");
+        // A growable buffer refreshes this agent's view of the shared length.
+        const fixed = a.unique("fixed"),
+            ready = a.unique("ready");
+        a.load("rax", { base: "rdx", disp: ArrayBufferLayout.maxByteLength });
+        a.test("rax", "rax");
+        a.jcc("s", fixed);
+        a.load("rax", { base: "rdx", disp: ArrayBufferLayout.bytes });
+        a.load("rax", { base: "rax", disp: -SharedLengthHeader });
+        a.store({ base: "rdx", disp: ArrayBufferLayout.byteLength }, "rax");
+        a.jmp(ready);
+        a.label(fixed);
         a.load("rax", { base: "rdx", disp: ArrayBufferLayout.byteLength });
+        a.label(ready);
         a.cvtsi2sd("xmm0", "rax");
         a.mov("rax", 3);
         a.store({ base: "rcx" }, "rax");
@@ -217,55 +231,49 @@ export function emitSharedArrayBuffer(b: RuntimeBuilder): void {
             a.store(slot(40), "rcx");
             a.store(slot(48), "rdx");
             a.store(slot(56), "r8");
-            a.mov("rax", 0);
-            a.store(slot(72), "rax");
-            const ready = a.unique("ready"),
-                zero = a.unique("zero"),
-                invalid = a.unique("invalid");
-            a.test("rdx", "rdx");
-            a.jcc("e", ready);
-            a.load("rax", { base: "r8" });
-            a.test("rax", "rax");
-            a.jcc("e", ready);
-            a.lea("rcx", slot(80));
-            a.mov("rdx", "r8");
-            a.call("rt.toNumber");
-            a.movsd("xmm0", slot(88));
-            a.ucomisd("xmm0", "xmm0");
-            a.jcc("p", zero);
-            a.mov("rax", -1);
-            a.cvtsi2sd("xmm1", "rax");
-            a.ucomisd("xmm0", "xmm1");
-            a.jcc("be", invalid);
-            a.mov("rax", 0x7fffffff);
-            a.cvtsi2sd("xmm1", "rax");
-            a.ucomisd("xmm0", "xmm1");
-            a.jcc("a", invalid);
-            a.cvttsd2si("rax", "xmm0");
-            a.store(slot(72), "rax");
-            a.jmp(ready);
-            a.label(zero);
-            a.mov("rax", 0);
-            a.store(slot(72), "rax");
-            a.jmp(ready);
-            a.label(invalid);
-            a.call("rt.throwRangeError");
-            a.label(ready);
+            emitBufferConstructLengths(
+                a,
+                frame,
+                "rt.sharedarraybufferPrototype",
+            );
             // Shared backing stores live outside the GC heap: other agents may alias
             // them, so they are zero-initialized raw blocks that are never reclaimed.
-            a.load("r8", slot(72));
+            // A growable buffer reserves its maximum after the shared length word.
+            a.load("rax", slot(72));
+            a.store(slot(112), "rax");
+            a.mov("rax", 0);
+            a.store(slot(120), "rax");
+            const fixed = a.unique("fixed");
+            a.load("rax", slot(104));
+            a.test("rax", "rax");
+            a.jcc("s", fixed);
+            a.store(slot(112), "rax");
+            a.mov("rax", SharedLengthHeader);
+            a.store(slot(120), "rax");
+            a.label(fixed);
+            a.load("r8", slot(112));
+            a.load("rax", slot(120));
+            a.add("r8", "rax");
             a.add("r8", 8);
             a.load("rcx", { rip: "rt.heap" });
             a.mov("rdx", 8);
             a.callImport("HeapAlloc");
             a.test("rax", "rax");
             failIf(a, "e");
+            a.load("r10", slot(120));
+            a.add("rax", "r10");
             a.store(slot(64), "rax");
+            const noHeader = a.unique("noHeader");
+            a.test("r10", "r10");
+            a.jcc("e", noHeader);
+            a.load("r10", slot(72));
+            a.store({ base: "rax", disp: -SharedLengthHeader }, "r10");
+            a.label(noHeader);
             // Shared backing allocations outlive their GC owners and agent aliases.
             // Count successfully allocated requested bytes independently of GC headers.
-            a.load("r10", slot(72));
+            a.load("r10", slot(112));
             a.atomicXadd({ rip: "rt.sharedArrayBufferBytes" }, "r10", 64);
-            a.load("r8", slot(72));
+            a.load("r8", slot(112));
             a.load("rdx", slot(64));
             a.mov("r10", 0);
             const fill = a.unique("fill"),
@@ -299,6 +307,11 @@ export function emitSharedArrayBuffer(b: RuntimeBuilder): void {
             a.store({ base: "rax", disp: ArrayBufferLayout.byteLength }, "r10");
             a.mov("r10", 0);
             a.store({ base: "rax", disp: ArrayBufferLayout.detached }, "r10");
+            a.load("r10", slot(104));
+            a.store(
+                { base: "rax", disp: ArrayBufferLayout.maxByteLength },
+                "r10",
+            );
             a.load("rcx", slot(40));
             a.mov("r10", 5);
             a.store({ base: "rcx" }, "r10");

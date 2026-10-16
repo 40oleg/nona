@@ -148,6 +148,7 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
             "__nonaCopyInternal",
             "__nonaDetachInternal",
             "__nonaAlignmentInternal",
+            "__nonaResizableInternal",
         ],
         "rt.SharedArrayBuffer": ["length", "name", "prototype", "@@species"],
         "rt.Map": ["length", "name", "prototype", "@@species"],
