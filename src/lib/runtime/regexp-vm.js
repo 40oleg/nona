@@ -89,7 +89,7 @@
     return compiled
   }
   function compileUncached(pattern,flags){
-    var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false;
+    var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false,modifiers=false;
     // path: (disjunction id, branch) pairs from the root to the parse position.
     var path=[],paths=[],disjunctions=0;
     for(var scan=0;scan<pattern.length;scan++){
@@ -98,7 +98,8 @@
       if(inClass){if(mark===']')inClass=false;continue}
       if(mark==='['){inClass=true;continue}
       if(mark==='('&&pattern[scan+1]==='?'&&pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!')hasNamedGroup=true;
-      if(mark==='('&&!(pattern[scan+1]==='?'&&(pattern[scan+2]===':'||pattern[scan+2]==='='||pattern[scan+2]==='!'||pattern[scan+2]==='<'&&(pattern[scan+3]==='='||pattern[scan+3]==='!'))))totalGroups++
+      // Only ( and (?<name> capture: (?:, lookarounds and modifiers (?i-m:) do not.
+      if(mark==='('&&(pattern[scan+1]!=='?'||pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!'))totalGroups++
     }
     function error(){throw new SyntaxError('Invalid regular expression')}
     function digit(c){return c>='0'&&c<='9'}
@@ -349,8 +350,22 @@
       if(c==='.')return {kind:'dot'};
       if(c==='^'||c==='$')return {kind:'anchor',value:c};
       if(c==='('){
-        var capture=0,name=undefined,look=undefined;
+        var capture=0,name=undefined,look=undefined,add=0,remove=0;
         if(pattern[at]==='?'&&pattern[at+1]===':')at+=2;
+        else if(pattern[at]==='?'&&pattern[at+1]!==undefined&&indexOf('ims-',pattern[at+1])>=0){
+          // Modifiers (?ims-ims:...): bits 1 i, 2 m, 4 s; each flag at most once.
+          var removing=false;at++;
+          for(;;){
+            var flag=pattern[at++];
+            if(flag===':')break;
+            if(flag==='-'&&!removing){removing=true;continue}
+            var bit=flag==='i'?1:flag==='m'?2:flag==='s'?4:0;
+            if(bit===0||(add|remove)&bit)error();
+            if(removing)remove|=bit;else add|=bit
+          }
+          if(add===0&&remove===0)error();
+          modifiers=true
+        }
         else if(pattern[at]==='?'&&(pattern[at+1]==='='||pattern[at+1]==='!')){
           look={behind:false,positive:pattern[at+1]==='='};at+=2
         }
@@ -373,6 +388,7 @@
         if(pattern[at]!==')')error();
         at++;
         if(look!==undefined)return {kind:'look',value:inner,behind:look.behind,positive:look.positive};
+        if(add|remove)return {kind:'group',value:inner,capture:0,add:add,remove:remove};
         return {kind:'group',value:inner,capture:capture}
       }
       if(c==='['){
@@ -457,14 +473,14 @@
       }
     }
     validateReferences(tree);
-    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined};
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined,modifiers:modifiers};
     // A pattern whose every alternative starts with ^ (without the m flag) can
     // only match at index 0: search tries no other start position.
     if(indexOf(flags,'m')<0)compiled.anchored=startsAnchored(tree);
     // A pattern that starts with a literal (outside ignore-case and unicode
     // mode) can only match where that literal occurs: execute skips ahead
     // with indexOf instead of trying every position.
-    if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0){
+    if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0&&!modifiers){
       // The whole literal run at the start ('abc' of /abc(\d+)/), so that
       // indexOf skips the positions where only the first character matches.
       var literal=literalPrefix(tree);
@@ -473,7 +489,7 @@
     // Otherwise a pattern whose matches must start with one of at most eight
     // code units skips to the next of them with the native scan (#258).
     if(compiled.prefix===null&&!compiled.anchored){
-      var unicodeMode=indexOf(flags,'u')>=0,units=firstUnits(tree,indexOf(flags,'i')>=0,unicodeMode);
+      var unicodeMode=indexOf(flags,'u')>=0,units=firstUnits(tree,modifiers||indexOf(flags,'i')>=0,unicodeMode);
       // In unicode mode a match never starts inside a surrogate pair, but the
       // scan would stop at the trailing half of one: such sets are not used.
       var usable=!units.nullable&&units.set!==null&&units.set.length>0;
@@ -569,7 +585,7 @@
   function startsAnchored(node){
     if(node.kind==='anchor')return node.value==='^';
     if(node.kind==='sequence')return node.value.length>0&&startsAnchored(node.value[0]);
-    if(node.kind==='group')return startsAnchored(node.value);
+    if(node.kind==='group')return !(node.add&2)&&startsAnchored(node.value);
     if(node.kind==='alternative'){
       for(var i=0;i<node.value.length;i++)if(!startsAnchored(node.value[i]))return false;
       return true
@@ -596,13 +612,20 @@
   //   22 SIMPLE_REPEAT kind, datum, dir, min, max, greedy, width (0 = varies)
   //   23 BACKREF_ANY count, group..., dir (a duplicate name: the group that
   //     participated, empty when none did)
+  //   26 MODE bits (1 i, 2 m, 4 s): only in patterns with modifier groups,
+  //     before every instruction that depends on these flags.
   // Registers: 2*group and 2*group+1 hold capture bounds; group start
   // positions and repeat counters follow.
   var NONE=4294967295;
+  function modeOf(flags){return (indexOf(flags,'i')>=0?1:0)|(indexOf(flags,'m')>=0?2:0)|(indexOf(flags,'s')>=0?4:0)}
+  // MODE: the flags of the instruction that follows. modeFrame is a lazy
+  // simple repeat's choice point kind, which carries the mode to its resumption.
+  function setMode(bits){ignore=(bits&1)!==0;multiline=(bits&2)!==0;dotAll=(bits&4)!==0;modeFrame=2|32|bits<<2}
   function assemble(compiled){
     var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0;
-    var code=[],data=[],registers=compiled.groups*2+2;
+    var code=[],data=[],registers=compiled.groups*2+2,mode=modeOf(flags);
     function emit(value){append(code,value)}
+    function scoped(){if(compiled.modifiers){emit(26);emit(mode)}}
     function datum(value){append(data,value);return data.length-1}
     function captureRange(node,range){
       var k=node.kind;
@@ -617,13 +640,13 @@
     function atomOf(node){
       var k=node.kind;
       if(k==='char'){
-        if(!ignore&&node.value.length===1)return [6,charCodeAt(node.value,0),1];
+        if(!(mode&1)&&node.value.length===1)return [6,charCodeAt(node.value,0),1];
         return [1,datum(node.value),node.value.length]
       }
       if(k==='dot')return [2,0,unicode?0:1];
       if(k==='class'){
         var spec=node.value;
-        if(!unicode&&!ignore&&spec.items.length===1&&!spec.items[0].set&&!spec.items[0].range)return [spec.inverted?7:6,spec.items[0].point,1];
+        if(!unicode&&!(mode&1)&&spec.items.length===1&&!spec.items[0].set&&!spec.items[0].range)return [spec.inverted?7:6,spec.items[0].point,1];
         return [3,datum(spec),unicode?0:1]
       }
       if(k==='classEscape')return [4,datum(node.value),unicode?0:1];
@@ -650,7 +673,10 @@
         return
       }
       if(k==='group'){
-        if(node.capture===0){gen(node.value,dir);return}
+        if(node.capture===0){
+          var outer=mode;mode=(mode|node.add)&~node.remove;
+          gen(node.value,dir);mode=outer;return
+        }
         var register=registers++;
         emit(10);emit(register);gen(node.value,dir);emit(11);emit(node.capture);emit(register);emit(dir);
         return
@@ -662,8 +688,8 @@
         code[look+3]=code.length;
         return
       }
-      if(k==='anchor'){emit(node.value==='^'?12:13);return}
-      if(k==='boundary'){emit(node.value==='b'?14:15);return}
+      if(k==='anchor'){scoped();emit(node.value==='^'?12:13);return}
+      if(k==='boundary'){scoped();emit(node.value==='b'?14:15);return}
       if(k==='backref'||k==='namedBackref'){
         var index=node.value;
         if(k==='namedBackref'){
@@ -675,14 +701,14 @@
           }
           index=indices[0]
         }
-        emit(16);emit(index);emit(dir);
+        scoped();emit(16);emit(index);emit(dir);
         return
       }
       if(k==='repeat'){
         var min=node.min>=NONE?NONE-1:node.min,max=node.max>=NONE?NONE:node.max;
         var simple=atomOf(node.value);
         if(simple!==null){
-          emit(22);emit(simple[0]);emit(simple[1]);emit(dir);emit(min);emit(max);emit(node.lazy?0:1);emit(simple[2]);
+          scoped();emit(22);emit(simple[0]);emit(simple[1]);emit(dir);emit(min);emit(max);emit(node.lazy?0:1);emit(simple[2]);
           return
         }
         var range=[NONE,0];captureRange(node.value,range);
@@ -697,7 +723,7 @@
         return
       }
       var single=atomOf(node);
-      emit(single[0]);emit(single[1]);emit(dir)
+      scoped();emit(single[0]);emit(single[1]);emit(dir)
     }
     gen(compiled.tree,1);emit(0);
     return {code:code,data:data,stateSize:registers,ignore:ignore,unicode:unicode,dotAll:indexOf(flags,'s')>=0,multiline:indexOf(flags,'m')>=0}
@@ -706,7 +732,7 @@
   // State of the match in progress. Matching never runs user code, so
   // execute is not reentered and the helpers below can share it instead of
   // being recreated as closures on every call.
-  var input,length=0,ignore=false,unicode=false,dotAll=false,multiline=false,current=null;
+  var input,length=0,ignore=false,unicode=false,dotAll=false,multiline=false,modeFrame=2,current=null;
   var code=null,data=null,state=null,undo=null,undoTop=0,frames=null,frameTop=0;
   function same(a,b){
     if(!ignore)return a===b;
@@ -889,6 +915,7 @@
       }
       else if(op===8){push(0,code[pc+2],pos,0,0);pc=code[pc+1];continue}
       else if(op===9){pc=code[pc+1];continue}
+      else if(op===26){setMode(code[pc+1]);pc+=2;continue}
       else if(op===10){set(code[pc+1],pos);pc+=2;continue}
       else if(op===11){
         var group=code[pc+1],begin=state[code[pc+2]];
@@ -953,7 +980,7 @@
         while(most===NONE||taken<most){var after=atom(kind,item,at,dir);if(after<0)break;at=after;taken++}
         if(taken>=min){
           if(greedy===1){if(taken>min)push(1,pc+8,pos,taken,at)}
-          else if(limit===NONE||taken<limit)push(2,pc+8,pos,taken,at);
+          else if(limit===NONE||taken<limit)push(modeFrame,pc+8,pos,taken,at);
           pos=at;pc+=8;continue
         }
       }
@@ -967,6 +994,7 @@
         pc=frames[frameTop+1];pos=frames[frameTop+2];
         if(frameKind===0)break;
         var have=frames[frameTop+4],reached=frames[frameTop+5];
+        if(frameKind>2)setMode(frameKind>>2&7);
         var repeatKind=code[pc-7],repeatItem=code[pc-6],repeatDir=code[pc-5],repeatWidth=code[pc-1];
         if(frameKind===1){
           reached=repeatWidth!==0?reached-repeatDir*repeatWidth:stepBack(reached,pos,repeatDir);
@@ -977,7 +1005,7 @@
         var further=atom(repeatKind,repeatItem,reached,repeatDir);
         if(further<0)continue;
         have++;
-        if(code[pc-3]===NONE||have<code[pc-3])push(2,pc,pos,have,further);
+        if(code[pc-3]===NONE||have<code[pc-3])push(modeFrame,pc,pos,have,further);
         pos=further;break
       }
     }
@@ -1001,7 +1029,8 @@
   var backtrackBudget=1000000,backtracks=0;
   function pikeCompile(compiled){
     var flags=compiled.flags,ignore=indexOf(flags,'i')>=0;
-    if(indexOf(flags,'u')>=0)return null;
+    // Per-instruction flags (modifier groups) are not supported here.
+    if(indexOf(flags,'u')>=0||compiled.modifiers)return null;
     var code=[],pdata=[],registers=compiled.groups*2+2,limit=20000,ineligible=false;
     function emit(value){append(code,value)}
     function datum(value){append(pdata,value);return pdata.length-1}
@@ -1140,7 +1169,7 @@
     backtracks=0;
     var program=compiled.program;
     if(program===undefined){program=assemble(compiled);compiled.program=program}
-    ignore=program.ignore;unicode=program.unicode;dotAll=program.dotAll;multiline=program.multiline;
+    ignore=program.ignore;unicode=program.unicode;dotAll=program.dotAll;multiline=program.multiline;modeFrame=2;
     code=program.code;data=program.data;current=compiled;input=subject;length=subject.length;
     var stateSize=program.stateSize;
     if(stateSize>registerPool.length)registerPool=new PositionArray(stateSize*2);
