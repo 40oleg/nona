@@ -16,6 +16,11 @@ export interface HostRun {
     stderr: string;
     error?: Error;
 }
+// A GC stress run collects at every allocation; a program that links the whole
+// runtime takes tens of seconds on a loaded CI runner, so it gets more time.
+function nativeTimeout(gcStress: boolean | undefined): number {
+    return gcStress ? 180_000 : 60_000;
+}
 /** Compile with the runtime prelude for the host's native target and run it. */
 export function runOnHost(
     source: string,
@@ -26,7 +31,10 @@ export function runOnHost(
         ...(options.realms ? { realms: options.realms } : {}),
     });
     if (process.platform !== "linux") {
-        const result = runNative(linkHost(program));
+        const result = runNative(
+            linkHost(program),
+            nativeTimeout(options.gcStress),
+        );
         return {
             status: result.status,
             stdout: result.stdout.toString(),
@@ -44,7 +52,7 @@ export function runOnHost(
         chmodSync(executable, 0o755);
         const result = spawnSync(executable, [], {
             encoding: "utf8",
-            timeout: 60_000,
+            timeout: nativeTimeout(options.gcStress),
         });
         return {
             status: result.status,
@@ -82,7 +90,7 @@ export function runModulesOnHost(
         const result = spawnSync(executable, [], {
             cwd: directory,
             encoding: "utf8",
-            timeout: 60_000,
+            timeout: nativeTimeout(options.gcStress),
             windowsHide: true,
         });
         const native: HostRun = {
