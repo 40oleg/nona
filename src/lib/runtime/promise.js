@@ -625,6 +625,12 @@ var __nonaPromiseDrainJobs = (function () {
             return next.promise;
         },
     }.try;
+    var withResolvers = {
+        withResolvers() {
+            var c = capability(this);
+            return { promise: c.promise, resolve: c.resolve, reject: c.reject };
+        },
+    }.withResolvers;
     function method(target, name, value) {
         Object.defineProperty(target, name, {
             value: value,
@@ -647,6 +653,7 @@ var __nonaPromiseDrainJobs = (function () {
     method(Promise, "race", race);
     method(Promise, "any", any);
     method(Promise, "try", tryMethod);
+    method(Promise, "withResolvers", withResolvers);
     var speciesGetter = Object.getOwnPropertyDescriptor(
         {
             get [Symbol.species]() {

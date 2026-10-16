@@ -169,3 +169,24 @@ test("Promise.try runs a callback and settles with its result", () =>
  try{Promise.try.call({},()=>1)}catch(e){console.log('notctor',e.name)}
  console.log(log.join());
 `));
+
+test("Promise.withResolvers resolves, rejects and honours subclasses", () =>
+    expectStress(`
+ var r=Promise.withResolvers();
+ console.log(Object.keys(r).join(),Object.getPrototypeOf(r)===Object.prototype);
+ console.log(Promise.withResolvers.name,Promise.withResolvers.length);
+ r.resolve(1);r.resolve(2);r.reject(3);
+ r.promise.then(v=>console.log("resolved",v));
+ var q=Promise.withResolvers();
+ q.reject("no");q.reject("again");
+ q.promise.catch(v=>console.log("rejected",v));
+ var made=0;
+ class P extends Promise{constructor(e){made++;super(e)}}
+ var s=P.withResolvers();
+ console.log(s.promise instanceof P,made);
+ for(var bad of [undefined,{},1,()=>1]){
+  try{Promise.withResolvers.call(bad)}catch(e){console.log(e instanceof TypeError)}
+ }
+ var detached=Promise.withResolvers;
+ try{detached()}catch(e){console.log("detached",e instanceof TypeError)}
+`));
