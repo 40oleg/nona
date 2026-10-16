@@ -15,6 +15,7 @@ import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
 import { netModuleSource } from "./net-module.js";
 import { httpModuleSource } from "./http-module.js";
+import { modulesHttps } from "../lib/sources.generated.js";
 import { pathModuleSourceForTarget } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
@@ -161,6 +162,8 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:net", () => aliasOf("node:net")],
     ["node:http", () => httpModuleSource],
     ["nona:http", () => aliasOf("node:http")],
+    // node:https without TLS (issue #292): Agent and globalAgent, requests throw.
+    ["node:https", () => modulesHttps],
 ]);
 
 export function isBuiltinModule(specifier: string): boolean {
@@ -184,9 +187,13 @@ function builtinInventory(
             continue;
         if (specifier.startsWith("nona:internal/")) continue;
         if (
-            ["node:net", "nona:net", "node:http", "nona:http"].includes(
-                specifier,
-            ) &&
+            [
+                "node:net",
+                "nona:net",
+                "node:http",
+                "nona:http",
+                "node:https",
+            ].includes(specifier) &&
             target !== "win32-x64" &&
             target !== "linux-x64"
         )
