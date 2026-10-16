@@ -26,6 +26,7 @@
 
 ### Internals
 
+- CI: when GitHub-hosted Windows jobs are already queued, the Windows jobs of `check` and `program corpus` run on the owner's self-hosted Windows runner if it is online and idle; a `route` job (`scripts/pick-runner.mjs`) decides, and pull requests from forks always stay hosted ([docs/ci-runners.md](docs/ci-runners.md), [#359](https://github.com/40oleg/nona/issues/359)).
 - CI: a pull request runs about 190 instead of 452 runner-minutes. The platform suites (`native-platforms`, `self-hosting`) run on `main` and on pull requests labelled `full-ci`; on `main` the heavy workflows check the last commit of a burst of merges while `check` still runs on every commit; a new push to a pull request now cancels its previous `native-platforms` run. ([#353](https://github.com/40oleg/nona/issues/353))
 - `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
