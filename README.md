@@ -12,11 +12,11 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status:** `v0.12.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status:** `v0.14.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
-- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-against-nodejs-deno-and-bun)).
+- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
 - **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc. Apple Silicon output uses the system dyld and libSystem.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
@@ -93,7 +93,7 @@ nona --help | --version
 
 ## What is supported
 
-**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` and Error `cause`.
+**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, Error `cause` and RegExp pattern modifiers (`(?i:…)`, ES2025).
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s` and `u` flags, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
