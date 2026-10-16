@@ -12,6 +12,8 @@
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
+- **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
+
 ### Performance
 
 - `Array.prototype.shift` and `splice` on large dense arrays move their slots with 64-byte vector copies instead of `rep movsb`, which is slow for overlapping ranges: about ten times faster (50,000 shifts of a 50,000-element array: 6.5 s → 0.6 s). ([#262](https://github.com/40oleg/nona/issues/262))
@@ -27,6 +29,7 @@
 
 ### Internals
 
+- CI: when GitHub-hosted Windows jobs are already queued, the Windows jobs of `check` and `program corpus` run on the owner's self-hosted Windows runner if it is online and idle; a `route` job (`scripts/pick-runner.mjs`) decides, and pull requests from forks always stay hosted ([docs/ci-runners.md](docs/ci-runners.md), [#359](https://github.com/40oleg/nona/issues/359)).
 - CI: a pull request runs about 190 instead of 452 runner-minutes. The platform suites (`native-platforms`, `self-hosting`) run on `main` and on pull requests labelled `full-ci`; on `main` the heavy workflows check the last commit of a burst of merges while `check` still runs on every commit; a new push to a pull request now cancels its previous `native-platforms` run. ([#353](https://github.com/40oleg/nona/issues/353))
 - `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
