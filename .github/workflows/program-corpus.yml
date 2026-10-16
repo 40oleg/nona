@@ -13,10 +13,12 @@ permissions:
 
 concurrency:
     # A pull request has one group (head_ref): a newer push cancels the older
-    # run. A push to main has one group per commit (sha), so the next merge
-    # does not cancel the check of the previous one (#42).
-    group: program-corpus-${{ github.event_name }}-${{ github.head_ref || github.sha }}
-    cancel-in-progress: true
+    # run. On main the group is the branch and nothing is cancelled: the
+    # running check finishes and a newer merge replaces the pending one, so a
+    # burst of merges is checked once, on its last commit (#353). check.yml
+    # still checks every commit of main (#42).
+    group: program-corpus-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
     programs:
