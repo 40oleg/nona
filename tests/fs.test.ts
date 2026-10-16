@@ -119,7 +119,7 @@ console.log(data.length, st.isFile(), st.size);
 await call('copyFile', copyFile, 'cb-dir/a.txt', 'cb-dir/b.txt');
 await call('rename', rename, 'cb-dir/b.txt', 'cb-dir/c.txt');
 console.log((await call('readdir', readdir, 'cb-dir')).sort().join());
-console.log((await call('realpath', realpath, 'cb-dir')) === fs.realpathSync('cb-dir'));
+console.log(await new Promise((resolve) => realpath('cb-dir', (error, value) => resolve(value === fs.realpathSync('cb-dir')))));
 await new Promise((resolve) => exists('cb-dir/c.txt', (found) => resolve(console.log('exists', found))));
 await call('missing', readFile, 'cb-dir/missing');
 await call('mkdir again', mkdir, 'cb-dir');
