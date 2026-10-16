@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.14.0 — 2026-10-16
+
 ### Runtime
 
 - **`Intl` for the `en` locale.** Nona's own `Intl` without ICU: `NumberFormat` (decimal, percent, currency, unit, compact, scientific and engineering notation, significant and fraction digits, rounding, `formatToParts`, `formatRange`), `DateTimeFormat` (`dateStyle`/`timeStyle` and component options, UTC and fixed offsets, `formatToParts`, `formatRange`), `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf` and `supportedValuesOf`, and `Number`/`BigInt`/`Date.prototype.toLocale*String` and `String.prototype.localeCompare` delegating to them. Only `en` and `en-US` are available; other locales fall back to `en-US` and `resolvedOptions().locale` says so. The part is linked when a program names `Intl` or a `toLocale*`/`localeCompare` method. [docs/intl.md](docs/intl.md) lists the supported options, the limitations and the Test262 `intl402` results. ([#300](https://github.com/40oleg/nona/issues/300))
@@ -11,6 +13,10 @@
 - **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
+- **npm: `module.createRequire` and CommonJS requires.** `createRequire(filename)` from `node:module` returns a working `require` for the modules the program contains at compile time (the literal requires of the calling file, the program's CommonJS files and modules other files require); other ids throw `MODULE_NOT_FOUND`. CommonJS files get the literal requires made through `createRequire`, `require()` of an ES module returns its namespace, and `createRequire` is resolved through destructuring and `module.createRequire` too. ([#299](https://github.com/40oleg/nona/issues/299))
+- **`node:fs` callbacks.** `readFile`, `writeFile`, `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename`, `copyFile` and `exists` run their synchronous function and call back on a later turn. ([#299](https://github.com/40oleg/nona/issues/299))
+- **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
+- **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
 
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 

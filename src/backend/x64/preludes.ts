@@ -90,7 +90,7 @@ export function lowerRuntimePrelude(
             ["annexB", annexBBuiltinsPreludeSource],
             ["es2021", es2021PreludeSource],
             // After binaryData: it replaces BigInt.prototype.toLocaleString.
-            ["intl", intlPreludeSource],
+            ["intl", linked.includes("intl") ? intlPreludeSource() : ""],
             [null, promiseSource],
             ["withStatement", withStatementPreludeSource],
             ["evalCode", evalCodePreludeSource],

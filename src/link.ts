@@ -109,6 +109,7 @@ export const preludeTriggers = {
     // that delegate to it.
     intl: [
         "Intl",
+        "Segmenter",
         "toLocaleString",
         "toLocaleDateString",
         "toLocaleTimeString",

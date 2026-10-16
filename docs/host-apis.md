@@ -328,8 +328,10 @@ startup. Each is available as `node:<name>` and `<name>`.
   an async iterator, and `scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` and
   `monitorEventLoopDelay` observe nothing.
-- `node:module`: `builtinModules` and `isBuiltin`. `createRequire` throws
-  `ERR_NONA_UNSUPPORTED`: modules are resolved when the program is built.
+- `node:module`: `builtinModules` and `isBuiltin`. `createRequire(filename)`
+  returns a `require` that resolves only the modules the program contains when
+  it is built; any other id throws `MODULE_NOT_FOUND` (see
+  [module.createRequire](npm.md#modulecreaterequire)).
 - `node:worker_threads`: `isMainThread` is `true`, `parentPort` and
   `workerData` are `null`; `Worker` throws `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: every function and `ChildProcess` throw

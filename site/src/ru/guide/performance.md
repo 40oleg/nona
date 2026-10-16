@@ -5,7 +5,7 @@
 :::
 
 ::: warning
-Актуальное сравнение с Node.js, Deno и Bun от 2026-10-14 есть на [английской странице](/guide/performance#current-release-against-nodejs-deno-and-bun): hello world запускается за 2,7 мс и весит 1,1 МБ, большинство микротестов массивов, объектов, строк и typed arrays — на уровне Node.js. Ниже — перевод замеров v0.7.0.
+Актуальное сравнение с Node.js, Deno и Bun от 2026-10-14 есть на [английской странице](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun): hello world запускается за 2,7 мс и весит 1,1 МБ, большинство микротестов массивов, объектов, строк и typed arrays — на уровне Node.js. Ниже — перевод замеров v0.7.0.
 :::
 
 Измерено 2026-10-01 на Nona `v0.7.0` (коммит `b31c4d6`). Скрипты лежат в [`bench/`](https://github.com/40oleg/nona/blob/main/bench/); `node bench/run.mjs` воспроизводит все таблицы ниже.
