@@ -24,7 +24,6 @@ import { runModulesOnHost } from "./helpers/host.js";
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
 const unhex = (text: string) => Buffer.from(text, "hex");
-const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64url");
 const range = (from: number, to: number) =>
     hex(Uint8Array.from({ length: to - from + 1 }, (_, i) => from + i));
 
@@ -381,15 +380,20 @@ console.log(JSON.stringify(out));
 /** X25519 through Node's KeyObjects, from raw little-endian keys. */
 function nodeX25519(privateKey: Uint8Array, publicKey: Uint8Array) {
     const peer = createPublicKey({
-        key: { kty: "OKP", crv: "X25519", x: b64(publicKey) },
-        format: "jwk",
-    });
-    const own = generateKeyPairSync("x25519").privateKey.export({
-        format: "jwk",
+        key: Buffer.concat([
+            Buffer.from("302a300506032b656e032100", "hex"),
+            publicKey,
+        ]),
+        format: "der",
+        type: "spki",
     });
     const key = createPrivateKey({
-        key: { ...own, d: b64(privateKey), x: own.x },
-        format: "jwk",
+        key: Buffer.concat([
+            Buffer.from("302e020100300506032b656e04220420", "hex"),
+            privateKey,
+        ]),
+        format: "der",
+        type: "pkcs8",
     });
     return hex(diffieHellman({ privateKey: key, publicKey: peer }));
 }

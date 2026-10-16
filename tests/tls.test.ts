@@ -405,7 +405,13 @@ test("node:tls: certificate chains are verified as Node.js verifies them", () =>
         assert.equal(native.error, undefined);
         assert.equal(native.status, 0, native.stdout + native.stderr);
         const lines = native.stdout.split("\n").filter((line) => line !== "");
-        const expected = oracle.split("\n").filter((line) => line !== "");
+        // Newer Node.js appends a --use-system-ca hint to some messages.
+        const expected = oracle
+            .split("\n")
+            .filter((line) => line !== "")
+            .map((line) =>
+                line.replace(/; if the root CA is installed locally.*$/, ""),
+            );
         assert.equal(expected.length, only.length, oracle);
         // Node.js uses its bundled Mozilla roots, Nona the operating
         // system's: neither knows the test root.
