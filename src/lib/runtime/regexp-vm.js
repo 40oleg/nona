@@ -35,13 +35,13 @@
   // The properties of strings of v mode (Unicode Emoji sequences). Each is
   // a set of code point ranges plus strings; RGI_Emoji is the union of the
   // other six. The data is linked only when a source names one of them.
+  /*@@UNICODE_SETS{*/
   var stringPropertyNames=['Basic_Emoji','Emoji_Keycap_Sequence','RGI_Emoji_Modifier_Sequence','RGI_Emoji_Flag_Sequence','RGI_Emoji_Tag_Sequence','RGI_Emoji_ZWJ_Sequence'];
   function isStringProperty(name){
     if(name==='RGI_Emoji')return true;
     for(var i=0;i<stringPropertyNames.length;i++)if(stringPropertyNames[i]===name)return true;
     return false
   }
-  /*@@UNICODE_SETS{*/
   var emojiData=@@EMOJI_DATA@@;
   var stringPropertyCache={};
   function stringPropertySet(name){
@@ -111,13 +111,13 @@
     var result=charCodeAt(upper,0);
     return point>=128&&result<128?point:result
   }
+  /*@@UNICODE_SETS{*/
   // The number of code points in sorted disjoint ranges.
   function rangeSize(a){
     var size=0;
     for(var i=0;i<a.length;i++)size+=a[i][1]-a[i][0]+1;
     return size
   }
-  /*@@UNICODE_SETS{*/
   // Character sets of UnicodeSets mode (the v flag), evaluated when the
   // pattern is compiled: ranges is a sorted list of disjoint, non-adjacent
   // [from, to] code point ranges; strings lists the members that are not one
@@ -546,6 +546,7 @@
         while(at<pattern.length&&pattern[at]!=='}')at++;
         if(at===begin||pattern[at]!=='}')error();
         var property=slice(pattern,begin,at++);
+        /*@@UNICODE_SETS{*/
         // A property of strings: only \p, only in v mode.
         if(isStringProperty(property)){
           if(!unicodeSets||c==='P')error();
@@ -554,6 +555,7 @@
         // v mode with ignore case: \P is the complement of the folded
         // property, over the code points that folding leaves unchanged.
         if(ignoreSets&&c==='P')return classSetNode(setComplement(foldSet({ranges:propertyRanges(property),strings:[]}),true));
+        /*}@@UNICODE_SETS*/
         return {kind:'property',value:propertyRanges(property),negated:c==='P'}
       }
       if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {kind:'classEscape',value:c};
@@ -677,7 +679,7 @@
         if(look!==undefined)return {kind:'look',value:inner,behind:look.behind,positive:look.positive};
         return {kind:'group',value:inner,capture:capture}
       }
-      if(c==='['&&unicodeSets)return classSetNode(nestedClass().set);
+      /*@@UNICODE_SETS{*/if(c==='['&&unicodeSets)return classSetNode(nestedClass().set);/*}@@UNICODE_SETS*/
       if(c==='['){
         var start=at,escapedClass=false;
         while(at<pattern.length){
@@ -809,12 +811,14 @@
       var set=[],items=node.value.items;
       for(var i=0;i<items.length&&set!==null;i++){
         var item=items[i];
+        /*@@UNICODE_SETS{*/
         if(item.ranges!==undefined){
           // A v-mode set: its code points, when there are few of them.
           if(rangeSize(item.ranges)>8)set=null;
           else for(var r=0;r<item.ranges.length&&set!==null;r++)for(var p=item.ranges[r][0];p<=item.ranges[r][1]&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))
         }
-        else if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
+        else /*}@@UNICODE_SETS*/
+        if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
         else if(item.range){for(var p=item.from;p<=item.to&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))}
         else set=unionUnits(set,charUnits(leadUnit(item.point),ignore,unicode))
       }
@@ -989,7 +993,7 @@
         code[head+8]=code.length;code[head+17]=code.length;
         return
       }
-      if(k==='strings'){emit(26);emit(datum({strings:node.value,forward:null,backward:null}));emit(dir);return}
+      /*@@UNICODE_SETS{*/if(k==='strings'){emit(26);emit(datum({strings:node.value,forward:null,backward:null}));emit(dir);return}/*}@@UNICODE_SETS*/
       var single=atomOf(node);
       emit(single[0]);emit(single[1]);emit(dir)
     }
@@ -1060,9 +1064,9 @@
     var yes=false,point=c.codePointAt(0);
     for(var i=0;i<spec.items.length;i++){
       var item=spec.items[i];
-      // A v-mode set holds case-folded code points under ignore case.
+      /*@@UNICODE_SETS{*/// A v-mode set holds case-folded code points under ignore case.
       if(item.ranges!==undefined){if(propertyMatch(item.ranges,ignore?foldPoint(point):point))yes=true}
-      else if(item.range){
+      else /*}@@UNICODE_SETS*/if(item.range){
         if(ignore&&unicode){
           var canonical=foldPoint(point),alternates=foldAlternates(canonical);
           if(canonical>=item.from&&canonical<=item.to)yes=true;
@@ -1096,6 +1100,7 @@
   function unwind(height){
     while(undoTop>height){undoTop-=2;state[undo[undoTop]]=undo[undoTop+1]}
   }
+  /*@@UNICODE_SETS{*/
   // The strings of a STRINGS instruction that start (dir > 0) or end at pos,
   // by the code point there (case folded under ignore case), in their
   // longest-first order: built on first use.
@@ -1137,6 +1142,7 @@
     }
     return -1
   }
+  /*}@@UNICODE_SETS*/
   // Choice point: kind (0 plain, 1 greedy simple repeat, 2 lazy simple
   // repeat, 3 the next strings of a STRINGS instruction), pc, pos, undo
   // height, count (for 3: the index of the next string to try), position
@@ -1264,10 +1270,12 @@
         clearCaptures(code[pc+5],code[pc+6]);
         set(counter+1,pos);pc=code[pc+7];continue
       }
+      /*@@UNICODE_SETS{*/
       else if(op===26){
         var found=stringsFind(data[code[pc+1]],pos,code[pc+2],0);
         if(found>=0){push(3,pc,pos,found+1,0);pos=stringsEnd;pc+=3;continue}
       }
+      /*}@@UNICODE_SETS*/
       else if(op===20){
         // An iteration past the minimum that matched the empty string fails.
         var endCounter=code[pc+1],done=state[endCounter];
@@ -1296,11 +1304,13 @@
         unwind(frames[frameTop+3]);
         pc=frames[frameTop+1];pos=frames[frameTop+2];
         if(frameKind===0)break;
+        /*@@UNICODE_SETS{*/
         if(frameKind===3){
           var retry=stringsFind(data[code[pc+1]],pos,code[pc+2],frames[frameTop+4]);
           if(retry<0)continue;
           push(3,pc,pos,retry+1,0);pos=stringsEnd;pc+=3;break
         }
+        /*}@@UNICODE_SETS*/
         var have=frames[frameTop+4],reached=frames[frameTop+5];
         var repeatKind=code[pc-7],repeatItem=code[pc-6],repeatDir=code[pc-5],repeatWidth=code[pc-1];
         if(frameKind===1){

@@ -227,6 +227,66 @@ test("a property of strings named only at run time reports the missing emoji dat
     compileVm("\\p{Emoji}", "v");
 });
 
+test("the v flag syntax is linked only by a v flag literal or flags string", () => {
+    const none = {
+        regexp: false,
+        unicodeProperties: false,
+        unicodeSets: false,
+        unicodeStringProperties: false,
+        unicodeNormalization: false,
+        preludes: preludeSet(false),
+    };
+    assert.deepEqual(usage("/a/.test(s)"), { ...none, regexp: true });
+    assert.deepEqual(usage("/[a--b]/v.test(s)"), {
+        ...none,
+        regexp: true,
+        unicodeSets: true,
+    });
+    // A pattern built at run time may also use any Unicode property.
+    assert.deepEqual(usage('new RegExp(p, "gv")'), {
+        ...none,
+        regexp: true,
+        unicodeProperties: true,
+        unicodeSets: true,
+    });
+    // Without the v-mode code the VM rejects the v flag and keeps the rest.
+    const context = createContext({});
+    runInContext(
+        "Function.prototype.__nonaMarkNativeInternal=function(){}",
+        context,
+    );
+    runInContext(
+        fullRegexpVmPrelude({
+            regexp: true,
+            unicodeProperties: true,
+            unicodeSets: false,
+            unicodeStringProperties: false,
+        }),
+        context,
+    );
+    const exec = (pattern: string, flags: string, input: string) =>
+        runInContext(
+            `__nonaRegexpVm(undefined,${JSON.stringify(input)},0,false,${JSON.stringify(pattern)},${JSON.stringify(flags)})`,
+            context,
+        );
+    assert.throws(
+        () => exec("[a--b]", "v", "a"),
+        /compiled without the v flag.*--full-runtime/,
+    );
+    exec("[\\p{L}b]", "u", "b");
+    exec("[a-c]", "i", "B");
+    assert.throws(
+        () => exec("\\p{RGI_Emoji}", "u", "a"),
+        /Invalid Unicode property/,
+    );
+    for (const target of ["win32-x64", "linux-x64"] as const) {
+        const size = (source: string) => image(source, {}, target).length;
+        const plain = size('console.log(/a/.test("a"));'),
+            sets = size('console.log(/[a--b]/v.test("a"));');
+        assert.ok(sets - plain > 20_000, `${target}: ${sets} vs ${plain}`);
+    }
+});
+
 test("source usage: optional preludes follow the names a program uses", () => {
     const linked = (...sources: string[]) =>
         Object.entries(usage(...sources).preludes)

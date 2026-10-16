@@ -216,7 +216,9 @@ function recordUsage(tokens: TokenStream): void {
                 linkRegExp("a \\p{…} escape inside a string", true);
             // The engine itself is linked only by RegExp and the names above.
             if (unicodeSetsFlags.test(text))
-                linkUnicodeSets(`the flags ${JSON.stringify(text)} in a string`);
+                linkUnicodeSets(
+                    `the flags ${JSON.stringify(text)} in a string`,
+                );
             // A pattern built at run time names the property in a string
             // (the engine itself is linked only by the names above).
             const stringProperty = stringPropertyName.exec(text);
