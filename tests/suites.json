@@ -116,6 +116,7 @@
                 "reflect",
                 "symbols",
                 "json",
+                "intl",
                 "uri",
                 "classes",
                 "class-fields",

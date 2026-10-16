@@ -116,6 +116,8 @@ export const preludeTriggers = {
         "any",
         "unscopables",
     ],
+    // Intl.Segmenter for grapheme clusters; the other Intl services are missing.
+    intl: ["Intl", "Segmenter"],
     annexB: [
         "escape",
         "unescape",

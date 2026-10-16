@@ -65,6 +65,6 @@ complete supported API and limitations.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`।
 - `node:timers`: ग्लोबल टाइमर फ़ंक्शन। `node:timers/promises`: `setTimeout`, `setImmediate` (दोनों `AbortSignal` के साथ), async इटरेटर के रूप में `setInterval`, और `scheduler.wait`/`yield`।
 - `node:perf_hooks`: `performance`; `PerformanceObserver` और `monitorEventLoopDelay` कुछ भी नहीं देखते।
-- `node:module`: `builtinModules` और `isBuiltin`। `createRequire` `ERR_NONA_UNSUPPORTED` थ्रो करता है: मॉड्यूल प्रोग्राम बनाते समय रिज़ॉल्व होते हैं।
+- `node:module`: `builtinModules` और `isBuiltin`। `createRequire` एक `require` लौटाता है जो केवल वे मॉड्यूल रिज़ॉल्व करता है जो प्रोग्राम बनाते समय उसमें होते हैं; कोई भी अन्य आईडी `MODULE_NOT_FOUND` थ्रो करती है।
 - `node:worker_threads`: `isMainThread` `true` है, `parentPort` और `workerData` `null` हैं; `Worker` `ERR_NONA_UNSUPPORTED` थ्रो करता है।
 - `node:child_process`: हर फ़ंक्शन और `ChildProcess` `ERR_NONA_UNSUPPORTED` थ्रो करते हैं। यह मॉड्यूल इसलिए है कि जो पैकेज इसका सिर्फ़ ज़िक्र करते हैं, वे लोड हो सकें।
