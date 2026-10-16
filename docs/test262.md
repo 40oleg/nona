@@ -86,6 +86,14 @@ await, and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
 the release status.
 
+The RegExp `v` flag (`unicodeSets`, #314) is supported. Every test with
+`features: [regexp-v-flag]` (187 files, `built-ins/RegExp/unicodeSets`,
+`property-escapes/generated/strings`, `prototype/unicodeSets` and the
+String and `flags` tests) passes except two (185/187):
+`prototype/flags/this-val-regexp.js` and
+`prototype/unicodeSets/this-val-regexp.js` also use the `d` flag, so they stay
+classified `post`.
+
 Runner features added for the ES2020 gate (2026-09):
 
 - `TEST262_TARGET=linux-x64` (default on Linux) links ELF images; module tests

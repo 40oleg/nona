@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - `String.prototype.{replace,split,match,matchAll,search}` प्रिमिटिव आर्ग्युमेंट पर Symbol-key वाले मेथड नहीं खोजते (ES2025)।
 - Annex B के call-expression असाइनमेंट टार्गेट sloppy कोड में रनटाइम पर ReferenceError फेंकते हैं और strict कोड में early error होते हैं (ES2022 web reality)।
 
-ES2020 पर रखा गया (विफलताएँ `post` के रूप में वर्गीकृत): class fields और private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp `v` फ़्लैग और match indices, top-level await, और `postEs2020Features` में अन्य फ़ीचर। बाकी ज्ञात विचलन हर कैटलॉग के लिए `docs/history/pr5-es2020-remaining-work.md` और रिलीज़ स्थिति में सूचीबद्ध हैं।
+ES2020 पर रखा गया (विफलताएँ `post` के रूप में वर्गीकृत): class fields और private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp match indices (`d` फ़्लैग), top-level await, और `postEs2020Features` में अन्य फ़ीचर। बाकी ज्ञात विचलन हर कैटलॉग के लिए `docs/history/pr5-es2020-remaining-work.md` और रिलीज़ स्थिति में सूचीबद्ध हैं।
 
 ES2020 गेट के लिए रनर में जोड़े गए फ़ीचर (2026-09):
 

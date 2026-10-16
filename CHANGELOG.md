@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### RegExp
+
+- **The `v` flag (`unicodeSets`, ES2024).** Set operations `--` and `&&`, nested classes, `q{...}` string literals, properties of strings (`p{RGI_Emoji}` and six more) and the stricter syntax of the flag, plus the `RegExp.prototype.unicodeSets` getter. The v-mode matcher is linked only for programs that use the flag, and the emoji data only when a property of strings is named (link part `unicodeStringProperties`, for `--link`). Test262 `regexp-v-flag`: 185/187; the two failures also use the `d` flag. ([#314](https://github.com/40oleg/nona/issues/314))
+
 ### Runtime
 
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
