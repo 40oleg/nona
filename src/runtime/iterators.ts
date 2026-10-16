@@ -9,8 +9,8 @@ import {
 import { FunctionKind } from "./functions.js";
 import { emitNativeFunction } from "./function-builtin.js";
 import { stringLiteral } from "./value.js";
-import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
-import { ArrayBufferLayout } from "./array-buffer.js";
+import { TypedArrayKind } from "./typed-array.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 export const IteratorKind = 8;
 const Source = O.size,
@@ -386,12 +386,10 @@ export function emitIterators(b: RuntimeBuilder): void {
                 a.load("rax", { base: "r11", disp: O.kind });
                 a.cmp("rax", TypedArrayKind);
                 a.jcc("ne", notTyped);
-                a.load("r11", { base: "r11", disp: TypedArrayLayout.buffer });
-                a.load("rax", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("rax", "rax");
+                // Out of bounds of a resizable buffer throws as well (ES2024 23.1.5.1).
+                a.mov("rax", "r11");
+                emitViewCheck(a, "rax");
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.label(notTyped);
             }
@@ -538,12 +536,10 @@ export function emitIterators(b: RuntimeBuilder): void {
                 a.load("rax", { base: "r11", disp: O.kind });
                 a.cmp("rax", TypedArrayKind);
                 a.jcc("ne", notTyped);
-                a.load("r11", { base: "r11", disp: TypedArrayLayout.buffer });
-                a.load("rax", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("rax", "rax");
+                // Out of bounds of a resizable buffer throws as well (ES2024 23.1.5.1).
+                a.mov("rax", "r11");
+                emitViewCheck(a, "rax");
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.label(notTyped);
             }

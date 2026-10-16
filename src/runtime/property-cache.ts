@@ -99,6 +99,7 @@ export const typedArrayFields = {
     buffer: O.size,
     length: O.size + 24,
     detached: O.size + 16,
+    maxByteLength: O.size + 24,
 } as const;
 /** The getter function object of %TypedArray%.prototype.length (typed-array.ts). */
 export const typedArrayLengthGetter = "rt.typedArrayLength.fn";
@@ -591,8 +592,21 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.lea("r11", { rip: typedArrayLengthGetter });
         a.cmp("rax", "r11");
         a.jcc("ne", cached);
+        // A view of a resizable buffer: rt.typedArrayBounds (view-bounds.ts)
+        // refreshes its length (0 when out of bounds).
+        const fixedBuffer = a.unique("fixedBuffer"),
+            bounded = a.unique("bounded");
+        a.load("r11", { base: "r10", disp: typedArrayFields.buffer });
+        a.load("r11", { base: "r11", disp: typedArrayFields.maxByteLength });
+        a.test("r11", "r11");
+        a.jcc("s", fixedBuffer);
+        a.mov("r11", "r10");
+        a.call("rt.typedArrayBounds");
+        a.jmp(bounded);
+        a.label(fixedBuffer);
         a.load("r11", { base: "r10", disp: typedArrayFields.buffer });
         a.load("r11", { base: "r11", disp: typedArrayFields.detached });
+        a.label(bounded);
         a.mov("rax", 0);
         a.test("r11", "r11");
         a.jcc("ne", number);

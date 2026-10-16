@@ -20,6 +20,7 @@ import { stringLiteral } from "./value.js";
 import { ArrayBufferKind, ArrayBufferLayout } from "./array-buffer.js";
 import { TypedArrayLayout } from "./array-buffer-layout.js";
 import { SharedArrayBufferKind } from "./shared-array-buffer.js";
+import { emitBufferLength, emitViewCheck } from "./view-bounds.js";
 import { FunctionLayout as F, FunctionKind } from "./functions.js";
 import {
     emitElementWidth,
@@ -411,11 +412,31 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
             failIf(a, "ne", "rt.throwTypeError");
+            const end = a.unique("end");
+            if (name === "RawLength") {
+                // (ta, true): whether ta tracks its buffer's length.
+                const length = a.unique("length");
+                a.cmp("rdx", 2);
+                a.jcc("b", length);
+                a.load("rax", {
+                    base: "r10",
+                    disp: TypedArrayLayout.fixedByteLength,
+                });
+                a.shr("rax", 63);
+                a.mov("r10", 2);
+                a.store({ base: "rcx" }, "r10");
+                a.store({ base: "rcx", disp: 8 }, "rax");
+                a.jmp(end);
+                a.label(length);
+                // The current length: 0 when out of bounds.
+                emitViewCheck(a, "r10");
+            }
             a.load("rax", { base: "r10", disp: offset });
             a.cvtsi2sd("xmm0", "rax");
             a.mov("rax", 3);
             a.store({ base: "rcx" }, "rax");
             a.storesd({ base: "rcx", disp: 8 }, "xmm0");
+            a.label(end);
         });
     }
     b.fn("rt.typedArrayDefaultConstructor.fn.code", 40, (a) => {
@@ -483,6 +504,9 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("r10", slot(104));
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
+            failIf(a, "ne", "rt.throwTypeError");
+            emitViewCheck(a, "r10");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
             a.load("r11", slot(56));
@@ -646,11 +670,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.load("rax", { base: "r10", disp: O.kind });
                 a.cmp("rax", TypedArrayKind);
                 failIf(a, "ne", "rt.throwTypeError");
-                a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-                a.load("r11", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
+                emitViewCheck(a, "r10");
                 a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rcx", slot(40));
@@ -716,8 +736,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
             failIf(a, "ne", "rt.throwTypeError");
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             const done = a.unique("done");
@@ -838,8 +857,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
             failIf(a, "ne", "rt.throwTypeError");
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
@@ -917,10 +935,24 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.label(countReady);
             a.store(slot(112), "rax");
             a.load("r10", slot(72));
-            a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r10", { base: "r10", disp: ArrayBufferLayout.detached });
-            a.test("r10", "r10");
+            emitViewCheck(a, "r10");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
+            // The coercions may have shrunk a resizable buffer: only pairs of
+            // indices below the current length are copied (ES2024 23.2.3.6).
+            a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
+            for (const index of [88, 96]) {
+                const fits = a.unique("fits");
+                a.mov("rax", "r11");
+                a.load("rdx", slot(index));
+                a.sub("rax", "rdx");
+                a.jcc("le", done);
+                a.load("rdx", slot(112));
+                a.cmp("rdx", "rax");
+                a.jcc("le", fits);
+                a.store(slot(112), "rax");
+                a.label(fits);
+            }
             // One overlapping block copy (#253).
             a.load("r10", slot(72));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
@@ -979,8 +1011,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
             failIf(a, "ne", "rt.throwTypeError");
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
             a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
@@ -1089,10 +1120,17 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(target), "rax");
             }
             a.load("r10", slot(72));
-            a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r10", { base: "r10", disp: ArrayBufferLayout.detached });
-            a.test("r10", "r10");
+            emitViewCheck(a, "r10");
+            a.test("r11", "r11");
             failIf(a, "ne", "rt.throwTypeError");
+            // The end is clamped to the current length (ES2024 23.2.3.9).
+            const endReady = a.unique("endReady");
+            a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
+            a.load("r11", slot(96));
+            a.cmp("r11", "rax");
+            a.jcc("le", endReady);
+            a.store(slot(96), "rax");
+            a.label(endReady);
             // One block fill of the replicated element (#253).
             a.load("r10", slot(72));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
@@ -1152,11 +1190,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.load("rax", { base: "r10", disp: O.kind });
                 a.cmp("rax", TypedArrayKind);
                 failIf(a, "ne", "rt.throwTypeError");
-                a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-                a.load("r11", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
+                emitViewCheck(a, "r10");
                 a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
@@ -1236,17 +1270,30 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(160), "rax");
                 a.label(startReady);
                 if (name !== "includes") {
+                    // Only elements below the current length are present.
+                    const bounded = a.unique("bounded");
                     a.load("r10", slot(72));
-                    a.load("r10", {
-                        base: "r10",
-                        disp: TypedArrayLayout.buffer,
-                    });
-                    a.load("r10", {
-                        base: "r10",
-                        disp: ArrayBufferLayout.detached,
-                    });
-                    a.test("r10", "r10");
+                    emitViewCheck(a, "r10");
+                    a.test("r11", "r11");
                     a.jcc("ne", notFound);
+                    a.load("rax", {
+                        base: "r10",
+                        disp: TypedArrayLayout.length,
+                    });
+                    a.load("r11", slot(168));
+                    a.cmp("r11", "rax");
+                    a.jcc("le", bounded);
+                    a.store(slot(168), "rax");
+                    if (name === "lastIndexOf") {
+                        a.test("rax", "rax");
+                        a.jcc("e", notFound);
+                        a.load("r11", slot(160));
+                        a.cmp("r11", "rax");
+                        a.jcc("b", bounded);
+                        a.sub("rax", 1);
+                        a.store(slot(160), "rax");
+                    }
+                    a.label(bounded);
                 }
                 const loop = a.unique("loop"),
                     next = a.unique("next"),
@@ -1579,15 +1626,12 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.load("rax", { base: "rdx", disp: O.kind });
             a.cmp("rax", TypedArrayKind);
             failIf(a, "ne", "rt.throwTypeError");
+            if (name !== "buffer") emitViewCheck(a, "rdx");
             a.load("rax", { base: "rdx", disp: offset });
             if (name !== "buffer") {
+                // Detached or out of bounds (ES2024 23.2.3.2-3, 23.2.3.21).
                 const attached = a.unique("attached");
-                a.load("r10", { base: "rdx", disp: TypedArrayLayout.buffer });
-                a.load("r10", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("r10", "r10");
+                a.test("r11", "r11");
                 a.jcc("e", attached);
                 a.mov("rax", 0);
                 a.label(attached);
@@ -1739,7 +1783,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(48), "rdx");
                 a.store(slot(56), "r8");
                 a.mov("rax", 0);
-                for (const n of [64, 72, 80, 272, 280, 288, 296])
+                for (const n of [64, 72, 80, 272, 280, 288, 296, 320])
                     a.store(slot(n), "rax");
                 const allocate = a.unique("allocate"),
                     view = a.unique("view"),
@@ -1985,14 +2029,32 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 });
                 a.test("rax", "rax");
                 failIf(a, "ne", "rt.throwTypeError");
-                a.load("rax", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.byteLength,
-                });
+                emitBufferLength(a, "r10", "rax");
                 a.load("r10", slot(64));
                 a.load("r11", slot(304));
                 a.test("r11", "r11");
                 a.jcc("ne", givenLength);
+                // ES2024 23.2.5.1.3: without a length, a view of a resizable
+                // buffer tracks the buffer's length.
+                const fixedBuffer = a.unique("fixedBuffer");
+                a.load("r11", slot(80));
+                a.load("r11", {
+                    base: "r11",
+                    disp: ArrayBufferLayout.maxByteLength,
+                });
+                a.test("r11", "r11");
+                a.jcc("s", fixedBuffer);
+                a.cmp("r10", "rax");
+                failIf(a, "a", "rt.throwRangeError");
+                a.sub("rax", "r10");
+                if (shift) a.shr("rax", shift);
+                a.store(slot(72), "rax");
+                if (shift) a.shl("rax", shift);
+                a.store(slot(296), "rax");
+                a.mov("rax", 1);
+                a.store(slot(320), "rax");
+                a.jmp(ready);
+                a.label(fixedBuffer);
                 if (width > 1) {
                     a.mov("r11", "rax");
                     a.and("r11", width - 1);
@@ -2054,6 +2116,18 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.mov("r10", elementType);
                 a.store(
                     { base: "rax", disp: TypedArrayLayout.elementType },
+                    "r10",
+                );
+                // A length-tracking view (slot 320 set) has no fixed byte length.
+                const tracked = a.unique("tracked");
+                a.load("r11", slot(320));
+                a.mov("r10", -1);
+                a.test("r11", "r11");
+                a.jcc("ne", tracked);
+                a.load("r10", slot(width > 1 ? 296 : 72));
+                a.label(tracked);
+                a.store(
+                    { base: "rax", disp: TypedArrayLayout.fixedByteLength },
                     "r10",
                 );
                 a.load("rcx", slot(40));

@@ -20,6 +20,7 @@ import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
 import { ProxyKind } from "./proxy.js";
 import { MapEntryLayout } from "./map.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 export function emitDefineProperty(b: RuntimeBuilder): void {
     emitDescriptorValidation(b);
@@ -332,9 +333,8 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             a.cmp("rax", -2);
             a.jcc("e", no);
             a.load("r10", slot(64));
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
-            a.test("r11", "r11");
+            emitViewCheck(a, "r10");
+ a.test("r11", "r11");
             a.jcc("ne", no);
             a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
             a.cmp("rax", "r11");
@@ -441,10 +441,10 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             a.load("r11", { base: "r10", disp: TypedArrayLayout.byteOffset });
             a.add("rax", "r11");
             // Detached by the value conversion: TypedArraySetElement ignores the write and [[DefineOwnProperty]] succeeds (ES2021+).
-            a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "rdx", disp: ArrayBufferLayout.detached });
-            a.test("r11", "r11");
+            emitViewCheck(a, "r10");
+ a.test("r11", "r11");
             a.jcc("ne", yes);
+            a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rdx", { base: "rdx", disp: ArrayBufferLayout.bytes });
             a.add("rdx", "rax");
             a.load("rax", slot(200));

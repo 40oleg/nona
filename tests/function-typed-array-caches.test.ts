@@ -39,6 +39,7 @@ test("the constants spelled out in property-cache.ts match their definitions", (
         buffer: TypedArrayLayout.buffer,
         length: TypedArrayLayout.length,
         detached: ArrayBufferLayout.detached,
+        maxByteLength: ArrayBufferLayout.maxByteLength,
     });
 });
 

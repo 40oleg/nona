@@ -1,6 +1,7 @@
 import { RuntimeBuilder, slot } from "./abi.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
 import { ArrayBufferLayout, TypedArrayLayout } from "./array-buffer-layout.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 // Block kernels of typed arrays and ArrayBuffers (#253): an overlapping
 // copy, a pattern fill and an element search, sixteen bytes per step where
@@ -311,13 +312,13 @@ export function emitTypedSearch(
     a.cmp("rax", 3);
     a.jcc("ne", labels.generic);
     a.load("r10", slot(slots.receiver + 8));
+    emitViewCheck(a, "r10");
+    a.test("r11", "r11");
+    a.jcc("ne", notFound);
     a.load("r11", { base: "r10", disp: TypedArrayLayout.elementType });
     a.cmp("r11", 10);
     a.jcc("ae", labels.generic);
     a.load("rcx", { base: "r10", disp: TypedArrayLayout.buffer });
-    a.load("rax", { base: "rcx", disp: ArrayBufferLayout.detached });
-    a.test("rax", "rax");
-    a.jcc("ne", notFound);
     a.load("rcx", { base: "rcx", disp: ArrayBufferLayout.bytes });
     a.load("rax", { base: "r10", disp: TypedArrayLayout.byteOffset });
     a.add("rcx", "rax");

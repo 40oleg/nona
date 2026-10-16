@@ -2,6 +2,7 @@ import { RuntimeBuilder, slot } from "./abi.js";
 import { ObjectLayout as O } from "./object-layout.js";
 import { TypedArrayKind, TypedArrayLayout as T } from "./typed-array.js";
 import { ArrayBufferLayout as B } from "./array-buffer.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 /** Copy Windows UTF-16 code units without per-character managed allocations. */
 export function emitProcessUnits(b: RuntimeBuilder): void {
@@ -23,10 +24,13 @@ export function emitProcessUnits(b: RuntimeBuilder): void {
         a.load("rax", { base: "r11", disp: T.elementType });
         a.cmp("rax", 4);
         a.jcc("ne", bad);
-        a.load("r9", { base: "r11", disp: T.buffer });
-        a.load("rax", { base: "r9", disp: B.detached });
-        a.test("rax", "rax");
+        // Detached or out of bounds of a resizable buffer: not usable.
+        a.mov("r9", "r11");
+        emitViewCheck(a, "r9");
+        a.test("r11", "r11");
+        a.mov("r11", "r9");
         a.jcc("ne", bad);
+        a.load("r9", { base: "r11", disp: T.buffer });
         a.load("rax", { base: "r8", disp: 16 });
         a.cmp("rax", 3);
         a.jcc("ne", bad);
