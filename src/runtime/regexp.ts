@@ -20,7 +20,6 @@ export const RegExpLayout = {
     flags: O.size + 8,
     size: O.size + 16,
 } as const;
-// Spec order of the flags getter (hasIndices first).
 const flagGetters = [
     ["hasIndices", "d"],
     ["global", "g"],
@@ -30,8 +29,7 @@ const flagGetters = [
     ["unicode", "u"],
     ["sticky", "y"],
 ] as const;
-// Flag bits returned by rt.validateRegExpFlags, in the canonical order of
-// the stored flags string.
+// Flag bits of rt.validateRegExpFlags, in stored-flags order.
 const constructorFlagBits = [
     ["d", 64],
     ["g", 1],
