@@ -28,6 +28,14 @@ for (const receiver of [{}, 1, "x", null, undefined]) {
 }
 `));
 
+test("the flags getter reads unicodeSets of a generic receiver", () =>
+    sameAsNode(String.raw`
+const flags = Object.getOwnPropertyDescriptor(RegExp.prototype, "flags").get;
+let reads = 0;
+console.log(flags.call({ get unicodeSets() { reads++; return 1; } }), reads);
+console.log(flags.call({ unicodeSets: true, global: true, sticky: 1 }), flags.call({ unicodeSets: "" }) === "");
+`));
+
 test("u and v together are rejected by the constructor", () =>
     sameAsNode(String.raw`
 for (const flags of ["uv", "vu", "guvy", "vv", "vx"]) {

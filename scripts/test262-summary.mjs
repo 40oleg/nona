@@ -10,8 +10,9 @@
 //           eval, $262.evalScript, or uses wellKnownIntrinsicObjects, which
 //           builds functions from strings);
 //   post  - post-ES2020 semantics under an untagged or older feature
-//           (features listed by test262-smoke.mjs as post-es2020, the v flag,
-//           top-level await, numeric separators, Promise.any);
+//           (features listed by test262-smoke.mjs as post-es2020, d flag
+//           (match indices) literals, top-level await, numeric separators,
+//           Promise.any);
 //   other - everything else, listed with --others (eval failures with --evals;
 //           such a list can be rerun with TEST262_FILE_LIST).
 // With --compare, files that changed between the two result sets are listed.
@@ -80,7 +81,7 @@ function classify(path) {
     if (
         features.some((f) => post.includes(f)) ||
         /\/top-level-await\/|separators|Promise\/any\//.test(path) ||
-        /\/[dgimsuy]*v[dgimsuy]*[;,)\s]/.test(body)
+        /\/[gimsuvy]*d[gimsuvy]*[.;,)\s]/.test(body)
     )
         return "post";
     if (/\beval(Script)?\b|wellKnownIntrinsicObjects/.test(body)) return "eval";

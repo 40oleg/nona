@@ -35,6 +35,7 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
     const none = {
         regexp: false,
         unicodeProperties: false,
+        unicodeSets: false,
         unicodeStringProperties: false,
         unicodeNormalization: false,
         preludes: preludeSet(false),
@@ -120,6 +121,7 @@ test("the emoji data of \\p{RGI_Emoji} is linked only when a source names a prop
     const none = {
         regexp: false,
         unicodeProperties: false,
+        unicodeSets: false,
         unicodeStringProperties: false,
         unicodeNormalization: false,
         preludes: preludeSet(false),
@@ -142,6 +144,7 @@ test("the emoji data of \\p{RGI_Emoji} is linked only when a source names a prop
                 ...none,
                 regexp: true,
                 unicodeProperties: true,
+                unicodeSets: true,
                 unicodeStringProperties: true,
             },
             name,
@@ -153,6 +156,7 @@ test("the emoji data of \\p{RGI_Emoji} is linked only when a source names a prop
             ...none,
             regexp: true,
             unicodeProperties: true,
+            unicodeSets: true,
             unicodeStringProperties: true,
         },
     );
@@ -197,6 +201,7 @@ test("a property of strings named only at run time reports the missing emoji dat
         fullRegexpVmPrelude({
             regexp: true,
             unicodeProperties: true,
+            unicodeSets: true,
             unicodeStringProperties: false,
         }),
         context,

@@ -41,13 +41,16 @@ const unicodePropertyEscape = /\\[pP]\{/;
 // The properties of strings of v-mode patterns (\p{RGI_Emoji} …): their
 // emoji data is linked only when a literal or a string names one of them.
 const stringPropertyName = /RGI_Emoji|Basic_Emoji|Emoji_Keycap_Sequence/;
+// The v-mode class syntax is linked by a v flag literal or a string that may
+// be the flags of new RegExp(pattern, "v").
+const unicodeSetsFlags = /^[dgimsy]*v[dgimsy]*$/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName = /(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage: SourceUsage | undefined;
 /** Why each part was linked: the first name that selected it (see LinkReasons). */
 let reasons: LinkReasons | undefined;
-/** Runtime part (regexp, unicodeProperties, unicodeStringProperties, unicodeNormalization or a prelude name) → why it is linked. */
+/** Runtime part (regexp, unicodeProperties, unicodeSets, unicodeStringProperties, unicodeNormalization or a prelude name) → why it is linked. */
 export type LinkReasons = Record<string, string>;
 function note(part: string, why: string): void {
     if (reasons && !(part in reasons)) reasons[part] = why;
@@ -74,6 +77,11 @@ function linkRegExp(
         note("unicodeStringProperties", why);
     }
 }
+function linkUnicodeSets(why: string): void {
+    if (!usage) return;
+    usage.unicodeSets = true;
+    note("unicodeSets", why);
+}
 /** Select a runtime dependency discovered from parsed source expressions. */
 export function requireRuntimePrelude(name: OptionalPrelude): void {
     linkPrelude(name, "used by the program's syntax");
@@ -94,6 +102,7 @@ export function collectSourceUsage<T>(
         current: SourceUsage = {
             regexp: false,
             unicodeProperties: false,
+            unicodeSets: false,
             unicodeStringProperties: false,
             unicodeNormalization: false,
             preludes: preludeSet(false),
@@ -115,6 +124,7 @@ export function collectSourceUsage<T>(
         if (outer) {
             outer.regexp ||= current.regexp;
             outer.unicodeProperties ||= current.unicodeProperties;
+            outer.unicodeSets ||= current.unicodeSets;
             outer.unicodeStringProperties ||= current.unicodeStringProperties;
             outer.unicodeNormalization ||= current.unicodeNormalization;
             for (const name of optionalPreludes)
@@ -174,6 +184,8 @@ function recordUsage(tokens: TokenStream): void {
                     unicodeGroupName.test(pattern),
                 stringPropertyName.test(pattern),
             );
+            if (token.flags?.includes("v"))
+                linkUnicodeSets("a regular expression literal with the v flag");
         } else if (token.kind === "word") {
             const word = String(token.value);
             // A pattern built at run time may use any Unicode property.
@@ -202,6 +214,9 @@ function recordUsage(tokens: TokenStream): void {
                 );
             else if (unicodePropertyEscape.test(text))
                 linkRegExp("a \\p{…} escape inside a string", true);
+            // The engine itself is linked only by RegExp and the names above.
+            if (unicodeSetsFlags.test(text))
+                linkUnicodeSets(`the flags ${JSON.stringify(text)} in a string`);
             // A pattern built at run time names the property in a string
             // (the engine itself is linked only by the names above).
             const stringProperty = stringPropertyName.exec(text);

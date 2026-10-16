@@ -82,6 +82,7 @@ test("Buffer source links its internal RegExp dependency", () => {
     assert.deepEqual(runtimeRegExpLink(unused), {
         regexp: false,
         unicodeProperties: false,
+        unicodeSets: false,
         unicodeStringProperties: false,
     });
     const linked = collectSourceUsage(() =>
@@ -92,6 +93,7 @@ test("Buffer source links its internal RegExp dependency", () => {
     assert.deepEqual(runtimeRegExpLink(linked), {
         regexp: true,
         unicodeProperties: false,
+        unicodeSets: false,
         unicodeStringProperties: false,
     });
     // Model the native exec-to-VM bridge instead of delegating to Node's engine.
@@ -103,6 +105,7 @@ test("Buffer source links its internal RegExp dependency", () => {
                 fullRegexpVmPrelude({
                     regexp,
                     unicodeProperties: false,
+                    unicodeSets: false,
                     unicodeStringProperties: false,
                 }) +
                 encodingPreludeSource +

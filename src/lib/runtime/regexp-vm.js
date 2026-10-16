@@ -35,14 +35,15 @@
   // The properties of strings of v mode (Unicode Emoji sequences). Each is
   // a set of code point ranges plus strings; RGI_Emoji is the union of the
   // other six. The data is linked only when a source names one of them.
-  var emojiData=@@EMOJI_DATA@@;
   var stringPropertyNames=['Basic_Emoji','Emoji_Keycap_Sequence','RGI_Emoji_Modifier_Sequence','RGI_Emoji_Flag_Sequence','RGI_Emoji_Tag_Sequence','RGI_Emoji_ZWJ_Sequence'];
-  var stringPropertyCache={};
   function isStringProperty(name){
     if(name==='RGI_Emoji')return true;
     for(var i=0;i<stringPropertyNames.length;i++)if(stringPropertyNames[i]===name)return true;
     return false
   }
+  /*@@UNICODE_SETS{*/
+  var emojiData=@@EMOJI_DATA@@;
+  var stringPropertyCache={};
   function stringPropertySet(name){
     if(typeof stringPropertyCache[name]==='object')return stringPropertyCache[name];
     if(emojiData===null)throw new Error(@@NO_STRING_PROPERTIES@@);
@@ -64,6 +65,7 @@
     stringPropertyCache[name]=set;
     return set
   }
+  /*}@@UNICODE_SETS*/
   function propertyMatch(ranges,point){
     var low=0,high=ranges.length-1;
     while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
@@ -109,6 +111,13 @@
     var result=charCodeAt(upper,0);
     return point>=128&&result<128?point:result
   }
+  // The number of code points in sorted disjoint ranges.
+  function rangeSize(a){
+    var size=0;
+    for(var i=0;i<a.length;i++)size+=a[i][1]-a[i][0]+1;
+    return size
+  }
+  /*@@UNICODE_SETS{*/
   // Character sets of UnicodeSets mode (the v flag), evaluated when the
   // pattern is compiled: ranges is a sorted list of disjoint, non-adjacent
   // [from, to] code point ranges; strings lists the members that are not one
@@ -136,11 +145,6 @@
     for(var i=0;i<a.length;i++){if(a[i][0]>from)append(out,[from,a[i][0]-1]);from=a[i][1]+1}
     if(from<=0x10ffff)append(out,[from,0x10ffff]);
     return out
-  }
-  function rangeSize(a){
-    var size=0;
-    for(var i=0;i<a.length;i++)size+=a[i][1]-a[i][0]+1;
-    return size
   }
   function stringKeys(strings){
     var keys={};
@@ -248,6 +252,7 @@
   }
   var digitRanges=[[48,57]],wordRanges=[[48,57],[65,90],[95,95],[97,122]];
   var spaceRanges=[[9,13],[32,32],[0xa0,0xa0],[0x1680,0x1680],[0x2000,0x200a],[0x2028,0x2029],[0x202f,0x202f],[0x205f,0x205f],[0x3000,0x3000],[0xfeff,0xfeff]];
+  /*}@@UNICODE_SETS*/
   // Compiled patterns are immutable: a regular expression that is executed
   // repeatedly (every global match loop does this) is parsed once.
   var compileCache=new Map();
@@ -264,6 +269,8 @@
   function compileUncached(pattern,flags){
     var at=0,groups=0,names=[],totalGroups=0,inClass=0,hasNamedGroup=false;
     var unicodeSets=indexOf(flags,'v')>=0,ignoreSets=unicodeSets&&indexOf(flags,'i')>=0;
+    // The v-mode class syntax is linked only when a source can use the v flag.
+    if(unicodeSets&&@@NO_UNICODE_SETS@@!==null)throw new Error(@@NO_UNICODE_SETS@@);
     // Classes nest in v mode: inClass is the depth of the open classes.
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
@@ -408,6 +415,7 @@
       }
       return {inverted:inverted,items:items}
     }
+    /*@@UNICODE_SETS{*/
     // ClassContents of v mode (ClassSetExpression), read from the pattern.
     // An operand is {set, strings, point}: its set (case folded under the i
     // flag), whether it MayContainStrings, and the code point of a lone
@@ -523,6 +531,7 @@
         item=classSetOperand()
       }
     }
+    /*}@@UNICODE_SETS*/
     function decimal(){
       var n=0,seen=false;
       while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(charCodeAt(pattern,at)-48);at++}
