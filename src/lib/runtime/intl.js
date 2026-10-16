@@ -3917,9 +3917,7 @@
         "Intl.DateTimeFormat",
     );
     installSupportedLocalesOf(DateTimeFormat);
-    // format and toLocaleString print U+202F as a space, like V8 (for web
-    // compatibility), and so does formatRange when both dates format alike;
-    // formatToParts, formatRangeToParts and the true ranges keep it.
+    // Every output prints U+202F as a space, like V8 (for web compatibility).
     function spaceParts(parts) {
         for (var i = 0; i < parts.length; i++) {
             var value = parts[i][1];
@@ -3999,7 +3997,13 @@
                     ),
                     t = dateArgument(date);
                 return partsToArray(
-                    formatPattern(slots, slots.pattern, dateFields(slots, t)),
+                    spaceParts(
+                        formatPattern(
+                            slots,
+                            slots.pattern,
+                            dateFields(slots, t),
+                        ),
+                    ),
                 );
             },
         }.formatToParts,
@@ -4040,9 +4044,7 @@
                 );
                 var range = rangeArguments(startDate, endDate),
                     result = rangeParts(slots, range[0], range[1]);
-                return partsToString(
-                    result.range ? result.parts : spaceParts(result.parts),
-                );
+                return partsToString(spaceParts(result.parts));
             },
         }.formatRange,
     );
@@ -4059,7 +4061,10 @@
                     ),
                     range = rangeArguments(startDate, endDate),
                     result = rangeParts(slots, range[0], range[1]);
-                return partsToArray(result.parts, rangeSources(result));
+                return partsToArray(
+                    spaceParts(result.parts),
+                    rangeSources(result),
+                );
             },
         }.formatRangeToParts,
     );
@@ -4287,7 +4292,23 @@
             ["cardinal", "ordinal"],
             "cardinal",
         );
-        setDigitOptions(slots, options, 0, 3, "standard");
+        var notation = getOption(
+            options,
+            "notation",
+            "string",
+            ["standard", "scientific", "engineering", "compact"],
+            "standard",
+        );
+        slots.notation = notation;
+        var compactDisplay = getOption(
+            options,
+            "compactDisplay",
+            "string",
+            ["short", "long"],
+            "short",
+        );
+        if (notation === "compact") slots.compactDisplay = compactDisplay;
+        setDigitOptions(slots, options, 0, 3, notation);
         slots.locale = resolveLocale(requested, opt, [], {}, true).locale;
         call(weakMapSet, pluralRulesSlots, object, slots);
         return object;
@@ -4314,6 +4335,8 @@
                     names = [
                         ["locale", "locale"],
                         ["type", "type"],
+                        ["notation", "notation"],
+                        ["compactDisplay", "compactDisplay"],
                         ["minimumIntegerDigits", "minimumIntegerDigits"],
                         ["minimumFractionDigits", "minimumFractionDigits"],
                         ["maximumFractionDigits", "maximumFractionDigits"],
@@ -4336,7 +4359,7 @@
                         names[i][0] === "pluralCategories"
                             ? slots.type === "cardinal"
                                 ? ["one", "other"]
-                                : ["few", "one", "two", "other"]
+                                : ["one", "two", "few", "other"]
                             : slots[names[i][0]];
                     if (value !== undefined)
                         dataProperty(result, names[i][1], value);
