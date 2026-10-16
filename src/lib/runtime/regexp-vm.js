@@ -80,6 +80,8 @@
   // Compiled patterns are immutable: a regular expression that is executed
   // repeatedly (every global match loop does this) is parsed once.
   var compileCache=new Map();
+  // Unicode mode is the u flag or the v flag (unicodeSets).
+  function isUnicode(flags){return indexOf(flags,'u')>=0||indexOf(flags,'v')>=0}
   function compile(pattern,flags){
     var cacheKey=flags+'/'+pattern,cached=compileCache.get(cacheKey);
     if(cached!==undefined)return cached;
@@ -141,7 +143,7 @@
       return name
     }
     function parseClass(body){
-      var inverted=body[0]==='^',cursor=inverted?1:0,unicode=indexOf(flags,'u')>=0,items=[];
+      var inverted=body[0]==='^',cursor=inverted?1:0,unicode=isUnicode(flags),items=[];
       function unit(){
         var c=body[cursor++],point=charCodeAt(c,0);
         if(c!=='\\'){
@@ -241,7 +243,7 @@
     function escaped(){
       if(at>=pattern.length)error();
       var c=pattern[at++];
-      if((c==='p'||c==='P')&&indexOf(flags,'u')>=0){
+      if((c==='p'||c==='P')&&isUnicode(flags)){
         if(pattern[at++]!=='{')error();
         var begin=at;
         while(at<pattern.length&&pattern[at]!=='}')at++;
@@ -257,9 +259,9 @@
       if(c==='v')return {kind:'char',value:'\v'};
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0'){
-        if(indexOf(flags,'u')>=0&&digit(pattern[at]))error();
+        if(isUnicode(flags)&&digit(pattern[at]))error();
         var octal=0,used=1;
-        while(indexOf(flags,'u')<0&&used<3&&pattern[at]>='0'&&pattern[at]<='7'){
+        while(!isUnicode(flags)&&used<3&&pattern[at]>='0'&&pattern[at]<='7'){
           octal=octal*8+charCodeAt(pattern,at++)-48;used++
         }
         return {kind:'char',value:String.fromCharCode(octal)}
@@ -267,11 +269,11 @@
       if(c==='c'){
         var control=charCodeAt(pattern,at);
         if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
-        if(indexOf(flags,'u')>=0)error();
+        if(isUnicode(flags))error();
         at--;return {kind:'char',value:'\\'} // Annex B.1.4: \\ [lookahead = c]
       }
       if(c==='x'||c==='u'){
-        if(c==='u'&&indexOf(flags,'u')>=0&&pattern[at]==='{'){
+        if(c==='u'&&isUnicode(flags)&&pattern[at]==='{'){
           at++;
           var codePoint=0,digits=0;
           while(at<pattern.length&&pattern[at]!=='}'){
@@ -289,7 +291,7 @@
           return {kind:'char',value:String.fromCodePoint(codePoint)}
         }
         var count=c==='x'?2:4,n=0;
-        if(indexOf(flags,'u')<0){
+        if(!isUnicode(flags)){
           var valid=true;
           for(var probe=0;probe<count;probe++){
             var digitCode=charCodeAt(pattern,at+probe);
@@ -307,7 +309,7 @@
           n=n*16+k
         }
         // Unicode mode: \uLEAD\uTRAIL is one code point (RegExpUnicodeEscapeSequence).
-        if(c==='u'&&n>=0xd800&&n<=0xdbff&&indexOf(flags,'u')>=0&&pattern[at]==='\\'&&pattern[at+1]==='u'){
+        if(c==='u'&&n>=0xd800&&n<=0xdbff&&isUnicode(flags)&&pattern[at]==='\\'&&pattern[at+1]==='u'){
           var trail=0,ok=true;
           for(var place=0;place<4;place++){
             var d=charCodeAt(pattern,at+2+place);
@@ -319,7 +321,7 @@
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
-        if(indexOf(flags,'u')<0&&!hasNamedGroup)return {kind:'char',value:'k'};
+        if(!isUnicode(flags)&&!hasNamedGroup)return {kind:'char',value:'k'};
         at++;
         var name=groupName();
         return {kind:'namedBackref',value:name}
@@ -329,7 +331,7 @@
         var number=charCodeAt(c,0)-48,probe=at;
         while(probe<pattern.length&&digit(pattern[probe]))number=number*10+(charCodeAt(pattern,probe++)-48);
         if(number<=totalGroups){at=probe;return {kind:'backref',value:number}}
-        if(indexOf(flags,'u')>=0)error();
+        if(isUnicode(flags))error();
         if(c==='8'||c==='9')return {kind:'char',value:c};
         var octal=charCodeAt(c,0)-48,limit=octal<=3?3:2,used=1;
         while(used<limit&&pattern[at]>='0'&&pattern[at]<='7'){
@@ -337,7 +339,7 @@
         }
         return {kind:'char',value:String.fromCharCode(octal)}
       }
-      if(indexOf(flags,'u')>=0&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
+      if(isUnicode(flags)&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
       return {kind:'char',value:c}
     }
     function atom(){
@@ -380,7 +382,7 @@
         }
         error()
       }
-      if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}'||c===']')))error();
+      if(c==='*'||c==='+'||c==='?'||(isUnicode(flags)&&(c==='{'||c==='}'||c===']')))error();
       if(c==='{'){
         var probe=at,seen=false;
         while(digit(pattern[probe])){probe++;seen=true}
@@ -389,7 +391,7 @@
           if(pattern[probe]==='}')error()
         }
       }
-      if(indexOf(flags,'u')>=0&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
+      if(isUnicode(flags)&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
         var trail=charCodeAt(pattern,at);
         if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
       }
@@ -414,7 +416,7 @@
           }
         }
         if(quantified){
-          if(node.kind==='look'&&(node.behind||indexOf(flags,'u')>=0))error();
+          if(node.kind==='look'&&(node.behind||isUnicode(flags)))error();
           var lazy=pattern[at]==='?';
           if(lazy)at++;
           node={kind:'repeat',value:node,min:min,max:max,lazy:lazy}
@@ -432,7 +434,7 @@
     if(at!==pattern.length)error();
     function validateReferences(node){
       if(node.kind==='backref'){
-        if(indexOf(flags,'u')>=0&&node.value>groups)error()
+        if(isUnicode(flags)&&node.value>groups)error()
       }else if(node.kind==='namedBackref'){
         var found=false;
         for(var i=0;i<names.length;i++)if(names[i].name===node.value)found=true;
@@ -450,7 +452,7 @@
     // A pattern that starts with a literal (outside ignore-case and unicode
     // mode) can only match where that literal occurs: execute skips ahead
     // with indexOf instead of trying every position.
-    if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0){
+    if(indexOf(flags,'i')<0&&!isUnicode(flags)){
       // The whole literal run at the start ('abc' of /abc(\d+)/), so that
       // indexOf skips the positions where only the first character matches.
       var literal=literalPrefix(tree);
@@ -459,7 +461,7 @@
     // Otherwise a pattern whose matches must start with one of at most eight
     // code units skips to the next of them with the native scan (#258).
     if(compiled.prefix===null&&!compiled.anchored){
-      var unicodeMode=indexOf(flags,'u')>=0,units=firstUnits(tree,indexOf(flags,'i')>=0,unicodeMode);
+      var unicodeMode=isUnicode(flags),units=firstUnits(tree,indexOf(flags,'i')>=0,unicodeMode);
       // In unicode mode a match never starts inside a surrogate pair, but the
       // scan would stop at the trailing half of one: such sets are not used.
       var usable=!units.nullable&&units.set!==null&&units.set.length>0;
@@ -584,7 +586,7 @@
   // positions and repeat counters follow.
   var NONE=4294967295;
   function assemble(compiled){
-    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0;
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=isUnicode(flags);
     var code=[],data=[],registers=compiled.groups*2+2;
     function emit(value){append(code,value)}
     function datum(value){append(data,value);return data.length-1}
@@ -967,7 +969,7 @@
   var backtrackBudget=1000000,backtracks=0;
   function pikeCompile(compiled){
     var flags=compiled.flags,ignore=indexOf(flags,'i')>=0;
-    if(indexOf(flags,'u')>=0)return null;
+    if(isUnicode(flags))return null;
     var code=[],pdata=[],registers=compiled.groups*2+2,limit=20000,ineligible=false;
     function emit(value){append(code,value)}
     function datum(value){append(pdata,value);return pdata.length-1}

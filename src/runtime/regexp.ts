@@ -26,6 +26,7 @@ const flagGetters = [
     ["multiline", "m"],
     ["dotAll", "s"],
     ["unicode", "u"],
+    ["unicodeSets", "v"],
     ["sticky", "y"],
 ] as const;
 export const regexpRoots = [
@@ -1643,9 +1644,13 @@ export function emitRegExp(b: RuntimeBuilder): void {
         a.store(slot(96), "rax");
         a.jmp(nextFlag);
         a.label(checkUnicode);
+        const isUnicodeFlag = a.unique("isUnicodeFlag");
+        a.cmp("rax", 118);
+        a.jcc("e", isUnicodeFlag);
         a.cmp("rax", 117);
         const checkMultiline = a.unique("checkMultiline");
         a.jcc("ne", checkMultiline);
+        a.label(isUnicodeFlag);
         a.load("rax", slot(96));
         a.or("rax", 2);
         a.store(slot(96), "rax");
@@ -2255,9 +2260,13 @@ export function emitRegExp(b: RuntimeBuilder): void {
             a.jcc("ne", notIgnore);
             a.or("r11", 4);
             a.label(notIgnore);
+            const setUnicode = a.unique("setUnicode");
             a.cmp("rax", 117);
+            a.jcc("e", setUnicode);
+            a.cmp("rax", 118);
             const notUnicode = a.unique("notUnicode");
             a.jcc("ne", notUnicode);
+            a.label(setUnicode);
             a.or("r11", 8);
             a.label(notUnicode);
             a.cmp("rax", 121);
@@ -2654,6 +2663,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
             ["s", 8],
             ["u", 16],
             ["y", 32],
+            ["v", 64],
         ] as const) {
             const next = a.unique("next");
             a.cmp("rax", flag.charCodeAt(0));
@@ -2675,6 +2685,11 @@ export function emitRegExp(b: RuntimeBuilder): void {
         a.label(invalid);
         a.call("rt.throwSyntaxError");
         a.label(done);
+        // u and v are mutually exclusive.
+        a.mov("rax", "r10");
+        a.and("rax", 80);
+        a.cmp("rax", 80);
+        a.jcc("e", invalid);
         a.mov("rax", "r10");
     });
     b.fn("rt.validateRegExpStructure", 40, (a) => {
@@ -2905,7 +2920,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
             a.call("rt.invoke");
             a.label(withoutVm);
             a.mov("rdx", 0);
-            for (const bit of [1, 2, 4, 8, 16, 32]) {
+            for (const bit of [1, 2, 4, 8, 16, 32, 64]) {
                 const next = a.unique("next");
                 a.load("rax", slot(72));
                 a.and("rax", bit);
@@ -2929,6 +2944,7 @@ export function emitRegExp(b: RuntimeBuilder): void {
                 ["m", 4],
                 ["s", 8],
                 ["u", 16],
+                ["v", 64],
                 ["y", 32],
             ] as const) {
                 const next = a.unique("next");

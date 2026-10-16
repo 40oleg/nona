@@ -709,8 +709,9 @@ export function lex(
                 i += codePoint().length;
             const flags = source.slice(flagStart, i);
             if (
-                !/^[gimsuy]*$/.test(flags) ||
-                new Set(flags).size !== flags.length
+                !/^[gimsuvy]*$/.test(flags) ||
+                new Set(flags).size !== flags.length ||
+                (flags.includes("u") && flags.includes("v"))
             )
                 fail("Invalid regular expression flags", flagStart);
             try {
