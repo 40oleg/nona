@@ -1,11 +1,4 @@
-function unsupported(name) {
-    return function () {
-        const error = new Error(name + " is not supported by Nona");
-        error.code = "ERR_NONA_UNSUPPORTED";
-        throw error;
-    };
-}
-
+import { createRequire } from "nona:internal/commonjs";
 export const builtinModules = [
     "assert",
     "assert/strict",
@@ -46,7 +39,7 @@ export function isBuiltin(name) {
         : String(name);
     return builtinModules.includes(bare);
 }
-export const createRequire = unsupported("module.createRequire");
+export { createRequire };
 export function syncBuiltinESMExports() {}
 export function findSourceMap() {
     return undefined;

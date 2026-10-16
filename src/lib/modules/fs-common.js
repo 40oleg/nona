@@ -338,7 +338,7 @@ export function copyFileSync(from, to, mode) {
         fail("EEXIST", "copyfile", from, to);
     sys.copy(from, to);
 }
-/** A callback API over a synchronous one: the callback runs on a later tick, an error first. */
+/** A callback API over a synchronous one: the callback runs on a later turn (setImmediate), an error first; a TypeError for bad arguments is thrown synchronously. */
 function callbackForm(operation) {
     return function (...args) {
         const callback = args.pop();
@@ -355,9 +355,10 @@ function callbackForm(operation) {
         try {
             result = operation(...args);
         } catch (e) {
+            if (e instanceof TypeError) throw e;
             error = e;
         }
-        process.nextTick(() =>
+        setImmediate(() =>
             error === null ? callback(null, result) : callback(error),
         );
     };
@@ -403,7 +404,7 @@ export const readFile = callbackForm(readFileSync),
 realpath.native = realpath;
 export function exists(path, callback) {
     const result = existsSync(path);
-    process.nextTick(() => callback(result));
+    setImmediate(() => callback(result));
 }
 /** fs.promises, also the node:fs/promises module. */
 export const promises = {};

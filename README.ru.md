@@ -116,7 +116,7 @@ nona --help | --version
 | `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | то, что используют npm-пакеты: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, проверки, случайные значения (и глобальный `crypto`), хеши и HMAC                                                                                                | [вспомогательные модули](docs/host-apis.md#nodejs-support-modules) |
 | `nona:ffi`, `nona:win32`                                                                                        | вызов любых экспортов DLL в Windows                                                                                                                                                                                                                                               | [FFI](docs/ffi.md)                                                 |
 
-**npm-пакеты.** Установите пакеты через npm как обычно и соберите программу: Nona разрешает `node_modules` при компиляции так же, как Node.js (`exports`, `imports`, условия, `main`, `type` из `package.json`, символические ссылки), и компилирует в исполняемый файл модули CommonJS, ES-модули и JSON; `require`, `module.exports`, `require.cache`, циклы и взаимодействие с ES-модулями работают как в Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod и другие проверены на совпадение с Node.js ([npm-пакеты](docs/npm.md)).
+**npm-пакеты.** Установите пакеты через npm как обычно и соберите программу: Nona разрешает `node_modules` при компиляции так же, как Node.js (`exports`, `imports`, условия, `main`, `type` из `package.json`, символические ссылки), и компилирует в исполняемый файл модули CommonJS, ES-модули и JSON; `require`, `module.exports`, `require.cache`, циклы и взаимодействие с ES-модулями работают как в Node.js. lodash, chalk, commander, yargs, dayjs, date-fns, marked, js-yaml, semver, uuid, zod и другие проверены на совпадение с Node.js ([npm-пакеты](docs/npm.md)).
 
 **Программы для Windows** могут быть оконными, без консоли (`--subsystem windows`), и содержать иконку, манифест и сведения о версии ([исполняемые файлы Windows](docs/windows-executables.md)).
 
@@ -159,7 +159,7 @@ Nona выигрывает там, где и должен выигрывать и
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходный текст, известный при компиляции.
 - Большинство возможностей новее ES2020, которых нет в списке выше (`WeakRef`, `await` верхнего уровня, …), не поддерживаются.
-- Модули Node.js вне таблицы выше (`dns`, `dgram`, …), TLS, сжатие и дочерние процессы (`node:https`, `node:tls`, `node:zlib` и `node:child_process` загружаются, но их функции бросают исключение), npm-пакеты, которым они или `Intl` нужны, нативные аддоны и браузерные API недоступны. Сеть работает в Linux и Windows.
+- Модули Node.js вне таблицы выше (`dns`, `dgram`, …), TLS, сжатие и дочерние процессы (`node:https`, `node:tls`, `node:zlib` и `node:child_process` загружаются, но их функции бросают исключение), npm-пакеты, которым они или `Intl` помимо `Intl.Segmenter` нужны, нативные аддоны и браузерные API недоступны. Сеть работает в Linux и Windows.
 - Обычные вычисления намного медленнее, чем в JIT.
 
 ## Разработка

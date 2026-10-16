@@ -36,12 +36,22 @@ import type { ModuleHost } from "./modules.js";
  * MODULE_NOT_FOUND when it runs, as in Node; `try { require('optional') }`
  * keeps working. A `.json` file is a CommonJS module whose exports are the
  * parsed JSON.
+ *
+ * An ES module that calls `module.createRequire` gets a require table too:
+ * the literal `require('x')` calls through the functions it makes (see
+ * analyzeCreateRequire) are resolved from the module's own file into the
+ * record `<path>?require`, which the module imports for its side effect of
+ * registering the table under the module's file name.
  */
 
 export type ModuleFormat = "module" | "commonjs" | "json";
 
 /** The suffix of a CommonJS file's factory record. */
 export const factorySuffix = "?commonjs";
+/** The suffix of the record that holds an ES module's createRequire table. */
+const requireSuffix = "?require";
+const synthesized = (path: string): boolean =>
+    path.endsWith(factorySuffix) || path.endsWith(requireSuffix);
 
 const commonJsNames = [
     "require",
@@ -283,12 +293,104 @@ export function analyzeCommonJs(program: A.Program): CommonJsAnalysis {
             }
         }
     });
+    // The literal requires through module.createRequire resolve from this file too.
+    const created = analyzeCreateRequire(program);
+    for (const specifier of created.requires) add(requires, specifier);
+    for (const specifier of created.resolves) add(resolves, specifier);
     return {
         requires,
         resolves,
         exportNames: names.filter((name) => name !== "default"),
         reexports,
     };
+}
+
+/**
+ * The literal `require('x')` and `require.resolve('x')` calls of a module
+ * through the functions `module.createRequire` makes: `const require =
+ * createRequire(import.meta.url)` (also through `module.createRequire`, an
+ * imported alias or `const { createRequire: alias } = require('module')`) and
+ * `createRequire(...)('x')`.
+ */
+export function analyzeCreateRequire(
+    program: A.Program,
+): Pick<CommonJsAnalysis, "requires" | "resolves"> {
+    const factories = new Set(["createRequire"]);
+    for (const statement of program.body)
+        if (
+            statement.kind === "Import" &&
+            /^(node:)?module$/.test(statement.source)
+        )
+            for (const specifier of statement.specifiers)
+                if (
+                    specifier.kind === "named" &&
+                    specifier.imported === "createRequire"
+                )
+                    factories.add(specifier.local.name);
+    const makesRequire = (node: A.Node | null | undefined): boolean => {
+        if (node?.kind !== "Call") return false;
+        const callee = (node as A.Call).callee;
+        return (
+            (callee.kind === "Identifier" && factories.has(callee.name)) ||
+            (callee.kind === "Member" &&
+                stringOf(callee.property) === "createRequire")
+        );
+    };
+    walk(program.body, (node) => {
+        if (node.kind !== "Var") return;
+        for (const { id, init } of (node as A.Var).declarations) {
+            if (
+                id.kind !== "ObjectPattern" ||
+                !/^(node:)?module$/.test(requireCall(init ?? undefined) ?? "")
+            )
+                continue;
+            for (const property of id.properties)
+                if (
+                    !property.computed &&
+                    stringOf(property.key) === "createRequire" &&
+                    property.value.id.kind === "Identifier"
+                )
+                    factories.add(property.value.id.name);
+        }
+    });
+    const names = new Set<string>();
+    walk(program.body, (node) => {
+        if (node.kind === "Var")
+            for (const declaration of (node as A.Var).declarations)
+                if (
+                    declaration.id.kind === "Identifier" &&
+                    makesRequire(declaration.init)
+                )
+                    names.add(declaration.id.name);
+        if (node.kind === "Assignment") {
+            const { left, right } = node as A.Assignment;
+            if (left.kind === "Identifier" && makesRequire(right))
+                names.add(left.name);
+        }
+    });
+    const requires: string[] = [],
+        resolves: string[] = [];
+    const add = (list: string[], value: string | undefined) => {
+        if (value !== undefined && !list.includes(value)) list.push(value);
+    };
+    walk(program.body, (node) => {
+        if (node.kind !== "Call") return;
+        const { callee, arguments: args } = node as A.Call;
+        const specifier = stringOf(args[0] as A.Node | undefined);
+        if (
+            (callee.kind === "Identifier" && names.has(callee.name)) ||
+            makesRequire(callee)
+        )
+            add(requires, specifier);
+        if (
+            callee.kind === "Member" &&
+            callee.object.kind === "Identifier" &&
+            names.has(callee.object.name) &&
+            stringOf(callee.property) === "resolve"
+        )
+            add(resolves, specifier);
+    });
+    return { requires, resolves };
 }
 
 const reserved = new Set(
@@ -404,9 +506,9 @@ export class NodeModuleHost implements ModuleHost {
     }
 
     resolve(specifier: string, referrer: string): string | undefined {
-        if (specifier.endsWith(factorySuffix)) return specifier;
-        const from = referrer.endsWith(factorySuffix)
-            ? referrer.slice(0, -factorySuffix.length)
+        if (synthesized(specifier)) return specifier;
+        const from = synthesized(referrer)
+            ? referrer.slice(0, referrer.lastIndexOf("?"))
             : referrer;
         if (this.options.overrides?.has(specifier) && specifier.startsWith("/"))
             return specifier;
@@ -414,18 +516,49 @@ export class NodeModuleHost implements ModuleHost {
     }
 
     read(path: string): string | undefined {
-        if (path.endsWith(factorySuffix)) return "";
+        if (synthesized(path)) return "";
         const text = this.text(path);
         if (text === undefined) return undefined;
         const format = this.format(path);
-        if (format === "module") return text;
+        if (format === "module") return this.moduleSource(path, text);
         return this.facadeSource(path);
     }
 
-    /** The AST of a synthesized record: a factory record. Facades and ES modules are parsed from text. */
+    /** The AST of a synthesized record: a factory or require table record. Facades and ES modules are parsed from text. */
     program(path: string): A.Program | undefined {
+        if (path.endsWith(requireSuffix))
+            return this.requireTableProgram(
+                path.slice(0, -requireSuffix.length),
+            );
         if (!path.endsWith(factorySuffix)) return undefined;
         return this.factoryProgram(path.slice(0, -factorySuffix.length));
+    }
+
+    private moduleRequires = new Map<
+        string,
+        Pick<CommonJsAnalysis, "requires" | "resolves">
+    >();
+    /**
+     * The text of an ES module, with an import of its require table record
+     * when it requires modules through module.createRequire. The import goes
+     * at the end, so the positions of the file's own text do not move.
+     */
+    moduleSource(path: string, text: string): string {
+        if (!/\bcreateRequire\b/.test(text)) return text;
+        let analysis = this.moduleRequires.get(path);
+        if (!analysis) {
+            try {
+                analysis = analyzeCreateRequire(
+                    parse(lex(text, { module: true }), { module: true }),
+                );
+            } catch {
+                // A syntax error is reported when the module itself is parsed.
+                return text;
+            }
+            this.moduleRequires.set(path, analysis);
+        }
+        if (!analysis.requires.length && !analysis.resolves.length) return text;
+        return text + `\nimport ${JSON.stringify(path + requireSuffix)};\n`;
     }
 
     /** The module text a script entry stands for when it is CommonJS: run it as the main module. */
@@ -536,14 +669,17 @@ export class NodeModuleHost implements ModuleHost {
         return lines.join("\n") + "\n";
     }
 
-    /** How a required file is reached from a factory: its own factory (0), or as an ES module namespace (1). */
-    private factoryProgram(path: string): A.Program {
-        const wrapper = this.wrapper(path),
-            analysis = this.analysis(path);
-        const imports: string[] = [
-            `import {define as __nona_cjs_define} from 'nona:internal/commonjs';`,
-        ];
-        const entries: string[] = [];
+    /**
+     * The imports and the `require` table entries of a file. Each entry tells
+     * how the required file is reached: its own factory (0), as an ES module
+     * namespace (1) or as a builtin (2).
+     */
+    private requireTable(
+        path: string,
+        analysis: Pick<CommonJsAnalysis, "requires" | "resolves">,
+    ): { imports: string[]; entries: string[] } {
+        const imports: string[] = [],
+            entries: string[] = [];
         const target = (
             specifier: string,
         ): { path: string; kind: 0 | 1 | 2; native: string } | undefined => {
@@ -586,6 +722,30 @@ export class NodeModuleHost implements ModuleHost {
                     `[${JSON.stringify(specifier)}, [${JSON.stringify(found.native)}, undefined, ${found.kind}]]`,
                 );
         }
+        return { imports, entries };
+    }
+
+    /** The record that registers an ES module's createRequire table. */
+    private requireTableProgram(path: string): A.Program {
+        const analysis = this.moduleRequires.get(path) ?? {
+            requires: [],
+            resolves: [],
+        };
+        const { imports, entries } = this.requireTable(path, analysis);
+        const source =
+            `import {defineRequire as __nona_cjs_define_require} from 'nona:internal/commonjs';\n` +
+            imports.join("\n") +
+            `\n__nona_cjs_define_require(${JSON.stringify(nativePath(path))}, new Map([${entries.join(", ")}]));\n`;
+        return parse(lex(source, { module: true }), { module: true });
+    }
+
+    private factoryProgram(path: string): A.Program {
+        const wrapper = this.wrapper(path),
+            analysis = this.analysis(path);
+        const { imports, entries } = this.requireTable(path, analysis);
+        imports.unshift(
+            `import {define as __nona_cjs_define} from 'nona:internal/commonjs';`,
+        );
         const header =
             imports.join("\n") +
             `\nexport default __nona_cjs_define(${JSON.stringify(nativePath(path))}, ${JSON.stringify(nativeDirname(path))}, null, new Map([${entries.join(", ")}]));\n`;

@@ -116,7 +116,7 @@ nona --help | --version
 | `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | what npm packages use: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, assertions, random values (also the global `crypto`), hashes and HMAC                                                                                     | [support modules](docs/host-apis.md#nodejs-support-modules) |
 | `nona:ffi`, `nona:win32`                                                                                        | calls to any DLL export on Windows                                                                                                                                                                                                                                 | [FFI](docs/ffi.md)                                          |
 
-**npm packages.** Install packages with npm as usual and build: Nona resolves `node_modules` at compile time as Node.js does (`package.json` `exports`, `imports`, conditions, `main`, `type`, symbolic links) and compiles CommonJS modules, ES modules and JSON into the executable, with `require`, `module.exports`, `require.cache`, cycles and ES module interop working as in Node.js. lodash, chalk, commander, dayjs, date-fns, marked, js-yaml, semver, uuid, zod and more are tested against Node.js ([npm packages](docs/npm.md)).
+**npm packages.** Install packages with npm as usual and build: Nona resolves `node_modules` at compile time as Node.js does (`package.json` `exports`, `imports`, conditions, `main`, `type`, symbolic links) and compiles CommonJS modules, ES modules and JSON into the executable, with `require`, `module.exports`, `require.cache`, cycles and ES module interop working as in Node.js. lodash, chalk, commander, yargs, dayjs, date-fns, marked, js-yaml, semver, uuid, zod and more are tested against Node.js ([npm packages](docs/npm.md)).
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
@@ -159,7 +159,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above (`dns`, `dgram`, …), TLS, compression and child processes (`node:https`, `node:tls`, `node:zlib` and `node:child_process` load, but their functions throw), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
+- Node.js modules outside the table above (`dns`, `dgram`, …), TLS, compression and child processes (`node:https`, `node:tls`, `node:zlib` and `node:child_process` load, but their functions throw), npm packages that need them or `Intl` beyond `Intl.Segmenter`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
 - Plain computation is much slower than in a JIT.
 
 ## Development

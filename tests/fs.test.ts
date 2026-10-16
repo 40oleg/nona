@@ -219,3 +219,40 @@ try { fs.readlinkSync(dir + '/dir'); } catch (e) { console.log(e.code, e.syscall
         rmSync(directory, { recursive: true, force: true });
     }
 });
+
+test("the fs callback API calls back on a later turn with the result or the error", () =>
+    expectModules({
+        "main.mjs": `
+import fs, {readFile, writeFile, appendFile, stat, readdir, mkdir, rename, copyFile, unlink, rmdir, realpath, exists} from 'node:fs';
+const call = (name, fn, ...args) => new Promise((resolve) => {
+    let sync = true;
+    fn(...args, (error, value) => {
+        console.log(name, sync ? 'synchronous' : 'later', error ? error.code + ' ' + error.syscall : typeof value === 'string' ? value : value === undefined ? '-' : typeof value);
+        resolve(value);
+    });
+    sync = false;
+});
+(async () => {
+await call('mkdir', mkdir, 'cb-dir');
+await call('writeFile', writeFile, 'cb-dir/a.txt', 'hello');
+await call('appendFile', appendFile, 'cb-dir/a.txt', ' world');
+await call('readFile', readFile, 'cb-dir/a.txt', 'utf8');
+const data = await call('readFile buffer', readFile, 'cb-dir/a.txt');
+const st = await call('stat', stat, 'cb-dir/a.txt');
+console.log(data.length, st.isFile(), st.size);
+await call('copyFile', copyFile, 'cb-dir/a.txt', 'cb-dir/b.txt');
+await call('rename', rename, 'cb-dir/b.txt', 'cb-dir/c.txt');
+console.log((await call('readdir', readdir, 'cb-dir')).sort().join());
+console.log(await new Promise((resolve) => realpath('cb-dir', (error, value) => resolve(value === fs.realpathSync('cb-dir')))));
+await new Promise((resolve) => exists('cb-dir/c.txt', (found) => resolve(console.log('exists', found))));
+await call('missing', readFile, 'cb-dir/missing');
+await call('mkdir again', mkdir, 'cb-dir');
+await call('stat missing', stat, 'cb-dir/missing');
+await call('unlink', unlink, 'cb-dir/a.txt');
+await call('unlink', unlink, 'cb-dir/c.txt');
+await call('rmdir', rmdir, 'cb-dir');
+try { readFile('cb-dir/a.txt'); } catch (e) { console.log(e.name, e.code); }
+console.log(typeof fs.readFile, fs.writeFile === writeFile);
+})();
+`,
+    }));
