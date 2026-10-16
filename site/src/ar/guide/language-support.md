@@ -39,7 +39,7 @@
 | ArrayBuffer وDataView والمصفوفات المنمَّطة | مدعوم  | جميع أنواع المصفوفات المنمَّطة الأحد عشر، بما فيها مصفوفات BigInt، والفصل (detach)، وspecies.                                                                                                                      |
 | SharedArrayBuffer وAtomics                 | مدعوم  | بما فيها `Atomics.wait`/`notify` مع وكلاء عاملين (يستخدمها Test262).                                                                                                                                               |
 | Proxy وReflect                             | مدعوم  | جميع المصائد والثوابت.                                                                                                                                                                                             |
-| Promise                                    | مدعوم  | `all` و`allSettled` و`race` و`finally` والكائنات القابلة للانتظار (thenables) والإبلاغ عن حالات الرفض غير المعالَجة.                                                                                               |
+| Promise                                    | مدعوم  | `all` و`allSettled` و`race` و`withResolvers` و`finally` والكائنات القابلة للانتظار (thenables) والإبلاغ عن حالات الرفض غير المعالَجة.                                                                              |
 | `globalThis` و`console.log`                | مدعوم  | يكتب `console.log` بترميز UTF-8 إلى المخرج القياسي. يفعل `console.info` و`console.debug` الشيء نفسه؛ ويكتب `console.error` و`console.warn` إلى مخرج الأخطاء القياسي.                                               |
 
 ## ما بعد ES2020

@@ -112,23 +112,25 @@ own built-in modules. Besides the modules described in [host APIs](host-apis.md)
 these modules exist mainly for packages (see
 [Node.js support modules](host-apis.md#nodejs-support-modules)):
 
-| Module                                | What it provides                                                                                                                                                        |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node:os`                             | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty                 |
-| `node:tty`                            | `isatty`, `ReadStream`, `WriteStream`                                                                                                                                   |
-| `node:util`                           | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText`             |
-| `node:url`                            | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve`                                                                  |
-| `node:assert`                         | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError`                                                     |
-| `node:crypto`                         | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual` |
-| `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                              |
-| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                |
-| `node:perf_hooks`                     | `performance`                                                                                                                                                           |
-| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` throws                                                                                                                   |
-| `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                          |
-| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                |
+| Module                                | What it provides                                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `node:os`                             | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty                                                                        |
+| `node:tty`                            | `isatty`, `ReadStream`, `WriteStream`                                                                                                                                                                                          |
+| `node:util`                           | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText`                                                                    |
+| `node:url`                            | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve`                                                                                                                         |
+| `node:assert`                         | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError`                                                                                                            |
+| `node:crypto`                         | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual`; the global `crypto` (`getRandomValues`, `randomUUID`) |
+| `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                                                                                     |
+| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                                                                       |
+| `node:perf_hooks`                     | `performance`                                                                                                                                                                                                                  |
+| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` throws                                                                                                                                                                          |
+| `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                 |
+| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                       |
+| `node:https`                          | `Agent` and `globalAgent` (Linux and Windows); there is no TLS, so `request`, `get` and `createServer` throw `ERR_NONA_UNSUPPORTED`                                                                                            |
+| `node:tls`, `node:http2`, `node:zlib` | exist so that packages mentioning them load: the constants of Node.js (`zlib.constants`, `http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                            |
 
-A package that loads a module Nona does not provide (`zlib`, `dns`, `https`,
-`tls`, …) fails to compile with `E_MODULE: Cannot resolve module`.
+A package that loads a module Nona does not provide (`dns`, `dgram`,
+`cluster`, …) fails to compile with `E_MODULE: Cannot resolve module`.
 
 ## Tested packages
 
@@ -136,7 +138,7 @@ Every package below is compiled with a small program and its output compared
 with Node.js (`tests/npm.test.ts` covers the mechanisms; the package list is
 checked by hand for now):
 
-acorn, ansi-styles, big.js, bignumber.js, chalk, classnames, commander,
+acorn, ansi-styles, axios (HTTP requests to `http:` URLs), big.js, bignumber.js, chalk, classnames, commander,
 date-fns, dayjs, debug, decimal.js, deepmerge, diff, escape-html,
 fast-deep-equal, immer, js-yaml, kleur, lodash, marked, minimist, ms,
 mustache, nanoid, picocolors, qs, ramda, semver, strip-ansi, underscore, uuid,
@@ -153,6 +155,8 @@ Function` or `eval` from strings built at run time fail when they do so:
 - **Version checks.** `process.version` is Nona's version and Nona does not
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error.
+- **TLS and compression.** `https:` requests, and responses with a
+  `Content-Encoding` that needs `zlib`, fail with `ERR_NONA_UNSUPPORTED`.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and

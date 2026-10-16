@@ -39,7 +39,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 | ArrayBuffer, DataView, टाइप्ड ऐरे        | समर्थित | BigInt ऐरे सहित सभी 11 तरह के टाइप्ड ऐरे, डिटैचमेंट, species।                                                                                                                                   |
 | SharedArrayBuffer, Atomics               | समर्थित | वर्कर एजेंट के साथ `Atomics.wait`/`notify` सहित (Test262 इनका उपयोग करता है)।                                                                                                                   |
 | Proxy, Reflect                           | समर्थित | सभी ट्रैप और इनवेरिएंट।                                                                                                                                                                         |
-| Promise                                  | समर्थित | `all`, `allSettled`, `race`, `finally`, thenable और अनहैंडल्ड रिजेक्शन की रिपोर्टिंग।                                                                                                           |
+| Promise                                  | समर्थित | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable और अनहैंडल्ड रिजेक्शन की रिपोर्टिंग।                                                                                          |
 | `globalThis`, `console.log`              | समर्थित | `console.log` स्टैंडर्ड आउटपुट पर UTF-8 लिखता है। `console.info` और `console.debug` भी यही करते हैं; `console.error` और `console.warn` स्टैंडर्ड एरर पर लिखते हैं।                              |
 
 ## ES2020 के बाद
