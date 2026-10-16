@@ -185,3 +185,109 @@ test("invalid v-mode class literals are compile-time errors", () => {
     compileToIR(String.raw`const r = /[a&&b]/u;`);
     compileToIR(String.raw`const r = /[[a-z]--\q{ab}]/v;`);
 });
+
+// Emoji used below: keycaps, flags, the England tag sequence and ZWJ families.
+const emoji = String.raw`
+const keycap = "#\u{FE0F}\u{20E3}", one = "1\u{FE0F}\u{20E3}", fr = "\u{1F1EB}\u{1F1F7}", us = "\u{1F1FA}\u{1F1F8}";
+const england = "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}";
+const scotland = "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}";
+const family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}", coder = "\u{1F469}\u{200D}\u{1F4BB}";
+const hex = (s) => s === null ? null : [...s].map((c) => c.codePointAt(0).toString(16)).join(" ");
+`;
+
+test("properties of strings match emoji sequences, longest first", () =>
+    sameAsNode(
+        emoji +
+            String.raw`
+const samples = [
+  "\u{231A}", "\u{1F600}", "\u{2764}\u{FE0F}", "a", keycap, one, "1", "\u{1F44D}\u{1F3FD}", "\u{1F44D}",
+  fr, us, "\u{1F1E6}", england, "\u{1F3F4}", family, coder, "\u{1F468}",
+];
+for (const name of ["Basic_Emoji", "Emoji_Keycap_Sequence", "RGI_Emoji_Modifier_Sequence", "RGI_Emoji_Flag_Sequence",
+                    "RGI_Emoji_Tag_Sequence", "RGI_Emoji_ZWJ_Sequence", "RGI_Emoji"]) {
+  const exact = new RegExp("^\\p{" + name + "}$", "v"), inClass = new RegExp("^[\\p{" + name + "}]$", "v");
+  console.log(name, samples.map((s) => (exact.test(s) ? 1 : 0) + (inClass.test(s) ? 2 : 0)).join(""));
+}
+const text = "a" + family + "b" + fr + "c" + keycap + "\u{1F44D}\u{1F3FD}" + england + coder + "\u{1F468}";
+console.log(text.match(/\p{RGI_Emoji}/gv).map(hex).join(" | "));
+console.log(text.match(/[\p{RGI_Emoji}a-b]+/gv).map(hex).join(" | "));
+console.log(hex(/\p{RGI_Emoji}{2}/v.exec(fr + "\u{1F600}x")?.[0] ?? null));
+console.log(text.replace(/\p{RGI_Emoji_Flag_Sequence}|\p{Emoji_Keycap_Sequence}/gv, "_").length);
+console.log(/(?<=\p{RGI_Emoji})b/v.exec(text).index, /(?<![\p{RGI_Emoji}a])c/v.exec("ac" + fr + "c" + "xc")?.index);
+`,
+        // Loading RGI_Emoji allocates thousands of strings: too slow under gcStress.
+        false,
+    ));
+
+test("properties of strings in set operations and under ignore case", () =>
+    sameAsNode(
+        emoji +
+            String.raw`
+const samples = [fr, us, family, coder, "\u{1F600}", "\u{231A}", keycap, "ab", "AB", "a"];
+const patterns = [
+  "[\\p{RGI_Emoji}--\\q{" + fr + "}]", "[\\p{RGI_Emoji_Flag_Sequence}--[\\q{" + fr + "|" + us + "}]]",
+  "[\\p{RGI_Emoji}&&\\p{RGI_Emoji_Flag_Sequence}]", "[\\p{Basic_Emoji}&&[\\u{1F600}-\\u{1F64F}]]",
+  "[\\p{RGI_Emoji}&&\\q{" + family + "|ab}]", "[\\p{Emoji_Keycap_Sequence}\\q{ab}]", "[[\\p{RGI_Emoji}--\\p{Basic_Emoji}]\\q{AB}]",
+  "[^\\p{RGI_Emoji}&&\\p{L}]", "[\\p{RGI_Emoji}--\\p{Emoji}]", "[\\p{RGI_Emoji_ZWJ_Sequence}--\\q{" + family + "}]",
+];
+for (const source of patterns)
+  for (const flags of ["v", "vi"]) {
+    const re = new RegExp("^" + source + "$", flags);
+    console.log(flags, samples.map((s) => re.test(s) ? 1 : 0).join(""));
+  }
+console.log(/^[\p{RGI_Emoji}--\q{🇫🇷}]$/v.test(fr), /^[\p{RGI_Emoji}--\q{🇫🇷}]$/v.test(us));
+`,
+        false,
+    ));
+
+test("small properties of strings backtrack, look behind and capture", () =>
+    sameAsNode(
+        emoji +
+            String.raw`
+console.log(/^\p{Emoji_Keycap_Sequence}+$/v.test(keycap + one), /^\p{Emoji_Keycap_Sequence}$/v.test("#"));
+// The longest string fails at the end: the next shorter one is tried.
+console.log(/^[\p{Emoji_Keycap_Sequence}\q{#\u{FE0F}|#}]\u{20E3}$/v.exec(keycap)[0].length);
+console.log(/^(\p{Emoji_Keycap_Sequence}|[\q{#\u{FE0F}}])(\u{20E3}?)$/v.exec(keycap).map((s) => s.length).join());
+console.log(("a" + england + "b").replace(/\p{RGI_Emoji_Tag_Sequence}/v, "_"));
+console.log(/(?<=\p{RGI_Emoji_Tag_Sequence})b/v.exec("a" + england + "b").index);
+console.log(/(?<![\p{Emoji_Keycap_Sequence}a])x/v.exec(keycap + "xaxx").index);
+const notEngland = new RegExp("^[\\p{RGI_Emoji_Tag_Sequence}--\\q{" + england + "}]$", "v");
+console.log(notEngland.test(england), notEngland.test(scotland));
+console.log(/^[\p{Emoji_Keycap_Sequence}&&\q{1\u{FE0F}\u{20E3}|ab}]$/v.test(one));
+console.log(/^[\p{Emoji_Keycap_Sequence}\q{AB}]+$/vi.test("ab" + keycap + "aB"), /^\p{Emoji_Keycap_Sequence}$/vi.test(one));
+console.log((keycap + one + "x" + keycap).match(/\p{Emoji_Keycap_Sequence}/gv).length);
+`,
+    ));
+
+test("properties of strings are only valid as \\p in v mode", () => {
+    sameAsNode(
+        String.raw`
+const cases = [
+  ["\\p{RGI_Emoji}", "u"], ["\\p{Basic_Emoji}", "u"], ["[\\p{RGI_Emoji_ZWJ_Sequence}]", "u"],
+  ["\\P{RGI_Emoji}", "v"], ["\\P{Emoji_Keycap_Sequence}", "v"], ["[\\P{RGI_Emoji_Flag_Sequence}]", "v"],
+  // The class is evaluated before its negation is checked: small properties keep this fast under gcStress.
+  ["[^\\p{Emoji_Keycap_Sequence}]", "v"], ["[^[\\p{RGI_Emoji_Tag_Sequence}]]", "v"], ["[^\\p{Emoji_Keycap_Sequence}--\\q{a}]", "v"],
+  ["[a[^\\p{RGI_Emoji_Tag_Sequence}]]", "v"], ["\\p{RGI_Emoji=Yes}", "v"], ["\\p{rgi_emoji}", "v"], ["\\p{Emoji_Keycap_Sequence}", "vi"],
+  ["[^\\p{Emoji_Keycap_Sequence}&&a]", "v"], ["\\p{RGI_Emoji}", ""], ["[\\p{RGI_Emoji_Tag_Sequence}--\\q{a}]", "vi"],
+];
+for (const [source, flags] of cases) {
+  try { new RegExp(source, flags); console.log("accepted", source, flags); }
+  catch (e) { console.log(e.name, source, flags); }
+}
+`,
+    );
+    for (const source of [
+        "\\P{RGI_Emoji}",
+        "[^\\p{RGI_Emoji}]",
+        "[\\P{Basic_Emoji}]",
+    ])
+        assert.throws(
+            () => compileToIR(`const r = /${source}/v;`),
+            /Invalid regular expression/,
+            source,
+        );
+    assert.throws(
+        () => compileToIR(String.raw`const r = /\p{RGI_Emoji}/u;`),
+        /Invalid/,
+    );
+});

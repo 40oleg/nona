@@ -38,13 +38,16 @@ export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
     normalizationNames = ["normalize", "localeCompare"];
 const unicodePropertyEscape = /\\[pP]\{/;
+// The properties of strings of v-mode patterns (\p{RGI_Emoji} …): their
+// emoji data is linked only when a literal or a string names one of them.
+const stringPropertyName = /RGI_Emoji|Basic_Emoji|Emoji_Keycap_Sequence/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName = /(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage: SourceUsage | undefined;
 /** Why each part was linked: the first name that selected it (see LinkReasons). */
 let reasons: LinkReasons | undefined;
-/** Runtime part (regexp, unicodeProperties, unicodeNormalization or a prelude name) → why it is linked. */
+/** Runtime part (regexp, unicodeProperties, unicodeStringProperties, unicodeNormalization or a prelude name) → why it is linked. */
 export type LinkReasons = Record<string, string>;
 function note(part: string, why: string): void {
     if (reasons && !(part in reasons)) reasons[part] = why;
@@ -54,13 +57,21 @@ function linkPrelude(name: OptionalPrelude, why: string): void {
     usage.preludes[name] = true;
     note(name, why);
 }
-function linkRegExp(why: string, unicodeProperties: boolean): void {
+function linkRegExp(
+    why: string,
+    unicodeProperties: boolean,
+    stringProperties = false,
+): void {
     if (!usage) return;
     usage.regexp = true;
     note("regexp", why);
     if (unicodeProperties) {
         usage.unicodeProperties = true;
         note("unicodeProperties", why);
+    }
+    if (stringProperties) {
+        usage.unicodeStringProperties = true;
+        note("unicodeStringProperties", why);
     }
 }
 /** Select a runtime dependency discovered from parsed source expressions. */
@@ -83,6 +94,7 @@ export function collectSourceUsage<T>(
         current: SourceUsage = {
             regexp: false,
             unicodeProperties: false,
+            unicodeStringProperties: false,
             unicodeNormalization: false,
             preludes: preludeSet(false),
         };
@@ -103,6 +115,7 @@ export function collectSourceUsage<T>(
         if (outer) {
             outer.regexp ||= current.regexp;
             outer.unicodeProperties ||= current.unicodeProperties;
+            outer.unicodeStringProperties ||= current.unicodeStringProperties;
             outer.unicodeNormalization ||= current.unicodeNormalization;
             for (const name of optionalPreludes)
                 outer.preludes[name] ||= current.preludes[name];
@@ -154,10 +167,12 @@ function recordUsage(tokens: TokenStream): void {
     if (!usage) return;
     for (const token of tokens) {
         if (token.kind === "regexp") {
+            const pattern = token.pattern ?? "";
             linkRegExp(
                 "a regular expression literal",
-                unicodePropertyEscape.test(token.pattern ?? "") ||
-                    unicodeGroupName.test(token.pattern ?? ""),
+                unicodePropertyEscape.test(pattern) ||
+                    unicodeGroupName.test(pattern),
+                stringPropertyName.test(pattern),
             );
         } else if (token.kind === "word") {
             const word = String(token.value);
@@ -187,6 +202,16 @@ function recordUsage(tokens: TokenStream): void {
                 );
             else if (unicodePropertyEscape.test(text))
                 linkRegExp("a \\p{…} escape inside a string", true);
+            // A pattern built at run time names the property in a string
+            // (the engine itself is linked only by the names above).
+            const stringProperty = stringPropertyName.exec(text);
+            if (stringProperty) {
+                usage.unicodeStringProperties = true;
+                note(
+                    "unicodeStringProperties",
+                    `${JSON.stringify(stringProperty[0])} inside a string`,
+                );
+            }
             const normalization = normalizationNames.find((name) =>
                 text.includes(name),
             );

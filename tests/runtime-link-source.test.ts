@@ -11,6 +11,8 @@ import {
 } from "../src/compiler.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
 import { preludeSet, requiredSyntaxParts } from "../src/link.js";
+import { fullRegexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
+import { createContext, runInContext } from "node:vm";
 
 function image(
     source: string,
@@ -33,6 +35,7 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
     const none = {
         regexp: false,
         unicodeProperties: false,
+        unicodeStringProperties: false,
         unicodeNormalization: false,
         preludes: preludeSet(false),
     };
@@ -111,6 +114,112 @@ test("a program without regular expressions is several megabytes smaller", () =>
             `${target}: ${engine}`,
         );
     }
+});
+
+test("the emoji data of \\p{RGI_Emoji} is linked only when a source names a property of strings", () => {
+    const none = {
+        regexp: false,
+        unicodeProperties: false,
+        unicodeStringProperties: false,
+        unicodeNormalization: false,
+        preludes: preludeSet(false),
+    };
+    assert.deepEqual(usage('console.log("hi")'), none);
+    assert.deepEqual(usage("/\\p{L}/u.test(s)"), {
+        ...none,
+        regexp: true,
+        unicodeProperties: true,
+    });
+    for (const name of [
+        "Basic_Emoji",
+        "Emoji_Keycap_Sequence",
+        "RGI_Emoji",
+        "RGI_Emoji_ZWJ_Sequence",
+    ])
+        assert.deepEqual(
+            usage(`/\\p{${name}}/v.test(s)`),
+            {
+                ...none,
+                regexp: true,
+                unicodeProperties: true,
+                unicodeStringProperties: true,
+            },
+            name,
+        );
+    // A pattern built at run time names the property in a string.
+    assert.deepEqual(
+        usage('new RegExp("[\\\\p{RGI_Emoji_Flag_Sequence}]", "v")'),
+        {
+            ...none,
+            regexp: true,
+            unicodeProperties: true,
+            unicodeStringProperties: true,
+        },
+    );
+    for (const target of ["win32-x64", "linux-x64"] as const) {
+        const size = (source: string) => image(source, {}, target).length;
+        const hello = size('console.log("hi");'),
+            named = size('console.log("RGI_Emoji");'),
+            letters = size('console.log(/\\p{L}/u.test("a"));'),
+            emoji = size('console.log(/\\p{RGI_Emoji}/v.test("a"));');
+        // Without the RegExp engine the name alone links nothing.
+        assert.ok(
+            Math.abs(named - hello) < 1_000,
+            `${target}: ${named} vs ${hello}`,
+        );
+        assert.ok(
+            emoji - letters > 30_000,
+            `${target}: ${emoji} vs ${letters}`,
+        );
+    }
+    const linked = compile('console.log(/\\p{RGI_Emoji}/v.test("a"));', {
+        fileName: "/app.js",
+        target: "linux-x64",
+        reportLink: true,
+    });
+    assert.ok(linked.ok);
+    assert.deepEqual(
+        linked.linked?.find((part) => part.part === "unicodeStringProperties"),
+        {
+            part: "unicodeStringProperties",
+            reason: "a regular expression literal",
+        },
+    );
+});
+
+test("a property of strings named only at run time reports the missing emoji data", () => {
+    const context = createContext({});
+    runInContext(
+        "Function.prototype.__nonaMarkNativeInternal=function(){}",
+        context,
+    );
+    runInContext(
+        fullRegexpVmPrelude({
+            regexp: true,
+            unicodeProperties: true,
+            unicodeStringProperties: false,
+        }),
+        context,
+    );
+    const compileVm = (pattern: string, flags: string) =>
+        runInContext(
+            `__nonaRegexpVm(undefined,"",0,false,${JSON.stringify(pattern)},${JSON.stringify(flags)})`,
+            context,
+        );
+    assert.throws(
+        () => compileVm("\\p{RGI_Emoji}", "v"),
+        /compiled without the emoji data.*--full-runtime/,
+    );
+    // Syntax errors do not need the data; other properties still work.
+    assert.throws(
+        () => compileVm("\\P{RGI_Emoji}", "v"),
+        /Invalid regular expression/,
+    );
+    assert.throws(
+        () => compileVm("\\p{RGI_Emoji}", "u"),
+        /Invalid regular expression/,
+    );
+    compileVm("\\p{Emoji}", "v");
 });
 
 test("source usage: optional preludes follow the names a program uses", () => {

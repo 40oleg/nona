@@ -1,6 +1,7 @@
 // This source is compiled by Nona itself for the native RegExp fallback.
 // It deliberately uses only language features implemented by the frontend.
 import { regexpUnicodeData } from "./data/regexp-unicode-data.js";
+import { regexpEmojiData } from "./data/regexp-emoji-data.js";
 import { fullRuntimeHint } from "../link.js";
 import {
     runtimeBinaryData,
@@ -15,14 +16,22 @@ const regexpVmTemplate = runtimeRegexpVm;
 export interface RegExpLink {
     regexp: boolean;
     unicodeProperties: boolean;
+    unicodeStringProperties: boolean;
 }
-const fullRegExpLink: RegExpLink = { regexp: true, unicodeProperties: true };
+const fullRegExpLink: RegExpLink = {
+    regexp: true,
+    unicodeProperties: true,
+    unicodeStringProperties: true,
+};
 const rebuild = fullRuntimeHint;
 const missingEngine =
     "Nona: this program was compiled without the RegExp engine because its source contains no RegExp literal and does not mention RegExp, match, matchAll or search. " +
     rebuild;
 const missingProperties =
     "Nona: this program was compiled without the Unicode property tables for \\p{...} because its source does not mention them. " +
+    rebuild;
+const missingStringProperties =
+    "Nona: this program was compiled without the emoji data for the properties of strings (\\p{RGI_Emoji} …) because its source does not name them. " +
     rebuild;
 
 function vmCore(link: RegExpLink): string {
@@ -41,7 +50,13 @@ function vmCore(link: RegExpLink): string {
           });
     return regexpVmTemplate
         .replace("@@UNICODE_DATA@@", () => data)
-        .replace("@@NO_PROPERTIES@@", () => JSON.stringify(missingProperties));
+        .replace("@@NO_PROPERTIES@@", () => JSON.stringify(missingProperties))
+        .replace("@@EMOJI_DATA@@", () =>
+            link.unicodeStringProperties ? regexpEmojiData : "null",
+        )
+        .replace("@@NO_STRING_PROPERTIES@@", () =>
+            JSON.stringify(missingStringProperties),
+        );
 }
 
 /** The complete engine: validates RegExp literals in the compiler and backs every executable that may use RegExp. */

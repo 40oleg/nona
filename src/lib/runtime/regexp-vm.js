@@ -32,6 +32,38 @@
     rangeCache[name]=ranges;
     return ranges
   }
+  // The properties of strings of v mode (Unicode Emoji sequences). Each is
+  // a set of code point ranges plus strings; RGI_Emoji is the union of the
+  // other six. The data is linked only when a source names one of them.
+  var emojiData=@@EMOJI_DATA@@;
+  var stringPropertyNames=['Basic_Emoji','Emoji_Keycap_Sequence','RGI_Emoji_Modifier_Sequence','RGI_Emoji_Flag_Sequence','RGI_Emoji_Tag_Sequence','RGI_Emoji_ZWJ_Sequence'];
+  var stringPropertyCache={};
+  function isStringProperty(name){
+    if(name==='RGI_Emoji')return true;
+    for(var i=0;i<stringPropertyNames.length;i++)if(stringPropertyNames[i]===name)return true;
+    return false
+  }
+  function stringPropertySet(name){
+    if(typeof stringPropertyCache[name]==='object')return stringPropertyCache[name];
+    if(emojiData===null)throw new Error(@@NO_STRING_PROPERTIES@@);
+    var set={ranges:[],strings:[]};
+    if(name==='RGI_Emoji'){
+      // The six properties are disjoint: their strings are concatenated.
+      for(var i=0;i<stringPropertyNames.length;i++){
+        var part=stringPropertySet(stringPropertyNames[i]);
+        set.ranges=rangeUnion(set.ranges,part.ranges);
+        for(var j=0;j<part.strings.length;j++)append(set.strings,part.strings[j])
+      }
+    }else{
+      // r: ranges as 12 hex digits each; s: the sequences, separated by commas.
+      var entry=emojiData[name],encoded=entry.r,begin=0;
+      for(var i=0;i<encoded.length;i+=12)append(set.ranges,[parseInt(slice(encoded,i,i+6),16),parseInt(slice(encoded,i+6,i+12),16)]);
+      encoded=entry.s;
+      for(var i=0;i<=encoded.length&&encoded.length>0;i++)if(i===encoded.length||charCodeAt(encoded,i)===44){append(set.strings,slice(encoded,begin,i));begin=i+1}
+    }
+    stringPropertyCache[name]=set;
+    return set
+  }
   function propertyMatch(ranges,point){
     var low=0,high=ranges.length-1;
     while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
@@ -200,14 +232,16 @@
     return count
   }
   // The pattern node of a set: its strings longest first, then the single
-  // code points, then the empty string (CompileAtom of a v-mode class).
+  // code points, then the empty string (CompileAtom of a v-mode class). The
+  // strings form one 'strings' node, which tries them in that order.
   function classSetNode(set){
     var single={kind:'class',value:{inverted:false,items:[{ranges:set.ranges}]}};
     if(set.strings.length===0)return single;
-    var lengths=[],longest=0,branches=[],empty=false;
+    var lengths=[],longest=0,list=[],branches=[],empty=false;
     for(var i=0;i<set.strings.length;i++){var size=pointLength(set.strings[i]);append(lengths,size);if(size>longest)longest=size}
-    for(var size=longest;size>0;size--)for(var i=0;i<set.strings.length;i++)if(lengths[i]===size)append(branches,{kind:'char',value:set.strings[i]});
+    for(var size=longest;size>0;size--)for(var i=0;i<set.strings.length;i++)if(lengths[i]===size)append(list,set.strings[i]);
     for(var i=0;i<set.strings.length;i++)if(lengths[i]===0)empty=true;
+    if(list.length>0)append(branches,{kind:'strings',value:list});
     if(set.ranges.length>0)append(branches,single);
     if(empty)append(branches,{kind:'sequence',value:[]});
     return {kind:'group',capture:0,value:{kind:'alternative',value:branches}}
@@ -431,7 +465,12 @@
           var begin=at;
           while(at<pattern.length&&pattern[at]!=='}')at++;
           if(at===begin||pattern[at]!=='}')error();
-          base=propertyRanges(slice(pattern,begin,at++))
+          var property=slice(pattern,begin,at++);
+          if(isStringProperty(property)){
+            if(kind==='P')error();
+            return {set:leaf(stringPropertySet(property)),strings:true,point:-1}
+          }
+          base=propertyRanges(property)
         }
         else base=kind==='d'||kind==='D'?digitRanges:kind==='w'||kind==='W'?wordRanges:spaceRanges;
         var set=leaf({ranges:base,strings:[]});
@@ -498,6 +537,11 @@
         while(at<pattern.length&&pattern[at]!=='}')at++;
         if(at===begin||pattern[at]!=='}')error();
         var property=slice(pattern,begin,at++);
+        // A property of strings: only \p, only in v mode.
+        if(isStringProperty(property)){
+          if(!unicodeSets||c==='P')error();
+          return classSetNode(leaf(stringPropertySet(property)))
+        }
         // v mode with ignore case: \P is the complement of the folded
         // property, over the code points that folding leaves unchanged.
         if(ignoreSets&&c==='P')return classSetNode(setComplement(foldSet({ranges:propertyRanges(property),strings:[]}),true));
@@ -840,6 +884,7 @@
   //   21 REPEAT_ENTER (same operands; resumed after a lazy repeat skipped)
   //   20 REPEAT_END r, min, head
   //   22 SIMPLE_REPEAT kind, datum, dir, min, max, greedy, width (0 = varies)
+  //   26 STRINGS datum, dir (the strings of a v-mode class, longest first)
   // Registers: 2*group and 2*group+1 hold capture bounds; group start
   // positions and repeat counters follow.
   var NONE=4294967295;
@@ -935,6 +980,7 @@
         code[head+8]=code.length;code[head+17]=code.length;
         return
       }
+      if(k==='strings'){emit(26);emit(datum({strings:node.value,forward:null,backward:null}));emit(dir);return}
       var single=atomOf(node);
       emit(single[0]);emit(single[1]);emit(dir)
     }
@@ -1041,8 +1087,51 @@
   function unwind(height){
     while(undoTop>height){undoTop-=2;state[undo[undoTop]]=undo[undoTop+1]}
   }
+  // The strings of a STRINGS instruction that start (dir > 0) or end at pos,
+  // by the code point there (case folded under ignore case), in their
+  // longest-first order: built on first use.
+  function stringsBucket(table,pos,dir){
+    var point=dir>0?input.codePointAt(pos):lastPoint(input,pos);
+    if(ignore)point=foldPoint(point);
+    var buckets=dir>0?table.forward:table.backward;
+    if(buckets===null){
+      buckets=new Map();
+      for(var i=0;i<table.strings.length;i++){
+        var text=table.strings[i],key=dir>0?text.codePointAt(0):lastPoint(text,text.length),list=buckets.get(key);
+        if(list===undefined){list=[];buckets.set(key,list)}
+        append(list,text)
+      }
+      if(dir>0)table.forward=buckets;else table.backward=buckets
+    }
+    return buckets.get(point)
+  }
+  function lastPoint(text,end){
+    var low=charCodeAt(text,end-1);
+    if(low>=0xdc00&&low<=0xdfff&&end>=2){var high=charCodeAt(text,end-2);if(high>=0xd800&&high<=0xdbff)return text.codePointAt(end-2)}
+    return low
+  }
+  // The first string of the bucket at pos, from index from on, that the
+  // input has there: its index (stringsEnd is the position after it), or -1.
+  var stringsEnd=0;
+  function stringsFind(table,pos,dir,from){
+    if(dir<0?pos<=0:pos>=length)return -1;
+    var list=stringsBucket(table,pos,dir);
+    if(list===undefined)return -1;
+    for(var i=from;i<list.length;i++){
+      var text=list[i],textLength=text.length,start=dir<0?pos-textLength:pos,equal=true;
+      if(start<0||start+textLength>length)continue;
+      if(ignore)equal=same(slice(input,start,start+textLength),text);
+      else for(var u=0;u<textLength&&equal;u++)if(charCodeAt(input,start+u)!==charCodeAt(text,u))equal=false;
+      if(!equal||splitsPair(start,start+textLength))continue;
+      stringsEnd=pos+dir*textLength;
+      return i
+    }
+    return -1
+  }
   // Choice point: kind (0 plain, 1 greedy simple repeat, 2 lazy simple
-  // repeat), pc, pos, undo height, count, position after count atoms.
+  // repeat, 3 the next strings of a STRINGS instruction), pc, pos, undo
+  // height, count (for 3: the index of the next string to try), position
+  // after count atoms.
   function push(kind,pc,pos,count,after){
     if(frameTop+6>frames.length)frames=framePool=grow(frames,frameTop+6);
     frames[frameTop]=kind;frames[frameTop+1]=pc;frames[frameTop+2]=pos;frames[frameTop+3]=undoTop;
@@ -1166,6 +1255,10 @@
         clearCaptures(code[pc+5],code[pc+6]);
         set(counter+1,pos);pc=code[pc+7];continue
       }
+      else if(op===26){
+        var found=stringsFind(data[code[pc+1]],pos,code[pc+2],0);
+        if(found>=0){push(3,pc,pos,found+1,0);pos=stringsEnd;pc+=3;continue}
+      }
       else if(op===20){
         // An iteration past the minimum that matched the empty string fails.
         var endCounter=code[pc+1],done=state[endCounter];
@@ -1194,6 +1287,11 @@
         unwind(frames[frameTop+3]);
         pc=frames[frameTop+1];pos=frames[frameTop+2];
         if(frameKind===0)break;
+        if(frameKind===3){
+          var retry=stringsFind(data[code[pc+1]],pos,code[pc+2],frames[frameTop+4]);
+          if(retry<0)continue;
+          push(3,pc,pos,retry+1,0);pos=stringsEnd;pc+=3;break
+        }
         var have=frames[frameTop+4],reached=frames[frameTop+5];
         var repeatKind=code[pc-7],repeatItem=code[pc-6],repeatDir=code[pc-5],repeatWidth=code[pc-1];
         if(frameKind===1){

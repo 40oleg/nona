@@ -82,6 +82,7 @@ test("Buffer source links its internal RegExp dependency", () => {
     assert.deepEqual(runtimeRegExpLink(unused), {
         regexp: false,
         unicodeProperties: false,
+        unicodeStringProperties: false,
     });
     const linked = collectSourceUsage(() =>
         lex('URL.revokeObjectURL("blob:nodedata:missing")'),
@@ -91,6 +92,7 @@ test("Buffer source links its internal RegExp dependency", () => {
     assert.deepEqual(runtimeRegExpLink(linked), {
         regexp: true,
         unicodeProperties: false,
+        unicodeStringProperties: false,
     });
     // Model the native exec-to-VM bridge instead of delegating to Node's engine.
     const bridge = `Function.prototype.__nonaMarkNativeInternal=function(){};RegExp.prototype.exec=function(s){return __nonaRegexpVm(this,String(s),this.lastIndex,false,this.source,this.flags)};`;
@@ -98,7 +100,11 @@ test("Buffer source links its internal RegExp dependency", () => {
     const run = (regexp: boolean) =>
         runInNewContext(
             bridge +
-                fullRegexpVmPrelude({ regexp, unicodeProperties: false }) +
+                fullRegexpVmPrelude({
+                    regexp,
+                    unicodeProperties: false,
+                    unicodeStringProperties: false,
+                }) +
                 encodingPreludeSource +
                 bufferPreludeSource +
                 body,

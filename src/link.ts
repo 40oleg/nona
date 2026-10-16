@@ -9,6 +9,8 @@ export interface RuntimeLink {
     regexp: boolean;
     /** Unicode property tables for \p{…} and \P{…} in RegExp patterns. */
     unicodeProperties: boolean;
+    /** Emoji sequence data for the properties of strings (\p{RGI_Emoji} …) of v-mode patterns. */
+    unicodeStringProperties: boolean;
     /** Unicode normalization tables for String.prototype.normalize and localeCompare. */
     unicodeNormalization: boolean;
     /** Optional JavaScript preludes (see preludeTriggers). */
@@ -176,7 +178,11 @@ export function runtimeRegExpLink(
 ) {
     const regexp =
         link.regexp || link.preludes.buffer || linked.includes("process");
-    return { regexp, unicodeProperties: regexp && link.unicodeProperties };
+    return {
+        regexp,
+        unicodeProperties: regexp && link.unicodeProperties,
+        unicodeStringProperties: regexp && link.unicodeStringProperties,
+    };
 }
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
@@ -195,6 +201,7 @@ export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
 export const fullRuntimeLink: RuntimeLink = {
     regexp: true,
     unicodeProperties: true,
+    unicodeStringProperties: true,
     unicodeNormalization: true,
     preludes: preludeSet(true),
 };
@@ -205,14 +212,15 @@ export const fullRuntimeHint =
 export const runtimePartNames: readonly string[] = [
     "regexp",
     "unicodeProperties",
+    "unicodeStringProperties",
     "unicodeNormalization",
     ...optionalPreludes,
 ];
 /**
  * `link` with the named parts added (`--link`, compile option `link`). A
  * program that reaches a part only through names built at run time can link
- * that one part instead of the whole runtime. Unicode properties bring the
- * RegExp engine with them.
+ * that one part instead of the whole runtime. Unicode properties (and
+ * properties of strings) bring the RegExp engine with them.
  */
 export function requestLink(
     link: RuntimeLink,
@@ -223,6 +231,8 @@ export function requestLink(
         if (part === "regexp") result.regexp = true;
         else if (part === "unicodeProperties")
             result.regexp = result.unicodeProperties = true;
+        else if (part === "unicodeStringProperties")
+            result.regexp = result.unicodeStringProperties = true;
         else if (part === "unicodeNormalization")
             result.unicodeNormalization = true;
         else result.preludes[part as OptionalPrelude] = true;
@@ -252,6 +262,8 @@ export function linkReport(
     for (const part of requested) set(part, "requested with --link");
     if (requested.includes("unicodeProperties"))
         set("regexp", "needed by unicodeProperties");
+    if (requested.includes("unicodeStringProperties"))
+        set("regexp", "needed by unicodeStringProperties");
     const selected = optionalPreludes.filter((name) => link.preludes[name]);
     for (const name of selected)
         set(name, full ? "--full-runtime" : (reasons[name] ?? "requested"));
@@ -281,6 +293,13 @@ export function linkReport(
                 ? "--full-runtime"
                 : (reasons.unicodeProperties ?? "requested"),
         );
+    if (regexp.unicodeStringProperties)
+        set(
+            "unicodeStringProperties",
+            full
+                ? "--full-runtime"
+                : (reasons.unicodeStringProperties ?? "requested"),
+        );
     if (link.unicodeNormalization)
         set(
             "unicodeNormalization",
@@ -296,6 +315,7 @@ export function linkReport(
     const present = new Set<string>(linkedList);
     if (regexp.regexp) present.add("regexp");
     if (regexp.unicodeProperties) present.add("unicodeProperties");
+    if (regexp.unicodeStringProperties) present.add("unicodeStringProperties");
     if (link.unicodeNormalization) present.add("unicodeNormalization");
     return runtimePartNames
         .filter((part) => present.has(part))
