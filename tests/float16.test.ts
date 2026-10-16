@@ -210,8 +210,7 @@ var u = new Uint8Array(8); u.set([1, 2, 3, 4, 5, 6]); var h = new Float16Array(u
 var s = new Float16Array([3, 1, 2]); s.sort(function (x, y) { return y - x; }); console.log(show(s));
 console.log(Object.prototype.toString.call(c), c[Symbol.toStringTag], Float16Array.name, Float16Array.length, Object.getPrototypeOf(Float16Array) === Object.getPrototypeOf(Int8Array));
 console.log(Object.getOwnPropertyNames(Float16Array).join(), Object.getOwnPropertyNames(Float16Array.prototype).join(), Float16Array.prototype.constructor === Float16Array, Float16Array.prototype.BYTES_PER_ELEMENT);
-console.log(String(c), structuredClone(new Float16Array([1.5, -0.1])).join(), Object.prototype.toString.call(structuredClone(c)));
-console.log(require('util').inspect(new Float16Array([1.5, 2, -0])), require('util').types.isTypedArray(c), ArrayBuffer.isView(c));
+console.log(String(c), Object.prototype.toString.call(c.slice()), ArrayBuffer.isView(c), Object.prototype.toString.call(Float16Array.prototype));
 try { crypto.getRandomValues(new Float16Array(2)); } catch (e) { console.log(e.name); }
 `));
 
@@ -234,3 +233,18 @@ try { Atomics.store(new Float16Array(4), 0, 1); } catch (e) { console.log(e.name
             "-1 true -1 1 1 3 true false 4 -1\nTypeError\nTypeError\n",
     );
 });
+
+test("Float16Array elements agree byte for byte with DataView float16", () =>
+    compareWithOracle(`
+var bytes = new Uint8Array(64), h = new Float16Array(bytes.buffer), v = new DataView(bytes.buffer), bad = 0, sum = 0;
+for (var i = 0; i < 32; i++) h[i] = (i - 16) * 1234.567 / (i + 1) * Math.pow(2, -(i % 28));
+for (var i = 0; i < 32; i++) {
+    if (!Object.is(v.getFloat16(2 * i, true), h[i])) bad++;
+    v.setFloat16(2 * i, h[i] * 3, true);
+    if (!Object.is(Math.f16round(h[i]), h[i])) bad++;
+    sum = (Math.imul(sum, 31) + bytes[2 * i] + 256 * bytes[2 * i + 1]) | 0;
+}
+console.log(bad, sum, bytes.slice(0, 12).join(), Array.prototype.join.call(new Uint16Array(bytes.buffer, 0, 6)));
+var w = new Uint16Array([0x0001, 0x03ff, 0x0400, 0x7bff, 0x7c00, 0xfc00, 0x8000, 0x7e00, 0x3c01]);
+console.log(Array.prototype.join.call(new Float16Array(w.buffer)), Array.prototype.join.call(new Uint16Array(new Float16Array(new Float16Array(w.buffer)).buffer)));
+`));

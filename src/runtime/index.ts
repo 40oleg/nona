@@ -125,7 +125,11 @@ import { emitTypedArrayKernels } from "./typed-array-kernels.js";
 import { emitConsole } from "./console.js";
 /** Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts), and the default (empty) agent entry list. */
 function emitRealmTables(b: RuntimeBuilder, realms: number): void {
-    for (const intrinsic of realmTableIntrinsics)
+    const emitted = new Set(b.bundle.fragments.map((f) => f.name));
+    // The set is shared by every runtime built in this process: a part that
+    // is not linked here (float16) may have added its intrinsics.
+    for (const intrinsic of realmTableIntrinsics) {
+        if (!emitted.has(intrinsic)) continue;
         b.bundle.fragments.push({
             name: "realm.table." + intrinsic,
             section: ".rdata",
@@ -139,6 +143,7 @@ function emitRealmTables(b: RuntimeBuilder, realms: number): void {
                 addend: 0,
             })),
         });
+    }
     b.bundle.fragments.push({
         name: "agent.entryCount",
         section: ".rdata",
