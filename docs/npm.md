@@ -94,8 +94,8 @@ Between the two systems:
   Node.js 23 and later, `module.exports` itself under the name
   `"module.exports"`.
 - `require()` of an ES module returns its namespace object, as `require(esm)`
-  does in Node.js 22 and later. An ES module with top-level `await` cannot be
-  required (Nona does not support top-level `await`).
+  does in Node.js 22 and later. An ES module graph with top-level `await` cannot be
+  required: `require()` throws `ERR_REQUIRE_ASYNC_MODULE`, as in Node.js.
 - JSON can be imported with `import data from './x.json' with {type: 'json'}`;
   import attributes (`with`, and the older `assert`) are accepted.
 - `import.meta.url`, `import.meta.filename` and `import.meta.dirname` work in ES

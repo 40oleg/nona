@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- **Top-level `await` in ES modules (ES2022).** A module with `await` at its top level is evaluated as an async module (`[[AsyncEvaluation]]`, order of its dependents, cycles, rejection propagation), `import()` waits for it, and an entry that never settles exits with code 13. Scripts and CommonJS files still reject it; `require()` of a graph with top-level `await` throws `ERR_REQUIRE_ASYNC_MODULE`. The runtime part is linked only into programs that use it. Test262 `language/module-code/top-level-await` passes 244 of 251; the remaining failures need `Promise.withResolvers` (ES2024) or are runtime-negative tests. ([#306](https://github.com/40oleg/nona/issues/306))
+
 ### Runtime
 
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))

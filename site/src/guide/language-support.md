@@ -21,7 +21,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 | Strict mode                  | Supported | Directive prologues, strict `this`, early errors and run-time restrictions.                                                                                                                                                                                                                         |
 | `with`                       | Supported | Sloppy scripts only, with `Symbol.unscopables`.                                                                                                                                                                                                                                                     |
 | Proper tail calls            | Supported | In strict code.                                                                                                                                                                                                                                                                                     |
-| Modules                      | Supported | `import`/`export` in all forms, cycles, live bindings, namespace objects, `import.meta`, `import()` of modules known at compile time. Top-level `await` (ES2022) is not supported.                                                                                                                  |
+| Modules                      | Supported | `import`/`export` in all forms, cycles, live bindings, namespace objects, `import.meta`, `import()` of modules known at compile time. Top-level `await` (ES2022) works in ES modules, and `import()` waits for it; scripts and CommonJS files still reject it.                                      |
 | `eval`, `Function`           | Partial   | Source known at compile time is compiled ahead of time with full direct and indirect `eval` semantics; source computed at run time throws `EvalError`. See [Compatibility](/guide/compatibility#eval-and-function).                                                                                 |
 | Annex B                      | Supported | Web-compatibility semantics for functions in blocks, `__proto__`, legacy RegExp syntax, `escape`/`unescape`, String HTML methods and more.                                                                                                                                                          |
 
@@ -44,10 +44,11 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 ## Beyond ES2020
 
-Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, the RegExp `v` flag and top-level `await`. Supported additions:
+Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry`, and the RegExp `v` flag. Supported additions:
 
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` and Error `cause`.
+- ES2022: top-level `await` in ES modules, including the evaluation order of async modules, cycles and rejection propagation.
 - ES2023: `findLast` and `findLastIndex`.
 
 Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
