@@ -129,6 +129,8 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('new AsyncResource("task")'), "asyncHooks");
     assert.equal(linked("setTimeout(f, 1)", "clearInterval(id)"), "timers");
     assert.equal(linked("a.at(-1)", 'Object.hasOwn(o, "x")'), "es2021");
+    assert.equal(linked("s.isWellFormed()"), "wellFormed");
+    assert.equal(linked("s.toWellFormed()"), "wellFormed");
     assert.equal(linked("s.substr(1)"), "annexB");
     assert.equal(linked('s.anchor("x")', "d.toGMTString()"), "annexB");
     assert.equal(linked("performance.now()"), "timers");

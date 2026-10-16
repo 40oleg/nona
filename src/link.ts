@@ -115,6 +115,7 @@ export const preludeTriggers = {
         "any",
         "unscopables",
     ],
+    wellFormed: ["isWellFormed", "toWellFormed"],
     annexB: [
         "escape",
         "unescape",

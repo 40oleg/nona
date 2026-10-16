@@ -101,6 +101,7 @@
                 "string-replace",
                 "string-replace-all",
                 "string-match",
+                "well-formed-strings",
                 "regexp-vm",
                 "regexp-scan",
                 "regexp-surrogates",
