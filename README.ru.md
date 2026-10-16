@@ -93,7 +93,7 @@ nona --help | --version
 
 ## Что поддерживается
 
-**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, `RegExp.escape` (ES2025) и `cause` у Error.
+**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, `RegExp.escape` (ES2025) и `cause` у Error.
 
 **Стандартная библиотека: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (именованные группы, lookbehind, флаги `s` и `u`, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView и все typed arrays, SharedArrayBuffer и Atomics (с агентами-потоками), Proxy, Reflect и Promise.
 
