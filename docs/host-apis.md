@@ -41,6 +41,10 @@ native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## Internationalization (`Intl`)
+
+Nona has its own `Intl` for the `en`/`en-US` locale (`NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` delegate to it. Other locales fall back to `en-US`; the time zone is UTC. It is linked only when a program names one of these. See [intl](intl.md).
+
 ## Paths (`node:path`)
 
 `node:path` and `path` provide Node.js 26 path manipulation without filesystem

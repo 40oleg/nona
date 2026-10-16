@@ -2,7 +2,7 @@
 
 ## Scope
 
-Nona targets the normative ECMA-262 11th edition (June 2020) language and built-ins, for scripts and ES modules. ECMA-402 internationalization, browser APIs and Node.js APIs are separate specifications; Nona provides only the host APIs listed in the [Reference](/reference/modules). The completion contract is kept in [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md).
+Nona targets the normative ECMA-262 11th edition (June 2020) language and built-ins, for scripts and ES modules. ECMA-402 internationalization, browser APIs and Node.js APIs are separate specifications; Nona provides only the host APIs listed in the [Reference](/reference/modules). The completion contract is kept in [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md). Nona's own `Intl` (ECMA-402) knows only the `en`/`en-US` locale; other locales fall back to it, and the time zone is UTC.
 
 A release is described as "ES2020 with documented exceptions", never as fully conformant ES2020.
 
@@ -63,6 +63,7 @@ Built-in libraries written in JavaScript that only install globals or methods (a
 | `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                                    | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
 | Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` and the HTML methods of strings (`anchor`, `big`, `link`, …) | the same names                                                                                                                                |
 | Stable merge `Array.prototype.sort`                                                                                                                       | `sort`                                                                                                                                        |
+| Intl (en/en-US only, [docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md))                                                               | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | `Object.freeze`, `seal`, `isFrozen`, `isSealed` through Proxy traps (otherwise native versions for ordinary objects)                                      | the same names                                                                                                                                |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                            | the same names                                                                                                                                |
 | Binary data methods of `ArrayBuffer`, `SharedArrayBuffer`, `DataView` and the typed arrays (`slice`, `subarray`, `sort`, …)                               | their constructor names, `Atomics`, `TypedArray` (also linked with `process`, `Buffer` and `TextEncoder`)                                     |

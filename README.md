@@ -159,7 +159,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above (`zlib`, `https`, `child_process`, …), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
+- Node.js modules outside the table above (`zlib`, `https`, `child_process`, …), npm packages that need them, native add-ons and browser APIs are not available. `Intl` is Nona's own and knows only the `en`/`en-US` locale ([docs/intl.md](docs/intl.md)). Networking runs on Linux and Windows.
 - Plain computation is much slower than in a JIT.
 
 ## Development
