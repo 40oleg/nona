@@ -39,7 +39,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 | ArrayBuffer、DataView、类型化数组        | 支持 | 全部 11 种类型化数组（包括 BigInt 数组）、分离（detach）、species。                                                                                                        |
 | SharedArrayBuffer、Atomics               | 支持 | 包括配合工作线程代理（agent）使用的 `Atomics.wait`/`notify`（供 Test262 使用）。                                                                                           |
 | Proxy、Reflect                           | 支持 | 所有陷阱和不变式。                                                                                                                                                         |
-| Promise                                  | 支持 | `all`、`allSettled`、`race`、`finally`、thenable 以及未处理拒绝的报告。                                                                                                    |
+| Promise                                  | 支持 | `all`、`allSettled`、`race`、`withResolvers`、`finally`、thenable 以及未处理拒绝的报告。                                                                                   |
 | `globalThis`、`console.log`              | 支持 | `console.log` 以 UTF-8 写入标准输出。`console.info` 和 `console.debug` 相同；`console.error` 和 `console.warn` 写入标准错误。                                              |
 
 ## ES2020 之后的特性

@@ -93,7 +93,7 @@ nona --help | --version
 
 ## What is supported
 
-**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, Error `cause` and the RegExp `v` flag (ES2024).
+**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, Error `cause` and the RegExp `v` flag (ES2024).
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s`, `u` and `v` flags, Unicode property escapes, properties of strings), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
@@ -159,7 +159,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above (`zlib`, `https`, `child_process`, …), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
+- Node.js modules outside the table above (`dns`, `dgram`, …), TLS, compression and child processes (`node:https`, `node:tls`, `node:zlib` and `node:child_process` load, but their functions throw), npm packages that need them or `Intl`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows.
 - Plain computation is much slower than in a JIT.
 
 ## Development
