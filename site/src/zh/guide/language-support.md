@@ -48,7 +48,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 
 - ES2021：数字分隔符、逻辑赋值（`&&=`、`||=`、`??=`）、`Promise.any` 和 `AggregateError`、`String.prototype.replaceAll`。
 - ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn` 和 Error 的 `cause`。
-- ES2023：`findLast` 和 `findLastIndex`。
+- ES2023：`findLast` 和 `findLastIndex`，以及用作 `WeakMap` 键和 `WeakSet` 值的符号（不包括 `Symbol.for` 创建的符号）。
 - ES2025：RegExp 模式修饰符 `(?i:…)`、`(?-i:…)` 和 `(?ims-ims:…)`，并带有规范规定的早期错误（重复或冲突的标志、`(?-:` 或缺少冒号时抛出 SyntaxError）。
 
 当固定版本的 Test262 已对 ES2020 特性检查更新的语义时，Nona 遵循 Test262；这些情况列在 [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) 页面中。

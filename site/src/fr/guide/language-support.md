@@ -48,7 +48,7 @@ La plupart des fonctionnalités des éditions ultérieures ne sont pas prises en
 
 - ES2021 : séparateurs numériques, affectation logique (`&&=`, `||=`, `??=`), `Promise.any` et `AggregateError`, `String.prototype.replaceAll`.
 - ES2022 : champs de classe, méthodes et accesseurs privés, blocs statiques, `#x in obj`, `.at()`, `Object.hasOwn` et `cause` des erreurs.
-- ES2023 : `findLast` et `findLastIndex`.
+- ES2023 : `findLast` et `findLastIndex`, et les symboles comme clés de `WeakMap` et valeurs de `WeakSet` (pas ceux créés par `Symbol.for`).
 
 Lorsque la révision figée de Test262 vérifie déjà une sémantique plus récente pour des fonctionnalités d’ES2020, Nona suit Test262 ; la page [Test262](/fr/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) liste ces cas.
 

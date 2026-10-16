@@ -18,8 +18,10 @@ for (let i = 0; i < 3; i++) { console.warn('w' + i); console.log('o' + i); }
 `;
 
 test("console.error and console.warn write to stderr, info and debug to stdout (#230)", () => {
+    // The test checks stream routing, not GC: under gcStress the program took
+    // over the 60 s native timeout on loaded Windows CI runners.
     const oracle = runOracle(source),
-        result = runOnHost(source);
+        result = runOnHost(source, { gcStress: false });
     assert.equal(
         result.status,
         0,

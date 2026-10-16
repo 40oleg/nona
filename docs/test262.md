@@ -316,3 +316,10 @@ examples pass 74/74 on Windows and Linux.
 search, functional replacement, replacement patterns, and custom
 `Symbol.replace` are covered. Positive smoke is 140/140; compatible
 examples pass 75/75 on Windows and Linux.
+
+Symbols as WeakMap keys and WeakSet values (ES2023, [#310](https://github.com/40oleg/nona/issues/310)):
+the `symbols-as-weakmap-keys` tag is no longer in `postEs2020Features`.
+On 2026-10-16 (Windows x64, `TEST262_EXCLUDE_FEATURES=post-es2020`)
+`built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85, with no
+failures or skips. `WeakRef` and `FinalizationRegistry` remain excluded
+because those globals do not exist.
