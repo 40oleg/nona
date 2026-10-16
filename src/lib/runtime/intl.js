@@ -962,15 +962,20 @@
         "RON|RON|lei|Romanian leu|Romanian lei",
         "BGN|BGN|BGN|Bulgarian lev|Bulgarian leva",
     ];
-    var currencies = objectCreate(null),
+    // Parsed on first use: initialization allocates little (GC stress tests).
+    var currencies, currencyCodes;
+    function loadCurrencies() {
+        if (currencies !== undefined) return;
+        currencies = objectCreate(null);
         currencyCodes = [];
-    for (var row = 0; row < currencyRows.length; row++) {
-        var fields = split(currencyRows[row], "|");
-        if (fields.length < 5) push(fields, fields[3]);
-        currencies[fields[0]] = fields;
-        push(currencyCodes, fields[0]);
+        for (var row = 0; row < currencyRows.length; row++) {
+            var fields = split(currencyRows[row], "|");
+            if (fields.length < 5) push(fields, fields[3]);
+            currencies[fields[0]] = fields;
+            push(currencyCodes, fields[0]);
+        }
+        sortStrings(currencyCodes);
     }
-    sortStrings(currencyCodes);
     // The units IsSanctionedSingleUnitIdentifier accepts (ECMA-402 6.6.2).
     var sanctionedUnits =
         " acre bit byte celsius centimeter day degree fahrenheit fluid-ounce foot gallon gigabit gigabyte gram hectare hour inch kilobit kilobyte kilogram kilometer liter megabit megabyte meter microsecond mile mile-scandinavian milliliter millimeter millisecond minute month nanosecond ounce percent petabyte pound second stone terabit terabyte week yard year ";
@@ -1401,6 +1406,7 @@
                 );
             return parts;
         }
+        loadCurrencies();
         var currency = slots.currency,
             data = currencies[currency],
             display = slots.currencyDisplay;
@@ -1485,56 +1491,73 @@
         // Secondary weights of combining marks, lowest first.
         markOrder =
             "\u0332\u0313\u0314\u0301\u0300\u0306\u0302\u030C\u030A\u0342\u0308\u030B\u0303\u0307\u0338\u0327\u0328\u0304";
-    var primaries = objectCreate(null),
+    // The tables are built on first use: initialization allocates little (GC
+    // stress tests).
+    var primaries,
         weight = 0,
         lastVariable,
         digitWeight = 700,
         letterWeight = 1000;
+    var expansions, tertiaryExpansions, asciiPrimaries;
     function addPrimaries(order) {
         for (var i = 0; i < order.length; i++) {
             if (call(stringIndexOf, samePrimary, order[i]) < 0) weight++;
             primaries[order[i]] = weight;
         }
     }
-    addPrimaries(variableOrder);
-    lastVariable = weight;
-    addPrimaries(symbolOrder);
-    for (var digit = 0; digit < 10; digit++)
-        primaries[StringConstructor(digit)] = digitWeight + digit;
-    for (var letter = 0; letter < 26; letter++)
-        primaries[fromCharCode(97 + letter)] = letterWeight + letter * 4;
-    // Letters with their own primary weight, just after a base letter.
-    var ownPrimaries = [
-        ["\u0192", "f"],
-        ["\u01DD", "e"],
-        ["\u0259", "e"],
-        ["\u025B", "e"],
-        ["\u0131", "i"],
-        ["\u0138", "q"],
-        ["\u014B", "n"],
-        ["\u0254", "o"],
-        ["\u0167", "t"],
-        ["\u00FE", "z"],
-    ];
-    for (var own = 0; own < ownPrimaries.length; own++)
-        primaries[ownPrimaries[own][0]] = primaries[ownPrimaries[own][1]] + 2;
-    // Letters that sort as other letters with a secondary difference.
-    var expansions = objectCreate(null);
-    expansions["\u00DF"] = "ss";
-    expansions["\u00E6"] = "ae";
-    expansions["\u0153"] = "oe";
-    expansions["\u00F8"] = "o";
-    expansions["\u0111"] = "d";
-    expansions["\u00F0"] = "d";
-    expansions["\u0142"] = "l";
-    expansions["\u0127"] = "h";
-    expansions["\u017F"] = "s";
-    expansions["\u0140"] = "l";
-    // Equal to their expansion except for the final tie-break.
-    var tertiaryExpansions = objectCreate(null);
-    tertiaryExpansions["\u0133"] = "ij";
-    tertiaryExpansions["\u20A7"] = "pts";
-    tertiaryExpansions["\u20A8"] = "rs";
+    function loadCollation() {
+        primaries = objectCreate(null);
+        addPrimaries(variableOrder);
+        lastVariable = weight;
+        addPrimaries(symbolOrder);
+        for (var digit = 0; digit < 10; digit++)
+            primaries[StringConstructor(digit)] = digitWeight + digit;
+        for (var letter = 0; letter < 26; letter++)
+            primaries[fromCharCode(97 + letter)] = letterWeight + letter * 4;
+        // Letters with their own primary weight, just after a base letter.
+        var ownPrimaries = [
+            ["\u0192", "f"],
+            ["\u01DD", "e"],
+            ["\u0259", "e"],
+            ["\u025B", "e"],
+            ["\u0131", "i"],
+            ["\u0138", "q"],
+            ["\u014B", "n"],
+            ["\u0254", "o"],
+            ["\u0167", "t"],
+            ["\u00FE", "z"],
+        ];
+        for (var own = 0; own < ownPrimaries.length; own++)
+            primaries[ownPrimaries[own][0]] =
+                primaries[ownPrimaries[own][1]] + 2;
+        // Letters that sort as other letters with a secondary difference.
+        expansions = objectCreate(null);
+        expansions["\u00DF"] = "ss";
+        expansions["\u00E6"] = "ae";
+        expansions["\u0153"] = "oe";
+        expansions["\u00F8"] = "o";
+        expansions["\u0111"] = "d";
+        expansions["\u00F0"] = "d";
+        expansions["\u0142"] = "l";
+        expansions["\u0127"] = "h";
+        expansions["\u017F"] = "s";
+        expansions["\u0140"] = "l";
+        // Equal to their expansion except for the final tie-break.
+        tertiaryExpansions = objectCreate(null);
+        tertiaryExpansions["\u0133"] = "ij";
+        tertiaryExpansions["\u20A7"] = "pts";
+        tertiaryExpansions["\u20A8"] = "rs";
+        // Primary weights of ASCII characters by code unit (uppercase as lowercase).
+        asciiPrimaries = [];
+        for (var ascii = 0; ascii < 128; ascii++) {
+            var asciiChar = fromCharCode(
+                ascii >= 65 && ascii <= 90 ? ascii + 32 : ascii,
+            );
+            asciiPrimaries[ascii] = isIgnorable(ascii)
+                ? 0
+                : primaries[asciiChar];
+        }
+    }
     var commonSecondary = 1,
         specialSecondary = 0x20000;
     function isIgnorable(c) {
@@ -1562,18 +1585,11 @@
             (c >= 0xfe20 && c <= 0xfe2f)
         );
     }
-    // Primary weights of ASCII characters by code unit (uppercase as lowercase).
-    var asciiPrimaries = [];
-    for (var ascii = 0; ascii < 128; ascii++) {
-        var asciiChar = fromCharCode(
-            ascii >= 65 && ascii <= 90 ? ascii + 32 : ascii,
-        );
-        asciiPrimaries[ascii] = isIgnorable(ascii) ? 0 : primaries[asciiChar];
-    }
     // The weights of text: primary weights P, and with full also the
     // secondary S and tertiary T weights and the characters K behind them
     // (the final tie-break). Sorting mostly needs P alone.
     function collationKey(text, slots, full) {
+        if (primaries === undefined) loadCollation();
         var numeric = slots.numeric,
             ignorePunctuation = slots.ignorePunctuation,
             n = text.length,
@@ -3852,7 +3868,10 @@
                 key = toStr(key);
                 if (key === "calendar") return ["gregory"];
                 if (key === "collation" || key === "unit") return [];
-                if (key === "currency") return copyArray(currencyCodes);
+                if (key === "currency") {
+                    loadCurrencies();
+                    return copyArray(currencyCodes);
+                }
                 if (key === "numberingSystem") return ["latn"];
                 if (key === "timeZone") return ["UTC"];
                 throw new RangeErrorConstructor("Invalid key : " + key);
