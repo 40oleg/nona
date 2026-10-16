@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.14.0 — 2026-10-16
+
 ### Runtime
 
 - **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
