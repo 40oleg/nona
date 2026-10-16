@@ -110,6 +110,7 @@
                 "regexp-match-all",
                 "map",
                 "set",
+                "set-methods",
                 "weak-collections",
                 "proxy",
                 "reflect",
