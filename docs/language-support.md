@@ -77,6 +77,8 @@
 
 Поддержаны отдельные возможности ES2021–ES2023 (#69): разделители в числовых литералах (`1_000`), логическое присваивание `&&=`, `||=`, `??=` (с NamedEvaluation для анонимных функций), `Promise.any` и `AggregateError`, `Array.prototype.at`, `String.prototype.at`, `%TypedArray%.prototype.at`, `findLast`/`findLastIndex` у массивов и typed arrays (и в `Array.prototype[@@unscopables]`), `Object.hasOwn`, `cause` в конструкторах ошибок. Их Test262-функции больше не исключаются из аудита (`scripts/test262-smoke.mjs`). Тесты: `post-es2020.test.ts`.
 
+ES2024 (#313): `String.prototype.isWellFormed` и `toWellFormed` (замена одиночных суррогатов на U+FFFD). Это часть `wellFormed`, которая линкуется, только когда исходник содержит одно из этих имён; для строк из одного байта есть быстрый путь. Test262-функции `well-formed-unicode-strings` тоже больше не исключаются из аудита. Тесты: `well-formed-strings.test.ts`.
+
 Элементы классов ES2022 (#106): публичные и приватные поля экземпляра и статические, приватные методы и аксессоры, статические блоки инициализации и `#x in obj`. Поля определяются (DefineProperty, а не присваивание) при инициализации экземпляра — в начале базового конструктора или сразу после возврата `super()`; приватное имя — запись со своим WeakMap, новая при каждом вычислении класса. Тесты: `class-fields.test.ts`.
 
 Сводка запуска: [журнал](history/development-log.md).
