@@ -1,6 +1,6 @@
 # ভাষা সমর্থন
 
-Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.12.0**-এ কী সমর্থিত তার সারসংক্ষেপ আছে। Test262-এর সংখ্যাগুলো [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা রিভিশনের সর্বশেষ পূর্ণ নিরীক্ষা (v0.8.0) থেকে এসেছে।
+Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.14.0**-এ কী সমর্থিত তার সারসংক্ষেপ আছে। Test262-এর সংখ্যাগুলো [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা রিভিশনের সর্বশেষ পূর্ণ নিরীক্ষা (v0.8.0) থেকে এসেছে।
 
 **সমর্থিত** মানে বাস্তবায়িত এবং «টীকা» কলামের সীমার মধ্যে ইউনিট টেস্ট ও Test262 দিয়ে যাচাই করা। টেস্টের নামসহ প্রতিটি ফিচারের বিস্তারিত ম্যাট্রিক্স রাখা আছে [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)-এ (রুশ ভাষায়)।
 
@@ -27,20 +27,20 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 
 ## বিল্ট-ইন
 
-| ক্ষেত্র                                  | অবস্থা  | টীকা                                                                                                                                                                    |
-| ---------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Object, Function, Boolean, Symbol, Error | সমর্থিত | প্রপার্টি ডেসক্রিপ্টর, integrity অপারেশন এবং গ্লোবাল ও well-known symbol-সহ।                                                                                            |
-| Number, Math, URI ফাংশন                  | সমর্থিত | সবচেয়ে ছোট round-trip সংখ্যা ফরম্যাটিং, `toFixed`/`toExponential`/`toPrecision`, ES2020-এর সব `Math` ফাংশন।                                                            |
-| String                                   | সমর্থিত | ES2020 মেথড, Unicode নরমালাইজেশন, ECMA-402 লোকেল ডেটা ছাড়া `localeCompare`।                                                                                            |
-| RegExp                                   | সমর্থিত | Named groups, lookbehind, `s`, `u`, `y` ও `g` ফ্ল্যাগ, Unicode property escapes, `matchAll`। ইঞ্জিনটি প্রিলিউড হিসেবে লেখা একটি ব্যাকট্র্যাকিং VM; এটি V8-এর চেয়ে ধীর। |
-| Array                                    | সমর্থিত | ES2020-এর সব মেথড, species, ফাঁকা স্থান (holes) ও খুব বড় দৈর্ঘ্য।                                                                                                      |
-| Date, JSON                               | সমর্থিত | UTC ও স্থানীয় সময়ে Date পার্সিং ও ফরম্যাটিং, reviver-সহ `JSON.parse`, replacer ও ইনডেন্টেশনসহ `JSON.stringify`।                                                       |
-| Map, Set, WeakMap, WeakSet               | সমর্থিত | weak কালেকশনের জন্য ephemeron সিমান্টিক্স।                                                                                                                              |
-| ArrayBuffer, DataView, typed array       | সমর্থিত | BigInt অ্যারেসহ সব 11টি typed array টাইপ, detachment, species।                                                                                                          |
-| SharedArrayBuffer, Atomics               | সমর্থিত | worker agent-সহ `Atomics.wait`/`notify` (Test262 ব্যবহার করে)।                                                                                                          |
-| Proxy, Reflect                           | সমর্থিত | সব trap ও invariant।                                                                                                                                                    |
-| Promise                                  | সমর্থিত | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable এবং আনহ্যান্ডেলড rejection রিপোর্টিং।                                                                 |
-| `globalThis`, `console.log`              | সমর্থিত | `console.log` স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে। `console.info` ও `console.debug` একই কাজ করে; `console.error` ও `console.warn` স্ট্যান্ডার্ড এররে লেখে।                 |
+| ক্ষেত্র                                  | অবস্থা  | টীকা                                                                                                                                                                                                           |
+| ---------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Object, Function, Boolean, Symbol, Error | সমর্থিত | প্রপার্টি ডেসক্রিপ্টর, integrity অপারেশন এবং গ্লোবাল ও well-known symbol-সহ।                                                                                                                                   |
+| Number, Math, URI ফাংশন                  | সমর্থিত | সবচেয়ে ছোট round-trip সংখ্যা ফরম্যাটিং, `toFixed`/`toExponential`/`toPrecision`, ES2020-এর সব `Math` ফাংশন।                                                                                                   |
+| String                                   | সমর্থিত | ES2020 মেথড, Unicode নরমালাইজেশন, ECMA-402 লোকেল ডেটা ছাড়া `localeCompare`।                                                                                                                                   |
+| RegExp                                   | সমর্থিত | Named groups, lookbehind, `s`, `u`, `y` ও `g` ফ্ল্যাগ, Unicode property escapes, `matchAll`, প্যাটার্ন মডিফায়ার `(?i:…)` (ES2025)। ইঞ্জিনটি প্রিলিউড হিসেবে লেখা একটি ব্যাকট্র্যাকিং VM; এটি V8-এর চেয়ে ধীর। |
+| Array                                    | সমর্থিত | ES2020-এর সব মেথড, species, ফাঁকা স্থান (holes) ও খুব বড় দৈর্ঘ্য।                                                                                                                                             |
+| Date, JSON                               | সমর্থিত | UTC ও স্থানীয় সময়ে Date পার্সিং ও ফরম্যাটিং, reviver-সহ `JSON.parse`, replacer ও ইনডেন্টেশনসহ `JSON.stringify`।                                                                                              |
+| Map, Set, WeakMap, WeakSet               | সমর্থিত | weak কালেকশনের জন্য ephemeron সিমান্টিক্স।                                                                                                                                                                     |
+| ArrayBuffer, DataView, typed array       | সমর্থিত | BigInt অ্যারেসহ সব 11টি typed array টাইপ, detachment, species।                                                                                                                                                 |
+| SharedArrayBuffer, Atomics               | সমর্থিত | worker agent-সহ `Atomics.wait`/`notify` (Test262 ব্যবহার করে)।                                                                                                                                                 |
+| Proxy, Reflect                           | সমর্থিত | সব trap ও invariant।                                                                                                                                                                                           |
+| Promise                                  | সমর্থিত | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable এবং আনহ্যান্ডেলড rejection রিপোর্টিং।                                                                                                        |
+| `globalThis`, `console.log`              | সমর্থিত | `console.log` স্ট্যান্ডার্ড আউটপুটে UTF-8 লেখে। `console.info` ও `console.debug` একই কাজ করে; `console.error` ও `console.warn` স্ট্যান্ডার্ড এররে লেখে।                                                        |
 
 ## ES2020-এর পরে
 

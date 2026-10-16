@@ -108,6 +108,7 @@
                 "regexp-split",
                 "regexp-replace",
                 "regexp-match-all",
+                "regexp-modifiers",
                 "map",
                 "set",
                 "weak-collections",
@@ -115,6 +116,7 @@
                 "reflect",
                 "symbols",
                 "json",
+                "intl",
                 "uri",
                 "classes",
                 "class-fields",
@@ -320,7 +322,8 @@
                 "print-asm",
                 "typeof-compare",
                 "call-overhead",
-                "console-streams"
+                "console-streams",
+                "pick-runner"
             ]
         }
     }

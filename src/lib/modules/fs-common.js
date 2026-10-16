@@ -253,6 +253,69 @@ export function copyFileSync(from, to, mode) {
         fail("EEXIST", "copyfile", from, to);
     sys.copy(from, to);
 }
+// The callback API runs the synchronous function and calls back on a later
+// turn (setImmediate), like Node.js after its I/O. Argument errors
+// (TypeError) are thrown synchronously, as in Node.js.
+function callLater(run, args) {
+    const callback = args[args.length - 1];
+    if (typeof callback !== "function") {
+        const error = new TypeError(
+            'The "cb" argument must be of type function. Received ' +
+                (callback === undefined ? "undefined" : typeof callback),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    let result,
+        failure = null;
+    try {
+        result = run.apply(undefined, Array.prototype.slice.call(args, 0, -1));
+    } catch (error) {
+        if (error instanceof TypeError) throw error;
+        failure = error;
+    }
+    setImmediate(() =>
+        failure !== null ? callback(failure) : callback(null, result),
+    );
+}
+export function readFile(...args) {
+    callLater(readFileSync, args);
+}
+export function writeFile(...args) {
+    callLater(writeFileSync, args);
+}
+export function appendFile(...args) {
+    callLater(appendFileSync, args);
+}
+export function stat(...args) {
+    callLater(statSync, args);
+}
+export function realpath(...args) {
+    callLater(realpathSync, args);
+}
+export function readdir(...args) {
+    callLater(readdirSync, args);
+}
+export function mkdir(...args) {
+    callLater(mkdirSync, args);
+}
+export function rmdir(...args) {
+    callLater(rmdirSync, args);
+}
+export function unlink(...args) {
+    callLater(unlinkSync, args);
+}
+export function rename(...args) {
+    callLater(renameSync, args);
+}
+export function copyFile(...args) {
+    callLater(copyFileSync, args);
+}
+/** Deprecated in Node.js: the callback receives only a boolean. */
+export function exists(path, callback) {
+    const result = existsSync(path);
+    setImmediate(() => callback(result));
+}
 export const constants = {
     COPYFILE_EXCL: 1,
     F_OK: 0,
@@ -273,5 +336,17 @@ export default {
     unlinkSync,
     renameSync,
     copyFileSync,
+    readFile,
+    writeFile,
+    appendFile,
+    exists,
+    stat,
+    realpath,
+    readdir,
+    mkdir,
+    rmdir,
+    unlink,
+    rename,
+    copyFile,
     constants,
 };
