@@ -111,6 +111,7 @@
                 "map",
                 "set",
                 "weak-collections",
+                "weakref",
                 "proxy",
                 "reflect",
                 "symbols",
