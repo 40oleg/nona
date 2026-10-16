@@ -2,14 +2,20 @@
 
 ## Unreleased
 
+## v0.14.0 — 2026-10-16
+
 ### Runtime
 
 - `node:fs` gains `lstatSync`, `readlinkSync` (symbolic links, and junctions on Windows), `realpathSync.native`, `accessSync`, `rmSync`, a full `fs.Dirent` (all `is*()` methods, `parentPath`, `path`) for `readdirSync(path, {withFileTypes: true})`, the `Stats` device/FIFO/socket tests, Node.js callback forms of the common functions and `fs.promises`, also as the new `node:fs/promises` module (`fs/promises`, `nona:fs/promises`). Packages such as glob's path-scurry now compile. ([#297](https://github.com/40oleg/nona/issues/297))
 - `EventEmitter.prototype.once` and `prependOnceListener` register their wrapper through `this.on` and `this.prependListener`, as in Node.js, so a subclass that overrides `on` (minipass starts data flow there) sees `once('data')` listeners. `for await` over a minipass stream and glob's `Glob` iterators and streams no longer hang. ([#297](https://github.com/40oleg/nona/issues/297))
+- **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
+
+- **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
 ### Performance
 
@@ -26,6 +32,9 @@
 
 ### Internals
 
+- CI: when GitHub-hosted Windows jobs are already queued, the Windows jobs of `check` and `program corpus` run on the owner's self-hosted Windows runner if it is online and idle; a `route` job (`scripts/pick-runner.mjs`) decides, and pull requests from forks always stay hosted ([docs/ci-runners.md](docs/ci-runners.md), [#359](https://github.com/40oleg/nona/issues/359)).
+- CI: a pull request runs about 190 instead of 452 runner-minutes. The platform suites (`native-platforms`, `self-hosting`) run on `main` and on pull requests labelled `full-ci`; on `main` the heavy workflows check the last commit of a burst of merges while `check` still runs on every commit; a new push to a pull request now cancels its previous `native-platforms` run. ([#353](https://github.com/40oleg/nona/issues/353))
+- `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 

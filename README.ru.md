@@ -12,11 +12,11 @@ Hello, from Nona!
 
 В исполняемом файле только машинный код вашей программы и среда выполнения Nona. Внутри нет Node.js, V8 или интерпретатора, а для сборки не нужны C/C++-компилятор и LLVM.
 
-> **Статус:** `v0.12.0`, экспериментальный. По аудиту v0.8.0 закреплённый Test262 (возможности ES2020 и поддержанные более поздние, например элементы классов ES2022) на Windows x64: language **22436/22492**, built-ins **15868/15933**, Atomics **268/268**, Annex B **996/1016**. Каждый оставшийся отказ разобран на [странице статуса](https://40oleg.github.io/nona/guide/status). Nona не заменяет Node.js и не проходила аудит безопасности.
+> **Статус:** `v0.14.0`, экспериментальный. По аудиту v0.8.0 закреплённый Test262 (возможности ES2020 и поддержанные более поздние, например элементы классов ES2022) на Windows x64: language **22436/22492**, built-ins **15868/15933**, Atomics **268/268**, Annex B **996/1016**. Каждый оставшийся отказ разобран на [странице статуса](https://40oleg.github.io/nona/guide/status). Nona не заменяет Node.js и не проходила аудит безопасности.
 
 ## Зачем Nona
 
-- **Маленькие и быстро стартуют.** Hello world весит около 1,1 МБ: движок RegExp, таблицы Unicode и библиотеки вроде `Proxy`, таймеров или `process` попадают в файл, только если программа может до них дойти. Запуск занимает около 3 мс, пик памяти около 1 МБ (у Node.js 47 мс и 44 МБ, у Deno 41 мс, у Bun 6 мс; см. [PERFORMANCE.md](PERFORMANCE.md#current-release-against-nodejs-deno-and-bun)).
+- **Маленькие и быстро стартуют.** Hello world весит около 1,1 МБ: движок RegExp, таблицы Unicode и библиотеки вроде `Proxy`, таймеров или `process` попадают в файл, только если программа может до них дойти. Запуск занимает около 3 мс, пик памяти около 1 МБ (у Node.js 47 мс и 44 МБ, у Deno 41 мс, у Bun 6 мс; см. [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
 - **Никаких зависимостей при запуске.** Файлы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI). Файлы для Linux, BSD и macOS на Intel обращаются к ядру напрямую, без libc. Для Apple Silicon используются системные dyld и libSystem.
 - **Восемь целей с любой машины.** Кросс-компиляция через `--target`; один файл для Linux на каждый процессор работает в Mint, Ubuntu, Debian, Fedora и Alpine.
 - **Самосборка.** Компилятор собирает сам себя. Выпущенный `nona` — нативный исполняемый файл, собранный Nona, без Node.js внутри. На Windows и Linux x64 он пересобирает себя во вторую стадию, совпадающую побайтно ([bootstrap](docs/self-hosting.md)).
@@ -93,7 +93,7 @@ nona --help | --version
 
 ## Что поддерживается
 
-**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll` и `cause` у Error.
+**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, `cause` у Error и модификаторы шаблона RegExp (`(?i:…)`, ES2025).
 
 **Стандартная библиотека: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (именованные группы, lookbehind, флаги `s` и `u`, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView и все typed arrays, SharedArrayBuffer и Atomics (с агентами-потоками), Proxy, Reflect и Promise.
 
@@ -159,7 +159,7 @@ Nona выигрывает там, где и должен выигрывать и
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходный текст, известный при компиляции.
 - Большинство возможностей новее ES2020, которых нет в списке выше (`WeakRef`, `await` верхнего уровня, …), не поддерживаются.
-- Модули Node.js вне таблицы выше (`zlib`, `https`, `child_process`, …), npm-пакеты, которым они или `Intl` нужны, нативные аддоны и браузерные API недоступны. Сеть работает в Linux и Windows.
+- Модули Node.js вне таблицы выше (`dns`, `dgram`, …), TLS, сжатие и дочерние процессы (`node:https`, `node:tls`, `node:zlib` и `node:child_process` загружаются, но их функции бросают исключение), npm-пакеты, которым они или `Intl` нужны, нативные аддоны и браузерные API недоступны. Сеть работает в Linux и Windows.
 - Обычные вычисления намного медленнее, чем в JIT.
 
 ## Разработка

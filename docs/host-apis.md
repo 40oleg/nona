@@ -333,3 +333,11 @@ startup. Each is available as `node:<name>` and `<name>`.
 - `node:child_process`: every function and `ChildProcess` throw
   `ERR_NONA_UNSUPPORTED`. The module exists so that packages which only
   mention it load.
+- `node:tls`, `node:http2` and `node:zlib` exist for the same reason: they
+  have the Node.js constants (`zlib.constants`, `zlib.codes`,
+  `http2.constants`, `tls.DEFAULT_MIN_VERSION`, …), and their functions and
+  classes throw `ERR_NONA_UNSUPPORTED`. `node:https` (Linux and Windows) has
+  `Agent` and `globalAgent`; its requests throw (see
+  [networking](network.md)).
+- `Object.prototype.toString.call(process)` is `[object process]`, as in
+  Node.js; libraries use it to detect Node.js.
