@@ -27,20 +27,20 @@
 
 ## الكائنات المدمجة
 
-| المجال                                     | الحالة | ملاحظات                                                                                                                                                                                |
-| ------------------------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Object وFunction وBoolean وSymbol وError   | مدعوم  | بما فيها واصفات الخصائص وعمليات السلامة والرموز العامة والمعروفة (well-known).                                                                                                         |
-| Number وMath ودوال URI                     | مدعوم  | أقصر تنسيق للأعداد قابل للاسترجاع، و`toFixed`/`toExponential`/`toPrecision`، وجميع دوال `Math` في ES2020.                                                                              |
-| String                                     | مدعوم  | توابع ES2020، وتطبيع Unicode، و`localeCompare` دون بيانات المحلية من ECMA-402.                                                                                                         |
-| RegExp                                     | مدعوم  | المجموعات المسمّاة، وlookbehind، والأعلام `s` و`u` و`y` و`g`، وUnicode property escapes، و`matchAll`. المحرك آلة افتراضية بالتراجع (backtracking) مكتوبة كمقدّمة، وهو أبطأ من محرك V8. |
-| Array                                      | مدعوم  | جميع توابع ES2020، وspecies، والثغرات، والأطوال الكبيرة جدًا.                                                                                                                          |
-| Date وJSON                                 | مدعوم  | تحليل التواريخ وتنسيقها بتوقيت UTC والتوقيت المحلي، و`JSON.parse` مع reviver، و`JSON.stringify` مع replacer والإزاحة.                                                                  |
-| Map وSet وWeakMap وWeakSet                 | مدعوم  | دلالات ephemeron للمجموعات الضعيفة.                                                                                                                                                    |
-| ArrayBuffer وDataView والمصفوفات المنمَّطة | مدعوم  | جميع أنواع المصفوفات المنمَّطة الأحد عشر، بما فيها مصفوفات BigInt، والفصل (detach)، وspecies.                                                                                          |
-| SharedArrayBuffer وAtomics                 | مدعوم  | بما فيها `Atomics.wait`/`notify` مع وكلاء عاملين (يستخدمها Test262).                                                                                                                   |
-| Proxy وReflect                             | مدعوم  | جميع المصائد والثوابت.                                                                                                                                                                 |
-| Promise                                    | مدعوم  | `all` و`allSettled` و`race` و`finally` والكائنات القابلة للانتظار (thenables) والإبلاغ عن حالات الرفض غير المعالَجة.                                                                   |
-| `globalThis` و`console.log`                | مدعوم  | يكتب `console.log` بترميز UTF-8 إلى المخرج القياسي. يفعل `console.info` و`console.debug` الشيء نفسه؛ ويكتب `console.error` و`console.warn` إلى مخرج الأخطاء القياسي.                   |
+| المجال                                     | الحالة | ملاحظات                                                                                                                                                                                                                 |
+| ------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Object وFunction وBoolean وSymbol وError   | مدعوم  | بما فيها واصفات الخصائص وعمليات السلامة والرموز العامة والمعروفة (well-known).                                                                                                                                          |
+| Number وMath ودوال URI                     | مدعوم  | أقصر تنسيق للأعداد قابل للاسترجاع، و`toFixed`/`toExponential`/`toPrecision`، وجميع دوال `Math` في ES2020.                                                                                                               |
+| String                                     | مدعوم  | توابع ES2020، وتطبيع Unicode، و`localeCompare` دون بيانات المحلية من ECMA-402.                                                                                                                                          |
+| RegExp                                     | مدعوم  | المجموعات المسمّاة، وlookbehind، والأعلام `s` و`u` و`y` و`g`، وUnicode property escapes، و`matchAll`. المحرك آلة افتراضية بالتراجع (backtracking) مكتوبة كمقدّمة، وهو أبطأ من محرك V8.                                  |
+| Array                                      | مدعوم  | جميع توابع ES2020، وspecies، والثغرات، والأطوال الكبيرة جدًا.                                                                                                                                                           |
+| Date وJSON                                 | مدعوم  | تحليل التواريخ وتنسيقها بتوقيت UTC والتوقيت المحلي، و`JSON.parse` مع reviver، و`JSON.stringify` مع replacer والإزاحة.                                                                                                   |
+| Map وSet وWeakMap وWeakSet                 | مدعوم  | دلالات ephemeron للمجموعات الضعيفة.                                                                                                                                                                                     |
+| ArrayBuffer وDataView والمصفوفات المنمَّطة | مدعوم  | جميع أنواع المصفوفات المنمَّطة الأحد عشر، بما فيها مصفوفات BigInt، والفصل (detach)، وspecies، وArrayBuffer القابل لتغيير الحجم والنقل، وSharedArrayBuffer القابل للنمو، والمصفوفات المنمَّطة وDataView التي تتبع الطول. |
+| SharedArrayBuffer وAtomics                 | مدعوم  | بما فيها `Atomics.wait`/`notify` مع وكلاء عاملين (يستخدمها Test262).                                                                                                                                                    |
+| Proxy وReflect                             | مدعوم  | جميع المصائد والثوابت.                                                                                                                                                                                                  |
+| Promise                                    | مدعوم  | `all` و`allSettled` و`race` و`finally` والكائنات القابلة للانتظار (thenables) والإبلاغ عن حالات الرفض غير المعالَجة.                                                                                                    |
+| `globalThis` و`console.log`                | مدعوم  | يكتب `console.log` بترميز UTF-8 إلى المخرج القياسي. يفعل `console.info` و`console.debug` الشيء نفسه؛ ويكتب `console.error` و`console.warn` إلى مخرج الأخطاء القياسي.                                                    |
 
 ## ما بعد ES2020
 
@@ -49,6 +49,7 @@
 - ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`.
 - ES2022: حقول الأصناف، والتوابع والموصِّلات الخاصة، والكتل الساكنة، و`#x in obj`، و`.at()`، و`Object.hasOwn`، والسبب `cause` في Error.
 - ES2023: `findLast` و`findLastIndex`.
+- ES2024: ArrayBuffer القابل لتغيير الحجم و`transfer`، وSharedArrayBuffer القابل للنمو، والمصفوفات المنمَّطة وDataView التي تتبع الطول.
 
 وحين تتحقق مراجعة Test262 المثبَّتة بالفعل من دلالات أحدث لميزات ES2020، يتبع Nona معيار Test262؛ وتسرد صفحة [Test262](/ar/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) هذه الحالات.
 

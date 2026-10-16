@@ -36,7 +36,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 | Array                                    | 支持 | ES2020 的全部方法、species、空位和超大长度。                                                                                                                          |
 | Date、JSON                               | 支持 | UTC 和本地时间的日期解析与格式化、带 reviver 的 `JSON.parse`、带 replacer 和缩进的 `JSON.stringify`。                                                                 |
 | Map、Set、WeakMap、WeakSet               | 支持 | 弱集合采用 ephemeron 语义。                                                                                                                                           |
-| ArrayBuffer、DataView、类型化数组        | 支持 | 全部 11 种类型化数组（包括 BigInt 数组）、分离（detach）、species。                                                                                                   |
+| ArrayBuffer、DataView、类型化数组        | 支持 | 全部 11 种类型化数组（包括 BigInt 数组）、分离（detach）、species、可调整大小与可转移的 ArrayBuffer、可增长的 SharedArrayBuffer、跟踪长度的类型化数组和 DataView。    |
 | SharedArrayBuffer、Atomics               | 支持 | 包括配合工作线程代理（agent）使用的 `Atomics.wait`/`notify`（供 Test262 使用）。                                                                                      |
 | Proxy、Reflect                           | 支持 | 所有陷阱和不变式。                                                                                                                                                    |
 | Promise                                  | 支持 | `all`、`allSettled`、`race`、`finally`、thenable 以及未处理拒绝的报告。                                                                                               |
@@ -49,6 +49,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 - ES2021：数字分隔符、逻辑赋值（`&&=`、`||=`、`??=`）、`Promise.any` 和 `AggregateError`、`String.prototype.replaceAll`。
 - ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn` 和 Error 的 `cause`。
 - ES2023：`findLast` 和 `findLastIndex`。
+- ES2024：可调整大小的 ArrayBuffer 与 `transfer`、可增长的 SharedArrayBuffer、跟踪长度的类型化数组和 DataView。
 
 当固定版本的 Test262 已对 ES2020 特性检查更新的语义时，Nona 遵循 Test262；这些情况列在 [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) 页面中。
 

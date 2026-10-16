@@ -2,6 +2,7 @@ import { realmTable } from "./constructor-prototype.js";
 import { FunctionKind } from "./functions.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
+import { emitToLength } from "./to-length.js";
 import {
     ObjectLayout as O,
     PropertyLayout as P,
@@ -1178,25 +1179,10 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
                 a.lea("rdx", slot(112));
                 a.call("rt.toNumber");
                 a.movsd("xmm0", slot(136));
-                const zeroLength = a.unique("zeroLength"),
-                    lengthReady = a.unique("lengthReady"),
-                    notFound = a.unique("notFound"),
+                const notFound = a.unique("notFound"),
                     found = a.unique("found"),
                     result = a.unique("result");
-                a.mov("rax", 0);
-                a.movqToXmm("xmm1", "rax");
-                a.ucomisd("xmm0", "xmm1");
-                a.jcc("p", zeroLength);
-                a.jcc("be", zeroLength);
-                a.mov("rax", 9007199254740991n);
-                a.cvtsi2sd("xmm1", "rax");
-                a.ucomisd("xmm0", "xmm1");
-                a.jcc("ae", lengthReady);
-                a.cvttsd2si("rax", "xmm0");
-                a.jmp(lengthReady);
-                a.label(zeroLength);
-                a.mov("rax", 0);
-                a.label(lengthReady);
+                emitToLength(a);
                 a.store(slot(72), "rax");
                 a.test("rax", "rax");
                 a.jcc("e", notFound);
