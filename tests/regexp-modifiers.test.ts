@@ -72,6 +72,10 @@ test("modifier groups add and remove i, m and s for their atoms", () => {
   ["^(?i:abc)", "", "ABC"],
   ["(?m:^)a", "", "b\na"],
   ["(?i:a)?b", "", "b Ab"],
+  ["(?:(?i:a)|b)B", "", "aB bB bb Ab"],
+  ["a(?-i:b*?)c", "i", "aBbc abbC ABBC"],
+  ["(?i:a|b)c", "", "Ac bc bC"],
+  ["(?<x>a)(?i:b)(?<y>c)", "", "aBc"],
 ];` + matchAll;
     expectOracle(
         source,
@@ -110,6 +114,10 @@ x(?i:a+?)\d  ["0:xAA1"]
 ^(?i:abc)  ["0:ABC"]
 (?m:^)a  ["2:a"]
 (?i:a)?b  ["0:b","2:Ab"]
+(?:(?i:a)|b)B  ["0:aB","3:bB"]
+a(?-i:b*?)c i ["5:abbC"]
+(?i:a|b)c  ["0:Ac","3:bc"]
+(?<x>a)(?i:b)(?<y>c)  ["0:aBc|a|c"]
 `,
         true,
     );
