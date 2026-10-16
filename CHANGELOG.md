@@ -5,8 +5,10 @@
 ### Runtime
 
 - **`Object.groupBy` and `Map.groupBy`** (ES2024) over any iterable, with the spec's property-key coercion (`Object.groupBy` returns a null-prototype object). They live in the `es2021` prelude, linked when a program names `groupBy`. ([#311](https://github.com/40oleg/nona/issues/311))
+- **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
 
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 
@@ -25,6 +27,7 @@
 
 ### Internals
 
+- `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))
 - [docs/intrinsics.md](docs/intrinsics.md) records the decisions on the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace, and `tests/intrinsics.test.ts` checks that every intrinsic the preludes and the runtime read is defined. ([#183](https://github.com/40oleg/nona/issues/183))
 

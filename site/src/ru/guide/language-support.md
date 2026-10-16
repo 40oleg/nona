@@ -39,7 +39,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 | ArrayBuffer, DataView, typed arrays      | Поддерживается | Все 11 типов typed arrays, включая BigInt-массивы, отсоединение буферов, species.                                                                                           |
 | SharedArrayBuffer, Atomics               | Поддерживается | Включая `Atomics.wait`/`notify` с агентами-потоками (используются в Test262).                                                                                               |
 | Proxy, Reflect                           | Поддерживается | Все ловушки и инварианты.                                                                                                                                                   |
-| Promise                                  | Поддерживается | `all`, `allSettled`, `race`, `finally`, thenable-объекты и сообщения о необработанных отказах.                                                                              |
+| Promise                                  | Поддерживается | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable-объекты и сообщения о необработанных отказах.                                                             |
 | `globalThis`, `console.log`              | Поддерживается | `console.log` пишет UTF-8 в стандартный вывод. `console.info` и `console.debug` делают то же; `console.error` и `console.warn` пишут в стандартный поток ошибок.            |
 
 ## После ES2020
