@@ -184,7 +184,8 @@
     // The entry module: a failure while evaluating synchronously is thrown at
     // once, a later rejection is an uncaught exception, and a promise that
     // never settles ends the process with exit code 13, as in Node.js.
-    var entry, warned = false;
+    var entry,
+        warned = false;
     function unsettled() {
         if (entry === undefined || entry.kind !== 0 || warned) return false;
         warned = true;

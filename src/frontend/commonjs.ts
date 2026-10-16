@@ -588,7 +588,9 @@ export class NodeModuleHost implements ModuleHost {
         const entries: string[] = [];
         const target = (
             specifier: string,
-        ): { path: string; kind: 0 | 1 | 2 | 3; native: string } | undefined => {
+        ):
+            | { path: string; kind: 0 | 1 | 2 | 3; native: string }
+            | undefined => {
             if (this.options.isBuiltin?.(specifier))
                 return { path: specifier, kind: 2, native: specifier };
             let resolved: string | undefined;
@@ -600,7 +602,11 @@ export class NodeModuleHost implements ModuleHost {
             if (resolved === undefined) return undefined;
             const format = this.format(resolved);
             if (format === "module" && this.hasTopLevelAwait(resolved))
-                return { path: resolved, kind: 3, native: nativePath(resolved) };
+                return {
+                    path: resolved,
+                    kind: 3,
+                    native: nativePath(resolved),
+                };
             return format === "module"
                 ? { path: resolved, kind: 1, native: nativePath(resolved) }
                 : {

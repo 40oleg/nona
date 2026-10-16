@@ -10,7 +10,11 @@ import {
     type Target,
 } from "../src/compiler.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
-import { preludeSet, requiredSyntaxParts } from "../src/link.js";
+import {
+    preludeSet,
+    requiredSyntaxParts,
+    syntaxOnlyPreludes,
+} from "../src/link.js";
 
 function image(
     source: string,
@@ -144,8 +148,12 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('const code = "x = setTimeout(g)"'), "timers");
     assert.equal(linked('const word = "data format"'), "");
     assert.equal(linked('const key = "at"'), "es2021");
-    // Enumerating built-ins could observe a missing method: everything is linked.
-    const all = Object.keys(preludeSet(true)).sort().join(",");
+    // Enumerating built-ins could observe a missing method: everything is
+    // linked, except preludes that add no built-ins (top-level await).
+    const all = Object.keys(preludeSet(true))
+        .filter((name) => !(syntaxOnlyPreludes as string[]).includes(name))
+        .sort()
+        .join(",");
     assert.equal(linked("Object.getOwnPropertyNames(Array.prototype)"), all);
     assert.equal(linked("Reflect.ownKeys(globalThis)"), all);
 });

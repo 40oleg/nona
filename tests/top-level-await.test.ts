@@ -123,7 +123,8 @@ const cases: [string, Record<string, string>][] = [
             "loader.cjs":
                 "exports.tryIt = () => { try { require('./tla.mjs'); return 'no error'; } catch (e) { return e.code + ' ' + (e instanceof Error); } };\ntry { require('./indirect.mjs'); } catch (e) { console.log('indirect', e.code); }\nconsole.log('sync', require('./sync.mjs').s);\n",
             "tla.mjs": "console.log('tla runs');\nexport const v = await 1;\n",
-            "indirect.mjs": "import './tla.mjs';\nconsole.log('indirect runs');\n",
+            "indirect.mjs":
+                "import './tla.mjs';\nconsole.log('indirect runs');\n",
             "sync.mjs": "export const s = 's';\n",
         },
     ],

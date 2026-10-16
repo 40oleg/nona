@@ -189,6 +189,11 @@ export const reflectiveNames: readonly string[] = [
     "getOwnPropertyDescriptors",
     "ownKeys",
 ];
+/**
+ * Preludes that add no built-ins, so enumerating built-ins cannot observe
+ * them: they are linked only by the syntax that needs them.
+ */
+export const syntaxOnlyPreludes: readonly OptionalPrelude[] = ["topLevelAwait"];
 export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
     return Object.fromEntries(
         optionalPreludes.map((name) => [name, value]),
