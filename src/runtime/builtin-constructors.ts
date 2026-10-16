@@ -16,7 +16,9 @@ import {
 import type { Assembler } from "../backend/machine/context.js";
 import type { Fixup } from "../backend/machine/model.js";
 
-export const constructorRoots = names.map((name) => "rt." + name);
+// Float16Array exists only with the float16 part (see float16.ts).
+const staticNames = names.filter((name) => name !== "Float16Array");
+export const constructorRoots = staticNames.map((name) => "rt." + name);
 const numberConstants = [
     ["MAX_VALUE", Number.MAX_VALUE],
     ["MIN_VALUE", Number.MIN_VALUE],
@@ -27,7 +29,7 @@ const numberConstants = [
     ["MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
     ["MIN_SAFE_INTEGER", Number.MIN_SAFE_INTEGER],
 ] as const;
-export const constructorPropertyRoots = names
+export const constructorPropertyRoots = staticNames
     .flatMap((name) => [
         ...["name", "length", "prototype"].map(
             (key) => "rt." + name + "." + key,
@@ -102,7 +104,8 @@ export function emitBuiltinConstructors(b: RuntimeBuilder): void {
         (f) => f.name === "rt.globalObject.globalThis",
     )!;
     globalThis.fixups.push(pointer(P.next, "rt.globalObject.Object"));
-    for (const [index, name] of names.entries()) {
+    const linkedNames = b.float16 ? names : staticNames;
+    for (const [index, name] of linkedNames.entries()) {
         const symbol = "rt." + name,
             prototype =
                 "rt." +
@@ -161,6 +164,7 @@ export function emitBuiltinConstructors(b: RuntimeBuilder): void {
                             "Uint16Array",
                             "Int32Array",
                             "Uint32Array",
+                            "Float16Array",
                             "Float32Array",
                             "Float64Array",
                             "BigInt64Array",
@@ -203,6 +207,7 @@ export function emitBuiltinConstructors(b: RuntimeBuilder): void {
                                     "Uint16Array",
                                     "Int32Array",
                                     "Uint32Array",
+                                    "Float16Array",
                                     "Float32Array",
                                     "Float64Array",
                                     "BigInt64Array",
@@ -240,8 +245,13 @@ export function emitBuiltinConstructors(b: RuntimeBuilder): void {
             fixups: [
                 pointer(P.key, symbol + ".text"),
                 pointer(P.value + 8, symbol),
-                ...(index + 1 < names.length
-                    ? [pointer(P.next, "rt.globalObject." + names[index + 1])]
+                ...(index + 1 < linkedNames.length
+                    ? [
+                          pointer(
+                              P.next,
+                              "rt.globalObject." + linkedNames[index + 1],
+                          ),
+                      ]
                     : []),
             ],
         });

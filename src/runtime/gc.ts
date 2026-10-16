@@ -146,7 +146,12 @@ import {
     numberBuiltinPropertyRoots,
 } from "./number-builtins.js";
 import { mathRoots, mathPropertyRoots } from "./math.js";
-import { float16Roots, float16PropertyRoots } from "./float16.js";
+import {
+    float16Roots,
+    float16PropertyRoots,
+    float16TypedArrayRoots,
+    float16TypedArrayPropertyRoots,
+} from "./float16.js";
 import { jsonRoots, jsonPropertyRoots } from "./json.js";
 import { bigintRoots, bigintPropertyRoots } from "./bigint.js";
 import { uriRoots, uriPropertyRoots } from "./uri.js";
@@ -1089,6 +1094,7 @@ export function emitGc(
             "uint32arrayPrototype",
             "int32arrayPrototype",
             "uint32arrayPrototype",
+            ...(float16 ? ["float16arrayPrototype"] : []),
             "float32arrayPrototype",
             "float64arrayPrototype",
             "bigint64arrayPrototype",
@@ -1141,7 +1147,7 @@ export function emitGc(
             ...stringNormalizeRoots,
             ...stringLocaleCompareRoots,
             ...mathRoots,
-            ...(float16 ? float16Roots : []),
+            ...(float16 ? [...float16Roots, ...float16TypedArrayRoots] : []),
             ...jsonRoots,
             ...bigintRoots,
             ...inspectionRoots,
@@ -1203,7 +1209,9 @@ export function emitGc(
             ...stringNormalizePropertyRoots,
             ...stringLocaleComparePropertyRoots,
             ...mathPropertyRoots,
-            ...(float16 ? float16PropertyRoots : []),
+            ...(float16
+                ? [...float16PropertyRoots, ...float16TypedArrayPropertyRoots]
+                : []),
             ...jsonPropertyRoots,
             ...bigintPropertyRoots,
             ...inspectionPropertyRoots,

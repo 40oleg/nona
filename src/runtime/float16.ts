@@ -28,6 +28,25 @@ export const float16PropertyRoots = [
     ),
 ];
 
+/** Float16Array (element type 12; see typed-array-kernels.ts). */
+export const float16ElementType = 12;
+export const float16TypedArray = ["Float16Array", "float16array", 2] as const;
+/** GC roots of Float16Array, its prototype and its element conversion. */
+export const float16TypedArrayRoots = [
+    "rt.Float16Array",
+    "rt.float16Convert.fn",
+];
+export const float16TypedArrayPropertyRoots = [
+    ...["name", "length", "prototype", "BYTES_PER_ELEMENT"].map(
+        (key) => "rt.Float16Array." + key,
+    ),
+    "rt.globalObject.Float16Array",
+    "rt.float16arrayPrototype.constructor",
+    "rt.float16arrayPrototype.BYTES_PER_ELEMENT",
+    "rt.float16Convert.fn.name",
+    "rt.float16Convert.fn.length",
+];
+
 export function emitFloat16(b: RuntimeBuilder): void {
     // xmm0 (double) → eax (binary16 bits), rounded to nearest, ties to even.
     // The rounding works on the double's bits directly: rounding through

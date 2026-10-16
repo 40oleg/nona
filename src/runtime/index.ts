@@ -161,6 +161,7 @@ export function emitRuntime(
 ): RuntimeBundle {
     const b = new RuntimeBuilder();
     const float16 = request.float16 !== false;
+    b.float16 = float16;
     emitMemory(b);
     emitDateClock(b);
     emitDateCalendar(b);

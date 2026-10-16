@@ -406,6 +406,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rax", { base: "r10", disp: ArrayBufferLayout.detached });
@@ -574,6 +579,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rax", { base: "r10", disp: ArrayBufferLayout.detached });
@@ -1038,6 +1048,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
                 a.jcc("b", valid);
                 a.cmp("rax", 10);
                 failIf(a, "b", "rt.throwTypeError");
+                // Float16Array is not an integer typed array.
+                if (b.float16) {
+                    a.cmp("rax", 11);
+                    failIf(a, "a", "rt.throwTypeError");
+                }
                 a.label(valid);
                 a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
                 a.load("rax", {
@@ -1278,6 +1293,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             a.load("r10", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rax", { base: "r10", disp: ArrayBufferLayout.detached });

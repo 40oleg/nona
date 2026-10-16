@@ -167,6 +167,20 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
         "rt.Uint16Array": ["length", "name", "prototype", "BYTES_PER_ELEMENT"],
         "rt.Int32Array": ["length", "name", "prototype", "BYTES_PER_ELEMENT"],
         "rt.Uint32Array": ["length", "name", "prototype", "BYTES_PER_ELEMENT"],
+        ...(b.float16
+            ? {
+                  "rt.Float16Array": [
+                      "length",
+                      "name",
+                      "prototype",
+                      "BYTES_PER_ELEMENT",
+                  ],
+                  "rt.float16arrayPrototype": [
+                      "constructor",
+                      "BYTES_PER_ELEMENT",
+                  ],
+              }
+            : {}),
         "rt.Float32Array": ["length", "name", "prototype", "BYTES_PER_ELEMENT"],
         "rt.Float64Array": ["length", "name", "prototype", "BYTES_PER_ELEMENT"],
         "rt.BigInt64Array": [
@@ -591,6 +605,7 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
             "Uint16Array",
             "Int32Array",
             "Uint32Array",
+            "Float16Array",
             "Float32Array",
             "Float64Array",
             "BigInt64Array",

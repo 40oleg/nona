@@ -22,7 +22,9 @@ export function emitOwnKeys(b: RuntimeBuilder): void {
         "Math",
         "isFinite",
         "isNaN",
-        ...nativeConstructorNames,
+        ...nativeConstructorNames.filter(
+            (name) => b.float16 || name !== "Float16Array",
+        ),
     ];
     b.fn("rt.isIntrinsicGlobalKey", 40, (a) => {
         a.mov("rdx", "rcx");

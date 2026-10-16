@@ -185,6 +185,7 @@ export function emitFunctionSource(b: RuntimeBuilder): void {
                     "Int16Array",
                     "Uint32Array",
                     "Int32Array",
+                    ...(b.float16 ? ["Float16Array"] : []),
                     "Float32Array",
                     "Float64Array",
                     "BigInt64Array",
