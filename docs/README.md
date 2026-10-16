@@ -27,6 +27,7 @@ This directory holds the reference documents. Snapshots written for a particular
 | [native-platforms.md](native-platforms.md)       | The eight native targets and their execution evidence                                                              | English  |
 | [self-hosting.md](self-hosting.md)               | Building the compiler as a native executable                                                                       | English  |
 | [program-corpus.md](program-corpus.md)           | The combination program regression corpus                                                                          | English  |
+| [ci-runners.md](ci-runners.md)                   | GitHub-hosted CI runners with a self-hosted Windows overflow                                                       | English  |
 | [formal-verification.md](formal-verification.md) | The Lean proof prototype for IR move rules                                                                         | English  |
 | [matrix-calculator.md](matrix-calculator.md)     | Example program: matrix operations and a standalone EXE                                                            | Russian  |
 
