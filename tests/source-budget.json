@@ -37,10 +37,6 @@
             "bytes": 4780,
             "line": 237
         },
-        "ir/lower.ts": {
-            "bytes": 77132,
-            "line": 125
-        },
         "ir/model.ts": {
             "bytes": 10315,
             "line": 240
