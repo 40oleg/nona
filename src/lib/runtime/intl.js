@@ -15,15 +15,18 @@
     var iteratorPrototype = Object.getPrototypeOf(
         Object.getPrototypeOf([][iteratorSymbol]()),
     );
-    var segmenters = new WeakMap(),
-        segmentsData = new WeakMap(),
-        iterators = new WeakMap();
-    var getSegmenter = WeakMap.prototype.get.bind(segmenters),
-        addSegmenter = WeakMap.prototype.set.bind(segmenters),
-        getSegments = WeakMap.prototype.get.bind(segmentsData),
-        addSegments = WeakMap.prototype.set.bind(segmentsData),
-        getIterator = WeakMap.prototype.get.bind(iterators),
-        addIterator = WeakMap.prototype.set.bind(iterators);
+    // One map holds the internal slots of segmenters, segments and segment
+    // iterators: every program of the test suite links this prelude, and
+    // under GC stress each object it keeps alive slows every collection.
+    var slots = new WeakMap();
+    var getSlots = WeakMap.prototype.get.bind(slots),
+        setSlots = WeakMap.prototype.set.bind(slots);
+    function slotsOf(object, kind) {
+        var record = getSlots(object);
+        return record !== undefined && record.kind === kind
+            ? record
+            : undefined;
+    }
     function install(object, name, length, fn) {
         defineProperty(fn, "name", { value: name, configurable: true });
         defineProperty(fn, "length", { value: length, configurable: true });
@@ -83,11 +86,13 @@
         CONSONANT = 15,
         LINKER = 16;
     var classLetters = "OCLXEZRPSlvtVTGKN";
-    var table = "@@GRAPHEME_TABLE@@";
     var starts = null,
         ends,
         classes;
     function loadTable() {
+        // The literal stays inside this function so that programs that never
+        // segment a string do not keep the table alive.
+        var table = "@@GRAPHEME_TABLE@@";
         var count = table.length / 13;
         starts = [];
         ends = [];
@@ -192,7 +197,7 @@
         };
     }
 
-    var localePattern = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/;
+    var localePattern = null;
     function requestedLocales(locales) {
         if (locales === undefined) return [];
         var list = typeof locales === "string" ? [locales] : Object(locales);
@@ -206,6 +211,8 @@
                     "Language ID should be string or object.",
                 );
             locale = toStr(locale);
+            if (localePattern === null)
+                localePattern = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/;
             if (!localePattern.test(locale))
                 throw new RangeErrorConstructor(
                     "Incorrect locale information provided",
@@ -254,7 +261,8 @@
                 "Nona: Intl.Segmenter supports only the grapheme granularity, not " +
                     granularity,
             );
-        addSegmenter(this, {
+        setSlots(this, {
+            kind: "segmenter",
             locale: requested.length ? requested[0] : "en-US",
             granularity: granularity,
         });
@@ -269,7 +277,7 @@
     );
     defineProperty(Segmenter, "prototype", { writable: false });
     install(Segmenter.prototype, "segment", 1, function segment(string) {
-        var state = getSegmenter(this);
+        var state = slotsOf(this, "segmenter");
         if (state === undefined)
             throw new TypeErrorConstructor(
                 "Method Intl.Segmenter.prototype.segment called on incompatible receiver " +
@@ -277,7 +285,11 @@
             );
         var segments = Object.create(segmentsPrototype);
         var text = toStr(string);
-        addSegments(segments, { string: text, breaks: null });
+        setSlots(segments, {
+            kind: "segments",
+            string: text,
+            breaks: null,
+        });
         return segments;
     });
     install(
@@ -285,7 +297,7 @@
         "resolvedOptions",
         0,
         function resolvedOptions() {
-            var state = getSegmenter(this);
+            var state = slotsOf(this, "segmenter");
             if (state === undefined)
                 throw new TypeErrorConstructor(
                     "Method Intl.Segmenter.prototype.resolvedOptions called on incompatible receiver " +
@@ -297,7 +309,7 @@
     tag(Segmenter.prototype, "Intl.Segmenter");
 
     function segmentsOf(receiver, name) {
-        var data = getSegments(receiver);
+        var data = slotsOf(receiver, "segments");
         if (data === undefined)
             throw new TypeErrorConstructor(
                 "Method %Segments.prototype%." +
@@ -327,7 +339,7 @@
     install(segmentsPrototype, iteratorSymbol, 0, function () {
         var data = segmentsOf(this, "[Symbol.iterator]");
         var iterator = Object.create(segmentIteratorPrototype);
-        addIterator(iterator, { data: data, next: 0 });
+        setSlots(iterator, { kind: "iterator", data: data, next: 0 });
         return iterator;
     });
     defineProperty(segmentsPrototype[iteratorSymbol], "name", {
@@ -335,7 +347,7 @@
         configurable: true,
     });
     install(segmentIteratorPrototype, "next", 0, function next() {
-        var state = getIterator(this);
+        var state = slotsOf(this, "iterator");
         if (state === undefined)
             throw new TypeErrorConstructor(
                 "Method %SegmentIterator.prototype%.next called on incompatible receiver " +

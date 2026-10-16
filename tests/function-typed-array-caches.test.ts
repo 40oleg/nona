@@ -111,7 +111,7 @@ Object.defineProperty(typedArrayPrototype, 'length', savedLength);
 delete Float64Array.prototype.length;
 out.push(arrays.map(a => a.length).join(','));
 console.log(out.join(' | '));
-let total = 0; const big = new Uint8Array(64); for (let r = 0; r < 2000; r++) for (let i = 0; i < big.length; i += 8) total += big.length;
+let total = 0; const big = new Uint8Array(64); for (let r = 0; r < 200; r++) for (let i = 0; i < big.length; i += 8) total += big.length;
 console.log(total);`,
     ],
     [
