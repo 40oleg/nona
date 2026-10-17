@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Runtime
+
+- `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
+
 ## v0.15.0 — 2026-10-17
 
 ### Runtime
