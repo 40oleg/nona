@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
+
 ### Language
 
 - **ES2023 change-by-copy methods.** `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with` return a new array and leave the receiver unchanged; `toSorted` sorts with the built-in stable `sort`. Their `Symbol.unscopables` entries are added too. The methods are a prelude part linked only when a source names one of them. The Test262 directories `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables/change-array-by-copy.js` pass (94/94). ([#308](https://github.com/40oleg/nona/issues/308))

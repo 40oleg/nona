@@ -330,7 +330,8 @@
                 "call-overhead",
                 "console-streams",
                 "zlib",
-                "pick-runner"
+                "pick-runner",
+                "cancel-pr-runs"
             ]
         }
     }
