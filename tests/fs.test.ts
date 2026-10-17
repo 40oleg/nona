@@ -209,7 +209,9 @@ import fs from 'node:fs';
 const dir = ${JSON.stringify(directory)};
 const link = fs.lstatSync(dir + '/junction');
 console.log(link.isSymbolicLink(), link.isDirectory(), fs.statSync(dir + '/junction').isDirectory());
-console.log(fs.readlinkSync(dir + '/junction').replace(/\\$/, '') === fs.realpathSync(dir + '/dir'));
+// The junction stores the path it was created with; realpathSync may expand
+// 8.3 short names in it (the CI temp directory is C:\\Users\\RUNNER~1\\...).
+console.log(fs.readlinkSync(dir + '/junction').replace(/\\\\$/, '') === dir + '\\\\dir');
 console.log(fs.readdirSync(dir + '/junction').join(), fs.realpathSync(dir + '/junction') === fs.realpathSync(dir + '/dir'));
 console.log(fs.readdirSync(dir, {withFileTypes: true}).map((d) => d.name + ':' + d.isSymbolicLink() + ':' + d.isDirectory()).sort().join());
 try { fs.readlinkSync(dir + '/dir'); } catch (e) { console.log(e.code, e.syscall); }
