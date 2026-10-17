@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-## v0.16.0 — 2026-10-17
+## v0.16.0 — 2026-10-18
 
-Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.
+Highlights: FFI to shared libraries on Linux and macOS, `node:child_process`, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2022 top-level await in ES modules, ES2023 change-by-copy array methods.
 
 ### Language
 
