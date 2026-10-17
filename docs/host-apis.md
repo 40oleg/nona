@@ -114,6 +114,8 @@ The default export and named `EventEmitter` export are the same constructor.
 - Listener registration: `on`/`addListener`, `once`, `prependListener` and
   `prependOnceListener`. Dispatch is synchronous, preserves registration order,
   binds `this` to the emitter and snapshots listeners before calling them.
+  As in Node.js, `once` and `prependOnceListener` register their wrapper
+  through `this.on` and `this.prependListener`, so subclass overrides see it.
 - Listener removal: `off`/`removeListener` removes the most recently registered
   matching listener; `removeAllListeners` supports one event or every event.
   `newListener` and `removeListener` notifications expose original once listeners.

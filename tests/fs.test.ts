@@ -4,6 +4,15 @@ import { runModulesOnHost, runOnHost } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
 import { compile } from "../src/compiler.js";
 import { readPe } from "./helpers/pe-reader.js";
+import {
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // File I/O is exercised without GC stress: the collector runs before every operation
 // there, which makes byte loops over large files too slow. The last test keeps GC stress.
@@ -94,6 +103,123 @@ test("fs uses Win32 imports on Windows and system calls on Linux", () => {
             module: true,
         }).ok,
     );
+});
+
+test("fs has lstat, Dirent, realpath.native, callbacks and fs/promises like Node.js", () =>
+    expectModules({
+        "c.cjs":
+            "const fs = require('fs'), promises = require('fs/promises');\nconsole.log(fs.promises === promises, promises === require('node:fs').promises, typeof fs.lstatSync, typeof promises.readdir);\n",
+        "main.mjs": `
+import './c.cjs';
+import fs, {lstatSync, readdirSync, realpathSync, Dirent, readdir, lstat, rmSync} from 'fs';
+import {sep} from 'path';
+(async () => {
+fs.mkdirSync('w/sub', {recursive: true});
+fs.writeFileSync('w/f.txt', 'abc');
+const show = (s) => [s.isFile(), s.isDirectory(), s.isSymbolicLink(), s.isBlockDevice(), s.isCharacterDevice(), s.isFIFO(), s.isSocket()].join();
+console.log(show(lstatSync('w/f.txt')), lstatSync('w/f.txt').size, show(lstatSync('w')));
+console.log(lstatSync('w/missing', {throwIfNoEntry: false}));
+try { lstatSync('w/missing'); } catch (e) { console.log(e.code, e.syscall); }
+for (const d of readdirSync('w', {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1))
+  console.log(d.name, d.parentPath, d instanceof Dirent, show(d));
+console.log(typeof realpathSync.native, realpathSync.native('w').endsWith(sep + 'w'), typeof fs.realpath.native);
+console.log(fs.promises === (await import('fs/promises')).default, fs.promises === (await import('node:fs/promises')).default);
+// Node.js completes callbacks in any order, so collect the results and sort them.
+const results = [];
+let later = false;
+await new Promise((done) => {
+  let left = 5;
+  const report = (...values) => { results.push(values.join(' ') + ' ' + later); if (--left === 0) done(); };
+  readdir('w', (err, names) => report('readdir', err, names.sort().join()));
+  lstat('w/nope', (err, st) => report('lstat', err.code, err.syscall, st));
+  fs.stat('w/f.txt', (err, st) => report('stat', err, st.size));
+  fs.readFile('w/f.txt', 'utf8', (err, text) => report('readFile', err, text));
+  fs.exists('w/f.txt', (ok) => report('exists', ok));
+  later = true;
+});
+console.log(results.sort().join('; '));
+const {readdir: readdirP, lstat: lstatP, readFile: readFileP, writeFile: writeFileP, mkdir: mkdirP, rm: rmP, access: accessP} = await import('fs/promises');
+const entries = await readdirP('w', {withFileTypes: true});
+console.log(entries.map((d) => d.name + ':' + d.isDirectory()).sort().join());
+console.log((await lstatP('w/sub')).isDirectory());
+await writeFileP('w/g.txt', 'xyz'); console.log(await readFileP('w/g.txt', 'utf8'));
+await mkdirP('w/p/q', {recursive: true}); await accessP('w/p/q');
+try { await lstatP('w/none'); } catch (e) { console.log(e.code, e.syscall); }
+try { rmSync('w'); } catch (e) { console.log(e.code); }
+await rmP('w', {recursive: true}); rmSync('w', {force: true});
+console.log(fs.existsSync('w'));
+})();
+`,
+    }));
+
+test("fs reads symbolic links where the host can create them", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "nona-links-"));
+    try {
+        writeFileSync(join(directory, "target.txt"), "linked");
+        mkdirSync(join(directory, "dir"));
+        try {
+            symlinkSync("target.txt", join(directory, "file-link"));
+            symlinkSync(
+                join(directory, "dir"),
+                join(directory, "dir-link"),
+                "dir",
+            );
+            symlinkSync("absent", join(directory, "broken"));
+        } catch (error) {
+            t.skip("cannot create symbolic links: " + (error as Error).message);
+            return;
+        }
+        expectModules({
+            "main.mjs": `
+import fs from 'node:fs';
+const dir = ${JSON.stringify(directory)};
+const show = (s) => [s.isFile(), s.isDirectory(), s.isSymbolicLink()].join();
+for (const name of ['file-link', 'dir-link', 'broken', 'target.txt'])
+  console.log(name, show(fs.lstatSync(dir + '/' + name)));
+console.log(show(fs.statSync(dir + '/file-link')), fs.readFileSync(dir + '/file-link', 'utf8'));
+console.log(fs.readlinkSync(dir + '/file-link'), fs.readlinkSync(dir + '/broken'), fs.readlinkSync(dir + '/dir-link') === fs.realpathSync.native(dir + '/dir'));
+try { fs.readlinkSync(dir + '/target.txt'); } catch (e) { console.log(e.code, e.syscall); }
+try { fs.readlinkSync(dir + '/missing'); } catch (e) { console.log(e.code, e.syscall); }
+for (const d of fs.readdirSync(dir, {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1)) console.log(d.name, show(d));
+console.log(fs.realpathSync(dir + '/file-link') === fs.realpathSync(dir + '/target.txt'));
+`,
+        });
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test("fs reads Windows junctions as links", (t) => {
+    if (process.platform !== "win32") {
+        t.skip("junctions are a Windows feature");
+        return;
+    }
+    const directory = mkdtempSync(join(tmpdir(), "nona-junction-"));
+    try {
+        mkdirSync(join(directory, "dir"));
+        writeFileSync(join(directory, "dir", "inner.txt"), "x");
+        symlinkSync(
+            join(directory, "dir"),
+            join(directory, "junction"),
+            "junction",
+        );
+        expectModules({
+            "main.mjs": `
+import fs from 'node:fs';
+const dir = ${JSON.stringify(directory)};
+const link = fs.lstatSync(dir + '/junction');
+console.log(link.isSymbolicLink(), link.isDirectory(), fs.statSync(dir + '/junction').isDirectory());
+// The junction stores the path it was created with; realpathSync may expand
+// 8.3 short names in it (the CI temp directory is C:\\Users\\RUNNER~1\\...).
+console.log(fs.readlinkSync(dir + '/junction').replace(/\\\\$/, '') === dir + '\\\\dir');
+console.log(fs.readdirSync(dir + '/junction').join(), fs.realpathSync(dir + '/junction') === fs.realpathSync(dir + '/dir'));
+console.log(fs.readdirSync(dir, {withFileTypes: true}).map((d) => d.name + ':' + d.isSymbolicLink() + ':' + d.isDirectory()).sort().join());
+try { fs.readlinkSync(dir + '/dir'); } catch (e) { console.log(e.code, e.syscall); }
+`,
+        });
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
 });
 
 test("the fs callback API calls back on a later turn with the result or the error", () =>

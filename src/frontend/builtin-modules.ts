@@ -1,6 +1,6 @@
 import type { ModuleHost } from "./modules.js";
 import { ffiModuleSource } from "../ffi.js";
-import { fsModuleSource } from "./fs-module.js";
+import { fsModuleSource, fsPromisesModuleSource } from "./fs-module.js";
 import { CompileError } from "../diagnostics.js";
 import { getTarget, type Target } from "../target.js";
 import { eventsModuleForTarget } from "./events-module.js";
@@ -124,6 +124,10 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:win32", () => win32ModuleSource],
     ["nona:fs", fsModuleSource],
     ["node:fs", fsModuleSource],
+    ...["node:fs/promises", "nona:fs/promises"].map(
+        (name) =>
+            [name, () => fsPromisesModuleSource] as [string, () => string],
+    ),
     ["node:events", eventsModuleForTarget],
     ["node:async_hooks", () => asyncHooksModuleSource],
     ["nona:async_hooks", () => asyncHooksModuleSource],

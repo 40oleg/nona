@@ -6,6 +6,7 @@ export const builtinModules = [
     "child_process",
     "events",
     "fs",
+    "fs/promises",
     "module",
     "net",
     "http",

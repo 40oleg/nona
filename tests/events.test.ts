@@ -37,6 +37,20 @@ console.log(e.eventNames().map(String).join(),e.listenerCount(key));
 `,
     ],
     [
+        "once and prependOnceListener go through overridden on and prependListener",
+        `
+class Flow extends EventEmitter{
+ constructor(){super();this.seen=[];this.flowing=false;}
+ on(n,f){const r=super.on(n,f);this.seen.push('on:'+String(n));if(n==='data'&&!this.flowing){this.flowing=true;Promise.resolve().then(()=>this.emit('data',1));}return r;}
+ prependListener(n,f){this.seen.push('prepend:'+String(n));return super.prependListener(n,f);}
+}
+const e=new Flow(),key=Symbol('k');
+console.log(e.once('data',x=>console.log('data',x,e.listenerCount('data')))===e);
+e.prependOnceListener(key,x=>console.log('key',x));e.emit(key,2);e.emit(key,3);
+console.log(e.seen.join('|'),e.listenerCount(key));
+`,
+    ],
+    [
         "emitter methods mixed into a function, an object and called on plain objects",
         `
 const copy=t=>{for(const k of Object.getOwnPropertyNames(EventEmitter.prototype))Object.defineProperty(t,k,Object.getOwnPropertyDescriptor(EventEmitter.prototype,k));return t;};

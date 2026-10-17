@@ -93,7 +93,7 @@ EventEmitter.prototype.on = EventEmitter.prototype.addListener;
 EventEmitter.prototype.prependListener = function (name, listener) {
     return add(this, name, listener, true);
 };
-function onceListener(emitter, name, listener, prepend) {
+function onceWrap(emitter, name, listener) {
     checkListener(listener);
     let fired = false;
     function wrapped(...args) {
@@ -103,13 +103,14 @@ function onceListener(emitter, name, listener, prepend) {
         return listener.apply(emitter, args);
     }
     wrapped.listener = listener;
-    return add(emitter, name, wrapped, prepend);
+    return wrapped;
 }
+// Like Node.js, go through the (possibly overridden) on/prependListener.
 EventEmitter.prototype.once = function (name, listener) {
-    return onceListener(this, name, listener, false);
+    return this.on(name, onceWrap(this, name, listener));
 };
 EventEmitter.prototype.prependOnceListener = function (name, listener) {
-    return onceListener(this, name, listener, true);
+    return this.prependListener(name, onceWrap(this, name, listener));
 };
 EventEmitter.prototype.removeListener = function (name, listener) {
     checkListener(listener);
