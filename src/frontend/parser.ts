@@ -3,6 +3,7 @@ import type { Token, TokenStream } from "./token.js";
 import type * as A from "./ast.js";
 import { boundNames } from "./declarations.js";
 import { skipImportAttributes } from "./import-attributes.js";
+import { containsTopLevelAwait } from "./top-level-await.js";
 
 const reserved = new Set(
     "break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super yield null true false".split(
@@ -760,6 +761,8 @@ class Parser {
     }
     program(): A.Program {
         const body: A.Statement[] = [];
+        // The module body is async: top-level await (ES2022 16.2.1.5).
+        this.asyncContext = this.module;
         while (this.token.kind !== "eof")
             body.push(this.module ? this.moduleItem() : this.statement(true));
         const strict = this.module || this.checkDirective(body);
@@ -768,6 +771,9 @@ class Parser {
             body,
             strict,
             ...(this.module ? { module: true } : {}),
+            ...(this.module && containsTopLevelAwait(body)
+                ? { topLevelAwait: true }
+                : {}),
             span: { start: 0, end: this.token.span.end },
             source: this.tokens.source,
         };
