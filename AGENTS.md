@@ -51,7 +51,8 @@ exactly.
   into each other's branches.
 - After a merge, check that every `Closes` issue is closed; if not, close it by
   hand with a link to the PR.
-- Keep `main` green: do not merge a PR whose `check` workflow fails.
+- Keep `main` green: do not merge a PR whose `check` workflow fails. When a
+  platform suite fails on `main` after a merge, fix or revert that first.
 - Do not push to `main` directly and do not rewrite published history of other
   people's branches.
 
@@ -61,6 +62,13 @@ exactly.
   generated files). CI fails when `npm run format:check` does.
 - `npm run check` (build + full test suite). The CI runs it on Windows with
   Node.js 26; native PE tests only run on Windows, ELF tests on Linux.
+- CI on a pull request runs `check`, `program corpus`, `formal-verification`
+  and `pages`. The platform suites (`native-platforms`: arm64, macOS, Linux
+  distributions, BSD; `self-hosting`) run on `main` after the merge, on the
+  last commit of a burst of merges, and on a pull request only with the
+  `full-ci` label. Add `full-ci` when a change touches code generation or the
+  runtime of a target other than linux-x64 and win32-x64, the loaders,
+  self-hosting or packaging (#353).
 - `npm run compare` when runtime behaviour visible to programs changes.
 - Add tests next to the existing ones in `tests/` (`*.test.ts`). Prefer
   `runOnHost` with the Node.js oracle (`runOracle`) so the same test runs on

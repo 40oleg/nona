@@ -37,6 +37,38 @@ console.log(e.eventNames().map(String).join(),e.listenerCount(key));
 `,
     ],
     [
+        "once and prependOnceListener go through overridden on and prependListener",
+        `
+class Flow extends EventEmitter{
+ constructor(){super();this.seen=[];this.flowing=false;}
+ on(n,f){const r=super.on(n,f);this.seen.push('on:'+String(n));if(n==='data'&&!this.flowing){this.flowing=true;Promise.resolve().then(()=>this.emit('data',1));}return r;}
+ prependListener(n,f){this.seen.push('prepend:'+String(n));return super.prependListener(n,f);}
+}
+const e=new Flow(),key=Symbol('k');
+console.log(e.once('data',x=>console.log('data',x,e.listenerCount('data')))===e);
+e.prependOnceListener(key,x=>console.log('key',x));e.emit(key,2);e.emit(key,3);
+console.log(e.seen.join('|'),e.listenerCount(key));
+`,
+    ],
+    [
+        "emitter methods mixed into a function, an object and called on plain objects",
+        `
+const copy=t=>{for(const k of Object.getOwnPropertyNames(EventEmitter.prototype))Object.defineProperty(t,k,Object.getOwnPropertyDescriptor(EventEmitter.prototype,k));return t;};
+const f=copy(function app(){}), o=copy({}), out=[];
+for(const t of [f,o]){
+const h=x=>out.push('h'+x);
+console.log(t.on('x',h)===t,t.once('x',x=>out.push('o'+x))===t,t.emit('x',1),t.emit('x',2),out.join());
+console.log(t.listenerCount('x'),t.eventNames().join(),t.getMaxListeners(),t.removeListener('x',h)===t,t.emit('x',3),t.listeners('x').length);
+console.log(t.removeAllListeners()===t,t.eventNames().length,t.emit('nothing'));
+try{t.emit('error',new Error('boom'));}catch(e){console.log(e.message);}
+out.length=0;
+}
+const p={},call=EventEmitter.prototype;
+console.log(call.on.call(p,'a',()=>out.push('a'))===p,call.prependListener.call(p,'a',()=>out.push('b'))===p,call.emit.call(p,'a'),out.join(),call.listenerCount.call(p,'a'),call.listeners.call(p,'a').length,call.rawListeners.call(p,'a').length,call.eventNames.call(p).join());
+console.log(call.removeAllListeners.call({},'a') !== undefined,call.listenerCount.call({},'zz'),call.emit.call({},'zz'));
+`,
+    ],
+    [
         "meta events, duplicate removal and snapshots",
         `
 const e=new EventEmitter(),out=[];

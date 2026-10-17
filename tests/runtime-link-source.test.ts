@@ -74,14 +74,21 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
             { ...none, regexp: true, unicodeProperties: true },
             source,
         );
-    for (const source of [
-        "s.normalize()",
-        "a.localeCompare(b)",
-        's["normalize"]()',
-    ])
+    for (const source of ["s.normalize()", 's["normalize"]()'])
         assert.deepEqual(
             usage(source),
             { ...none, unicodeNormalization: true },
+            source,
+        );
+    // localeCompare and Intl reach the collator of the Intl prelude.
+    for (const source of ["a.localeCompare(b)", "new Intl.Collator()"])
+        assert.deepEqual(
+            usage(source),
+            {
+                ...none,
+                unicodeNormalization: true,
+                preludes: { ...none.preludes, intl: true },
+            },
             source,
         );
     // Every source lexed inside one collection counts; nested collections report to the outer one.
@@ -132,6 +139,7 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked("new WeakRef(o).deref()"), "weakRef");
     assert.equal(linked("o.deref()"), "");
     assert.equal(linked("s.substr(1)"), "annexB");
+    assert.equal(linked("n.toLocaleString()"), "intl");
     assert.equal(linked('s.anchor("x")', "d.toGMTString()"), "annexB");
     assert.equal(linked("performance.now()"), "timers");
     assert.equal(linked("Object.keys(globalThis)"), "timers");

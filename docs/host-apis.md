@@ -41,6 +41,10 @@ native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## Internationalization (`Intl`)
+
+Nona has its own `Intl` for the `en`/`en-US` locale (`NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` delegate to it. Other locales fall back to `en-US`; the time zone is UTC. It is linked only when a program names one of these. See [intl](intl.md).
+
 ## Paths (`node:path`)
 
 `node:path` and `path` provide Node.js 26 path manipulation without filesystem
@@ -114,6 +118,8 @@ The default export and named `EventEmitter` export are the same constructor.
 - Listener registration: `on`/`addListener`, `once`, `prependListener` and
   `prependOnceListener`. Dispatch is synchronous, preserves registration order,
   binds `this` to the emitter and snapshots listeners before calling them.
+  As in Node.js, `once` and `prependOnceListener` register their wrapper
+  through `this.on` and `this.prependListener`, so subclass overrides see it.
 - Listener removal: `off`/`removeListener` removes the most recently registered
   matching listener; `removeAllListeners` supports one event or every event.
   `newListener` and `removeListener` notifications expose original once listeners.
@@ -256,6 +262,71 @@ Stream constructors and process standard I/O are initialized on first use. Readi
 
 Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
 
+## zlib
+
+`node:zlib`, `zlib` and `nona:zlib` are one module: Nona's own DEFLATE codec
+(RFC 1951) with zlib (RFC 1950) and gzip (RFC 1952) framing, Adler-32 and
+CRC-32. No zlib library, C code or DLL is bundled. The module exports the
+synchronous, callback and stream APIs of Node.js:
+
+- Synchronous: `deflateSync`, `inflateSync`, `gzipSync`, `gunzipSync`,
+  `deflateRawSync`, `inflateRawSync` and `unzipSync` take a string, Buffer,
+  TypedArray, DataView or ArrayBuffer and return a Buffer. `unzipSync` reads
+  either gzip or zlib framing.
+- Callback: `deflate`, `inflate`, `gzip`, `gunzip`, `deflateRaw`,
+  `inflateRaw` and `unzip` take the same input and call `callback(error,
+result)` asynchronously.
+- Streams: `createDeflate`, `createInflate`, `createGzip`, `createGunzip`,
+  `createDeflateRaw`, `createInflateRaw` and `createUnzip` return Transform
+  streams from the [stream module](#streams), and the classes `Deflate`,
+  `Inflate`, `Gzip`, `Gunzip`, `DeflateRaw`, `InflateRaw` and `Unzip` are
+  exported. They support `pipe`, `pipeline`, `for await`, `flush(kind,
+callback)`, `params(level, strategy, callback)`, `reset()`, `close()` and
+  `bytesWritten`.
+- `crc32(data[, value])` computes CRC-32 of a string or view, continuing from
+  `value` when it is given. Adler-32 is used internally and is not exported,
+  as in Node.js.
+
+Options, for every function and stream: `chunkSize` (at least 64, default 16384), `windowBits`
+(8–15; 0 on inflate reads the window size from the header; gzip rejects 8),
+`level` (-1–9), `memLevel` (1–9), `strategy` (`Z_DEFAULT_STRATEGY`,
+`Z_FILTERED`, `Z_HUFFMAN_ONLY`, `Z_RLE`, `Z_FIXED`), `dictionary` (for raw
+and zlib framing), `flush` and `finishFlush` (`Z_NO_FLUSH` to `Z_BLOCK`),
+`maxOutputLength` (inflate raises `ERR_BUFFER_TOO_LARGE` above it) and `info`
+(the result is `{ buffer, engine }`). Stream options such as `highWaterMark`
+are passed to the stream. Invalid option values raise `ERR_INVALID_ARG_TYPE`
+or `ERR_OUT_OF_RANGE` with Node.js's messages.
+
+`constants` has Node.js's names and values for the flush modes, return codes,
+levels, strategies, modes and window and memory limits. The `Z_*` names are
+also properties of the module, as in Node.js. `codes` maps each return code
+to its name and back.
+
+Corrupt or truncated input raises an `Error` with Node.js's message, `errno`
+and `code` (`Z_DATA_ERROR`, `Z_BUF_ERROR` or `Z_NEED_DICT`). The same input
+produces the same code and message as in Node.js in the tests, which compare
+the results with the Node.js oracle; the callback and stream forms emit the
+same error, the callback through `callback(error)` and streams through
+`'error'`.
+
+Limitations:
+
+- Brotli is not provided: `brotliCompressSync`, `brotliDecompressSync`,
+  `brotliCompress`, `brotliDecompress`, `createBrotliCompress` and
+  `createBrotliDecompress` throw `ERR_NONA_UNSUPPORTED`. The `BROTLI_*`
+  constants exist for compatibility only. Brotli is tracked in a separate
+  issue.
+- The compressed bytes are valid DEFLATE, zlib and gzip, and the tests check
+  that Node.js decodes them, but they are not byte-identical to Node.js's zlib
+  output for the same options. Decompressing a stream gives the same bytes
+  from either implementation.
+- The `http` client does not decompress response bodies, as in Node.js. Pipe
+  a `Content-Encoding: gzip` response through `createGunzip()` (or
+  `createInflate()` for `deflate`) to decode it.
+
+A [runnable zlib sample](../site/samples/zlib.mjs) compresses and decompresses
+data with the sync, callback and stream APIs.
+
 ## URL
 
 The global `URL` and `URLSearchParams` (also exported by `node:url`) follow the
@@ -313,9 +384,11 @@ startup. Each is available as `node:<name>` and `<name>`.
   read the operating system's random source (`BCryptGenRandom` on Windows,
   `/dev/urandom` elsewhere). `createHash` (`md5`, `sha1`, `sha256`, `sha384`,
   `sha512`, with `update`, `digest` in any Buffer encoding and `copy`),
-  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. Ciphers, keys,
-  signatures, key derivation and `crypto.subtle` are not provided, and there
-  is no global `crypto`.
+  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. `hkdf` and
+  `hkdfSync` derive keys with HKDF (RFC 5869) and return an `ArrayBuffer`.
+  Ciphers, keys, signatures, other key derivation functions and `crypto.subtle` are not provided. The global
+  `crypto` is `webcrypto` (`getRandomValues` and `randomUUID`); a program
+  that names `crypto` links `node:crypto`, which is evaluated on first access.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`,
   `unescape`.
 - `node:timers`: the global timer functions. `node:timers/promises`:
@@ -323,10 +396,20 @@ startup. Each is available as `node:<name>` and `<name>`.
   an async iterator, and `scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` and
   `monitorEventLoopDelay` observe nothing.
-- `node:module`: `builtinModules` and `isBuiltin`. `createRequire` throws
-  `ERR_NONA_UNSUPPORTED`: modules are resolved when the program is built.
+- `node:module`: `builtinModules` and `isBuiltin`. `createRequire(filename)`
+  returns a `require` that resolves only the modules the program contains when
+  it is built; any other id throws `MODULE_NOT_FOUND` (see
+  [module.createRequire](npm.md#modulecreaterequire)).
 - `node:worker_threads`: `isMainThread` is `true`, `parentPort` and
   `workerData` are `null`; `Worker` throws `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: every function and `ChildProcess` throw
   `ERR_NONA_UNSUPPORTED`. The module exists so that packages which only
   mention it load.
+- `node:tls`, `node:http2` and `node:zlib` exist for the same reason: they
+  have the Node.js constants (`zlib.constants`, `zlib.codes`,
+  `http2.constants`, `tls.DEFAULT_MIN_VERSION`, …), and their functions and
+  classes throw `ERR_NONA_UNSUPPORTED`. `node:https` (Linux and Windows) has
+  `Agent` and `globalAgent`; its requests throw (see
+  [networking](network.md)).
+- `Object.prototype.toString.call(process)` is `[object process]`, as in
+  Node.js; libraries use it to detect Node.js.

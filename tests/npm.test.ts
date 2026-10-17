@@ -628,6 +628,26 @@ require('timers/promises').setTimeout(1, 'later').then(v => console.log(v));
         "main.js",
     ));
 
+test("HTTP clients load https, tls, http2 and zlib and detect process (issue #292)", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const http = require('http'), https = require('https'), tls = require('tls'), http2 = require('http2'), zlib = require('zlib');
+const { isBuiltin } = require('module');
+console.log(Object.prototype.toString.call(process), process[Symbol.toStringTag], JSON.stringify(Object.getOwnPropertyDescriptor(process, Symbol.toStringTag)));
+console.log(typeof https.request, typeof https.get, typeof https.createServer, https.globalAgent instanceof https.Agent, https.globalAgent instanceof http.Agent);
+const agent = new https.Agent({ keepAlive: true });
+console.log(agent.defaultPort, agent.protocol, agent.keepAlive, new http.Agent().defaultPort);
+console.log(typeof tls.connect, typeof tls.TLSSocket, tls.DEFAULT_MAX_VERSION);
+console.log(typeof http2.connect, http2.constants.HTTP2_HEADER_STATUS, http2.constants.HTTP2_HEADER_CONTENT_TYPE, http2.constants.HTTP2_METHOD_GET);
+console.log(zlib.constants.Z_SYNC_FLUSH, zlib.constants.BROTLI_OPERATION_FLUSH, zlib.constants.ZSTD_e_flush, zlib.constants.Z_MAX_CHUNK, zlib.codes.Z_DATA_ERROR, zlib.codes[-3]);
+console.log(typeof zlib.createGunzip, typeof zlib.createUnzip, typeof zlib.createBrotliDecompress, typeof zlib.gunzipSync);
+console.log(['https', 'node:tls', 'http2', 'zlib'].map(isBuiltin).join());
+`,
+        },
+        "main.js",
+    ));
+
 test("URL and URLSearchParams follow the URL Standard", () =>
     agree(
         {
@@ -670,6 +690,53 @@ try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
         },
         "main.js",
     ));
+
+test("packages require the zlib module", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const zlib = require('zlib'), node = require('node:zlib');
+console.log(zlib === node, typeof zlib.deflateSync, zlib.constants.Z_BEST_COMPRESSION, zlib.Z_SYNC_FLUSH, zlib.codes.Z_DATA_ERROR);
+console.log(zlib.inflateSync(zlib.deflateSync('compressed by Nona')).toString(), zlib.gunzipSync(zlib.gzipSync(Buffer.from('gzip'))).toString(), zlib.crc32('abc'));
+try { zlib.gunzipSync(Buffer.from('plain')); } catch (e) { console.log(e.code, e.errno, e.message); }
+`,
+        },
+        "main.js",
+    ));
+
+// Packages such as uuid read random bytes from the Web Crypto global without importing node:crypto (#296).
+test("the global crypto is node:crypto's webcrypto in ES modules and CommonJS", () => {
+    const uses = String.raw`
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const bytes = crypto.getRandomValues(new Uint8Array(16));
+export const report = [typeof crypto, typeof globalThis.crypto, bytes.length, bytes.constructor.name,
+  crypto.getRandomValues(new Uint8Array(16)) !== bytes, uuid.test(crypto.randomUUID()),
+  crypto.randomUUID() !== crypto.randomUUID()].join(' ');
+`;
+    agree(
+        {
+            "rng.mjs": uses,
+            "rng.cjs": uses.replace("export const report", "exports.report"),
+            "main.mjs": String.raw`
+import {webcrypto} from 'node:crypto';
+import {report} from './rng.mjs';
+import cjs from './rng.cjs';
+console.log(report);
+console.log(cjs.report);
+const d = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+console.log(typeof d.get, d.get.name, d.enumerable, d.configurable, globalThis.crypto === webcrypto, Object.keys(globalThis).includes('crypto'));
+`,
+        },
+        "main.mjs",
+    );
+    agree(
+        {
+            "main.js":
+                "console.log(typeof crypto, crypto.getRandomValues(new Uint32Array(3)).length, crypto.randomUUID().length);",
+        },
+        "main.js",
+    );
+});
 
 test("nona build <package directory> builds its command; --conditions selects exports", () => {
     const directory = mkdtempSync(join(tmpdir(), "nona-npm-cli-"));
@@ -748,4 +815,60 @@ test("import.meta has the url, filename and dirname of the module file", () =>
                 "export const meta = {filename: import.meta.filename};\n",
         },
         "dir with space~[x]/main.mjs",
+    ));
+
+test("module.createRequire requires files, JSON, packages and builtins from ES modules and CommonJS", () =>
+    agree(
+        {
+            "main.mjs": String.raw`
+import { createRequire } from 'node:module';
+import module from 'module';
+import { fromCjs } from './lib/loader.cjs';
+const require = createRequire(import.meta.url);
+const dep = require('./lib/dep.cjs'), data = require('./data.json'), pkg = require('pkg'), path = require('node:path'), events = require('events');
+console.log(dep.name, data.items.join(), pkg.version, path.basename('/a/b.txt'), typeof events, require('./lib/dep.cjs') === dep);
+console.log(require.resolve('./lib/dep.cjs') === fromCjs.resolved, require.resolve('node:fs'), require.resolve('fs'));
+console.log(fromCjs.dep === dep, fromCjs.json, fromCjs.pkg === pkg);
+console.log(module.createRequire === createRequire, module.createRequire(import.meta.url)('./data.json') === data);
+for (const id of ['./missing.cjs', 'missing-package']) {
+    try { require(id); console.log('found'); } catch (e) { console.log(e.code, e.message.split('\n')[0].includes(id)); }
+}
+try { createRequire('relative/path.js'); } catch (e) { console.log(e.code); }
+`,
+            "data.json": JSON.stringify({ items: [1, 2, 3] }),
+            "lib/dep.cjs": "exports.name = 'dep';",
+            "lib/inner.json": JSON.stringify({ inner: true }),
+            "lib/only-created.cjs": "module.exports = 'only-created';",
+            "lib/loader.cjs": String.raw`
+const { createRequire } = require('module'), { createRequire: makeRequire } = require('node:module');
+const req = createRequire(__filename);
+exports.fromCjs = { dep: req('./dep.cjs'), json: JSON.stringify(req('./inner.json')), pkg: req('pkg'), resolved: req.resolve('./dep.cjs') };
+console.log(makeRequire(__filename)('./only-created.cjs'), require('module').createRequire(__filename)('./only-created.cjs'));
+`,
+            "node_modules/pkg/package.json": JSON.stringify({
+                name: "pkg",
+                version: "1.2.3",
+                main: "main.js",
+            }),
+            "node_modules/pkg/main.js": "exports.version = '1.2.3';",
+        },
+        "main.mjs",
+    ));
+
+test("require() of an ES module returns its module.exports export or its namespace with __esModule", () =>
+    agree(
+        {
+            "main.cjs": String.raw`
+const ui = require('./ui.mjs'), plain = require('./plain.mjs'), named = require('./named.mjs');
+console.log(typeof ui, ui(2), ui.name);
+console.log(Object.keys(plain).join(), plain.__esModule, plain.default(), plain.x, Object.prototype.toString.call(plain));
+console.log(Object.keys(named).join(), '__esModule' in named);
+`,
+            "ui.mjs":
+                "export default function ui(n) { return n + 1; }\nexport { ui as 'module.exports' };\n",
+            "plain.mjs":
+                "export default function f() { return 'f'; }\nexport const x = 1;\n",
+            "named.mjs": "export const a = 1, b = 2;\n",
+        },
+        "main.cjs",
     ));

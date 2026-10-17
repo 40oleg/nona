@@ -364,8 +364,13 @@ __nonaPromiseDrainJobs = (function (drain) {
         return io !== null && io.active() > 0;
     }
     __nonaRegexpVm.hasPendingNetworkIO = networkAlive;
+    // The poller fires socket inactivity timeouts only when they are due
+    // before the earliest timer: Node.js runs both from one timer queue.
     function pollNetwork(timeout) {
-        var ready = io.poll(timeout);
+        var ready = io.poll(
+            timeout,
+            heap.length > 0 ? heap[0].when - origin : Infinity,
+        );
         for (var i = 0; i < ready; i++) {
             try {
                 io.run(i);
