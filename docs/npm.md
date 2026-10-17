@@ -140,7 +140,8 @@ these modules exist mainly for packages (see
 | `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                                    |
 | `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                                          |
 | `node:https`, `node:tls`              | TLS 1.3 client: `https.request`, `get`, `Agent`, `tls.connect`; no server side (see [networking](network.md#security-limitations))                                                                                                                |
-| `node:http2`, `node:zlib`             | exist so that packages mentioning them load: the constants of Node.js (`zlib.constants`, `http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                                               |
+| `node:http2`                          | exist so that packages mentioning them load: the constants of Node.js (`http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                                                                 |
+| `node:zlib`                           | deflate, inflate, gzip and raw DEFLATE (sync, callback and stream APIs), `crc32`; Brotli functions throw `ERR_NONA_UNSUPPORTED` (see [host-apis](host-apis.md#zlib))                                                                              |
 
 A package that loads a module Nona does not provide (`dns`, `dgram`, `cluster`, …) fails to compile with `E_MODULE: Cannot resolve module`.
 
@@ -184,8 +185,8 @@ Function` or `eval` from strings built at run time fail when they do so:
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error,
   unless they have a way to turn the check off (see [yargs](#tested-packages)).
-- **Compression and TLS servers.** Responses with a `Content-Encoding` that
-  needs `zlib`, and `https.createServer` or `tls.createServer`, fail with
+- **Brotli and TLS servers.** Responses with `Content-Encoding: br`, and
+  `https.createServer` or `tls.createServer`, fail with
   `ERR_NONA_UNSUPPORTED`; the TLS client is TLS 1.3 only.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
