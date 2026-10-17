@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - `String.prototype.{replace,split,match,matchAll,search}` প্রিমিটিভ আর্গুমেন্টে Symbol-কী মেথড খোঁজে না (ES2025)।
 - Annex B-র call-expression অ্যাসাইনমেন্ট টার্গেট sloppy কোডে রানটাইমে ReferenceError ছোড়ে এবং strict কোডে early error (ES2022 web reality)।
 
-ES2020-তে রাখা হয়েছে (ব্যর্থতা `post` হিসেবে শ্রেণিবদ্ধ): class fields ও private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp-এর `v` ফ্ল্যাগ ও match indices, top-level await, এবং `postEs2020Features`-এর অন্যান্য ফিচার। বাকি জানা বিচ্যুতিগুলো প্রতিটি ক্যাটালগের জন্য `docs/history/pr5-es2020-remaining-work.md`-এ এবং রিলিজ অবস্থায় তালিকাভুক্ত।
+ES2020-তে রাখা হয়েছে (ব্যর্থতা `post` হিসেবে শ্রেণিবদ্ধ): class fields ও private methods, numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, RegExp-এর `v` ফ্ল্যাগ, top-level await, এবং `postEs2020Features`-এর অন্যান্য ফিচার। বাকি জানা বিচ্যুতিগুলো প্রতিটি ক্যাটালগের জন্য `docs/history/pr5-es2020-remaining-work.md`-এ এবং রিলিজ অবস্থায় তালিকাভুক্ত।
 
 ES2020 গেটের জন্য রানারে যোগ করা ফিচার (2026-09):
 

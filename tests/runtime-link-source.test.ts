@@ -136,6 +136,8 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('new AsyncResource("task")'), "asyncHooks");
     assert.equal(linked("setTimeout(f, 1)", "clearInterval(id)"), "timers");
     assert.equal(linked("a.at(-1)", 'Object.hasOwn(o, "x")'), "es2021");
+    assert.equal(linked("new WeakRef(o).deref()"), "weakRef");
+    assert.equal(linked("o.deref()"), "");
     assert.equal(linked("s.substr(1)"), "annexB");
     assert.equal(linked("n.toLocaleString()"), "intl");
     assert.equal(linked('s.anchor("x")', "d.toGMTString()"), "annexB");

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Runtime
+
+- `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
+
 ### Host APIs
 
 - `node:child_process` (`child_process`, `nona:child_process`): `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and `ChildProcess` with `pipe`/`inherit`/`ignore` stdio as `stream` streams on the event loop, `cwd`, `env`, `shell`, `timeout`, `kill` and the `spawn`/`exit`/`close`/`error` events. Windows uses `CreateProcessW` with pipes and `cmd.exe /d /s /c`; Linux uses `fork`/`execve`, `pipe2` and `pidfd`/`wait4` through raw system calls. `fork()`/IPC are not supported, and macOS, BSD and arm64 targets throw `ERR_NONA_UNSUPPORTED` ([#328](https://github.com/40oleg/nona/issues/328)). ([#303](https://github.com/40oleg/nona/issues/303))
@@ -38,6 +42,8 @@
 - **`node:fs` callbacks.** `readFile`, `writeFile`, `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename`, `copyFile` and `exists` run their synchronous function and call back on a later turn. ([#299](https://github.com/40oleg/nona/issues/299))
 - **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
 - **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
+
+- RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))
 
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
