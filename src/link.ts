@@ -9,7 +9,7 @@ export interface RuntimeLink {
     regexp: boolean;
     /** Unicode property tables for \p{…} and \P{…} in RegExp patterns. */
     unicodeProperties: boolean;
-    /** Unicode normalization tables for String.prototype.normalize and localeCompare. */
+    /** Unicode normalization tables for String.prototype.normalize, localeCompare and Intl.Collator. */
     unicodeNormalization: boolean;
     /** Optional JavaScript preludes (see preludeTriggers). */
     preludes: Record<OptionalPrelude, boolean>;
@@ -53,6 +53,7 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
     // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
@@ -104,6 +105,16 @@ export const preludeTriggers = {
         "queueMicrotask",
         "performance",
         "globalThis",
+    ],
+    // Nona's own Intl for the en locale (#300) and the locale-sensitive methods
+    // that delegate to it.
+    intl: [
+        "Intl",
+        "Segmenter",
+        "toLocaleString",
+        "toLocaleDateString",
+        "toLocaleTimeString",
+        "localeCompare",
     ],
     // The prelude also adds its methods to Array.prototype[Symbol.unscopables].
     es2021: [

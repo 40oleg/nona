@@ -2,7 +2,7 @@
 
 ## 范围
 
-Nona 面向规范性的 ECMA-262 第 11 版（2020 年 6 月）的语言和内置对象，适用于脚本和 ES 模块。ECMA-402 国际化、浏览器 API 和 Node.js API 属于其他规范；Nona 只提供[参考](/zh/reference/modules)中列出的宿主 API。完成度约定记录在 [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md) 中。
+Nona 面向规范性的 ECMA-262 第 11 版（2020 年 6 月）的语言和内置对象，适用于脚本和 ES 模块。ECMA-402 国际化、浏览器 API 和 Node.js API 属于其他规范；Nona 只提供[参考](/zh/reference/modules)中列出的宿主 API。完成度约定记录在 [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md) 中。 Nona 自带的 `Intl`（ECMA-402）只支持 `en`/`en-US` 区域；其他区域回退到它，时区为 UTC。
 
 每个版本都被描述为“ES2020，例外情况均有文档说明”，从不声称完全符合 ES2020。
 
@@ -63,6 +63,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `.at()`、`findLast`、`findLastIndex`、`Object.hasOwn`、`AggregateError`、`Promise.any`, `toSorted`, `toReversed`, `toSpliced`, `with`                | `at`、`findLast`、`findLastIndex`、`hasOwn`、`AggregateError`、`any`、`unscopables`                                                           |
 | Annex B 的 `escape`、`unescape`、`substr`、`setYear`、`toGMTString`、`RegExp.prototype.compile` 以及字符串的 HTML 方法（`anchor`、`big`、`link` 等） | 同名                                                                                                                                          |
 | 稳定的归并排序 `Array.prototype.sort`                                                                                                                | `sort`                                                                                                                                        |
+| Intl（仅 en/en-US，[docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md)）                                                           | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | 通过 Proxy 陷阱实现的 `Object.freeze`、`seal`、`isFrozen`、`isSealed`（对普通对象则使用原生版本）                                                    | 同名                                                                                                                                          |
 | `__defineGetter__`、`__defineSetter__`、`__lookupGetter__`、`__lookupSetter__`                                                                       | 同名                                                                                                                                          |
 | `ArrayBuffer`、`SharedArrayBuffer`、`DataView` 和类型化数组的二进制数据方法（`slice`、`subarray`、`sort` 等）                                        | 它们的构造器名称、`Atomics`、`TypedArray`（也随 `process`、`Buffer` 和 `TextEncoder` 链接）                                                   |

@@ -2,7 +2,7 @@
 
 ## পরিধি
 
-Nona স্ক্রিপ্ট ও ES মডিউলের জন্য ECMA-262-এর 11তম সংস্করণের (জুন 2020) নির্ধারক (normative) ভাষা ও বিল্ট-ইনকে লক্ষ্য করে। ECMA-402 আন্তর্জাতিকীকরণ, ব্রাউজার API ও Node.js API আলাদা স্পেসিফিকেশন; Nona কেবল [রেফারেন্সে](/bn/reference/modules) তালিকাভুক্ত হোস্ট API সরবরাহ করে। সম্পূর্ণতার চুক্তি রাখা আছে [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)-এ।
+Nona স্ক্রিপ্ট ও ES মডিউলের জন্য ECMA-262-এর 11তম সংস্করণের (জুন 2020) নির্ধারক (normative) ভাষা ও বিল্ট-ইনকে লক্ষ্য করে। ECMA-402 আন্তর্জাতিকীকরণ, ব্রাউজার API ও Node.js API আলাদা স্পেসিফিকেশন; Nona কেবল [রেফারেন্সে](/bn/reference/modules) তালিকাভুক্ত হোস্ট API সরবরাহ করে। সম্পূর্ণতার চুক্তি রাখা আছে [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)-এ। Nona-র নিজস্ব `Intl` (ECMA-402) কেবল `en`/`en-US` লোকেল জানে; অন্য লোকেল এতে ফিরে আসে, আর টাইম জোন UTC।
 
 একটি রিলিজকে বর্ণনা করা হয় «নথিভুক্ত ব্যতিক্রমসহ ES2020» হিসেবে, কখনোই পুরোপুরি মানানসই (fully conformant) ES2020 হিসেবে নয়।
 
@@ -63,6 +63,7 @@ JavaScript-এ লেখা বিল্ট-ইন লাইব্রেরি, 
 | `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`, `toSorted`, `toReversed`, `toSpliced`, `with`               | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
 | Annex B `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` এবং স্ট্রিংয়ের HTML মেথড (`anchor`, `big`, `link`, …) | একই নামগুলো                                                                                                                                   |
 | স্থিতিশীল merge `Array.prototype.sort`                                                                                                              | `sort`                                                                                                                                        |
+| Intl (শুধু en/en-US, [docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md))                                                         | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | Proxy ট্র্যাপের মাধ্যমে `Object.freeze`, `seal`, `isFrozen`, `isSealed` (সাধারণ অবজেক্টের জন্য নেটিভ সংস্করণ)                                       | একই নামগুলো                                                                                                                                   |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                      | একই নামগুলো                                                                                                                                   |
 | `ArrayBuffer`, `SharedArrayBuffer`, `DataView` ও typed array-এর বাইনারি ডেটা মেথড (`slice`, `subarray`, `sort`, …)                                  | তাদের কনস্ট্রাক্টরের নাম, `Atomics`, `TypedArray` (`process`, `Buffer` ও `TextEncoder`-এর সঙ্গেও লিঙ্ক হয়)                                   |

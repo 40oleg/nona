@@ -7,6 +7,7 @@ import { parse } from "../src/frontend/parser.js";
 import { bind } from "../src/frontend/binder.js";
 import { lower } from "../src/ir/lower.js";
 import { generate } from "../src/backend/x64/codegen.js";
+import { runOnHost } from "./helpers/host.js";
 import { linkHost } from "./helpers/program.js";
 
 const cases: [string, string][] = [
@@ -83,3 +84,63 @@ for (const [name, source] of cases)
         assert.equal(result.status, 0, result.stderr.toString());
         assert.equal(result.stdout.toString(), expected.stdout);
     });
+
+// V8 stack trace API with placeholder call sites (#298).
+const depdStyle = `
+function getStack() {
+    var limit = Error.stackTraceLimit;
+    var obj = {};
+    var prep = Error.prepareStackTrace;
+    Error.prepareStackTrace = function (o, stack) { return stack; };
+    Error.stackTraceLimit = Math.max(10, limit);
+    Error.captureStackTrace(obj);
+    var stack = obj.stack.slice(1);
+    Error.prepareStackTrace = prep;
+    Error.stackTraceLimit = limit;
+    return stack;
+}
+function callSiteLocation(site) {
+    return [site.getFileName(), site.getLineNumber(), site.getColumnNumber(), site.isEval(), site.getEvalOrigin(), site.getFunctionName()];
+}
+`;
+const stackCases: [string, string][] = [
+    [
+        "limit and function shape",
+        'console.log(Error.stackTraceLimit, typeof Error.captureStackTrace, Error.captureStackTrace.length);Error.stackTraceLimit=3;console.log(Error.stackTraceLimit);let d=Object.getOwnPropertyDescriptor(Error,"stackTraceLimit");console.log(d.writable,d.configurable);try{Error.captureStackTrace(1);}catch(e){console.log(e instanceof TypeError);}',
+    ],
+    [
+        "plain object and error header",
+        'let o={};Error.captureStackTrace(o);let d=Object.getOwnPropertyDescriptor(o,"stack");console.log(typeof o.stack,d.enumerable,d.configurable,Object.keys(o).length);let e=new TypeError("bad");Error.captureStackTrace(e);console.log(typeof e.stack,e.stack.split("\\n")[0]);',
+    ],
+    [
+        "prepareStackTrace receives call sites",
+        'Error.prepareStackTrace=(o,s)=>s;let t={};Error.captureStackTrace(t);console.log(Array.isArray(t.stack),t.stack.length>=3);let s=t.stack[0];for(const m of ["getThis","getTypeName","getFunction","getFunctionName","getMethodName","getFileName","getLineNumber","getColumnNumber","getEvalOrigin","isToplevel","isEval","isNative","isConstructor","isAsync","isPromiseAll","getPromiseIndex","getScriptNameOrSourceURL","toString"])console.log(m,typeof s[m]);Error.stackTraceLimit=0;let z={};Error.captureStackTrace(z);console.log(z.stack.length);',
+    ],
+    [
+        "depd style call site walk",
+        depdStyle +
+            "var stack = getStack();console.log(Array.isArray(stack), stack.length >= 2, typeof callSiteLocation(stack[1])[0], typeof Error.prepareStackTrace);",
+    ],
+];
+for (const [name, source] of stackCases)
+    test("Error stack API: " + name, () => {
+        const expected = runOracle(source);
+        const result = runOnHost(source);
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stderr.toString());
+        // The shape is deterministic; Node.js prints real locations for the rest.
+        if (name !== "depd style call site walk")
+            assert.equal(result.stdout, expected.stdout);
+    });
+
+test("Error stack API: placeholder frames", () => {
+    const source =
+        depdStyle +
+        "var s = getStack();console.log(s.length, JSON.stringify(callSiteLocation(s[1])), String(s[0]), Error.stackTraceLimit);";
+    const result = runOnHost(source);
+    assert.equal(result.status, 0, result.stderr.toString());
+    assert.equal(
+        result.stdout.trim(),
+        "9 [null,null,null,false,null,null] <anonymous> 10",
+    );
+});

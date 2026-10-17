@@ -16,11 +16,11 @@ export interface HostRun {
     stderr: string;
     error?: Error;
 }
-// A GC stress run collects at every allocation; a program that links the whole
-// runtime takes tens of seconds on a loaded CI runner, so it gets more time.
-function nativeTimeout(gcStress: boolean | undefined): number {
-    return gcStress ? 180_000 : 60_000;
-}
+// A run under gcStress collects on every allocation; initialising the stdio
+// streams alone takes most of a minute on a busy CI runner, so allow longer.
+const GC_STRESS_TIMEOUT_MS = 180_000;
+const TIMEOUT_MS = 60_000;
+
 /** Compile with the runtime prelude for the host's native target and run it. */
 export function runOnHost(
     source: string,
@@ -30,11 +30,9 @@ export function runOnHost(
         gcStress: options.gcStress,
         ...(options.realms ? { realms: options.realms } : {}),
     });
+    const timeout = options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS;
     if (process.platform !== "linux") {
-        const result = runNative(
-            linkHost(program),
-            nativeTimeout(options.gcStress),
-        );
+        const result = runNative(linkHost(program), timeout);
         return {
             status: result.status,
             stdout: result.stdout.toString(),
@@ -52,7 +50,7 @@ export function runOnHost(
         chmodSync(executable, 0o755);
         const result = spawnSync(executable, [], {
             encoding: "utf8",
-            timeout: nativeTimeout(options.gcStress),
+            timeout,
         });
         return {
             status: result.status,
@@ -90,7 +88,7 @@ export function runModulesOnHost(
         const result = spawnSync(executable, [], {
             cwd: directory,
             encoding: "utf8",
-            timeout: nativeTimeout(options.gcStress),
+            timeout: options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS,
             windowsHide: true,
         });
         const native: HostRun = {
@@ -101,11 +99,18 @@ export function runModulesOnHost(
         };
         if (options.oracleSource !== undefined)
             writeFileSync(join(directory, entry), options.oracleSource);
+        // The oracle may talk to servers that share a loaded CI runner (the
+        // TLS chain cases took over 10 s there), so it gets the native budget.
+        // A killed oracle would return truncated output: fail instead.
         const oracle = spawnSync(process.execPath, [join(directory, entry)], {
             cwd: directory,
             encoding: "utf8",
-            timeout: 10_000,
+            timeout: TIMEOUT_MS,
         });
+        if (oracle.error)
+            throw new Error(
+                `Node.js oracle failed: ${oracle.error.message}\n${oracle.stdout}${oracle.stderr}`,
+            );
         return { native, oracle: oracle.stdout };
     } finally {
         removeTemporaryDirectory(directory);

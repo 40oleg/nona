@@ -97,6 +97,9 @@ jobs:
                       test/built-ins/encodeURIComponent
                       test/built-ins/decodeURI
                       test/built-ins/decodeURIComponent
+                      test/intl402/Number/prototype
+                      test/intl402/String/prototype
+                      test/intl402/Date/prototype
             - run: npm run test262:smoke
     linux-native:
         runs-on: ubuntu-latest
