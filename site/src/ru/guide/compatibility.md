@@ -2,7 +2,7 @@
 
 ## Область действия
 
-Nona реализует язык и встроенные объекты нормативного ECMA-262 11-го издания (июнь 2020) для скриптов и ES-модулей. Интернационализация ECMA-402, API браузера и API Node.js — отдельные спецификации; Nona предоставляет только API хоста, перечисленные в [Справочнике](/ru/reference/modules). Контракт завершённости ведётся в [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md).
+Nona реализует язык и встроенные объекты нормативного ECMA-262 11-го издания (июнь 2020) для скриптов и ES-модулей. Интернационализация ECMA-402, API браузера и API Node.js — отдельные спецификации; Nona предоставляет только API хоста, перечисленные в [Справочнике](/ru/reference/modules). Контракт завершённости ведётся в [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md). Собственный `Intl` (ECMA-402) в Nona знает только локаль `en`/`en-US`; остальные локали заменяются ею, часовой пояс — UTC.
 
 Релиз описывается как «ES2020 с документированными исключениями» и никогда — как полностью соответствующий ES2020.
 
@@ -63,6 +63,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                           | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
 | `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` из Annex B и HTML-методы строк (`anchor`, `big`, `link`, …) | те же имена                                                                                                                                   |
 | Устойчивая сортировка слиянием `Array.prototype.sort`                                                                                            | `sort`                                                                                                                                        |
+| Intl (только en/en-US, [docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md))                                                    | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | `Object.freeze`, `seal`, `isFrozen`, `isSealed` через ловушки Proxy (для обычных объектов используются нативные версии)                          | те же имена                                                                                                                                   |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                   | те же имена                                                                                                                                   |
 | Методы двоичных данных `ArrayBuffer`, `SharedArrayBuffer`, `DataView` и типизированных массивов (`slice`, `subarray`, `sort`, …)                 | имена их конструкторов, `Atomics`, `TypedArray` (подключаются и с `process`, `Buffer` и `TextEncoder`)                                        |

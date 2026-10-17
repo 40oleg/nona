@@ -5,7 +5,7 @@ Esta página é uma tradução da página em inglês [Performance](/guide/perfor
 :::
 
 ::: warning
-A comparação atual com Node.js, Deno e Bun (2026-10-14) está na [página em inglês](/guide/performance#current-release-against-nodejs-deno-and-bun): o hello world inicia em 2,7 ms e tem 1,1 MB, e a maioria dos micro-benchmarks de arrays, objetos, strings e arrays tipados está no nível do Node.js. Abaixo, a tradução das medições da v0.7.0.
+A comparação atual com Node.js, Deno e Bun (2026-10-14) está na [página em inglês](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun): o hello world inicia em 2,7 ms e tem 1,1 MB, e a maioria dos micro-benchmarks de arrays, objetos, strings e arrays tipados está no nível do Node.js. Abaixo, a tradução das medições da v0.7.0.
 :::
 
 Medido em 2026-10-01 com o Nona `v0.7.0` (commit `b31c4d6`). Os scripts ficam em [`bench/`](https://github.com/40oleg/nona/blob/main/bench/); `node bench/run.mjs` reproduz todas as tabelas abaixo.

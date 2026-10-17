@@ -34,6 +34,7 @@ import { eventEmitterPreludeSource } from "../../runtime/event-emitter-source.js
 import { streamPreludeForTarget } from "../../runtime/stream-source.js";
 import { timersPreludeSource } from "../../runtime/timers-source.js";
 import { objectAnnexBPreludeSource } from "../../runtime/object-annexb-source.js";
+import { errorStackPreludeSource } from "../../runtime/error-stack-source.js";
 import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-source.js";
 import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
@@ -41,6 +42,7 @@ import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-sou
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
 import { weakRefPreludeSource } from "../../runtime/weakref-source.js";
 import { finalizationRegistryPreludeSource } from "../../runtime/finalization-registry-source.js";
+import { intlPreludeSource } from "../../runtime/intl-source.js";
 import { annexBBuiltinsPreludeSource } from "../../runtime/annexb-builtins-source.js";
 import { lex } from "../../frontend/lexer.js";
 import { parse } from "../../frontend/parser.js";
@@ -86,10 +88,13 @@ export function lowerRuntimePrelude(
             ["binaryData", binaryDataPreludeSource],
             [null, reflectPreludeSource],
             ["objectAnnexB", objectAnnexBPreludeSource],
+            ["errorStack", errorStackPreludeSource],
             ["arraySort", arraySortPreludeSource],
             ["objectIntegrity", objectIntegrityPreludeSource],
             ["annexB", annexBBuiltinsPreludeSource],
             ["es2021", es2021PreludeSource],
+            // After binaryData: it replaces BigInt.prototype.toLocaleString.
+            ["intl", linked.includes("intl") ? intlPreludeSource() : ""],
             [null, promiseSource],
             ["weakRef", weakRefPreludeSource],
             // Wraps the drain before timers does, so it sees every checkpoint.
