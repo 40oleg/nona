@@ -64,6 +64,33 @@ metadata (for example one copied to another machine) is accepted when
 `work/test262/.nona-test262-revision` contains the pinned commit hash; line
 terminator tests then read the files directly.
 
+## Array change-by-copy methods
+
+The `change-array-by-copy` tests are excluded by `post-es2020`, so the full
+audit does not run them. The `Array` methods `toSorted`, `toReversed`,
+`toSpliced` and `with` (and their `Symbol.unscopables` entries) are checked by
+running their directories explicitly against the pinned revision (Windows x64,
+#308; `TEST262_EXCLUDE_FEATURES` unset):
+
+```
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSorted
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toReversed
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSpliced
+node scripts/test262-smoke.mjs built-ins/Array/prototype/with
+node scripts/test262-smoke.mjs built-ins/Array/prototype/Symbol.unscopables
+```
+
+| Directory                                      | Passed / applicable | Remaining failures |
+| ---------------------------------------------- | ------------------- | ------------------ |
+| `built-ins/Array/prototype/toSorted`           | 21 / 21             | none               |
+| `built-ins/Array/prototype/toReversed`         | 17 / 17             | none               |
+| `built-ins/Array/prototype/toSpliced`          | 30 / 30             | none               |
+| `built-ins/Array/prototype/with`               | 21 / 21             | none               |
+| `built-ins/Array/prototype/Symbol.unscopables` | 5 / 5               | none               |
+
+The `%TypedArray%.prototype` variants (`toReversed`, `toSorted`, `with`) are not
+implemented; their tests stay excluded by `post-es2020`.
+
 ## Semantics newer than ES2020 in the pinned Test262
 
 The pinned Test262 (2026) sometimes asserts behaviour introduced after ES2020
