@@ -36,7 +36,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 | Array                                    | সমর্থিত | ES2020-এর সব মেথড, species, ফাঁকা স্থান (holes) ও খুব বড় দৈর্ঘ্য।                                                                                                                                             |
 | Date, JSON                               | সমর্থিত | UTC ও স্থানীয় সময়ে Date পার্সিং ও ফরম্যাটিং, reviver-সহ `JSON.parse`, replacer ও ইনডেন্টেশনসহ `JSON.stringify`।                                                                                              |
 | Map, Set, WeakMap, WeakSet               | সমর্থিত | weak কালেকশনের জন্য ephemeron সিমান্টিক্স।                                                                                                                                                                     |
-| ArrayBuffer, DataView, typed array       | সমর্থিত | BigInt অ্যারেসহ সব 11টি typed array টাইপ, detachment, species।                                                                                                                                                 |
+| ArrayBuffer, DataView, typed array       | সমর্থিত | BigInt অ্যারেসহ সব 11টি typed array টাইপ, detachment, species, রিসাইজযোগ্য ও transfer-যোগ্য ArrayBuffer, বৃদ্ধিযোগ্য SharedArrayBuffer, দৈর্ঘ্য অনুসরণকারী typed array ও DataView।                             |
 | SharedArrayBuffer, Atomics               | সমর্থিত | worker agent-সহ `Atomics.wait`/`notify` (Test262 ব্যবহার করে)।                                                                                                                                                 |
 | Proxy, Reflect                           | সমর্থিত | সব trap ও invariant।                                                                                                                                                                                           |
 | Promise                                  | সমর্থিত | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenable এবং আনহ্যান্ডেলড rejection রিপোর্টিং।                                                                                                        |
@@ -49,6 +49,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` ও `AggregateError`, `String.prototype.replaceAll`।
 - ES2022: class fields, private মেথড ও অ্যাক্সেসর, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` এবং Error `cause`।
 - ES2023: `findLast` ও `findLastIndex`।
+- ES2024: রিসাইজযোগ্য ArrayBuffer ও `transfer`, বৃদ্ধিযোগ্য SharedArrayBuffer, দৈর্ঘ্য অনুসরণকারী typed array ও DataView।
 
 যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
 

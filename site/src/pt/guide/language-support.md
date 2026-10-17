@@ -36,7 +36,7 @@ O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções docume
 | Array                                    | Suportado | Todos os métodos do ES2020, species, buracos e comprimentos muito grandes.                                                                                                                                                         |
 | Date, JSON                               | Suportado | Parsing e formatação de datas em UTC e no horário local, `JSON.parse` com reviver, `JSON.stringify` com replacer e indentação.                                                                                                     |
 | Map, Set, WeakMap, WeakSet               | Suportado | Semântica de efêmeros para coleções fracas.                                                                                                                                                                                        |
-| ArrayBuffer, DataView, typed arrays      | Suportado | Os 11 tipos de typed array, incluindo arrays BigInt, desanexação (detach), species.                                                                                                                                                |
+| ArrayBuffer, DataView, typed arrays      | Suportado | Os 11 tipos de typed array, incluindo arrays BigInt, desanexação (detach), species, ArrayBuffer redimensionável e transferível, SharedArrayBuffer expansível, typed arrays e DataViews que acompanham o comprimento.               |
 | SharedArrayBuffer, Atomics               | Suportado | Inclusive `Atomics.wait`/`notify` com agentes trabalhadores (usados pelo Test262).                                                                                                                                                 |
 | Proxy, Reflect                           | Suportado | Todas as traps e invariantes.                                                                                                                                                                                                      |
 | Promise                                  | Suportado | `all`, `allSettled`, `race`, `withResolvers`, `finally`, thenables e relato de rejeições não tratadas.                                                                                                                             |
@@ -49,6 +49,7 @@ A maioria dos recursos de edições posteriores não é suportada, entre eles `W
 - ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`.
 - ES2022: campos de classe, métodos e acessores privados, blocos estáticos, `#x in obj`, `.at()`, `Object.hasOwn` e `cause` em Error.
 - ES2023: `findLast` e `findLastIndex`.
+- ES2024: ArrayBuffer redimensionável e `transfer`, SharedArrayBuffer expansível, typed arrays e DataViews que acompanham o comprimento.
 
 Quando a revisão fixada do Test262 já verifica semântica mais nova para recursos do ES2020, o Nona segue o Test262; a página [Test262](/pt/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) lista esses casos.
 

@@ -72,7 +72,9 @@ const excludePathFilters = [
 // error cause, logical assignment, numeric separators, Object.hasOwn,
 // Promise.any, and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
-// non-extensible objects), and RegExp pattern modifiers.
+// non-extensible objects), resizable/transferable ArrayBuffers with
+// growable SharedArrayBuffers (resizable-arraybuffer, arraybuffer-transfer) and
+// RegExp pattern modifiers.
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
@@ -81,7 +83,6 @@ const postEs2020Features = [
     "Array.fromAsync",
     "array-grouping",
     "arbitrary-module-namespace-names",
-    "arraybuffer-transfer",
     "Atomics.pause",
     "Atomics.waitAsync",
     "change-array-by-copy",
@@ -111,7 +112,6 @@ const postEs2020Features = [
     "regexp-duplicate-named-groups",
     "regexp-match-indices",
     "regexp-v-flag",
-    "resizable-arraybuffer",
     "set-methods",
     "ShadowRealm",
     "source-phase-imports",

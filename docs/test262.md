@@ -134,8 +134,10 @@ Broader raw groups on the pinned revision have 72 pass / 26 fail for
 142 pass / 607 fail / 2 skip for `language/statements/for-of`. These groups
 include cases outside the implemented subset and cases added after ES2020;
 the raw counts are diagnostic, not ES2020 conformance percentages.
-`built-ins/Array/prototype/includes` has 26 pass / 4 fail / 0 skip;
-the failing cases use Proxy or resizable ArrayBuffers.
+`built-ins/Array/prototype/includes` has 27 pass / 3 fail / 0 skip; the
+three failing cases include `resizableArrayBufferUtils.js`, which builds its
+typed array subclasses with `new Function` (the documented `eval` exception),
+and pass with that helper replaced by class expressions.
 `built-ins/Math/pow` has 28 pass / 0 fail / 0 skip after adding the
 ES2020 Math constants.
 `built-ins/Math/min` and `built-ins/Math/max` each have 10 pass / 0 fail /
@@ -149,10 +151,10 @@ remaining cases depend on `eval` or BigInt.
 `built-ins/String/prototype/lastIndexOf` has 25 pass / 0 fail / 0 skip.
 `built-ins/String/fromCharCode` has 16 pass / 1 fail / 0 skip;
 the remaining case requires BigInt.
-`built-ins/Array/prototype/indexOf` has 193 pass / 8 fail / 0 skip, and
-`lastIndexOf` has 189 pass / 9 fail / 0 skip after adding global `isNaN`.
-The remaining cases use Date, RegExp, JSON, Proxy, resizable buffers/typed
-arrays, or `eval`.
+`built-ins/Array/prototype/indexOf` has 197 pass / 4 fail / 0 skip, and
+`lastIndexOf` has 195 pass / 3 fail / 0 skip. Every remaining case includes
+`resizableArrayBufferUtils.js` (the `eval` exception above); with the helper
+replaced by class expressions both directories pass completely.
 Global `isFinite` has 15 pass / 0 fail / 0 skip. Global `isNaN` has 14 pass /
 1 fail / 0 skip; the remaining case uses `Array.prototype.forEach` in its
 test harness body.
@@ -204,6 +206,10 @@ which have since been fixed. The repeat full Array run has 2640 pass,
 [the v0.4 deferral list](history/v0.4-array-deferred.json): 150 post-ES2020 API
 cases, 72 resizable-buffer cases, and 130 other future dependencies or
 the documented `eval` exception. The positive manifest passes 100/100.
+Since [#315](https://github.com/40oleg/nona/issues/315) the 82
+`resizable-arraybuffer` tests in `built-ins/Array` pass 11/82; the other 71
+include `resizableArrayBufferUtils.js` and are classified `eval` (they pass
+with the helper replaced by class expressions).
 
 After v0.4.0, the complete `built-ins/String/fromCodePoint` group passes
 11/11. One case is retained in the pinned smoke manifest; the manifest
@@ -316,3 +322,21 @@ examples pass 74/74 on Windows and Linux.
 search, functional replacement, replacement patterns, and custom
 `Symbol.replace` are covered. Positive smoke is 140/140; compatible
 examples pass 75/75 on Windows and Linux.
+
+Resizable and transferable ArrayBuffers and growable SharedArrayBuffers
+([#315](https://github.com/40oleg/nona/issues/315)) are supported, so
+`resizable-arraybuffer` and `arraybuffer-transfer` are no longer in
+`postEs2020Features`. With `TEST262_EXCLUDE_FEATURES=post-es2020`,
+`built-ins/ArrayBuffer` passes 192/192, `built-ins/SharedArrayBuffer` 104/104,
+`built-ins/DataView` 506/506 and `built-ins/Atomics` 272/272 (2 skips). The
+whole `built-ins/TypedArray` directory, without exclusions, passes 1304/1453:
+51 failures need later APIs (`toReversed`, `toSorted`, `with`), and 98 include
+`resizableArrayBufferUtils.js`, whose `subClass` helper creates
+`MyUint8Array`, `MyFloat32Array` and `MyBigInt64Array` with `new Function` from a
+string built at run time (the documented dynamic function exception;
+`scripts/test262-summary.mjs` classifies them `eval`). With that helper
+replaced by class expressions, all 304 tests that use the feature in
+`built-ins/Array`, `built-ins/TypedArray` and `built-ins/TypedArrayConstructors`
+pass except the 10 `TypedArray.prototype.with` tests. The Array
+`includes`, `indexOf`, `lastIndexOf`, `sort` and `toLocaleString` cases
+attributed to resizable buffers above are among them.

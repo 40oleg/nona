@@ -42,7 +42,7 @@
             "line": 240
         },
         "runtime/array-builtins.ts": {
-            "bytes": 99916,
+            "bytes": 99526,
             "line": 121
         },
         "runtime/bigint.ts": {
@@ -90,7 +90,7 @@
             "line": 79
         },
         "runtime/typed-array.ts": {
-            "bytes": 78543,
+            "bytes": 73293,
             "line": 98
         },
         "selfhost-adapters.ts": {
