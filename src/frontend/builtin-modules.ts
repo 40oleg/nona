@@ -1,6 +1,6 @@
 import type { ModuleHost } from "./modules.js";
 import { ffiModuleSource } from "../ffi.js";
-import { fsModuleSource } from "./fs-module.js";
+import { fsModuleSource, fsPromisesModuleSource } from "./fs-module.js";
 import { CompileError } from "../diagnostics.js";
 import { getTarget, type Target } from "../target.js";
 import { eventsModuleForTarget } from "./events-module.js";
@@ -19,6 +19,10 @@ import { httpModuleSource } from "./http-module.js";
 import { pathModuleSourceForTarget } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
+import { httpsModuleSource } from "./https-module.js";
+import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
+import { tlsModuleSource } from "./tls-module.js";
+import { x509ModuleSource, x509StoreModuleSource } from "./x509-module.js";
 import {
     nodeCompatModules,
     cryptoModuleSource,
@@ -121,6 +125,10 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:win32", () => win32ModuleSource],
     ["nona:fs", fsModuleSource],
     ["node:fs", fsModuleSource],
+    ...["node:fs/promises", "nona:fs/promises"].map(
+        (name) =>
+            [name, () => fsPromisesModuleSource] as [string, () => string],
+    ),
     ["node:events", eventsModuleForTarget],
     ["node:async_hooks", () => asyncHooksModuleSource],
     ["nona:async_hooks", () => asyncHooksModuleSource],
@@ -153,16 +161,24 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:internal/stream", () => networkStreamModuleSource],
     ["nona:internal/native", () => nativeModuleSource],
     ["nona:internal/commonjs", () => commonJsModuleSource],
+    ["nona:internal/tls-crypto", () => tlsCryptoModuleSource],
+    ["nona:internal/x509", () => x509ModuleSource],
+    ["nona:internal/x509-store", x509StoreModuleSource],
     ["node:crypto", cryptoModuleSource],
     ...nodeCompatModules.map(
         ([name, source]) => [name, () => source] as [string, () => string],
     ),
+    ["nona:zlib", () => aliasOf("node:zlib")],
     ["node:net", netModuleSource],
     ["nona:net", () => aliasOf("node:net")],
     ["node:child_process", childProcessModuleSource],
     ["nona:child_process", () => aliasOf("node:child_process")],
     ["node:http", () => httpModuleSource],
     ["nona:http", () => aliasOf("node:http")],
+    ["node:tls", () => tlsModuleSource],
+    ["nona:tls", () => aliasOf("node:tls")],
+    ["node:https", () => httpsModuleSource],
+    ["nona:https", () => aliasOf("node:https")],
 ]);
 
 export function isBuiltinModule(specifier: string): boolean {
@@ -186,9 +202,16 @@ function builtinInventory(
             continue;
         if (specifier.startsWith("nona:internal/")) continue;
         if (
-            ["node:net", "nona:net", "node:http", "nona:http"].includes(
-                specifier,
-            ) &&
+            [
+                "node:net",
+                "nona:net",
+                "node:http",
+                "nona:http",
+                "node:tls",
+                "nona:tls",
+                "node:https",
+                "nona:https",
+            ].includes(specifier) &&
             target !== "win32-x64" &&
             target !== "linux-x64"
         )

@@ -16,6 +16,28 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.repository }}-${{ github.head_ref || github.sha }}
     cancel-in-progress: true
 jobs:
+    route:
+        # Where the Windows jobs run: GitHub-hosted windows-latest, or the
+        # owner's self-hosted Windows runner when hosted Windows jobs already
+        # wait in the queue and that runner is online and idle. Forks always
+        # stay hosted (scripts/pick-runner.mjs, docs/ci-runners.md).
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+        outputs:
+            windows: ${{ steps.pick.outputs.runner }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts/pick-runner.mjs
+                  sparse-checkout-cone-mode: false
+            - id: pick
+              run: node scripts/pick-runner.mjs
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+                  TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     format:
         # Sources are formatted with Prettier (#250): npm run format fixes them.
         runs-on: ubuntu-latest
@@ -28,7 +50,8 @@ jobs:
             - run: npm ci
             - run: npm run format:check
     windows:
-        runs-on: windows-latest
+        needs: route
+        runs-on: ${{ fromJSON(needs.route.outputs.windows) }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -37,6 +60,8 @@ jobs:
                   cache: npm
             - run: npm ci
             - name: Record isolated Windows Node abort behavior
+              # It changes the Windows Error Reporting settings of the machine.
+              if: runner.environment == 'github-hosted'
               shell: pwsh
               run: ./scripts/process-abort-oracle.ps1
             - run: npm run check
@@ -72,6 +97,9 @@ jobs:
                       test/built-ins/encodeURIComponent
                       test/built-ins/decodeURI
                       test/built-ins/decodeURIComponent
+                      test/intl402/Number/prototype
+                      test/intl402/String/prototype
+                      test/intl402/Date/prototype
             - run: npm run test262:smoke
     linux-native:
         runs-on: ubuntu-latest

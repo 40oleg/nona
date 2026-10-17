@@ -65,6 +65,6 @@ Estos módulos existen sobre todo para los [paquetes npm](/reference/npm), que l
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`.
 - `node:timers`: las funciones de temporizador globales. `node:timers/promises`: `setTimeout`, `setImmediate` (ambos con un `AbortSignal`), `setInterval` como iterador asíncrono y `scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` y `monitorEventLoopDelay` no observan nada.
-- `node:module`: `builtinModules` e `isBuiltin`. `createRequire` lanza `ERR_NONA_UNSUPPORTED`: los módulos se resuelven al compilar el programa.
+- `node:module`: `builtinModules` e `isBuiltin`. `createRequire` devuelve un `require` que solo resuelve los módulos que el programa contiene al compilarse; cualquier otro identificador lanza `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` es `true`, `parentPort` y `workerData` son `null`; `Worker` lanza `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: `spawn`, `exec`, `execFile`, sus variantes síncronas y `ChildProcess` ejecutan otros programas en Windows y Linux (x64); `fork`, el IPC y los demás destinos lanzan `ERR_NONA_UNSUPPORTED`. Detalles en [Child processes](/reference/host-apis#child-processes).

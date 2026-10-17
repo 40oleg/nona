@@ -17,7 +17,7 @@ Nona 是一个 JavaScript 提前（ahead-of-time，AOT）编译器。它读取�
 
 ## Nona 不是什么
 
-- **不是 Node.js 的替代品。** npm 包会在构建程序时被编译进去（[npm 包](/reference/npm)），但只有 [Nona 实现的 Node.js API](/zh/reference/modules) 可用；需要其他 API（`zlib`、`https`）、`Intl` 或原生插件的包无法工作。浏览器 API 同样不可用。
+- **不是 Node.js 的替代品。** npm 包会在构建程序时被编译进去（[npm 包](/reference/npm)），但只有 [Nona 实现的 Node.js API](/zh/reference/modules) 可用；需要其他 API（`zlib`、`https`）或原生插件的包无法工作。浏览器 API 同样不可用。 `Intl` 只支持 `en`/`en-US` 区域（[兼容性](/zh/guide/compatibility)）。
 - **不是完整的 ES2020 实现。** Nona 实现了 ES2020，例外情况均有文档说明；参见[语言支持](/zh/guide/language-support)和[兼容性与限制](/zh/guide/compatibility)。
 - **不支持运行时代码生成。** `eval` 和 `Function` 需要在编译时已知的源码；运行时计算出的字符串会抛出 `EvalError`。
 - **计算速度不及 V8。** 没有 JIT 时，函数调用、闭包和内存分配比 V8 慢数倍到数十倍，长 Promise 链和 RegExp 匹配是最慢的地方（[性能](/zh/guide/performance)）。

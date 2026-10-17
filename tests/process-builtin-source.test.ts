@@ -452,6 +452,10 @@ for (const target of supportedNativeTargets)
             supported.includes("node:http"),
             target === "win32-x64" || target === "linux-x64",
         );
+        assert.equal(
+            supported.includes("node:tls"),
+            target === "win32-x64" || target === "linux-x64",
+        );
         assert.ok(!supported.some((path) => path.startsWith("nona:internal/")));
         assert.ok(supported.includes("nona:ffi"));
         assert.ok(supported.includes("node:process"));

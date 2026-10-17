@@ -10,18 +10,44 @@ on:
 
 permissions:
     contents: read
+    actions: read
 
 concurrency:
     # A pull request has one group (head_ref): a newer push cancels the older
-    # run. A push to main has one group per commit (sha), so the next merge
-    # does not cancel the check of the previous one (#42).
-    group: program-corpus-${{ github.event_name }}-${{ github.head_ref || github.sha }}
-    cancel-in-progress: true
+    # run. On main the group is the branch and nothing is cancelled: the
+    # running check finishes and a newer merge replaces the pending one, so a
+    # burst of merges is checked once, on its last commit (#353). check.yml
+    # still checks every commit of main (#42).
+    group: program-corpus-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+    route:
+        # Where the Windows job runs: GitHub-hosted windows-latest, or the
+        # owner's self-hosted Windows runner when hosted Windows jobs already
+        # wait in the queue and that runner is online and idle. Forks always
+        # stay hosted (scripts/pick-runner.mjs, docs/ci-runners.md).
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+        outputs:
+            windows: ${{ steps.pick.outputs.runner }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts/pick-runner.mjs
+                  sparse-checkout-cone-mode: false
+            - id: pick
+              run: node scripts/pick-runner.mjs
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+                  TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     programs:
         name: programs (${{ matrix.os }})
-        runs-on: ${{ matrix.os }}
+        needs: route
+        runs-on: ${{ matrix.os == 'windows-latest' && fromJSON(needs.route.outputs.windows) || matrix.os }}
         timeout-minutes: 60
         strategy:
             fail-fast: false

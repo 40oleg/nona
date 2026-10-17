@@ -357,7 +357,12 @@ const poller = {
     total() {
         return handleCount + immediates.length;
     },
-    poll(timeout) {
+    /**
+     * nextTimer: when the earliest timer is due, in performance.now() time.
+     * Expired socket deadlines not before nextTimer stay pending: the loop
+     * runs the due timers, then calls poll(0), which reports them.
+     */
+    poll(timeout, nextTimer = Infinity) {
         if (immediates.length > 0) timeout = 0;
         if (dirty.length > 0) {
             const list = dirty;
@@ -387,10 +392,14 @@ const poller = {
             readyEvents[count] = sys.readyEvents(i);
             count++;
         }
-        if (earliestDeadline <= loopNow) {
+        // A timer due first runs first, as in Node.js where socket timeouts are timers too.
+        if (earliestDeadline <= loopNow && earliestDeadline < nextTimer) {
             let next = Infinity;
             for (const handle of timed.values()) {
-                if (handle._deadline <= loopNow) {
+                if (
+                    handle._deadline <= loopNow &&
+                    handle._deadline < nextTimer
+                ) {
                     handle._deadline = 0;
                     timed.delete(handle);
                     readyHandles[count] = handle;
@@ -873,13 +882,18 @@ export class Socket extends Readable {
             if (timeout === 0) this.removeListener("timeout", callback);
             else this.once("timeout", callback);
         }
-        this._touch();
+        // The current time, not loopNow: a timer set just before with the same delay is due first.
+        if (this._timeout > 0 && !this._destroyed)
+            setDeadline(this, performance.now() + this._timeout);
+        else if (this._deadline !== 0) setDeadline(this, 0);
         return this;
     }
+    /** Activity: extends the inactivity deadline (never moves it earlier). */
     _touch() {
-        if (this._timeout > 0 && !this._destroyed)
-            setDeadline(this, loopNow + this._timeout);
-        else if (this._deadline !== 0) setDeadline(this, 0);
+        if (this._timeout > 0 && !this._destroyed) {
+            const deadline = loopNow + this._timeout;
+            if (deadline > this._deadline) setDeadline(this, deadline);
+        } else if (this._deadline !== 0) setDeadline(this, 0);
     }
     pause() {
         super.pause();

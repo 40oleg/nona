@@ -394,6 +394,8 @@ __nonaPromiseDrainJobs = (function (drain) {
     // Only one poller can block. With several, the others are polled without
     // waiting first and the blocking wait is cut into short slices, so that no
     // poller starves while another one sleeps.
+    // The pollers fire socket inactivity timeouts only when they are due
+    // before the earliest timer: Node.js runs both from one timer queue.
     function pollNetwork(timeout) {
         var live = [];
         for (var i = 0; i < pollers.length; i++)
@@ -408,6 +410,7 @@ __nonaPromiseDrainJobs = (function (drain) {
         for (var j = 0; j < live.length; j++) {
             var ready = live[j].poll(
                 j === live.length - 1 && !any ? timeout : 0,
+                heap.length > 0 ? heap[0].when - origin : Infinity,
             );
             if (ready > 0) {
                 any = true;

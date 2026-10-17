@@ -60,9 +60,18 @@ const FindFirstFileW = define(
 );
 const FindNextFileW = define("kernel32.dll", "FindNextFileW", "bool(ptr,buf)");
 const FindClose = define("kernel32.dll", "FindClose", "bool(ptr)");
+const DeviceIoControl = define(
+    "kernel32.dll",
+    "DeviceIoControl",
+    "bool(ptr,u32,ptr,u32,buf,u32,buf,ptr)",
+);
 const INVALID_HANDLE = -1,
     DIRECTORY = 0x10,
-    REPARSE_POINT = 0x400;
+    REPARSE_POINT = 0x400,
+    BACKUP_SEMANTICS = 0x02000000,
+    OPEN_REPARSE_POINT = 0x00200000,
+    SYMLINK_TAG = 0xa000000c,
+    MOUNT_POINT_TAG = 0xa0000003;
 function codeOf(error) {
     switch (error) {
         case 2:
@@ -117,6 +126,55 @@ function isDirectory(path) {
     return a !== null && (a & DIRECTORY) !== 0;
 }
 const counter = new Uint32Array(1);
+/** The target of a symbolic link or junction, or null for other files. */
+function linkTarget(path, throws = false) {
+    const handle = CreateFileW(
+        path,
+        0,
+        7,
+        null,
+        3,
+        BACKUP_SEMANTICS | OPEN_REPARSE_POINT,
+        null,
+    );
+    if (handle === INVALID_HANDLE) {
+        if (throws) error("readlink", path);
+        return null;
+    }
+    const data = new Uint8Array(16384),
+        view = new DataView(data.buffer);
+    try {
+        // FSCTL_GET_REPARSE_POINT fills a REPARSE_DATA_BUFFER.
+        if (
+            !DeviceIoControl(
+                handle,
+                0x000900a8,
+                null,
+                0,
+                data,
+                data.length,
+                counter,
+                null,
+            )
+        )
+            return null;
+    } finally {
+        CloseHandle(handle);
+    }
+    const tag = view.getUint32(0, true);
+    if (tag !== SYMLINK_TAG && tag !== MOUNT_POINT_TAG) return null;
+    const buffer = tag === SYMLINK_TAG ? 20 : 16,
+        offset = view.getUint16(8, true),
+        length = view.getUint16(10, true);
+    let value = "";
+    for (let i = 0; i < length; i += 2)
+        value += String.fromCharCode(view.getUint16(buffer + offset + i, true));
+    return value.startsWith("\\??\\UNC\\")
+        ? "\\\\" + value.slice(8)
+        : value.startsWith("\\??\\")
+          ? value.slice(4)
+          : value;
+}
 const sys = {
     separator: "\\",
     readAll(path) {
@@ -171,7 +229,7 @@ const sys = {
             CloseHandle(handle);
         }
     },
-    stat(path) {
+    stat(path, noFollow = false) {
         const a = attributes(path);
         if (a === null) {
             const code = codeOf(lastError());
@@ -185,8 +243,16 @@ const sys = {
             attributeView.getUint32(20, true) +
             attributeView.getUint32(24, true) * 4294967296;
         const directory = (a & DIRECTORY) !== 0;
-        const handle = CreateFileW(path, 0, 7, null, 3, 0x02000000, null);
-        if (handle === INVALID_HANDLE) error("stat", path);
+        const handle = CreateFileW(
+            path,
+            0,
+            7,
+            null,
+            3,
+            BACKUP_SEMANTICS | (noFollow ? OPEN_REPARSE_POINT : 0),
+            null,
+        );
+        if (handle === INVALID_HANDLE) error(noFollow ? "lstat" : "stat", path);
         const identity = new Uint8Array(52),
             identityView = new DataView(identity.buffer),
             fileId = new Uint8Array(24),
@@ -228,9 +294,17 @@ const sys = {
         };
     },
     lstat(path) {
-        const result = this.stat(path);
-        if (result && attributes(path) & REPARSE_POINT) result.kind = "link";
+        const result = this.stat(path, true);
+        if (result && attributes(path) & REPARSE_POINT && linkTarget(path)) {
+            result.kind = "link";
+            result.mode = 0o120666;
+        }
         return result;
+    },
+    readlink(path) {
+        const target = linkTarget(path, true);
+        if (target === null) fail("EINVAL", "readlink", path);
+        return target;
     },
     realpath(path) {
         const handle = CreateFileW(path, 0, 7, null, 3, 0x02000000, null);
