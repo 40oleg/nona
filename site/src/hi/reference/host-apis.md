@@ -67,4 +67,4 @@ complete supported API and limitations.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` और `monitorEventLoopDelay` कुछ भी नहीं देखते।
 - `node:module`: `builtinModules` और `isBuiltin`। `createRequire` एक `require` लौटाता है जो केवल वे मॉड्यूल रिज़ॉल्व करता है जो प्रोग्राम बनाते समय उसमें होते हैं; कोई भी अन्य आईडी `MODULE_NOT_FOUND` थ्रो करती है।
 - `node:worker_threads`: `isMainThread` `true` है, `parentPort` और `workerData` `null` हैं; `Worker` `ERR_NONA_UNSUPPORTED` थ्रो करता है।
-- `node:child_process`: हर फ़ंक्शन और `ChildProcess` `ERR_NONA_UNSUPPORTED` थ्रो करते हैं। यह मॉड्यूल इसलिए है कि जो पैकेज इसका सिर्फ़ ज़िक्र करते हैं, वे लोड हो सकें।
+- `node:child_process`: `spawn`, `exec`, `execFile`, उनके सिंक्रोनस रूप और `ChildProcess` Windows और Linux (x64) पर दूसरे प्रोग्राम चलाते हैं; `fork`, IPC और अन्य टारगेट `ERR_NONA_UNSUPPORTED` थ्रो करते हैं। विवरण: [Child processes](/reference/host-apis#child-processes)।

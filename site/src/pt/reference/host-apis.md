@@ -67,4 +67,4 @@ Estes módulos existem principalmente para [pacotes npm](/reference/npm), que os
 - `node:perf_hooks`: `performance`; `PerformanceObserver` e `monitorEventLoopDelay` não observam nada.
 - `node:module`: `builtinModules` e `isBuiltin`. `createRequire` devolve um `require` que resolve apenas os módulos que o programa contém ao ser compilado; qualquer outro identificador lança `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` é `true`, `parentPort` e `workerData` são `null`; `Worker` lança `ERR_NONA_UNSUPPORTED`.
-- `node:child_process`: todas as funções e `ChildProcess` lançam `ERR_NONA_UNSUPPORTED`. O módulo existe para que pacotes que apenas o mencionam sejam carregados.
+- `node:child_process`: `spawn`, `exec`, `execFile`, suas variantes síncronas e `ChildProcess` executam outros programas no Windows e no Linux (x64); `fork`, o IPC e os demais alvos lançam `ERR_NONA_UNSUPPORTED`. Detalhes em [Child processes](/reference/host-apis#child-processes).

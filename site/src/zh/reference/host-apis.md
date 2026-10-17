@@ -67,4 +67,4 @@ complete supported API and limitations.
 - `node:perf_hooks`：`performance`；`PerformanceObserver` 和 `monitorEventLoopDelay` 不观察任何内容。
 - `node:module`：`builtinModules` 和 `isBuiltin`。`createRequire` 返回的 `require` 只解析程序在构建时包含的模块；其他标识符抛出 `MODULE_NOT_FOUND`。
 - `node:worker_threads`：`isMainThread` 为 `true`，`parentPort` 和 `workerData` 为 `null`；`Worker` 抛出 `ERR_NONA_UNSUPPORTED`。
-- `node:child_process`：所有函数和 `ChildProcess` 都抛出 `ERR_NONA_UNSUPPORTED`。该模块的存在只是为了让仅提及它的包能够加载。
+- `node:child_process`：`spawn`、`exec`、`execFile`、它们的同步版本和 `ChildProcess` 可在 Windows 和 Linux (x64) 上运行其他程序；`fork`、IPC 和其他目标会抛出 `ERR_NONA_UNSUPPORTED`。详见 [Child processes](/reference/host-apis#child-processes)。
