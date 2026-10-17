@@ -13,10 +13,10 @@
 // With --timings-out the run also writes the duration of each file
 // (scripts/timing-reporter.mjs); scripts/test-timings.mjs merges those
 // reports into tests/timings.json.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { entryPattern } from "./run-suite.mjs";
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -99,14 +99,21 @@ function main(argv) {
         return 0;
     }
     console.log(`Shard ${index}/${count}: ${names.length} test files`);
+    // node --test without files would run every test it finds.
+    if (!names.length) return 0;
     const reporters = [];
     const timingsOut = option("--timings-out");
+    if (timingsOut)
+        mkdirSync(dirname(join(projectRoot, timingsOut)), { recursive: true });
     if (timingsOut)
         reporters.push(
             "--test-reporter=spec",
             "--test-reporter-destination=stdout",
+            // A file URL: on Windows an absolute path is not a valid specifier.
             "--test-reporter=" +
-                join(projectRoot, "scripts", "timing-reporter.mjs"),
+                pathToFileURL(
+                    join(projectRoot, "scripts", "timing-reporter.mjs"),
+                ).href,
             "--test-reporter-destination=" + timingsOut,
         );
     const result = spawnSync(

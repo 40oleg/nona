@@ -6,7 +6,7 @@
 //
 // CI uploads one report per Windows shard (artifact windows-test-timings-*);
 // refresh tests/timings.json from them when the shards drift apart.
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,7 +15,7 @@ const args = process.argv.slice(2),
     write = args.includes("--write"),
     files = args.filter((arg) => arg !== "--write");
 const merged = {};
-for (const file of files)
+for (const file of files.filter((file) => existsSync(file)))
     Object.assign(merged, JSON.parse(readFileSync(file, "utf8")).seconds);
 const sorted = Object.entries(merged).sort((a, b) => b[1] - a[1]);
 const total = sorted.reduce((sum, [, seconds]) => sum + seconds, 0);
