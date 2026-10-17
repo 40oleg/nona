@@ -1,29 +1,29 @@
 # 语言支持
 
-Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.12.0** 支持的内容。Test262 的数据来自最近一次完整审计（v0.8.0），使用 [Test262](/zh/reference/test262) 页面所述的固定版本。
+Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.16.0** 支持的内容。Test262 的数据来自最近一次完整审计（v0.8.0），使用 [Test262](/zh/reference/test262) 页面所述的固定版本。
 
 **支持**表示已实现，并在“说明”列所述的范围内由单元测试和 Test262 覆盖。带测试名称的详细特性矩阵见 [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)（俄文）。
 
 ## 语言
 
-| 领域                       | 状态     | 说明                                                                                                                                                                                                     |
-| -------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 词法语法和字面量           | 支持     | 十进制、十六进制、二进制、八进制和 BigInt 字面量，标识符和字符串中的 Unicode 转义，模板字面量。非严格脚本中的 Annex B 旧式八进制和类 HTML 注释。                                                         |
-| `var`、`let`、`const`、TDZ | 支持     | 提升、块级作用域、每次迭代的独立绑定，声明冲突作为早期错误。                                                                                                                                             |
-| 函数                       | 支持     | 声明和表达式、闭包、`arguments`（映射和非映射）、默认参数和剩余参数、解构参数、`this`、`new.target`、返回精确源码的 `Function.prototype.toString`。                                                      |
-| 箭头函数                   | 支持     | 词法 `this`、`arguments`、`new.target` 和 `super`；`async` 箭头函数。                                                                                                                                    |
-| 类                         | 支持     | 声明和表达式、构造函数、实例和静态方法及访问器、计算属性名、继承（包括继承内置对象和 `extends null`）、`super()` 和 `super.x`。ES2022 类元素：公有和私有字段、私有方法和访问器、静态块以及 `#x in obj`。 |
-| 解构、展开                 | 支持     | 声明、赋值、参数、`for-in`/`for-of` 目标；数组、对象、调用和 `new` 中的展开。                                                                                                                            |
-| 迭代器和生成器             | 支持     | 迭代器协议、`for-of`、生成器函数和方法、`yield*`、`return`/`throw`。                                                                                                                                     |
-| 异步函数                   | 支持     | 异步函数、箭头函数和方法、`await`、异步生成器和 `for await`，任务顺序符合 ES2020。                                                                                                                       |
-| 运算符                     | 支持     | 包括 `**`、可选链、`??`、`delete`、`in`、带 `Symbol.hasInstance` 的 `instanceof`、BigInt 算术和比较。                                                                                                    |
-| 控制流                     | 支持     | 所有语句、标签、带完成值的 `try`/`catch`/`finally`、`switch`、`debugger`（空操作）。                                                                                                                     |
-| 严格模式                   | 支持     | 指令序言、严格模式的 `this`、早期错误和运行时限制。                                                                                                                                                      |
-| `with`                     | 支持     | 仅限非严格脚本，支持 `Symbol.unscopables`。                                                                                                                                                              |
-| 尾调用优化                 | 支持     | 在严格模式代码中。                                                                                                                                                                                       |
-| 模块                       | 支持     | 各种形式的 `import`/`export`、循环依赖、实时绑定、命名空间对象、`import.meta`、对编译时已知模块的 `import()`。不支持顶层 `await`（ES2022）。                                                             |
-| `eval`、`Function`         | 部分支持 | 编译时已知的源码会被提前编译，并完整支持直接和间接 `eval` 的语义；运行时计算出的源码会抛出 `EvalError`。参见[兼容性](/zh/guide/compatibility#eval-and-function)。                                        |
-| Annex B                    | 支持     | 块内函数、`__proto__`、旧式 RegExp 语法、`escape`/`unescape`、String 的 HTML 方法等 Web 兼容语义。                                                                                                       |
+| 领域                       | 状态     | 说明                                                                                                                                                                                                          |
+| -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 词法语法和字面量           | 支持     | 十进制、十六进制、二进制、八进制和 BigInt 字面量，标识符和字符串中的 Unicode 转义，模板字面量。非严格脚本中的 Annex B 旧式八进制和类 HTML 注释。                                                              |
+| `var`、`let`、`const`、TDZ | 支持     | 提升、块级作用域、每次迭代的独立绑定，声明冲突作为早期错误。                                                                                                                                                  |
+| 函数                       | 支持     | 声明和表达式、闭包、`arguments`（映射和非映射）、默认参数和剩余参数、解构参数、`this`、`new.target`、返回精确源码的 `Function.prototype.toString`。                                                           |
+| 箭头函数                   | 支持     | 词法 `this`、`arguments`、`new.target` 和 `super`；`async` 箭头函数。                                                                                                                                         |
+| 类                         | 支持     | 声明和表达式、构造函数、实例和静态方法及访问器、计算属性名、继承（包括继承内置对象和 `extends null`）、`super()` 和 `super.x`。ES2022 类元素：公有和私有字段、私有方法和访问器、静态块以及 `#x in obj`。      |
+| 解构、展开                 | 支持     | 声明、赋值、参数、`for-in`/`for-of` 目标；数组、对象、调用和 `new` 中的展开。                                                                                                                                 |
+| 迭代器和生成器             | 支持     | 迭代器协议、`for-of`、生成器函数和方法、`yield*`、`return`/`throw`。                                                                                                                                          |
+| 异步函数                   | 支持     | 异步函数、箭头函数和方法、`await`、异步生成器和 `for await`，任务顺序符合 ES2020。                                                                                                                            |
+| 运算符                     | 支持     | 包括 `**`、可选链、`??`、`delete`、`in`、带 `Symbol.hasInstance` 的 `instanceof`、BigInt 算术和比较。                                                                                                         |
+| 控制流                     | 支持     | 所有语句、标签、带完成值的 `try`/`catch`/`finally`、`switch`、`debugger`（空操作）。                                                                                                                          |
+| 严格模式                   | 支持     | 指令序言、严格模式的 `this`、早期错误和运行时限制。                                                                                                                                                           |
+| `with`                     | 支持     | 仅限非严格脚本，支持 `Symbol.unscopables`。                                                                                                                                                                   |
+| 尾调用优化                 | 支持     | 在严格模式代码中。                                                                                                                                                                                            |
+| 模块                       | 支持     | 各种形式的 `import`/`export`、循环依赖、实时绑定、命名空间对象、`import.meta`、对编译时已知模块的 `import()`。顶层 `await`（ES2022）可在 ES 模块中使用，`import()` 会等待它；脚本和 CommonJS 文件仍然拒绝它。 |
+| `eval`、`Function`         | 部分支持 | 编译时已知的源码会被提前编译，并完整支持直接和间接 `eval` 的语义；运行时计算出的源码会抛出 `EvalError`。参见[兼容性](/zh/guide/compatibility#eval-and-function)。                                             |
+| Annex B                    | 支持     | 块内函数、`__proto__`、旧式 RegExp 语法、`escape`/`unescape`、String 的 HTML 方法等 Web 兼容语义。                                                                                                            |
 
 ## 内置对象
 
@@ -44,11 +44,12 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 
 ## ES2020 之后的特性
 
-更新版本中的大多数特性不受支持，其中包括 `WeakRef` 和 `FinalizationRegistry`、RegExp 的 `v` 标志和顶层 `await`。已支持的新增特性：
+更新版本中的大多数特性不受支持，其中包括 RegExp 的 `v` 标志和顶层 `await`。已支持的新增特性：
 
-- ES2021：数字分隔符、逻辑赋值（`&&=`、`||=`、`??=`）、`Promise.any` 和 `AggregateError`、`String.prototype.replaceAll`。
-- ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn` 和 Error 的 `cause`。
-- ES2023：`findLast` 和 `findLastIndex`。
+- ES2021：数字分隔符、逻辑赋值（`&&=`、`||=`、`??=`）、`Promise.any` 和 `AggregateError`、`String.prototype.replaceAll`、`WeakRef`、`FinalizationRegistry`。
+- ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn`、Error 的 `cause`，以及 RegExp 的 `d` 标志（匹配索引）。
+- ES2022：ES 模块中的顶层 `await`，包括异步模块的求值顺序、循环依赖和拒绝传播。
+- ES2023：`findLast` 和 `findLastIndex`，以及 `Array` 的复制式方法 `toSorted`、`toReversed`、`toSpliced` 和 `with`（不含 `%TypedArray%` 变体）。
 - ES2024：`String.prototype.isWellFormed` 和 `toWellFormed`。
 - ES2025：RegExp 模式修饰符 `(?i:…)`、`(?-i:…)` 和 `(?ims-ims:…)`，并带有规范规定的早期错误（重复或冲突的标志、`(?-:` 或缺少冒号时抛出 SyntaxError）。
 

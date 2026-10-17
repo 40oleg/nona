@@ -301,7 +301,10 @@ export interface FunctionIR {
     blocks: BlockIR[];
 }
 export interface FfiDeclarationIR {
+    /** The library (see ffi.ts); for a portable declaration, the key of `libraries`. */
     dll: string;
+    /** Libraries by operating system (`define({win32, linux, darwin}, ...)`); the compiler selects the target's. */
+    libraries?: Partial<Record<"win32" | "linux" | "darwin", string>>;
     name: string;
     signature: string;
     span: { start: number; end: number };

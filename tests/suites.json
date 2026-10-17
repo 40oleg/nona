@@ -22,7 +22,8 @@
                 "module-boundaries",
                 "lib-sources",
                 "intrinsics",
-                "source-budget"
+                "source-budget",
+                "top-level-await"
             ]
         },
         "path": {
@@ -95,6 +96,7 @@
                 "array-buffer",
                 "typed-array-fast-path",
                 "string-builtins",
+                "intl",
                 "simd",
                 "string-search",
                 "string-split",
@@ -109,14 +111,18 @@
                 "regexp-split",
                 "regexp-replace",
                 "regexp-match-all",
+                "regexp-match-indices",
                 "regexp-modifiers",
                 "map",
                 "set",
                 "weak-collections",
+                "weakref",
+                "finalization-registry",
                 "proxy",
                 "reflect",
                 "symbols",
                 "json",
+                "intl",
                 "uri",
                 "classes",
                 "class-fields",
@@ -199,6 +205,7 @@
                 "exponentiation-runtime",
                 "fast-paths",
                 "ffi",
+                "ffi-posix",
                 "finally",
                 "for-in",
                 "for-of",
@@ -235,6 +242,13 @@
                 "native-construction",
                 "net",
                 "net-native",
+                "tls",
+                "tls-crypto",
+                "tls-handshake",
+                "https",
+                "child-process",
+                "zlib",
+                "x509",
                 "new-target",
                 "nullish",
                 "number-builtins",
@@ -317,7 +331,9 @@
                 "print-asm",
                 "typeof-compare",
                 "call-overhead",
-                "console-streams"
+                "console-streams",
+                "zlib",
+                "pick-runner"
             ]
         }
     }

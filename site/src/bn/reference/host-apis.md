@@ -65,6 +65,6 @@ complete supported API and limitations.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`।
 - `node:timers`: গ্লোবাল টাইমার ফাংশন। `node:timers/promises`: `setTimeout`, `setImmediate` (দুটিই `AbortSignal` সহ), async ইটারেটর হিসেবে `setInterval`, এবং `scheduler.wait`/`yield`।
 - `node:perf_hooks`: `performance`; `PerformanceObserver` ও `monitorEventLoopDelay` কিছুই পর্যবেক্ষণ করে না।
-- `node:module`: `builtinModules` ও `isBuiltin`। `createRequire` `ERR_NONA_UNSUPPORTED` থ্রো করে: মডিউল প্রোগ্রাম বিল্ডের সময় রিজলভ হয়।
+- `node:module`: `builtinModules` ও `isBuiltin`। `createRequire` একটি `require` ফেরত দেয়, যা কেবল সেই মডিউলগুলো রিজলভ করে যেগুলো প্রোগ্রাম বিল্ডের সময় তাতে থাকে; অন্য যেকোনো আইডি `MODULE_NOT_FOUND` থ্রো করে।
 - `node:worker_threads`: `isMainThread` হলো `true`, `parentPort` ও `workerData` হলো `null`; `Worker` `ERR_NONA_UNSUPPORTED` থ্রো করে।
-- `node:child_process`: প্রতিটি ফাংশন ও `ChildProcess` `ERR_NONA_UNSUPPORTED` থ্রো করে। মডিউলটি আছে যাতে যেসব প্যাকেজ কেবল এর উল্লেখ করে সেগুলো লোড হয়।
+- `node:child_process`: `spawn`, `exec`, `execFile`, তাদের সিঙ্ক্রোনাস রূপ এবং `ChildProcess` Windows ও Linux (x64)-এ অন্য প্রোগ্রাম চালায়; `fork`, IPC ও অন্যান্য টার্গেট `ERR_NONA_UNSUPPORTED` থ্রো করে। বিস্তারিত: [Child processes](/reference/host-apis#child-processes)।
