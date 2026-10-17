@@ -49,3 +49,23 @@ export function weakRefNativeHelpers(): RuntimeBuilder {
     });
     return b;
 }
+
+/**
+ * The native part of FinalizationRegistry
+ * (src/lib/runtime/finalization-registry.js), linked only with its prelude,
+ * next to weakRefNativeHelpers.
+ *
+ * __nonaGcCount(): rt.gcCount, the number of collections so far, as a Number.
+ * The prelude scans its cells only when it has changed. Allocation-free.
+ */
+export function gcCountNativeHelper(): RuntimeBuilder {
+    const b = new RuntimeBuilder();
+    b.fn("rt.gcCountValue.code", 40, (a) => {
+        a.load("rax", { rip: "rt.gcCount" });
+        a.cvtsi2sd("xmm0", "rax");
+        a.mov("rax", 3);
+        a.store({ base: "rcx" }, "rax");
+        a.storesd({ base: "rcx", disp: 8 }, "xmm0");
+    });
+    return b;
+}

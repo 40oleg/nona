@@ -44,9 +44,9 @@
 
 ## ما بعد ES2020
 
-معظم ميزات الإصدارات اللاحقة غير مدعومة، ومنها `FinalizationRegistry` والعلَم `v` في RegExp و`await` في المستوى الأعلى. الإضافات المدعومة:
+معظم ميزات الإصدارات اللاحقة غير مدعومة، ومنها العلَم `v` في RegExp و`await` في المستوى الأعلى. الإضافات المدعومة:
 
-- ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`، و`WeakRef`.
+- ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`، و`WeakRef`، و`FinalizationRegistry`.
 - ES2022: حقول الأصناف، والتوابع والموصِّلات الخاصة، والكتل الساكنة، و`#x in obj`، و`.at()`، و`Object.hasOwn`، والسبب `cause` في Error، وعلم RegExp `d` مع فهارس المطابقة.
 - ES2023: `findLast` و`findLastIndex`، وكذلك طرق نسخ `Array` ‏`toSorted` و`toReversed` و`toSpliced` و`with` (دون متغيرات `%TypedArray%`).
 

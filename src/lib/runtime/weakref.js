@@ -23,6 +23,8 @@ __nonaPromiseDrainJobs = (function (drain) {
     var hostTarget =
         typeof __nonaWeakRefTarget === "function" ? __nonaWeakRefTarget : null;
     delete globalThis.__nonaWeakRefTarget;
+    // The FinalizationRegistry prelude, when linked, reads the cells too.
+    if (hostTarget) __nonaRegexpVm.weakRefTarget = hostTarget;
     // Absent when the prelude is evaluated by Node.js in source tests.
     var realmVm = Function.prototype.__nonaRealmVmInternal || function () {};
     function canBeHeldWeakly(value) {
