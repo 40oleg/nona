@@ -65,6 +65,6 @@ complete supported API and limitations.
 - `node:querystring`：`parse`/`decode`、`stringify`/`encode`、`escape`、`unescape`。
 - `node:timers`：全局定时器函数。`node:timers/promises`：`setTimeout`、`setImmediate`（均支持 `AbortSignal`）、作为异步迭代器的 `setInterval`，以及 `scheduler.wait`/`yield`。
 - `node:perf_hooks`：`performance`；`PerformanceObserver` 和 `monitorEventLoopDelay` 不观察任何内容。
-- `node:module`：`builtinModules` 和 `isBuiltin`。`createRequire` 抛出 `ERR_NONA_UNSUPPORTED`：模块在构建程序时解析。
+- `node:module`：`builtinModules` 和 `isBuiltin`。`createRequire` 返回的 `require` 只解析程序在构建时包含的模块；其他标识符抛出 `MODULE_NOT_FOUND`。
 - `node:worker_threads`：`isMainThread` 为 `true`，`parentPort` 和 `workerData` 为 `null`；`Worker` 抛出 `ERR_NONA_UNSUPPORTED`。
 - `node:child_process`：所有函数和 `ChildProcess` 都抛出 `ERR_NONA_UNSUPPORTED`。该模块的存在只是为了让仅提及它的包能够加载。

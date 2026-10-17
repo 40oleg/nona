@@ -45,8 +45,52 @@ function asyncModule(filename, module) {
     return error;
 }
 
+// Every CommonJS file of the program by file name: factory records are all
+// defined before the program's own code runs (see src/frontend/commonjs.ts).
+const records = new Map();
+
 export function define(filename, dirname, factory, table) {
-    return { filename, dirname, factory, table };
+    const record = { filename, dirname, factory, table };
+    if (!records.has(filename)) records.set(filename, record);
+    return record;
+}
+
+// The require tables of ES modules that call module.createRequire, by file
+// name: the literal requires through the functions it makes.
+const moduleTables = new Map();
+
+export function defineRequire(filename, table) {
+    if (!moduleTables.has(filename)) moduleTables.set(filename, table);
+}
+
+const interopNamespaces = new WeakMap();
+
+/**
+ * require() of an ES module, as in Node.js 22.12 and later: its export named
+ * "module.exports" when it has one; otherwise its namespace, which also has
+ * __esModule: true when it has a default export (for code compiled to
+ * CommonJS that checks __esModule).
+ */
+function requiredNamespace(namespace) {
+    if ("module.exports" in namespace) return namespace["module.exports"];
+    if (!("default" in namespace) || "__esModule" in namespace)
+        return namespace;
+    let object = interopNamespaces.get(namespace);
+    if (object === undefined) {
+        object = Object.create(null);
+        for (const key of [...Object.keys(namespace), "__esModule"].sort())
+            Object.defineProperty(
+                object,
+                key,
+                key === "__esModule"
+                    ? { value: true, enumerable: true }
+                    : { get: () => namespace[key], enumerable: true },
+            );
+        Object.defineProperty(object, Symbol.toStringTag, { value: "Module" });
+        Object.preventExtensions(object);
+        interopNamespaces.set(namespace, object);
+    }
+    return object;
 }
 
 function makeRequire(record, module) {
@@ -67,8 +111,9 @@ function makeRequire(record, module) {
         const target = entry[1]();
         if (entry[2] === 0) return load(target, module);
         // A builtin module's require() value is its default export (fs, events, path ...).
-        if (entry[2] === 2 && "default" in target) return target.default;
-        return target;
+        if (entry[2] === 2)
+            return "default" in target ? target.default : target;
+        return requiredNamespace(target);
     };
     require.resolve = function resolve(id) {
         if (typeof id !== "string") throw invalidArgument("request", id);
@@ -138,4 +183,132 @@ export function importDefault(record) {
 /** The program's entry when it is a CommonJS file. */
 export function runMain(record) {
     load(record, null, true);
+}
+
+const windowsPath = (path) => /^[A-Za-z]:[\\/]/.test(path);
+const relative = (id) => /^\.\.?([\\/]|$)/.test(id);
+const isAbsolute = (path) => path.startsWith("/") || windowsPath(path);
+
+/** path resolved against directory, with . and .. removed, in the directory's style. */
+function resolvePath(directory, path) {
+    const windows = windowsPath(directory);
+    const separator = windows ? "\\" : "/";
+    let root, rest;
+    if (isAbsolute(path)) {
+        root = windowsPath(path) ? path.slice(0, 3) : "/";
+        rest = path.slice(root.length);
+    } else {
+        root = windows ? directory.slice(0, 3) : "/";
+        rest = directory.slice(root.length) + "/" + path;
+    }
+    const parts = [];
+    for (const part of rest.split(windows ? /[\\/]/ : "/")) {
+        if (part === "" || part === ".") continue;
+        if (part === "..") parts.pop();
+        else parts.push(part);
+    }
+    return root.replace("/", separator) + parts.join(separator);
+}
+
+function fileUrlPath(url) {
+    let path = decodeURIComponent(
+        url.slice("file://".length).replace(/^[^/]*/, ""),
+    );
+    if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1).split("/").join("\\");
+    return path;
+}
+
+/** Entries of every require table of the program: by resolved file name, and builtins and packages by specifier. */
+function programModules() {
+    const byName = new Map(),
+        bySpecifier = new Map();
+    const tables = [...moduleTables.values()];
+    for (const record of records.values()) {
+        byName.set(record.filename, [record.filename, () => record, 0]);
+        tables.push(record.table);
+    }
+    for (const table of tables)
+        for (const [specifier, entry] of table) {
+            if (entry[1] === undefined) continue;
+            if (entry[2] !== 2 && !byName.has(entry[0]))
+                byName.set(entry[0], entry);
+            if (!relative(specifier) && !isAbsolute(specifier)) {
+                if (!bySpecifier.has(specifier))
+                    bySpecifier.set(specifier, entry);
+                if (entry[2] === 2) {
+                    const other = specifier.startsWith("node:")
+                        ? specifier.slice(5)
+                        : "node:" + specifier;
+                    if (!bySpecifier.has(other)) bySpecifier.set(other, entry);
+                }
+            }
+        }
+    return { byName, bySpecifier };
+}
+
+/**
+ * module.createRequire: a require function for a file. Modules are resolved
+ * when the program is compiled: the function finds what the file itself
+ * requires with a literal string through createRequire (its table, defined
+ * by the compiler) or, for a CommonJS file, through its own require. Other
+ * ids are looked up among the program's CommonJS files and the modules that
+ * some file of the program requires; anything else throws MODULE_NOT_FOUND,
+ * as a require(variable) does.
+ */
+export function createRequire(filename) {
+    let path = filename;
+    if (
+        path !== null &&
+        typeof path === "object" &&
+        typeof path.href === "string" &&
+        path.protocol === "file:"
+    )
+        path = path.href;
+    if (typeof path === "string" && path.startsWith("file:"))
+        path = fileUrlPath(path);
+    else if (typeof path !== "string" || !isAbsolute(path)) {
+        const error = new TypeError(
+            "The argument 'filename' must be a file URL object, file URL string, or absolute path string. Received " +
+                (typeof filename === "string"
+                    ? "'" + filename + "'"
+                    : String(filename)),
+        );
+        error.code = "ERR_INVALID_ARG_VALUE";
+        throw error;
+    }
+    const directory = /[\\/]$/.test(path) ? path : resolvePath(path, "..");
+    const own = moduleTables.get(path) || (records.get(path) || {}).table;
+    const table = {
+        get(id) {
+            const entry = own && own.get(id);
+            if (entry !== undefined) return entry;
+            const { byName, bySpecifier } = programModules();
+            if (!relative(id) && !isAbsolute(id)) return bySpecifier.get(id);
+            const base = resolvePath(directory, id),
+                separator = windowsPath(base) ? "\\" : "/";
+            for (const suffix of [
+                "",
+                ".js",
+                ".json",
+                ".cjs",
+                ".mjs",
+                separator + "index.js",
+                separator + "index.json",
+            ]) {
+                const entry = byName.get(base + suffix);
+                if (entry !== undefined) return entry;
+            }
+            return undefined;
+        },
+    };
+    const module = {
+        id: path,
+        filename: path,
+        exports: {},
+        loaded: false,
+        children: [],
+        paths: [],
+        parent: null,
+    };
+    return makeRequire({ filename: path, dirname: directory, table }, module);
 }

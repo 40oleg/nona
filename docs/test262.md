@@ -9,6 +9,8 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/tc39/test262.
 git -C work/test262 sparse-checkout set harness test/language/expressions/coalesce test/language/expressions/arrow-function test/language/expressions/array test/language/expressions/call test/language/expressions/new test/language/expressions/template-literal test/language/rest-parameters test/language/statements/function test/language/statements/for-in test/language/statements/for-of test/built-ins/Symbol test/built-ins/Array/prototype/includes test/built-ins/Array/prototype/pop test/built-ins/Math/pow test/built-ins/Math/min test/built-ins/Math/max test/built-ins/Math/abs test/built-ins/Math/sign test/built-ins/Math/sqrt test/built-ins/Math/trunc test/built-ins/Math/floor test/built-ins/Math/ceil test/built-ins/Math/round test/built-ins/String/prototype/includes test/built-ins/Number/isFinite test/built-ins/Number/isInteger test/built-ins/Number/isNaN test/built-ins/Number/isSafeInteger
 git -C work/test262 rev-parse HEAD
 git -C work/test262 sparse-checkout add test/built-ins/Math/imul test/built-ins/Math/clz32
+# optional: Intl (see docs/intl.md); intl402 tests also need the harness testIntl.js
+git -C work/test262 sparse-checkout add test/intl402
 npm ci
 npm run test262:smoke
 node scripts/test262-smoke.mjs language/expressions/coalesce

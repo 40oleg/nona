@@ -33,11 +33,12 @@ function validateRegExpPattern(pattern: string, flags: string): void {
  * String.prototype.match/matchAll/search with a string argument, so a program
  * whose sources never spell these names (as identifiers, property names or
  * inside string and template literals) cannot run the RegExp engine. The
- * normalization tables are reached only through normalize and localeCompare.
+ * normalization tables are reached only through normalize, localeCompare and
+ * Intl.Collator (number formatting through toLocaleString does not need them).
  */
 export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
-    normalizationNames = ["normalize", "localeCompare"];
+    normalizationNames = ["normalize", "localeCompare", "Intl", "Collator"];
 const unicodePropertyEscape = /\\[pP]\{/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.

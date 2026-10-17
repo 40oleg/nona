@@ -65,6 +65,6 @@ complete supported API and limitations.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`, `unescape`.
 - `node:timers`: глобальные функции таймеров. `node:timers/promises`: `setTimeout`, `setImmediate` (оба с `AbortSignal`), `setInterval` как асинхронный итератор и `scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` и `monitorEventLoopDelay` ничего не наблюдают.
-- `node:module`: `builtinModules` и `isBuiltin`. `createRequire` выбрасывает `ERR_NONA_UNSUPPORTED`: модули разрешаются при сборке программы.
+- `node:module`: `builtinModules` и `isBuiltin`. `createRequire` возвращает `require`, который разрешает только модули, содержащиеся в программе на момент сборки; любой другой идентификатор выбрасывает `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` равно `true`, `parentPort` и `workerData` равны `null`; `Worker` выбрасывает `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: все функции и `ChildProcess` выбрасывают `ERR_NONA_UNSUPPORTED`. Модуль существует, чтобы загружались пакеты, которые лишь упоминают его.

@@ -96,6 +96,7 @@
                 "array-buffer",
                 "typed-array-fast-path",
                 "string-builtins",
+                "intl",
                 "simd",
                 "string-search",
                 "string-split",
@@ -117,6 +118,7 @@
                 "reflect",
                 "symbols",
                 "json",
+                "intl",
                 "uri",
                 "classes",
                 "class-fields",
@@ -235,6 +237,12 @@
                 "native-construction",
                 "net",
                 "net-native",
+                "tls",
+                "tls-crypto",
+                "tls-handshake",
+                "https",
+                "zlib",
+                "x509",
                 "new-target",
                 "nullish",
                 "number-builtins",
@@ -317,7 +325,9 @@
                 "print-asm",
                 "typeof-compare",
                 "call-overhead",
-                "console-streams"
+                "console-streams",
+                "zlib",
+                "pick-runner"
             ]
         }
     }
