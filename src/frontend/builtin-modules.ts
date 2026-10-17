@@ -14,6 +14,7 @@ import {
 import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
 import { netModuleSource } from "./net-module.js";
+import { childProcessModuleSource } from "./child-process-module.js";
 import { httpModuleSource } from "./http-module.js";
 import { pathModuleSourceForTarget } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
@@ -170,6 +171,8 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:zlib", () => aliasOf("node:zlib")],
     ["node:net", netModuleSource],
     ["nona:net", () => aliasOf("node:net")],
+    ["node:child_process", childProcessModuleSource],
+    ["nona:child_process", () => aliasOf("node:child_process")],
     ["node:http", () => httpModuleSource],
     ["nona:http", () => aliasOf("node:http")],
     ["node:tls", () => tlsModuleSource],

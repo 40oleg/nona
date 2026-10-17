@@ -245,6 +245,7 @@
                 "tls-crypto",
                 "tls-handshake",
                 "https",
+                "child-process",
                 "zlib",
                 "x509",
                 "new-target",

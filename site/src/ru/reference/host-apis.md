@@ -67,4 +67,4 @@ complete supported API and limitations.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` и `monitorEventLoopDelay` ничего не наблюдают.
 - `node:module`: `builtinModules` и `isBuiltin`. `createRequire` возвращает `require`, который разрешает только модули, содержащиеся в программе на момент сборки; любой другой идентификатор выбрасывает `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` равно `true`, `parentPort` и `workerData` равны `null`; `Worker` выбрасывает `ERR_NONA_UNSUPPORTED`.
-- `node:child_process`: все функции и `ChildProcess` выбрасывают `ERR_NONA_UNSUPPORTED`. Модуль существует, чтобы загружались пакеты, которые лишь упоминают его.
+- `node:child_process`: `spawn`, `exec`, `execFile`, их синхронные варианты и `ChildProcess` запускают другие программы в Windows и Linux (x64); `fork`, IPC и остальные платформы выбрасывают `ERR_NONA_UNSUPPORTED`. Подробности: [Child processes](/reference/host-apis#child-processes).

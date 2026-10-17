@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.16.0 — 2026-10-17
+
+Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.
+
 ### Language
 
 - **ES2023 change-by-copy methods.** `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with` return a new array and leave the receiver unchanged; `toSorted` sorts with the built-in stable `sort`. Their `Symbol.unscopables` entries are added too. The methods are a prelude part linked only when a source names one of them. The Test262 directories `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables/change-array-by-copy.js` pass (94/94). ([#308](https://github.com/40oleg/nona/issues/308))
@@ -9,6 +13,8 @@
 ### Runtime
 
 - `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
+- `FinalizationRegistry` with `register`/`unregister` ([#305](https://github.com/40oleg/nona/issues/305)). Cleanup callbacks run as a host job from the event loop after a collection is seen at a checkpoint, never inside the collector, and pending cleanup does not keep the process alive. The runtime part is linked only when a program names `FinalizationRegistry`. `built-ins/FinalizationRegistry` passes 45/47 in Test262; the two failures need symbols as targets or tokens, which are rejected.
+- RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))
 
 ### Language
 
@@ -16,14 +22,13 @@
 
 ### Host APIs
 
+- `node:child_process` (`child_process`, `nona:child_process`): `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and `ChildProcess` with `pipe`/`inherit`/`ignore` stdio as `stream` streams on the event loop, `cwd`, `env`, `shell`, `timeout`, `kill` and the `spawn`/`exit`/`close`/`error` events. Windows uses `CreateProcessW` with pipes and `cmd.exe /d /s /c`; Linux uses `fork`/`execve`, `pipe2` and `pidfd`/`wait4` through raw system calls. `fork()`/IPC are not supported, and macOS, BSD and arm64 targets throw `ERR_NONA_UNSUPPORTED` ([#328](https://github.com/40oleg/nona/issues/328)). ([#303](https://github.com/40oleg/nona/issues/303))
 - **FFI on Linux and macOS.** `define` from `nona:ffi` calls shared library functions on linux-x64, linux-arm64, darwin-x64 and darwin-arm64: `define("libc.so.6", "strlen", "u64(str)")`, `define("/usr/lib/libSystem.B.dylib", "getpid", "i32()")`, any soname, path, dylib or framework binary. A Linux program that declares a library function becomes a dynamically linked executable (`PT_INTERP`, `DT_NEEDED`, `GLOB_DAT` relocations bound at start); a macOS program loads each library with `LC_LOAD_DYLIB` and binds the symbols through dyld. Programs without library declarations are byte-identical to before (static, libc-free on Linux; kernel startup on Intel macOS). The library argument may also be an object literal keyed by OS (`{ win32: "ucrtbase.dll", linux: "libm.so.6", darwin: "/usr/lib/libSystem.B.dylib" }`); a target without a key, a DLL name on a POSIX target, a `.so`/`.dylib` name on Windows and any library on BSD are `E_FFI_TARGET`. Calls follow the SysV AMD64 and AAPCS64 conventions, with Apple's packed stack arguments on darwin-arm64, for all signature types and up to 32 parameters; `lastError()` returns `errno` after a POSIX library call. See [docs/ffi.md](docs/ffi.md). ([#364](https://github.com/40oleg/nona/issues/364))
 
 ## v0.15.0 — 2026-10-17
 
 ### Runtime
 
-- `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262. Symbols are rejected as targets.
-- `FinalizationRegistry` with `register`/`unregister` ([#305](https://github.com/40oleg/nona/issues/305)). Cleanup callbacks run as a host job from the event loop after a collection is seen at a checkpoint, never inside the collector, and pending cleanup does not keep the process alive. The runtime part is linked only when a program names `FinalizationRegistry`. `built-ins/FinalizationRegistry` passes 45/47 in Test262; the two failures need symbols as targets or tokens, which are rejected.
 - **`Intl` for the `en` locale.** Nona's own `Intl` without ICU: `NumberFormat` (decimal, percent, currency, unit, compact, scientific and engineering notation, significant and fraction digits, rounding, `formatToParts`, `formatRange`), `DateTimeFormat` (`dateStyle`/`timeStyle` and component options, UTC and fixed offsets, `formatToParts`, `formatRange`), `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf` and `supportedValuesOf`, and `Number`/`BigInt`/`Date.prototype.toLocale*String` and `String.prototype.localeCompare` delegating to them. Only `en` and `en-US` are available; other locales fall back to `en-US` and `resolvedOptions().locale` says so. The part is linked when a program names `Intl` or a `toLocale*`/`localeCompare` method. [docs/intl.md](docs/intl.md) lists the supported options, the limitations and the Test262 `intl402` results. ([#300](https://github.com/40oleg/nona/issues/300))
 - `Error.captureStackTrace`, `Error.stackTraceLimit` and `Error.prepareStackTrace` (the V8 stack API that `depd`, `http-errors` and Express call at load time). Nona does not walk the stack, so `captureStackTrace` defines `stack` as the `name: message` header, or passes `prepareStackTrace` an array of placeholder CallSite objects with unknown locations. ([#298](https://github.com/40oleg/nona/issues/298))
 - `EventEmitter` methods work on a target whose own `_events` is `undefined` (the emitter prototype's descriptors copied onto a function or object, as Express does) and when called with `.call` on a plain object: `_events` is created lazily like Node.js, and the max-listeners check no longer calls `getMaxListeners()` on the target. ([#298](https://github.com/40oleg/nona/issues/298))
@@ -52,8 +57,6 @@
 - **`node:fs` callbacks.** `readFile`, `writeFile`, `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename`, `copyFile` and `exists` run their synchronous function and call back on a later turn. ([#299](https://github.com/40oleg/nona/issues/299))
 - **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
 - **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
-
-- RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))
 
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 

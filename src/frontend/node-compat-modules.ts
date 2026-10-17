@@ -2,15 +2,16 @@
  * Node.js builtin modules that npm packages commonly load and that Nona
  * provides in JavaScript (issue #249): `os`, `tty`, `util`, `url`, `assert`, `crypto`,
  * `querystring`, `timers`, `timers/promises`, `perf_hooks`, `module`,
- * `worker_threads` and `child_process`, and (issue #292) `http2`.
+ * `worker_threads` and (issue #292) `http2`.
  * `zlib` (issue #302) is a real implementation, not a stub. Their bodies are in src/lib/modules.
  *
  * They cover what libraries use at load time and in their common paths
  * (feature detection, `util.inherits`, `util.format`, `os.EOL`,
  * `tty.isatty`, `url.fileURLToPath`, ...). Functions that need a service
- * Nona does not have (child processes, worker threads, TLS, HTTP/2) exist and throw
+ * Nona does not have (worker threads, TLS, HTTP/2) exist and throw
  * ERR_NONA_UNSUPPORTED when called, so that a package that only mentions
- * them still loads.
+ * them still loads. `node:child_process` is not here: it has platform
+ * layers and lives in child-process-module.ts (other targets throw there too).
  */
 import {
     modulesOs,
@@ -25,7 +26,6 @@ import {
     modulesPerfHooks,
     modulesModule,
     modulesWorkerThreads,
-    modulesChildProcess,
     modulesCrypto,
     modulesZlib,
     modulesHttp2,
@@ -55,7 +55,6 @@ export const nodeCompatModules: readonly (readonly [string, string])[] = [
     ["node:perf_hooks", modulesPerfHooks],
     ["node:module", modulesModule],
     ["node:worker_threads", modulesWorkerThreads],
-    ["node:child_process", modulesChildProcess],
     ["node:zlib", modulesZlib],
     ["node:http2", modulesHttp2],
 ];
