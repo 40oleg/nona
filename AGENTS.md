@@ -73,6 +73,11 @@ exactly.
   pull request only when it changes `src/`, the Test262 runner, package files
   or `check.yml`, or has `full-ci` (#371). The label is read when the run
   starts: add it before pushing, or push again after adding it.
+- On a pull request, CI runs the test files without GC stress except those in
+  `tests/gc-stress.json`, and the program corpus once without it (#372); `main`
+  runs everything under GC stress. Add the `gc-stress` label (before pushing)
+  when a change touches the collector, GC roots, `rootedFn`, allocation or the
+  runtime's native code. Local `npm run check` keeps GC stress everywhere.
 - `npm run compare` when runtime behaviour visible to programs changes.
 - Add tests next to the existing ones in `tests/` (`*.test.ts`). Prefer
   `runOnHost` with the Node.js oracle (`runOracle`) so the same test runs on
