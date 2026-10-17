@@ -83,7 +83,7 @@ A program can still reach an omitted part through a name computed at run time, f
 
 - `process` and `node:fs` are available on all eight targets; HTTP, TCP, and the TLS 1.3 client and https client (`node:http`, `node:net`, `node:tls`, `node:https`) on win32-x64 and linux-x64 (macOS, the BSDs and arm64 are not supported yet for networking).
 - Windows executables use OS DLLs (including NTDLL for parent process metadata) and declared FFI imports; POSIX executables use native OS services.
-- FFI DLL calls require Windows; raw system calls use the kernel numbers of the selected Linux, Darwin or BSD target. Details: [Native platforms](/reference/native-platforms).
+- FFI calls DLLs on Windows and shared libraries (`.so`, `.dylib`) on Linux and macOS, with portable declarations keyed by OS; BSD targets have raw system calls only. Raw system calls use the kernel numbers of the selected Linux, Darwin or BSD target. Details: [Native platforms](/reference/native-platforms).
 
 ## Buffer
 

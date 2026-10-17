@@ -1,6 +1,7 @@
 import {
     currentNativeTarget,
     type Assembler,
+    type NativeArgumentKind,
     type Reg,
     type Xmm,
 } from "../backend/machine/context.js";
@@ -20,6 +21,9 @@ import {
     parseFfiSignature,
     ffiImportSymbol,
     ffiIntegerTypes,
+    ffiErrnoImport,
+    ffiErrnoSymbol,
+    isFfiLibraryImport,
     type FfiDeclaration,
     type FfiType,
 } from "../ffi.js";
@@ -27,6 +31,46 @@ import {
 const integerTypes = new Set<string>(ffiIntegerTypes);
 const gp: Reg[] = ["rcx", "rdx", "r8", "r9"];
 const xmm: Xmm[] = ["xmm0", "xmm1", "xmm2", "xmm3"];
+/** SysV AMD64 argument registers (Linux and macOS on x86-64). */
+const sysvGp: Reg[] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+const sysvXmm: Xmm[] = [
+    "xmm0",
+    "xmm1",
+    "xmm2",
+    "xmm3",
+    "xmm4",
+    "xmm5",
+    "xmm6",
+    "xmm7",
+];
+/**
+ * How a thunk reaches its import: the Win64 ABI (Windows, and the logical ABI
+ * of the runtime's own shims and system calls), the SysV AMD64 ABI, or the
+ * AAPCS64 bridge of the ARM64 assembler (callImport marshals the logical
+ * registers to x0-x7/d0-d7 and the native stack).
+ */
+type Convention = "win64" | "sysv" | "aapcs64";
+const isFloat = (type: FfiType) => type === "f32" || type === "f64";
+/** The argument kind the assembler's native call bridge needs (sizes matter on Apple ARM64). */
+function argumentKind(type: FfiType): NativeArgumentKind {
+    switch (type) {
+        case "f32":
+        case "f64":
+            return type;
+        case "i8":
+        case "u8":
+            return "i8";
+        case "i16":
+        case "u16":
+            return "i16";
+        case "i32":
+        case "u32":
+        case "bool":
+            return "i32";
+        default:
+            return "gp";
+    }
+}
 
 /**
  * Native thunks for nona:ffi declarations. Each declaration N gets:
@@ -64,9 +108,23 @@ export function emitFfi(
     // other target resolve to this stub (ENOSYS / NULL).
     if (prefix !== "ffi")
         b.fn(prefix + ".unavailable", 40, (a) => a.mov("rax", 0));
+    // Program declarations of shared library functions on Linux and macOS are
+    // called through the C ABI of the target; errno is read after each call.
+    const target = currentNativeTarget(),
+        errno = target === undefined ? undefined : ffiErrnoImport(target),
+        library = (d: FfiDeclaration) =>
+            prefix === "ffi" &&
+            errno !== undefined &&
+            isFfiLibraryImport({ dll: d.dll, symbol: ffiImportSymbol(d) });
+    if (declarations.some(library)) b.bundle.imports.push(errno!);
     declarations.forEach((declaration, index) => {
         const signature = parseFfiSignature(declaration.signature),
-            symbol = prefix + ffiImportSymbol(declaration).slice(3);
+            symbol = prefix + ffiImportSymbol(declaration).slice(3),
+            convention: Convention = !library(declaration)
+                ? "win64"
+                : target!.endsWith("-x64")
+                  ? "sysv"
+                  : "aapcs64";
         if (!imported.has(symbol)) {
             imported.add(symbol);
             b.bundle.imports.push({
@@ -104,6 +162,7 @@ export function emitFfi(
             symbol,
             signature.parameters,
             signature.result,
+            convention,
         );
     });
     return b;
@@ -233,6 +292,7 @@ function thunk(
     symbol: string,
     parameters: FfiType[],
     result: FfiType,
+    convention: Convention,
 ): void {
     const n = parameters.length;
     // Outgoing stack arguments (at least four for WideCharToMultiByte), then locals.
@@ -243,8 +303,12 @@ function thunk(
         RESULT = L + 24,
         RESULT_XMM = L + 32,
         ARGS = L + 40,
-        TEMPS = ARGS + 8 * n;
-    const frame = Math.ceil((TEMPS + 8 * n + 8) / 16) * 16 - 8;
+        TEMPS = ARGS + 8 * n,
+        // SysV: RSI, RDI and XMM6-XMM15 are volatile in the callee but preserved
+        // by the logical ABI of the thunk's caller.
+        SAVES = TEMPS + 8 * n,
+        saveBytes = convention === "sysv" ? 16 + 10 * 16 : 0;
+    const frame = Math.ceil((SAVES + saveBytes + 8) / 16) * 16 - 8;
     b.fn(name, frame, (a) => {
         a.store(slot(OUT), "rcx");
         a.store(slot(ARGC), "rdx");
@@ -341,6 +405,10 @@ function thunk(
             a.label(zero);
             a.mov("rax", 0);
             a.label(store);
+            // The C ABIs of Linux and macOS leave the upper bits of a narrow
+            // integer argument to the caller (Apple ARM64 requires the
+            // extension to 32 bits; a stack slot holds the extended value).
+            if (convention !== "win64") extendInteger(a, type);
             a.store(slot(ARGS + 8 * i), "rax");
             a.label(store + ".done");
         });
@@ -349,27 +417,44 @@ function thunk(
             if (type === "wstr") wideCopy(a, ARGS + 8 * i, TEMPS + 8 * i);
             if (type === "str") utf8Copy(a, ARGS + 8 * i, TEMPS + 8 * i);
         });
-        // Pass 3: Win64 argument registers and stack slots.
-        for (let i = 4; i < n; i++) {
-            a.load("rax", slot(ARGS + 8 * i));
-            a.store(slot(32 + 8 * (i - 4)), "rax");
+        if (convention === "sysv")
+            sysvCall(a, symbol, parameters, {
+                ARGS,
+                RESULT,
+                RESULT_XMM,
+                SAVES,
+            });
+        else {
+            // Pass 3: Win64 argument registers and stack slots (the ARM64
+            // assembler's callImport bridges them to AAPCS64).
+            for (let i = 4; i < n; i++) {
+                a.load("rax", slot(ARGS + 8 * i));
+                a.store(slot(32 + 8 * (i - 4)), "rax");
+            }
+            for (let i = 0; i < Math.min(4, n); i++) {
+                const type = parameters[i]!;
+                if (isFloat(type)) a.movsd(xmm[i]!, slot(ARGS + 8 * i));
+                else a.load(gp[i]!, slot(ARGS + 8 * i));
+            }
+            a.callImport(
+                symbol,
+                parameters.map((type) =>
+                    convention === "aapcs64"
+                        ? argumentKind(type)
+                        : isFloat(type)
+                          ? type
+                          : "gp",
+                ),
+            );
+            a.store(slot(RESULT), "rax");
+            a.storesd(slot(RESULT_XMM), "xmm0");
+            if (convention === "aapcs64") {
+                // errno, before any other library call changes it.
+                a.callImport(ffiErrnoSymbol, []);
+                a.load("rax", { base: "rax" }, 32);
+            } else a.callImport("GetLastError");
+            a.store({ rip: "rt.ffiLastError" }, "rax", 32);
         }
-        for (let i = 0; i < Math.min(4, n); i++) {
-            const type = parameters[i]!;
-            if (type === "f32" || type === "f64")
-                a.movsd(xmm[i]!, slot(ARGS + 8 * i));
-            else a.load(gp[i]!, slot(ARGS + 8 * i));
-        }
-        a.callImport(
-            symbol,
-            parameters.map((type) =>
-                type === "f32" || type === "f64" ? type : "gp",
-            ),
-        );
-        a.store(slot(RESULT), "rax");
-        a.storesd(slot(RESULT_XMM), "xmm0");
-        a.callImport("GetLastError");
-        a.store({ rip: "rt.ffiLastError" }, "rax", 32);
         parameters.forEach((type, i) => {
             if (type !== "wstr" && type !== "str") return;
             const skip = a.unique("free");
@@ -383,6 +468,88 @@ function thunk(
         });
         convertResult(a, result, OUT, RESULT, RESULT_XMM);
     });
+}
+
+/** Sign- or zero-extend the integer in RAX to 64 bits according to its C type. */
+function extendInteger(a: Assembler, type: FfiType): void {
+    const narrow: Partial<Record<FfiType, [number, boolean]>> = {
+        i8: [56, true],
+        i16: [48, true],
+        i32: [32, true],
+        bool: [32, true],
+        u8: [56, false],
+        u16: [48, false],
+        u32: [32, false],
+    };
+    const width = narrow[type];
+    if (!width) return;
+    a.shl("rax", width[0]);
+    if (width[1]) a.sar("rax", width[0]);
+    else a.shr("rax", width[0]);
+}
+
+/**
+ * Call a C function through the SysV AMD64 ABI: integer and pointer arguments
+ * in RDI, RSI, RDX, RCX, R8, R9, floating-point arguments in XMM0-XMM7, the
+ * rest on the stack in order; RSP is 16-byte aligned at the call (the
+ * runtime's own alignment depends on the platform entry) and AL holds the
+ * number of vector registers used, as variadic callees expect. The result and
+ * errno are stored into the thunk frame, which R11 addresses while RSP is
+ * realigned; the 128-byte red zone below the realigned RSP holds nothing of ours.
+ */
+function sysvCall(
+    a: Assembler,
+    symbol: string,
+    parameters: FfiType[],
+    at: { ARGS: number; RESULT: number; RESULT_XMM: number; SAVES: number },
+): void {
+    const registers: { index: number; register: Reg | Xmm }[] = [],
+        stack: number[] = [];
+    let gpUsed = 0,
+        fpUsed = 0;
+    parameters.forEach((type, index) => {
+        if (isFloat(type)) {
+            if (fpUsed < sysvXmm.length)
+                registers.push({ index, register: sysvXmm[fpUsed++]! });
+            else stack.push(index);
+        } else if (gpUsed < sysvGp.length)
+            registers.push({ index, register: sysvGp[gpUsed++]! });
+        else stack.push(index);
+    });
+    const outgoing = Math.ceil((8 * stack.length) / 16) * 16;
+    a.store(slot(at.SAVES), "rsi");
+    a.store(slot(at.SAVES + 8), "rdi");
+    for (let i = 6; i < 16; i++)
+        a.storeXmm128(slot(at.SAVES + 16 + 16 * (i - 6)), ("xmm" + i) as Xmm);
+    // R11 = the thunk frame; RSP = an aligned area holding the stack arguments
+    // and, above them, the frame pointer to restore.
+    a.mov("r11", "rsp");
+    a.sub("rsp", outgoing + 16);
+    a.and("rsp", -16);
+    a.store(slot(outgoing), "r11");
+    stack.forEach((index, position) => {
+        a.load("rax", { base: "r11", disp: at.ARGS + 8 * index });
+        a.store(slot(8 * position), "rax");
+    });
+    for (const { index, register } of registers) {
+        const source = { base: "r11" as const, disp: at.ARGS + 8 * index };
+        if (register.startsWith("xmm")) a.movsd(register as Xmm, source);
+        else a.load(register as Reg, source);
+    }
+    a.mov("rax", fpUsed);
+    a.callImport(symbol, parameters.map(argumentKind));
+    a.load("r11", slot(outgoing));
+    a.store({ base: "r11", disp: at.RESULT }, "rax");
+    a.storesd({ base: "r11", disp: at.RESULT_XMM }, "xmm0");
+    // errno, before any other library call changes it (RSP is still aligned).
+    a.callImport(ffiErrnoSymbol, []);
+    a.load("rax", { base: "rax" }, 32);
+    a.store({ rip: "rt.ffiLastError" }, "rax", 32);
+    a.load("rsp", slot(outgoing));
+    for (let i = 6; i < 16; i++)
+        a.loadXmm128(("xmm" + i) as Xmm, slot(at.SAVES + 16 + 16 * (i - 6)));
+    a.load("rsi", slot(at.SAVES));
+    a.load("rdi", slot(at.SAVES + 8));
 }
 
 function allocate(a: Assembler, bytes: Reg): void {

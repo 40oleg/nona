@@ -2,7 +2,7 @@
 
 Nona es un compilador ahead-of-time (AOT) para JavaScript. Lee un script o un grafo de módulos ES, lo comprueba, lo traduce a su propia representación intermedia, genera código máquina x86-64 o AArch64 y enlaza una salida PE32+, ELF64 o Mach-O64.
 
-El compilador está escrito en TypeScript. Se ejecuta sobre Node.js o como el ejecutable nativo `nona` publicado, que Nona construyó a partir del código fuente del propio compilador. Los programas que produce no necesitan ninguno de los dos: no contienen intérprete, ni V8, ni bytecode. Un ejecutable de Windows solo importa `KERNEL32.dll` (además de las DLL que el programa llama mediante [FFI](/es/reference/ffi)); un ejecutable de Linux hace llamadas al sistema directamente y no usa libc.
+El compilador está escrito en TypeScript. Se ejecuta sobre Node.js o como el ejecutable nativo `nona` publicado, que Nona construyó a partir del código fuente del propio compilador. Los programas que produce no necesitan ninguno de los dos: no contienen intérprete, ni V8, ni bytecode. Un ejecutable de Windows solo importa `KERNEL32.dll` (además de las DLL que el programa llama mediante [FFI](/es/reference/ffi)); un ejecutable de Linux hace llamadas al sistema directamente y no usa libc, salvo que declare funciones de bibliotecas compartidas mediante FFI, en cuyo caso enlaza esas bibliotecas.
 
 ## Qué obtienes
 

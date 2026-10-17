@@ -73,8 +73,9 @@ entry ABI; Intel images without imports retain direct kernel startup.
 Raw `nona:ffi` syscall declarations use the **target kernel's actual syscall
 number** (on Darwin, the BSD number without its class prefix). They are not
 translated from Linux x64 numbers. Kernel failures return negative `errno`.
-Windows DLL calls
-use the target CPU ABI. FFI callbacks and variadic signatures remain unsupported.
+Library declarations call DLLs on Windows and shared libraries on Linux and
+macOS through the target CPU's C ABI (see [FFI](ffi.md)); BSD targets have
+system calls only. FFI callbacks remain unsupported.
 GUI subsystem/resources remain supported on Windows x64.
 
 Windows ARM uses a separate runtime stack and native call/thread bridges.
