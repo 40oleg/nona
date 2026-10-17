@@ -6,6 +6,7 @@ import {
     preludeSet,
     preludeTriggers,
     reflectiveNames,
+    syntaxOnlyPreludes,
 } from "../link.js";
 import type { Token, TokenStream } from "./token.js";
 
@@ -32,11 +33,12 @@ function validateRegExpPattern(pattern: string, flags: string): void {
  * String.prototype.match/matchAll/search with a string argument, so a program
  * whose sources never spell these names (as identifiers, property names or
  * inside string and template literals) cannot run the RegExp engine. The
- * normalization tables are reached only through normalize and localeCompare.
+ * normalization tables are reached only through normalize, localeCompare and
+ * Intl.Collator (number formatting through toLocaleString does not need them).
  */
 export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
-    normalizationNames = ["normalize", "localeCompare"];
+    normalizationNames = ["normalize", "localeCompare", "Intl", "Collator"];
 const unicodePropertyEscape = /\\[pP]\{/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.
@@ -130,7 +132,10 @@ function recordPreludeName(name: string, inString: boolean): void {
             reflectiveNames.some((reflective) => name.includes(reflective)))
     ) {
         for (const prelude of optionalPreludes)
-            if (!unavailableReflectivePreludes.includes(prelude))
+            if (
+                !unavailableReflectivePreludes.includes(prelude) &&
+                !syntaxOnlyPreludes.includes(prelude)
+            )
                 linkPrelude(
                     prelude,
                     `${JSON.stringify(name)} can enumerate built-ins`,
@@ -709,7 +714,7 @@ export function lex(
                 i += codePoint().length;
             const flags = source.slice(flagStart, i);
             if (
-                !/^[gimsuy]*$/.test(flags) ||
+                !/^[dgimsuy]*$/.test(flags) ||
                 new Set(flags).size !== flags.length
             )
                 fail("Invalid regular expression flags", flagStart);

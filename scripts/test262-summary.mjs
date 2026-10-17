@@ -79,7 +79,7 @@ function classify(path) {
         .map((s) => s.trim());
     if (
         features.some((f) => post.includes(f)) ||
-        /\/top-level-await\/|separators|Promise\/any\//.test(path) ||
+        /separators|Promise\/any\//.test(path) ||
         /\/[dgimsuy]*v[dgimsuy]*[;,)\s]/.test(body)
     )
         return "post";

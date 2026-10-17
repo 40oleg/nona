@@ -59,7 +59,7 @@ console.log("héllo wörld 42".match(new RegExp("\\p{L}+", "gu")).join("|"));
 console.log("x-y-z".search("z"), "Привет мир".match(/\p{Script=Cyrillic}+/gu).length);
 console.log("é".normalize("NFC").length, ["b", "a", "ä"].sort((x, y) => x.localeCompare(y)).join(""));
 `;
-    const expected = "a[1]b[2]c[3]\n10 true\nhéllo|wörld\n4 2\n1 abä\n";
+    const expected = "a[1]b[2]c[3]\n10 true\nhéllo|wörld\n4 2\n1 aäb\n";
     assert.equal(run(source), expected);
     assert.equal(run(source, { fullRuntime: true }), expected);
 });

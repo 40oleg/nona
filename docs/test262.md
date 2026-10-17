@@ -9,6 +9,8 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/tc39/test262.
 git -C work/test262 sparse-checkout set harness test/language/expressions/coalesce test/language/expressions/arrow-function test/language/expressions/array test/language/expressions/call test/language/expressions/new test/language/expressions/template-literal test/language/rest-parameters test/language/statements/function test/language/statements/for-in test/language/statements/for-of test/built-ins/Symbol test/built-ins/Array/prototype/includes test/built-ins/Array/prototype/pop test/built-ins/Math/pow test/built-ins/Math/min test/built-ins/Math/max test/built-ins/Math/abs test/built-ins/Math/sign test/built-ins/Math/sqrt test/built-ins/Math/trunc test/built-ins/Math/floor test/built-ins/Math/ceil test/built-ins/Math/round test/built-ins/String/prototype/includes test/built-ins/Number/isFinite test/built-ins/Number/isInteger test/built-ins/Number/isNaN test/built-ins/Number/isSafeInteger
 git -C work/test262 rev-parse HEAD
 git -C work/test262 sparse-checkout add test/built-ins/Math/imul test/built-ins/Math/clz32
+# optional: Intl (see docs/intl.md); intl402 tests also need the harness testIntl.js
+git -C work/test262 sparse-checkout add test/intl402
 npm ci
 npm run test262:smoke
 node scripts/test262-smoke.mjs language/expressions/coalesce
@@ -62,6 +64,33 @@ metadata (for example one copied to another machine) is accepted when
 `work/test262/.nona-test262-revision` contains the pinned commit hash; line
 terminator tests then read the files directly.
 
+## Array change-by-copy methods
+
+The `change-array-by-copy` tests are excluded by `post-es2020`, so the full
+audit does not run them. The `Array` methods `toSorted`, `toReversed`,
+`toSpliced` and `with` (and their `Symbol.unscopables` entries) are checked by
+running their directories explicitly against the pinned revision (Windows x64,
+#308; `TEST262_EXCLUDE_FEATURES` unset):
+
+```
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSorted
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toReversed
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSpliced
+node scripts/test262-smoke.mjs built-ins/Array/prototype/with
+node scripts/test262-smoke.mjs built-ins/Array/prototype/Symbol.unscopables
+```
+
+| Directory                                      | Passed / applicable | Remaining failures |
+| ---------------------------------------------- | ------------------- | ------------------ |
+| `built-ins/Array/prototype/toSorted`           | 21 / 21             | none               |
+| `built-ins/Array/prototype/toReversed`         | 17 / 17             | none               |
+| `built-ins/Array/prototype/toSpliced`          | 30 / 30             | none               |
+| `built-ins/Array/prototype/with`               | 21 / 21             | none               |
+| `built-ins/Array/prototype/Symbol.unscopables` | 5 / 5               | none               |
+
+The `%TypedArray%.prototype` variants (`toReversed`, `toSorted`, `with`) are not
+implemented; their tests stay excluded by `post-es2020`.
+
 ## Semantics newer than ES2020 in the pinned Test262
 
 The pinned Test262 (2026) sometimes asserts behaviour introduced after ES2020
@@ -81,10 +110,49 @@ Following Test262:
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
-await, and the other features in `postEs2020Features`. Remaining known
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag,
+and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
-the release status.
+the release status. RegExp match indices (`d` flag, ES2022) are supported; see below.
+
+## RegExp match indices (ES2022, #307)
+
+The `d` flag, `RegExp.prototype.hasIndices` and the `indices` array of `exec`,
+`match` and `matchAll` results are implemented. The pinned Test262 directories
+pass as follows (runner: `TEST262_JOBS=2 node scripts/test262-smoke.mjs <dir>`
+on Windows x64; the table lists every failure in these directories):
+
+| Directory                                                                      | Result | Remaining failures                                               |
+| ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------- |
+| `built-ins/RegExp/match-indices`                                               | 14/14  | none                                                             |
+| `built-ins/RegExp/prototype/hasIndices`                                        | 8/8    | none                                                             |
+| `built-ins/RegExp/prototype/flags`                                             | 15/16  | `this-val-regexp.js`: `/./v` (`regexp-v-flag`, `post`)           |
+| `built-ins/RegExp/duplicate-flags.js`                                          | 1/1    | none                                                             |
+| `built-ins/RegExp/named-groups/duplicate-names-match-indices.js`               | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+| `built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties.js` | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+
+Those three fail at compile time (`E_LEX`: the flag or the pattern is
+rejected). Both features are in `postEs2020Features`, so
+`TEST262_EXCLUDE_FEATURES=post-es2020` skips them and `test262-summary.mjs`
+classifies them `post`.
+
+Top-level await (ES2022, [#306](https://github.com/40oleg/nona/issues/306)) is
+implemented and no longer classified `post`. With `TEST262_RUN_ASYNC=1`,
+`language/module-code/top-level-await` passes 244 of 251 tests:
+
+- `fulfillment-order.js`, `rejection-order.js` and
+  `unobservable-global-async-evaluation-count-reset.js` use
+  `Promise.withResolvers` (ES2024, feature `promise-with-resolvers`). With a
+  local replacement for it they produce the order Test262 expects (Node.js 22
+  differs in the last two).
+- `await-dynamic-import-rejection.js`, `module-import-rejection.js`,
+  `module-import-rejection-body.js` and `module-import-rejection-tick.js` are
+  runtime-negative tests, which the adapter skips. Imported with `import()`
+  they reject with the expected error type.
+
+`language/expressions/dynamic-import` and the rest of `language/module-code`
+fail only tests of later proposals (`import-defer`, `source-phase-imports`,
+the `import()` options argument and duplicate keys of `import-attributes`).
 
 RegExp pattern modifiers (ES2025, `regexp-modifiers`, issue #320) are supported
 and no longer in `postEs2020Features`: `built-ins/RegExp/regexp-modifiers`, the

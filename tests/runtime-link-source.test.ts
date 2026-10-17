@@ -10,7 +10,11 @@ import {
     type Target,
 } from "../src/compiler.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
-import { preludeSet, requiredSyntaxParts } from "../src/link.js";
+import {
+    preludeSet,
+    requiredSyntaxParts,
+    syntaxOnlyPreludes,
+} from "../src/link.js";
 
 function image(
     source: string,
@@ -74,14 +78,21 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
             { ...none, regexp: true, unicodeProperties: true },
             source,
         );
-    for (const source of [
-        "s.normalize()",
-        "a.localeCompare(b)",
-        's["normalize"]()',
-    ])
+    for (const source of ["s.normalize()", 's["normalize"]()'])
         assert.deepEqual(
             usage(source),
             { ...none, unicodeNormalization: true },
+            source,
+        );
+    // localeCompare and Intl reach the collator of the Intl prelude.
+    for (const source of ["a.localeCompare(b)", "new Intl.Collator()"])
+        assert.deepEqual(
+            usage(source),
+            {
+                ...none,
+                unicodeNormalization: true,
+                preludes: { ...none.preludes, intl: true },
+            },
             source,
         );
     // Every source lexed inside one collection counts; nested collections report to the outer one.
@@ -129,7 +140,15 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('new AsyncResource("task")'), "asyncHooks");
     assert.equal(linked("setTimeout(f, 1)", "clearInterval(id)"), "timers");
     assert.equal(linked("a.at(-1)", 'Object.hasOwn(o, "x")'), "es2021");
+    assert.equal(linked("new WeakRef(o).deref()"), "weakRef");
+    assert.equal(linked("o.deref()"), "");
+    assert.equal(
+        linked("new FinalizationRegistry(f).register(o, 1)"),
+        "finalizationRegistry",
+    );
+    assert.equal(linked("r.register(o, 1)", "r.unregister(t)"), "");
     assert.equal(linked("s.substr(1)"), "annexB");
+    assert.equal(linked("n.toLocaleString()"), "intl");
     assert.equal(linked('s.anchor("x")', "d.toGMTString()"), "annexB");
     assert.equal(linked("performance.now()"), "timers");
     assert.equal(linked("Object.keys(globalThis)"), "timers");
@@ -144,8 +163,12 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('const code = "x = setTimeout(g)"'), "timers");
     assert.equal(linked('const word = "data format"'), "");
     assert.equal(linked('const key = "at"'), "es2021");
-    // Enumerating built-ins could observe a missing method: everything is linked.
-    const all = Object.keys(preludeSet(true)).sort().join(",");
+    // Enumerating built-ins could observe a missing method: everything is
+    // linked, except preludes that add no built-ins (top-level await).
+    const all = Object.keys(preludeSet(true))
+        .filter((name) => !(syntaxOnlyPreludes as string[]).includes(name))
+        .sort()
+        .join(",");
     assert.equal(linked("Object.getOwnPropertyNames(Array.prototype)"), all);
     assert.equal(linked("Reflect.ownKeys(globalThis)"), all);
 });

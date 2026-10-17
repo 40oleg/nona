@@ -778,7 +778,7 @@ export function bind(
                     if (e.argument) expression(e.argument);
                     break;
                 case "Await":
-                    if (!fn?.declaration.async)
+                    if (fn ? !fn.declaration.async : !moduleNames)
                         fail(e, "await outside async function");
                     expression(e.argument);
                     break;
@@ -1545,7 +1545,6 @@ export function bind(
                 globals.push(binding);
                 names.set("*default*", binding);
                 bindings.set(statement.defaultId!, binding);
-                mainLexicals.push(binding);
             }
         }
     }
@@ -1558,7 +1557,11 @@ export function bind(
             [],
             moduleNames[record.index],
         );
-        mainLexicals.push(...(lexicalScopes.get(record.ast) ?? []));
+        const lexicals = lexicalScopes.get(record.ast) ?? [];
+        const dflt = moduleNames[record.index]!.get("*default*");
+        if (dflt) lexicals.push(dflt as StorageBinding);
+        lexicalScopes.set(record.ast, lexicals);
+        mainLexicals.push(...lexicals);
     }
     currentModule = undefined;
     lexicalScopes.set(ast, mainLexicals);
