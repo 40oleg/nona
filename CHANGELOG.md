@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- `Promise.try(fn, ...args)` (ES2025) calls `fn` and returns a promise for its result or its thrown error. ([#317](https://github.com/40oleg/nona/issues/317))
+
 ### Runtime
 
 - `Error.captureStackTrace`, `Error.stackTraceLimit` and `Error.prepareStackTrace` (the V8 stack API that `depd`, `http-errors` and Express call at load time). Nona does not walk the stack, so `captureStackTrace` defines `stack` as the `name: message` header, or passes `prepareStackTrace` an array of placeholder CallSite objects with unknown locations. ([#298](https://github.com/40oleg/nona/issues/298))

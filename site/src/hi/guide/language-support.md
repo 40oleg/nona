@@ -46,7 +46,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 
 बाद के संस्करणों के ज़्यादातर फ़ीचर समर्थित नहीं हैं, जिनमें `WeakRef` और `FinalizationRegistry`, RegExp का `v` फ़्लैग और टॉप-लेवल `await` शामिल हैं। समर्थित जोड़:
 
-- ES2021: न्यूमेरिक सेपरेटर, लॉजिकल असाइनमेंट (`&&=`, `||=`, `??=`), `Promise.any` और `AggregateError`, `String.prototype.replaceAll`।
+- ES2021: न्यूमेरिक सेपरेटर, लॉजिकल असाइनमेंट (`&&=`, `||=`, `??=`), `Promise.any` और `AggregateError`, `String.prototype.replaceAll`, `Promise.try` (ES2025)।
 - ES2022: क्लास फ़ील्ड, प्राइवेट मेथड और एक्सेसर, स्टैटिक ब्लॉक, `#x in obj`, `.at()`, `Object.hasOwn` और Error `cause`।
 - ES2023: `findLast` और `findLastIndex`।
 

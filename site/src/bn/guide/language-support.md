@@ -46,7 +46,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 
 পরবর্তী সংস্করণের বেশিরভাগ ফিচার সমর্থিত নয়, যেমন `WeakRef` ও `FinalizationRegistry`, RegExp-এর `v` ফ্ল্যাগ এবং টপ-লেভেল `await`। সমর্থিত সংযোজন:
 
-- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` ও `AggregateError`, `String.prototype.replaceAll`।
+- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` ও `AggregateError`, `String.prototype.replaceAll`, `Promise.try` (ES2025)।
 - ES2022: class fields, private মেথড ও অ্যাক্সেসর, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` এবং Error `cause`।
 - ES2023: `findLast` ও `findLastIndex`।
 
