@@ -1,0 +1,26 @@
+name: cancel closed pull request runs
+# A merged or closed pull request no longer needs its queued and running
+# workflow runs; cancelling them frees the runners for open pull requests
+# (#373). Runs of main and of other branches are never touched.
+on:
+    pull_request:
+        types: [closed]
+permissions:
+    actions: write
+    contents: read
+jobs:
+    cancel:
+        runs-on: ubuntu-latest
+        # Pull requests from forks get a read-only token and cannot cancel.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts/cancel-pr-runs.mjs
+                  sparse-checkout-cone-mode: false
+            - run: node scripts/cancel-pr-runs.mjs
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  HEAD_REF: ${{ github.event.pull_request.head.ref }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
