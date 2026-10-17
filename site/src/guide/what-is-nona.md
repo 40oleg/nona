@@ -19,7 +19,7 @@ The compiler is written in TypeScript. It runs on Node.js, or as the released na
 
 ## What Nona is not
 
-- **Not a replacement for Node.js.** npm packages are compiled in when the program is built ([npm packages](/reference/npm)), but only the [Node.js APIs Nona implements](/reference/modules) are available, and packages that need others (`zlib`, `child_process`) or native add-ons do not work. Browser APIs are not available either. `Intl` knows only the `en`/`en-US` locale ([Compatibility](/guide/compatibility)).
+- **Not a replacement for Node.js.** npm packages are compiled in when the program is built ([npm packages](/reference/npm)), but only the [Node.js APIs Nona implements](/reference/modules) are available, and packages that need others (`http2`, `child_process`) or native add-ons do not work. Browser APIs are not available either. `Intl` knows only the `en`/`en-US` locale ([Compatibility](/guide/compatibility)).
 - **Not a full ES2020 implementation.** Nona implements ES2020 with documented exceptions; see [Language support](/guide/language-support) and [Compatibility and limitations](/guide/compatibility).
 - **No run-time code generation.** `eval` and `Function` need source text known at compile time; strings computed at run time throw `EvalError`.
 - **Not as fast as V8 at computation.** Without a JIT, calls, closures and allocation run several times to tens of times slower than in V8, and long Promise chains and RegExp matching are the slowest spots ([Performance](/guide/performance)).

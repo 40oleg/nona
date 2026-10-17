@@ -240,6 +240,7 @@
                 "tls-crypto",
                 "tls-handshake",
                 "https",
+                "zlib",
                 "x509",
                 "new-target",
                 "nullish",
