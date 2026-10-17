@@ -6,7 +6,7 @@ self-hosted Windows runner takes the overflow.
 
 ## How a Windows job picks its runner
 
-`check.yml` (the `windows` job) and `program-corpus.yml` (the Windows half of
+`check.yml` (the `windows` shards and `windows-compare`) and `program-corpus.yml` (the Windows half of
 `programs`) first run a small `route` job on `ubuntu-latest`. It runs
 [`scripts/pick-runner.mjs`](../scripts/pick-runner.mjs), which looks at the
 repository's runners and at the jobs of other workflow runs that wait for a
@@ -52,3 +52,21 @@ self-hosted runner would run them one after another.
   for the runner's account. The `Record isolated Windows Node abort behavior`
   step, which changes these settings itself, runs only on GitHub-hosted
   runners.
+
+## Windows test shards
+
+`check` runs the Windows test files in four parallel jobs, `windows (1/4)` …
+`windows (4/4)` ([#370](https://github.com/40oleg/nona/issues/370)).
+[`scripts/run-shard.mjs`](../scripts/run-shard.mjs) splits
+`dist/tests/*.test.js` by the seconds per file in `tests/timings.json`, the
+longest file first onto the least loaded shard, so every shard computes the
+same split and each file runs once. `program-corpus*` is left out: the
+`program corpus` workflow runs it on Windows. `windows-compare` runs the
+Node.js comparison (`scripts/compare.mjs`) and the Test262 smoke manifest.
+
+Locally, `node scripts/run-shard.mjs --shard 2/4 --list` prints a shard's
+files. Each CI shard uploads `windows-test-timings-<n>` with the duration of
+its files and prints its slowest ones. When the shards drift apart, download
+the four artifacts and run
+`node scripts/test-timings.mjs --write test-timings-*.json` to refresh
+`tests/timings.json`. A new test file without an entry counts as the mean.
