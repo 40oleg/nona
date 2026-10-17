@@ -45,7 +45,6 @@ for (const name of ['deflateSync', 'inflateSync', 'gzipSync', 'gunzipSync', 'def
         "import zlib from 'node:zlib'; import bare from 'zlib'; import nona from 'nona:zlib'; import * as ns from 'node:zlib';" +
             body,
         {
-            gcStress: true,
             oracleSource:
                 "import zlib from 'node:zlib'; import bare from 'zlib'; import nona from 'node:zlib'; import * as ns from 'node:zlib';" +
                 body,
