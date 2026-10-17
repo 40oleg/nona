@@ -28,6 +28,10 @@ console.log([999999,999.9,1234,123456,1e15,1.5e16,-0.0012,0.5,0,-1500].map(v=>f(
 console.log([1234567,1500,1e9,2.5e12].map(v=>f({notation:"compact",compactDisplay:"long"},v)).join(" "),f({style:"currency",currency:"EUR",notation:"compact"},1234567),f({style:"currency",currency:"USD",currencyDisplay:"name",notation:"compact",compactDisplay:"long"},1234567));
 console.log([123456,0.000123,0,-1,9.9996].map(v=>f({notation:"scientific"},v)).join(" "),[123456,-0.5,0.001234].map(v=>f({notation:"engineering"},v)).join(" "));
 for(const signDisplay of ["auto","always","never","exceptZero","negative"])console.log(signDisplay,[0,-0,1,-1,-0.0001,NaN].map(v=>f({signDisplay},v)).join(" "));`,
+    "NumberFormat under GC stress": `
+const f=(o,v)=>new Intl.NumberFormat("en-US",o).format(v);
+console.log(f({style:"percent",maximumFractionDigits:1},0.12345),f({style:"currency",currency:"EUR"},1234.5),f({style:"currency",currency:"JPY",currencyDisplay:"name"},2),f({style:"currency",currency:"CHF",currencySign:"accounting"},-1),f({style:"currency",currency:"XYZ",currencyDisplay:"narrowSymbol"},1));
+console.log(f({notation:"compact"},1234),f({notation:"compact",compactDisplay:"long"},2.5e12),f({style:"currency",currency:"USD",notation:"compact"},1234567),f({notation:"scientific"},-0.000123),f({notation:"engineering"},123456),f({signDisplay:"exceptZero"},-0.0001),f({signDisplay:"always"},0));`,
     "NumberFormat formatToParts, inputs, bound format and resolvedOptions": `
 const p=(o,v)=>JSON.stringify(new Intl.NumberFormat("en-US",o).formatToParts(v));
 console.log(p({},-1234.5),p({style:"currency",currency:"USD",currencySign:"accounting"},-1234.5),p({style:"currency",currency:"USD",currencyDisplay:"code"},-1));
@@ -65,9 +69,13 @@ console.log(Intl.getCanonicalLocales().length,Intl.getCanonicalLocales("EN").joi
 for(const v of ["en_US","root","en-","","abcd","en-gb-oed","i-klingon","en-u","en-a-bb-a-cc","en-variant-variant","x-foo",null,5,[5],[null]])try{console.log(Intl.getCanonicalLocales(v).join())}catch(e){console.log(String(v),e.name)}
 console.log(Object.prototype.toString.call(Intl),typeof Intl,Object.getOwnPropertyDescriptor(globalThis,"Intl").enumerable,Object.getOwnPropertyDescriptor(globalThis,"Intl").writable,Object.keys(Intl).length);`,
 };
-// Sorting with the collator runs too many prelude operations to collect
-// before each one; "Collator under GC stress" covers its rooting.
+// GC stress collects before every operation, prelude operations included.
+// Programs that build dozens of formats, or sort with the collator, take
+// too long that way for the test's time limit on a loaded CI runner; the
+// "under GC stress" programs cover the rooting of the same paths.
 const withoutGcStress = new Set([
+    "NumberFormat percent and currencies",
+    "NumberFormat compact, scientific and signs",
     "Collator sorts mixed-case and accented words",
 ]);
 for (const [name, source] of Object.entries(programs))
@@ -149,7 +157,8 @@ for (const [name, source] of Object.entries(dateTimePrograms))
     });
 
 // The host's local time zone and default locale are UTC and en-US in Nona;
-// other IANA time zones are not available.
+// other IANA time zones are not available. The program builds a dozen
+// formats, so it runs without GC stress like the DateTimeFormat programs.
 test("Intl: DateTimeFormat defaults to UTC and en-US", () => {
     const run = runOnHost(
         `const d=new Date(Date.UTC(2026,0,5,13,4,5,9));
@@ -157,6 +166,7 @@ console.log(d.toLocaleString(),"|",d.toLocaleDateString(),"|",d.toLocaleTimeStri
 const r=new Intl.DateTimeFormat().resolvedOptions();console.log(r.locale,r.timeZone,new Intl.DateTimeFormat("de-DE").resolvedOptions().locale,d.toLocaleString("fr-FR"));
 for(const timeZone of ["Etc/UTC","GMT","Etc/GMT","UCT","Zulu","-00:00"])console.log(timeZone,new Intl.DateTimeFormat("en-US",{timeZone}).resolvedOptions().timeZone);
 try{new Intl.DateTimeFormat("en-US",{timeZone:"Europe/Paris"})}catch(e){console.log(e.name,e.message)}`,
+        { gcStress: false },
     );
     assert.equal(run.status, 0, run.stderr);
     assert.equal(
