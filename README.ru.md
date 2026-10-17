@@ -93,7 +93,7 @@ nona --help | --version
 
 ## Что поддерживается
 
-**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), флаг RegExp `d` с индексами совпадений (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, `cause` у Error, модификаторы шаблона RegExp (`(?i:…)`, ES2025), а также методы копирующего изменения массивов ES2023 `toSorted`, `toReversed`, `toSpliced` и `with`.
+**Язык: ES2020.** Классы и `super`, генераторы, async-функции и async-генераторы, `for await`, деструктуризация, spread, optional chaining, `??`, BigInt, Symbol, итераторы, proper tail calls, `with` в нестрогом режиме и семантика Annex B. ES-модули с циклами, live bindings, `import.meta` и динамическим `import()` модулей, известных при компиляции. Из более поздних стандартов поддержаны поля, приватные методы и статические блоки классов (ES2022), флаг RegExp `d` с индексами совпадений (ES2022), разделители в числах, логическое присваивание, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `WeakRef`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, `cause` у Error, модификаторы шаблона RegExp (`(?i:…)`, ES2025), а также методы копирующего изменения массивов ES2023 `toSorted`, `toReversed`, `toSpliced` и `with`.
 
 **Стандартная библиотека: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (именованные группы, lookbehind, флаги `s` и `u`, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView и все typed arrays, SharedArrayBuffer и Atomics (с агентами-потоками), Proxy, Reflect и Promise.
 
@@ -159,7 +159,7 @@ Nona выигрывает там, где и должен выигрывать и
 ## Ограничения
 
 - `eval`, `Function`, `GeneratorFunction` и `AsyncFunction` требуют исходный текст, известный при компиляции.
-- Большинство возможностей новее ES2020, которых нет в списке выше (`WeakRef`, `await` верхнего уровня, …), не поддерживаются.
+- Большинство возможностей новее ES2020, которых нет в списке выше (`FinalizationRegistry`, `await` верхнего уровня, …), не поддерживаются.
 - Модули Node.js вне таблицы выше (`dns`, `dgram`, …), Brotli и дочерние процессы (`node:http2` и `node:child_process` загружаются, но их функции бросают исключение), npm-пакеты, которым они нужны, нативные аддоны и браузерные API недоступны. `Intl` собственный и знает только локаль `en`/`en-US` ([docs/intl.md](docs/intl.md)). Сеть работает в Linux и Windows; TLS и https только клиентские и только TLS 1.3, см. [сеть](docs/network.md#security-limitations).
 - Обычные вычисления намного медленнее, чем в JIT.
 
