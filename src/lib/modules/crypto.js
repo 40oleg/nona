@@ -1,7 +1,8 @@
 // node:crypto, the part npm packages use most (issue #249): OS random bytes,
 // random UUIDs and integers, the MD5/SHA-1/SHA-256/SHA-512 hashes and HMAC,
-// and timingSafeEqual. Ciphers, key pairs, signatures and the subtle API
-// are not provided. The module that includes this text defines
+// timingSafeEqual and HKDF. Ciphers, key pairs, signatures and the subtle
+// API are not provided (the TLS client has its own primitives in
+// nona:internal/tls-crypto). The module that includes this text defines
 // randomBytes(size) on top of the OS entropy source (entropySource).
 const nativeRandomBytes = randomBytes;
 const encoder = new TextEncoder();
@@ -704,6 +705,136 @@ export function timingSafeEqual(a, b) {
     for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
     return diff === 0;
 }
+// HKDF (RFC 5869): HKDF-Expand(HKDF-Extract(salt, ikm), info, keylen).
+function received(value) {
+    if (value === null || value === undefined) return String(value);
+    if (typeof value === "function")
+        return "function " + (value.name || "<anonymous>");
+    if (typeof value === "object")
+        return value.constructor && value.constructor.name
+            ? "an instance of " + value.constructor.name
+            : "an instance of Object";
+    const text =
+        typeof value === "string"
+            ? "'" + value + "'"
+            : typeof value === "bigint"
+              ? value + "n"
+              : String(value);
+    return "type " + typeof value + " (" + text + ")";
+}
+function hkdfKey(value, name) {
+    if (
+        value &&
+        typeof value === "object" &&
+        typeof value.export === "function"
+    )
+        value = value.export();
+    if (
+        typeof value !== "string" &&
+        !(value instanceof ArrayBuffer) &&
+        !ArrayBuffer.isView(value)
+    ) {
+        const error = new TypeError(
+            'The "' +
+                name +
+                '" argument must be of type string or an instance of SecretKeyObject, ArrayBuffer, TypedArray, DataView, or Buffer. Received ' +
+                received(value),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    return toBytes(value, undefined, name);
+}
+function hkdfArguments(digest, ikm, salt, info, keylen) {
+    const name = String(digest).toLowerCase();
+    if (!algorithms[aliases[name] || name]) {
+        const error = new TypeError("Invalid digest: " + digest);
+        error.code = "ERR_CRYPTO_INVALID_DIGEST";
+        throw error;
+    }
+    const spec = algorithmOf(name);
+    ikm = hkdfKey(ikm, "ikm");
+    salt = hkdfKey(salt, "salt");
+    info = hkdfKey(info, "info");
+    if (info.length > 1024) {
+        const error = new RangeError(
+            'The value of "info" is out of range. It must be must not contain more than 1024 bytes. Received ' +
+                info.length,
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    if (typeof keylen !== "number") {
+        const error = new TypeError(
+            'The "length" argument must be of type number. Received ' +
+                received(keylen),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    if (!(keylen >= 0 && keylen <= 9007199254740991) || keylen % 1 !== 0) {
+        const error = new RangeError(
+            'The value of "length" is out of range. It must be >= 0 && <= 9007199254740991. Received ' +
+                keylen,
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    const hashLength = spec.hash(new Uint8Array(0)).length;
+    if (keylen > 255 * hashLength) {
+        const error = new RangeError("Invalid key length");
+        error.code = "ERR_CRYPTO_INVALID_KEYLEN";
+        throw error;
+    }
+    return [
+        name,
+        ikm,
+        salt.length ? salt : new Uint8Array(hashLength),
+        info,
+        keylen,
+    ];
+}
+function hkdfDerive(digest, ikm, salt, info, keylen) {
+    const prk = new Hmac(digest, salt).update(ikm).digest();
+    const out = new Uint8Array(keylen);
+    let block = new Uint8Array(0);
+    for (let at = 0, i = 1; at < keylen; i++) {
+        block = new Hmac(digest, prk)
+            .update(block)
+            .update(info)
+            .update(new Uint8Array([i]))
+            .digest();
+        out.set(block.subarray(0, Math.min(block.length, keylen - at)), at);
+        at += block.length;
+    }
+    return out.buffer;
+}
+export function hkdfSync(digest, ikm, salt, info, keylen) {
+    return hkdfDerive(...hkdfArguments(digest, ikm, salt, info, keylen));
+}
+export function hkdf(digest, ikm, salt, info, keylen, callback) {
+    const args = hkdfArguments(digest, ikm, salt, info, keylen);
+    if (typeof callback !== "function") {
+        const error = new TypeError(
+            'The "callback" argument must be of type function. Received ' +
+                (callback === undefined
+                    ? "undefined"
+                    : "type " + typeof callback),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    queueMicrotask(() => {
+        let result;
+        try {
+            result = hkdfDerive(...args);
+        } catch (error) {
+            callback(error);
+            return;
+        }
+        callback(null, result);
+    });
+}
 export const webcrypto = { getRandomValues, randomUUID };
 export const constants = {};
 export { Hash, Hmac };
@@ -720,6 +851,8 @@ export default {
     randomUUID,
     randomInt,
     timingSafeEqual,
+    hkdf,
+    hkdfSync,
     webcrypto,
     constants,
     Hash,
