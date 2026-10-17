@@ -47,7 +47,7 @@ Nona apunta a la 11.ª edición de ECMA-262 (ES2020) con excepciones documentada
 La mayoría de las características de ediciones posteriores no están soportadas, entre ellas el flag `v` de RegExp y `await` de nivel superior. Incorporaciones soportadas:
 
 - ES2021: separadores numéricos, asignación lógica (`&&=`, `||=`, `??=`), `Promise.any` y `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
-- ES2022: campos de clase, métodos y accesores privados, bloques estáticos, `#x in obj`, `.at()`, `Object.hasOwn` y `cause` de Error.
+- ES2022: campos de clase, métodos y accesores privados, bloques estáticos, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` de Error y el flag `d` de RegExp con índices de coincidencia.
 - ES2023: `findLast` y `findLastIndex`.
 
 Cuando la revisión fijada de Test262 ya comprueba semántica más reciente para características de ES2020, Nona sigue a Test262; la página de [Test262](/es/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) enumera esos casos.
