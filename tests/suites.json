@@ -95,6 +95,7 @@
                 "array-builtins",
                 "array-buffer",
                 "typed-array-fast-path",
+                "typedarray-change-by-copy",
                 "string-builtins",
                 "intl",
                 "simd",
