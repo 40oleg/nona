@@ -39,7 +39,7 @@ features:
       details: Un recolector de basura mark-and-sweep preciso, cadenas UTF-16, excepciones reales, un RangeError capturable ante un desbordamiento de pila y un compilador autoalojado.
       link: /es/guide/how-it-works
     - title: FFI y programas gráficos de Windows
-      details: Llama a cualquier función exportada de una DLL con declaraciones en tiempo de compilación, y crea programas sin ventana de consola, con icono, manifiesto e información de versión.
+      details: Llama a cualquier función exportada de una DLL en Windows y a cualquier función de biblioteca compartida en Linux y macOS con declaraciones en tiempo de compilación, y crea programas de Windows sin ventana de consola, con icono, manifiesto e información de versión.
       link: /es/reference/ffi
 ---
 

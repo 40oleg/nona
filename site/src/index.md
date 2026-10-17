@@ -39,7 +39,7 @@ features:
       details: A precise mark-and-sweep garbage collector, UTF-16 strings, real exceptions, a catchable RangeError on stack overflow and a self-hosted compiler.
       link: /guide/how-it-works
     - title: FFI and Windows GUI programs
-      details: Call any DLL export with compile-time declarations, and build programs without a console window, with an icon, a manifest and version information.
+      details: Call any DLL export on Windows and any shared library function on Linux and macOS with compile-time declarations, and build Windows programs without a console window, with an icon, a manifest and version information.
       link: /reference/ffi
 ---
 

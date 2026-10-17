@@ -17,10 +17,10 @@ The executable contains your program's machine code and Nona's runtime, and noth
 ## Why Nona
 
 - **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
-- **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc. Apple Silicon output uses the system dyld and libSystem.
+- **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc; a program that declares shared library functions through FFI is linked dynamically against those libraries only. Apple Silicon output uses the system dyld and libSystem.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
-- **Real programs.** Besides the language and its standard library: `process`, `fs`, `path`, `Buffer`, events, streams, timers, HTTP servers and clients, TCP sockets and Windows FFI.
+- **Real programs.** Besides the language and its standard library: `process`, `fs`, `path`, `Buffer`, events, streams, timers, HTTP servers and clients, TCP sockets and FFI (DLLs on Windows, shared libraries on Linux and macOS).
 
 ## Install
 
@@ -115,7 +115,7 @@ nona --help | --version
 | `node:http`, `node:net`, `node:tls`, `node:https`, `node:string_decoder`                                        | HTTP/1.1 servers, clients and keep-alive agents; TCP sockets and servers; TLS 1.3 client sockets and the https client (Linux and Windows x64; no TLS 1.2, no TLS or https server)                                                                                  | [networking](docs/network.md)                               |
 | `URL`, `URLSearchParams`, `node:url`                                                                            | URL Standard parsing and serialization, `fileURLToPath`, `pathToFileURL`                                                                                                                                                                                           | [URL](docs/host-apis.md#url)                                |
 | `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | what npm packages use: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, assertions, random values (also the global `crypto`), hashes and HMAC                                                                                     | [support modules](docs/host-apis.md#nodejs-support-modules) |
-| `nona:ffi`, `nona:win32`                                                                                        | calls to any DLL export on Windows                                                                                                                                                                                                                                 | [FFI](docs/ffi.md)                                          |
+| `nona:ffi`, `nona:win32`                                                                                        | calls to any DLL export on Windows, shared library (`.so`, `.dylib`) function on Linux and macOS, portable declarations keyed by OS                                                                                                                                | [FFI](docs/ffi.md)                                          |
 
 **npm packages.** Install packages with npm as usual and build: Nona resolves `node_modules` at compile time as Node.js does (`package.json` `exports`, `imports`, conditions, `main`, `type`, symbolic links) and compiles CommonJS modules, ES modules and JSON into the executable, with `require`, `module.exports`, `require.cache`, cycles and ES module interop working as in Node.js. lodash, chalk, commander, yargs, dayjs, date-fns, marked, js-yaml, semver, uuid, zod and more are tested against Node.js ([npm packages](docs/npm.md)).
 
@@ -191,7 +191,7 @@ Contribution rules for people and agents are in [AGENTS.md](AGENTS.md).
 
 ## Security
 
-Nona has not had a security audit. Do not compile untrusted source code, and do not treat generated executables as a sandbox: they run with the same permissions as any other native program, and FFI can call any DLL.
+Nona has not had a security audit. Do not compile untrusted source code, and do not treat generated executables as a sandbox: they run with the same permissions as any other native program, and FFI can call any DLL or shared library.
 
 ## License
 

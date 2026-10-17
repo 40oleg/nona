@@ -83,7 +83,7 @@ Un programa aún puede alcanzar una parte omitida mediante un nombre calculado e
 
 - `process` y `node:fs` están disponibles en los ocho destinos; HTTP y TCP (`node:http`, `node:net`) en Windows y Linux.
 - Los ejecutables de Windows usan DLL del sistema (incluida NTDLL para los metadatos del proceso padre) y las importaciones FFI declaradas; los ejecutables POSIX usan servicios nativos del sistema operativo.
-- Las llamadas FFI a DLL requieren Windows; las llamadas directas al sistema usan los números de kernel del destino Linux, Darwin o BSD elegido. Detalles: [Plataformas nativas](/reference/native-platforms).
+- FFI llama a DLL en Windows y a bibliotecas compartidas (`.so`, `.dylib`) en Linux y macOS, con declaraciones portables por sistema operativo; los destinos BSD solo tienen llamadas directas al sistema. Las llamadas directas al sistema usan los números de kernel del destino Linux, Darwin o BSD elegido. Detalles: [Plataformas nativas](/reference/native-platforms).
 
 ## Buffer
 

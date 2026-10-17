@@ -204,6 +204,7 @@
                 "exponentiation-runtime",
                 "fast-paths",
                 "ffi",
+                "ffi-posix",
                 "finally",
                 "for-in",
                 "for-of",
