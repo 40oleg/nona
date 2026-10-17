@@ -373,6 +373,7 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
             "dotAll",
             "flags",
             "global",
+            "hasIndices",
             "ignoreCase",
             "multiline",
             "source",
