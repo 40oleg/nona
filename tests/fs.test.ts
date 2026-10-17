@@ -121,7 +121,7 @@ console.log(show(lstatSync('w/f.txt')), lstatSync('w/f.txt').size, show(lstatSyn
 console.log(lstatSync('w/missing', {throwIfNoEntry: false}));
 try { lstatSync('w/missing'); } catch (e) { console.log(e.code, e.syscall); }
 for (const d of readdirSync('w', {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1))
-  console.log(d.name, d.parentPath, d.path, d instanceof Dirent, show(d));
+  console.log(d.name, d.parentPath, d instanceof Dirent, show(d));
 console.log(typeof realpathSync.native, realpathSync.native('w').endsWith(sep + 'w'), typeof fs.realpath.native);
 console.log(fs.promises === (await import('fs/promises')).default, fs.promises === (await import('node:fs/promises')).default);
 // Node.js completes callbacks in any order, so collect the results and sort them.
