@@ -47,7 +47,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 更新版本中的大多数特性不受支持，其中包括 `WeakRef` 和 `FinalizationRegistry`、RegExp 的 `v` 标志。已支持的新增特性：
 
 - ES2021：数字分隔符、逻辑赋值（`&&=`、`||=`、`??=`）、`Promise.any` 和 `AggregateError`、`String.prototype.replaceAll`。
-- ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn` 和 Error 的 `cause`。
+- ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn`、Error 的 `cause`，以及 RegExp 的 `d` 标志（匹配索引）。
 - ES2022：ES 模块中的顶层 `await`，包括异步模块的求值顺序、循环依赖和拒绝传播。
 - ES2023：`findLast` 和 `findLastIndex`。
 - ES2025：RegExp 模式修饰符 `(?i:…)`、`(?-i:…)` 和 `(?ims-ims:…)`，并带有规范规定的早期错误（重复或冲突的标志、`(?-:` 或缺少冒号时抛出 SyntaxError）。
