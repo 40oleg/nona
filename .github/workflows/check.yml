@@ -38,6 +38,28 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
                   TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    changes:
+        # Whether this run needs the Test262 directory jobs (#371,
+        # scripts/ci-changes.mjs): always on main and manual runs; on a pull
+        # request when it changes src/, the Test262 runner, package files or
+        # this workflow, or has the full-ci label.
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            test262: ${{ steps.decide.outputs.test262 }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts/ci-changes.mjs
+                  sparse-checkout-cone-mode: false
+            - id: decide
+              run: node scripts/ci-changes.mjs
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  FULL_CI: ${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}
     format:
         # Sources are formatted with Prettier (#250): npm run format fixes them.
         runs-on: ubuntu-latest
@@ -167,6 +189,8 @@ jobs:
     windows-test262:
         # Same job names and report artifacts as the former per-directory jobs.
         name: windows-${{ matrix.group }}-test262
+        needs: changes
+        if: needs.changes.outputs.test262 == 'true'
         runs-on: windows-latest
         strategy:
             fail-fast: false

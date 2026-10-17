@@ -331,7 +331,8 @@
                 "console-streams",
                 "zlib",
                 "pick-runner",
-                "run-shard"
+                "run-shard",
+                "ci-changes"
             ]
         }
     }

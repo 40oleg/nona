@@ -70,3 +70,14 @@ its files and prints its slowest ones. When the shards drift apart, download
 the four artifacts and run
 `node scripts/test-timings.mjs --write test-timings-*.json` to refresh
 `tests/timings.json`. A new test file without an entry counts as the mean.
+
+## Test262 directory jobs on pull requests
+
+The eight `windows-<group>-test262` jobs of `check` run on every push to
+`main`. On a pull request the `changes` job
+([`scripts/ci-changes.mjs`](../scripts/ci-changes.mjs),
+[#371](https://github.com/40oleg/nona/issues/371)) runs them only when the
+pull request changes `src/`, the Test262 runner or the build scripts it uses,
+`tests/test262*`, `package.json`, `package-lock.json`, `tsconfig.json` or
+`check.yml`, or has the `full-ci` label; otherwise they show as skipped. When
+the list of changed files cannot be read, they run.
