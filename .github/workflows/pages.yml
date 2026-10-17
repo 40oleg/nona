@@ -16,17 +16,15 @@ on:
                 ".github/workflows/pages.yml",
             ]
     pull_request:
+        # Markdown-only pull requests run no CI; main builds the site after
+        # the merge. The negated pattern must stay last.
         paths:
-            [
-                "site/**",
-                "docs/**",
-                "examples/**",
-                "src/**",
-                "README.md",
-                "CHANGELOG.md",
-                "AGENTS.md",
-                ".github/workflows/pages.yml",
-            ]
+            - "site/**"
+            - "docs/**"
+            - "examples/**"
+            - "src/**"
+            - ".github/workflows/pages.yml"
+            - "!**/*.md"
     workflow_dispatch:
 permissions:
     contents: read
