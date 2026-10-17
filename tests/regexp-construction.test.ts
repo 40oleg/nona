@@ -65,7 +65,7 @@ test("legacy RegExp identity escapes match punctuation", () =>
 test("RegExp constructor rejects invalid and repeated flags", () =>
     expectProgram(
         `
-  for(let flags of ['gg','z','v','uii']){
+  for(let flags of ['gg','z','x','uii']){
     try{new RegExp('x',flags)}catch(error){console.log(error.name)}
   }
 `,
