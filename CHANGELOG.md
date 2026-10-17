@@ -5,8 +5,11 @@
 ### Runtime
 
 - `Error.captureStackTrace`, `Error.stackTraceLimit` and `Error.prepareStackTrace` (the V8 stack API that `depd`, `http-errors` and Express call at load time). Nona does not walk the stack, so `captureStackTrace` defines `stack` as the `name: message` header, or passes `prepareStackTrace` an array of placeholder CallSite objects with unknown locations. ([#298](https://github.com/40oleg/nona/issues/298))
-- `node:zlib`: `inflate`, `gunzip`, `unzip` (complete and incremental), `deflate` and `gzip` (valid streams, not byte-identical to zlib), sync, callback, stream and promisified forms; Brotli and Zstandard throw `ERR_NONA_UNSUPPORTED`. Express 5.3.0 now compiles and runs like Node.js. ([#298](https://github.com/40oleg/nona/issues/298))
 - `EventEmitter` methods work on a target whose own `_events` is `undefined` (the emitter prototype's descriptors copied onto a function or object, as Express does) and when called with `.call` on a plain object: `_events` is created lazily like Node.js, and the max-listeners check no longer calls `getMaxListeners()` on the target. ([#298](https://github.com/40oleg/nona/issues/298))
+
+### Host APIs
+
+- **`zlib`** (`node:zlib`, `zlib`, `nona:zlib`): Nona's own DEFLATE codec with zlib and gzip framing, Adler-32 and CRC-32, and the synchronous, callback and stream APIs of Node.js (`deflateSync`, `gunzipSync`, `createGzip`, …, `crc32`, `constants`, error codes compatible with Node.js). Brotli is not provided. Compressed bytes are valid but not byte-identical to Node.js's zlib, and the `http` client does not decompress responses, as in Node.js. See [zlib](docs/host-apis.md#zlib). ([#302](https://github.com/40oleg/nona/issues/302))
 
 ## v0.14.0 — 2026-10-16
 
