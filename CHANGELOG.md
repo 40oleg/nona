@@ -33,6 +33,9 @@
 - **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
 - **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
 
+### Language
+
+- **Duplicate named capture groups (ES2025).** The same group name may appear in different alternatives of a RegExp (`/(?<y>\d{4})-|(?<y>\w+)/`). `groups` and replacement `$<name>` take the group that participated, and `\k<name>` matches it. `indices.groups` is unavailable because the `d` flag is not implemented. ([#319](https://github.com/40oleg/nona/issues/319))
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
 ### Performance

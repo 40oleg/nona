@@ -22,8 +22,10 @@
     if(compiled.names.length){
       groups=Object.create(null);
       for(var i=0;i<compiled.names.length;i++){
+        // A duplicate name (ES2025) keeps the value of the group that participated.
         var named=compiled.names[i],begin=captures[named.index*2];
-        groups[named.name]=begin===4294967295?undefined:__nonaRegexpVm.replaceSlice.call(input,begin,captures[named.index*2+1])
+        if(begin!==4294967295)groups[named.name]=__nonaRegexpVm.replaceSlice.call(input,begin,captures[named.index*2+1]);
+        else if(!(named.name in groups))groups[named.name]=undefined
       }
     }
     field.value=groups;Object.defineProperty(result,'groups',field);
