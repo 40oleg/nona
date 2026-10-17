@@ -90,7 +90,6 @@ const postEs2020Features = [
     "Error.isError",
     "explicit-resource-management",
     "Float16Array",
-    "FinalizationRegistry",
     "hashbang",
     "immutable-arraybuffer",
     "import-assertions",
