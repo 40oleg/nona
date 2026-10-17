@@ -52,3 +52,12 @@ self-hosted runner would run them one after another.
   for the runner's account. The `Record isolated Windows Node abort behavior`
   step, which changes these settings itself, runs only on GitHub-hosted
   runners.
+
+## Closed pull requests
+
+When a pull request is merged or closed, `cancel-closed.yml` cancels its
+unfinished workflow runs (queued, waiting or running) so they stop holding
+runners ([#373](https://github.com/40oleg/nona/issues/373)). It cancels only
+runs started by `pull_request` events of that pull request's branch, never
+runs of `main` (which check the merge commit) or of other branches. Pull
+requests from forks are skipped: their token cannot cancel runs.
