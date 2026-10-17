@@ -41,6 +41,7 @@ import {
     processNativeHelpers,
     captureProcessStartup,
 } from "../../runtime/process-host.js";
+import { weakRefNativeHelpers } from "../../runtime/weak-ref.js";
 import { ffiImportSymbol } from "../../ffi.js";
 import { cloneRealms, realmSymbol } from "../realms.js";
 import { mergeAgentPrograms, agentSymbol } from "../agents.js";
@@ -727,6 +728,13 @@ function generateImage(
     if (hasPrelude && linked.includes("buffer")) {
         hostGlobal("__nonaHexEncode", "rt.hexEncode.code", 1);
         hostGlobal("__nonaByteCopy", "rt.byteCopy.code", 3);
+    }
+    if (hasPrelude && linked.includes("weakRef")) {
+        // Captured and removed from the global object by the WeakRef prelude.
+        const helpers = weakRefNativeHelpers().bundle;
+        fragments.push(...helpers.fragments);
+        functions.push(...helpers.functions);
+        hostGlobal("__nonaWeakRefTarget", "rt.weakRefTarget.code", 1);
     }
     if (hasPrelude && regexpLink.regexp)
         // First-unit scan of the RegExp engine (#258), captured and removed by the prelude.

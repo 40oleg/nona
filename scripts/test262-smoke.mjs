@@ -122,7 +122,6 @@ const postEs2020Features = [
     "Temporal",
     "uint8array-base64",
     "upsert",
-    "WeakRef",
     "well-formed-unicode-strings",
     "await-dictionary",
     "Intl.Locale-info",

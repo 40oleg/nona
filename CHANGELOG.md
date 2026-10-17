@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Runtime
+
+- `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
+
 ### Language
 
 - **Top-level `await` in ES modules (ES2022).** A module with `await` at its top level is evaluated as an async module (`[[AsyncEvaluation]]`, order of its dependents, cycles, rejection propagation), `import()` waits for it, and an entry that never settles exits with code 13. Scripts and CommonJS files still reject it; `require()` of a graph with top-level `await` throws `ERR_REQUIRE_ASYNC_MODULE`. The runtime part is linked only into programs that use it. Test262 `language/module-code/top-level-await` passes 244 of 251; the remaining failures need `Promise.withResolvers` (ES2024) or are runtime-negative tests. ([#306](https://github.com/40oleg/nona/issues/306))
