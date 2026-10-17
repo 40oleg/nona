@@ -6,7 +6,8 @@ import { lex } from "./frontend/lexer.js";
 import { parse } from "./frontend/parser.js";
 import { bind } from "./frontend/binder.js";
 import { lower } from "./ir/lower.js";
-import type { ModuleIR } from "./ir/model.js";
+import type { FfiDeclarationIR, ModuleIR } from "./ir/model.js";
+import { checkFfiNames } from "./ffi.js";
 import type { Program } from "./frontend/ast.js";
 import { generate } from "./backend/x64/codegen.js";
 import type { BaseImageCache } from "./backend/x64/base-image.js";
@@ -57,6 +58,7 @@ import {
     supportedNativeTargets,
     requireHostTarget,
     type Target,
+    type TargetDescriptor,
 } from "./target.js";
 import { withNativeTarget } from "./backend/machine/context.js";
 // RegExp literals are checked with the runtime's pattern compiler.
@@ -90,6 +92,7 @@ export interface CompileOptions {
     /** Return the linked optional parts and why each was linked as `linked`. */ reportLink?: boolean;
     /** A store that keeps the compiled runtime and preludes between processes (see fileBaseImageCache in src/cache.ts). */ baseCache?: BaseImageCache;
     /** Count every call by target and print the counts to stderr when the program ends. */ callStats?: boolean;
+    /** Tests: collect garbage on every allocation and poison freed cells, so a missing GC root fails at once. */ gcStress?: boolean;
     /** Write V8-format per-function coverage to `directory` when the program ends; `url` names the program's script (file:// URL). */ coverage?: {
         directory: string;
         url: string;
@@ -274,6 +277,80 @@ export function compileToIR(
     return { ...inPhase("lower", () => lower(bound)), runtimePrelude: true };
 }
 /** PE resources from compile options; a GUI program gets a default manifest. */
+/**
+ * Select each declaration's library for the target and check that the target
+ * can call it: Windows images import DLLs, Linux and macOS images link shared
+ * libraries, and every non-Windows target has raw system calls (BSD only those).
+ */
+function resolveFfiTargets(
+    declarations: readonly FfiDeclarationIR[],
+    descriptor: TargetDescriptor,
+    fileName: string,
+): FfiDeclarationIR[] {
+    const diagnostics: Diagnostic[] = [];
+    const resolved = declarations.map((d) => {
+        const fail = (code: "E_FFI_TARGET" | "E_FFI_STATIC", message: string) =>
+            diagnostics.push({ code, file: fileName, span: d.span, message });
+        if (d.dll === "syscall") {
+            if (descriptor.os === "win32")
+                fail(
+                    "E_FFI_TARGET",
+                    `System call declaration ${d.name} requires a Linux, Darwin or BSD target`,
+                );
+            return d;
+        }
+        let dll = d.dll;
+        if (d.libraries) {
+            const key = descriptor.os as keyof typeof d.libraries,
+                selected = d.libraries[key];
+            if (selected === undefined) {
+                fail(
+                    "E_FFI_TARGET",
+                    `FFI declaration ${d.name} names no library for ${descriptor.os} (keys: ${Object.keys(d.libraries).join(", ")})`,
+                );
+                return d;
+            }
+            dll = selected;
+        }
+        if (descriptor.os === "freebsd" || descriptor.os === "openbsd")
+            fail(
+                "E_FFI_TARGET",
+                `FFI declaration ${dll}!${d.name}: ${descriptor.os} targets support define('syscall', ...) only`,
+            );
+        else if (
+            descriptor.os === "win32" &&
+            /\.(so(\.\d+)*|dylib)$/i.test(dll)
+        )
+            fail(
+                "E_FFI_TARGET",
+                `FFI declaration ${dll}!${d.name} names a shared library; Windows targets import DLLs (use an object literal keyed by OS)`,
+            );
+        else if (descriptor.os !== "win32" && /\.dll$/i.test(dll))
+            fail(
+                "E_FFI_TARGET",
+                `FFI declaration ${dll}!${d.name} names a Windows DLL; ${descriptor.os} targets link shared libraries (use an object literal keyed by OS)`,
+            );
+        else if (descriptor.os === "linux" && /\.dylib$/i.test(dll))
+            fail(
+                "E_FFI_TARGET",
+                `FFI declaration ${dll}!${d.name} names a macOS dylib; Linux targets link shared objects (use an object literal keyed by OS)`,
+            );
+        else if (descriptor.os === "darwin" && /\.so(\.\d+)*$/i.test(dll))
+            fail(
+                "E_FFI_TARGET",
+                `FFI declaration ${dll}!${d.name} names a Linux shared object; macOS targets link dylibs (use an object literal keyed by OS)`,
+            );
+        else
+            try {
+                checkFfiNames(dll, d.name, descriptor.os);
+            } catch (error) {
+                fail("E_FFI_STATIC", (error as Error).message);
+            }
+        return { ...d, dll };
+    });
+    if (diagnostics.length) throw new CompileError(diagnostics);
+    return resolved;
+}
 function peResources(options: CompileOptions): PeResource[] {
     const fail = (message: string): never => {
         throw new CompileError([
@@ -367,7 +444,7 @@ function compileOnTarget(
                   )
                 : undefined);
         const {
-            result: { ir, agentIRs },
+            result: { ir: loweredIR, agentIRs },
             usage,
             reasons,
         } = collectSourceUsage(() => ({
@@ -408,7 +485,7 @@ function compileOnTarget(
             ]);
         // Syntax helpers (with, eval, class elements, modules) are selected by
         // the calls of the lowered program and its agents (#278).
-        for (const part of requiredSyntaxParts([ir, ...agentIRs])) {
+        for (const part of requiredSyntaxParts([loweredIR, ...agentIRs])) {
             usage.preludes[part] = true;
             reasons[part] ??= "a helper the compiled program calls";
         }
@@ -427,23 +504,18 @@ function compileOnTarget(
                 }),
             ),
         );
-        const ffi = ir.ffi ?? [];
-        // DLL imports exist in Windows images; other OS targets use raw kernel calls.
-        const foreign = ffi.filter(
-            (d) => (d.dll === "syscall") !== (descriptor.os !== "win32"),
-        );
-        if (foreign.length)
-            throw new CompileError(
-                foreign.map((d) => ({
-                    code: "E_FFI_TARGET",
-                    file: options.fileName,
-                    span: d.span,
-                    message:
-                        d.dll === "syscall"
-                            ? `System call declaration ${d.name} requires a Linux, Darwin or BSD target`
-                            : `FFI declaration ${d.dll}!${d.name} requires a Windows target`,
-                })),
-            );
+        // FFI declarations: the target's library of a portable declaration,
+        // and the libraries the target can link (E_FFI_TARGET).
+        const ir: ModuleIR = loweredIR.ffi?.length
+            ? {
+                  ...loweredIR,
+                  ffi: resolveFfiTargets(
+                      loweredIR.ffi,
+                      descriptor,
+                      options.fileName,
+                  ),
+              }
+            : loweredIR;
         const resources = peResources(options);
         if (options.printAsm && descriptor.arch !== "x64")
             throw new CompileError([
@@ -462,6 +534,7 @@ function compileOnTarget(
                 agentPrograms,
                 link,
                 ...(options.callStats ? { callStats: true } : {}),
+                ...(options.gcStress ? { gcStress: true } : {}),
                 ...(options.printAsm ? { listing: true } : {}),
                 ...(options.coverage
                     ? {

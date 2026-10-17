@@ -17,10 +17,10 @@ Hello, from Nona!
 ## Зачем Nona
 
 - **Маленькие и быстро стартуют.** Hello world весит около 1,1 МБ: движок RegExp, таблицы Unicode и библиотеки вроде `Proxy`, таймеров или `process` попадают в файл, только если программа может до них дойти. Запуск занимает около 3 мс, пик памяти около 1 МБ (у Node.js 47 мс и 44 МБ, у Deno 41 мс, у Bun 6 мс; см. [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
-- **Никаких зависимостей при запуске.** Файлы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI). Файлы для Linux, BSD и macOS на Intel обращаются к ядру напрямую, без libc. Для Apple Silicon используются системные dyld и libSystem.
+- **Никаких зависимостей при запуске.** Файлы для Windows импортируют только `KERNEL32.dll` (и DLL, которые вы вызываете через FFI). Файлы для Linux, BSD и macOS на Intel обращаются к ядру напрямую, без libc; программа, объявившая функции разделяемых библиотек через FFI, линкуется динамически только с этими библиотеками. Для Apple Silicon используются системные dyld и libSystem.
 - **Восемь целей с любой машины.** Кросс-компиляция через `--target`; один файл для Linux на каждый процессор работает в Mint, Ubuntu, Debian, Fedora и Alpine.
 - **Самосборка.** Компилятор собирает сам себя. Выпущенный `nona` — нативный исполняемый файл, собранный Nona, без Node.js внутри. На Windows и Linux x64 он пересобирает себя во вторую стадию, совпадающую побайтно ([bootstrap](docs/self-hosting.md)).
-- **Настоящие программы.** Кроме языка и его стандартной библиотеки: `process`, `fs`, `path`, `Buffer`, события, потоки, таймеры, HTTP-серверы и клиенты, TCP-сокеты и FFI для Windows.
+- **Настоящие программы.** Кроме языка и его стандартной библиотеки: `process`, `fs`, `path`, `Buffer`, события, потоки, таймеры, HTTP-серверы и клиенты, TCP-сокеты и FFI (DLL в Windows, разделяемые библиотеки в Linux и macOS).
 
 ## Установка
 
@@ -116,7 +116,7 @@ nona --help | --version
 | `node:child_process`                                                                                            | `spawn`, `exec`, `execFile` и синхронные варианты, потоки stdio через каналы, `kill`, `cwd`/`env`/`shell` (Linux и Windows; без `fork`)                                                                                                                                           | [дочерние процессы](docs/host-apis.md#child-processes)             |
 | `URL`, `URLSearchParams`, `node:url`                                                                            | разбор и сериализация по URL Standard, `fileURLToPath`, `pathToFileURL`                                                                                                                                                                                                           | [URL](docs/host-apis.md#url)                                       |
 | `node:os`, `node:tty`, `node:util`, `node:assert`, `node:crypto`, `node:querystring`, `node:timers/promises`, … | то, что используют npm-пакеты: `util.format`/`inspect`/`inherits`/`promisify`, `os.EOL`/`homedir`, `tty.isatty`, проверки, случайные значения (и глобальный `crypto`), хеши и HMAC                                                                                                | [вспомогательные модули](docs/host-apis.md#nodejs-support-modules) |
-| `nona:ffi`, `nona:win32`                                                                                        | вызов любых экспортов DLL в Windows                                                                                                                                                                                                                                               | [FFI](docs/ffi.md)                                                 |
+| `nona:ffi`, `nona:win32`                                                                                        | вызов любых экспортов DLL в Windows, функций разделяемых библиотек (`.so`, `.dylib`) в Linux и macOS, переносимые объявления по ОС                                                                                                                                                | [FFI](docs/ffi.md)                                                 |
 
 **npm-пакеты.** Установите пакеты через npm как обычно и соберите программу: Nona разрешает `node_modules` при компиляции так же, как Node.js (`exports`, `imports`, условия, `main`, `type` из `package.json`, символические ссылки), и компилирует в исполняемый файл модули CommonJS, ES-модули и JSON; `require`, `module.exports`, `require.cache`, циклы и взаимодействие с ES-модулями работают как в Node.js. lodash, chalk, commander, yargs, dayjs, date-fns, marked, js-yaml, semver, uuid, zod и другие проверены на совпадение с Node.js ([npm-пакеты](docs/npm.md)).
 
@@ -192,7 +192,7 @@ examples           примеры программ
 
 ## Безопасность
 
-Nona не проходила аудит безопасности. Не компилируйте недоверенный код и не считайте собранные файлы песочницей: они работают с теми же правами, что и любая другая нативная программа, а через FFI можно вызвать любую DLL.
+Nona не проходила аудит безопасности. Не компилируйте недоверенный код и не считайте собранные файлы песочницей: они работают с теми же правами, что и любая другая нативная программа, а через FFI можно вызвать любую DLL или разделяемую библиотеку.
 
 ## Лицензия
 
