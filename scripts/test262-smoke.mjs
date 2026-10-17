@@ -72,8 +72,8 @@ const excludePathFilters = [
 // error cause, logical assignment, numeric separators, Object.hasOwn,
 // Promise.any, and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
-// non-extensible objects), symbols as WeakMap keys and WeakSet values
-// (WeakRef and FinalizationRegistry do not exist), and RegExp pattern modifiers.
+// non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
+// match indices (the d flag) and RegExp pattern modifiers.
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
@@ -90,7 +90,6 @@ const postEs2020Features = [
     "Error.isError",
     "explicit-resource-management",
     "Float16Array",
-    "FinalizationRegistry",
     "hashbang",
     "immutable-arraybuffer",
     "import-assertions",
@@ -110,7 +109,6 @@ const postEs2020Features = [
     "Promise.allKeyed",
     "RegExp.escape",
     "regexp-duplicate-named-groups",
-    "regexp-match-indices",
     "regexp-v-flag",
     "resizable-arraybuffer",
     "set-methods",
@@ -120,10 +118,8 @@ const postEs2020Features = [
     "String.prototype.replaceAll",
     "String.prototype.toWellFormed",
     "Temporal",
-    "top-level-await",
     "uint8array-base64",
     "upsert",
-    "WeakRef",
     "well-formed-unicode-strings",
     "await-dictionary",
     "Intl.Locale-info",

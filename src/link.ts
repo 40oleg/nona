@@ -9,7 +9,7 @@ export interface RuntimeLink {
     regexp: boolean;
     /** Unicode property tables for \p{…} and \P{…} in RegExp patterns. */
     unicodeProperties: boolean;
-    /** Unicode normalization tables for String.prototype.normalize and localeCompare. */
+    /** Unicode normalization tables for String.prototype.normalize, localeCompare and Intl.Collator. */
     unicodeNormalization: boolean;
     /** Optional JavaScript preludes (see preludeTriggers). */
     preludes: Record<OptionalPrelude, boolean>;
@@ -53,6 +53,7 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
     // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
@@ -105,16 +106,34 @@ export const preludeTriggers = {
         "performance",
         "globalThis",
     ],
+    // Nona's own Intl for the en locale (#300) and the locale-sensitive methods
+    // that delegate to it.
+    intl: [
+        "Intl",
+        "Segmenter",
+        "toLocaleString",
+        "toLocaleDateString",
+        "toLocaleTimeString",
+        "localeCompare",
+    ],
     // The prelude also adds its methods to Array.prototype[Symbol.unscopables].
     es2021: [
         "at",
         "findLast",
         "findLastIndex",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
+        "with",
         "hasOwn",
         "AggregateError",
         "any",
         "unscopables",
     ],
+    // WeakRef and its microtask-checkpoint hook; the native part is linked with it.
+    weakRef: ["WeakRef"],
+    // FinalizationRegistry and its cleanup jobs; shares the native part of WeakRef.
+    finalizationRegistry: ["FinalizationRegistry"],
     annexB: [
         "escape",
         "unescape",
@@ -136,7 +155,8 @@ export const preludeTriggers = {
         "sub",
         "sup",
     ],
-    arraySort: ["sort"],
+    // toSorted of the es2021 prelude sorts with the built-in sort.
+    arraySort: ["sort", "toSorted"],
     objectIntegrity: ["freeze", "seal", "isFrozen", "isSealed"],
     objectAnnexB: [
         "__defineGetter__",
@@ -151,6 +171,7 @@ export const preludeTriggers = {
     evalCode: [],
     classElements: [],
     moduleRecords: [],
+    topLevelAwait: [],
 } as const satisfies Record<string, readonly string[]>;
 export type OptionalPrelude = keyof typeof preludeTriggers;
 export const optionalPreludes = Object.keys(
@@ -168,6 +189,7 @@ export const preludeDependencies: Partial<
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],
     stream: ["eventEmitter", "buffer", "process"],
+    topLevelAwait: ["moduleRecords"],
 };
 /** Process parses dotenv/memory text and validates masks with original regexes. */
 export function runtimeRegExpLink(
@@ -187,6 +209,11 @@ export const reflectiveNames: readonly string[] = [
     "getOwnPropertyDescriptors",
     "ownKeys",
 ];
+/**
+ * Preludes that add no built-ins, so enumerating built-ins cannot observe
+ * them: they are linked only by the syntax that needs them.
+ */
+export const syntaxOnlyPreludes: readonly OptionalPrelude[] = ["topLevelAwait"];
 export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
     return Object.fromEntries(
         optionalPreludes.map((name) => [name, value]),
@@ -348,6 +375,13 @@ export function requiredSyntaxParts(
                         const part = syntaxHelperParts[op.target.slice(11)];
                         if (part) parts.add(part);
                     }
+                    // A module body with top-level await is an async function (#306).
+                    else if (
+                        op.kind === "newFunction" &&
+                        op.async &&
+                        op.target.startsWith("js.module.")
+                    )
+                        parts.add("topLevelAwait");
     return parts;
 }
 /** `link` with the syntax helper parts that the calls of `module` need. */

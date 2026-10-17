@@ -2,7 +2,7 @@
 
 ## Current release
 
-**v0.12.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
+**v0.16.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
 
 ## Test262 audit
 
@@ -18,6 +18,10 @@ The last full pinned Test262 audit, on Windows x64 for v0.8.0 (`scripts/test262-
 The classification comes from `scripts/test262-summary.mjs`: "`eval`" tests call `eval` or `$262.evalScript` with source text Nona cannot know at compile time; "newer semantics" tests check behaviour from later editions (the `v` flag, numeric separators, `Promise.any`, …) under an old or missing feature tag. The unit suite runs on Windows and Linux in CI and compiles and executes real PE and ELF files, many under GC stress. How to run the audits is described on the [Test262](/reference/test262) page.
 
 Later change, measured on 2026-10-16 on Windows x64 with `TEST262_EXCLUDE_FEATURES=post-es2020`: symbols as WeakMap keys and WeakSet values (ES2023, [#310](https://github.com/40oleg/nona/issues/310)) pass, `built-ins/WeakMap` 102/102 and `built-ins/WeakSet` 85/85. The rest of the table above is unchanged.
+
+## Array change-by-copy methods
+
+Checked after the audit against the pinned revision (Windows x64, [#308](https://github.com/40oleg/nona/issues/308)): `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables` pass 94 of 94 with no remaining failures. The `%TypedArray%` variants are not implemented; see the [Test262 baseline](https://github.com/40oleg/nona/blob/main/docs/test262.md).
 
 ## Remaining failures
 

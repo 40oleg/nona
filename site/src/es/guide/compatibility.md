@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Nona apunta al lenguaje y los objetos integrados de la 11.ª edición normativa de ECMA-262 (junio de 2020), para scripts y módulos ES. La internacionalización ECMA-402, las APIs del navegador y las de Node.js son especificaciones aparte; Nona solo proporciona las APIs del host enumeradas en la [Referencia](/es/reference/modules). El contrato de completitud se mantiene en [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md).
+Nona apunta al lenguaje y los objetos integrados de la 11.ª edición normativa de ECMA-262 (junio de 2020), para scripts y módulos ES. La internacionalización ECMA-402, las APIs del navegador y las de Node.js son especificaciones aparte; Nona solo proporciona las APIs del host enumeradas en la [Referencia](/es/reference/modules). El contrato de completitud se mantiene en [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md). El `Intl` propio de Nona (ECMA-402) solo conoce la configuración regional `en`/`en-US`; las demás se reemplazan por ella y la zona horaria es UTC.
 
 Una versión se describe como «ES2020 con excepciones documentadas», nunca como totalmente conforme con ES2020.
 
@@ -60,9 +60,10 @@ Las bibliotecas integradas escritas en JavaScript que solo instalan globales o m
 | `TextEncoder`, `TextDecoder`                                                                                                                                    | `TextEncoder`, `TextDecoder` (también se enlazan con `process`)                                                                               |
 | `process`                                                                                                                                                       | `process`                                                                                                                                     |
 | Temporizadores, el bucle de eventos, `queueMicrotask` y `performance`                                                                                           | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
-| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                                          | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`, `toSorted`, `toReversed`, `toSpliced`, `with`                           | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
 | `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` del Annex B y los métodos HTML de las cadenas (`anchor`, `big`, `link`, …) | los mismos nombres                                                                                                                            |
 | `Array.prototype.sort` estable por mezcla                                                                                                                       | `sort`                                                                                                                                        |
+| Intl (solo en/en-US, [docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md))                                                                     | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | `Object.freeze`, `seal`, `isFrozen`, `isSealed` mediante trampas de Proxy (si no, versiones nativas para objetos ordinarios)                                    | los mismos nombres                                                                                                                            |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                                  | los mismos nombres                                                                                                                            |
 | Métodos de datos binarios de `ArrayBuffer`, `SharedArrayBuffer`, `DataView` y los arrays tipados (`slice`, `subarray`, `sort`, …)                               | los nombres de sus constructores, `Atomics`, `TypedArray` (también con `process`, `Buffer` y `TextEncoder`)                                   |
@@ -82,7 +83,7 @@ Un programa aún puede alcanzar una parte omitida mediante un nombre calculado e
 
 - `process` y `node:fs` están disponibles en los ocho destinos; HTTP y TCP (`node:http`, `node:net`) en Windows y Linux.
 - Los ejecutables de Windows usan DLL del sistema (incluida NTDLL para los metadatos del proceso padre) y las importaciones FFI declaradas; los ejecutables POSIX usan servicios nativos del sistema operativo.
-- Las llamadas FFI a DLL requieren Windows; las llamadas directas al sistema usan los números de kernel del destino Linux, Darwin o BSD elegido. Detalles: [Plataformas nativas](/reference/native-platforms).
+- FFI llama a DLL en Windows y a bibliotecas compartidas (`.so`, `.dylib`) en Linux y macOS, con declaraciones portables por sistema operativo; los destinos BSD solo tienen llamadas directas al sistema. Las llamadas directas al sistema usan los números de kernel del destino Linux, Darwin o BSD elegido. Detalles: [Plataformas nativas](/reference/native-platforms).
 
 ## Buffer
 
