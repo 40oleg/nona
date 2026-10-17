@@ -49,7 +49,7 @@ Most features from later editions are not supported, among them the RegExp `v` f
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
 - ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn`, Error `cause`, and the RegExp `d` flag with match indices.
 - ES2022: top-level `await` in ES modules, including the evaluation order of async modules, cycles and rejection propagation.
-- ES2023: `findLast` and `findLastIndex`.
+- ES2023: `findLast` and `findLastIndex`, and the change-by-copy methods `toSorted`, `toReversed`, `toSpliced` and `with` of `Array` (not the `%TypedArray%` variants).
 - ES2025: RegExp pattern modifiers `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)`, with the spec's early errors (a SyntaxError for a repeated or conflicting flag, `(?-:` or a missing colon).
 
 Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.

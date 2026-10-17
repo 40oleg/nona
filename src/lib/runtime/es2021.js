@@ -12,6 +12,7 @@
         ObjectConstructor = Object,
         TypeErrorConstructor = TypeError;
     var mathFloor = Math.floor,
+        mathMax = Math.max,
         mathMin = Math.min,
         mathAbs = Math.abs,
         iteratorSymbol = Symbol.iterator;
@@ -208,6 +209,120 @@
             },
         }.findLastIndex,
     );
+    // Array.prototype.toReversed / toSorted / toSpliced / with (ES2023). The
+    // sort is the built-in one captured here (linked together with toSorted).
+    var originalSort = ArrayPrototype.sort,
+        RangeErrorConstructor = RangeError;
+    function createArray(length) {
+        if (length > 4294967295)
+            throw new RangeErrorConstructor("Invalid array length");
+        return [];
+    }
+    function put(array, index, value) {
+        defineProperty(array, index, {
+            value: value,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+    }
+    function setLength(array, length) {
+        array.length = length;
+    }
+    function relativeIndex(value, len) {
+        var k = toIntegerOrInfinity(value);
+        return k < 0 ? mathMax(len + k, 0) : mathMin(k, len);
+    }
+    install(
+        ArrayPrototype,
+        "toReversed",
+        0,
+        {
+            toReversed() {
+                var O = toObject(this, "Array.prototype.toReversed"),
+                    len = toLength(O.length),
+                    A = createArray(len);
+                for (var k = 0; k < len; k++) put(A, k, O[len - k - 1]);
+                setLength(A, len);
+                return A;
+            },
+        }.toReversed,
+    );
+    install(
+        ArrayPrototype,
+        "toSorted",
+        1,
+        {
+            toSorted(comparefn) {
+                if (comparefn !== undefined && typeof comparefn !== "function")
+                    throw new TypeErrorConstructor(
+                        "Array.prototype.toSorted: comparator is not a function",
+                    );
+                var O = toObject(this, "Array.prototype.toSorted"),
+                    len = toLength(O.length),
+                    A = createArray(len);
+                for (var k = 0; k < len; k++) put(A, k, O[k]);
+                setLength(A, len);
+                call(originalSort, A, comparefn);
+                return A;
+            },
+        }.toSorted,
+    );
+    install(
+        ArrayPrototype,
+        "toSpliced",
+        2,
+        {
+            toSpliced(start, skipCount) {
+                var O = toObject(this, "Array.prototype.toSpliced"),
+                    len = toLength(O.length),
+                    actualStart = relativeIndex(start, len),
+                    count = arguments.length,
+                    insertCount = count > 2 ? count - 2 : 0,
+                    actualSkip;
+                if (count === 0) actualSkip = 0;
+                else if (count === 1) actualSkip = len - actualStart;
+                else {
+                    var skip = toIntegerOrInfinity(skipCount);
+                    actualSkip = mathMin(mathMax(skip, 0), len - actualStart);
+                }
+                var newLen = len + insertCount - actualSkip;
+                if (newLen > 9007199254740991)
+                    throw new TypeErrorConstructor(
+                        "Array.prototype.toSpliced: array is too long",
+                    );
+                var A = createArray(newLen),
+                    i = 0,
+                    r = actualStart + actualSkip;
+                for (; i < actualStart; i++) put(A, i, O[i]);
+                for (var j = 0; j < insertCount; j++, i++)
+                    put(A, i, arguments[j + 2]);
+                for (; i < newLen; i++, r++) put(A, i, O[r]);
+                setLength(A, newLen);
+                return A;
+            },
+        }.toSpliced,
+    );
+    install(
+        ArrayPrototype,
+        "with",
+        2,
+        {
+            with(index, value) {
+                var O = toObject(this, "Array.prototype.with"),
+                    len = toLength(O.length),
+                    relative = toIntegerOrInfinity(index),
+                    actual = relative >= 0 ? relative : len + relative;
+                if (actual >= len || actual < 0)
+                    throw new RangeErrorConstructor("Invalid index");
+                var A = createArray(len);
+                for (var k = 0; k < len; k++)
+                    put(A, k, k === actual ? value : O[k]);
+                setLength(A, len);
+                return A;
+            },
+        }.with,
+    );
     var unscopables = ArrayPrototype[Symbol.unscopables];
     // Rebuilt in the specification's order (ES2023 23.1.3.38).
     var unscopableNames = [
@@ -223,6 +338,9 @@
         "flatMap",
         "includes",
         "keys",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
         "values",
     ];
     for (var name of unscopableNames) delete unscopables[name];

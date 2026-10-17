@@ -121,6 +121,10 @@ export const preludeTriggers = {
         "at",
         "findLast",
         "findLastIndex",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
+        "with",
         "hasOwn",
         "AggregateError",
         "any",
@@ -151,7 +155,8 @@ export const preludeTriggers = {
         "sub",
         "sup",
     ],
-    arraySort: ["sort"],
+    // toSorted of the es2021 prelude sorts with the built-in sort.
+    arraySort: ["sort", "toSorted"],
     objectIntegrity: ["freeze", "seal", "isFrozen", "isSealed"],
     objectAnnexB: [
         "__defineGetter__",
