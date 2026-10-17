@@ -6,6 +6,7 @@ import {
     preludeSet,
     preludeTriggers,
     reflectiveNames,
+    syntaxOnlyPreludes,
 } from "../link.js";
 import type { Token, TokenStream } from "./token.js";
 
@@ -131,7 +132,10 @@ function recordPreludeName(name: string, inString: boolean): void {
             reflectiveNames.some((reflective) => name.includes(reflective)))
     ) {
         for (const prelude of optionalPreludes)
-            if (!unavailableReflectivePreludes.includes(prelude))
+            if (
+                !unavailableReflectivePreludes.includes(prelude) &&
+                !syntaxOnlyPreludes.includes(prelude)
+            )
                 linkPrelude(
                     prelude,
                     `${JSON.stringify(name)} can enumerate built-ins`,

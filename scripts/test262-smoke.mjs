@@ -119,7 +119,6 @@ const postEs2020Features = [
     "String.prototype.toWellFormed",
     "symbols-as-weakmap-keys",
     "Temporal",
-    "top-level-await",
     "uint8array-base64",
     "upsert",
     "well-formed-unicode-strings",

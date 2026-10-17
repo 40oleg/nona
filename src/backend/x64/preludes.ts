@@ -22,6 +22,7 @@ import {
     evalCodePreludeSource,
     moduleRecordsPreludeSource,
     promisePreludeSource,
+    topLevelAwaitPreludeSource,
     withStatementPreludeSource,
 } from "../../runtime/promise-source.js";
 import { encodingPreludeSource } from "../../runtime/encoding-source.js";
@@ -103,6 +104,7 @@ export function lowerRuntimePrelude(
             ["evalCode", evalCodePreludeSource],
             ["classElements", classElementsPreludeSource],
             ["moduleRecords", moduleRecordsPreludeSource],
+            ["topLevelAwait", topLevelAwaitPreludeSource],
             ["encoding", encodingPreludeSource],
             ["url", urlPreludeSource],
             [

@@ -669,10 +669,53 @@ export class NodeModuleHost implements ModuleHost {
         return lines.join("\n") + "\n";
     }
 
+    private asyncGraphs = new Map<string, boolean>();
+    /** Whether an ES module or a module it imports has top-level await (#306). */
+    private hasTopLevelAwait(path: string): boolean {
+        let found = this.asyncGraphs.get(path);
+        if (found !== undefined) return found;
+        const seen = new Set<string>();
+        const visit = (module: string): boolean => {
+            if (seen.has(module) || this.format(module) !== "module")
+                return false;
+            seen.add(module);
+            const text = this.text(module);
+            if (text === undefined) return false;
+            let program: A.Program;
+            try {
+                program = parse(lex(text, { module: true }), { module: true });
+            } catch {
+                // The error is reported when the module itself is compiled.
+                return false;
+            }
+            if (program.topLevelAwait) return true;
+            for (const statement of program.body) {
+                const source =
+                    statement.kind === "Import" || statement.kind === "Export"
+                        ? statement.source
+                        : undefined;
+                if (source === undefined || this.options.isBuiltin?.(source))
+                    continue;
+                let resolved: string | undefined;
+                try {
+                    resolved = this.resolve(source, module);
+                } catch {
+                    resolved = undefined;
+                }
+                if (resolved !== undefined && visit(resolved)) return true;
+            }
+            return false;
+        };
+        found = visit(path);
+        this.asyncGraphs.set(path, found);
+        return found;
+    }
+
     /**
      * The imports and the `require` table entries of a file. Each entry tells
      * how the required file is reached: its own factory (0), as an ES module
-     * namespace (1) or as a builtin (2).
+     * namespace (1), as a builtin (2) or as an ES module graph with
+     * top-level await (3), which require() rejects.
      */
     private requireTable(
         path: string,
@@ -682,7 +725,9 @@ export class NodeModuleHost implements ModuleHost {
             entries: string[] = [];
         const target = (
             specifier: string,
-        ): { path: string; kind: 0 | 1 | 2; native: string } | undefined => {
+        ):
+            | { path: string; kind: 0 | 1 | 2 | 3; native: string }
+            | undefined => {
             if (this.options.isBuiltin?.(specifier))
                 return { path: specifier, kind: 2, native: specifier };
             let resolved: string | undefined;
@@ -693,6 +738,12 @@ export class NodeModuleHost implements ModuleHost {
             }
             if (resolved === undefined) return undefined;
             const format = this.format(resolved);
+            if (format === "module" && this.hasTopLevelAwait(resolved))
+                return {
+                    path: resolved,
+                    kind: 3,
+                    native: nativePath(resolved),
+                };
             return format === "module"
                 ? { path: resolved, kind: 1, native: nativePath(resolved) }
                 : {
@@ -704,6 +755,14 @@ export class NodeModuleHost implements ModuleHost {
         analysis.requires.forEach((specifier, index) => {
             const found = target(specifier);
             if (!found) return;
+            // An ES module graph with top-level await is not imported: its
+            // require() throws ERR_REQUIRE_ASYNC_MODULE before it runs.
+            if (found.kind === 3) {
+                entries.push(
+                    `[${JSON.stringify(specifier)}, [${JSON.stringify(found.native)}, undefined, 3]]`,
+                );
+                return;
+            }
             const local = `__nona_cjs_d${index}`;
             imports.push(
                 found.kind === 0
