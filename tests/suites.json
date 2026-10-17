@@ -115,6 +115,7 @@
                 "set",
                 "weak-collections",
                 "weakref",
+                "finalization-registry",
                 "proxy",
                 "reflect",
                 "symbols",
