@@ -49,6 +49,7 @@
 - ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`.
 - ES2022: حقول الأصناف، والتوابع والموصِّلات الخاصة، والكتل الساكنة، و`#x in obj`، و`.at()`، و`Object.hasOwn`، والسبب `cause` في Error.
 - ES2023: `findLast` و`findLastIndex`.
+- ES2025: `RegExp.escape`.
 
 وحين تتحقق مراجعة Test262 المثبَّتة بالفعل من دلالات أحدث لميزات ES2020، يتبع Nona معيار Test262؛ وتسرد صفحة [Test262](/ar/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) هذه الحالات.
 
