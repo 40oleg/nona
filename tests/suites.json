@@ -334,7 +334,8 @@
                 "zlib",
                 "pick-runner",
                 "cancel-pr-runs",
-                "run-shard"
+                "run-shard",
+                "ci-changes"
             ]
         }
     }

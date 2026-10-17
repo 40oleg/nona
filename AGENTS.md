@@ -69,6 +69,10 @@ exactly.
   `full-ci` label. Add `full-ci` when a change touches code generation or the
   runtime of a target other than linux-x64 and win32-x64, the loaders,
   self-hosting or packaging (#353).
+- The Test262 directory jobs of `check` (`windows-<group>-test262`) run on a
+  pull request only when it changes `src/`, the Test262 runner, package files
+  or `check.yml`, or has `full-ci` (#371). The label is read when the run
+  starts: add it before pushing, or push again after adding it.
 - `npm run compare` when runtime behaviour visible to programs changes.
 - Add tests next to the existing ones in `tests/` (`*.test.ts`). Prefer
   `runOnHost` with the Node.js oracle (`runOracle`) so the same test runs on
