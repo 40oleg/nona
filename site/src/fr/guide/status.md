@@ -2,7 +2,7 @@
 
 ## Version actuelle
 
-**v0.12.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
+**v0.16.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
 
 ## Audit Test262
 
@@ -16,6 +16,10 @@ Dernier audit complet de Test262 figé, sous Windows x64 pour v0.8.0 (`scripts/t
 | `annexB/`                    | **996 / 1016** (8 ignorés)     | 20 `eval`                                        |
 
 La classification provient de `scripts/test262-summary.mjs` : les tests « `eval` » appellent `eval` ou `$262.evalScript` avec un texte source que Nona ne peut pas connaître à la compilation ; les tests de « sémantique plus récente » vérifient un comportement issu d’éditions ultérieures (le drapeau `v`, les séparateurs numériques, `Promise.any`, …) sous une étiquette de fonctionnalité ancienne ou absente. La suite unitaire s’exécute sous Windows et Linux en CI et compile et exécute de vrais fichiers PE et ELF, souvent sous stress du ramasse-miettes. La façon de lancer les audits est décrite sur la page [Test262](/fr/reference/test262).
+
+## Méthodes de copie de tableaux
+
+Vérifié après l'audit sur la révision Test262 épinglée (Windows x64, [#308](https://github.com/40oleg/nona/issues/308)) : les répertoires `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` et `Symbol.unscopables` passent 94 sur 94, sans échec restant. Les variantes `%TypedArray%` ne sont pas implémentées ; voir la [base Test262](https://github.com/40oleg/nona/blob/main/docs/test262.md) (en anglais).
 
 ## Échecs restants
 

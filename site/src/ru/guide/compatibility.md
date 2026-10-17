@@ -2,7 +2,7 @@
 
 ## Область действия
 
-Nona реализует язык и встроенные объекты нормативного ECMA-262 11-го издания (июнь 2020) для скриптов и ES-модулей. Интернационализация ECMA-402, API браузера и API Node.js — отдельные спецификации; Nona предоставляет только API хоста, перечисленные в [Справочнике](/ru/reference/modules). Контракт завершённости ведётся в [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md).
+Nona реализует язык и встроенные объекты нормативного ECMA-262 11-го издания (июнь 2020) для скриптов и ES-модулей. Интернационализация ECMA-402, API браузера и API Node.js — отдельные спецификации; Nona предоставляет только API хоста, перечисленные в [Справочнике](/ru/reference/modules). Контракт завершённости ведётся в [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md). Собственный `Intl` (ECMA-402) в Nona знает только локаль `en`/`en-US`; остальные локали заменяются ею, часовой пояс — UTC.
 
 Релиз описывается как «ES2020 с документированными исключениями» и никогда — как полностью соответствующий ES2020.
 
@@ -60,9 +60,10 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 | `TextEncoder`, `TextDecoder`                                                                                                                     | `TextEncoder`, `TextDecoder` (подключаются также вместе с `process`)                                                                          |
 | `process`                                                                                                                                        | `process`                                                                                                                                     |
 | Таймеры, цикл событий, `queueMicrotask` и `performance`                                                                                          | `setTimeout`, `setInterval`, `setImmediate`, `clearTimeout`, `clearInterval`, `clearImmediate`, `queueMicrotask`, `performance`, `globalThis` |
-| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`                                                           | `at`, `findLast`, `findLastIndex`, `hasOwn`, `toSorted`, `toReversed`, `with`, `AggregateError`, `any`, `unscopables`                         |
+| `.at()`, `findLast`, `findLastIndex`, `Object.hasOwn`, `AggregateError`, `Promise.any`, `toSorted`, `toReversed`, `toSpliced`, `with`            | `at`, `findLast`, `findLastIndex`, `hasOwn`, `AggregateError`, `any`, `unscopables`                                                           |
 | `escape`, `unescape`, `substr`, `setYear`, `toGMTString`, `RegExp.prototype.compile` из Annex B и HTML-методы строк (`anchor`, `big`, `link`, …) | те же имена                                                                                                                                   |
 | Устойчивая сортировка слиянием `Array.prototype.sort`                                                                                            | `sort`                                                                                                                                        |
+| Intl (только en/en-US, [docs/intl.md](https://github.com/40oleg/nona/blob/main/docs/intl.md))                                                    | `Intl`, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare`                                                         |
 | `Object.freeze`, `seal`, `isFrozen`, `isSealed` через ловушки Proxy (для обычных объектов используются нативные версии)                          | те же имена                                                                                                                                   |
 | `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`                                                                   | те же имена                                                                                                                                   |
 | Методы двоичных данных `ArrayBuffer`, `SharedArrayBuffer`, `DataView` и типизированных массивов (`slice`, `subarray`, `sort`, …)                 | имена их конструкторов, `Atomics`, `TypedArray` (подключаются и с `process`, `Buffer` и `TextEncoder`)                                        |
@@ -82,7 +83,7 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 - `process` и `node:fs` доступны на всех восьми целях; HTTP и TCP (`node:http`, `node:net`) — на Windows и Linux.
 - Исполняемые файлы Windows используют DLL ОС (включая NTDLL для метаданных родительского процесса) и объявленные импорты FFI; исполняемые файлы POSIX используют нативные службы ОС.
-- Вызовы DLL через FFI требуют Windows; прямые системные вызовы используют номера ядра выбранной цели Linux, Darwin или BSD. Подробности: [Нативные платформы](/reference/native-platforms).
+- FFI вызывает DLL в Windows и разделяемые библиотеки (`.so`, `.dylib`) в Linux и macOS, с переносимыми объявлениями по ОС; цели BSD имеют только прямые системные вызовы. Прямые системные вызовы используют номера ядра выбранной цели Linux, Darwin или BSD. Подробности: [Нативные платформы](/reference/native-platforms).
 
 ## Buffer
 

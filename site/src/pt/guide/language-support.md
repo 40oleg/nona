@@ -1,6 +1,6 @@
 # Suporte à linguagem
 
-O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.12.0**. Os números do Test262 vêm da última auditoria completa (v0.8.0) da revisão fixada descrita na página [Test262](/pt/reference/test262).
+O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.16.0**. Os números do Test262 vêm da última auditoria completa (v0.8.0) da revisão fixada descrita na página [Test262](/pt/reference/test262).
 
 **Suportado** significa implementado e coberto por testes unitários e pelo Test262 dentro dos limites indicados na coluna Observações. A matriz detalhada por recurso, com os nomes dos testes, fica em [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (em russo).
 
@@ -21,7 +21,7 @@ O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções docume
 | Modo estrito                | Suportado | Prólogos de diretivas, `this` estrito, early errors e restrições em tempo de execução.                                                                                                                                                                                                                             |
 | `with`                      | Suportado | Apenas em scripts não estritos, com `Symbol.unscopables`.                                                                                                                                                                                                                                                          |
 | Chamadas de cauda próprias  | Suportado | Em código estrito.                                                                                                                                                                                                                                                                                                 |
-| Módulos                     | Suportado | `import`/`export` em todas as formas, ciclos, live bindings, objetos namespace, `import.meta`, `import()` de módulos conhecidos em tempo de compilação. `await` no nível superior (ES2022) não é suportado.                                                                                                        |
+| Módulos                     | Suportado | `import`/`export` em todas as formas, ciclos, live bindings, objetos namespace, `import.meta`, `import()` de módulos conhecidos em tempo de compilação. `await` no nível superior (ES2022) funciona em módulos ES e `import()` espera por ele; scripts e arquivos CommonJS continuam a rejeitá-lo.                 |
 | `eval`, `Function`          | Parcial   | Código conhecido em tempo de compilação é compilado antecipadamente com a semântica completa de `eval` direto e indireto; código calculado em tempo de execução lança `EvalError`. Veja [Compatibilidade](/pt/guide/compatibility#eval-and-function).                                                              |
 | Annex B                     | Suportado | Semântica de compatibilidade web para funções em blocos, `__proto__`, sintaxe legada de RegExp, `escape`/`unescape`, métodos HTML de String e mais.                                                                                                                                                                |
 
@@ -44,11 +44,12 @@ O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções docume
 
 ## Além do ES2020
 
-A maioria dos recursos de edições posteriores não é suportada, entre eles `WeakRef` e `FinalizationRegistry`, a flag `v` de RegExp e `await` no nível superior. Adições suportadas:
+A maioria dos recursos de edições posteriores não é suportada, entre eles a flag `v` de RegExp. Adições suportadas:
 
-- ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`.
-- ES2022: campos de classe, métodos e acessores privados, blocos estáticos, `#x in obj`, `.at()`, `Object.hasOwn` e `cause` em Error.
-- ES2023: `findLast`, `findLastIndex` e os métodos de TypedArray `toSorted`, `toReversed` e `with`.
+- ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
+- ES2022: campos de classe, métodos e acessores privados, blocos estáticos, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` em Error e a flag `d` de RegExp com índices de correspondência.
+- ES2022: `await` no nível superior em módulos ES, com a ordem de avaliação de módulos async, ciclos e propagação de rejeição.
+- ES2023: `findLast` e `findLastIndex`, e os métodos de cópia de `Array` `toSorted`, `toReversed`, `toSpliced` e `with` (e as variantes de `%TypedArray%` de `toSorted`, `toReversed` e `with`).
 
 Quando a revisão fixada do Test262 já verifica semântica mais nova para recursos do ES2020, o Nona segue o Test262; a página [Test262](/pt/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) lista esses casos.
 
