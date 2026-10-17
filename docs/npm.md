@@ -152,8 +152,9 @@ with Node.js (`tests/npm.test.ts` covers the mechanisms; the package list is
 checked by hand for now):
 
 acorn, ansi-styles, axios (HTTP requests to `http:` URLs), big.js, bignumber.js, chalk, classnames, commander,
-date-fns, dayjs, debug, decimal.js, deepmerge, diff, escape-html,
-fast-deep-equal, immer, js-yaml, kleur, lodash, marked, minimist, ms,
+date-fns, dayjs, debug, decimal.js, deepmerge, diff, escape-html, express
+(5.3.0: routing, params, `express.json()`/`urlencoded()`, `Router`, redirects,
+error middleware, served over `node:http`), fast-deep-equal, immer, js-yaml, kleur, lodash, marked, minimist, ms,
 mustache, nanoid, picocolors, qs, ramda, semver, strip-ansi, underscore, uuid,
 validator, yargs, zod.
 
@@ -177,6 +178,11 @@ differences follow from Nona's design:
 Function` or `eval` from strings built at run time fail when they do so:
   `ajv` (schema compilation), `lodash.template` and `_.template`, `ejs`,
   `handlebars.compile`. See [eval and Function](es2020-contract.md).
+- **Stack traces.** `Error.captureStackTrace`, `Error.stackTraceLimit` and
+  `Error.prepareStackTrace` exist, but Nona does not walk the stack: the call
+  sites passed to `prepareStackTrace` are placeholders with unknown file,
+  line and function (`depd` and similar packages load, and report no real
+  locations), and `Error` instances have no `stack` property.
 - **`Intl`** has only `Intl.Segmenter` (grapheme clusters, which `string-width`
   and `cliui` use for terminal columns). Packages that format dates or numbers
   with the other `Intl` services (`luxon`, `Intl`-based `date-fns-tz`) fail when

@@ -376,7 +376,10 @@ function attempt(label, server, extra) {
       const chain = [];
       for (let c = cert; c && chain.length < 5; c = c.issuerCertificate === c ? null : c.issuerCertificate) chain.push(c.subject.CN);
       console.log(label, 'secureConnect', socket.authorized, socket.authorizationError, chain.join(' < '));
-      socket.end();
+      // Only the handshake matters here. On a loaded Windows runner a Node.js
+      // client that ends the socket sometimes never sees the server's close
+      // (the oracle then hangs until its timeout): destroy it instead.
+      socket.destroy();
     });
     socket.on('error', (e) => console.log(label, 'error', e.code, e.message));
     socket.on('close', resolve);

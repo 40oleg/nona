@@ -34,6 +34,7 @@ import { eventEmitterPreludeSource } from "../../runtime/event-emitter-source.js
 import { streamPreludeForTarget } from "../../runtime/stream-source.js";
 import { timersPreludeSource } from "../../runtime/timers-source.js";
 import { objectAnnexBPreludeSource } from "../../runtime/object-annexb-source.js";
+import { errorStackPreludeSource } from "../../runtime/error-stack-source.js";
 import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-source.js";
 import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
@@ -85,6 +86,7 @@ export function lowerRuntimePrelude(
             ["binaryData", binaryDataPreludeSource],
             [null, reflectPreludeSource],
             ["objectAnnexB", objectAnnexBPreludeSource],
+            ["errorStack", errorStackPreludeSource],
             ["arraySort", arraySortPreludeSource],
             ["objectIntegrity", objectIntegrityPreludeSource],
             ["annexB", annexBBuiltinsPreludeSource],
