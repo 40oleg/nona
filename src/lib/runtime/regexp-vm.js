@@ -1561,6 +1561,25 @@
     }
     return null
   }
+  // The indices property of a match result for the d flag
+  // (MakeMatchIndicesIndexPairArray): [start, end] per capture or undefined,
+  // and a groups object (or undefined).
+  function indices(result,compiled,matched){
+    if(indexOf(compiled.flags,'d')<0)return;
+    var captures=matched.captures,pairs=[],groups=undefined;
+    append(pairs,[matched.start,matched.end]);
+    for(var i=1;i<=compiled.groups;i++)append(pairs,captures[i*2]===4294967295?undefined:[captures[i*2],captures[i*2+1]]);
+    if(compiled.names.length){
+      groups=Object.create(null);
+      for(var i=0;i<compiled.names.length;i++){
+        var at=compiled.names[i].index*2;
+        groups[compiled.names[i].name]=captures[at]===4294967295?undefined:[captures[at],captures[at+1]]
+      }
+    }
+    appendDescriptor.value=groups;Object.defineProperty(pairs,'groups',appendDescriptor);
+    appendDescriptor.value=pairs;Object.defineProperty(result,'indices',appendDescriptor);
+    appendDescriptor.value=undefined
+  }
   // setBacktrackBudget is for tests: 0 switches to the Pike VM at the first backtrack.
-  return {compile:compile,execute:execute,setBacktrackBudget:function(steps){backtrackBudget=steps}}
+  return {compile:compile,execute:execute,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
 })()

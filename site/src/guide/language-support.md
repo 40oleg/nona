@@ -1,6 +1,6 @@
 # Language support
 
-Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.12.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
+Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.16.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. The detailed per-feature matrix with test names is kept in [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (Russian).
 
@@ -21,7 +21,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 | Strict mode                  | Supported | Directive prologues, strict `this`, early errors and run-time restrictions.                                                                                                                                                                                                                         |
 | `with`                       | Supported | Sloppy scripts only, with `Symbol.unscopables`.                                                                                                                                                                                                                                                     |
 | Proper tail calls            | Supported | In strict code.                                                                                                                                                                                                                                                                                     |
-| Modules                      | Supported | `import`/`export` in all forms, cycles, live bindings, namespace objects, `import.meta`, `import()` of modules known at compile time. Top-level `await` (ES2022) is not supported.                                                                                                                  |
+| Modules                      | Supported | `import`/`export` in all forms, cycles, live bindings, namespace objects, `import.meta`, `import()` of modules known at compile time. Top-level `await` (ES2022) works in ES modules, and `import()` waits for it; scripts and CommonJS files still reject it.                                      |
 | `eval`, `Function`           | Partial   | Source known at compile time is compiled ahead of time with full direct and indirect `eval` semantics; source computed at run time throws `EvalError`. See [Compatibility](/guide/compatibility#eval-and-function).                                                                                 |
 | Annex B                      | Supported | Web-compatibility semantics for functions in blocks, `__proto__`, legacy RegExp syntax, `escape`/`unescape`, String HTML methods and more.                                                                                                                                                          |
 
@@ -44,11 +44,12 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 
 ## Beyond ES2020
 
-Most features from later editions are not supported, among them `WeakRef` and `FinalizationRegistry` and top-level `await`. Supported additions:
+Most features from later editions are not supported. Supported additions:
 
-- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`.
-- ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` and Error `cause`.
-- ES2023: `findLast` and `findLastIndex`.
+- ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
+- ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn`, Error `cause`, and the RegExp `d` flag with match indices.
+- ES2022: top-level `await` in ES modules, including the evaluation order of async modules, cycles and rejection propagation.
+- ES2023: `findLast` and `findLastIndex`, and the change-by-copy methods `toSorted`, `toReversed`, `toSpliced` and `with` of `Array` (not the `%TypedArray%` variants).
 - ES2024: the RegExp `v` flag (`unicodeSets`): set operations `--` and `&&`, nested classes, `q{...}` and properties of strings such as `p{RGI_Emoji}`.
 - ES2025: RegExp pattern modifiers `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)`, with the spec's early errors (a SyntaxError for a repeated or conflicting flag, `(?-:` or a missing colon).
 

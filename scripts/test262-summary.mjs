@@ -80,8 +80,7 @@ function classify(path) {
         .map((s) => s.trim());
     if (
         features.some((f) => post.includes(f)) ||
-        /\/top-level-await\/|separators|Promise\/any\//.test(path) ||
-        /\/[gimsuvy]*d[gimsuvy]*[.;,)\s]/.test(body)
+        /separators|Promise\/any\//.test(path)
     )
         return "post";
     if (/\beval(Script)?\b|wellKnownIntrinsicObjects/.test(body)) return "eval";

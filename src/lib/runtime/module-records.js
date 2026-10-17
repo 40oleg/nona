@@ -206,6 +206,16 @@
         }
         return "/" + parts.join("/");
     }
+    // Replaced by the asynchronous module evaluation (top-level-await.js).
+    core.evaluateImport = function (target, promise) {
+        try {
+            evaluateModule(target);
+        } catch (error) {
+            settle(promise, 2, error);
+            return;
+        }
+        resolveState(promise, moduleTable[target].namespace);
+    };
     __nonaRegexpVm.dynamicImport = function (specifier, referrer) {
         var promise = newPromiseState();
         try {
@@ -228,13 +238,7 @@
             var failure = graphLinkError(target, objectCreate(null));
             if (failure !== undefined) throw new SyntaxError(failure);
             enqueueCallback(function () {
-                try {
-                    evaluateModule(target);
-                } catch (error) {
-                    settle(promise, 2, error);
-                    return;
-                }
-                resolveState(promise, moduleTable[target].namespace);
+                core.evaluateImport(target, promise);
             });
         } catch (error) {
             settle(promise, 2, error);

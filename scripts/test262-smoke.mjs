@@ -70,9 +70,9 @@ const excludePathFilters = [
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
 // this list: AggregateError, Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Promise.any, the RegExp v flag (unicodeSets), the ES2022 class elements
-// (fields, private methods and accessors, static blocks, `#x in obj`, and
-// private elements refused on non-extensible objects), and RegExp pattern
+// Promise.any, and the ES2022 class elements (fields, private methods and
+// accessors, static blocks, `#x in obj`, and private elements refused on
+// non-extensible objects), RegExp match indices (the d flag), the RegExp v flag (unicodeSets) and RegExp pattern
 // modifiers.
 const postEs2020Features = [
     "Iterator.prototype.join",
@@ -90,7 +90,6 @@ const postEs2020Features = [
     "Error.isError",
     "explicit-resource-management",
     "Float16Array",
-    "FinalizationRegistry",
     "hashbang",
     "immutable-arraybuffer",
     "import-assertions",
@@ -110,7 +109,6 @@ const postEs2020Features = [
     "Promise.allKeyed",
     "RegExp.escape",
     "regexp-duplicate-named-groups",
-    "regexp-match-indices",
     "resizable-arraybuffer",
     "set-methods",
     "ShadowRealm",
@@ -120,10 +118,8 @@ const postEs2020Features = [
     "String.prototype.toWellFormed",
     "symbols-as-weakmap-keys",
     "Temporal",
-    "top-level-await",
     "uint8array-base64",
     "upsert",
-    "WeakRef",
     "well-formed-unicode-strings",
     "await-dictionary",
     "Intl.Locale-info",

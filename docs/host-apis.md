@@ -41,6 +41,10 @@ native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## Internationalization (`Intl`)
+
+Nona has its own `Intl` for the `en`/`en-US` locale (`NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` delegate to it. Other locales fall back to `en-US`; the time zone is UTC. It is linked only when a program names one of these. See [intl](intl.md).
+
 ## Paths (`node:path`)
 
 `node:path` and `path` provide Node.js 26 path manipulation without filesystem
@@ -114,6 +118,8 @@ The default export and named `EventEmitter` export are the same constructor.
 - Listener registration: `on`/`addListener`, `once`, `prependListener` and
   `prependOnceListener`. Dispatch is synchronous, preserves registration order,
   binds `this` to the emitter and snapshots listeners before calling them.
+  As in Node.js, `once` and `prependOnceListener` register their wrapper
+  through `this.on` and `this.prependListener`, so subclass overrides see it.
 - Listener removal: `off`/`removeListener` removes the most recently registered
   matching listener; `removeAllListeners` supports one event or every event.
   `newListener` and `removeListener` notifications expose original once listeners.
@@ -256,6 +262,71 @@ Stream constructors and process standard I/O are initialized on first use. Readi
 
 Private Web-stream rejection bookkeeping marks owned Promises handled without constructing discarded species Promises. Piping without an abort signal does not allocate an unused cancellation Promise.
 
+## zlib
+
+`node:zlib`, `zlib` and `nona:zlib` are one module: Nona's own DEFLATE codec
+(RFC 1951) with zlib (RFC 1950) and gzip (RFC 1952) framing, Adler-32 and
+CRC-32. No zlib library, C code or DLL is bundled. The module exports the
+synchronous, callback and stream APIs of Node.js:
+
+- Synchronous: `deflateSync`, `inflateSync`, `gzipSync`, `gunzipSync`,
+  `deflateRawSync`, `inflateRawSync` and `unzipSync` take a string, Buffer,
+  TypedArray, DataView or ArrayBuffer and return a Buffer. `unzipSync` reads
+  either gzip or zlib framing.
+- Callback: `deflate`, `inflate`, `gzip`, `gunzip`, `deflateRaw`,
+  `inflateRaw` and `unzip` take the same input and call `callback(error,
+result)` asynchronously.
+- Streams: `createDeflate`, `createInflate`, `createGzip`, `createGunzip`,
+  `createDeflateRaw`, `createInflateRaw` and `createUnzip` return Transform
+  streams from the [stream module](#streams), and the classes `Deflate`,
+  `Inflate`, `Gzip`, `Gunzip`, `DeflateRaw`, `InflateRaw` and `Unzip` are
+  exported. They support `pipe`, `pipeline`, `for await`, `flush(kind,
+callback)`, `params(level, strategy, callback)`, `reset()`, `close()` and
+  `bytesWritten`.
+- `crc32(data[, value])` computes CRC-32 of a string or view, continuing from
+  `value` when it is given. Adler-32 is used internally and is not exported,
+  as in Node.js.
+
+Options, for every function and stream: `chunkSize` (at least 64, default 16384), `windowBits`
+(8–15; 0 on inflate reads the window size from the header; gzip rejects 8),
+`level` (-1–9), `memLevel` (1–9), `strategy` (`Z_DEFAULT_STRATEGY`,
+`Z_FILTERED`, `Z_HUFFMAN_ONLY`, `Z_RLE`, `Z_FIXED`), `dictionary` (for raw
+and zlib framing), `flush` and `finishFlush` (`Z_NO_FLUSH` to `Z_BLOCK`),
+`maxOutputLength` (inflate raises `ERR_BUFFER_TOO_LARGE` above it) and `info`
+(the result is `{ buffer, engine }`). Stream options such as `highWaterMark`
+are passed to the stream. Invalid option values raise `ERR_INVALID_ARG_TYPE`
+or `ERR_OUT_OF_RANGE` with Node.js's messages.
+
+`constants` has Node.js's names and values for the flush modes, return codes,
+levels, strategies, modes and window and memory limits. The `Z_*` names are
+also properties of the module, as in Node.js. `codes` maps each return code
+to its name and back.
+
+Corrupt or truncated input raises an `Error` with Node.js's message, `errno`
+and `code` (`Z_DATA_ERROR`, `Z_BUF_ERROR` or `Z_NEED_DICT`). The same input
+produces the same code and message as in Node.js in the tests, which compare
+the results with the Node.js oracle; the callback and stream forms emit the
+same error, the callback through `callback(error)` and streams through
+`'error'`.
+
+Limitations:
+
+- Brotli is not provided: `brotliCompressSync`, `brotliDecompressSync`,
+  `brotliCompress`, `brotliDecompress`, `createBrotliCompress` and
+  `createBrotliDecompress` throw `ERR_NONA_UNSUPPORTED`. The `BROTLI_*`
+  constants exist for compatibility only. Brotli is tracked in a separate
+  issue.
+- The compressed bytes are valid DEFLATE, zlib and gzip, and the tests check
+  that Node.js decodes them, but they are not byte-identical to Node.js's zlib
+  output for the same options. Decompressing a stream gives the same bytes
+  from either implementation.
+- The `http` client does not decompress response bodies, as in Node.js. Pipe
+  a `Content-Encoding: gzip` response through `createGunzip()` (or
+  `createInflate()` for `deflate`) to decode it.
+
+A [runnable zlib sample](../site/samples/zlib.mjs) compresses and decompresses
+data with the sync, callback and stream APIs.
+
 ## URL
 
 The global `URL` and `URLSearchParams` (also exported by `node:url`) follow the
@@ -313,8 +384,9 @@ startup. Each is available as `node:<name>` and `<name>`.
   read the operating system's random source (`BCryptGenRandom` on Windows,
   `/dev/urandom` elsewhere). `createHash` (`md5`, `sha1`, `sha256`, `sha384`,
   `sha512`, with `update`, `digest` in any Buffer encoding and `copy`),
-  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. Ciphers, keys,
-  signatures, key derivation and `crypto.subtle` are not provided. The global
+  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. `hkdf` and
+  `hkdfSync` derive keys with HKDF (RFC 5869) and return an `ArrayBuffer`.
+  Ciphers, keys, signatures, other key derivation functions and `crypto.subtle` are not provided. The global
   `crypto` is `webcrypto` (`getRandomValues` and `randomUUID`); a program
   that names `crypto` links `node:crypto`, which is evaluated on first access.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`,
@@ -324,13 +396,16 @@ startup. Each is available as `node:<name>` and `<name>`.
   an async iterator, and `scheduler.wait`/`yield`.
 - `node:perf_hooks`: `performance`; `PerformanceObserver` and
   `monitorEventLoopDelay` observe nothing.
-- `node:module`: `builtinModules` and `isBuiltin`. `createRequire` throws
-  `ERR_NONA_UNSUPPORTED`: modules are resolved when the program is built.
+- `node:module`: `builtinModules` and `isBuiltin`. `createRequire(filename)`
+  returns a `require` that resolves only the modules the program contains when
+  it is built; any other id throws `MODULE_NOT_FOUND` (see
+  [module.createRequire](npm.md#modulecreaterequire)).
 - `node:worker_threads`: `isMainThread` is `true`, `parentPort` and
   `workerData` are `null`; `Worker` throws `ERR_NONA_UNSUPPORTED`.
-- `node:child_process`: every function and `ChildProcess` throw
-  `ERR_NONA_UNSUPPORTED`. The module exists so that packages which only
-  mention it load.
+- `node:child_process` (also `child_process` and `nona:child_process`):
+  `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and
+  `ChildProcess`; `fork` throws `ERR_NONA_UNSUPPORTED`. Details in
+  [Child processes](#child-processes) below.
 - `node:tls`, `node:http2` and `node:zlib` exist for the same reason: they
   have the Node.js constants (`zlib.constants`, `zlib.codes`,
   `http2.constants`, `tls.DEFAULT_MIN_VERSION`, …), and their functions and
@@ -339,3 +414,80 @@ startup. Each is available as `node:<name>` and `<name>`.
   [networking](network.md)).
 - `Object.prototype.toString.call(process)` is `[object process]`, as in
   Node.js; libraries use it to detect Node.js.
+
+## Child processes
+
+`node:child_process` (issue [#303](https://github.com/40oleg/nona/issues/303))
+runs other programs on win32-x64 and linux-x64. Other targets (macOS, BSD,
+arm64) link a stub: every function throws `ERR_NONA_UNSUPPORTED`, so that
+packages which only mention the module still load. Support for them is
+tracked in [328](https://github.com/40oleg/nona/issues/328).
+
+```js
+import { spawn, execFileSync } from "node:child_process";
+
+const child = spawn("git", ["status", "--short"], { cwd: "." });
+child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+child.on("close", (code, signal) => console.log("exit", code, signal));
+console.log(execFileSync("git", ["--version"], { encoding: "utf8" }));
+```
+
+- **Functions.** `spawn`, `exec`, `execFile` (callback `(error, stdout,
+stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
+  `spawnSync`, `execSync`, `execFileSync`, and the `ChildProcess` class
+  (`pid`, `exitCode`, `signalCode`, `killed`, `spawnfile`, `spawnargs`,
+  `stdin`, `stdout`, `stderr`, `stdio`, `kill(signal)`, `ref`, `unref`).
+- **Options.** `cwd` (a string or `file:` URL), `env` (default
+  `process.env`), `argv0`, `stdio` (`'pipe'`, `'inherit'`, `'ignore'`, or an
+  array of three of them; `process.stdin`/`stdout`/`stderr` and the numbers
+  0, 1, 2 mean `'inherit'`), `shell` (`true` or a path), `detached`,
+  `windowsHide`, `windowsVerbatimArguments`, `timeout`, `killSignal`,
+  `maxBuffer`, `encoding` and, for the synchronous variants, `input`.
+- **Streams.** `child.stdout` and `child.stderr` are `Readable`, `child.stdin`
+  is a `Writable` of the [stream module](#streams). The pipe ends are
+  non-blocking and watched by the event loop next to sockets and timers, so
+  a pending child keeps the program alive and large outputs do not deadlock.
+  Synchronous variants write `input` and drain stdout and stderr together.
+- **Events**, in order: `spawn` (the process started), then, as the child
+  ends, `exit` (`code`, `signal`) and, after its stdio streams ended,
+  `close` (`code`, `signal`). A child that cannot start emits `error`
+  (`ENOENT`, `EACCES`, …; with `code`, `errno`, `syscall: 'spawn <file>'`,
+  `path` and `spawnargs`) and then `close` with the negative errno as the
+  exit code, as in Node.js, but no `spawn` and no `exit`. A failed `kill()`
+  is an `error` event.
+  The synchronous variants return or throw as in Node.js (`error`, `status`,
+  `signal`, `stdout`, `stderr`; `execSync` and `execFileSync` throw on a
+  non-zero status).
+- **Signals.** On Linux `kill(signal)` delivers any signal; `exit` reports
+  `signal` for a child killed by one. Windows has no signals: `SIGINT`,
+  `SIGQUIT`, `SIGKILL` and `SIGTERM` terminate the process (as in libuv),
+  signal 0 only checks that it runs, and a terminated child reports exit code
+  1 and no `signal`.
+
+### Platform mechanisms
+
+- **Windows.** `CreateProcessW` with anonymous pipes from `CreatePipe`. The
+  command line is quoted as Node.js does (`windowsVerbatimArguments` keeps it
+  as given). `shell: true` runs `%ComSpec%` (`cmd.exe`) as
+  `cmd.exe /d /s /c "command"`. Anonymous pipes cannot be waited for, so the
+  event loop polls them (`PeekNamedPipe`), waiting on the process handles for
+  1 to 16 ms between polls.
+- **Linux.** Raw system calls, no libc: the parent resolves the file against
+  `PATH`, builds `argv` and `envp` in anonymous memory, creates `O_CLOEXEC`
+  pipes with `pipe2` and an error pipe, blocks signals and calls `fork`. The
+  child only runs system calls on preallocated buffers (`dup2`, `chdir`,
+  `execve`); on failure it reports the errno through the error pipe, which is
+  how `ENOENT` reaches the parent. Readiness uses `poll(2)` on the pipes and
+  a `pidfd` (`pidfd_open`); kernels without pidfd fall back to polling
+  `wait4` every 10 ms. `shell: true` runs `/bin/sh -c`. Writes to a closed
+  child stdin fail with `EPIPE` instead of raising `SIGPIPE`.
+
+### Limitations
+
+- `fork()` and the `'ipc'` stdio (and thus `serialization`, `process.send`)
+  throw `ERR_NONA_UNSUPPORTED`; so do `stdio` entries other than `'pipe'`,
+  `'inherit'` and `'ignore'` (streams, file descriptors, extra pipes).
+- `uid`, `gid` and `signal` (`AbortSignal`) are ignored. `detached` starts
+  a new session (Linux) or a process group without a console (Windows).
+- macOS, BSD and arm64 targets: `ERR_NONA_UNSUPPORTED`
+  ([328](https://github.com/40oleg/nona/issues/328)).

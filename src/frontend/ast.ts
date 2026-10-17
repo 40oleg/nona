@@ -9,6 +9,8 @@ export interface Program extends Node {
     source?: string;
     strict?: boolean;
     module?: boolean;
+    /** A module whose body contains await or for await outside functions. */
+    topLevelAwait?: boolean;
     scriptPath?: string;
     scriptRequests?: [string, number][];
 }

@@ -6,6 +6,7 @@ import {
     preludeSet,
     preludeTriggers,
     reflectiveNames,
+    syntaxOnlyPreludes,
 } from "../link.js";
 import type { Token, TokenStream } from "./token.js";
 
@@ -32,11 +33,12 @@ function validateRegExpPattern(pattern: string, flags: string): void {
  * String.prototype.match/matchAll/search with a string argument, so a program
  * whose sources never spell these names (as identifiers, property names or
  * inside string and template literals) cannot run the RegExp engine. The
- * normalization tables are reached only through normalize and localeCompare.
+ * normalization tables are reached only through normalize, localeCompare and
+ * Intl.Collator (number formatting through toLocaleString does not need them).
  */
 export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
-    normalizationNames = ["normalize", "localeCompare"];
+    normalizationNames = ["normalize", "localeCompare", "Intl", "Collator"];
 const unicodePropertyEscape = /\\[pP]\{/;
 // The properties of strings of v-mode patterns (\p{RGI_Emoji} …): their
 // emoji data is linked only when a literal or a string names one of them.
@@ -153,7 +155,10 @@ function recordPreludeName(name: string, inString: boolean): void {
             reflectiveNames.some((reflective) => name.includes(reflective)))
     ) {
         for (const prelude of optionalPreludes)
-            if (!unavailableReflectivePreludes.includes(prelude))
+            if (
+                !unavailableReflectivePreludes.includes(prelude) &&
+                !syntaxOnlyPreludes.includes(prelude)
+            )
                 linkPrelude(
                     prelude,
                     `${JSON.stringify(name)} can enumerate built-ins`,
@@ -751,7 +756,7 @@ export function lex(
                 i += codePoint().length;
             const flags = source.slice(flagStart, i);
             if (
-                !/^[gimsuvy]*$/.test(flags) ||
+                !/^[dgimsuvy]*$/.test(flags) ||
                 new Set(flags).size !== flags.length ||
                 (flags.includes("u") && flags.includes("v"))
             )

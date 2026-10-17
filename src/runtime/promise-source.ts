@@ -6,6 +6,7 @@ import {
     runtimeClassElements,
     runtimeEvalCode,
     runtimeModuleRecords,
+    runtimeTopLevelAwait,
     runtimeWithStatement,
 } from "../lib/sources.generated.js";
 // Helpers that only some syntax needs (#278), linked when the lowered program
@@ -14,3 +15,4 @@ export const withStatementPreludeSource = runtimeWithStatement;
 export const evalCodePreludeSource = runtimeEvalCode;
 export const classElementsPreludeSource = runtimeClassElements;
 export const moduleRecordsPreludeSource = runtimeModuleRecords;
+export const topLevelAwaitPreludeSource = runtimeTopLevelAwait;

@@ -39,7 +39,7 @@ O Test262 fixado (2026) às vezes verifica comportamento introduzido depois do E
 - `String.prototype.{replace,split,match,matchAll,search}` não procuram métodos com chave Symbol em argumentos primitivos (ES2025).
 - Alvos de atribuição do Annex B na forma de expressão de chamada lançam ReferenceError em tempo de execução em código não estrito e são early errors em código estrito (realidade da web no ES2022).
 
-Mantido no ES2020 (falhas classificadas como `post`): campos de classe e métodos privados, separadores numéricos, atribuição lógica, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, índices de correspondência de RegExp (flag `d`), await no nível superior e os demais recursos de `postEs2020Features`. Os desvios conhecidos restantes estão listados por catálogo em `docs/history/pr5-es2020-remaining-work.md` e no status da versão.
+Mantido no ES2020 (falhas classificadas como `post`): campos de classe e métodos privados, separadores numéricos, atribuição lógica, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, await no nível superior e os demais recursos de `postEs2020Features`. Os desvios conhecidos restantes estão listados por catálogo em `docs/history/pr5-es2020-remaining-work.md` e no status da versão.
 
 Recursos do runner adicionados para o marco do ES2020 (2026-09):
 

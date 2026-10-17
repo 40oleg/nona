@@ -5,7 +5,7 @@
 :::
 
 ::: warning
-Node.js, Deno और Bun से 2026-10-14 की ताज़ा तुलना [अंग्रेज़ी पेज](/guide/performance#current-release-against-nodejs-deno-and-bun) पर है: hello world 2.7 ms में शुरू होता है और 1.1 MB का है, ऐरे, ऑब्जेक्ट, स्ट्रिंग और typed array के अधिकांश माइक्रो-बेंचमार्क Node.js के बराबर हैं। नीचे v0.7.0 मापों का अनुवाद है।
+Node.js, Deno और Bun से 2026-10-14 की ताज़ा तुलना [अंग्रेज़ी पेज](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun) पर है: hello world 2.7 ms में शुरू होता है और 1.1 MB का है, ऐरे, ऑब्जेक्ट, स्ट्रिंग और typed array के अधिकांश माइक्रो-बेंचमार्क Node.js के बराबर हैं। नीचे v0.7.0 मापों का अनुवाद है।
 :::
 
 2026-10-01 को Nona `v0.7.0` (कमिट `b31c4d6`) पर मापा गया। स्क्रिप्ट [`bench/`](https://github.com/40oleg/nona/blob/main/bench/) में हैं; `node bench/run.mjs` नीचे की हर तालिका दोबारा तैयार करता है।

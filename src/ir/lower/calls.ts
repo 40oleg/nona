@@ -1,6 +1,12 @@
 import type * as A from "../../frontend/ast.js";
 import { CompileError } from "../../diagnostics.js";
-import { checkFfiNames, parseFfiSignature } from "../../ffi.js";
+import {
+    checkFfiNames,
+    ffiLibraryKeys,
+    parseFfiSignature,
+    type FfiLibraries,
+    type FfiLibraryKey,
+} from "../../ffi.js";
 import { ClassLowerer } from "./classes.js";
 import type { ChainState } from "./base.js";
 
@@ -140,9 +146,9 @@ export abstract class CallLowerer extends ClassLowerer {
         };
         if (e.arguments.length !== 3)
             fail(
-                "define() expects exactly three arguments: dll, name and signature",
+                "define() expects exactly three arguments: library, name and signature",
             );
-        const text = e.arguments.map((argument) => {
+        const literal = (argument: A.Argument): string => {
             if (
                 argument.kind === "Literal" &&
                 typeof argument.value === "string"
@@ -154,10 +160,53 @@ export abstract class CallLowerer extends ClassLowerer {
             )
                 return argument.quasis[0]!;
             return fail("define() arguments must be string literals", argument);
-        });
-        const [dll, name, signature] = text as [string, string, string];
+        };
+        // The library: a string literal, or an object literal of string
+        // literals keyed by operating system (`{ win32, linux, darwin }`).
+        const library = e.arguments[0]!;
+        let libraries: FfiLibraries | undefined;
+        if (library.kind === "ObjectLiteral") {
+            libraries = {};
+            for (const property of library.properties) {
+                if ("spread" in property)
+                    return fail(
+                        "define() library keys must be win32, linux or darwin",
+                        library,
+                    );
+                const key =
+                    !property.computed && property.key.kind === "Identifier"
+                        ? property.key.name
+                        : property.key.kind === "Literal" &&
+                            typeof property.key.value === "string"
+                          ? property.key.value
+                          : undefined;
+                if (
+                    key === undefined ||
+                    property.accessor ||
+                    !(ffiLibraryKeys as readonly string[]).includes(key)
+                )
+                    fail(
+                        "define() library keys must be win32, linux or darwin",
+                        property.key,
+                    );
+                libraries[key as FfiLibraryKey] = literal(property.value);
+            }
+            if (!Object.keys(libraries).length)
+                fail(
+                    "define() library object names no operating system",
+                    library,
+                );
+        }
+        const dll = libraries ? JSON.stringify(libraries) : literal(library),
+            name = literal(e.arguments[1]!),
+            signature = literal(e.arguments[2]!);
+        // The target is unknown here; the compiler checks the names it
+        // selects against the target's rules (E_FFI_STATIC / E_FFI_TARGET).
         try {
-            checkFfiNames(dll, name);
+            if (libraries)
+                for (const [os, value] of Object.entries(libraries))
+                    checkFfiNames(value, name, os as FfiLibraryKey);
+            else checkFfiNames(dll, name, undefined);
             parseFfiSignature(signature);
         } catch (error) {
             fail((error as Error).message);
@@ -172,7 +221,13 @@ export abstract class CallLowerer extends ClassLowerer {
         );
         if (index < 0) {
             index = list.length;
-            list.push({ dll, name, signature, span: e.span });
+            list.push({
+                dll,
+                ...(libraries ? { libraries } : {}),
+                name,
+                signature,
+                span: e.span,
+            });
         }
         const dest = this.slot();
         this.emit({
