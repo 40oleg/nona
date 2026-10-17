@@ -6,6 +6,10 @@
 
 - `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
 
+### Host APIs
+
+- **FFI on Linux and macOS.** `define` from `nona:ffi` calls shared library functions on linux-x64, linux-arm64, darwin-x64 and darwin-arm64: `define("libc.so.6", "strlen", "u64(str)")`, `define("/usr/lib/libSystem.B.dylib", "getpid", "i32()")`, any soname, path, dylib or framework binary. A Linux program that declares a library function becomes a dynamically linked executable (`PT_INTERP`, `DT_NEEDED`, `GLOB_DAT` relocations bound at start); a macOS program loads each library with `LC_LOAD_DYLIB` and binds the symbols through dyld. Programs without library declarations are byte-identical to before (static, libc-free on Linux; kernel startup on Intel macOS). The library argument may also be an object literal keyed by OS (`{ win32: "ucrtbase.dll", linux: "libm.so.6", darwin: "/usr/lib/libSystem.B.dylib" }`); a target without a key, a DLL name on a POSIX target, a `.so`/`.dylib` name on Windows and any library on BSD are `E_FFI_TARGET`. Calls follow the SysV AMD64 and AAPCS64 conventions, with Apple's packed stack arguments on darwin-arm64, for all signature types and up to 32 parameters; `lastError()` returns `errno` after a POSIX library call. See [docs/ffi.md](docs/ffi.md). ([#364](https://github.com/40oleg/nona/issues/364))
+
 ## v0.15.0 — 2026-10-17
 
 ### Runtime

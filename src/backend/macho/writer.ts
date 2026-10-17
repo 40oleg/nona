@@ -24,7 +24,12 @@ const u32 = (value: number) => {
     return value;
 };
 
-/** Preserve kernel startup for import-free Intel images; system imports use dyld. */
+const systemLibrary = "/usr/lib/libSystem.B.dylib";
+/**
+ * Preserve kernel startup for import-free Intel images; imports use dyld: one
+ * LC_LOAD_DYLIB per library (libSystem first, then the libraries a program
+ * declares through nona:ffi, in order) and a bind for every imported symbol.
+ */
 export function linkMachO(
     program: NativeProgram,
     options: MachOOptions = {},
@@ -36,11 +41,25 @@ export function linkMachO(
     if (
         program.imports.some(
             (i) =>
-                i.dll !== "/usr/lib/libSystem.B.dylib" ||
-                !/^[_a-zA-Z][_a-zA-Z0-9]*$/.test(i.name),
+                !/^[\x21-\x7e]+$/.test(i.dll) ||
+                !/^[_a-zA-Z$][_a-zA-Z0-9$.]*$/.test(i.name),
         )
     )
-        throw new Error("Mach-O imports must name libSystem functions");
+        throw new Error("Mach-O imports must name a dylib and a C symbol");
+    if (
+        new Set(program.imports.map((i) => i.symbol)).size !==
+        program.imports.length
+    )
+        throw new Error("Duplicate Mach-O import symbol");
+    const libraries = [
+        systemLibrary,
+        ...new Set(
+            program.imports
+                .map((i) => i.dll)
+                .filter((library) => library !== systemLibrary),
+        ),
+    ];
+    if (libraries.length > 250) throw new Error("Too many Mach-O libraries");
     const imported = program.imports.map((i) => ({
         name: i.symbol,
         section: ".data" as const,
@@ -162,8 +181,10 @@ export function linkMachO(
             const member = segments[segment]!.members.find(
                 (m) => m.fragment.name === imported.symbol,
             )!;
+            const ordinal = libraries.indexOf(imported.dll) + 1;
             bindings.push(
-                0x11,
+                // BIND_OPCODE_SET_DYLIB_ORDINAL_IMM, or _ULEB above 15
+                ...(ordinal < 16 ? [0x10 | ordinal] : [0x20, ...uleb(ordinal)]),
                 0x40,
                 ...new TextEncoder().encode("_" + imported.name),
                 0,
@@ -354,13 +375,15 @@ export function linkMachO(
             v.setUint32(at + 4, size, true);
             v.setUint32(at + 8, header, true);
             image.set(bytes, at + header);
-            if (type === 0xc) {
+            // libSystem: current and compatibility version 1.0. Other
+            // libraries: version 0, so dyld does not compare versions.
+            if (type === 0xc && path === systemLibrary) {
                 v.setUint32(at + 16, 1 << 16, true);
                 v.setUint32(at + 20, 1 << 16, true);
             }
         };
         pathCommand(0xe, "/usr/lib/dyld", 12);
-        pathCommand(0xc, "/usr/lib/libSystem.B.dylib", 24);
+        for (const library of libraries) pathCommand(0xc, library, 24);
         const main = command;
         command += 24;
         count++;
