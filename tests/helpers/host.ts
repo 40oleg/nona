@@ -99,11 +99,18 @@ export function runModulesOnHost(
         };
         if (options.oracleSource !== undefined)
             writeFileSync(join(directory, entry), options.oracleSource);
+        // The oracle may talk to servers that share a loaded CI runner (the
+        // TLS chain cases took over 10 s there), so it gets the native budget.
+        // A killed oracle would return truncated output: fail instead.
         const oracle = spawnSync(process.execPath, [join(directory, entry)], {
             cwd: directory,
             encoding: "utf8",
-            timeout: 10_000,
+            timeout: TIMEOUT_MS,
         });
+        if (oracle.error)
+            throw new Error(
+                `Node.js oracle failed: ${oracle.error.message}\n${oracle.stdout}${oracle.stderr}`,
+            );
         return { native, oracle: oracle.stdout };
     } finally {
         removeTemporaryDirectory(directory);
