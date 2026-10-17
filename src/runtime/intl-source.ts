@@ -1,6 +1,11 @@
-import { runtimeIntl } from "../lib/sources.generated.js";
+import { runtimeIntl, runtimeIntlSegmenter } from "../lib/sources.generated.js";
 import { regexpUnicodeData } from "./data/regexp-unicode-data.js";
-// Intl.Segmenter for grapheme clusters (UAX #29). The prelude classifies code
+// Intl (ECMA-402) for the en locale (#300): getCanonicalLocales,
+// DateTimeFormat, NumberFormat, Collator and PluralRules, and the
+// locale-sensitive methods of Number, BigInt, String and Date
+// (toLocaleString, toLocaleDateString, toLocaleTimeString, localeCompare)
+// that delegate to them, followed by Intl.Segmenter for grapheme clusters
+// (UAX #29). The Segmenter prelude classifies code
 // points with a table of Grapheme_Cluster_Break ranges built here from the
 // Unicode properties of the RegExp engine, so it needs neither the engine nor
 // its property tables at run time.
@@ -167,8 +172,11 @@ function graphemeTable(): string {
 let source: string | undefined;
 /** The Intl prelude, with its grapheme break table. */
 export function intlPreludeSource(): string {
-    source ??= runtimeIntl.replace('"@@GRAPHEME_TABLE@@"', () =>
-        JSON.stringify(graphemeTable()),
-    );
+    source ??=
+        runtimeIntl +
+        "\n" +
+        runtimeIntlSegmenter.replace('"@@GRAPHEME_TABLE@@"', () =>
+            JSON.stringify(graphemeTable()),
+        );
     return source;
 }

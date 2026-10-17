@@ -95,6 +95,7 @@
                 "array-buffer",
                 "typed-array-fast-path",
                 "string-builtins",
+                "intl",
                 "simd",
                 "string-search",
                 "string-split",

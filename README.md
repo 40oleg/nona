@@ -160,7 +160,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
 - Most features newer than ES2020 that are not listed above (`WeakRef`, top-level `await`, …) are not supported.
-- Node.js modules outside the table above (`dns`, `dgram`, …), Brotli and child processes (`node:http2` and `node:child_process` load, but their functions throw), npm packages that need them or `Intl` beyond `Intl.Segmenter`, native add-ons and browser APIs are not available. Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
+- Node.js modules outside the table above (`dns`, `dgram`, …), Brotli and child processes (`node:http2` and `node:child_process` load, but their functions throw), npm packages that need them, native add-ons and browser APIs are not available. `Intl` is Nona's own and knows only the `en`/`en-US` locale ([docs/intl.md](docs/intl.md)). Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
 - Plain computation is much slower than in a JIT.
 
 ## Development
