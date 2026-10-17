@@ -261,7 +261,8 @@ test("locked output fails without removing previous executable", async () => {
         await new Promise<void>((res, rej) => {
             const timer = setTimeout(
                 () => rej(new Error("lock helper timed out")),
-                10000,
+                // PowerShell can take well over 10 s to start on a busy runner.
+                60000,
             );
             holder.on("error", (e) => {
                 clearTimeout(timer);

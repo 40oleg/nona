@@ -324,6 +324,7 @@
                 "typeof-compare",
                 "call-overhead",
                 "console-streams",
+                "zlib",
                 "pick-runner"
             ]
         }
