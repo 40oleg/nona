@@ -93,7 +93,7 @@ nona --help | --version
 
 ## What is supported
 
-**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), the RegExp `d` flag with match indices (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `WeakRef`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, Error `cause` and RegExp pattern modifiers (`(?i:…)`, ES2025).
+**Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: class fields, private methods and static blocks (ES2022), the RegExp `d` flag with match indices (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.withResolvers`, `.at()`, `findLast`/`findLastIndex`, `Object.hasOwn`, `String.prototype.replaceAll`, Error `cause`, `WeakRef`, `FinalizationRegistry` and RegExp pattern modifiers (`(?i:…)`, ES2025).
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s` and `u` flags, Unicode property escapes), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
@@ -160,7 +160,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 ## Limitations
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
-- Most features newer than ES2020 that are not listed above (`FinalizationRegistry`, top-level `await`, …) are not supported.
+- Most features newer than ES2020 that are not listed above (top-level `await`, …) are not supported.
 - Node.js modules outside the table above (`dns`, `dgram`, …), Brotli, `fork()` and child processes on macOS, BSD and arm64 (`node:http2` loads, but its functions throw), npm packages that need them, native add-ons and browser APIs are not available. `Intl` is Nona's own and knows only the `en`/`en-US` locale ([docs/intl.md](docs/intl.md)). Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
 - Plain computation is much slower than in a JIT.
 

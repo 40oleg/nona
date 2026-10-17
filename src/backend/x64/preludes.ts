@@ -41,6 +41,7 @@ import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
 import { weakRefPreludeSource } from "../../runtime/weakref-source.js";
+import { finalizationRegistryPreludeSource } from "../../runtime/finalization-registry-source.js";
 import { intlPreludeSource } from "../../runtime/intl-source.js";
 import { annexBBuiltinsPreludeSource } from "../../runtime/annexb-builtins-source.js";
 import { lex } from "../../frontend/lexer.js";
@@ -96,6 +97,8 @@ export function lowerRuntimePrelude(
             ["intl", linked.includes("intl") ? intlPreludeSource() : ""],
             [null, promiseSource],
             ["weakRef", weakRefPreludeSource],
+            // Wraps the drain before timers does, so it sees every checkpoint.
+            ["finalizationRegistry", finalizationRegistryPreludeSource],
             ["withStatement", withStatementPreludeSource],
             ["evalCode", evalCodePreludeSource],
             ["classElements", classElementsPreludeSource],
