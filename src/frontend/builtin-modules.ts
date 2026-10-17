@@ -163,6 +163,7 @@ const sources = new Map<string, (target: Target) => string>([
     ...nodeCompatModules.map(
         ([name, source]) => [name, () => source] as [string, () => string],
     ),
+    ["nona:zlib", () => aliasOf("node:zlib")],
     ["node:net", netModuleSource],
     ["nona:net", () => aliasOf("node:net")],
     ["node:http", () => httpModuleSource],

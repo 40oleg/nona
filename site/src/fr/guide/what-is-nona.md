@@ -19,7 +19,7 @@ Le compilateur est écrit en TypeScript. Il s’exécute sur Node.js, ou sous la
 
 ## Ce que Nona n’est pas
 
-- **Pas un remplaçant de Node.js.** Les paquets npm sont compilés dans le programme lors de sa construction ([paquets npm](/reference/npm)), mais seules les [API Node.js implémentées par Nona](/fr/reference/modules) sont disponibles, et les paquets qui en demandent d’autres (`zlib`, `child_process`), `Intl` (hors `Intl.Segmenter`) ou des modules natifs ne fonctionnent pas. Les API du navigateur ne sont pas disponibles non plus.
+- **Pas un remplaçant de Node.js.** Les paquets npm sont compilés dans le programme lors de sa construction ([paquets npm](/reference/npm)), mais seules les [API Node.js implémentées par Nona](/fr/reference/modules) sont disponibles, et les paquets qui en demandent d’autres (`http2`, `child_process`), `Intl` (hors `Intl.Segmenter`) ou des modules natifs ne fonctionnent pas. Les API du navigateur ne sont pas disponibles non plus.
 - **Pas une implémentation complète d’ES2020.** Nona implémente ES2020 avec des exceptions documentées ; voir [Prise en charge du langage](/fr/guide/language-support) et [Compatibilité et limites](/fr/guide/compatibility).
 - **Pas de génération de code à l’exécution.** `eval` et `Function` exigent un texte source connu à la compilation ; les chaînes calculées à l’exécution lèvent `EvalError`.
 - **Pas aussi rapide que V8 en calcul.** Sans JIT, les appels, les fermetures et l’allocation sont de plusieurs fois à plusieurs dizaines de fois plus lents qu’avec V8, et les longues chaînes de Promise ainsi que la correspondance RegExp sont les points les plus lents ([Performances](/fr/guide/performance)).

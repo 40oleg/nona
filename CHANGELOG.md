@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Host APIs
+
+- **`zlib`** (`node:zlib`, `zlib`, `nona:zlib`): Nona's own DEFLATE codec with zlib and gzip framing, Adler-32 and CRC-32, and the synchronous, callback and stream APIs of Node.js (`deflateSync`, `gunzipSync`, `createGzip`, …, `crc32`, `constants`, error codes compatible with Node.js). Brotli is not provided. Compressed bytes are valid but not byte-identical to Node.js's zlib, and the `http` client does not decompress responses, as in Node.js. See [zlib](docs/host-apis.md#zlib). ([#302](https://github.com/40oleg/nona/issues/302))
+
 ## v0.14.0 — 2026-10-16
 
 ### Runtime

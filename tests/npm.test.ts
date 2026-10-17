@@ -691,6 +691,19 @@ try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
         "main.js",
     ));
 
+test("packages require the zlib module", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const zlib = require('zlib'), node = require('node:zlib');
+console.log(zlib === node, typeof zlib.deflateSync, zlib.constants.Z_BEST_COMPRESSION, zlib.Z_SYNC_FLUSH, zlib.codes.Z_DATA_ERROR);
+console.log(zlib.inflateSync(zlib.deflateSync('compressed by Nona')).toString(), zlib.gunzipSync(zlib.gzipSync(Buffer.from('gzip'))).toString(), zlib.crc32('abc'));
+try { zlib.gunzipSync(Buffer.from('plain')); } catch (e) { console.log(e.code, e.errno, e.message); }
+`,
+        },
+        "main.js",
+    ));
+
 // Packages such as uuid read random bytes from the Web Crypto global without importing node:crypto (#296).
 test("the global crypto is node:crypto's webcrypto in ES modules and CommonJS", () => {
     const uses = String.raw`
