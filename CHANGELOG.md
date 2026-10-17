@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.15.0 — 2026-10-17
+
 ### Runtime
 
 - **`Intl` for the `en` locale.** Nona's own `Intl` without ICU: `NumberFormat` (decimal, percent, currency, unit, compact, scientific and engineering notation, significant and fraction digits, rounding, `formatToParts`, `formatRange`), `DateTimeFormat` (`dateStyle`/`timeStyle` and component options, UTC and fixed offsets, `formatToParts`, `formatRange`), `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf` and `supportedValuesOf`, and `Number`/`BigInt`/`Date.prototype.toLocale*String` and `String.prototype.localeCompare` delegating to them. Only `en` and `en-US` are available; other locales fall back to `en-US` and `resolvedOptions().locale` says so. The part is linked when a program names `Intl` or a `toLocale*`/`localeCompare` method. [docs/intl.md](docs/intl.md) lists the supported options, the limitations and the Test262 `intl402` results. ([#300](https://github.com/40oleg/nona/issues/300))
