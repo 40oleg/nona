@@ -315,8 +315,9 @@ startup. Each is available as `node:<name>` and `<name>`.
   read the operating system's random source (`BCryptGenRandom` on Windows,
   `/dev/urandom` elsewhere). `createHash` (`md5`, `sha1`, `sha256`, `sha384`,
   `sha512`, with `update`, `digest` in any Buffer encoding and `copy`),
-  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. Ciphers, keys,
-  signatures, key derivation and `crypto.subtle` are not provided. The global
+  `createHmac`, `hash`, `getHashes` and `timingSafeEqual`. `hkdf` and
+  `hkdfSync` derive keys with HKDF (RFC 5869) and return an `ArrayBuffer`.
+  Ciphers, keys, signatures, other key derivation functions and `crypto.subtle` are not provided. The global
   `crypto` is `webcrypto` (`getRandomValues` and `randomUUID`); a program
   that names `crypto` links `node:crypto`, which is evaluated on first access.
 - `node:querystring`: `parse`/`decode`, `stringify`/`encode`, `escape`,
