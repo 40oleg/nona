@@ -29,9 +29,10 @@ export function int32Operand(
 
 /**
  * x % y of two Numbers that hold int32 values, XMM0 <- the result. Anything
- * else (fractions, NaN, Infinity, a zero divisor, -0 as the dividend) jumps
- * to `slow`, the fmod semantics of rt.rem. The remainder takes the sign of
- * the dividend, so a zero remainder of a negative dividend is -0. With a
+ * else (fractions, NaN, Infinity, a zero divisor, -0 as the dividend of a
+ * masked remainder) jumps to `slow`, the fmod semantics of rt.rem. The
+ * remainder takes the sign of the dividend, so a zero remainder of a
+ * negative dividend (-0 included) is -0. With a
  * constant divisor 2^k (`divisor`), a non-negative dividend is masked
  * instead of divided. Clobbers RAX, RCX, RDX, R10, R11, XMM0 and XMM1.
  */
@@ -45,11 +46,17 @@ export function integerRemainder(
         negativeZero = a.unique("negativeZero"),
         ready = a.unique("remainderReady"),
         done = a.unique("remainder");
-    // -0 equals 0 for the round trip, but -0 % y is -0.
-    a.load("rax", dividend);
-    a.mov("r11", 1n << 63n);
-    a.cmp("rax", "r11");
-    a.jcc("e", slow);
+    if (typeof divisor === "number") {
+        // -0 equals 0 for the round trip, and the mask would give +0 for
+        // -0 % 2^k. The divide path needs no such test: it reads the sign
+        // of a zero remainder from the dividend's bits, which -0 has set
+        // (verification/Nona/Int32Paths.lean, integerRemainder_correct and
+        // mask_needs_negZero_guard).
+        a.load("rax", dividend);
+        a.mov("r11", 1n << 63n);
+        a.cmp("rax", "r11");
+        a.jcc("e", slow);
+    }
     int32Operand(a, dividend, "r10", slow);
     if (typeof divisor === "number") {
         a.test("r10", "r10");
