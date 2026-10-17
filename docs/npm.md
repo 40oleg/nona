@@ -125,25 +125,24 @@ own built-in modules. Besides the modules described in [host APIs](host-apis.md)
 these modules exist mainly for packages (see
 [Node.js support modules](host-apis.md#nodejs-support-modules)):
 
-| Module                                | What it provides                                                                                                                                                                                                               |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `node:os`                             | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty                                                                        |
-| `node:tty`                            | `isatty`, `ReadStream`, `WriteStream`                                                                                                                                                                                          |
-| `node:util`                           | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText`                                                                    |
-| `node:url`                            | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve`                                                                                                                         |
-| `node:assert`                         | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError`                                                                                                            |
-| `node:crypto`                         | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual`; the global `crypto` (`getRandomValues`, `randomUUID`) |
-| `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                                                                                     |
-| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                                                                       |
-| `node:perf_hooks`                     | `performance`                                                                                                                                                                                                                  |
-| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` (resolves only what the program contains, see [module.createRequire](#modulecreaterequire))                                                                                     |
-| `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                 |
-| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                       |
-| `node:https`                          | `Agent` and `globalAgent` (Linux and Windows); there is no TLS, so `request`, `get` and `createServer` throw `ERR_NONA_UNSUPPORTED`                                                                                            |
-| `node:tls`, `node:http2`, `node:zlib` | exist so that packages mentioning them load: the constants of Node.js (`zlib.constants`, `http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                            |
+| Module                                | What it provides                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node:os`                             | `EOL`, `platform`, `arch`, `type`, `homedir`, `tmpdir`, `hostname`, `userInfo`, `endianness`, `constants`; `cpus()` and `networkInterfaces()` are empty                                                                                           |
+| `node:tty`                            | `isatty`, `ReadStream`, `WriteStream`                                                                                                                                                                                                             |
+| `node:util`                           | `format`, `inspect`, `inherits`, `promisify`, `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `types`, `stripVTControlCharacters`, `styleText`                                                                                       |
+| `node:url`                            | `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`, the legacy `parse`, `format` and `resolve`                                                                                                                                            |
+| `node:assert`                         | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match` and their negations, `AssertionError`                                                                                                                               |
+| `node:crypto`                         | `randomBytes`, `randomFillSync`, `randomUUID`, `randomInt`, `getRandomValues`, `createHash` and `createHmac` (MD5, SHA-1, SHA-256, SHA-384, SHA-512), `timingSafeEqual`, `hkdf`/`hkdfSync`; the global `crypto` (`getRandomValues`, `randomUUID`) |
+| `node:querystring`                    | `parse`, `stringify`, `escape`, `unescape`                                                                                                                                                                                                        |
+| `node:timers`, `node:timers/promises` | the timer functions; promise `setTimeout`, `setImmediate`, `setInterval`                                                                                                                                                                          |
+| `node:perf_hooks`                     | `performance`                                                                                                                                                                                                                                     |
+| `node:module`                         | `builtinModules`, `isBuiltin`; `createRequire` (resolves only what the program contains, see [module.createRequire](#modulecreaterequire))                                                                                                        |
+| `node:worker_threads`                 | `isMainThread` (always `true`)                                                                                                                                                                                                                    |
+| `node:child_process`                  | exists so that packages mentioning it load; every function throws `ERR_NONA_UNSUPPORTED`                                                                                                                                                          |
+| `node:https`, `node:tls`              | TLS 1.3 client: `https.request`, `get`, `Agent`, `tls.connect`; no server side (see [networking](network.md#security-limitations))                                                                                                                |
+| `node:http2`, `node:zlib`             | exist so that packages mentioning them load: the constants of Node.js (`zlib.constants`, `http2.constants`); every function and class throws `ERR_NONA_UNSUPPORTED`                                                                               |
 
-A package that loads a module Nona does not provide (`dns`, `dgram`,
-`cluster`, …) fails to compile with `E_MODULE: Cannot resolve module`.
+A package that loads a module Nona does not provide (`dns`, `dgram`, `cluster`, …) fails to compile with `E_MODULE: Cannot resolve module`.
 
 ## Tested packages
 
@@ -185,8 +184,9 @@ Function` or `eval` from strings built at run time fail when they do so:
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error,
   unless they have a way to turn the check off (see [yargs](#tested-packages)).
-- **TLS and compression.** `https:` requests, and responses with a
-  `Content-Encoding` that needs `zlib`, fail with `ERR_NONA_UNSUPPORTED`.
+- **Compression and TLS servers.** Responses with a `Content-Encoding` that
+  needs `zlib`, and `https.createServer` or `tls.createServer`, fail with
+  `ERR_NONA_UNSUPPORTED`; the TLS client is TLS 1.3 only.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and

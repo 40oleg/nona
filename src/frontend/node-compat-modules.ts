@@ -2,7 +2,7 @@
  * Node.js builtin modules that npm packages commonly load and that Nona
  * provides in JavaScript (issue #249): `os`, `tty`, `util`, `url`, `assert`, `crypto`,
  * `querystring`, `timers`, `timers/promises`, `perf_hooks`, `module`,
- * `worker_threads` and `child_process`, and (issue #292) `tls`, `zlib` and
+ * `worker_threads` and `child_process`, and (issue #292) `zlib` and
  * `http2`. Their bodies are in src/lib/modules.
  *
  * They cover what libraries use at load time and in their common paths
@@ -28,7 +28,6 @@ import {
     modulesWorkerThreads,
     modulesChildProcess,
     modulesCrypto,
-    modulesTls,
     modulesZlib,
     modulesHttp2,
 } from "../lib/sources.generated.js";
@@ -58,7 +57,6 @@ export const nodeCompatModules: readonly (readonly [string, string])[] = [
     ["node:module", modulesModule],
     ["node:worker_threads", modulesWorkerThreads],
     ["node:child_process", modulesChildProcess],
-    ["node:tls", modulesTls],
     ["node:zlib", modulesZlib],
     ["node:http2", modulesHttp2],
 ];
