@@ -1,5 +1,10 @@
 # Журнал разработки Nona
 
+## 2026-10-17 — выпуск v0.15.0
+
+- Версия package.json и package-lock.json обновлена до 0.15.0; `src/version.ts`, CLI help и `--version` — тоже.
+- Полный аудит Test262 для v0.15.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-16 — выпуск v0.14.0
 
 - Версия package.json и package-lock.json обновлена до 0.14.0; `src/version.ts`, CLI help и `--version` — тоже.
