@@ -110,7 +110,7 @@ Following Test262:
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag,
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`,
 and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
 the release status. RegExp match indices (`d` flag, ES2022) are supported; see below.
@@ -153,6 +153,14 @@ implemented and no longer classified `post`. With `TEST262_RUN_ASYNC=1`,
 `language/expressions/dynamic-import` and the rest of `language/module-code`
 fail only tests of later proposals (`import-defer`, `source-phase-imports`,
 the `import()` options argument and duplicate keys of `import-attributes`).
+
+The RegExp `v` flag (`unicodeSets`, #314) is supported. Every test with
+`features: [regexp-v-flag]` (187 files, `built-ins/RegExp/unicodeSets`,
+`property-escapes/generated/strings`, `prototype/unicodeSets` and the
+String and `flags` tests) passes except two (185/187):
+`prototype/flags/this-val-regexp.js` and
+`prototype/unicodeSets/this-val-regexp.js` also use the `d` flag, so they stay
+classified `post`.
 
 RegExp pattern modifiers (ES2025, `regexp-modifiers`, issue #320) are supported
 and no longer in `postEs2020Features`: `built-ins/RegExp/regexp-modifiers`, the
