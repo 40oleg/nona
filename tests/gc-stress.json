@@ -1,0 +1,15 @@
+{
+    "$comment": "Test files that keep GC stress on pull requests (#372). On a pull request without the gc-stress label, scripts/run-shard.mjs runs every other file with NONA_GC_STRESS=off (gcStress builds become normal ones); main runs everything with GC stress. Patterns as in suites.json.",
+    "always": [
+        "gc",
+        "gc-stress-roadmap",
+        "runtime-roots",
+        "stack-maps",
+        "linux-heap",
+        "optional-chaining-gc",
+        "weakref",
+        "finalization-registry",
+        "weak-collections",
+        "ropes"
+    ]
+}

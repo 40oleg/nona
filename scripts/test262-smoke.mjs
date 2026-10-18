@@ -70,19 +70,20 @@ const excludePathFilters = [
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
 // this list: AggregateError, Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Promise.any, the ES2022 class elements (fields, private methods and
+// Object.groupBy, Map.groupBy, Promise.any, String.prototype.isWellFormed/toWellFormed (and the
+// well-formed-unicode-strings tag), and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
-// non-extensible objects), RegExp pattern modifiers and the ES2025 iterator
-// helpers (#322).
+// non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
+// match indices (the d flag), the RegExp v flag (unicodeSets) and RegExp pattern
+// modifiers, the ES2025 Set methods, the ES2025 iterator helpers (#322), and resizable/transferable ArrayBuffers
+// with growable SharedArrayBuffers (resizable-arraybuffer, arraybuffer-transfer).
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
     "iterator-includes",
     "source-phase-imports-module-source",
     "Array.fromAsync",
-    "array-grouping",
     "arbitrary-module-namespace-names",
-    "arraybuffer-transfer",
     "Atomics.pause",
     "Atomics.waitAsync",
     "change-array-by-copy",
@@ -90,7 +91,6 @@ const postEs2020Features = [
     "Error.isError",
     "explicit-resource-management",
     "Float16Array",
-    "FinalizationRegistry",
     "hashbang",
     "immutable-arraybuffer",
     "import-assertions",
@@ -104,23 +104,15 @@ const postEs2020Features = [
     "json-parse-with-source",
     "legacy-regexp",
     "Math.sumPrecise",
-    "promise-try",
     "promise-with-resolvers",
     "Promise.allKeyed",
-    "RegExp.escape",
     "regexp-duplicate-named-groups",
     "regexp-match-indices",
     "regexp-v-flag",
-    "resizable-arraybuffer",
-    "set-methods",
     "ShadowRealm",
     "source-phase-imports",
-    "String.prototype.isWellFormed",
     "String.prototype.replaceAll",
-    "String.prototype.toWellFormed",
-    "symbols-as-weakmap-keys",
     "Temporal",
-    "top-level-await",
     "uint8array-base64",
     "upsert",
     "WeakRef",

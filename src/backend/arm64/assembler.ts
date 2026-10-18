@@ -1,5 +1,6 @@
 import {
     Assembler,
+    isFloatArgument,
     type Reg,
     type Mem,
     type Xmm,
@@ -674,6 +675,14 @@ export class Arm64Assembler extends Assembler {
             target.startsWith("hostffi.nona.internal!") ||
             target.startsWith("hostffi.syscall!") ||
             /^ffi\.syscall!\d{1,3}$/.test(target);
+        // Shared library functions a program declares (nona:ffi) on Linux and
+        // macOS: AAPCS64, through the loader-bound cell.
+        if (this.os !== "win32" && target.startsWith("ffi.") && !logicalHost) {
+            if (!parameters)
+                throw new Error("Library imports need their argument kinds");
+            this.nativeImport(target, parameters);
+            return;
+        }
         if (this.os === "win32" && target !== "CreateThread" && !logicalHost) {
             this.nativeImport(target, parameters);
             return;
@@ -700,9 +709,21 @@ export class Arm64Assembler extends Assembler {
             Array<NativeArgumentKind>(counts[target] ?? 4).fill("gp");
         if (
             kinds.length > 32 ||
-            kinds.some((k) => !["gp", "f32", "f64"].includes(k))
+            kinds.some(
+                (k) => !["gp", "f32", "f64", "i8", "i16", "i32"].includes(k),
+            )
         )
             throw new Error("Invalid ARM64 import arguments");
+        // Apple's ARM64 ABI packs stack arguments by their natural size and
+        // alignment; standard AAPCS64 (Linux, Windows) gives each one 8 bytes.
+        const bytes = (k: NativeArgumentKind) =>
+            this.os !== "darwin" || k === "gp" || k === "f64"
+                ? 8
+                : k === "i8"
+                  ? 1
+                  : k === "i16"
+                    ? 2
+                    : 4;
         const outgoing = Math.ceil((kinds.length * 8) / 16) * 16,
             saves = outgoing,
             staging = saves + 208;
@@ -733,7 +754,8 @@ export class Arm64Assembler extends Assembler {
         const logical = [1, 2, 7, 8];
         for (let i = 0; i < kinds.length; i++) {
             if (i < 4) {
-                if (kinds[i] === "gp") mem(false, logical[i]!, staging + i * 8);
+                if (!isFloatArgument(kinds[i]!))
+                    mem(false, logical[i]!, staging + i * 8);
                 else
                     this.nativeWord(
                         (0xfd000000 |
@@ -756,8 +778,10 @@ export class Arm64Assembler extends Assembler {
             fp = 0,
             stack = 0;
         for (let i = 0; i < kinds.length; i++) {
-            if (kinds[i] === "gp" && gp < 8) mem(true, gp++, staging + i * 8);
-            else if (kinds[i] !== "gp" && fp < 8)
+            const kind = kinds[i]!,
+                float = isFloatArgument(kind);
+            if (!float && gp < 8) mem(true, gp++, staging + i * 8);
+            else if (float && fp < 8)
                 this.nativeWord(
                     (0xfd400000 |
                         (((staging + i * 8) / 8) << 10) |
@@ -766,9 +790,20 @@ export class Arm64Assembler extends Assembler {
                         0,
                 );
             else {
+                const size = bytes(kind),
+                    scale = Math.log2(size);
+                stack = Math.ceil(stack / size) * size;
                 mem(true, 17, staging + i * 8);
-                mem(false, 17, stack);
-                stack += 8;
+                // STR{B,H,W,X} x17, [x11, #stack]
+                this.nativeWord(
+                    ((scale << 30) |
+                        0x39000000 |
+                        ((stack / size) << 10) |
+                        (11 << 5) |
+                        17) >>>
+                        0,
+                );
+                stack += size;
             }
         }
         this.nativeWord(0x9100017f); // mov sp,x11

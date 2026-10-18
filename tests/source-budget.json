@@ -10,7 +10,7 @@
             "line": 265
         },
         "frontend/binder.ts": {
-            "bytes": 78264,
+            "bytes": 78444,
             "line": 143
         },
         "frontend/builtin-modules.ts": {
@@ -30,7 +30,7 @@
             "line": 217
         },
         "frontend/parser.ts": {
-            "bytes": 104493,
+            "bytes": 104792,
             "line": 235
         },
         "frontend/path-host.ts": {
@@ -42,7 +42,7 @@
             "line": 240
         },
         "runtime/array-builtins.ts": {
-            "bytes": 99916,
+            "bytes": 99526,
             "line": 121
         },
         "runtime/bigint.ts": {
@@ -82,7 +82,7 @@
             "line": 105
         },
         "runtime/regexp.ts": {
-            "bytes": 102834,
+            "bytes": 100185,
             "line": 110
         },
         "runtime/string-builtins.ts": {
@@ -90,7 +90,7 @@
             "line": 79
         },
         "runtime/typed-array.ts": {
-            "bytes": 78543,
+            "bytes": 73291,
             "line": 98
         },
         "selfhost-adapters.ts": {

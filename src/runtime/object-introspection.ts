@@ -13,6 +13,7 @@ import type { Assembler } from "../backend/machine/context.js";
 import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
 import { ProxyKind } from "./proxy.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 const methods = [
     ["rt.objectHasOwn", "hasOwnProperty", 1, "rt.objectPrototype"],
@@ -94,8 +95,7 @@ export function emitObjectIntrospection(b: RuntimeBuilder): void {
         a.jcc("e", missing);
         // IsValidIntegerIndex: a detached buffer has no elements (ES2021+, checked by the pinned Test262).
         a.load("r10", slot(56));
-        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-        a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+        emitViewCheck(a, "r10");
         a.test("r11", "r11");
         a.jcc("ne", missing);
         a.load("r10", slot(56));
