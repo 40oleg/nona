@@ -49,7 +49,7 @@ La mayoría de las características de ediciones posteriores no están soportada
 - ES2021: separadores numéricos, asignación lógica (`&&=`, `||=`, `??=`), `Promise.any` y `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
 - ES2022: campos de clase, métodos y accesores privados, bloques estáticos, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` de Error y el flag `d` de RegExp con índices de coincidencia.
 - ES2022: `await` de nivel superior en módulos ES, con el orden de evaluación de módulos async, ciclos y propagación del rechazo.
-- ES2023: `findLast` y `findLastIndex`, y los métodos de copia de `Array` `toSorted`, `toReversed`, `toSpliced` y `with` (no las variantes de `%TypedArray%`).
+- ES2023: `findLast` y `findLastIndex`, y los métodos de copia de `Array` `toSorted`, `toReversed`, `toSpliced` y `with` (y las variantes de `%TypedArray%` de `toSorted`, `toReversed` y `with`).
 - ES2024: `String.prototype.isWellFormed` y `toWellFormed`.
 - ES2024: el flag `v` de RegExp (`unicodeSets`): operaciones `--` y `&&` entre clases, clases anidadas, `q{...}` y propiedades de cadenas como `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` y `Map.groupBy`.

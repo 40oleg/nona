@@ -517,4 +517,94 @@
             },
         }.findLastIndex,
     );
+
+    // %TypedArray%.prototype.toReversed / toSorted / with (ES2023): the result
+    // is TypedArrayCreateSameType, an intrinsic constructor chosen by the
+    // receiver's [[TypedArrayName]] (never species or constructor).
+    var typedArrayNameGetter = ObjectConstructor.getOwnPropertyDescriptor(
+        TypedArrayPrototype,
+        Symbol.toStringTag,
+    ).get;
+    var typedArrayConstructors = {
+        Int8Array: Int8Array,
+        Uint8Array: Uint8Array,
+        Uint8ClampedArray: Uint8ClampedArray,
+        Int16Array: Int16Array,
+        Uint16Array: Uint16Array,
+        Int32Array: Int32Array,
+        Uint32Array: Uint32Array,
+        Float32Array: Float32Array,
+        Float64Array: Float64Array,
+        BigInt64Array: BigInt64Array,
+        BigUint64Array: BigUint64Array,
+    };
+    var typedArraySort = TypedArrayPrototype.sort;
+    function createSameType(O, len) {
+        var name = call(typedArrayNameGetter, O);
+        return construct(typedArrayConstructors[name], [len]);
+    }
+    function isBigIntArray(O) {
+        var name = call(typedArrayNameGetter, O);
+        return name === "BigInt64Array" || name === "BigUint64Array";
+    }
+    install(
+        TypedArrayPrototype,
+        "toReversed",
+        0,
+        {
+            toReversed() {
+                var len = validate(this, "%TypedArray%.prototype.toReversed");
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) A[k] = this[len - k - 1];
+                return A;
+            },
+        }.toReversed,
+    );
+    install(
+        TypedArrayPrototype,
+        "toSorted",
+        1,
+        {
+            toSorted(comparefn) {
+                if (comparefn !== undefined && typeof comparefn !== "function")
+                    throw new TypeErrorConstructor(
+                        "%TypedArray%.prototype.toSorted: comparator is not a function",
+                    );
+                var len = validate(this, "%TypedArray%.prototype.toSorted");
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) A[k] = this[k];
+                call(typedArraySort, A, comparefn);
+                return A;
+            },
+        }.toSorted,
+    );
+    install(
+        TypedArrayPrototype,
+        "with",
+        2,
+        {
+            with(index, value) {
+                var len = validate(this, "%TypedArray%.prototype.with"),
+                    relative = toIntegerOrInfinity(index),
+                    actual = relative >= 0 ? relative : len + relative;
+                var big = isBigIntArray(this);
+                if (big) {
+                    // ToBigInt, through a one-element array of the same type.
+                    var coerced = createSameType(this, 1);
+                    coerced[0] = value;
+                    value = coerced[0];
+                } else value = +value;
+                if (!(actual >= 0 && actual < call(lengthGetter, this)))
+                    throw new RangeError(
+                        "%TypedArray%.prototype.with: index out of range",
+                    );
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) {
+                    var element = k === actual ? value : this[k];
+                    A[k] = element === undefined && big ? 0n : element;
+                }
+                return A;
+            },
+        }.with,
+    );
 })();

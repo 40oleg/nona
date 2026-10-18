@@ -49,7 +49,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` ও `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`।
 - ES2022: class fields, private মেথড ও অ্যাক্সেসর, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` Error `cause` এবং RegExp-এর `d` ফ্ল্যাগ ও match indices।
 - ES2022: ES মডিউলে টপ-লেভেল `await`, async মডিউলের মূল্যায়ন ক্রম, সাইকেল ও rejection প্রচারসহ।
-- ES2023: `findLast` ও `findLastIndex`, এবং `Array`-এর `toSorted`, `toReversed`, `toSpliced` ও `with` কপি-ভিত্তিক পদ্ধতি (`%TypedArray%` সংস্করণ নয়)।
+- ES2023: `findLast` ও `findLastIndex`, এবং `Array`-এর `toSorted`, `toReversed`, `toSpliced` ও `with` কপি-ভিত্তিক পদ্ধতি (এবং `%TypedArray%`-এর `toSorted`, `toReversed`, `with`)।
 - ES2024: `String.prototype.isWellFormed` ও `toWellFormed`।
 - ES2024: RegExp-এর `v` ফ্ল্যাগ (`unicodeSets`): ক্লাসের `--` ও `&&` অপারেশন, নেস্টেড ক্লাস, `q{...}` এবং `p{RGI_Emoji}`-এর মতো স্ট্রিংয়ের প্রপার্টি।
 - ES2024: `Object.groupBy` ও `Map.groupBy`।

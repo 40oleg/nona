@@ -49,7 +49,7 @@ Most features from later editions are not supported. Supported additions:
 - ES2021: numeric separators, logical assignment (`&&=`, `||=`, `??=`), `Promise.any` and `AggregateError`, `String.prototype.replaceAll`, symbols as `WeakMap` keys and `WeakSet` values (non-registered symbols only), `WeakRef`, `FinalizationRegistry`.
 - ES2022: class fields, private methods and accessors, static blocks, `#x in obj`, `.at()`, `Object.hasOwn`, Error `cause`, and the RegExp `d` flag with match indices.
 - ES2022: top-level `await` in ES modules, including the evaluation order of async modules, cycles and rejection propagation.
-- ES2023: `findLast` and `findLastIndex`, and the change-by-copy methods `toSorted`, `toReversed`, `toSpliced` and `with` of `Array` (not the `%TypedArray%` variants).
+- ES2023: `findLast` and `findLastIndex`, and the change-by-copy methods `toSorted`, `toReversed`, `toSpliced` and `with` of `Array` (and the `%TypedArray%` variants of `toSorted`, `toReversed` and `with`).
 - ES2024: `String.prototype.isWellFormed` and `toWellFormed`.
 - ES2024: the RegExp `v` flag (`unicodeSets`): set operations `--` and `&&`, nested classes, `q{...}` and properties of strings such as `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` and `Map.groupBy`.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- ES2023 `%TypedArray%.prototype.toSorted`, `toReversed` and `with` ([#309](https://github.com/40oleg/nona/issues/309)). The result is a new array of the receiver's intrinsic type (no species), `with` throws `RangeError` for an index outside the current length after coercing the value. The code is part of the `es2021` prelude, linked when a program names `toSorted`, `toReversed` or `with`
+
 ### RegExp
 
 - **The `v` flag (`unicodeSets`, ES2024).** Set operations `--` and `&&`, nested classes, `q{...}` string literals, properties of strings (`p{RGI_Emoji}` and six more) and the stricter syntax of the flag, plus the `RegExp.prototype.unicodeSets` getter. The v-mode matcher is linked only for programs that use the flag, and the emoji data only when a property of strings is named (link part `unicodeStringProperties`, for `--link`). Test262 `regexp-v-flag`: 185/187. ([#314](https://github.com/40oleg/nona/issues/314))
