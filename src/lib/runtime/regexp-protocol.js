@@ -31,7 +31,7 @@ Object.defineProperty(RegExp.prototype, Symbol.match, {
             var input = String(string);
             var flags = String(this.flags);
             var global = flags.indexOf("g") >= 0,
-                unicode = flags.indexOf("u") >= 0;
+                unicode = flags.indexOf("u") >= 0 || flags.indexOf("v") >= 0;
             if (!global) {
                 var single = __nonaRegexpVm.regExpExec(this, input);
                 if (
@@ -185,7 +185,9 @@ Object.defineProperty(RegExp.prototype, Symbol.replace, {
             }
             var flags = String(this.flags);
             var global = Boolean(this.global),
-                unicode = global ? Boolean(this.unicode) : false;
+                unicode =
+                    global &&
+                    (flags.indexOf("u") >= 0 || flags.indexOf("v") >= 0);
             if (global) this.lastIndex = 0;
             var results = [];
             while (true) {
@@ -434,7 +436,7 @@ Object.defineProperty(RegExp.prototype, Symbol.split, {
                     "Cannot convert a Symbol value to a string",
                 );
             var flags = String(flagValue),
-                unicode = flags.indexOf("u") >= 0;
+                unicode = flags.indexOf("u") >= 0 || flags.indexOf("v") >= 0;
             var stickyFlags = flags.indexOf("y") >= 0 ? flags : flags + "y";
             var splitter = new species(this, stickyFlags);
             var length = input.length,
@@ -615,7 +617,7 @@ __nonaRegexpVm.matchAllPrototype = Object.create(
                     matcher: matcher,
                     input: input,
                     global: flags.indexOf("g") >= 0,
-                    unicode: flags.indexOf("u") >= 0,
+                    unicode: flags.indexOf("u") >= 0 || flags.indexOf("v") >= 0,
                     done: false,
                 });
                 return iterator;

@@ -379,6 +379,7 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
             "source",
             "sticky",
             "unicode",
+            "unicodeSets",
             "test",
             "toString",
             "@@match",

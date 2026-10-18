@@ -113,6 +113,7 @@
                 "regexp-match-all",
                 "regexp-match-indices",
                 "regexp-modifiers",
+                "regexp-v-flag",
                 "map",
                 "set",
                 "weak-collections",

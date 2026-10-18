@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - `String.prototype.{replace,split,match,matchAll,search}` 不会在原始值参数上查找以 Symbol 为键的方法（ES2025）。
 - Annex B 中以调用表达式作为赋值目标时，在非严格代码中于运行时抛出 ReferenceError，在严格代码中是早期错误（ES2022 的 Web 现实）。
 
-保持 ES2020 行为（失败归类为 `post`）：类字段和私有方法、数字分隔符、逻辑赋值、`Promise.any`/`AggregateError`、`Error.prototype.stack`/`cause`、RegExp 的 `v` 标志、顶层 await，以及 `postEs2020Features` 中的其他特性。剩余的已知偏差按目录列在 `docs/history/pr5-es2020-remaining-work.md` 和版本状态中。
+保持 ES2020 行为（失败归类为 `post`）：类字段和私有方法、数字分隔符、逻辑赋值、`Promise.any`/`AggregateError`、`Error.prototype.stack`/`cause`、顶层 await，以及 `postEs2020Features` 中的其他特性。剩余的已知偏差按目录列在 `docs/history/pr5-es2020-remaining-work.md` 和版本状态中。
 
 为 ES2020 关卡添加的运行器功能（2026-09）：
 

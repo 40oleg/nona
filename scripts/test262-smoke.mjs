@@ -74,7 +74,8 @@ const excludePathFilters = [
 // well-formed-unicode-strings tag), and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
 // non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
-// match indices (the d flag) and RegExp pattern modifiers.
+// match indices (the d flag), the RegExp v flag (unicodeSets) and RegExp pattern
+// modifiers.
 const postEs2020Features = [
     "Iterator.prototype.join",
     "iterator-chunking",
@@ -109,7 +110,6 @@ const postEs2020Features = [
     "Promise.allKeyed",
     "RegExp.escape",
     "regexp-duplicate-named-groups",
-    "regexp-v-flag",
     "resizable-arraybuffer",
     "set-methods",
     "ShadowRealm",
