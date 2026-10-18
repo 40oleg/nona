@@ -46,7 +46,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 
 Большинство возможностей более поздних изданий не поддерживается. Поддерживаются такие дополнения:
 
-- ES2021: разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any` и `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
+- ES2021: разделители в числах, логическое присваивание (`&&=`, `||=`, `??=`), `Promise.any` и `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`, `Promise.try` (ES2025).
 - ES2022: поля классов, приватные методы и аксессоры, статические блоки, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` у ошибок и флаг RegExp `d` с индексами совпадений.
 - ES2022: `await` верхнего уровня в ES-модулях, с порядком вычисления async-модулей, циклами и распространением отклонения.
 - ES2023: `findLast` и `findLastIndex`, а также методы копирующего изменения массивов `toSorted`, `toReversed`, `toSpliced` и `with` у `Array` (и варианты `%TypedArray%` для `toSorted`, `toReversed` и `with`).
