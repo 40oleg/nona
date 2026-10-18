@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-18 — выпуск v0.17.0
+
+- Версия package.json и package-lock.json обновлена до 0.17.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли методы TypedArray ES2023 `toSorted`, `toReversed` и `with` (#334), флаг RegExp `v` (unicodeSets, ES2024) (#351) и улучшения CI.
+- Полный аудит Test262 для v0.17.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0. PERFORMANCE.md не обновлялся.
+
 ## 2026-10-17 — выпуск v0.16.0
 
 - Версия package.json и package-lock.json обновлена до 0.16.0; `src/version.ts`, CLI help и `--version` — тоже.
