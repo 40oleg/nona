@@ -4,7 +4,7 @@
 
 ### Documentation
 
-- Start the v0.20.0 [completeness audit](docs/completeness-audit.md) with a commit-pinned capability/API inventory, release and target provenance, lightweight validation, and opt-in pinned package/runtime probes with bounded Windows x64 evidence. Readiness conclusions and independent review are still pending. ([#394](https://github.com/40oleg/nona/issues/394))
+- Add the v0.20.0 [completeness and readiness report](docs/completeness-audit.md): commit-pinned capability/API inventory, reproducible package probes and bounded Windows x64 evidence, compiler/assurance analysis, versioned alternatives, risk register and prioritized roadmap. Publish the report on the documentation site with consistent translated entry points; independent review remains pending. ([#394](https://github.com/40oleg/nona/issues/394))
 
 ### Runtime
 

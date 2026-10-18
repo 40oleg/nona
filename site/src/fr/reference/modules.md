@@ -1,6 +1,6 @@
 # Modules intégrés et objets globaux
 
-L’[audit de complétude](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md) (en anglais) comprend des tests limités de paquets et d’exécution sur Windows x64 ; les conclusions générales et la revue indépendante restent à faire.
+L’[audit de complétude](/reference/completeness-audit) (en anglais) présente les limites des API, des tests limités de paquets sur Windows x64, des comparaisons, les risques et une feuille de route priorisée. La revue indépendante reste à faire.
 
 Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous font partie du compilateur : le runtime natif et de petits préludes JavaScript sont compilés dans chaque exécutable, et les modules intégrés le sont lorsqu’un programme les importe.
 

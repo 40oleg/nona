@@ -3,8 +3,8 @@
     "schemaDocumentation": "completeness-audit.md#inventory-schema-v1",
     "audit": {
         "issue": 394,
-        "step": 2,
-        "state": "inventory-and-bounded-probes",
+        "step": 3,
+        "state": "readiness-report-pending-independent-review",
         "reportDate": "2026-10-18",
         "baselineCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
         "planningCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
@@ -51,7 +51,7 @@
             "state": "OPEN",
             "labels": ["blocked", "enhancement", "complex"],
             "linkedPrs": [],
-            "action": "Read issue/timeline; do not claim or benchmark; refresh #392 results in step 3."
+            "action": "Rechecked issue/timeline on 2026-10-18 UTC in step 3: still open/blocked, no completed report available; retain historical PERFORMANCE.md limits without competing benchmarks."
         },
         "openPrsExcluded": [
             {
@@ -90,7 +90,7 @@
                 "scope": "Float16Array/Math.f16round/DataView float16"
             }
         ],
-        "executionPolicy": "Step 2: sequential opt-in native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap not run locally. Historical CI is recorded separately. Passing samples do not verify every method/target in a broad row.",
+        "executionPolicy": "Step 2: sequential opt-in native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap not run locally. Historical CI is recorded separately. Passing samples do not verify every method/target in a broad row. Step 3 adds source/comparison/readiness analysis, focused validation and site build/checks; independent review remains for steps 4-6.",
         "structuralChecks": [
             {
                 "command": "node scripts/check-completeness-inventory.mjs --git",
@@ -4798,6 +4798,15 @@
             "releaseBlob": "cfe4730664c9ea30a96e59f22a6768126db0cd1a",
             "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/tests/platform-probes.test.ts",
             "execution": "not-run"
+        },
+        "THIRD_PARTY_NOTICES.md": {
+            "kind": "tooling-or-metadata",
+            "path": "THIRD_PARTY_NOTICES.md",
+            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+            "blob": "c4b2ccecf27148beb19ffc660bb6bad1bad4bdd4",
+            "releaseBlob": "c4b2ccecf27148beb19ffc660bb6bad1bad4bdd4",
+            "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/THIRD_PARTY_NOTICES.md",
+            "execution": "not-applicable"
         }
     },
     "capabilities": [
@@ -10431,7 +10440,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Not a security audit; custom crypto timing, native boundaries and action/dependency provenance need scoped review. Declared MIT does not finish third-party/license review.",
+            "limitations": "Not a security audit; crypto timing, native boundaries and provenance need scoped review. Step 3 found that package-native-cli.mjs does not copy THIRD_PARTY_NOTICES.md, whose recorded notices include binary-distribution retention terms. Actual published archive contents and the complete third-party inventory remain unverified.",
             "evidence": {
                 "sources": [
                     "src/runtime/root-scope.ts",
@@ -10439,7 +10448,9 @@
                     "src/lib/modules/x509.js",
                     "package-lock.json",
                     "LICENSE",
-                    ".github/workflows/release.yml"
+                    ".github/workflows/release.yml",
+                    "THIRD_PARTY_NOTICES.md",
+                    "scripts/package-native-cli.mjs"
                 ],
                 "tests": [],
                 "documentation": [
@@ -10459,7 +10470,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Verify notice delivery in every packaged target archive; review other copied/generated notices separately. Retain distinct memory/crypto security and build-provenance scopes; source inspection is not a completed security audit."
         },
         {
             "id": "ecosystem.cli-files",

@@ -2,7 +2,7 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
-The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) distinguish inspected implementation, partial APIs, stubs and unexecuted evidence at a pinned commit. Steps 1–2 include [opt-in package and runtime probes](../tests/fixtures/completeness/README.md) and bounded Windows x64 results; broader conclusions and independent review are pending.
+The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report distinguishes local Windows x64 execution from historical CI and unverified claims. Independent review is pending.
 
 | Document                                         | Contents                                                                                                           | Language |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------- |

@@ -22,6 +22,7 @@ export const bn: Dictionary = {
         compatibility: "সামঞ্জস্য ও সীমাবদ্ধতা",
         performance: "পারফরম্যান্স",
         status: "অবস্থা ও রোডম্যাপ",
+        completenessAudit: "সম্পূর্ণতার নিরীক্ষা (ইংরেজি)",
         languageGroup: "ভাষা ও সামঞ্জস্য",
         tools: "টুল ও বিল্ড",
         apis: "হোস্ট API",

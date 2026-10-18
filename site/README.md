@@ -42,6 +42,7 @@ These pages include a document from the repository; edit the source, not the pag
 | `/reference/fs`                  | `docs/fs.md`                  |
 | `/reference/ffi`                 | `docs/ffi.md`                 |
 | `/reference/windows-executables` | `docs/windows-executables.md` |
+| `/reference/completeness-audit`  | `docs/completeness-audit.md`  |
 | `/reference/test262`             | `docs/test262.md`             |
 | `/changelog`                     | `CHANGELOG.md`                |
 

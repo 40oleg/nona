@@ -1,6 +1,6 @@
 # Built-in modules and globals
 
-The [completeness audit](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md) includes bounded Windows x64 package/runtime probes; broader conclusions and independent review are pending.
+The [completeness audit](/reference/completeness-audit) records API limits, bounded Windows x64 package results, comparisons, risks and a prioritized roadmap. Independent review is pending.
 
 Nona programs run without Node.js. The host APIs below are part of the compiler: the native runtime and small JavaScript preludes are compiled into every executable, and built-in modules are compiled in when a program imports them.
 

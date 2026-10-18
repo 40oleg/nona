@@ -23,6 +23,7 @@ export const ar: Dictionary = {
         compatibility: "التوافق والقيود",
         performance: "الأداء",
         status: "الحالة وخارطة الطريق",
+        completenessAudit: "تدقيق الاكتمال (بالإنجليزية)",
         languageGroup: "اللغة والتوافق",
         tools: "الأدوات والبناء",
         apis: "واجهات المضيف",

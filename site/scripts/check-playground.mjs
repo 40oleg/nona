@@ -1,12 +1,13 @@
 // Runs the bundled playground worker in Node.js and checks that it produces
 // the same executables as the compiler in ../dist. Run after build:playground.
-// File names are absolute because the browser resolves them against '/'.
+// Give both compilers the same canonical module path: on Windows, Node
+// resolves '/app.mjs' against the current drive, unlike the browser shim.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const site = dirname(dirname(fileURLToPath(import.meta.url)));
-const { compile } = await import(
+const { compile, modulePath } = await import(
     pathToFileURL(join(site, "..", "dist", "src", "compiler.js")).href
 );
 const messages = [];
@@ -61,7 +62,13 @@ const cases = [
 let failed = false;
 for (const [id, { file, options }] of cases.entries()) {
     const source = readFileSync(join(site, "samples", file), "utf8");
-    self.onmessage({ data: { id, source, options } });
+    self.onmessage({
+        data: {
+            id,
+            source,
+            options: { ...options, fileName: modulePath(options.fileName) },
+        },
+    });
     const reply = messages.shift();
     const expected = compile(source, options);
     const same =
