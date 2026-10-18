@@ -105,7 +105,6 @@ const postEs2020Features = [
     "json-parse-with-source",
     "legacy-regexp",
     "Math.sumPrecise",
-    "promise-try",
     "promise-with-resolvers",
     "Promise.allKeyed",
     "regexp-duplicate-named-groups",

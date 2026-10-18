@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Language
+
+- `Promise.try(fn, ...args)` (ES2025) calls `fn` and returns a promise for its result or its thrown error. ([#317](https://github.com/40oleg/nona/issues/317))
+- **`RegExp.escape`** (ES2025, [#318](https://github.com/40oleg/nona/issues/318)). A small JavaScript prelude linked only when a program names `escape`; programs that do not use it do not grow
+
 ## v0.17.0 — 2026-10-18
 
 Highlights: ES2023 TypedArray methods, ES2024 RegExp v flag, development improvements.
@@ -65,7 +70,6 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 - `node:fs` gains `lstatSync`, `readlinkSync` (symbolic links, and junctions on Windows), `realpathSync.native`, `accessSync`, `rmSync`, a full `fs.Dirent` (all `is*()` methods, `parentPath`, `path`) for `readdirSync(path, {withFileTypes: true})`, the `Stats` device/FIFO/socket tests, Node.js callback forms of the common functions and `fs.promises`, also as the new `node:fs/promises` module (`fs/promises`, `nona:fs/promises`). Packages such as glob's path-scurry now compile. ([#297](https://github.com/40oleg/nona/issues/297))
 - `EventEmitter.prototype.once` and `prependOnceListener` register their wrapper through `this.on` and `this.prependListener`, as in Node.js, so a subclass that overrides `on` (minipass starts data flow there) sees `once('data')` listeners. `for await` over a minipass stream and glob's `Glob` iterators and streams no longer hang. ([#297](https://github.com/40oleg/nona/issues/297))
 - **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
-- **`RegExp.escape`** (ES2025, [#318](https://github.com/40oleg/nona/issues/318)). A small JavaScript prelude linked only when a program names `escape`; programs that do not use it do not grow
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
 - **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
