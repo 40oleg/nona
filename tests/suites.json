@@ -122,6 +122,7 @@
                 "map",
                 "set",
                 "set-methods",
+                "iterator-helpers",
                 "weak-collections",
                 "weakref",
                 "finalization-registry",

@@ -76,7 +76,7 @@ const excludePathFilters = [
 // accessors, static blocks, `#x in obj`, and private elements refused on
 // non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
 // match indices (the d flag), the RegExp v flag (unicodeSets) and RegExp pattern
-// modifiers, the ES2025 Set methods, and resizable/transferable ArrayBuffers
+// modifiers, the ES2025 Set methods, the ES2025 iterator helpers (#322), and resizable/transferable ArrayBuffers
 // with growable SharedArrayBuffers (resizable-arraybuffer, arraybuffer-transfer).
 const postEs2020Features = [
     "Iterator.prototype.join",
@@ -98,7 +98,6 @@ const postEs2020Features = [
     "import-defer",
     "import-bytes",
     "import-text",
-    "iterator-helpers",
     "iterator-sequencing",
     "joint-iteration",
     "json-modules",
