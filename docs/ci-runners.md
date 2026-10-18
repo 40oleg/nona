@@ -45,6 +45,15 @@ self-hosted runner would run them one after another.
 - Git. Node.js is installed per job by `actions/setup-node` (the version in
   the workflow's `NODE_VERSION`).
 - Several gigabytes of free disk in the runner's `_work` directory.
+- Enough memory for the tests it runs at once. `node --test` would run one
+  test file per hardware thread, and every file compiles and runs native
+  programs, so on a machine with many threads it runs out of memory.
+  `scripts/run-shard.mjs` and `scripts/run-suite.mjs` therefore run 3 files at
+  once on a self-hosted runner, as many as on a GitHub-hosted Windows runner
+  ([#380](https://github.com/40oleg/nona/issues/380)). Set
+  `NONA_TEST_CONCURRENCY` in the runner's environment (its `.env` file) to
+  change it; with several runners on one machine, divide what the machine can
+  take between them.
 - No interactive crash dialogs: the tests deliberately crash child processes.
   Run the runner as a Windows service (`config.cmd --runasservice`), whose
   session shows no Windows Error Reporting dialogs, or set

@@ -8,6 +8,7 @@
 
 ### Development
 
+- On a self-hosted runner the CI test scripts run 3 test files at once instead of one per hardware thread, which exhausted the memory of a 32-thread machine; `NONA_TEST_CONCURRENCY` sets the number. ([#380](https://github.com/40oleg/nona/issues/380))
 - On pull requests, CI runs most test files and the program corpus without GC stress (`NONA_GC_STRESS=off`); the files of `tests/gc-stress.json` and every run on `main` keep it, and the `gc-stress` label restores it for a pull request. ([#372](https://github.com/40oleg/nona/issues/372))
 - On pull requests, the Test262 directory jobs of `check` run only when the pull request changes the compiler or runtime (or has `full-ci`). ([#371](https://github.com/40oleg/nona/issues/371))
 - CI runs the Windows tests of `check` in four parallel shards balanced by `tests/timings.json`, without the program corpus (the `program corpus` workflow runs it), and builds once per job. ([#370](https://github.com/40oleg/nona/issues/370))

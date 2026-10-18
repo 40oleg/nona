@@ -54,3 +54,46 @@ test("shard arguments are validated", async () => {
     for (const bad of ["0/4", "5/4", "1/0", "x", ""])
         assert.throws(() => parseShard(bad));
 });
+
+// node --test concurrency of the CI test scripts (scripts/run-suite.mjs, #380).
+interface Suites {
+    testConcurrency(
+        env: Record<string, string | undefined>,
+    ): number | undefined;
+    testConcurrencyArgs(env: Record<string, string | undefined>): string[];
+}
+const suites = async () =>
+    (await import(
+        pathToFileURL(resolve("scripts/run-suite.mjs")).href
+    )) as Suites;
+
+test("self-hosted runners run few test files at once", async () => {
+    const { testConcurrency, testConcurrencyArgs } = await suites();
+    assert.equal(testConcurrency({ RUNNER_ENVIRONMENT: "self-hosted" }), 3);
+    assert.deepEqual(
+        testConcurrencyArgs({ RUNNER_ENVIRONMENT: "self-hosted" }),
+        ["--test-concurrency=3"],
+    );
+    // NONA_TEST_CONCURRENCY wins everywhere; invalid values are ignored.
+    assert.equal(
+        testConcurrency({
+            RUNNER_ENVIRONMENT: "self-hosted",
+            NONA_TEST_CONCURRENCY: "6",
+        }),
+        6,
+    );
+    assert.equal(testConcurrency({ NONA_TEST_CONCURRENCY: "2" }), 2);
+    assert.equal(
+        testConcurrency({
+            RUNNER_ENVIRONMENT: "self-hosted",
+            NONA_TEST_CONCURRENCY: "0",
+        }),
+        3,
+    );
+    // GitHub-hosted runners and local runs keep Node's default.
+    assert.equal(
+        testConcurrency({ RUNNER_ENVIRONMENT: "github-hosted" }),
+        undefined,
+    );
+    assert.deepEqual(testConcurrencyArgs({}), []);
+});
