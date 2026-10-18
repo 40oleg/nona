@@ -66,6 +66,7 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 - **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
 - **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
 
+- **Symbols as weak keys (ES2023).** `WeakMap` keys and `WeakSet` values may be non-registered symbols, well-known ones included; `Symbol.for` symbols are rejected with a TypeError by `set`/`add`, as other values that cannot be held weakly are, and `get`/`has`/`delete` report them as absent. The collector holds such keys weakly. Test262 `built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85 with post-ES2020 features excluded. ([#310](https://github.com/40oleg/nona/issues/310))
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
 ### Performance
