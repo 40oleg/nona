@@ -4,6 +4,10 @@
 
 ### Runtime
 
+### Internals
+
+- AGENTS.md: every issue and pull request has one type label and the milestone of its version; a closed issue carries the milestone of the release that ships it and no `blocked` label ([#396](https://github.com/40oleg/nona/issues/396)).
+
 ## v0.19.0 — 2026-10-18
 
 ### Runtime

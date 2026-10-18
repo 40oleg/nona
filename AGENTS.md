@@ -17,9 +17,19 @@ exactly.
 - **Claim an issue before you start**: add the `blocked` label ("Taken by an
   agent; do not start in parallel"). Never start an issue that already has the
   `blocked` label, even if it looks abandoned; ask the owner instead.
-- Also add a type label (`enhancement`, `bug`, `documentation`, …).
-- Remove `blocked` when you give the issue up. When the pull request is merged,
-  the issue is closed by `Closes #N`.
+- **Every issue and every pull request has a type label and a milestone.**
+  Give it exactly one type label when you create it: `bug`, `enhancement` or
+  `documentation` (releases and docs-only work are `documentation`). Add
+  `complex` for large work. Set the milestone of the version it is planned for
+  (`vX.Y.0`; create the milestone if it does not exist yet). The pull request
+  takes the type label and milestone of its issue.
+- When the issue is closed, its milestone must be the release that ships it:
+  if it is merged after the planned version was released, move the issue and
+  the pull request to the next open milestone. Close a milestone when its
+  release is published.
+- Remove `blocked` when you give the issue up and when the issue is closed
+  (merged or not). When the pull request is merged, the issue is closed by
+  `Closes #N`; check that it is closed and has no `blocked` label left.
 
 ## Commits
 
