@@ -109,6 +109,7 @@
                 "regexp-scan",
                 "regexp-surrogates",
                 "regexp-construction",
+                "regexp-duplicate-names",
                 "regexp-split",
                 "regexp-replace",
                 "regexp-match-all",
