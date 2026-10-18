@@ -1,6 +1,6 @@
-import { Readable, Transform, Writable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { text } from "node:stream/consumers";
+import { Readable, Transform, Writable } from "nona:stream";
+import { pipeline } from "nona:stream/promises";
+import { text } from "nona:stream/consumers";
 
 async function main() {
     const upper = new Transform({

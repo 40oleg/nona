@@ -7,6 +7,10 @@
 - **ES2025 iterator helpers.** The global `Iterator`, `Iterator.from`, and `map`, `filter`, `take`, `drop`, `flatMap`, `reduce`, `toArray`, `forEach`, `some`, `every` and `find` on `Iterator.prototype`, with the wrapping and closing protocol of the spec. They are the optional `iteratorHelpers` prelude part, linked when a program names `Iterator`, `toArray`, `take`, `drop` or `flatMap`, otherwise with `--link iteratorHelpers` or `--full-runtime`; programs that do not use them do not grow. ([#322](https://github.com/40oleg/nona/issues/322))
 - **`Array.fromAsync`** (ES2026) over async iterables, sync iterables (each value awaited) and array-likes, with the mapping function, `thisArg`, construction through `this` and closing of the iterator on errors. It is a separate prelude part linked only when a program names `fromAsync`. ([#323](https://github.com/40oleg/nona/issues/323))
 
+### Documentation
+
+- Examples, site samples, docs and the README import built-in modules with their `nona:` names (`nona:fs`, `nona:http`, …) instead of `node:`; `fs`, `node:fs` and `nona:fs` stay the same module, and modules without a `nona:` name (`path`, `crypto`, `os`, `url`, `util`) keep `node:` ([#391](https://github.com/40oleg/nona/issues/391)).
+
 ## v0.18.0 — 2026-10-18
 
 ### Language

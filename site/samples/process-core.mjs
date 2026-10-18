@@ -1,4 +1,4 @@
-import process, { hrtime, nextTick } from "node:process";
+import process, { hrtime, nextTick } from "nona:process";
 
 const started = hrtime.bigint();
 if (process.env.NONA_SAMPLE_ENV_FILE)
