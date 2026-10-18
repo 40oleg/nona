@@ -118,6 +118,7 @@
                 "regexp-v-flag",
                 "map",
                 "set",
+                "set-methods",
                 "weak-collections",
                 "weakref",
                 "finalization-registry",

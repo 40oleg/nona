@@ -334,6 +334,8 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('"abc".replaceAll("b", "c")'), "regexpProtocol");
     assert.equal(linked("RegExp.escape(s)"), "annexB,regexpEscape");
     assert.equal(linked("a.sort()"), "arraySort");
+    assert.equal(linked("a.union(b)", "a.isDisjointFrom(b)"), "setMethods");
+    assert.equal(linked("new Set([1]).has(1)"), "");
     assert.equal(linked("Object.freeze(o)"), "objectIntegrity");
     assert.equal(linked('o.__lookupGetter__("x")'), "objectAnnexB");
     // Long names are found inside strings; short ones only as a whole string.

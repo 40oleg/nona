@@ -140,6 +140,15 @@ export const preludeTriggers = {
         "toReversed",
         "with",
     ],
+    setMethods: [
+        "union",
+        "intersection",
+        "difference",
+        "symmetricDifference",
+        "isSubsetOf",
+        "isSupersetOf",
+        "isDisjointFrom",
+    ],
     wellFormed: ["isWellFormed", "toWellFormed"],
     // WeakRef and its microtask-checkpoint hook; the native part is linked with it.
     weakRef: ["WeakRef"],
