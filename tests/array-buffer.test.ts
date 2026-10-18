@@ -1152,7 +1152,6 @@ console.log(error(()=>dv.setFloat64(0,{valueOf(){b.resize(4);return 1}})),dv.byt
 dv.setBigInt64(8,-5n);var bi=new BigInt64Array(b);console.log(bi.length,bi[1],dv.getBigInt64(8));b.resize(12);console.log(bi.length,bi[1],error(()=>dv.getBigInt64(8)));
 console.log(error(()=>new Uint8Array(b,{valueOf(){b.resize(2);return 4}})),b.byteLength);
 b.resize(16);var f=new Float64Array(b,8);f[0]=2.5;b.resize(15);console.log(f.length,f[0],(f[0]=3,f[0]));b.resize(32);console.log(f.length,f[0]);
-console.log(error(()=>Object.freeze(new Uint8Array(new ArrayBuffer(0,{maxByteLength:4})))));
 var g=new SharedArrayBuffer(4,{maxByteLength:12});var gd=new DataView(g),gu=new Uint16Array(g,2);console.log(gd.byteLength,gu.length);g.grow(12);console.log(gd.byteLength,gu.length,gu.byteLength,error(()=>gd.setUint32(8,7)),gd.getUint32(8));
 var x=new Uint8Array(new ArrayBuffer(4,{maxByteLength:8}));console.log(Object.prototype.toString.call(x),ArrayBuffer.isView(x),JSON.stringify(Array.from(x)),x.buffer.resizable);
 var s=new ArrayBuffer(4,{maxByteLength:8});var sv=new Uint8Array(s,1,2);s.resize(2);console.log(sv.length,sv.byteLength,sv.byteOffset,error(()=>sv.slice()),error(()=>sv.subarray(0)),error(()=>new Uint8Array(sv)),error(()=>Uint8Array.from(sv)),error(()=>new Uint8Array(4).set(sv)));
@@ -1195,4 +1194,18 @@ u.constructor={[Symbol.species]:function(x,o,l){args=arguments;return new Uint8A
 var s=u.subarray(1);console.log(args.length,args[1],s.join());buf.resize&&buf.resizable&&buf.resize(4);console.log(s.length,u.subarray(1,2).length,args.length);}
 `,
         "true 0,2,3,0\n1,2.5,3 0\nTypeError\n3 1 41,42\n2 1 3\n2 1 41,42\n3 1 3\n",
+    ));
+
+// ES2024 10.4.5.4 (Node.js 26, not 22): only a fixed-length typed array can
+// be made non-extensible.
+test("typed arrays over resizable buffers stay extensible", () =>
+    expectOutput(
+        `var rab=new ArrayBuffer(0,{maxByteLength:4}),gsab=new SharedArrayBuffer(2,{maxByteLength:4});
+for(var t of [new Uint8Array(rab),new Uint8Array(rab,0,0),new Uint8Array(gsab),new Uint8Array(gsab,0,0),new Uint8Array(0)]){
+var r=[Reflect.preventExtensions(t),Object.isExtensible(t),Reflect.preventExtensions(new Proxy(t,{}))];
+for(var f of [Object.preventExtensions,Object.seal,Object.freeze])try{f(t);r.push("ok")}catch(e){r.push(e.name)}
+console.log(r.join(),Object.isFrozen(t));}
+`,
+        "false,true,false,TypeError,TypeError,TypeError false\n".repeat(3) +
+            "true,false,true,ok,ok,ok true\n".repeat(2),
     ));

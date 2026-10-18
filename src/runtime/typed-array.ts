@@ -26,8 +26,7 @@ import { FunctionLayout as F, FunctionKind } from "./functions.js";
 import { emitElementWidth, emitReplicate } from "./typed-array-kernels.js";
 
 /** Common layout for future numeric and BigInt typed-array variants. */
-export { TypedArrayKind };
-export { TypedArrayLayout };
+export { TypedArrayKind, TypedArrayLayout };
 const typedArrayWidths = [
     ["Uint8Array", "uint8array", 1],
     ["Int8Array", "int8array", 1],

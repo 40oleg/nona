@@ -1,11 +1,12 @@
 import type { RuntimeBuilder } from "./abi.js";
 import { slot } from "./abi.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
-import { ObjectLayout as O } from "./object-layout.js";
+import { ObjectLayout as O, ObjectFlags as OF } from "./object-layout.js";
 import {
     ArrayBufferLayout,
     SharedArrayBufferKind,
     SharedLengthHeader,
+    TypedArrayKind,
     TypedArrayLayout,
     DataViewLayout,
 } from "./array-buffer-layout.js";
@@ -24,6 +25,7 @@ import {
  * call sites keep their values live across the call.
  */
 export function emitViewBounds(b: RuntimeBuilder): void {
+    emitOrdinaryPreventExtensions(b);
     for (const [name, fixed, typed] of [
         ["rt.typedArrayBounds", TypedArrayLayout.fixedByteLength, true],
         ["rt.dataViewBounds", DataViewLayout.fixedByteLength, false],
@@ -114,6 +116,40 @@ export function emitViewBounds(b: RuntimeBuilder): void {
             saved.forEach((r, i) => a.load(r, slot(8 * i)));
         });
     }
+}
+
+/**
+ * OrdinaryPreventExtensions of the object in R10, except that a typed array
+ * that is not fixed-length (IsTypedArrayFixedLength: length-tracking, or a
+ * view of a resizable ArrayBuffer) stays extensible (ES2024 10.4.5.4).
+ * RAX = 1 when the object is now non-extensible, 0 otherwise; changes R11.
+ */
+function emitOrdinaryPreventExtensions(b: RuntimeBuilder): void {
+    b.fn("rt.ordinaryPreventExtensions", 8, (a) => {
+        const fixed = a.unique("fixed"),
+            done = a.unique("done");
+        a.load("rax", { base: "r10", disp: O.kind });
+        a.cmp("rax", TypedArrayKind);
+        a.jcc("ne", fixed);
+        a.mov("rax", 0);
+        a.load("r11", { base: "r10", disp: TypedArrayLayout.fixedByteLength });
+        a.test("r11", "r11");
+        a.jcc("s", done);
+        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
+        a.load("rax", { base: "r11", disp: O.kind });
+        a.cmp("rax", SharedArrayBufferKind);
+        a.jcc("e", fixed);
+        a.mov("rax", 0);
+        a.load("r11", { base: "r11", disp: ArrayBufferLayout.maxByteLength });
+        a.test("r11", "r11");
+        a.jcc("ns", done);
+        a.label(fixed);
+        a.load("rax", { base: "r10", disp: O.flags });
+        a.or("rax", OF.nonExtensible);
+        a.store({ base: "r10", disp: O.flags }, "rax");
+        a.mov("rax", 1);
+        a.label(done);
+    });
 }
 
 /**
