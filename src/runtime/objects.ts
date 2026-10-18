@@ -20,6 +20,7 @@ import { ArrayBufferLayout } from "./array-buffer.js";
 import { ProxyKind } from "./proxy.js";
 import { ElementsLayout as E, HoleTag } from "./array-elements.js";
 import type { Assembler, Mem } from "../backend/machine/context.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 function copyValue(a: Assembler, to: Mem, from: Mem): void {
     const plus = (m: Mem): Mem =>
@@ -402,9 +403,8 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.cmp("rax", -2);
         a.jcc("e", typedMissing);
         a.load("rcx", slot(48));
-        a.load("r10", { base: "rcx", disp: TypedArrayLayout.buffer });
-        a.load("r10", { base: "r10", disp: ArrayBufferLayout.detached });
-        a.test("r10", "r10");
+        emitViewCheck(a, "rcx");
+        a.test("r11", "r11");
         a.jcc("ne", typedMissing);
         a.load("r10", { base: "rcx", disp: TypedArrayLayout.length });
         a.cmp("rax", "r10");
@@ -627,13 +627,13 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.jcc("p", slow);
         a.test("rax", "rax");
         a.jcc("s", slow);
-        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-        a.load("r9", { base: "r11", disp: ArrayBufferLayout.detached });
-        a.test("r9", "r9");
+        emitViewCheck(a, "r10");
+        a.test("r11", "r11");
         a.jcc("ne", slow);
         a.load("r9", { base: "r10", disp: TypedArrayLayout.length });
         a.cmp("rax", "r9");
         a.jcc("ae", slow);
+        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
         a.load("r9", { base: "r11", disp: ArrayBufferLayout.bytes });
         a.load("r11", { base: "r10", disp: TypedArrayLayout.byteOffset });
         a.add("r9", "r11");
@@ -1583,8 +1583,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.cmp("rax", -2);
             a.jcc("e", done);
             a.load("r10", slot(72));
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             a.jcc("ne", done);
             a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
@@ -1611,10 +1610,10 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.label(byteAddress);
             a.load("r11", { base: "r10", disp: TypedArrayLayout.byteOffset });
             a.add("rax", "r11");
-            a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "rdx", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             a.jcc("ne", done);
+            a.load("rdx", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("rdx", { base: "rdx", disp: ArrayBufferLayout.bytes });
             a.add("rdx", "rax");
             a.load("rax", slot(80));
@@ -1727,11 +1726,7 @@ export function emitObjects(b: RuntimeBuilder): void {
                 a.cmp("rax", -2);
                 a.jcc("e", done);
                 a.load("r10", slot(80));
-                a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-                a.load("r11", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
+                emitViewCheck(a, "r10");
                 a.test("r11", "r11");
                 a.jcc("ne", done);
                 a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
@@ -2138,8 +2133,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.cmp("rax", -2);
             a.jcc("e", yes);
             a.load("r10", slot(72));
-            a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-            a.load("r11", { base: "r11", disp: ArrayBufferLayout.detached });
+            emitViewCheck(a, "r10");
             a.test("r11", "r11");
             a.jcc("ne", yes);
             a.load("r10", { base: "r10", disp: TypedArrayLayout.length });

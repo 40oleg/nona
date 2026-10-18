@@ -114,7 +114,7 @@ test("ARM64 Mach-O uses dyld startup and 16 KiB segment alignment", () => {
         assert.equal(v.getBigUint64(c.offset + 24, true) % 16384n, 0n);
 });
 
-test("ARM64 Mach-O binds only system-library imports and rebases absolute data pointers", () => {
+test("ARM64 Mach-O binds system and declared library imports and rebases absolute data pointers", () => {
     const program = fixture();
     program.imports = [
         {
@@ -139,8 +139,45 @@ test("ARM64 Mach-O binds only system-library imports and rebases absolute data p
             .decode(image.subarray(bindOffset, bindOffset + bindSize))
             .includes("_clock_gettime\0"),
     );
-    program.imports[0]!.dll = "third-party.dylib";
-    assert.throws(() => link(program, "arm64"), /libSystem/);
+    // A library the program declares (nona:ffi) is loaded after libSystem and
+    // its symbols bind to that ordinal.
+    program.imports.push({
+        dll: "/usr/lib/libsqlite3.dylib",
+        name: "sqlite3_libversion",
+        symbol: "ffi.sqlite",
+    });
+    program.fragments.push({
+        name: "ffi.sqlite.user",
+        section: ".data",
+        bytes: new Uint8Array(8),
+        symbols: {},
+        fixups: [],
+    });
+    const linked = link(program, "arm64"),
+        lv = view(linked),
+        libraries = commands(linked)
+            .filter((c) => c.type === 0xc)
+            .map((c) => {
+                const at = c.offset + lv.getUint32(c.offset + 8, true);
+                return new TextDecoder()
+                    .decode(linked.subarray(at, c.offset + c.size))
+                    .replace(/\0.*$/s, "");
+            });
+    assert.deepEqual(libraries, [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libsqlite3.dylib",
+    ]);
+    const linkedInfo = commands(linked).find((c) => c.type === 0x80000022)!,
+        binds = linked.subarray(
+            lv.getUint32(linkedInfo.offset + 16, true),
+            lv.getUint32(linkedInfo.offset + 16, true) +
+                lv.getUint32(linkedInfo.offset + 20, true),
+        ),
+        text = new TextDecoder("latin1").decode(binds);
+    assert.equal(binds[text.indexOf("_clock_gettime") - 2], 0x11);
+    assert.equal(binds[text.indexOf("_sqlite3_libversion") - 2], 0x12);
+    program.imports[1]!.name = "not a symbol";
+    assert.throws(() => link(program, "arm64"), /symbol/);
 });
 
 test("Mach-O embedded ad-hoc signature hashes the final image including load commands", () => {
@@ -178,7 +215,7 @@ test("Mach-O embedded ad-hoc signature hashes the final image including load com
 
 test("Mach-O rejects unresolved imports, invalid entries and relocation bounds", () => {
     const imports = fixture();
-    imports.imports.push({ dll: "x", name: "f", symbol: "f" });
+    imports.imports.push({ dll: "x y", name: "f", symbol: "f" });
     assert.throws(() => link(imports), /import/i);
     const entry = fixture();
     entry.entry = "state";

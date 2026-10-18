@@ -5,6 +5,8 @@ import { compileToIR } from "../src/compiler.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { linkHost } from "./helpers/program.js";
 import { runNative } from "./helpers/native.js";
+import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 test("WeakMap and WeakSet accept object keys and reject primitive additions", () =>
     expectProgram(
@@ -79,3 +81,57 @@ test("Weak collection constructors close iterators when adders throw", () =>
 `,
         "stop\n1\n",
     ));
+
+// ES2023 CanBeHeldWeakly: unregistered symbols are weak keys, Symbol.for ones are not.
+const symbolKeyCases: [string, string][] = [
+    [
+        "WeakMap and WeakSet accept unregistered symbol keys",
+        `var a=Symbol(),b=Symbol('d'),map=new WeakMap(),set=new WeakSet();
+ console.log(map.set(a,1)===map,map.set(b,{id:2})===map,set.add(a)===set);
+ console.log(map.get(a),map.get(b).id,map.has(a),map.has(b),map.has(Symbol('d')),map.get(Symbol()));
+ console.log(set.has(a),set.has(b),map.set(a,3).get(a));
+ console.log(map.delete(a),map.has(a),map.delete(a),map.get(b).id,set.delete(a),set.has(a),set.delete(b));`,
+    ],
+    [
+        "well-known symbols can be held weakly",
+        `var map=new WeakMap(),set=new WeakSet();map.set(Symbol.iterator,'it');set.add(Symbol.asyncIterator);
+ console.log(map.get(Symbol.iterator),map.has(Symbol.iterator),set.has(Symbol.asyncIterator),set.has(Symbol.iterator));
+ console.log(map.delete(Symbol.iterator),map.has(Symbol.iterator));`,
+    ],
+    [
+        "registered symbols cannot be held weakly",
+        `var r=Symbol.for('x'),map=new WeakMap(),set=new WeakSet();
+ try{map.set(r,1);console.log('no')}catch(e){console.log(e instanceof TypeError)}
+ try{set.add(Symbol.for('x'));console.log('no')}catch(e){console.log(e instanceof TypeError)}
+ try{new WeakMap([[r,1]]);console.log('no')}catch(e){console.log(e instanceof TypeError)}
+ try{new WeakSet([r]);console.log('no')}catch(e){console.log(e instanceof TypeError)}
+ console.log(map.get(r),map.has(r),map.delete(r),set.has(r),set.delete(r));`,
+    ],
+    [
+        "weak collection constructors accept symbol keys",
+        `var a=Symbol('a'),b=Symbol('b'),o={},map=new WeakMap([[a,1],[o,2],[b,3]]),set=new WeakSet([a,o,b,a]);
+ console.log(map.get(a),map.get(o),map.get(b),set.has(a),set.has(o),set.has(b),set.has(Symbol('a')));`,
+    ],
+    [
+        "symbol-keyed ephemeron values survive while their keys are live",
+        `var key=Symbol('k'),map=new WeakMap(),set=new WeakSet();map.set(key,{id:9});set.add(key);
+ map.set(Symbol.iterator,{id:4});
+ for(var i=0;i<200;i++)({i:i,s:Symbol(),t:'x'+i});
+ console.log(map.get(key).id,map.has(key),set.has(key),map.get(Symbol.iterator).id,String(key));`,
+    ],
+    [
+        "weak collections stay usable after dead symbol keys are pruned",
+        `var map=new WeakMap(),set=new WeakSet();
+ (function(){for(var i=0;i<20;i++){var dead=Symbol('dead'+i);map.set(dead,{id:i});set.add(dead)}})();
+ for(var i=0;i<200;i++)({i:i,s:Symbol()});
+ var live=Symbol('live');map.set(live,{id:9});set.add(live);
+ for(var i=0;i<100;i++)({i:i});
+ console.log(map.get(live).id,set.has(live),map.delete(live),set.delete(live),map.has(live),set.has(live));`,
+    ],
+];
+for (const [name, source] of symbolKeyCases)
+    test(name, () => {
+        const run = runOnHost(source);
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(run.stdout, runOracle(source).stdout);
+    });

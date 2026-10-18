@@ -6,6 +6,7 @@ import { withNativeTarget } from "../machine/context.js";
 import type { Assembler } from "../x64/assembler.js";
 import type { NativeProgram } from "../machine/model.js";
 import { darwinProcessSystemAdapters } from "./system.js";
+import { isFfiLibraryImport } from "../../ffi.js";
 
 function syscall(a: Assembler, number: number): void {
     a.syscall(number);
@@ -36,6 +37,13 @@ export function linkDarwinArm64(program: NativeProgram): Uint8Array {
             "linux.WakeByAddressSingle.code",
             "linux.CreateThread.code",
         ]);
+        // Shared library functions a program declares (nona:ffi) are dyld
+        // binds; the Windows API imports of the runtime become shims.
+        const libraries = program.imports.filter(isFfiLibraryImport);
+        program = {
+            ...program,
+            imports: program.imports.filter((i) => !isFfiLibraryImport(i)),
+        };
         const fragments = linuxShims(program.imports, {
             pageSize: 16384,
             replace,
@@ -273,6 +281,7 @@ export function linkDarwinArm64(program: NativeProgram): Uint8Array {
                         symbol: "libSystem." + name,
                     })),
                     ...systemImports.imports,
+                    ...libraries,
                 ],
                 fragments: [
                     ...systemImports.fragments,

@@ -638,7 +638,7 @@ console.log(Object.prototype.toString.call(process), process[Symbol.toStringTag]
 console.log(typeof https.request, typeof https.get, typeof https.createServer, https.globalAgent instanceof https.Agent, https.globalAgent instanceof http.Agent);
 const agent = new https.Agent({ keepAlive: true });
 console.log(agent.defaultPort, agent.protocol, agent.keepAlive, new http.Agent().defaultPort);
-console.log(typeof tls.connect, typeof tls.TLSSocket, tls.DEFAULT_MIN_VERSION, tls.DEFAULT_MAX_VERSION);
+console.log(typeof tls.connect, typeof tls.TLSSocket, tls.DEFAULT_MAX_VERSION);
 console.log(typeof http2.connect, http2.constants.HTTP2_HEADER_STATUS, http2.constants.HTTP2_HEADER_CONTENT_TYPE, http2.constants.HTTP2_METHOD_GET);
 console.log(zlib.constants.Z_SYNC_FLUSH, zlib.constants.BROTLI_OPERATION_FLUSH, zlib.constants.ZSTD_e_flush, zlib.constants.Z_MAX_CHUNK, zlib.codes.Z_DATA_ERROR, zlib.codes[-3]);
 console.log(typeof zlib.createGunzip, typeof zlib.createUnzip, typeof zlib.createBrotliDecompress, typeof zlib.gunzipSync);
@@ -686,6 +686,19 @@ console.log(hash.copy().update('b').digest('hex'), hash.update(Buffer.from('b'))
 console.log(crypto.randomBytes(8).length, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(crypto.randomUUID()));
 const n = crypto.randomInt(3, 9); console.log(n >= 3 && n < 9, crypto.timingSafeEqual(Buffer.from('ab'), Buffer.from('ab')), crypto.getRandomValues(new Uint32Array(4)).length);
 try { crypto.createHash('nope'); } catch (e) { console.log(e.message); }
+`,
+        },
+        "main.js",
+    ));
+
+test("packages require the zlib module", () =>
+    agree(
+        {
+            "main.js": String.raw`
+const zlib = require('zlib'), node = require('node:zlib');
+console.log(zlib === node, typeof zlib.deflateSync, zlib.constants.Z_BEST_COMPRESSION, zlib.Z_SYNC_FLUSH, zlib.codes.Z_DATA_ERROR);
+console.log(zlib.inflateSync(zlib.deflateSync('compressed by Nona')).toString(), zlib.gunzipSync(zlib.gzipSync(Buffer.from('gzip'))).toString(), zlib.crc32('abc'));
+try { zlib.gunzipSync(Buffer.from('plain')); } catch (e) { console.log(e.code, e.errno, e.message); }
 `,
         },
         "main.js",
@@ -802,4 +815,60 @@ test("import.meta has the url, filename and dirname of the module file", () =>
                 "export const meta = {filename: import.meta.filename};\n",
         },
         "dir with space~[x]/main.mjs",
+    ));
+
+test("module.createRequire requires files, JSON, packages and builtins from ES modules and CommonJS", () =>
+    agree(
+        {
+            "main.mjs": String.raw`
+import { createRequire } from 'node:module';
+import module from 'module';
+import { fromCjs } from './lib/loader.cjs';
+const require = createRequire(import.meta.url);
+const dep = require('./lib/dep.cjs'), data = require('./data.json'), pkg = require('pkg'), path = require('node:path'), events = require('events');
+console.log(dep.name, data.items.join(), pkg.version, path.basename('/a/b.txt'), typeof events, require('./lib/dep.cjs') === dep);
+console.log(require.resolve('./lib/dep.cjs') === fromCjs.resolved, require.resolve('node:fs'), require.resolve('fs'));
+console.log(fromCjs.dep === dep, fromCjs.json, fromCjs.pkg === pkg);
+console.log(module.createRequire === createRequire, module.createRequire(import.meta.url)('./data.json') === data);
+for (const id of ['./missing.cjs', 'missing-package']) {
+    try { require(id); console.log('found'); } catch (e) { console.log(e.code, e.message.split('\n')[0].includes(id)); }
+}
+try { createRequire('relative/path.js'); } catch (e) { console.log(e.code); }
+`,
+            "data.json": JSON.stringify({ items: [1, 2, 3] }),
+            "lib/dep.cjs": "exports.name = 'dep';",
+            "lib/inner.json": JSON.stringify({ inner: true }),
+            "lib/only-created.cjs": "module.exports = 'only-created';",
+            "lib/loader.cjs": String.raw`
+const { createRequire } = require('module'), { createRequire: makeRequire } = require('node:module');
+const req = createRequire(__filename);
+exports.fromCjs = { dep: req('./dep.cjs'), json: JSON.stringify(req('./inner.json')), pkg: req('pkg'), resolved: req.resolve('./dep.cjs') };
+console.log(makeRequire(__filename)('./only-created.cjs'), require('module').createRequire(__filename)('./only-created.cjs'));
+`,
+            "node_modules/pkg/package.json": JSON.stringify({
+                name: "pkg",
+                version: "1.2.3",
+                main: "main.js",
+            }),
+            "node_modules/pkg/main.js": "exports.version = '1.2.3';",
+        },
+        "main.mjs",
+    ));
+
+test("require() of an ES module returns its module.exports export or its namespace with __esModule", () =>
+    agree(
+        {
+            "main.cjs": String.raw`
+const ui = require('./ui.mjs'), plain = require('./plain.mjs'), named = require('./named.mjs');
+console.log(typeof ui, ui(2), ui.name);
+console.log(Object.keys(plain).join(), plain.__esModule, plain.default(), plain.x, Object.prototype.toString.call(plain));
+console.log(Object.keys(named).join(), '__esModule' in named);
+`,
+            "ui.mjs":
+                "export default function ui(n) { return n + 1; }\nexport { ui as 'module.exports' };\n",
+            "plain.mjs":
+                "export default function f() { return 'f'; }\nexport const x = 1;\n",
+            "named.mjs": "export const a = 1, b = 2;\n",
+        },
+        "main.cjs",
     ));

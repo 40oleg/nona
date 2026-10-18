@@ -9,6 +9,7 @@ import {
 } from "./object-layout.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
 import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
+import { emitViewCheck } from "./view-bounds.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
 import type { Assembler } from "../backend/machine/context.js";
 
@@ -1070,9 +1071,8 @@ function emitElementSites(
     // R10 typed array header, RAX index -> R11 element address, R9 element
     // type, or a jump to miss (detached, out of range, BigInt). Clobbers RAX.
     const typedAddress = (a: Assembler, miss: string) => {
-        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-        a.load("r9", { base: "r11", disp: ArrayBufferLayout.detached });
-        a.test("r9", "r9");
+        emitViewCheck(a, "r10");
+        a.test("r11", "r11");
         a.jcc("ne", miss);
         a.load("r9", { base: "r10", disp: TypedArrayLayout.length });
         a.cmp("rax", "r9");
@@ -1097,6 +1097,7 @@ function emitElementSites(
         a.label(two);
         a.shl("rax", 1);
         a.label(scaled);
+        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
         a.load("r11", { base: "r11", disp: ArrayBufferLayout.bytes });
         a.add("r11", "rax");
         a.load("rax", { base: "r10", disp: TypedArrayLayout.byteOffset });

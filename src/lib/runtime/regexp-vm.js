@@ -32,6 +32,40 @@
     rangeCache[name]=ranges;
     return ranges
   }
+  // The properties of strings of v mode (Unicode Emoji sequences). Each is
+  // a set of code point ranges plus strings; RGI_Emoji is the union of the
+  // other six. The data is linked only when a source names one of them.
+  /*@@UNICODE_SETS{*/
+  var stringPropertyNames=['Basic_Emoji','Emoji_Keycap_Sequence','RGI_Emoji_Modifier_Sequence','RGI_Emoji_Flag_Sequence','RGI_Emoji_Tag_Sequence','RGI_Emoji_ZWJ_Sequence'];
+  function isStringProperty(name){
+    if(name==='RGI_Emoji')return true;
+    for(var i=0;i<stringPropertyNames.length;i++)if(stringPropertyNames[i]===name)return true;
+    return false
+  }
+  var emojiData=@@EMOJI_DATA@@;
+  var stringPropertyCache={};
+  function stringPropertySet(name){
+    if(typeof stringPropertyCache[name]==='object')return stringPropertyCache[name];
+    if(emojiData===null)throw new Error(@@NO_STRING_PROPERTIES@@);
+    var set={ranges:[],strings:[]};
+    if(name==='RGI_Emoji'){
+      // The six properties are disjoint: their strings are concatenated.
+      for(var i=0;i<stringPropertyNames.length;i++){
+        var part=stringPropertySet(stringPropertyNames[i]);
+        set.ranges=rangeUnion(set.ranges,part.ranges);
+        for(var j=0;j<part.strings.length;j++)append(set.strings,part.strings[j])
+      }
+    }else{
+      // r: ranges as 12 hex digits each; s: the sequences, separated by commas.
+      var entry=emojiData[name],encoded=entry.r,begin=0;
+      for(var i=0;i<encoded.length;i+=12)append(set.ranges,[parseInt(slice(encoded,i,i+6),16),parseInt(slice(encoded,i+6,i+12),16)]);
+      encoded=entry.s;
+      for(var i=0;i<=encoded.length&&encoded.length>0;i++)if(i===encoded.length||charCodeAt(encoded,i)===44){append(set.strings,slice(encoded,begin,i));begin=i+1}
+    }
+    stringPropertyCache[name]=set;
+    return set
+  }
+  /*}@@UNICODE_SETS*/
   function propertyMatch(ranges,point){
     var low=0,high=ranges.length-1;
     while(low<=high){var middle=(low+high)>>1,range=ranges[middle];if(point<range[0])high=middle-1;else if(point>range[1])low=middle+1;else return true}
@@ -77,9 +111,153 @@
     var result=charCodeAt(upper,0);
     return point>=128&&result<128?point:result
   }
+  /*@@UNICODE_SETS{*/
+  // The number of code points in sorted disjoint ranges.
+  function rangeSize(a){
+    var size=0;
+    for(var i=0;i<a.length;i++)size+=a[i][1]-a[i][0]+1;
+    return size
+  }
+  // Character sets of UnicodeSets mode (the v flag), evaluated when the
+  // pattern is compiled: ranges is a sorted list of disjoint, non-adjacent
+  // [from, to] code point ranges; strings lists the members that are not one
+  // code point (the empty string or several code points).
+  function rangeUnion(a,b){
+    var out=[],i=0,j=0;
+    while(i<a.length||j<b.length){
+      var next=j>=b.length||i<a.length&&a[i][0]<=b[j][0]?a[i++]:b[j++],last=out.length-1;
+      if(last>=0&&next[0]<=out[last][1]+1){if(next[1]>out[last][1])out[last]=[out[last][0],next[1]]}
+      else append(out,[next[0],next[1]])
+    }
+    return out
+  }
+  function rangeIntersect(a,b){
+    var out=[],i=0,j=0;
+    while(i<a.length&&j<b.length){
+      var from=a[i][0]>b[j][0]?a[i][0]:b[j][0],to=a[i][1]<b[j][1]?a[i][1]:b[j][1];
+      if(from<=to)append(out,[from,to]);
+      if(a[i][1]<b[j][1])i++;else j++
+    }
+    return out
+  }
+  function rangeComplement(a){
+    var out=[],from=0;
+    for(var i=0;i<a.length;i++){if(a[i][0]>from)append(out,[from,a[i][0]-1]);from=a[i][1]+1}
+    if(from<=0x10ffff)append(out,[from,0x10ffff]);
+    return out
+  }
+  function stringKeys(strings){
+    var keys={};
+    for(var i=0;i<strings.length;i++)keys['$'+strings[i]]=true;
+    return keys
+  }
+  // The strings of a that are (keep) or are not (!keep) strings of b.
+  function stringFilter(a,b,keep){
+    var keys=stringKeys(b),out=[];
+    for(var i=0;i<a.length;i++)if((keys['$'+a[i]]===true)===keep)append(out,a[i]);
+    return out
+  }
+  // The strings of a and then those of b, without duplicates.
+  function stringUnion(a,b){
+    var out=[],keys={};
+    for(var i=0;i<a.length+b.length;i++){
+      var string=i<a.length?a[i]:b[i-a.length];
+      if(keys['$'+string]!==true){keys['$'+string]=true;append(out,string)}
+    }
+    return out
+  }
+  function setUnion(a,b){return {ranges:rangeUnion(a.ranges,b.ranges),strings:stringUnion(a.strings,b.strings)}}
+  function setIntersect(a,b){return {ranges:rangeIntersect(a.ranges,b.ranges),strings:stringFilter(a.strings,b.strings,true)}}
+  function setSubtract(a,b){return {ranges:rangeIntersect(a.ranges,rangeComplement(b.ranges)),strings:stringFilter(a.strings,b.strings,false)}}
+  // Simple case folding (MaybeSimpleCaseFolding): the folding table parsed
+  // once, with the entries ordered by target and the ranges of the code
+  // points that fold to another one.
+  var foldTable=null;
+  function foldEntries(){
+    if(foldTable!==null)return foldTable;
+    var encoded=unicodeData.folds,sources=[],targets=[],order=[],sourceRanges=[];
+    for(var i=0;i<encoded.length;i+=12){
+      var source=parseInt(slice(encoded,i,i+6),16);
+      append(sources,source);append(targets,parseInt(slice(encoded,i+6,i+12),16));append(order,order.length);
+      var last=sourceRanges.length-1;
+      if(last>=0&&sourceRanges[last][1]+1===source)sourceRanges[last]=[sourceRanges[last][0],source];
+      else append(sourceRanges,[source,source])
+    }
+    // Bottom-up merge sort of the entry indices by target.
+    for(var width=1;width<order.length;width*=2){
+      var merged=[];
+      for(var begin=0;begin<order.length;begin+=2*width){
+        var left=begin,middle=begin+width<order.length?begin+width:order.length,right=middle;
+        var end=begin+2*width<order.length?begin+2*width:order.length;
+        while(left<middle||right<end){
+          if(right>=end||left<middle&&targets[order[left]]<=targets[order[right]])append(merged,order[left++]);
+          else append(merged,order[right++])
+        }
+      }
+      order=merged
+    }
+    foldTable={sources:sources,targets:targets,order:order,fixed:rangeComplement(sourceRanges)};
+    return foldTable
+  }
+  function foldRanges(ranges){
+    if(rangeSize(ranges)<=64){
+      var points=[];
+      for(var i=0;i<ranges.length;i++)for(var p=ranges[i][0];p<=ranges[i][1];p++){var f=foldPoint(p);points=rangeUnion(points,[[f,f]])}
+      return points
+    }
+    var table=foldEntries(),extra=[];
+    for(var k=0;k<table.order.length;k++){
+      var entry=table.order[k],target=table.targets[entry],last=extra.length-1;
+      if(!propertyMatch(ranges,table.sources[entry]))continue;
+      if(last>=0&&extra[last][1]+1>=target){if(target>extra[last][1])extra[last]=[extra[last][0],target]}
+      else append(extra,[target,target])
+    }
+    return rangeUnion(rangeIntersect(ranges,table.fixed),extra)
+  }
+  function foldString(string){
+    var out='';
+    for(var i=0;i<string.length;){var point=string.codePointAt(i);out+=String.fromCodePoint(foldPoint(point));i+=point>0xffff?2:1}
+    return out
+  }
+  function foldSet(set){
+    var strings=[];
+    for(var i=0;i<set.strings.length;i++)append(strings,foldString(set.strings[i]));
+    return {ranges:foldRanges(set.ranges),strings:stringUnion(strings,[])}
+  }
+  // CharacterComplement: under ignore case, of the code points that simple
+  // case folding leaves unchanged.
+  function setComplement(set,ignore){
+    var ranges=rangeComplement(set.ranges);
+    return {ranges:ignore?rangeIntersect(ranges,foldEntries().fixed):ranges,strings:[]}
+  }
+  function pointLength(string){
+    var count=0;
+    for(var i=0;i<string.length;i++){var unit=charCodeAt(string,i);if(unit<0xd800||unit>0xdbff||i+1>=string.length||charCodeAt(string,i+1)<0xdc00||charCodeAt(string,i+1)>0xdfff)count++;else{count++;i++}}
+    return count
+  }
+  // The pattern node of a set: its strings longest first, then the single
+  // code points, then the empty string (CompileAtom of a v-mode class). The
+  // strings form one 'strings' node, which tries them in that order.
+  function classSetNode(set){
+    var single={kind:'class',value:{inverted:false,items:[{ranges:set.ranges}]}};
+    if(set.strings.length===0)return single;
+    var lengths=[],longest=0,list=[],branches=[],empty=false;
+    for(var i=0;i<set.strings.length;i++){var size=pointLength(set.strings[i]);append(lengths,size);if(size>longest)longest=size}
+    for(var size=longest;size>0;size--)for(var i=0;i<set.strings.length;i++)if(lengths[i]===size)append(list,set.strings[i]);
+    for(var i=0;i<set.strings.length;i++)if(lengths[i]===0)empty=true;
+    if(list.length>0)append(branches,{kind:'strings',value:list});
+    if(set.ranges.length>0)append(branches,single);
+    if(empty)append(branches,{kind:'sequence',value:[]});
+    return {kind:'group',capture:0,value:{kind:'alternative',value:branches}}
+  }
+  var digitRanges=[[48,57]],wordRanges=[[48,57],[65,90],[95,95],[97,122]];
+  var spaceRanges=[[9,13],[32,32],[0xa0,0xa0],[0x1680,0x1680],[0x2000,0x200a],[0x2028,0x2029],[0x202f,0x202f],[0x205f,0x205f],[0x3000,0x3000],[0xfeff,0xfeff]];
+  /*}@@UNICODE_SETS*/
   // Compiled patterns are immutable: a regular expression that is executed
   // repeatedly (every global match loop does this) is parsed once.
   var compileCache=new Map();
+  // Unicode mode is the u flag or the v flag (unicodeSets).
+  function isUnicode(flags){return indexOf(flags,'u')>=0||indexOf(flags,'v')>=0}
   function compile(pattern,flags){
     var cacheKey=flags+'/'+pattern,cached=compileCache.get(cacheKey);
     if(cached!==undefined)return cached;
@@ -89,12 +267,18 @@
     return compiled
   }
   function compileUncached(pattern,flags){
-    var at=0,groups=0,names=[],totalGroups=0,inClass=false,hasNamedGroup=false,modifiers=false;
+    var at=0,groups=0,names=[],totalGroups=0,inClass=0,hasNamedGroup=false,modifiers=false;
+    var unicodeSets=indexOf(flags,'v')>=0,ignoreSets=unicodeSets&&indexOf(flags,'i')>=0;
+    // The v-mode class syntax is linked only when a source can use the v flag.
+    if(unicodeSets&&@@NO_UNICODE_SETS@@!==null)throw new Error(@@NO_UNICODE_SETS@@);
+    // Classes nest in v mode: inClass is the depth of the open classes.
+    // path: (disjunction id, branch) pairs from the root to the parse position.
+    var path=[],paths=[],disjunctions=0;
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
       if(mark==='\\'){scan++;continue}
-      if(inClass){if(mark===']')inClass=false;continue}
-      if(mark==='['){inClass=true;continue}
+      if(inClass>0){if(mark===']')inClass--;else if(mark==='['&&unicodeSets)inClass++;continue}
+      if(mark==='['){inClass=1;continue}
       if(mark==='('&&pattern[scan+1]==='?'&&pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!')hasNamedGroup=true;
       // Only ( and (?<name> capture: (?:, lookarounds and modifiers (?i-m:) do not.
       if(mark==='('&&(pattern[scan+1]!=='?'||pattern[scan+2]==='<'&&pattern[scan+3]!=='='&&pattern[scan+3]!=='!'))totalGroups++
@@ -142,7 +326,7 @@
       return name
     }
     function parseClass(body){
-      var inverted=body[0]==='^',cursor=inverted?1:0,unicode=indexOf(flags,'u')>=0,items=[];
+      var inverted=body[0]==='^',cursor=inverted?1:0,unicode=isUnicode(flags),items=[];
       function unit(){
         var c=body[cursor++],point=charCodeAt(c,0);
         if(c!=='\\'){
@@ -234,6 +418,123 @@
       }
       return {inverted:inverted,items:items}
     }
+    /*@@UNICODE_SETS{*/
+    // ClassContents of v mode (ClassSetExpression), read from the pattern.
+    // An operand is {set, strings, point}: its set (case folded under the i
+    // flag), whether it MayContainStrings, and the code point of a lone
+    // ClassSetCharacter (or -1), which may start a range.
+    function leaf(set){return ignoreSets?foldSet(set):set}
+    function classSetCharacter(){
+      if(at>=pattern.length)error();
+      var c=pattern[at];
+      if(c==='\\'){
+        var e=pattern[at+1];
+        if(e==='b'){at+=2;return 8}
+        // \ ClassSetReservedPunctuator.
+        if(e!==undefined&&indexOf('&-!#%,:;<=>@\x60~',e)>=0){at+=2;return charCodeAt(e,0)}
+        if(e==='0'&&!digit(pattern[at+2])){at+=2;return 0}
+        if(e===undefined||digit(e)||e==='k'||e==='B')error();
+        at++;
+        var escape=escaped();
+        if(escape.kind!=='char')error();
+        return escape.value.codePointAt(0)
+      }
+      // ClassSetSyntaxCharacter and ClassSetReservedDoublePunctuator.
+      if(indexOf('()[]{}/-|',c)>=0)error();
+      if(pattern[at+1]===c&&indexOf('&!#$%*+,.:;<=>?@^\x60~',c)>=0)error();
+      var point=pattern.codePointAt(at);
+      at+=point>0xffff?2:1;
+      return point
+    }
+    function classSetOperand(){
+      if(pattern[at]==='['){at++;var nested=nestedClass();return {set:nested.set,strings:nested.strings,point:-1}}
+      if(pattern[at]==='\\'&&pattern[at+1]==='q'){
+        // ClassStringDisjunction: \q{a|bc|}.
+        at+=2;
+        if(pattern[at++]!=='{')error();
+        var ranges=[],strings=[],text='',count=0,may=false;
+        for(;;){
+          if(at>=pattern.length)error();
+          var k=pattern[at];
+          if(k==='|'||k==='}'){
+            at++;
+            if(count===1){var point=text.codePointAt(0);ranges=rangeUnion(ranges,[[point,point]])}
+            else{may=true;append(strings,text)}
+            text='';count=0;
+            if(k==='}')break;
+            continue
+          }
+          text+=String.fromCodePoint(classSetCharacter());count++
+        }
+        return {set:leaf({ranges:ranges,strings:stringUnion(strings,[])}),strings:may,point:-1}
+      }
+      if(pattern[at]==='\\'&&at+1<pattern.length&&indexOf('dDsSwWpP',pattern[at+1])>=0){
+        var kind=pattern[at+1],base;
+        at+=2;
+        if(kind==='p'||kind==='P'){
+          if(pattern[at++]!=='{')error();
+          var begin=at;
+          while(at<pattern.length&&pattern[at]!=='}')at++;
+          if(at===begin||pattern[at]!=='}')error();
+          var property=slice(pattern,begin,at++);
+          if(isStringProperty(property)){
+            if(kind==='P')error();
+            return {set:leaf(stringPropertySet(property)),strings:true,point:-1}
+          }
+          base=propertyRanges(property)
+        }
+        else base=kind==='d'||kind==='D'?digitRanges:kind==='w'||kind==='W'?wordRanges:spaceRanges;
+        var set=leaf({ranges:base,strings:[]});
+        if(kind==='D'||kind==='W'||kind==='S'||kind==='P')set=setComplement(set,ignoreSets);
+        return {set:set,strings:false,point:-1}
+      }
+      var single=classSetCharacter();
+      return {set:leaf({ranges:[[single,single]],strings:[]}),strings:false,point:single}
+    }
+    // After an opening [: the class up to and including its ], as
+    // {set, strings} (strings: whether it MayContainStrings).
+    function nestedClass(){
+      var negated=pattern[at]==='^';
+      if(negated)at++;
+      var contents=classContents();
+      if(pattern[at++]!==']')error();
+      if(!negated)return contents;
+      if(contents.strings)error();
+      return {set:setComplement(contents.set,ignoreSets),strings:false}
+    }
+    function classContents(){
+      if(pattern[at]===']')return {set:{ranges:[],strings:[]},strings:false};
+      var item=classSetOperand(),set=item.set,may=item.strings;
+      var range=item.point>=0&&pattern[at]==='-'&&pattern[at+1]!=='-';
+      if(!range&&(pattern[at]==='&'&&pattern[at+1]==='&'||pattern[at]==='-'&&pattern[at+1]==='-')){
+        // ClassIntersection or ClassSubtraction: operands (no ranges) joined
+        // by one operator.
+        var operator=pattern[at];
+        while(pattern[at]===operator&&pattern[at+1]===operator){
+          at+=2;
+          if(operator==='&'&&pattern[at]==='&')error();
+          var operand=classSetOperand();
+          if(operator==='&'){set=setIntersect(set,operand.set);may=may&&operand.strings}
+          else set=setSubtract(set,operand.set)
+        }
+        if(pattern[at]!==']')error();
+        return {set:set,strings:may}
+      }
+      // ClassUnion of operands and ranges.
+      set={ranges:[],strings:[]};
+      for(;;){
+        if(item.point>=0&&pattern[at]==='-'){
+          at++;
+          var last=classSetCharacter();
+          if(item.point>last)error();
+          item={set:leaf({ranges:[[item.point,last]],strings:[]}),strings:false}
+        }
+        set=setUnion(set,item.set);may=may||item.strings;
+        if(pattern[at]===']')return {set:set,strings:may};
+        item=classSetOperand()
+      }
+    }
+    /*}@@UNICODE_SETS*/
     function decimal(){
       var n=0,seen=false;
       while(at<pattern.length&&digit(pattern[at])){seen=true;n=n*10+(charCodeAt(pattern,at)-48);at++}
@@ -242,12 +543,22 @@
     function escaped(){
       if(at>=pattern.length)error();
       var c=pattern[at++];
-      if((c==='p'||c==='P')&&indexOf(flags,'u')>=0){
+      if((c==='p'||c==='P')&&isUnicode(flags)){
         if(pattern[at++]!=='{')error();
         var begin=at;
         while(at<pattern.length&&pattern[at]!=='}')at++;
         if(at===begin||pattern[at]!=='}')error();
         var property=slice(pattern,begin,at++);
+        /*@@UNICODE_SETS{*/
+        // A property of strings: only \p, only in v mode.
+        if(isStringProperty(property)){
+          if(!unicodeSets||c==='P')error();
+          return classSetNode(leaf(stringPropertySet(property)))
+        }
+        // v mode with ignore case: \P is the complement of the folded
+        // property, over the code points that folding leaves unchanged.
+        if(ignoreSets&&c==='P')return classSetNode(setComplement(foldSet({ranges:propertyRanges(property),strings:[]}),true));
+        /*}@@UNICODE_SETS*/
         return {kind:'property',value:propertyRanges(property),negated:c==='P'}
       }
       if(c==='d'||c==='D'||c==='w'||c==='W'||c==='s'||c==='S')return {kind:'classEscape',value:c};
@@ -258,9 +569,9 @@
       if(c==='v')return {kind:'char',value:'\v'};
       if(c==='f')return {kind:'char',value:'\f'};
       if(c==='0'){
-        if(indexOf(flags,'u')>=0&&digit(pattern[at]))error();
+        if(isUnicode(flags)&&digit(pattern[at]))error();
         var octal=0,used=1;
-        while(indexOf(flags,'u')<0&&used<3&&pattern[at]>='0'&&pattern[at]<='7'){
+        while(!isUnicode(flags)&&used<3&&pattern[at]>='0'&&pattern[at]<='7'){
           octal=octal*8+charCodeAt(pattern,at++)-48;used++
         }
         return {kind:'char',value:String.fromCharCode(octal)}
@@ -268,11 +579,11 @@
       if(c==='c'){
         var control=charCodeAt(pattern,at);
         if(control>=65&&control<=90||control>=97&&control<=122){at++;return {kind:'char',value:String.fromCharCode(control%32)}}
-        if(indexOf(flags,'u')>=0)error();
+        if(isUnicode(flags))error();
         at--;return {kind:'char',value:'\\'} // Annex B.1.4: \\ [lookahead = c]
       }
       if(c==='x'||c==='u'){
-        if(c==='u'&&indexOf(flags,'u')>=0&&pattern[at]==='{'){
+        if(c==='u'&&isUnicode(flags)&&pattern[at]==='{'){
           at++;
           var codePoint=0,digits=0;
           while(at<pattern.length&&pattern[at]!=='}'){
@@ -290,7 +601,7 @@
           return {kind:'char',value:String.fromCodePoint(codePoint)}
         }
         var count=c==='x'?2:4,n=0;
-        if(indexOf(flags,'u')<0){
+        if(!isUnicode(flags)){
           var valid=true;
           for(var probe=0;probe<count;probe++){
             var digitCode=charCodeAt(pattern,at+probe);
@@ -308,7 +619,7 @@
           n=n*16+k
         }
         // Unicode mode: \uLEAD\uTRAIL is one code point (RegExpUnicodeEscapeSequence).
-        if(c==='u'&&n>=0xd800&&n<=0xdbff&&indexOf(flags,'u')>=0&&pattern[at]==='\\'&&pattern[at+1]==='u'){
+        if(c==='u'&&n>=0xd800&&n<=0xdbff&&isUnicode(flags)&&pattern[at]==='\\'&&pattern[at+1]==='u'){
           var trail=0,ok=true;
           for(var place=0;place<4;place++){
             var d=charCodeAt(pattern,at+2+place);
@@ -320,7 +631,7 @@
         return {kind:'char',value:String.fromCharCode(n)}
       }
       if(c==='k'&&pattern[at]==='<'){
-        if(indexOf(flags,'u')<0&&!hasNamedGroup)return {kind:'char',value:'k'};
+        if(!isUnicode(flags)&&!hasNamedGroup)return {kind:'char',value:'k'};
         at++;
         var name=groupName();
         return {kind:'namedBackref',value:name}
@@ -330,7 +641,7 @@
         var number=charCodeAt(c,0)-48,probe=at;
         while(probe<pattern.length&&digit(pattern[probe]))number=number*10+(charCodeAt(pattern,probe++)-48);
         if(number<=totalGroups){at=probe;return {kind:'backref',value:number}}
-        if(indexOf(flags,'u')>=0)error();
+        if(isUnicode(flags))error();
         if(c==='8'||c==='9')return {kind:'char',value:c};
         var octal=charCodeAt(c,0)-48,limit=octal<=3?3:2,used=1;
         while(used<limit&&pattern[at]>='0'&&pattern[at]<='7'){
@@ -338,7 +649,7 @@
         }
         return {kind:'char',value:String.fromCharCode(octal)}
       }
-      if(indexOf(flags,'u')>=0&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
+      if(isUnicode(flags)&&indexOf('^$\\.*+?()[]{}|/',c)<0)error();
       return {kind:'char',value:c}
     }
     function atom(){
@@ -373,11 +684,14 @@
         else{
           if(pattern[at]==='?'&&pattern[at+1]==='<'){
             at+=2;
-            name=groupName();
-            for(var i=0;i<names.length;i++)if(names[i].name===name)error()
+            name=groupName()
           }
           capture=++groups;
-          if(name!==undefined)append(names,{name:name,index:capture})
+          if(name!==undefined){
+            append(names,{name:name,index:capture});
+            var copy=[];for(var i=0;i<path.length;i++)append(copy,path[i]);
+            append(paths,copy)
+          }
         }
         var inner=disjunction();
         if(pattern[at]!==')')error();
@@ -386,6 +700,7 @@
         if(add|remove)return {kind:'group',value:inner,capture:0,add:add,remove:remove};
         return {kind:'group',value:inner,capture:capture}
       }
+      /*@@UNICODE_SETS{*/if(c==='['&&unicodeSets)return classSetNode(nestedClass().set);/*}@@UNICODE_SETS*/
       if(c==='['){
         var start=at,escapedClass=false;
         while(at<pattern.length){
@@ -396,7 +711,7 @@
         }
         error()
       }
-      if(c==='*'||c==='+'||c==='?'||(indexOf(flags,'u')>=0&&(c==='{'||c==='}'||c===']')))error();
+      if(c==='*'||c==='+'||c==='?'||(isUnicode(flags)&&(c==='{'||c==='}'||c===']')))error();
       if(c==='{'){
         var probe=at,seen=false;
         while(digit(pattern[probe])){probe++;seen=true}
@@ -405,7 +720,7 @@
           if(pattern[probe]==='}')error()
         }
       }
-      if(indexOf(flags,'u')>=0&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
+      if(isUnicode(flags)&&charCodeAt(c,0)>=0xd800&&charCodeAt(c,0)<=0xdbff&&at<pattern.length){
         var trail=charCodeAt(pattern,at);
         if(trail>=0xdc00&&trail<=0xdfff)c+=pattern[at++]
       }
@@ -430,7 +745,7 @@
           }
         }
         if(quantified){
-          if(node.kind==='look'&&(node.behind||indexOf(flags,'u')>=0))error();
+          if(node.kind==='look'&&(node.behind||isUnicode(flags)))error();
           var lazy=pattern[at]==='?';
           if(lazy)at++;
           node={kind:'repeat',value:node,min:min,max:max,lazy:lazy}
@@ -440,15 +755,24 @@
       return {kind:'sequence',value:items}
     }
     function disjunction(){
+      append(path,disjunctions++);append(path,0);
       var branches=[sequence()];
-      while(pattern[at]==='|'){at++;append(branches,sequence())}
+      while(pattern[at]==='|'){at++;path[path.length-1]++;append(branches,sequence())}
+      path.length-=2;
       return branches.length===1?branches[0]:{kind:'alternative',value:branches}
     }
     var tree=disjunction();
     if(at!==pattern.length)error();
+    // ES2025 duplicate named groups: one name may repeat only in different
+    // branches of a disjunction, where both groups can never participate.
+    for(var i=1;i<names.length;i++)for(var j=0;j<i;j++)if(names[j].name===names[i].name){
+      var left=paths[j],right=paths[i],place=0;
+      while(place<left.length&&place<right.length&&left[place]===right[place]&&left[place+1]===right[place+1])place+=2;
+      if(place>=left.length||place>=right.length||left[place]!==right[place]||left[place+1]===right[place+1])error()
+    }
     function validateReferences(node){
       if(node.kind==='backref'){
-        if(indexOf(flags,'u')>=0&&node.value>groups)error()
+        if(isUnicode(flags)&&node.value>groups)error()
       }else if(node.kind==='namedBackref'){
         var found=false;
         for(var i=0;i<names.length;i++)if(names[i].name===node.value)found=true;
@@ -466,7 +790,7 @@
     // A pattern that starts with a literal (outside ignore-case and unicode
     // mode) can only match where that literal occurs: execute skips ahead
     // with indexOf instead of trying every position.
-    if(indexOf(flags,'i')<0&&indexOf(flags,'u')<0&&!modifiers){
+    if(indexOf(flags,'i')<0&&!isUnicode(flags)&&!modifiers){
       // The whole literal run at the start ('abc' of /abc(\d+)/), so that
       // indexOf skips the positions where only the first character matches.
       var literal=literalPrefix(tree);
@@ -475,7 +799,7 @@
     // Otherwise a pattern whose matches must start with one of at most eight
     // code units skips to the next of them with the native scan (#258).
     if(compiled.prefix===null&&!compiled.anchored){
-      var unicodeMode=indexOf(flags,'u')>=0,units=firstUnits(tree,modifiers||indexOf(flags,'i')>=0,unicodeMode);
+      var unicodeMode=isUnicode(flags),units=firstUnits(tree,modifiers||indexOf(flags,'i')>=0,unicodeMode);
       // In unicode mode a match never starts inside a surrogate pair, but the
       // scan would stop at the trailing half of one: such sets are not used.
       var usable=!units.nullable&&units.set!==null&&units.set.length>0;
@@ -517,6 +841,13 @@
       var set=[],items=node.value.items;
       for(var i=0;i<items.length&&set!==null;i++){
         var item=items[i];
+        /*@@UNICODE_SETS{*/
+        if(item.ranges!==undefined){
+          // A v-mode set: its code points, when there are few of them.
+          if(rangeSize(item.ranges)>8)set=null;
+          else for(var r=0;r<item.ranges.length&&set!==null;r++)for(var p=item.ranges[r][0];p<=item.ranges[r][1]&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))
+        }
+        else /*}@@UNICODE_SETS*/
         if(item.set||item.range&&(item.to-item.from>7||ignore))set=null;
         else if(item.range){for(var p=item.from;p<=item.to&&set!==null;p++)set=unionUnits(set,charUnits(leadUnit(p),ignore,unicode))}
         else set=unionUnits(set,charUnits(leadUnit(item.point),ignore,unicode))
@@ -596,8 +927,11 @@
   //   21 REPEAT_ENTER (same operands; resumed after a lazy repeat skipped)
   //   20 REPEAT_END r, min, head
   //   22 SIMPLE_REPEAT kind, datum, dir, min, max, greedy, width (0 = varies)
+  //   23 BACKREF_ANY count, group..., dir (a duplicate name: the group that
+  //     participated, empty when none did)
   //   26 MODE bits (1 i, 2 m, 4 s): only in patterns with modifier groups,
   //     before every instruction that depends on these flags.
+  //   27 STRINGS datum, dir (the strings of a v-mode class, longest first)
   // Registers: 2*group and 2*group+1 hold capture bounds; group start
   // positions and repeat counters follow.
   var NONE=4294967295;
@@ -606,7 +940,7 @@
   // simple repeat's choice point kind, which carries the mode to its resumption.
   function setMode(bits){ignore=(bits&1)!==0;multiline=(bits&2)!==0;dotAll=(bits&4)!==0;modeFrame=2|32|bits<<2}
   function assemble(compiled){
-    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=indexOf(flags,'u')>=0;
+    var flags=compiled.flags,ignore=indexOf(flags,'i')>=0,unicode=isUnicode(flags);
     var code=[],data=[],registers=compiled.groups*2+2,mode=modeOf(flags);
     function emit(value){append(code,value)}
     function scoped(){if(compiled.modifiers){emit(26);emit(mode)}}
@@ -677,8 +1011,13 @@
       if(k==='backref'||k==='namedBackref'){
         var index=node.value;
         if(k==='namedBackref'){
-          index=0;
-          for(i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)index=compiled.names[i].index
+          var indices=[];
+          for(i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)append(indices,compiled.names[i].index);
+          if(indices.length>1){
+            emit(23);emit(indices.length);for(i=0;i<indices.length;i++)emit(indices[i]);emit(dir);
+            return
+          }
+          index=indices[0]
         }
         scoped();emit(16);emit(index);emit(dir);
         return
@@ -701,6 +1040,7 @@
         code[head+8]=code.length;code[head+17]=code.length;
         return
       }
+      /*@@UNICODE_SETS{*/if(k==='strings'){emit(27);emit(datum({strings:node.value,forward:null,backward:null}));emit(dir);return}/*}@@UNICODE_SETS*/
       var single=atomOf(node);
       scoped();emit(single[0]);emit(single[1]);emit(dir)
     }
@@ -771,7 +1111,9 @@
     var yes=false,point=c.codePointAt(0);
     for(var i=0;i<spec.items.length;i++){
       var item=spec.items[i];
-      if(item.range){
+      /*@@UNICODE_SETS{*/// A v-mode set holds case-folded code points under ignore case.
+      if(item.ranges!==undefined){if(propertyMatch(item.ranges,ignore?foldPoint(point):point))yes=true}
+      else /*}@@UNICODE_SETS*/if(item.range){
         if(ignore&&unicode){
           var canonical=foldPoint(point),alternates=foldAlternates(canonical);
           if(canonical>=item.from&&canonical<=item.to)yes=true;
@@ -805,8 +1147,53 @@
   function unwind(height){
     while(undoTop>height){undoTop-=2;state[undo[undoTop]]=undo[undoTop+1]}
   }
+  /*@@UNICODE_SETS{*/
+  // The strings of a STRINGS instruction that start (dir > 0) or end at pos,
+  // by the code point there (case folded under ignore case), in their
+  // longest-first order: built on first use.
+  function stringsBucket(table,pos,dir){
+    var point=dir>0?input.codePointAt(pos):lastPoint(input,pos);
+    if(ignore)point=foldPoint(point);
+    var buckets=dir>0?table.forward:table.backward;
+    if(buckets===null){
+      buckets=new Map();
+      for(var i=0;i<table.strings.length;i++){
+        var text=table.strings[i],key=dir>0?text.codePointAt(0):lastPoint(text,text.length),list=buckets.get(key);
+        if(list===undefined){list=[];buckets.set(key,list)}
+        append(list,text)
+      }
+      if(dir>0)table.forward=buckets;else table.backward=buckets
+    }
+    return buckets.get(point)
+  }
+  function lastPoint(text,end){
+    var low=charCodeAt(text,end-1);
+    if(low>=0xdc00&&low<=0xdfff&&end>=2){var high=charCodeAt(text,end-2);if(high>=0xd800&&high<=0xdbff)return text.codePointAt(end-2)}
+    return low
+  }
+  // The first string of the bucket at pos, from index from on, that the
+  // input has there: its index (stringsEnd is the position after it), or -1.
+  var stringsEnd=0;
+  function stringsFind(table,pos,dir,from){
+    if(dir<0?pos<=0:pos>=length)return -1;
+    var list=stringsBucket(table,pos,dir);
+    if(list===undefined)return -1;
+    for(var i=from;i<list.length;i++){
+      var text=list[i],textLength=text.length,start=dir<0?pos-textLength:pos,equal=true;
+      if(start<0||start+textLength>length)continue;
+      if(ignore)equal=same(slice(input,start,start+textLength),text);
+      else for(var u=0;u<textLength&&equal;u++)if(charCodeAt(input,start+u)!==charCodeAt(text,u))equal=false;
+      if(!equal||splitsPair(start,start+textLength))continue;
+      stringsEnd=pos+dir*textLength;
+      return i
+    }
+    return -1
+  }
+  /*}@@UNICODE_SETS*/
   // Choice point: kind (0 plain, 1 greedy simple repeat, 2 lazy simple
-  // repeat), pc, pos, undo height, count, position after count atoms.
+  // repeat, 3 the next strings of a STRINGS instruction), pc, pos, undo
+  // height, count (for 3: the index of the next string to try), position
+  // after count atoms.
   function push(kind,pc,pos,count,after){
     if(frameTop+6>frames.length)frames=framePool=grow(frames,frameTop+6);
     frames[frameTop]=kind;frames[frameTop+1]=pc;frames[frameTop+2]=pos;frames[frameTop+3]=undoTop;
@@ -914,6 +1301,19 @@
           pos+=refDir*refLength;pc+=3;continue
         }
       }
+      else if(op===23){
+        var refCount=code[pc+1],next=pc+refCount+3;
+        refDir=code[next-1];refBegin=NONE;
+        for(var r=0;r<refCount&&refBegin===NONE;r++){
+          index=code[pc+2+r];
+          if(state[index*2]!==NONE&&state[index*2+1]!==NONE){refBegin=state[index*2];refEnd=state[index*2+1]}
+        }
+        if(refBegin===NONE){pc=next;continue}
+        refLength=refEnd-refBegin;refStart=refDir<0?pos-refLength:pos;
+        if(refStart>=0&&refStart+refLength<=length&&same(slice(input,refStart,refStart+refLength),slice(input,refBegin,refEnd))){
+          pos+=refDir*refLength;pc=next;continue
+        }
+      }
       else if(op===17){
         var lookUndo=undoTop,seen=run(code[pc+2],pos);
         if(code[pc+1]===1){if(seen>=0){pc=code[pc+3];continue}}
@@ -931,6 +1331,12 @@
         clearCaptures(code[pc+5],code[pc+6]);
         set(counter+1,pos);pc=code[pc+7];continue
       }
+      /*@@UNICODE_SETS{*/
+      else if(op===27){
+        var found=stringsFind(data[code[pc+1]],pos,code[pc+2],0);
+        if(found>=0){push(3,pc,pos,found+1,0);pos=stringsEnd;pc+=3;continue}
+      }
+      /*}@@UNICODE_SETS*/
       else if(op===20){
         // An iteration past the minimum that matched the empty string fails.
         var endCounter=code[pc+1],done=state[endCounter];
@@ -959,6 +1365,13 @@
         unwind(frames[frameTop+3]);
         pc=frames[frameTop+1];pos=frames[frameTop+2];
         if(frameKind===0)break;
+        /*@@UNICODE_SETS{*/
+        if(frameKind===3){
+          var retry=stringsFind(data[code[pc+1]],pos,code[pc+2],frames[frameTop+4]);
+          if(retry<0)continue;
+          push(3,pc,pos,retry+1,0);pos=stringsEnd;pc+=3;break
+        }
+        /*}@@UNICODE_SETS*/
         var have=frames[frameTop+4],reached=frames[frameTop+5];
         if(frameKind>2)setMode(frameKind>>2&7);
         var repeatKind=code[pc-7],repeatItem=code[pc-6],repeatDir=code[pc-5],repeatWidth=code[pc-1];
@@ -996,7 +1409,7 @@
   function pikeCompile(compiled){
     var flags=compiled.flags,ignore=indexOf(flags,'i')>=0;
     // Per-instruction flags (modifier groups) are not supported here.
-    if(indexOf(flags,'u')>=0||compiled.modifiers)return null;
+    if(isUnicode(flags)||compiled.modifiers)return null;
     var code=[],pdata=[],registers=compiled.groups*2+2,limit=20000,ineligible=false;
     function emit(value){append(code,value)}
     function datum(value){append(pdata,value);return pdata.length-1}
@@ -1182,6 +1595,27 @@
     }
     return null
   }
+  // The indices property of a match result for the d flag
+  // (MakeMatchIndicesIndexPairArray): [start, end] per capture or undefined,
+  // and a groups object (or undefined).
+  function indices(result,compiled,matched){
+    if(indexOf(compiled.flags,'d')<0)return;
+    var captures=matched.captures,pairs=[],groups=undefined;
+    append(pairs,[matched.start,matched.end]);
+    for(var i=1;i<=compiled.groups;i++)append(pairs,captures[i*2]===4294967295?undefined:[captures[i*2],captures[i*2+1]]);
+    if(compiled.names.length){
+      groups=Object.create(null);
+      for(var i=0;i<compiled.names.length;i++){
+        var at=compiled.names[i].index*2;
+        // A repeated name keeps the pair of the group that participated.
+        if(captures[at]!==4294967295)groups[compiled.names[i].name]=[captures[at],captures[at+1]];
+        else if(!(compiled.names[i].name in groups))groups[compiled.names[i].name]=undefined
+      }
+    }
+    appendDescriptor.value=groups;Object.defineProperty(pairs,'groups',appendDescriptor);
+    appendDescriptor.value=pairs;Object.defineProperty(result,'indices',appendDescriptor);
+    appendDescriptor.value=undefined
+  }
   // setBacktrackBudget is for tests: 0 switches to the Pike VM at the first backtrack.
-  return {compile:compile,execute:execute,setBacktrackBudget:function(steps){backtrackBudget=steps}}
+  return {compile:compile,execute:execute,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
 })()

@@ -3,6 +3,7 @@ import { ObjectLayout as O } from "./object-layout.js";
 import { TypedArrayKind, TypedArrayLayout as T } from "./typed-array.js";
 import { ArrayBufferLayout as AB } from "./array-buffer.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 /**
  * Native helpers of the node:http and node:net modules.
@@ -105,10 +106,14 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.cmp("rax", 7);
             a.jcc("ne", bad);
         }
-        a.load(base, { base: count, disp: T.buffer });
-        a.load("rax", { base, disp: AB.detached });
+        // Detached or out of bounds of a resizable buffer: not usable.
+        a.mov(base, count);
+        emitViewCheck(a, base);
+        a.mov("rax", "r11");
+        a.mov(count, base);
         a.test("rax", "rax");
         a.jcc("ne", bad);
+        a.load(base, { base: count, disp: T.buffer });
         a.load(base, { base, disp: AB.bytes });
         a.load("rax", { base: count, disp: T.byteOffset });
         a.add(base, "rax");

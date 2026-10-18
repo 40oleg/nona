@@ -9,7 +9,11 @@ export interface RuntimeLink {
     regexp: boolean;
     /** Unicode property tables for \p{…} and \P{…} in RegExp patterns. */
     unicodeProperties: boolean;
-    /** Unicode normalization tables for String.prototype.normalize and localeCompare. */
+    /** The v flag (unicodeSets) class syntax: set operations, nested classes, \q{…}. */
+    unicodeSets: boolean;
+    /** Emoji sequence data for the properties of strings (\p{RGI_Emoji} …) of v-mode patterns. */
+    unicodeStringProperties: boolean;
+    /** Unicode normalization tables for String.prototype.normalize, localeCompare and Intl.Collator. */
     unicodeNormalization: boolean;
     /** Optional JavaScript preludes (see preludeTriggers). */
     preludes: Record<OptionalPrelude, boolean>;
@@ -53,8 +57,11 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
+    // RegExp.escape: needs the RegExp constructor, so it is linked with the engine.
+    regexpEscape: ["escape"],
     // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
     // modules and preludes that hand out binary data name these types in their own
     // sources, and the preludes that do (see preludeDependencies) depend on it.
@@ -105,16 +112,48 @@ export const preludeTriggers = {
         "performance",
         "globalThis",
     ],
+    // Nona's own Intl for the en locale (#300) and the locale-sensitive methods
+    // that delegate to it.
+    intl: [
+        "Intl",
+        "Segmenter",
+        "toLocaleString",
+        "toLocaleDateString",
+        "toLocaleTimeString",
+        "localeCompare",
+    ],
     // The prelude also adds its methods to Array.prototype[Symbol.unscopables].
     es2021: [
         "at",
         "findLast",
         "findLastIndex",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
+        "with",
         "hasOwn",
+        "groupBy",
         "AggregateError",
         "any",
         "unscopables",
+        "toSorted",
+        "toReversed",
+        "with",
     ],
+    setMethods: [
+        "union",
+        "intersection",
+        "difference",
+        "symmetricDifference",
+        "isSubsetOf",
+        "isSupersetOf",
+        "isDisjointFrom",
+    ],
+    wellFormed: ["isWellFormed", "toWellFormed"],
+    // WeakRef and its microtask-checkpoint hook; the native part is linked with it.
+    weakRef: ["WeakRef"],
+    // FinalizationRegistry and its cleanup jobs; shares the native part of WeakRef.
+    finalizationRegistry: ["FinalizationRegistry"],
     annexB: [
         "escape",
         "unescape",
@@ -136,8 +175,9 @@ export const preludeTriggers = {
         "sub",
         "sup",
     ],
-    arraySort: ["sort"],
     arrayFromAsync: ["fromAsync"],
+    // toSorted of the es2021 prelude sorts with the built-in sort.
+    arraySort: ["sort", "toSorted"],
     objectIntegrity: ["freeze", "seal", "isFrozen", "isSealed"],
     objectAnnexB: [
         "__defineGetter__",
@@ -152,6 +192,7 @@ export const preludeTriggers = {
     evalCode: [],
     classElements: [],
     moduleRecords: [],
+    topLevelAwait: [],
 } as const satisfies Record<string, readonly string[]>;
 export type OptionalPrelude = keyof typeof preludeTriggers;
 export const optionalPreludes = Object.keys(
@@ -165,10 +206,12 @@ export const preludeDependencies: Partial<
     buffer: ["encoding", "url", "binaryData"],
     url: ["encoding"],
     encoding: ["binaryData"],
+    es2021: ["binaryData"],
     events: ["timers"],
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],
     stream: ["eventEmitter", "buffer", "process"],
+    topLevelAwait: ["moduleRecords"],
 };
 /** Process parses dotenv/memory text and validates masks with original regexes. */
 export function runtimeRegExpLink(
@@ -177,7 +220,13 @@ export function runtimeRegExpLink(
 ) {
     const regexp =
         link.regexp || link.preludes.buffer || linked.includes("process");
-    return { regexp, unicodeProperties: regexp && link.unicodeProperties };
+    return {
+        regexp,
+        unicodeProperties: regexp && link.unicodeProperties,
+        unicodeSets:
+            regexp && (link.unicodeSets || link.unicodeStringProperties),
+        unicodeStringProperties: regexp && link.unicodeStringProperties,
+    };
 }
 /**
  * Names that enumerate built-ins: a program using one could observe a missing
@@ -188,6 +237,11 @@ export const reflectiveNames: readonly string[] = [
     "getOwnPropertyDescriptors",
     "ownKeys",
 ];
+/**
+ * Preludes that add no built-ins, so enumerating built-ins cannot observe
+ * them: they are linked only by the syntax that needs them.
+ */
+export const syntaxOnlyPreludes: readonly OptionalPrelude[] = ["topLevelAwait"];
 export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
     return Object.fromEntries(
         optionalPreludes.map((name) => [name, value]),
@@ -196,6 +250,8 @@ export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
 export const fullRuntimeLink: RuntimeLink = {
     regexp: true,
     unicodeProperties: true,
+    unicodeSets: true,
+    unicodeStringProperties: true,
     unicodeNormalization: true,
     preludes: preludeSet(true),
 };
@@ -206,14 +262,17 @@ export const fullRuntimeHint =
 export const runtimePartNames: readonly string[] = [
     "regexp",
     "unicodeProperties",
+    "unicodeSets",
+    "unicodeStringProperties",
     "unicodeNormalization",
     ...optionalPreludes,
 ];
 /**
  * `link` with the named parts added (`--link`, compile option `link`). A
  * program that reaches a part only through names built at run time can link
- * that one part instead of the whole runtime. Unicode properties bring the
- * RegExp engine with them.
+ * that one part instead of the whole runtime. Unicode properties, the v flag
+ * syntax and properties of strings bring the RegExp engine with them;
+ * properties of strings bring the v flag syntax.
  */
 export function requestLink(
     link: RuntimeLink,
@@ -224,6 +283,13 @@ export function requestLink(
         if (part === "regexp") result.regexp = true;
         else if (part === "unicodeProperties")
             result.regexp = result.unicodeProperties = true;
+        else if (part === "unicodeSets")
+            result.regexp = result.unicodeSets = true;
+        else if (part === "unicodeStringProperties")
+            result.regexp =
+                result.unicodeSets =
+                result.unicodeStringProperties =
+                    true;
         else if (part === "unicodeNormalization")
             result.unicodeNormalization = true;
         else result.preludes[part as OptionalPrelude] = true;
@@ -253,6 +319,12 @@ export function linkReport(
     for (const part of requested) set(part, "requested with --link");
     if (requested.includes("unicodeProperties"))
         set("regexp", "needed by unicodeProperties");
+    if (requested.includes("unicodeSets"))
+        set("regexp", "needed by unicodeSets");
+    if (requested.includes("unicodeStringProperties")) {
+        set("regexp", "needed by unicodeStringProperties");
+        set("unicodeSets", "needed by unicodeStringProperties");
+    }
     const selected = optionalPreludes.filter((name) => link.preludes[name]);
     for (const name of selected)
         set(name, full ? "--full-runtime" : (reasons[name] ?? "requested"));
@@ -282,6 +354,23 @@ export function linkReport(
                 ? "--full-runtime"
                 : (reasons.unicodeProperties ?? "requested"),
         );
+    if (regexp.unicodeSets)
+        set(
+            "unicodeSets",
+            full
+                ? "--full-runtime"
+                : (reasons.unicodeSets ??
+                      (link.unicodeSets
+                          ? "requested"
+                          : "needed by unicodeStringProperties")),
+        );
+    if (regexp.unicodeStringProperties)
+        set(
+            "unicodeStringProperties",
+            full
+                ? "--full-runtime"
+                : (reasons.unicodeStringProperties ?? "requested"),
+        );
     if (link.unicodeNormalization)
         set(
             "unicodeNormalization",
@@ -297,6 +386,8 @@ export function linkReport(
     const present = new Set<string>(linkedList);
     if (regexp.regexp) present.add("regexp");
     if (regexp.unicodeProperties) present.add("unicodeProperties");
+    if (regexp.unicodeSets) present.add("unicodeSets");
+    if (regexp.unicodeStringProperties) present.add("unicodeStringProperties");
     if (link.unicodeNormalization) present.add("unicodeNormalization");
     return runtimePartNames
         .filter((part) => present.has(part))
@@ -349,6 +440,13 @@ export function requiredSyntaxParts(
                         const part = syntaxHelperParts[op.target.slice(11)];
                         if (part) parts.add(part);
                     }
+                    // A module body with top-level await is an async function (#306).
+                    else if (
+                        op.kind === "newFunction" &&
+                        op.async &&
+                        op.target.startsWith("js.module.")
+                    )
+                        parts.add("topLevelAwait");
     return parts;
 }
 /** `link` with the syntax helper parts that the calls of `module` need. */
