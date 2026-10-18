@@ -93,6 +93,7 @@
             "files": [
                 "date",
                 "array-builtins",
+                "array-from-async",
                 "array-buffer",
                 "typed-array-fast-path",
                 "typedarray-change-by-copy",

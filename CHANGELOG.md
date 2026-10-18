@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Runtime
+
+- **`Array.fromAsync`** (ES2026) over async iterables, sync iterables (each value awaited) and array-likes, with the mapping function, `thisArg`, construction through `this` and closing of the iterator on errors. It is a separate prelude part linked only when a program names `fromAsync`. ([#323](https://github.com/40oleg/nona/issues/323))
+
 ## v0.18.0 — 2026-10-18
 
 ### Language

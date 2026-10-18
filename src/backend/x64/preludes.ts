@@ -41,6 +41,7 @@ import { regexpEscapePreludeSource } from "../../runtime/regexp-escape-source.js
 import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
+import { arrayFromAsyncPreludeSource } from "../../runtime/array-from-async-source.js";
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
 import { setMethodsPreludeSource } from "../../runtime/set-methods-source.js";
 import { wellFormedPreludeSource } from "../../runtime/well-formed-source.js";
@@ -103,6 +104,7 @@ export function lowerRuntimePrelude(
             // After binaryData: it replaces BigInt.prototype.toLocaleString.
             ["intl", linked.includes("intl") ? intlPreludeSource() : ""],
             [null, promiseSource],
+            ["arrayFromAsync", arrayFromAsyncPreludeSource],
             ["weakRef", weakRefPreludeSource],
             // Wraps the drain before timers does, so it sees every checkpoint.
             ["finalizationRegistry", finalizationRegistryPreludeSource],
