@@ -1,0 +1,8 @@
+language/expressions/coalesce/abrupt-is-a-short-circuit.js
+language/expressions/coalesce/cannot-chain-head-with-logical-and.js
+language/expressions/coalesce/cannot-chain-head-with-logical-or.js
+language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and.js
+language/expressions/coalesce/follows-null.js
+language/expressions/coalesce/follows-undefined.js
+language/expressions/coalesce/short-circuit-number-0.js
+language/expressions/coalesce/short-circuit-prevents-evaluation.js

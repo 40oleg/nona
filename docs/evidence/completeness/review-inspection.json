@@ -1,0 +1,126 @@
+{
+    "date": "2026-10-18T21:22:53.047Z",
+    "checkout": "1a9e10510629efc3db1fac4edf6468f3c488cfdb",
+    "reportSha256": "43e05a66a2f766b7dd1c764d03bf6df89b93ac4ac87309daa70a070a5b68f242",
+    "matrixSha256": "67fd044bf6d78a412cd89f3ff905bcefdbc494113c53d2f63cb5a0cf21c58058",
+    "referenceAuthentication": {
+        "method": "independent git cat-file --batch-check; both audited and release trees",
+        "records": 446,
+        "mismatches": []
+    },
+    "aliases": {
+        "method": "freshly built builtinSpecifiers union over all eight targets vs public inventory aliases",
+        "registeredCount": 86,
+        "inventoryCount": 86,
+        "unrecorded": [],
+        "unregistered": []
+    },
+    "test262": {
+        "revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+        "candidateFiles": 53597,
+        "coalesceFiles": 24,
+        "ciReports": [
+            {
+                "group": "built-ins/ArrayBuffer",
+                "sha256": "6c612cdd43ee1e3b99e3b9a9ee2d2fc8b74069c4299e463b1a86be25e194dbdd",
+                "hashFound": true,
+                "selected": 82,
+                "runtimeExecuted": 82,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 221
+            },
+            {
+                "group": "built-ins/DataView",
+                "sha256": "12194b58726e92dd86ee9956558e8d4d0ed0b3b1f2e84731281714ce84233b20",
+                "hashFound": true,
+                "selected": 476,
+                "runtimeExecuted": 476,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 561
+            },
+            {
+                "group": "built-ins/Date",
+                "sha256": "4d36046f7433a77125a89946f52d7241f1e5fd7f834e7de3c225041ffd97819d",
+                "hashFound": true,
+                "selected": 583,
+                "runtimeExecuted": 583,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 594
+            },
+            {
+                "group": "built-ins/JSON",
+                "sha256": "299c4ce9d410d109b1cbf0279febfcdfedca5eafb7a80710e14240b649db28ba",
+                "hashFound": true,
+                "selected": 142,
+                "runtimeExecuted": 142,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 165
+            },
+            {
+                "group": "built-ins/Object/prototype",
+                "sha256": "a683b5062111dc89a81379cc24df8aa1313c80c602dc21481114a28e54b83ff7",
+                "hashFound": true,
+                "selected": 54,
+                "runtimeExecuted": 54,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 248
+            },
+            {
+                "group": "built-ins/Promise",
+                "sha256": "baf11ffe64b3d876b1c0c3d76f7ab6ae10871eb814199c46e8fdda2df0a558ba",
+                "hashFound": true,
+                "selected": 522,
+                "runtimeExecuted": 522,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 732
+            },
+            {
+                "group": "built-ins/Reflect",
+                "sha256": "46b5066867217383e494c145971044644480b83b73b1177ae0f2fe781a28479a",
+                "hashFound": true,
+                "selected": 152,
+                "runtimeExecuted": 152,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 153
+            },
+            {
+                "group": "built-ins/SharedArrayBuffer",
+                "sha256": "d14667cb88fe4dcbe953a1fb8a56610dd0de316d9717ede92ae245c6a0dacc36",
+                "hashFound": true,
+                "selected": 59,
+                "runtimeExecuted": 59,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 104
+            },
+            {
+                "group": "built-ins/TypedArray",
+                "sha256": "033f1d8845b6c4e0b8876b387a291f31a7ada11a1e04dcda3c78eb86f8478c0e",
+                "hashFound": true,
+                "selected": 1117,
+                "runtimeExecuted": 1117,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 1453
+            }
+        ]
+    },
+    "localLinks": {
+        "documents": [
+            "docs/completeness-audit.md",
+            "docs/README.md",
+            "README.md",
+            "README.ru.md",
+            "CHANGELOG.md"
+        ],
+        "missing": []
+    },
+    "compilerChangesSinceBaseline": ""
+}

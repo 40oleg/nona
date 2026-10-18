@@ -2,6 +2,8 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
+The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report separates native Windows x64 and narrower Windows-built WSL2 Linux x64 execution from historical CI and unverified claims. The frozen v0.18.0 comparison and later v0.19.0 release observation are explicit. The [independent review record](completeness-review.md#step-6-final-independent-review) gives the final verdict, reproduced checks and remaining limitations; the [local PR description](completeness-pr.md) records the publication/CI handoff.
+
 | Document                                         | Contents                                                                                                           | Language |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------- |
 | [architecture.md](architecture.md)               | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking                | English  |
@@ -9,6 +11,7 @@ This directory holds the reference documents. Snapshots written for a particular
 | [intrinsics.md](intrinsics.md)                   | Decision record: the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace (#183)                 | English  |
 | [roadmap.md](roadmap.md)                         | Performance and platform plan derived from the V8 blog, with status                                                | English  |
 | [simd.md](simd.md)                               | Where the runtime spends its instructions and which routines vector instructions speed up (#253)                   | English  |
+| [completeness-review.md](completeness-review.md) | Independent review record of the completeness audit (#394): verdict, reproduced checks, limitations                | English  |
 | [status.md](status.md)                           | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures                 | Russian  |
 | [es2020-contract.md](es2020-contract.md)         | The ES2020 completion contract: scope, documented exceptions, how completion is judged                             | English  |
 | [language-support.md](language-support.md)       | Language feature matrix (checked for Nona 0.5.0; see its note)                                                     | Russian  |

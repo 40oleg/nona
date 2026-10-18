@@ -1,0 +1,1397 @@
+{
+    "schemaVersion": 1,
+    "startedAt": "2026-10-18T20:42:35.315Z",
+    "auditedCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "checkoutCommit": "23289bc41a71f0766a9f96d3bbfc6873bf89c64b",
+    "latestLocalTag": "v0.18.0",
+    "fixtureRevision": "d7ec25bc34227da91cd895cec9eb12f2d3ff54294ca10826e8ace7d61a503c13",
+    "fixtureFiles": {
+        "cli.mjs": "169169e80a6dae855b49ee1fb0fa289f2c1e0cda574a3d0494eb20e7217c223f",
+        "client.mjs": "9c31258cfc15e09fa68472dd770fb70b5795c1579b3b2513af43b29cb64f16c7",
+        "compression.mjs": "ee8e4e6193c59e562038490da52b63fd9b5a9d5540557fbf9d291dfeaf2e1f0a",
+        "concurrency.mjs": "75691fbb3cd8d8cab159f70e23071572c752e0f990d7793f535715da38d4d27f",
+        "filesystem.mjs": "2de099c7447d1635685b3afec0ba4a91b676f2d1fdbd551cbe7be02808be630d",
+        "json.mjs": "8738570447d7f2501d78eb73d497be0e17638210bb0077bea17236d238d35377",
+        "package-lock.json": "139367091ecdd4c429ac1f5b15e3418cbaf11bd409680dac853688b2125e5510",
+        "package.json": "f4e8c4b99593f9221b245a6006dad997c71bde5997834dc47b1eb4b8ea69397b",
+        "README.md": "4d486a85d861d4969a0d43c6bf67821a9b300dd62869cbcb6a1f229fc423771d",
+        "server.mjs": "91d03ab45912bf4dde69c1f349efa7a9d471ccd001ca72550fb8e885507cfeb5",
+        "sources.json": "92a9e8f71f591a84339d5bb91571c5cbe8a5841cffbc7d1207f897e217b3e20a",
+        "subprocess.mjs": "ecee7b99a7482335e881f00224f970306b9b57fe6053432cd7c91d4c498387d5",
+        "workers.mjs": "d7800deca8ba3a7ae5ddc6c5b6f038eccb78543bb8db94c3f0e99e53c600fa58"
+    },
+    "runnerFiles": {
+        "scripts/completeness-probes.mjs": "60a740c55d904c097c0c896fbd311ebe4b803701733d29e631ce44e0983eeaf8",
+        "tests/probes/completeness-cases.mjs": "ba50d4dee189bbd1c1734aace50a395c83cddf144452bf0f3d34dd29f980e1b8"
+    },
+    "invocation": [
+        "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+        "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+        "--install",
+        "--npm-cli",
+        "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js",
+        "--audited-commit",
+        "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+        "--output",
+        "docs/evidence/completeness/windows-x64.json"
+    ],
+    "environment": {
+        "node": "v26.9.0",
+        "versions": {
+            "node": "26.9.0",
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "amaro": "1.1.11",
+            "ares": "1.34.8",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.3",
+            "libffi": "3.8.0",
+            "lief": "0.17.0",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "147",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "3.5.8",
+            "simdjson": "4.6.11",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2026c",
+            "undici": "8.10.2",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "14.6.202.34-node.32",
+            "zlib": "1.3.2.1-motley-285e94b",
+            "zstd": "1.5.7"
+        },
+        "platform": "win32",
+        "arch": "x64",
+        "osRelease": "10.0.26200",
+        "cpu": "13th Gen Intel(R) Core(TM) i7-13620H",
+        "target": "win32-x64",
+        "execution": "native",
+        "maxParallelism": 1,
+        "compilerHeapLimitMiB": 768,
+        "compilerBuild": "Caller must run node scripts/build.mjs with this checkout before invoking; no implicit build",
+        "typescript": "7.0.2"
+    },
+    "dependencySetup": {
+        "mode": "npm-ci",
+        "command": [
+            "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+            "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js",
+            "ci",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund"
+        ],
+        "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness",
+        "timeoutMs": 60000,
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "truncated": false,
+        "error": null,
+        "stdout": "\nadded 85 packages in 980ms\n",
+        "stderr": "",
+        "durationMs": 1062,
+        "outcome": "passed",
+        "packages": {
+            "cross-spawn": {
+                "expected": "7.0.6",
+                "actual": "7.0.6"
+            },
+            "express": {
+                "expected": "5.1.0",
+                "actual": "5.1.0"
+            },
+            "fflate": {
+                "expected": "0.8.2",
+                "actual": "0.8.2"
+            },
+            "fs-extra": {
+                "expected": "11.3.0",
+                "actual": "11.3.0"
+            },
+            "json5": {
+                "expected": "2.2.3",
+                "actual": "2.2.3"
+            },
+            "minimist": {
+                "expected": "1.2.8",
+                "actual": "1.2.8"
+            },
+            "p-limit": {
+                "expected": "6.2.0",
+                "actual": "6.2.0"
+            },
+            "undici": {
+                "expected": "7.16.0",
+                "actual": "7.16.0"
+            },
+            "workerpool": {
+                "expected": "9.3.4",
+                "actual": "9.3.4"
+            }
+        }
+    },
+    "cases": [
+        {
+            "id": "cli",
+            "gcStress": false,
+            "expectedOracle": "cli 3 false input.json\n",
+            "expectedNative": "cli 3 false input.json\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "169169e80a6dae855b49ee1fb0fa289f2c1e0cda574a3d0494eb20e7217c223f",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 53,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 5922,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15058944,
+                "sha256": "4f8d67caaa6d88ee43fcc11c036f9b38bb7799ad5db9bb9a0f250e141eef47c7",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\cli\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 1370,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "filesystem",
+            "gcStress": false,
+            "expectedOracle": "filesystem 5\n",
+            "expectedNative": "filesystem 5\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "2de099c7447d1635685b3afec0ba4a91b676f2d1fdbd551cbe7be02808be630d",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "filesystem 5\n",
+                "stderr": "",
+                "durationMs": 435,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6764,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15829504,
+                "sha256": "734cb98bcecd814c917e8386fd183d9421d4490cb286916a3f2e30a5583a4939",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\filesystem\\native",
+                "timeoutMs": 15000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "",
+                "stderr": "Nona runtime error\r\n",
+                "durationMs": 1035,
+                "outcome": "failed"
+            },
+            "assessment": "runtime-failed"
+        },
+        {
+            "id": "json",
+            "gcStress": false,
+            "expectedOracle": "json demo 6\ninvalid SyntaxError\n",
+            "expectedNative": "json demo 6\ninvalid SyntaxError\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "8738570447d7f2501d78eb73d497be0e17638210bb0077bea17236d238d35377",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "json demo 6\ninvalid SyntaxError\n",
+                "stderr": "",
+                "durationMs": 152,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6062,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15265792,
+                "sha256": "50565d740dbf9f90d3604d16d71f099cfc8ceb47af80b2f31ea9a03717ecf839",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\json\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "json demo 6\ninvalid SyntaxError\n",
+                "stderr": "",
+                "durationMs": 1266,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "http-server",
+            "gcStress": false,
+            "expectedOracle": "server 201 5\n",
+            "expectedNative": "server 201 5\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "91d03ab45912bf4dde69c1f349efa7a9d471ccd001ca72550fb8e885507cfeb5",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "server 201 5\n",
+                "stderr": "",
+                "durationMs": 2443,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 7121,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 20413952,
+                "sha256": "2593485cc0cc6853dc3969be46072724ad60de1260c6ef21119c69d035e0a318",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-server\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "server 201 5\n",
+                "stderr": "",
+                "durationMs": 1130,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "http-client",
+            "gcStress": false,
+            "expectedOracle": "client 200 42\n",
+            "expectedNative": "client 200 42\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "9c31258cfc15e09fa68472dd770fb70b5795c1579b3b2513af43b29cb64f16c7",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "client 200 42\n",
+                "stderr": "",
+                "durationMs": 2050,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 9239,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 23591424,
+                "sha256": "ea5e329f3f3a4bdb6f480e0e3eaef0ce5a97758310ca550d456877284c1afa6a",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\http-client\\native",
+                "timeoutMs": 15000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "",
+                "stderr": "TypeError: Invalid operation\n",
+                "durationMs": 1090,
+                "outcome": "failed"
+            },
+            "assessment": "runtime-failed"
+        },
+        {
+            "id": "compression",
+            "gcStress": false,
+            "expectedOracle": "compression hello stream\n",
+            "expectedNative": "compression hello stream\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "ee8e4e6193c59e562038490da52b63fd9b5a9d5540557fbf9d291dfeaf2e1f0a",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "compression hello stream\n",
+                "stderr": "",
+                "durationMs": 136,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 5835,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15886848,
+                "sha256": "f414e67c6faf69ce7ae45a8ebc8977f867e5c400b90a4f6e16035607e989da72",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\compression\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "compression hello stream\n",
+                "stderr": "",
+                "durationMs": 1370,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "subprocess",
+            "gcStress": false,
+            "expectedOracle": "subprocess 7 child-ok\n",
+            "expectedNative": "subprocess 7 child-ok\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "ecee7b99a7482335e881f00224f970306b9b57fe6053432cd7c91d4c498387d5",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "subprocess 7 child-ok\n",
+                "stderr": "",
+                "durationMs": 237,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6102,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15183872,
+                "sha256": "2cfa86a584adb7cb908904fa63a6d3380c86f9d6dacdcbddae0b2477674741e0",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\subprocess\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "subprocess 7 child-ok\n",
+                "stderr": "",
+                "durationMs": 1267,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "concurrency",
+            "gcStress": false,
+            "expectedOracle": "concurrency 2,4,6,8 2 0 0\n",
+            "expectedNative": "concurrency 2,4,6,8 2 0 0\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "75691fbb3cd8d8cab159f70e23071572c752e0f990d7793f535715da38d4d27f",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "concurrency 2,4,6,8 2 0 0\n",
+                "stderr": "",
+                "durationMs": 127,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 734,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 1456128,
+                "sha256": "3726913cfbb378f95e40d806515dac525f26fc1839c870e79df60c99b3581736",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\concurrency\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "concurrency 2,4,6,8 2 0 0\n",
+                "stderr": "",
+                "durationMs": 412,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "workers",
+            "gcStress": false,
+            "expectedOracle": "workers 5\n",
+            "expectedNative": "workers 5\n",
+            "dependencySetup": "passed",
+            "sourceSha256": "d7800deca8ba3a7ae5ddc6c5b6f038eccb78543bb8db94c3f0e99e53c600fa58",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "workers 5\n",
+                "stderr": "",
+                "durationMs": 307,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6220,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 15502336,
+                "sha256": "e44845a19c9a661ca25050ebf315789c776a1fc55702885b684f44d327c324ba",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\workers\\native",
+                "timeoutMs": 15000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "",
+                "stderr": "ReferenceError: Invalid operation\n",
+                "durationMs": 1030,
+                "outcome": "failed"
+            },
+            "assessment": "runtime-failed"
+        },
+        {
+            "id": "stream-writable-queues",
+            "gcStress": false,
+            "expectedOracle": "pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n",
+            "expectedNative": "pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "88b86128055a8060a403c5afc86d897c8411dc7e83e006fb90d707351e0c03ce",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n",
+                "stderr": "",
+                "durationMs": 51,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 2487,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 5693440,
+                "sha256": "83a209d516e8554e32750a4ba68cebb1c795db2b097c175990e68d4601f36d59",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-writable-queues\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "pressure true false 2 true\nclosed batch:a,b,c|a|b|end 0 true true\n",
+                "stderr": "",
+                "durationMs": 818,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "stream-web-cancellation",
+            "gcStress": false,
+            "expectedOracle": "abort stop false false 1 true\nrelease TypeError false false\nvalidation ERR_INVALID_ARG_TYPE false false\n",
+            "expectedNative": "abort stop false false 1 true\nrelease TypeError false false\nvalidation ERR_INVALID_ARG_TYPE false false\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "bebae495efae7c1dd3ec2990fafd32d5c514f718143e895c6a7c18258f8089cd",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "abort stop false false 1 true\nrelease TypeError false false\nvalidation ERR_INVALID_ARG_TYPE false false\n",
+                "stderr": "",
+                "durationMs": 58,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 2499,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 5696000,
+                "sha256": "6b12222bbac018742574a4fee18992742aced605b6ae0bbbcccc980feba50055",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\stream-web-cancellation\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "abort stop false false 1 true\nrelease TypeError false false\nvalidation ERR_INVALID_ARG_TYPE false false\n",
+                "stderr": "",
+                "durationMs": 1309,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "gc-roots",
+            "gcStress": true,
+            "expectedOracle": "roots 100 value-0 99\n",
+            "expectedNative": "roots 100 value-0 99\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "3c3b8591065dd3d8ce10c7b53430d1eedfedca288c5bf1c1936d829cc9bb4d33",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "roots 100 value-0 99\n",
+                "stderr": "",
+                "durationMs": 49,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\program.exe",
+                    "true"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 585,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 1240064,
+                "sha256": "bc86570ebbb4de77a6382b14b1a7b57fd329433521a84e72dc420dc2f36ef792",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\gc-roots\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "roots 100 value-0 99\n",
+                "stderr": "",
+                "durationMs": 3436,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "worker-api",
+            "gcStress": false,
+            "expectedOracle": "worker 42\n",
+            "expectedNative": "worker ERR_NONA_UNSUPPORTED\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "1cf8a4068a8c36060c1645b59bc9e0d933efeacfeab7ea9534e416cdd51f2301",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "worker 42\n",
+                "stderr": "",
+                "durationMs": 58,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 665,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 1345536,
+                "sha256": "cb9bebe57bcb7883df0948d051939207dd161ea074b3f27e36f77ecc50fefe74",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\worker-api\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "worker ERR_NONA_UNSUPPORTED\n",
+                "stderr": "",
+                "durationMs": 227,
+                "outcome": "passed"
+            },
+            "assessment": "expected-api-gap"
+        },
+        {
+            "id": "zlib-api",
+            "gcStress": false,
+            "expectedOracle": "zlib hello\n",
+            "expectedNative": "zlib hello\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "ee5d9596e7238da44f6acef3fc2e0799f0d1bbd44986b8a26dff6c0e9d246c78",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "zlib hello\n",
+                "stderr": "",
+                "durationMs": 56,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 3106,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 7453696,
+                "sha256": "4f8267d813c448b2d96cbe47678ae57f492f6e27189f64cbf055dbc7f464aa59",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\zlib-api\\native",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "zlib hello\n",
+                "stderr": "",
+                "durationMs": 1019,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        },
+        {
+            "id": "dns-api",
+            "gcStress": false,
+            "expectedOracle": "dns true\n",
+            "expectedNative": "dns true\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "5673dd74bb1ec1f0617da7b53b095f661bb8e2a644eff5f309ec819b0e0af6ec",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\dns-api\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\dns-api\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "dns true\n",
+                "stderr": "",
+                "durationMs": 62,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\dns-api\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\dns-api\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":false,\"diagnostics\":[{\"code\":\"E_MODULE\",\"message\":\"Cannot resolve module 'node:dns'\",\"file\":\"C:\\\\Users\\\\oleg\\\\AppData\\\\Local\\\\Temp\\\\nona-completeness-TBX2vr\\\\dns-api\\\\main.mjs\",\"span\":{\"start\":0,\"end\":0}}]}\n",
+                "stderr": "",
+                "durationMs": 232,
+                "diagnostics": [
+                    {
+                        "code": "E_MODULE",
+                        "message": "Cannot resolve module 'node:dns'",
+                        "file": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\dns-api\\main.mjs",
+                        "span": {
+                            "start": 0,
+                            "end": 0
+                        }
+                    }
+                ],
+                "outcome": "failed"
+            },
+            "artifact": {
+                "outcome": "not-created"
+            },
+            "execution": {
+                "outcome": "not-run",
+                "reason": "compilation failed"
+            },
+            "assessment": "compile-failed"
+        },
+        {
+            "id": "tls-verification",
+            "gcStress": false,
+            "expectedOracle": "trusted authorized true\nhostname ERR_TLS_CERT_ALTNAME_INVALID\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\n",
+            "expectedNative": "trusted authorized true\nhostname ERR_TLS_CERT_ALTNAME_INVALID\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\n",
+            "dependencySetup": "not-required",
+            "sourceSha256": "4ab0408d6cde9620ad7018879f68077ca591e84842620b22e984db8bbac45e90",
+            "serviceEnvironment": {
+                "NONA_PROBE_HTTP": "http://127.0.0.1:62427",
+                "NONA_PROBE_TLS": "62428",
+                "NONA_PROBE_CA": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\tls\\ca.pem",
+                "NONA_PROBE_NODE": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\oracle",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "trusted authorized true\nhostname ERR_TLS_CERT_ALTNAME_INVALID\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\n",
+                "stderr": "",
+                "durationMs": 71,
+                "outcome": "passed"
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\scripts\\completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 3880,
+                "diagnostics": [],
+                "outcome": "passed"
+            },
+            "artifact": {
+                "outcome": "created",
+                "bytes": 9673728,
+                "sha256": "5a9ce57aeabc40e8c0f433f8cb009a30dd0f478d31ed393a7c9c0d9c0e23726b",
+                "retained": false
+            },
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\AppData\\Local\\Temp\\nona-completeness-TBX2vr\\tls-verification\\native",
+                "timeoutMs": 30000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "trusted authorized true\nhostname ERR_TLS_CERT_ALTNAME_INVALID\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\n",
+                "stderr": "",
+                "durationMs": 1770,
+                "outcome": "passed"
+            },
+            "assessment": "agreement"
+        }
+    ],
+    "cleanup": "passed",
+    "finishedAt": "2026-10-18T20:44:26.031Z",
+    "summary": {
+        "agreement": 11,
+        "runtime-failed": 3,
+        "expected-api-gap": 1,
+        "compile-failed": 1
+    }
+}

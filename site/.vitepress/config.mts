@@ -63,6 +63,11 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
                 { text: s.compatibility, link: `${p}/guide/compatibility` },
                 { text: s.performance, link: `${p}/guide/performance` },
                 { text: s.status, link: `${p}/guide/status` },
+                // The audit report is English; all locales share the evidence.
+                {
+                    text: s.completenessAudit,
+                    link: "/reference/completeness-audit",
+                },
                 { text: s.test262, link: `${p}/reference/test262` },
             ],
         },

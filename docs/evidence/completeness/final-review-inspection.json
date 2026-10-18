@@ -1,0 +1,355 @@
+{
+    "date": "2026-10-18T21:57:33.517Z",
+    "checkout": "3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45",
+    "correctionCommit": "3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45",
+    "compilerBaseline": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "release": {
+        "tag": "v0.18.0",
+        "commit": "ce350fdf7e1632b258862db1618db4d71bde97f1",
+        "publishedAt": "2026-10-18T16:30:34Z",
+        "url": "https://github.com/40oleg/nona/releases/tag/v0.18.0",
+        "verifiedVia": "GitHub REST releases/latest; draft=false; prerelease=false"
+    },
+    "initialCorrectionHashes": {
+        "report": "17b7aec4b4dad098a46c95154b58542c0b0ae6fa942a004e01e8351e824dfc15",
+        "matrix": "0cb27f8bb1c404fa230f71897ead162b2efcc4bbb1136fa41a59ce7a72057aa3"
+    },
+    "finalCandidateHashes": {
+        "report": "519ca2b49bd7dc3441a56d3008d8cfbdc84032355a66920c267477eb1871c410",
+        "matrix": "3fd06b8da073c73ea802d0e987f1d1c40b19322a71f925009ae7e2a515ad4381"
+    },
+    "statusCounts": {
+        "implemented-unverified": 58,
+        "partial": 59,
+        "intentionally-unsupported": 3,
+        "missing": 16,
+        "unknown": 4
+    },
+    "registryAuthentication": {
+        "method": "git cat-file --batch-check, compiler and comparison-release tree path objects",
+        "count": 446,
+        "mismatches": []
+    },
+    "finalizationIntegrity": {
+        "capabilitiesUnchanged": true,
+        "evidenceRegistryUnchanged": true,
+        "targetsUnchanged": true,
+        "entryPointsUnchanged": true,
+        "originalReviewAndResolutionPrefixPreserved": true,
+        "priorExecutionRecords": 47,
+        "missingPriorResults": [],
+        "preservedEvidence": [
+            {
+                "path": "docs/evidence/completeness/ci-observations.json",
+                "sha256": "6137398ae1fed6a7ef6fc04328215fcf77e7349d8f7c329b62d926caf6148600",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/review-cross-target.json",
+                "sha256": "12f8ebe1d29d417ec93ace3ec63e55ca62b827841462a66460db444bb96ee6d8",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/review-inspection.json",
+                "sha256": "0ae1305421b86f58ba8b8f5db2b7c497c97dc5b79d59936aa70124687144cbae",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/review-test262-windows.json",
+                "sha256": "7d5a7d72f3231adfea3eaa16df8032775685a1a953e727ffb99e035ef36eb0df",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/review-windows-x64.json",
+                "sha256": "98c25886aef5145d0c3a58b1cfc501fc75a2d5d164d1f7c8c818ebdeb357b7cc",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/step5-test262-windows.json",
+                "sha256": "ed164da351fe98ffa2d67145f8390cf1e11c96a0cbbcd3abbdc67d2805d9cc08",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/step5-validation.json",
+                "sha256": "c07acb641ff1d292aa69fcf37ac8f1f766685adc1950e593ee9b978e452498e6",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/step5-windows-x64.json",
+                "sha256": "b645402cbad2305eb6f9209e31f5acb153f972f887cb5deaf9ef30f49965696c",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/test262-ci-summary.json",
+                "sha256": "6adfa88cfae2f3fff4bc338cabe4daadb54adf277a18b70421cd1316443a0ac5",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/test262-local-summary.json",
+                "sha256": "a774ea4bd0dca3791ab693cfae60ea40237250c10a4a21f71c91063d956556fd",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/test262-local.json",
+                "sha256": "d4f490c0787969555c7f678b19d9b1e39d389aa92285e1bbb2fce9b15ba01ec5",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/windows-x64-repeat.json",
+                "sha256": "3f156e8f1f8011c34ab23963ada75ebab9e2cb257168603579424c8af2d8c117",
+                "unchanged": true
+            },
+            {
+                "path": "docs/evidence/completeness/windows-x64.json",
+                "sha256": "5a090030858129b07b73dab038a94e3fb59fd433aecafd732ec60e7dee3db560",
+                "unchanged": true
+            }
+        ]
+    },
+    "aliases": {
+        "publicRows": 36,
+        "privateRows": 6,
+        "registered": 86,
+        "inventory": 86,
+        "missing": [],
+        "invented": [],
+        "perTarget": [
+            {
+                "target": "win32-x64",
+                "aliases": 86,
+                "filesystem": true,
+                "network": true,
+                "childProcessImport": true,
+                "win32": true,
+                "localBuild": "passed",
+                "localRun": "failed",
+                "platformRowBuild": "passed",
+                "platformRowRun": "failed"
+            },
+            {
+                "target": "linux-x64",
+                "aliases": 85,
+                "filesystem": true,
+                "network": true,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "failed",
+                "platformRowBuild": "passed",
+                "platformRowRun": "failed"
+            },
+            {
+                "target": "linux-arm64",
+                "aliases": 73,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            },
+            {
+                "target": "win32-arm64",
+                "aliases": 74,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": true,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            },
+            {
+                "target": "darwin-x64",
+                "aliases": 73,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            },
+            {
+                "target": "darwin-arm64",
+                "aliases": 73,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            },
+            {
+                "target": "freebsd-x64",
+                "aliases": 73,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            },
+            {
+                "target": "openbsd-x64",
+                "aliases": 73,
+                "filesystem": true,
+                "network": false,
+                "childProcessImport": true,
+                "win32": false,
+                "localBuild": "passed",
+                "localRun": "not-run",
+                "platformRowBuild": "passed",
+                "platformRowRun": "not-run"
+            }
+        ]
+    },
+    "test262": {
+        "revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+        "candidateFiles": 53597,
+        "coalesceFiles": 24,
+        "selection": [
+            "language/expressions/coalesce/abrupt-is-a-short-circuit.js",
+            "language/expressions/coalesce/cannot-chain-head-with-logical-and.js",
+            "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
+            "language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and.js",
+            "language/expressions/coalesce/follows-null.js",
+            "language/expressions/coalesce/follows-undefined.js",
+            "language/expressions/coalesce/short-circuit-number-0.js",
+            "language/expressions/coalesce/short-circuit-prevents-evaluation.js"
+        ],
+        "reports": [
+            {
+                "group": "built-ins/ArrayBuffer",
+                "sourceHashMatched": true,
+                "sha256": "6c612cdd43ee1e3b99e3b9a9ee2d2fc8b74069c4299e463b1a86be25e194dbdd",
+                "selected": 82,
+                "runtime": 82,
+                "passed": 82,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 221
+            },
+            {
+                "group": "built-ins/DataView",
+                "sourceHashMatched": true,
+                "sha256": "12194b58726e92dd86ee9956558e8d4d0ed0b3b1f2e84731281714ce84233b20",
+                "selected": 476,
+                "runtime": 476,
+                "passed": 476,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 561
+            },
+            {
+                "group": "built-ins/Date",
+                "sourceHashMatched": true,
+                "sha256": "4d36046f7433a77125a89946f52d7241f1e5fd7f834e7de3c225041ffd97819d",
+                "selected": 583,
+                "runtime": 583,
+                "passed": 583,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 594
+            },
+            {
+                "group": "built-ins/JSON",
+                "sourceHashMatched": true,
+                "sha256": "299c4ce9d410d109b1cbf0279febfcdfedca5eafb7a80710e14240b649db28ba",
+                "selected": 142,
+                "runtime": 142,
+                "passed": 142,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 165
+            },
+            {
+                "group": "built-ins/Object/prototype",
+                "sourceHashMatched": true,
+                "sha256": "a683b5062111dc89a81379cc24df8aa1313c80c602dc21481114a28e54b83ff7",
+                "selected": 54,
+                "runtime": 54,
+                "passed": 54,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 248
+            },
+            {
+                "group": "built-ins/Promise",
+                "sourceHashMatched": true,
+                "sha256": "baf11ffe64b3d876b1c0c3d76f7ab6ae10871eb814199c46e8fdda2df0a558ba",
+                "selected": 522,
+                "runtime": 522,
+                "passed": 522,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 732
+            },
+            {
+                "group": "built-ins/Reflect",
+                "sourceHashMatched": true,
+                "sha256": "46b5066867217383e494c145971044644480b83b73b1177ae0f2fe781a28479a",
+                "selected": 152,
+                "runtime": 152,
+                "passed": 152,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 153
+            },
+            {
+                "group": "built-ins/SharedArrayBuffer",
+                "sourceHashMatched": true,
+                "sha256": "d14667cb88fe4dcbe953a1fb8a56610dd0de316d9717ede92ae245c6a0dacc36",
+                "selected": 59,
+                "runtime": 59,
+                "passed": 59,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 104
+            },
+            {
+                "group": "built-ins/TypedArray",
+                "sourceHashMatched": true,
+                "sha256": "033f1d8845b6c4e0b8876b387a291f31a7ada11a1e04dcda3c78eb86f8478c0e",
+                "selected": 1117,
+                "runtime": 1117,
+                "passed": 1117,
+                "failed": 0,
+                "skipped": 0,
+                "totalInGroup": 1453
+            }
+        ]
+    },
+    "links": {
+        "documents": [
+            "docs/completeness-audit.md",
+            "docs/completeness-review.md",
+            "docs/completeness-pr.md",
+            "docs/README.md",
+            "README.md",
+            "README.ru.md",
+            "CHANGELOG.md",
+            "site/src/reference/modules.md",
+            "site/src/ar/reference/modules.md",
+            "site/src/bn/reference/modules.md",
+            "site/src/es/reference/modules.md",
+            "site/src/fr/reference/modules.md",
+            "site/src/hi/reference/modules.md",
+            "site/src/pt/reference/modules.md",
+            "site/src/ru/reference/modules.md",
+            "site/src/zh/reference/modules.md"
+        ],
+        "checked": 292,
+        "missing": [],
+        "boundary": "Local files/repository main-file targets only; external URLs and generated site routes excluded. Site repository-link checker recorded separately."
+    },
+    "compilerWorkflowChangesSinceBaseline": ""
+}

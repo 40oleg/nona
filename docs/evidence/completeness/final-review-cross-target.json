@@ -1,0 +1,427 @@
+{
+    "startedAt": "2026-10-18T21:50:54.296Z",
+    "checkout": "3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45",
+    "compilerBaseline": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "compilerHost": {
+        "node": "v26.9.0",
+        "platform": "win32",
+        "arch": "x64"
+    },
+    "limits": {
+        "compileMs": 45000,
+        "runMs": 15000,
+        "linuxOuterMs": 20000,
+        "compilerHeapMiB": 768,
+        "GOMAXPROCS": "2",
+        "UV_THREADPOOL_SIZE": "2",
+        "NODE_OPTIONS": "--v8-pool-size=2 --max-old-space-size=1536"
+    },
+    "oracleScope": "Windows Node only. WSL2 x86_64 execution is a Linux guest, not a Linux compiler-host build or Linux Node oracle. Existing top-level-checked fixture installation reused; transitive installed bytes unverified.",
+    "cases": [
+        {
+            "id": "linux-cli",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "import minimist from \"minimist\";\nimport fs from \"node:fs\";\nconst options = minimist([\"--count\", \"3\", \"--no-color\", \"input.json\"], {\n    alias: { count: \"n\" },\n});\nfs.writeFileSync(options._[0], JSON.stringify({ count: options.n }));\nconst data = JSON.parse(fs.readFileSync(options._[0], \"utf8\"));\nconsole.log(\"cli\", data.count, options.color, options._.join(\",\"));\nfs.unlinkSync(options._[0]);\n",
+            "expected": "cli 3 false input.json\n",
+            "oracleExpected": "cli 3 false input.json\n",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\cli.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-cli",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 80
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\cli.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-cli\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6531
+            },
+            "artifactSha256": "deda290b0c09ed4eccc5525ed04041d88e9ccb9ad3b747260cb392a650c7f08b",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/final-review-execution-Ip5j97/linux-cli",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 158
+            },
+            "oracleAgreement": true,
+            "agreement": true
+        },
+        {
+            "id": "linux-filesystem",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "import fs from \"fs-extra\";\nawait fs.ensureDir(\"nested/data\");\nawait fs.outputJson(\"nested/data/input.json\", { items: [2, 3] });\nawait fs.copy(\"nested\", \"copied\");\nconst data = await fs.readJson(\"copied/data/input.json\");\nconsole.log(\n    \"filesystem\",\n    data.items.reduce((a, b) => a + b, 0),\n);\nawait fs.remove(\"nested\");\nawait fs.remove(\"copied\");\n",
+            "expected": "filesystem 5\n",
+            "oracleExpected": "filesystem 5\n",
+            "expectedFailure": {
+                "exit": 1,
+                "stderr": "Nona runtime error\n"
+            },
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\filesystem.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-filesystem",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "filesystem 5\n",
+                "stderr": "",
+                "durationMs": 88
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\filesystem.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-filesystem\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6810
+            },
+            "artifactSha256": "a2896e1e342f451cbbee8610affc0cdd02315b62bd949836f64ceb68c1670af1",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/final-review-execution-Ip5j97/linux-filesystem",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "",
+                "stderr": "Nona runtime error\r\n",
+                "durationMs": 186
+            },
+            "oracleAgreement": true,
+            "agreement": false,
+            "failureReproduced": true
+        },
+        {
+            "id": "linux-identity",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "console.log('identity',process.platform,typeof process.getuid,typeof process.getuid==='function'?process.getuid()>=0:'absent');\n",
+            "expected": "identity linux function true\n",
+            "oracleExpected": "identity win32 undefined absent\n",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-identity\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-identity",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity win32 undefined absent\n",
+                "stderr": "",
+                "durationMs": 48
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-identity\\main.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-identity\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 1925
+            },
+            "artifactSha256": "6b98a6de219c12f44d10467f667ab872e5a554a6dc584d44a8ef1c693bca5279",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/final-review-execution-Ip5j97/linux-identity",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity linux function true\n",
+                "stderr": "",
+                "durationMs": 178
+            },
+            "oracleAgreement": true,
+            "agreement": true
+        },
+        {
+            "id": "windows-later-builtins-fresh",
+            "target": "win32-x64",
+            "gcStress": true,
+            "source": "async function main(){ const values=new Float16Array([1.0001,2.5]); const bytes=new ArrayBuffer(2); const view=new DataView(bytes); view.setFloat16(0,2.5,true); const mapped=Iterator.from([1,2,3]).map(x=>x*2).toArray(); const result=await Array.fromAsync([Promise.resolve(3),4],x=>x+1); console.log('later',Math.f16round(1.0001),values[0],view.getFloat16(0,true),mapped.join(','),result.join(',')); } main();\n",
+            "expected": "later 1 1 2.5 2,4,6 4,5\n",
+            "oracleExpected": "later 1 1 2.5 2,4,6 4,5\n",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "later 1 1 2.5 2,4,6 4,5\n",
+                "stderr": "",
+                "durationMs": 47
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh\\program.exe",
+                    "true"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 803
+            },
+            "artifactSha256": "9c736a04c4fc4079d99da9d9b606b75db5ac6f4e0e074549d956408a3aa66b23",
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\windows-later-builtins-fresh",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "later 1 1 2.5 2,4,6 4,5\n",
+                "stderr": "",
+                "durationMs": 3743
+            },
+            "oracleAgreement": true,
+            "agreement": true
+        },
+        {
+            "id": "linux-later-builtins-fresh",
+            "target": "linux-x64",
+            "gcStress": true,
+            "source": "async function main(){ const values=new Float16Array([1.0001,2.5]); const bytes=new ArrayBuffer(2); const view=new DataView(bytes); view.setFloat16(0,2.5,true); const mapped=Iterator.from([1,2,3]).map(x=>x*2).toArray(); const result=await Array.fromAsync([Promise.resolve(3),4],x=>x+1); console.log('later',Math.f16round(1.0001),values[0],view.getFloat16(0,true),mapped.join(','),result.join(',')); } main();\n",
+            "expected": "later 1 1 2.5 2,4,6 4,5\n",
+            "oracleExpected": "later 1 1 2.5 2,4,6 4,5\n",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-later-builtins-fresh\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-later-builtins-fresh",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "later 1 1 2.5 2,4,6 4,5\n",
+                "stderr": "",
+                "durationMs": 51
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-later-builtins-fresh\\main.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97\\linux-later-builtins-fresh\\program",
+                    "true"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 769
+            },
+            "artifactSha256": "7e4f6fc4ca6e7b3c25233ecf8f55a2a244d08ff028ceaa109a11272c02d25ceb",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/final-review-execution-Ip5j97/linux-later-builtins-fresh",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "later 1 1 2.5 2,4,6 4,5\n",
+                "stderr": "",
+                "durationMs": 413
+            },
+            "oracleAgreement": true,
+            "agreement": true
+        }
+    ],
+    "linuxEnvironment": {
+        "command": [
+            "wsl.exe",
+            "-d",
+            "Ubuntu",
+            "--exec",
+            "sh",
+            "-lc",
+            "uname -a; cat /etc/os-release; id -u; command -v node; node --version"
+        ],
+        "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+        "timeoutMs": 15000,
+        "exit": 127,
+        "signal": null,
+        "timedOut": false,
+        "truncated": false,
+        "error": null,
+        "stdout": "Linux tors 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nPRETTY_NAME=\"Ubuntu 22.04.3 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.3 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\n1000\n",
+        "stderr": "sh: 1: node: not found\n",
+        "durationMs": 5253
+    },
+    "pathConversion": {
+        "command": [
+            "wsl.exe",
+            "-d",
+            "Ubuntu",
+            "--exec",
+            "wslpath",
+            "-a",
+            "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97"
+        ],
+        "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+        "timeoutMs": 15000,
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "truncated": false,
+        "error": null,
+        "stdout": "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/final-review-execution-Ip5j97\n",
+        "stderr": "",
+        "durationMs": 445
+    },
+    "cleanup": {
+        "path": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\final-review-execution-Ip5j97",
+        "validatedWithin": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work",
+        "removed": true
+    },
+    "finishedAt": "2026-10-18T21:51:25.444Z"
+}

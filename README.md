@@ -12,12 +12,14 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status:** `v0.19.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status of this checkout:** package version `0.19.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
-- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
-- **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc; a program that declares shared library functions through FFI is linked dynamically against those libraries only. Apple Silicon output uses the system dyld and libSystem.
+The [v0.20.0 completeness audit](docs/completeness-audit.md) records API/target limits, pinned package results, versioned alternatives, risks and a ranked roadmap at `453418c1`. Windows x64 and the narrower Windows-built Linux x64 sample in WSL2 include both successes and runtime failures; broader npm/platform readiness is not established. The report preserves its v0.18.0 comparison and separately dates the later v0.19.0 release. The [independent review record](docs/completeness-review.md#step-6-final-independent-review) gives the final verdict, reproduced checks and remaining limitations.
+
+- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. In the historical 2026-10-14 post-v0.12.0 Linux measurement it starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
+- **No dependencies at run time.** Windows executables import system DLLs required by their selected services. Default Linux/BSD output uses direct kernel calls without libc; macOS may use the system dyld and libSystem. Explicit shared-library FFI adds loader/library dependencies.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
 - **Real programs.** Besides the language and its standard library: `process`, `fs`, `path`, `Buffer`, events, streams, timers, HTTP servers and clients, TCP sockets and FFI (DLLs on Windows, shared libraries on Linux and macOS).
@@ -160,7 +162,7 @@ The compiler is written in TypeScript. It is developed and bootstrapped on Node.
 ## Limitations
 
 - `eval`, `Function`, `GeneratorFunction` and `AsyncFunction` need source text known at compile time.
-- Most features newer than ES2020 that are not listed above (the RegExp `v` flag, …) are not supported.
+- Later additions are supported individually; the list above is not a claim of complete newer ECMAScript editions.
 - Node.js modules outside the table above (`dns`, `dgram`, …), Brotli, `fork()` and child processes on macOS, BSD and arm64 (`node:http2` loads, but its functions throw), npm packages that need them, native add-ons and browser APIs are not available. `Intl` is Nona's own and knows only the `en`/`en-US` locale ([docs/intl.md](docs/intl.md)). Networking runs on Linux and Windows; TLS and https are client-only and TLS 1.3-only, see [networking](docs/network.md#security-limitations).
 - Plain computation is much slower than in a JIT.
 

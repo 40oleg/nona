@@ -1,0 +1,105 @@
+{
+    "observedAt": "2026-10-18T20:37:15.4377231Z",
+    "packages": [
+        {
+            "name": "cross-spawn",
+            "version": "7.0.6",
+            "registry": "https://registry.npmjs.org/cross-spawn/7.0.6",
+            "repository": "git+ssh://git@github.com/moxystudio/node-cross-spawn.git",
+            "gitHead": "77cd97f3ca7b62c904a63a698fc4a79bf41977d0",
+            "tarball": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz",
+            "integrity": "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==",
+            "license": "MIT"
+        },
+        {
+            "name": "express",
+            "version": "5.1.0",
+            "registry": "https://registry.npmjs.org/express/5.1.0",
+            "repository": "git+https://github.com/expressjs/express.git",
+            "gitHead": "cd7d4397c398a3f3ecadeaf9ef6ac1377bd414c4",
+            "tarball": "https://registry.npmjs.org/express/-/express-5.1.0.tgz",
+            "integrity": "sha512-DT9ck5YIRU+8GYzzU5kT3eHGA5iL+1Zd0EutOmTE9Dtk+Tvuzd23VBU+ec7HPNSTxXYO55gPV/hq4pSBJDjFpA==",
+            "license": "MIT"
+        },
+        {
+            "name": "fflate",
+            "version": "0.8.2",
+            "registry": "https://registry.npmjs.org/fflate/0.8.2",
+            "repository": "git+https://github.com/101arrowz/fflate.git",
+            "gitHead": "d3243651cb142e3e04f3e4bc037b9e985878f444",
+            "tarball": "https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz",
+            "integrity": "sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==",
+            "license": "MIT"
+        },
+        {
+            "name": "fs-extra",
+            "version": "11.3.0",
+            "registry": "https://registry.npmjs.org/fs-extra/11.3.0",
+            "repository": "git+https://github.com/jprichardson/node-fs-extra.git",
+            "gitHead": "176ad6a6dbdec503c2d79fa70d17df32dff49972",
+            "tarball": "https://registry.npmjs.org/fs-extra/-/fs-extra-11.3.0.tgz",
+            "integrity": "sha512-Z4XaCL6dUDHfP/jT25jJKMmtxvuwbkrD1vNSMFlo9lNLY2c5FHYSQgHPRZUjAB26TpDEoW9HCOgplrdbaPV/ew==",
+            "license": "MIT"
+        },
+        {
+            "name": "json5",
+            "version": "2.2.3",
+            "registry": "https://registry.npmjs.org/json5/2.2.3",
+            "repository": "git+https://github.com/json5/json5.git",
+            "gitHead": "c3a75242772a5026a49c4017a16d9b3543b62776",
+            "tarball": "https://registry.npmjs.org/json5/-/json5-2.2.3.tgz",
+            "integrity": "sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==",
+            "license": "MIT"
+        },
+        {
+            "name": "minimist",
+            "version": "1.2.8",
+            "registry": "https://registry.npmjs.org/minimist/1.2.8",
+            "repository": "git://github.com/minimistjs/minimist.git",
+            "gitHead": "6901ee286bc4c16da6830b48b46ce1574703cea1",
+            "tarball": "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz",
+            "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
+            "license": "MIT"
+        },
+        {
+            "name": null,
+            "version": null,
+            "registry": "https://registry.npmjs.org/nona/file:../../..",
+            "repository": null,
+            "gitHead": null,
+            "tarball": null,
+            "integrity": null,
+            "license": null
+        },
+        {
+            "name": "p-limit",
+            "version": "6.2.0",
+            "registry": "https://registry.npmjs.org/p-limit/6.2.0",
+            "repository": "git+https://github.com/sindresorhus/p-limit.git",
+            "gitHead": "7d14b3f04aa990f621a853e24e2a4b796baf1ec9",
+            "tarball": "https://registry.npmjs.org/p-limit/-/p-limit-6.2.0.tgz",
+            "integrity": "sha512-kuUqqHNUqoIWp/c467RI4X6mmyuojY5jGutNU0wVTmEOOfcuwLqyMVoAi9MKi2Ak+5i9+nhmrK4ufZE8069kHA==",
+            "license": "MIT"
+        },
+        {
+            "name": "undici",
+            "version": "7.16.0",
+            "registry": "https://registry.npmjs.org/undici/7.16.0",
+            "repository": "git+https://github.com/nodejs/undici.git",
+            "gitHead": "7392d6f9f565e550e9047458c275ae77aeaefbb9",
+            "tarball": "https://registry.npmjs.org/undici/-/undici-7.16.0.tgz",
+            "integrity": "sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g==",
+            "license": "MIT"
+        },
+        {
+            "name": "workerpool",
+            "version": "9.3.4",
+            "registry": "https://registry.npmjs.org/workerpool/9.3.4",
+            "repository": "git://github.com/josdejong/workerpool.git",
+            "gitHead": "c15cebc11625f8a91abc442e876cb459b57297a3",
+            "tarball": "https://registry.npmjs.org/workerpool/-/workerpool-9.3.4.tgz",
+            "integrity": "sha512-TmPRQYYSAnnDiEB0P/Ytip7bFGvqnSU6I2BcuSw7Hx+JSg/DsUi5ebYfc8GYaSdpuvOcEs6dXxPurOYpe9QFwg==",
+            "license": "Apache-2.0"
+        }
+    ]
+}
