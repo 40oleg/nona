@@ -46,7 +46,7 @@ O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções docume
 
 A maioria dos recursos de edições posteriores não é suportada. Adições suportadas:
 
-- ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`.
+- ES2021: separadores numéricos, atribuição lógica (`&&=`, `||=`, `??=`), `Promise.any` e `AggregateError`, `String.prototype.replaceAll`, `WeakRef`, `FinalizationRegistry`, `Promise.try` (ES2025).
 - ES2022: campos de classe, métodos e acessores privados, blocos estáticos, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` em Error e a flag `d` de RegExp com índices de correspondência.
 - ES2022: `await` no nível superior em módulos ES, com a ordem de avaliação de módulos async, ciclos e propagação de rejeição.
 - ES2023: `findLast` e `findLastIndex`, e os métodos de cópia de `Array` `toSorted`, `toReversed`, `toSpliced` e `with` (e as variantes de `%TypedArray%` de `toSorted`, `toReversed` e `with`).

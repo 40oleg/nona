@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Language
+
+- `Promise.try(fn, ...args)` (ES2025) calls `fn` and returns a promise for its result or its thrown error. ([#317](https://github.com/40oleg/nona/issues/317))
+
 ## v0.17.0 — 2026-10-18
 
 Highlights: ES2023 TypedArray methods, ES2024 RegExp v flag, development improvements.
