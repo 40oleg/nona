@@ -6,6 +6,10 @@
 
 - ES2023 `%TypedArray%.prototype.toSorted`, `toReversed` and `with` ([#309](https://github.com/40oleg/nona/issues/309)). The result is a new array of the receiver's intrinsic type (no species), `with` throws `RangeError` for an index outside the current length after coercing the value. The code is part of the `es2021` prelude, linked when a program names `toSorted`, `toReversed` or `with`
 
+### Development
+
+- CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
+
 ## v0.16.0 — 2026-10-17
 
 Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.
