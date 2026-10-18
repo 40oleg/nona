@@ -1168,7 +1168,8 @@ var __nonaPromiseDrainJobs = (function () {
             if (record.failed) throw record.error;
             return;
         }
-        if (record.status === 1) return;
+        // Evaluating, or evaluating-async (3, see top-level-await.js).
+        if (record.status !== 0) return;
         record.status = 1;
         try {
             instantiateModule(index);
@@ -1226,11 +1227,13 @@ var __nonaPromiseDrainJobs = (function () {
         paths: modulePaths,
         builtins: builtinModules,
         evaluate: evaluateModule,
+        instantiate: instantiateModule,
         linkError: linkError,
         newPromiseState: newPromiseState,
         enqueue: enqueueCallback,
         settle: settle,
         resolve: resolveState,
+        performThen: performThen,
         append: append,
     };
     // Dynamic async function constructors are part of the documented

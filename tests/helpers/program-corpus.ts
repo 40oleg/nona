@@ -124,7 +124,10 @@ export function registerProgramShard(shard: number): void {
                 item.stdout,
                 `${item.file}: Node.js output differs from reviewed snapshot`,
             );
-            for (const gcStress of [false, true]) {
+            // NONA_GC_STRESS=off (CI on pull requests, #372): one normal run.
+            for (const gcStress of process.env.NONA_GC_STRESS === "off"
+                ? [false]
+                : [false, true]) {
                 const native = runOnHost(source, { gcStress });
                 const context = `${item.file}, gcStress=${gcStress}`;
                 assert.ifError(native.error);
