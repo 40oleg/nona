@@ -17,6 +17,8 @@
 
 Классификацию выполняет `scripts/test262-summary.mjs`: тесты «`eval`» вызывают `eval` или `$262.evalScript` с исходным текстом, который Nona не может знать при компиляции; тесты «более новой семантики» проверяют поведение из поздних изданий (флаг `v`, разделители в числах, `Promise.any`, …) под старым или отсутствующим тегом возможности. Модульный набор тестов в CI запускается на Windows и Linux, компилирует и исполняет настоящие файлы PE и ELF, многие — под GC stress. Как запускать аудиты, описано на странице [Test262](/ru/reference/test262).
 
+Более позднее изменение, измерено 2026-10-16 на Windows x64 с `TEST262_EXCLUDE_FEATURES=post-es2020`: символы как ключи WeakMap и значения WeakSet (ES2023, [#310](https://github.com/40oleg/nona/issues/310)) проходят, `built-ins/WeakMap` 102/102 и `built-ins/WeakSet` 85/85. Остальная таблица выше не изменилась.
+
 ## Методы копирующего изменения массивов
 
 Проверено после аудита на закреплённой версии Test262 (Windows x64, [#308](https://github.com/40oleg/nona/issues/308)): каталоги `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` и `Symbol.unscopables` проходят 94 из 94, без оставшихся отказов. Варианты `%TypedArray%` не реализованы; см. [базу Test262](https://github.com/40oleg/nona/blob/main/docs/test262.md) (на английском).
