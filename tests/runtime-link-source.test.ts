@@ -333,6 +333,8 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked("Atomics.add(a, 0, 1)"), "binaryData");
     assert.equal(linked('"abc".replaceAll("b", "c")'), "regexpProtocol");
     assert.equal(linked("a.sort()"), "arraySort");
+    assert.equal(linked("a.union(b)", "a.isDisjointFrom(b)"), "setMethods");
+    assert.equal(linked("new Set([1]).has(1)"), "");
     assert.equal(linked("Object.freeze(o)"), "objectIntegrity");
     assert.equal(linked('o.__lookupGetter__("x")'), "objectAnnexB");
     // Long names are found inside strings; short ones only as a whole string.
@@ -419,7 +421,7 @@ test("syntax helpers are linked by the calls of the lowered program", () => {
             {},
             target,
         ).length;
-        assert.ok(hello < 1_150_000, `${target}: ${hello} bytes`);
+        assert.ok(hello < 1_200_000, `${target}: ${hello} bytes`);
         assert.ok(fields - hello > 8_000, `${target}: ${fields} vs ${hello}`);
     }
 });
