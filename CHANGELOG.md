@@ -6,6 +6,10 @@
 
 - **The `v` flag (`unicodeSets`, ES2024).** Set operations `--` and `&&`, nested classes, `q{...}` string literals, properties of strings (`p{RGI_Emoji}` and six more) and the stricter syntax of the flag, plus the `RegExp.prototype.unicodeSets` getter. The v-mode matcher is linked only for programs that use the flag, and the emoji data only when a property of strings is named (link part `unicodeStringProperties`, for `--link`). Test262 `regexp-v-flag`: 185/187. ([#314](https://github.com/40oleg/nona/issues/314))
 
+### Development
+
+- CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
+
 ## v0.16.0 — 2026-10-17
 
 Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.
