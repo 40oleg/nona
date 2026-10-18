@@ -314,6 +314,17 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked('new AsyncResource("task")'), "asyncHooks");
     assert.equal(linked("setTimeout(f, 1)", "clearInterval(id)"), "timers");
     assert.equal(linked("a.at(-1)", 'Object.hasOwn(o, "x")'), "es2021");
+    assert.equal(linked("Iterator.from(it).map(f)"), "iteratorHelpers");
+    assert.equal(linked("gen().filter(f).toArray()"), "iteratorHelpers");
+    assert.equal(linked("class X extends Iterator {}"), "iteratorHelpers");
+    // The common method names alone do not select the iterator helpers.
+    assert.equal(
+        linked(
+            "a.map(f).filter(g).reduce(h, 0)",
+            "a.forEach(f); a.some(f); a.every(f); a.find(f)",
+        ),
+        "",
+    );
     assert.equal(linked("s.isWellFormed()"), "wellFormed");
     assert.equal(linked("s.toWellFormed()"), "wellFormed");
     assert.equal(linked("new WeakRef(o).deref()"), "weakRef");
@@ -399,6 +410,24 @@ test("binary data methods and the RegExp protocol are linked only when reachable
             protocol - hello > 80_000,
             `${target}: ${protocol} vs ${hello}`,
         );
+    }
+});
+
+test("iterator helpers are linked only when reachable", () => {
+    for (const target of ["win32-x64", "linux-x64"] as const) {
+        const hello = image('console.log("hi");', {}, target).length;
+        const linked = image(
+            'console.log("hi");',
+            { link: ["iteratorHelpers"] },
+            target,
+        ).length;
+        const used = image(
+            "function* g() { yield 1; } console.log(g().toArray().length);",
+            {},
+            target,
+        ).length;
+        assert.ok(linked - hello > 8_000, `${target}: ${linked} vs ${hello}`);
+        assert.ok(used - hello > 8_000, `${target}: ${used} vs ${hello}`);
     }
 });
 

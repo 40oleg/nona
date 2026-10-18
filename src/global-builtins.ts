@@ -55,6 +55,7 @@ export const mutableGlobalNames: ReadonlySet<string> = new Set([
     "TextDecoder",
     "Intl",
     "process",
+    "Iterator",
     ...hostGlobalNames,
     "Math",
     "JSON",

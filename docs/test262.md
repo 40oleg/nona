@@ -169,6 +169,22 @@ String and `flags` tests) passes except two (185/187):
 `prototype/unicodeSets/this-val-regexp.js` also use the `d` flag, so they stay
 classified `post`.
 
+Iterator helpers (ES2025, #322) are implemented, so `iterator-helpers` is no
+longer in `postEs2020Features` (`iterator-sequencing`, `joint-iteration`,
+`iterator-chunking`, `iterator-includes` and `Iterator.prototype.join` still
+are). On the pinned revision (Windows x64, 2026-10-16) with
+`TEST262_EXCLUDE_FEATURES=post-es2020`:
+
+- `built-ins/Iterator`: 394 pass, 0 fail.
+- The other files tagged `iterator-helpers`:
+  `built-ins/Object/prototype/toString` 4 pass; `staging/sm/Iterator` 172
+  pass, 2 fail. Both failures (`from/wrap-functions-on-other-global.js`,
+  `prototype/iterator-helpers-from-other-global.js`) call one realm's helper
+  methods on another realm's Iterator Helper or wrapper object. The internal
+  slots live in a per-realm table, so the brand check throws a TypeError;
+  sharing them across realms would need a native hook like the one the Promise
+  job queue uses.
+
 RegExp pattern modifiers (ES2025, `regexp-modifiers`, issue #320) are supported
 and no longer in `postEs2020Features`: `built-ins/RegExp/regexp-modifiers`, the
 modifier early errors in `built-ins/RegExp` and `language/literals/regexp` run

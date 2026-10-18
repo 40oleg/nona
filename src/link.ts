@@ -154,6 +154,10 @@ export const preludeTriggers = {
     weakRef: ["WeakRef"],
     // FinalizationRegistry and its cleanup jobs; shares the native part of WeakRef.
     finalizationRegistry: ["FinalizationRegistry"],
+    // map, filter, reduce, forEach, some, every and find are in almost every
+    // program, so only the rarer names select the iterator helpers: a program
+    // that calls nothing but e.g. gen().map(f) needs --link iteratorHelpers.
+    iteratorHelpers: ["Iterator", "toArray", "take", "drop", "flatMap"],
     annexB: [
         "escape",
         "unescape",
