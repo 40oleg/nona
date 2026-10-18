@@ -407,3 +407,71 @@ no corrections made to audited artifacts. The initial verdict remains
 **changes requested**. Step 5 should correct/document these findings, then step
 6 should independently re-review the corrected report/matrix and record the
 final verdict against their new commit and hashes. Issue #394 is not complete.
+
+## Step 5 author resolution record
+
+Appended by the implementation coordinator on **2026-10-18 UTC / 2026-10-19
+Moscow**, starting from review commit
+`0962f7345ed1f79096c99b0a982740f4c0c0ec35`. Everything above remains the original
+independent review, including its **changes requested** verdict. This appendix
+records corrections and author validation; it neither revises that verdict nor
+supplies step-6 independent approval. Matrix reconciliation was delegated with
+**gpt-6-astra/high** requested; actual model routing/tier assignment is not
+independently verified here. That implementation agent did not conduct final review.
+
+| Finding                                                   | Author disposition and correction                                                                                                                                                                                                                                                                                                                                                                                                                                            | Evidence and remaining limit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RV1 — Stale matrix limitations and evidence-needed fields | Corrected for re-review. Reviewed every such field against recorded outcomes; removed obsolete step-2/3 planning claims, reconciled Windows/Linux file and target observations, retained exact Test262 denominators and separated completed source comparison from unperformed experiments. `ecosystem.comparisons` changes from unknown to partial; no row becomes fully verified.                                                                                          | [Corrected matrix](completeness-matrix.json), [report correction record](completeness-audit.md#step-5-corrections-and-validation), [strict validator and 14 focused tests](evidence/completeness/step5-validation.json), [bounded Windows replay](evidence/completeness/step5-windows-x64.json), [eight-file replay](evidence/completeness/step5-test262-windows.json). Windows/Linux package failures remain. Build fields also record playground image generation on all eight targets, explicitly distinct from execution; six targets remain locally unexecuted. |
+| RV2 — Later release metadata and Linux evidence           | Corrected through an explicit frozen-snapshot decision and dated addendum. GitHub's v0.19.0 publication and #390 merge are separate observations; the audited compiler SHA, v0.18.0 comparison, source blobs and row release relationships remain unchanged. Incorporated the review's four Windows-built WSL2 Linux x64 cases and Windows identity check at their exact scope. Updated English/Russian README, docs index, changelog and all nine site module entry points. | [Dated report addendum](completeness-audit.md#dated-release-and-review-addendum), [original cross-target evidence](evidence/completeness/review-cross-target.json), [release/PR responses and validation](evidence/completeness/step5-validation.json). v0.19.0 source/artifacts were not substituted or verified; no Linux Node oracle/compiler-host build. fs-extra still fails; transitive installed fixture bytes remain unverified.                                                                                                                             |
+
+The unchanged baseline evidence registry, original per-row release relationships
+and prior execution records are preserved. New evidence is additive. The matrix
+and report agree on 140 rows: 58 implemented-unverified, 59 partial, 16 missing,
+three intentionally unsupported, four unknown, zero implemented-verified.
+Summary failure states preserve a failed recorded sample alongside successes;
+they do not claim universal platform failure. Repeated Test262 observations
+cover the same eight files and are not added to the distinct-file denominator.
+
+Author validation and environment are recorded in the report's
+[step-5 section](completeness-audit.md#step-5-corrections-and-validation) and
+[raw command record](evidence/completeness/step5-validation.json). The complete
+`npm run check`/`npm test` suite is intentionally omitted under the user's final
+shared-machine instruction; focused tests, bounded probes and docs/site checks
+are used instead. Runtime/compiler feature implementation and #392 benchmarks
+remain outside this step. No `full-ci`/`gc-stress` label is required by this diff.
+
+Remaining limitations are accepted as explicit scope, not reviewer approval:
+fs-extra/Undici/workerpool root causes; untested API/options and six target
+executions; fresh transitive fixture authentication; Linux compiler/Node oracle;
+v0.19.0 archive/source comparison; long-lived memory/network/TLS/FFI assurance;
+current comparable performance; full-suite and final independent review.
+None is silently converted into a pass or implemented feature.
+
+Step 6 must independently inspect RV1's named rows and a sample of other
+limitations, the updated target build/execution distinction, RV2's frozen
+release comparison, the public entry points and the final artifacts identified
+below before recording its own verdict. Issue #394 remains incomplete.
+
+### Corrected artifacts for step 6
+
+These SHA-256 values identify the corrected files in the commit containing this
+appendix; they bind the resolution table to exact report/matrix bytes without
+requiring a self-referential commit ID. Step 6 should also record the correction
+commit SHA and its own final verdict. The original step-3 input hashes at the
+top of this record remain unchanged.
+
+| Artifact                        | SHA-256 after corrections and formatting                           |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `docs/completeness-audit.md`    | `17b7aec4b4dad098a46c95154b58542c0b0ae6fa942a004e01e8351e824dfc15` |
+| `docs/completeness-matrix.json` | `0cb27f8bb1c404fa230f71897ead162b2efcc4bbb1136fa41a59ce7a72057aa3` |
+
+The author integrity check preserved all 446 evidence records, all 140
+capability IDs/release relationships, all 47 prior execution records and ten
+historical evidence files. It also confirmed that the complete original review
+is an exact unchanged prefix of this file. The new validation record retains
+these checks and the corrected hashes. Verify them from the checkout with:
+
+```powershell
+Get-FileHash -Algorithm SHA256 docs/completeness-audit.md, docs/completeness-matrix.json
+git log -1 --format='%H' -- docs/completeness-audit.md docs/completeness-matrix.json
+```

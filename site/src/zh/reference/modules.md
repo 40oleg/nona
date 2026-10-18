@@ -1,6 +1,6 @@
 # 内置模块与全局对象
 
-[完整性审计](/reference/completeness-audit)（英文）记录了 API 限制、有限的 Windows x64 包测试结果、比较、风险和优先路线图。独立审查尚未完成。
+[完整性审计](/reference/completeness-audit)（英文）记录 API 限制、有限的 Windows x64 样例及在 Windows 编译后于 WSL2 运行的 Linux x64 样例、比较、风险和按优先级排序的路线图。已记录首次独立审查和修正；最终独立复审仍待进行。
 
 Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译器的一部分：原生运行时和小型 JavaScript 前导代码会编译进每个可执行文件，内置模块则在程序导入时编译进去。
 

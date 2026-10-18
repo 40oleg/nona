@@ -1,6 +1,6 @@
 # Modules intégrés et objets globaux
 
-L’[audit de complétude](/reference/completeness-audit) (en anglais) présente les limites des API, des tests limités de paquets sur Windows x64, des comparaisons, les risques et une feuille de route priorisée. La revue indépendante reste à faire.
+L’[audit de complétude](/reference/completeness-audit) (en anglais) présente les limites des API, des essais limités sur Windows x64 et sur Linux x64 compilés sous Windows puis exécutés dans WSL2, les comparaisons, les risques et les priorités. La première revue indépendante et les corrections sont consignées ; la revue indépendante finale reste à effectuer.
 
 Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous font partie du compilateur : le runtime natif et de petits préludes JavaScript sont compilés dans chaque exécutable, et les modules intégrés le sont lorsqu’un programme les importe.
 

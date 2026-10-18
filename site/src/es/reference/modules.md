@@ -1,6 +1,6 @@
 # Módulos integrados y globales
 
-La [auditoría de completitud](/reference/completeness-audit) (en inglés) recoge límites de API, pruebas limitadas de paquetes en Windows x64, comparaciones, riesgos y una hoja de ruta priorizada. La revisión independiente está pendiente.
+La [auditoría de completitud](/reference/completeness-audit) (en inglés) registra límites de las API, muestras acotadas de Windows x64 y de Linux x64 compiladas en Windows y ejecutadas en WSL2, comparaciones, riesgos y una hoja de ruta priorizada. La revisión independiente inicial y las correcciones están registradas; la revisión independiente final sigue pendiente.
 
 Los programas de Nona se ejecutan sin Node.js. Las APIs del host que se describen a continuación forman parte del compilador: el runtime nativo y pequeños preludios de JavaScript se compilan en cada ejecutable, y los módulos integrados se compilan cuando un programa los importa.
 

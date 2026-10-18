@@ -4,7 +4,7 @@
 
 ### Documentation
 
-- Add the v0.20.0 [completeness and readiness report](docs/completeness-audit.md): commit-pinned capability/API inventory, reproducible package probes and bounded Windows x64 evidence, compiler/assurance analysis, versioned alternatives, risk register and prioritized roadmap. Publish the report on the documentation site with consistent translated entry points; independent review remains pending. ([#394](https://github.com/40oleg/nona/issues/394))
+- Add the v0.20.0 [completeness and readiness report](docs/completeness-audit.md): commit-pinned capability/API inventory, reproducible package probes and bounded Windows x64/WSL2 Linux x64 evidence, compiler/assurance analysis, versioned alternatives, risk register and prioritized roadmap. Publish the report on the documentation site with consistent translated entry points; record initial independent review, corrections and a dated later-release addendum while preserving the original audit baseline. Final independent re-review remains pending. ([#394](https://github.com/40oleg/nona/issues/394))
 
 ### Runtime
 

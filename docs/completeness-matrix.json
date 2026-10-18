@@ -3,8 +3,8 @@
     "schemaDocumentation": "completeness-audit.md#inventory-schema-v1",
     "audit": {
         "issue": 394,
-        "step": 3,
-        "state": "readiness-report-pending-independent-review",
+        "step": 5,
+        "state": "review-findings-corrected-pending-final-independent-review",
         "reportDate": "2026-10-18",
         "baselineCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
         "planningCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
@@ -32,7 +32,7 @@
             "configuredCiNode": "26.9.0",
             "typescript": "7.0.2"
         },
-        "runtimeTargetsExecuted": ["win32-x64"],
+        "runtimeTargetsExecuted": ["win32-x64", "linux-x64"],
         "claim": {
             "labels": [
                 "blocked",
@@ -51,7 +51,7 @@
             "state": "OPEN",
             "labels": ["blocked", "enhancement", "complex"],
             "linkedPrs": [],
-            "action": "Rechecked issue/timeline on 2026-10-18 UTC in step 3: still open/blocked, no completed report available; retain historical PERFORMANCE.md limits without competing benchmarks."
+            "action": "Rechecked issue/timeline on 2026-10-18 UTC in step 3: still open/blocked, no completed report available; retain historical PERFORMANCE.md limits without competing benchmarks. Step-5 read-only check at 21:31 UTC again found #392 open/blocked without a closing PR; no new benchmarks."
         },
         "openPrsExcluded": [
             {
@@ -64,14 +64,8 @@
                 "head": "c6500913b70d062f0ae380c9ada7f9fc72ac460d",
                 "scope": "nona: documentation aliases (#391)"
             },
-            {
-                "number": 369,
-                "scope": "Markdown/release CI filtering (#368)"
-            },
-            {
-                "number": 286,
-                "scope": "Unmerged Lean int32 experiment (#284)"
-            }
+            { "number": 369, "scope": "Markdown/release CI filtering (#368)" },
+            { "number": 286, "scope": "Unmerged Lean int32 experiment (#284)" }
         ],
         "mergedSinceRelease": [
             {
@@ -90,7 +84,7 @@
                 "scope": "Float16Array/Math.f16round/DataView float16"
             }
         ],
-        "executionPolicy": "Step 2: sequential opt-in native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap not run locally. Historical CI is recorded separately. Passing samples do not verify every method/target in a broad row. Step 3 adds source/comparison/readiness analysis, focused validation and site build/checks; independent review remains for steps 4-6.",
+        "executionPolicy": "Step 2 ran sequential native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap were not run in that step. Step 3 added source/comparison/readiness analysis, focused validation and site checks. Step 4 independently replayed selected Windows cases and cross-compiled four ELF cases on Windows for WSL2 Linux x64 execution, without a Linux Node oracle or CPU emulation. Historical CI remains separate. Step 5 reconciles those retained observations; final independent re-review is pending. Passing samples do not verify every method/target in a broad row.",
         "structuralChecks": [
             {
                 "command": "node scripts/check-completeness-inventory.mjs --git",
@@ -128,6 +122,46 @@
             "test262Local": "docs/evidence/completeness/test262-local.json",
             "test262Ci": "docs/evidence/completeness/test262-ci-summary.json",
             "ci": "docs/evidence/completeness/ci-observations.json"
+        },
+        "correctionDate": "2026-10-18",
+        "snapshotScope": "metadataObservedAt, latestLocalTag, publishedRelease, openPrsExcluded, mergedSinceRelease and all release relationships preserve the original v0.18.0 comparison snapshot. Later release and execution observations are additive in reviewAddendum; no v0.19.0 source or executable baseline is substituted.",
+        "reviewAddendum": {
+            "reviewDateUtc": "2026-10-18",
+            "correctionDate": "2026-10-18",
+            "record": "docs/completeness-review.md",
+            "reviewedCheckout": "1a9e10510629efc3db1fac4edf6468f3c488cfdb",
+            "initialVerdict": "changes-requested",
+            "correctionState": "RV1/RV2 reconciled for final independent review; no reviewer approval asserted",
+            "latestReleaseObserved": {
+                "tag": "v0.19.0",
+                "publishedAt": "2026-10-18T21:10:48Z",
+                "url": "https://github.com/40oleg/nona/releases/tag/v0.19.0",
+                "basis": "Independent step-4 GitHub releases/latest query, after the report's 21:05 UTC release check; retains v0.18.0 as the immutable source-comparison baseline. Step 5 rechecked releases/latest; exact response is in docs/evidence/completeness/step5-validation.json.",
+                "sourceComparisonRefreshed": false,
+                "checkedAt": "2026-10-18T21:31:55Z"
+            },
+            "releasePr": {
+                "number": 390,
+                "state": "MERGED",
+                "mergedAt": "2026-10-18T20:36:05Z",
+                "mergeCommit": "0dbf4c5fc1477a5f463fc3ba8166e45eaa97dba1",
+                "url": "https://github.com/40oleg/nona/pull/390",
+                "scope": "Later state of the PR listed as open in the original 20:14 UTC snapshot; merge SHA is not a substituted audited baseline."
+            },
+            "windowsEvidence": "docs/evidence/completeness/review-windows-x64.json",
+            "crossTargetEvidence": "docs/evidence/completeness/review-cross-target.json",
+            "test262Evidence": "docs/evidence/completeness/review-test262-windows.json",
+            "inspectionEvidence": "docs/evidence/completeness/review-inspection.json",
+            "environment": "Windows 11 x64 compiler and Node 26.9.0 oracle; Ubuntu 22.04.3 LTS x86_64 on WSL2 kernel 6.18.54.1-microsoft-standard-WSL2; no Linux Node installation and no CPU emulation.",
+            "scope": "Windows replay of seven selected package/API cases and eight Test262 files; Windows process-identity sample; four Windows-cross-compiled Linux ELF executions (CLI, fs-extra, GC roots, process identity). Linux fs-extra still fails. Other six targets not executed locally. Existing package installation reused; transitive installed bytes not freshly authenticated with npm ci. No whole-target, whole-package, security or performance certification."
+        },
+        "correctionTimezone": "UTC (2026-10-19 Europe/Moscow)",
+        "executionSummaryPolicy": "build/run summarize only recorded scoped results: any recorded failure takes precedence over passes; not-run means no recorded execution. Targets mirror their platform capability rows. Build includes playground in-memory image generation, which never establishes target execution. Capability status remains independent of these sample outcomes.",
+        "correctionEvidence": {
+            "validation": "docs/evidence/completeness/step5-validation.json",
+            "windows": "docs/evidence/completeness/step5-windows-x64.json",
+            "test262": "docs/evidence/completeness/step5-test262-windows.json",
+            "scope": "Implementation validation, not independent final review. Repeated cases are not new distinct conformance files. Windows probe record identifies checkout 0962f7345ed1f79096c99b0a982740f4c0c0ec35; validation confirms source continuity with the frozen baseline."
         }
     },
     "domains": [
@@ -146,11 +180,11 @@
             "id": "win32-x64",
             "format": "pe",
             "localBuild": "passed",
-            "localRun": "passed",
+            "localRun": "failed",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "Network/child adapters present only on win32-x64/linux-x64. Step 2: 15 artifacts, 11 agreements, 3 runtime failures and one expected worker API-gap response; DNS build failed. These states mean selected probes ran, not full platform compatibility.",
+            "limitations": "Network/child adapters present only on win32-x64/linux-x64. Step 2: 15 artifacts, 11 agreements, 3 runtime failures and one expected worker API-gap response; DNS build failed. These states mean selected probes ran, not full platform compatibility. Step-4 review independently reproduced selected successes/failures and checked absent Windows getuid; see reviewAddendum. localRun=failed retains the observed package failure alongside successes; it is not a claim that every Windows program fails. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -160,12 +194,12 @@
         {
             "id": "linux-x64",
             "format": "elf",
-            "localBuild": "not-run",
-            "localRun": "not-run",
+            "localBuild": "passed",
+            "localRun": "failed",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "Network/child adapters present only on win32-x64/linux-x64.",
+            "limitations": "Network/child adapters present only on win32-x64/linux-x64. Step-4 review cross-compiled four ELF cases on Windows and executed them in WSL2 Ubuntu x86_64: CLI, GC roots and getuid sample pass; fs-extra builds but exits 1 with Nona runtime error. localRun=failed retains that observed failure, not a claim that every Linux program fails. No Linux compiler build or Linux Node oracle; no CPU emulation. See docs/evidence/completeness/review-cross-target.json. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -175,12 +209,12 @@
         {
             "id": "linux-arm64",
             "format": "elf",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "64 KiB page geometry designed for, separate 64 KiB-kernel execution unverified.",
+            "limitations": "64 KiB page geometry designed for, separate 64 KiB-kernel execution unverified. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -190,12 +224,12 @@
         {
             "id": "win32-arm64",
             "format": "pe",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "No hardware unwind or OS stack-walking across generated frames.",
+            "limitations": "No hardware unwind or OS stack-walking across generated frames. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -205,12 +239,12 @@
         {
             "id": "darwin-x64",
             "format": "macho",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld.",
+            "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -220,12 +254,12 @@
         {
             "id": "darwin-arm64",
             "format": "macho",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld.",
+            "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -235,12 +269,12 @@
         {
             "id": "freebsd-x64",
             "format": "elf",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-vm",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "Guest probes; full portable Node oracle suites not configured.",
+            "limitations": "Guest probes; full portable Node oracle suites not configured. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -250,12 +284,12 @@
         {
             "id": "openbsd-x64",
             "format": "elf",
-            "localBuild": "not-run",
+            "localBuild": "passed",
             "localRun": "not-run",
             "configuredExecution": "ci-vm",
             "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "Guest probes; full portable Node oracle suites not configured.",
+            "limitations": "Guest probes; full portable Node oracle suites not configured. Step-5 playground hello/path image generation and byte comparisons pass; this is not target execution.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -5471,7 +5505,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Rope flattening and large replacement/search performance are separate questions; Unicode edge behavior unexecuted.",
+            "limitations": "Rope flattening and large replacement/search performance are separate questions; No dedicated string Unicode edge probe was run; the step-3 RegExp checks do not verify the string-method family.",
             "evidence": {
                 "sources": [
                     "src/runtime/strings.ts",
@@ -5851,7 +5885,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Unreleased at this baseline; map/filter alone do not trigger linking; use --link iteratorHelpers.",
+            "limitations": "Added after the frozen v0.18.0 comparison release; later v0.19.0 publication is recorded in audit.reviewAddendum without rebasing the source comparison. map/filter alone do not trigger linking; use --link iteratorHelpers.",
             "evidence": {
                 "sources": [
                     "src/lib/runtime/iterator-helpers.js",
@@ -5890,7 +5924,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Unreleased addition; source-order and rejection behavior require bounded execution.",
+            "limitations": "Added after the frozen v0.18.0 comparison release; later v0.19.0 publication does not supply new runtime evidence here. Source-order and rejection behavior remain unverified by dedicated local probes.",
             "evidence": {
                 "sources": [
                     "src/lib/runtime/array-from-async.js",
@@ -5982,7 +6016,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Added after v0.18.0; do not report as released behavior.",
+            "limitations": "Added after the frozen v0.18.0 comparison release. The later v0.19.0 release observation is separate; this row does not establish behavior of downloaded release artifacts.",
             "evidence": {
                 "sources": [
                     "src/runtime/float16.ts",
@@ -6484,10 +6518,50 @@
                         "outcome": "passed",
                         "observed": "gc-roots: agreement, exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\program\",\"true\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-gc\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"; expected \"roots 100 value-0 99\\n\"; gcStress=true",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "gc-roots: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=true",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "gc-roots: agreement; exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"; gcStress=true",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only gc-roots on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Retained gc-roots stress samples pass on Windows and WSL2 Linux x64; this checks one closure/container-root case. Expand allocation/exception/native-boundary/weak-lifetime cases and other targets; no memory-safety or root-completeness proof follows."
         },
         {
             "id": "runtime.allocation",
@@ -6830,7 +6904,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "POSIX credentials only; Linux/BSD name resolution scans local passwd/group, without remote NSS/LDAP.",
+            "limitations": "POSIX credentials only; Linux/BSD name resolution scans local passwd/group without remote NSS/LDAP. Review verifies absent Windows getuid and Linux getuid function returning a nonnegative number in WSL2; credential mutation and name resolution remain unexecuted.",
             "evidence": {
                 "sources": [
                     "src/lib/runtime/process-accounts.js",
@@ -6849,11 +6923,52 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-identity\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"identity linux function true\\n\", stderr \"\"; expected \"identity linux function true\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\main.mjs\",\"win32-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\program.exe\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Windows 11 x64 native. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "windows-identity: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\program.exe\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Windows 11 x64 native. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "windows-identity: exit 0, stdout \"identity win32 undefined absent\\n\", stderr \"\"; expected \"identity win32 undefined absent\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Probe remaining credential methods, errors, permissions and name-resolution behavior on supported POSIX targets. No Linux Node oracle was installed for the reviewed getuid case."
         },
         {
             "id": "api.process.report",
@@ -6960,7 +7075,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Byte reads yield Uint8Array, not Buffer; only UTF-8 text; all eight target adapters are source-present, unexecuted here.",
+            "limitations": "Byte reads yield Uint8Array, not Buffer; only UTF-8 text. All eight adapters are source-present; the bounded writeFileSync/readFileSync/unlinkSync CLI case passes on Windows and WSL2 Linux x64. Other methods/options and six other adapters were not executed locally.",
             "evidence": {
                 "sources": [
                     "src/frontend/fs-module.ts",
@@ -6999,10 +7114,50 @@
                         "outcome": "passed",
                         "observed": "cli: agreement, exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\cli.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-cli\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; expected \"cli 3 false input.json\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement; exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 verified only the cli workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Expand method/option and platform coverage beyond the recorded CLI case; fs-extra failure is retained in ecosystem.cli-files without attributing its first failing internal operation. Linux execution used a Windows compiler/oracle, not Linux Node."
         },
         {
             "id": "api.fs.metadata",
@@ -7061,7 +7216,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Node fs contains many more methods/options; these operations are synchronous platform adapters.",
+            "limitations": "Node fs contains many more methods/options; these operations use synchronous platform adapters. The CLI sample checks unlinkSync on Windows and WSL2 Linux x64, not the full mutation family.",
             "evidence": {
                 "sources": [
                     "src/lib/modules/fs-common.js",
@@ -7098,10 +7253,50 @@
                         "outcome": "passed",
                         "observed": "cli: agreement, exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\cli.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-cli\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; expected \"cli 3 false input.json\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement; exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 verified only the cli workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Probe other mutation methods/options and targets separately; do not infer their behavior from the CLI sample or attribute the fs-extra failure without reduction."
         },
         {
             "id": "api.fs.async",
@@ -7187,7 +7382,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "No dedicated local absence probe; source/provider inspection establishes the reported exported-surface gap. A scoped follow-up should test descriptor lifecycle, watcher semantics and bounded-memory streams."
         },
         {
             "id": "api.path",
@@ -7592,7 +7787,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Sample returned telemetry against OS observations before treating placeholders as measurements; current limitations come from source inspection."
         },
         {
             "id": "api.tty",
@@ -7876,7 +8071,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Probe observer/event-loop-delay behavior before any measurement claim; current no-op/zero behavior is source-observed."
         },
         {
             "id": "api.diagnostics-channel",
@@ -7915,7 +8110,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Retain provider-inventory absence; any future implementation needs subscriber lifecycle and instrumentation tests."
         },
         {
             "id": "api.stream.node",
@@ -7935,7 +8130,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Source checks and native stream probes are distinct; backpressure and exact-once callbacks need runtime evidence.",
+            "limitations": "Step-2 and independent step-4 Windows probes reproduce one Writable queue/backpressure/batching/callback/final-state case. This does not establish every stream class, error/abort path, GC-stress behavior or other target.",
             "evidence": {
                 "sources": [
                     "src/lib/runtime/stream-readable.js",
@@ -7977,10 +8172,30 @@
                         "outcome": "passed",
                         "observed": "stream-writable-queues: agreement, exit 0, stdout \"pressure true false 2 true\\nclosed batch:a,b,c|a|b|end 0 true true\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-writable-queues --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "stream-writable-queues: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-writable-queues --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "stream-writable-queues: agreement; exit 0, stdout \"pressure true false 2 true\\nclosed batch:a,b,c|a|b|end 0 true true\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only stream-writable-queues on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Expand backpressure, exact-once callback, error, cancellation and teardown cases beyond stream-writable-queues; the review replay did not use GC stress."
         },
         {
             "id": "api.stream.helpers",
@@ -8129,7 +8344,7 @@
             "visibility": "public",
             "surfaces": ["net.connect hostname"],
             "affectedTargets": ["win32-x64", "linux-x64"],
-            "limitations": "Not node:dns API coverage; inspect resolver behavior/timeouts and host configuration in step 2.",
+            "limitations": "Not node:dns API coverage; resolver behavior/timeouts and host configuration remain unverified by dedicated local probes.",
             "evidence": {
                 "sources": [
                     "src/lib/modules/net-common.js",
@@ -8305,6 +8520,26 @@
                         "outcome": "passed",
                         "observed": "tls-verification: agreement, exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "tls-verification: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "tls-verification: agreement; exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
@@ -8362,6 +8597,26 @@
                         "outcome": "passed",
                         "observed": "tls-verification: agreement, exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "tls-verification: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "tls-verification: agreement; exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
@@ -8462,7 +8717,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Probe import-form differences and exact errors on real non-x64 targets; source inventory exclusion and explicit throwing providers are distinct."
         },
         {
             "id": "api.http2",
@@ -8551,7 +8806,7 @@
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only dns-api on win32-x64; exact scoped results in execution.results. No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "The Windows dns-api probe records unresolved node:dns at compilation. Add separate dgram/dns-promises and resolver-contract probes before expanding the evidence beyond that import failure."
         },
         {
             "id": "api.fetch-websocket",
@@ -8598,7 +8853,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "No dedicated local absence probe; source/provider search supports the reported gap. Future scope needs Request/Response, backpressure and protocol lifecycle tests."
         },
         {
             "id": "api.crypto.random",
@@ -8722,7 +8977,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Source/provider inspection only; public key/signing/SubtleCrypto service contracts and security review are separate follow-up prerequisites."
         },
         {
             "id": "api.child-process.x64",
@@ -8908,6 +9163,26 @@
                         "outcome": "passed",
                         "observed": "worker-api: expected-api-gap, exit 0, stdout \"worker ERR_NONA_UNSUPPORTED\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases worker-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "worker-api: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases worker-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "worker-api: expected-api-gap; exit 0, stdout \"worker ERR_NONA_UNSUPPORTED\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
@@ -8951,7 +9226,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Probe actual MessageChannel/MessagePort construction and transfer lifecycle before claiming a usable messaging service."
         },
         {
             "id": "api.zlib.codecs",
@@ -9358,7 +9633,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "No dedicated local absence probe; retain source-search scope and define an execution/linking contract before implementation or compatibility claims."
         },
         {
             "id": "api.dom",
@@ -9397,7 +9672,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Intentionally outside the standalone host contract; no DOM-compatibility probe is required to complete this audit."
         },
         {
             "id": "api.addons",
@@ -9436,7 +9711,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Intentional documented AOT boundary; a representative addon rejection case could improve diagnostics evidence, without requiring addon implementation."
         },
         {
             "id": "api.internal-modules",
@@ -9590,7 +9865,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Artifact generation is not execution; foreign CPU/OS needs real target or explicitly recorded emulator.",
+            "limitations": "Step-4 review compiled four linux-x64 ELF cases on Windows and executed them in WSL2 x86_64; three agree with scoped expectations and fs-extra fails. All eight targets also have step-3/5 hello/path playground image comparisons, with no execution on the other six. CLI/release distribution paths remain unverified locally.",
             "evidence": {
                 "sources": ["src/target.ts", "src/compiler.ts"],
                 "tests": ["tests/native-targets.test.ts"],
@@ -9607,11 +9882,92 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "failed",
+                "results": [
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\cli.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-cli\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; expected \"cli 3 false input.json\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\filesystem.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-filesystem\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-filesystem: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-filesystem\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "linux-filesystem: exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"; expected \"filesystem 5\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\program\",\"true\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-gc\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"; expected \"roots 100 value-0 99\\n\"; gcStress=true",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-identity\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"identity linux function true\\n\", stderr \"\"; expected \"identity linux function true\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Expand target/format coverage with real target or explicitly recorded emulator; cross-compilation alone does not verify execution or released archive behavior."
         },
         {
             "id": "packaging.reproducibility",
@@ -9759,7 +10115,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Historical CI claims exist; not re-run at audited SHA. Bootstrap orchestration still uses Node; native CLI smoke differs from full fixed-point proof on every target.",
+            "limitations": "Historical self-hosting CI at the audited SHA succeeded: x64 stage-2 identity with Node absent from PATH, and other-platform smoke mode. No local bootstrap rerun. Bootstrap orchestration uses Node; smoke is not a fixed-point proof on every target.",
             "evidence": {
                 "sources": [
                     "scripts/bootstrap-selfhost.mjs",
@@ -9784,7 +10140,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Retain CI/local distinction; reproduce fixed-point builds across required targets/environments and verify complete release artifacts before broader claims."
         },
         {
             "id": "dx.compiler-api",
@@ -9880,7 +10236,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "No dedicated local probe; source resolver hooks do not establish embedding/plugin lifecycle. A separately scoped API contract is needed."
         },
         {
             "id": "dx.diagnostics",
@@ -10018,7 +10374,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "No dedicated local debugging probe; source search and placeholder source-map API establish the reported limitation, not a complete debugger experiment."
         },
         {
             "id": "dx.profiling",
@@ -10112,7 +10468,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Confirm distributed tooling/editor artifacts and migration contracts separately; implementation in TypeScript is not application TypeScript support."
         },
         {
             "id": "dx.docs-playground",
@@ -10132,7 +10488,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Browser downloads artifacts; does not execute foreign native programs. Docs contain mixed-age claims; sample checks are bounded.",
+            "limitations": "Step-3 validation built the site, checked links and 22 Windows/Linux x64 sample builds, and passed 18 browser/Node image comparisons plus a syntax diagnostic after canonical modulePath correction; exact commands/results are in the report. Browser generation does not execute foreign native programs. Mixed-age docs and broad DX behavior remain outside these checks.",
             "evidence": {
                 "sources": [
                     "site/playground/worker.js",
@@ -10157,7 +10513,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Revalidate affected entry points after changes; retain distinction between browser artifact equality, link/sample checks and native runtime execution."
         },
         {
             "id": "assurance.test262",
@@ -10177,7 +10533,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Revision 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd; old published denominators disagree across docs; no fresh run or overall percentage here.",
+            "limitations": "Revision 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd has 53,597 tracked candidate files excluding _FIXTURE. Local and independent review selections each cover the same eight coalesce files: six native runtime passes and two compile-only syntax-negative passes; 16 group files and 53,589 tree files are outside this selection. Nine retained historical CI reports contain 3,187 runtime passes from 4,231 group files, with 1,044 exclusions. Old published denominators disagree; no whole-suite or edition percentage is claimed.",
             "evidence": {
                 "sources": [
                     "scripts/test262-smoke.mjs",
@@ -10221,10 +10577,30 @@
                         "outcome": "passed",
                         "observed": "6 native runtime executions passed; 2 compile-only negative passes; 0 failed, 0 skipped. Other tree files not run locally.",
                         "artifact": "docs/evidence/completeness/test262-local.json"
+                    },
+                    {
+                        "command": "TEST262_JOBS=1 TEST262_RUNTIME_TIMEOUT_MS=15000 TEST262_DELETE_BINARIES=1 TEST262_FILE_LIST=tests/probes/completeness-test262.txt node scripts/test262-smoke.mjs language/expressions/coalesce",
+                        "environment": "Independent step-4 replay on 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; same eight-file coalesce selection and pinned Test262 revision.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "Same eight-file selection independently reproduced: six compiled native artifacts and two compile-only syntax negatives returning E_SYNTAX. General runner still accepts any compilation failure for these negatives.",
+                        "artifact": "docs/evidence/completeness/review-test262-windows.json"
+                    },
+                    {
+                        "command": "node scripts/test262-smoke.mjs language/expressions/coalesce (same bounded environment/selection)",
+                        "environment": "Independent step-4 replay on 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; same eight-file coalesce selection and pinned Test262 revision.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "Six native runtime passes and two compile-only negative passes; zero failures/skips. Replays the same files rather than adding eight distinct files to the denominator.",
+                        "artifact": "docs/evidence/completeness/review-test262-windows.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Local sample and nine historical CI reports are in docs/completeness-audit.md; 1044 pre-selection CI exclusions are not passes. Remaining edition/variant/target coverage and semantic negative-test validation require follow-up."
+            "evidenceNeeded": "Remaining edition/strictness-variant/target coverage, filter serialization and expected negative-error-class validation require follow-up. The review independently counted files and authenticated CI report hashes; it did not rerun those CI jobs."
         },
         {
             "id": "assurance.regression",
@@ -10244,7 +10620,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Input-specific regression evidence; corpus is authored programs, not npm ecosystem compatibility. No suite execution in inventory step.",
+            "limitations": "Input-specific regression evidence; corpus is authored programs, not npm ecosystem compatibility. Steps 2-4 ran focused audit/runner tests and selected native probes; no full regression/corpus suite was run locally. Historical audited-SHA corpus CI succeeded and is recorded separately.",
             "evidence": {
                 "sources": [
                     "tests/helpers/host.ts",
@@ -10274,7 +10650,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Retain the distinction between focused local checks and historical corpus CI; required runtime behavior needs its own bounded regression evidence. Broad suite/target coverage remains unverified locally."
         },
         {
             "id": "assurance.stress-fuzz",
@@ -10490,7 +10866,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Docs name packages but generally omit pinned reproducible invocations; yargs version guard and argv shape are known migration issues. Step 2 must pin/install/build/run separately.",
+            "limitations": "Pinned minimist 1.2.8 CLI/file sample passes on Windows and WSL2 Linux x64; fs-extra 11.3.0 builds on both but exits 1 with Nona runtime error. Its first failing internal operation remains unknown. yargs version/argv issues remain source/documentation observations, not a tested yargs workload.",
             "evidence": {
                 "sources": [
                     "tests/npm.test.ts",
@@ -10552,10 +10928,90 @@
                         "outcome": "failed",
                         "observed": "filesystem: runtime-failed, exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\cli.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-cli\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; expected \"cli 3 false input.json\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\filesystem.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-filesystem\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-filesystem: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-filesystem\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "linux-filesystem: exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"; expected \"filesystem 5\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement; exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "filesystem: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "filesystem: runtime-failed; exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only cli, filesystem on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Reduce the fs-extra failure and extend methods/input sizes/platforms before broader package claims. Fixture pins/locks and exact commands are retained; review reused the installation without freshly authenticating transitive bytes."
         },
         {
             "id": "ecosystem.json-data",
@@ -10575,7 +11031,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Corpus and hand-tested package list are not a pinned package workload result; runtime eval-based templates remain blocked.",
+            "limitations": "Pinned JSON5 2.2.3 configuration sample passes on Windows, including invalid-input SyntaxError; this is not whole-package or large-input compatibility. Runtime eval-based templates remain blocked.",
             "evidence": {
                 "sources": [
                     "programs/manifest.json",
@@ -10623,7 +11079,7 @@
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only json on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Extend JSON5 syntax/error/input-size coverage and other targets beyond the recorded Windows json case."
         },
         {
             "id": "ecosystem.http",
@@ -10643,7 +11099,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Package pin/lock, build/run transcript and TLS/client/server distinctions needed; only x64 network adapters.",
+            "limitations": "Pinned Express 5.1.0 server sample passes on Windows; Undici 7.16.0 client builds but exits 1 with TypeError: Invalid operation, independently reproduced in review. Exact fixture pins, locks and commands exist. Only two x64 targets have network adapters; no Linux network workload was executed.",
             "evidence": {
                 "sources": [
                     "src/lib/modules/http.js",
@@ -10708,10 +11164,30 @@
                         "outcome": "failed",
                         "observed": "http-client: runtime-failed, exit 1, stdout \"\", stderr \"TypeError: Invalid operation\\n\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-client --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "http-client: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-client --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "http-client: runtime-failed; exit 1, stdout \"\", stderr \"TypeError: Invalid operation\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only http-server, http-client on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Reduce the Undici failure; test persistent server/client lifecycle, cancellation and TLS separately from this loopback sample. Review reused existing dependency installation; no package-wide compatibility or security claim."
         },
         {
             "id": "ecosystem.stream-compression",
@@ -10731,7 +11207,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Missing fs streams and Brotli can block realistic pipelines; package-level backpressure/cancellation tests pending.",
+            "limitations": "Pinned fflate 0.8.2 synchronous chunked-gzip sample passes on Windows; this does not cover its archive APIs or full streaming lifecycle. Missing fs streams and Brotli block other pipelines; package-level backpressure/cancellation remains unverified.",
             "evidence": {
                 "sources": [
                     "src/lib/modules/zlib.js",
@@ -10779,7 +11255,7 @@
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only compression on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Extend codec/stream failure, cancellation and output-limit cases and other targets beyond compression; do not equate synchronous chunk handling with asynchronous backpressure."
         },
         {
             "id": "ecosystem.subprocess-concurrency",
@@ -10799,7 +11275,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Six targets have subprocess stubs; workers/IPC missing. Select representative real packages and distinguish build success from service execution.",
+            "limitations": "Pinned cross-spawn 7.0.6 subprocess and p-limit 6.2.0 promise-concurrency samples pass on Windows; workerpool 9.3.4 builds but exits 1 with ReferenceError: Invalid operation, with first failing operation unknown. Six targets have subprocess stubs; public workers/IPC remain missing.",
             "evidence": {
                 "sources": [
                     "src/frontend/child-process-module.ts",
@@ -10887,14 +11363,14 @@
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only subprocess, concurrency, workers on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Reduce workerpool failure without conflating it with the separate Worker stub probe; test subprocess lifecycle/options and distinguish promise concurrency from CPU workers. Other targets remain unverified for these package workloads."
         },
         {
             "id": "ecosystem.comparisons",
             "domain": "ecosystem",
             "family": "workloads",
             "scope": "Node/V8, Deno, Bun, QuickJS/QuickJS-NG and standalone/AOT comparison baselines.",
-            "status": "unknown",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["alternative runtimes"],
             "affectedTargets": [
@@ -10907,7 +11383,7 @@
                 "freebsd-x64",
                 "openbsd-x64"
             ],
-            "limitations": "Deferred to step 3: pin current primary sources/versions and distinguish runtime bundling from native AOT; no comparative superiority claim in this inventory.",
+            "limitations": "The report contains a dated primary-source comparison: Node 26.9.0, Deno 2.9.7, Bun 1.4.3, QuickJS 2026-06-04, QuickJS-NG 0.17.0 and pinned Static Hermes source. Step 4 checked material packaging/documentation claims. Only the Windows Node oracle was executed; no controlled cross-runtime compatibility, security or performance experiment was performed.",
             "evidence": {
                 "sources": ["PERFORMANCE.md", "package.json"],
                 "tests": [],
@@ -10927,7 +11403,7 @@
                 "run": "not-run",
                 "results": []
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "See docs/completeness-audit.md#versioned-comparisons and docs/completeness-review.md#official-comparison-source-review. Refresh mutable official manuals on future updates; any experimental comparison needs equivalent workloads and environments. Performance remains separately owned by #392."
         },
         {
             "id": "platform.win32-x64",
@@ -10938,7 +11414,7 @@
             "visibility": "public",
             "surfaces": ["--target win32-x64"],
             "affectedTargets": ["win32-x64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess adapters present. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Native Windows build/run samples and selected independent replays exist at the frozen compiler baseline: both successes and package failures are retained. Historical audited-SHA self-hosting CI succeeded, while its check workflow failed on an EPERM cleanup and native-platforms was cancelled without jobs. Network/subprocess adapters exist. This row remains unverified for complete target coverage.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -10962,7 +11438,7 @@
             },
             "execution": {
                 "build": "passed",
-                "run": "passed",
+                "run": "failed",
                 "results": [
                     {
                         "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
@@ -10983,10 +11459,60 @@
                         "outcome": "passed",
                         "observed": "gc-roots: agreement, exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"",
                         "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\main.mjs\",\"win32-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\program.exe\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Windows 11 x64 native. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "windows-identity: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\windows-identity\\\\program.exe\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Windows 11 x64 native. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "windows-identity: exit 0, stdout \"identity win32 undefined absent\\n\", stderr \"\"; expected \"identity win32 undefined absent\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "filesystem: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Independent step-4 replay, 2026-10-18 UTC; Windows 11 x64, Node 26.9.0; sequential. Existing fixture installation reused, transitive bytes not freshly authenticated. Exact argv/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "filesystem: runtime-failed; exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-windows-x64.json"
+                    },
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for win32-x64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
                     }
                 ]
             },
-            "evidenceNeeded": "Step 2 tested only gc-roots on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Extend beyond bounded package/API/GC samples; inspect recorded failures and remaining methods/options before expanding platform claims. Separate local execution, historical CI, artifact generation and emulation."
         },
         {
             "id": "platform.linux-x64",
@@ -10997,7 +11523,7 @@
             "visibility": "public",
             "surfaces": ["--target linux-x64"],
             "affectedTargets": ["linux-x64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess adapters present. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Step-4 review cross-compiled ELF artifacts on Windows and ran four cases in WSL2 Ubuntu x86_64 without CPU emulation: CLI, GC roots and basic getuid pass; fs-extra exits 1 with Nona runtime error. No native Linux compiler build or Linux Node oracle. Historical audited-SHA self-hosting CI is separate; complete platform/API behavior remains unverified.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11020,11 +11546,102 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "failed",
+                "results": [
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\cli.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-cli\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-cli: exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"; expected \"cli 3 false input.json\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\tests\\\\fixtures\\\\completeness\\\\filesystem.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-filesystem\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-filesystem: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-filesystem\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "linux-filesystem: exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"; expected \"filesystem 5\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-gc\\\\program\",\"true\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-gc\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-gc: exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"; expected \"roots 100 value-0 99\\n\"; gcStress=true",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-tools\\\\node.exe\",\"--max-old-space-size=768\",\"scripts/completeness-probes.mjs\",\"--compile\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\main.mjs\",\"linux-x64\",\"C:\\\\Users\\\\oleg\\\\Documents\\\\Codex\\\\2026-10-18\\\\https-github-com-40oleg-nona-harness\\\\nona-harness\\\\.nona\\\\repos\\\\40oleg__nona\\\\worktrees\\\\issue-394\\\\work\\\\completeness-review-execution\\\\linux-identity\\\\program\",\"false\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"{\\\"ok\\\":true,\\\"diagnostics\\\":[]}\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "[\"wsl.exe\",\"-d\",\"Ubuntu\",\"--cd\",\"/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-identity\",\"--exec\",\"timeout\",\"15s\",\"./program\"]",
+                        "environment": "Step-4 independent review, 2026-10-18 UTC; Windows Node 26.9.0 compiler/oracle; Ubuntu 22.04.3 x86_64 under WSL2, no CPU emulation or Linux Node oracle. Exact source/cwd/limits in artifact.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "linux-identity: exit 0, stdout \"identity linux function true\\n\", stderr \"\"; expected \"identity linux function true\\n\"; gcStress=false",
+                        "artifact": "docs/evidence/completeness/review-cross-target.json"
+                    },
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for linux-x64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Reproduce required workloads with a native Linux compiler/oracle and broader OS/API coverage; reduce fs-extra failure. WSL2 sample does not verify native deployment, network/TLS, subprocess behavior or all methods."
         },
         {
             "id": "platform.linux-arm64",
@@ -11035,7 +11652,7 @@
             "visibility": "public",
             "surfaces": ["--target linux-arm64"],
             "affectedTargets": ["linux-arm64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Native platform CI is configured. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11058,11 +11675,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "linux-arm64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for linux-arm64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         },
         {
             "id": "platform.win32-arm64",
@@ -11073,7 +11701,7 @@
             "visibility": "public",
             "surfaces": ["--target win32-arm64"],
             "affectedTargets": ["win32-arm64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Native platform CI is configured. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11096,11 +11724,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-arm64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for win32-arm64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         },
         {
             "id": "platform.darwin-x64",
@@ -11111,7 +11750,7 @@
             "visibility": "public",
             "surfaces": ["--target darwin-x64"],
             "affectedTargets": ["darwin-x64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Native platform CI is configured. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11135,11 +11774,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "darwin-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for darwin-x64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         },
         {
             "id": "platform.darwin-arm64",
@@ -11150,7 +11800,7 @@
             "visibility": "public",
             "surfaces": ["--target darwin-arm64"],
             "affectedTargets": ["darwin-arm64"],
-            "limitations": "Native CI configured; historical docs cite earlier successes, not audited-SHA execution. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "Native platform CI is configured. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11174,11 +11824,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "darwin-arm64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for darwin-arm64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         },
         {
             "id": "platform.freebsd-x64",
@@ -11189,7 +11850,7 @@
             "visibility": "public",
             "surfaces": ["--target freebsd-x64"],
             "affectedTargets": ["freebsd-x64"],
-            "limitations": "CI configured for BSD VM execution with loader/runtime probes; no full Node oracle suite in guest. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "BSD VM CI is configured, without a full Node oracle suite in the guest. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11212,11 +11873,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "freebsd-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for freebsd-x64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         },
         {
             "id": "platform.openbsd-x64",
@@ -11227,7 +11899,7 @@
             "visibility": "public",
             "surfaces": ["--target openbsd-x64"],
             "affectedTargets": ["openbsd-x64"],
-            "limitations": "CI configured for BSD VM execution with loader/runtime probes; no full Node oracle suite in guest. Network and subprocess services unavailable. Local build/run not attempted; compile-only, emulation and historical CI must remain distinct.",
+            "limitations": "BSD VM CI is configured, without a full Node oracle suite in the guest. Historical audited-SHA self-hosting CI used other-platform smoke rather than x64 fixed-point checks; the audited native-platforms run was cancelled without jobs. Network and subprocess services are unavailable. Steps 3 and 5 generated hello/path images in the browser/Node compiler comparison; step-5 byte comparisons pass. No local target program was executed. Image generation, historical CI and native workload verification remain separate.",
             "evidence": {
                 "sources": [
                     "src/target.ts",
@@ -11250,11 +11922,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "passed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "npm --prefix site run check:playground",
+                        "environment": "Step-5 Windows 11 x64, Node 26.9.0; compiler and browser bundle built from frozen source; sequential, V8/libuv/Go pools capped at 2.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "openbsd-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "hello.js and path.mjs compiled for openbsd-x64; browser and Node compiler images match byte-for-byte. In-memory image generation only, no target program execution or application compatibility claim.",
+                        "artifact": "docs/evidence/completeness/step5-validation.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Execute bounded representative workloads on this target; playground image equality does not validate its loader, ABI or OS services. Inspect target skips before expanding support claims."
         }
     ]
 }

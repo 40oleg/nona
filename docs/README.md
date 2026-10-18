@@ -2,7 +2,7 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
-The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report distinguishes local Windows x64 execution from historical CI and unverified claims. Independent review is pending.
+The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report separates native Windows x64 and narrower Windows-built WSL2 Linux x64 execution from historical CI and unverified claims. The frozen v0.18.0 comparison and later v0.19.0 release observation are explicit. [Initial independent review and corrections](completeness-review.md) are recorded; final independent re-review is pending.
 
 | Document                                         | Contents                                                                                                           | Language |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------- |

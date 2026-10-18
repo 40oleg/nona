@@ -1,6 +1,6 @@
 # Completeness and readiness audit for v0.20.0
 
-**Report date: 2026-10-18 UTC. Status: step 3 of 6; report ready for independent review, not a final verdict.**
+**Report date and corrections: 2026-10-18 UTC (2026-10-19 Moscow). Status: step 5 of 6; corrections ready for final independent re-review, not approved.**
 This is the technical report for [#394](https://github.com/40oleg/nona/issues/394),
 covering the Nona JavaScript compiler/runtime. The target milestone is v0.20.0;
 it does not promise that all identified gaps will be fixed in that release.
@@ -27,8 +27,10 @@ Native output exists for eight targets. API coverage is narrower: networking
 and child processes are implemented only for Windows/Linux x64; filesystem
 adapters exist for all eight. Audited-SHA CI gives useful bootstrap/corpus
 evidence, but the main check failed and the platform run was cancelled.
-Linux is supported by separate historical CI evidence, not a local audit run;
-ARM64/macOS/BSD need workload-specific validation before deployment. Emission,
+The independent review also executed four Windows-built Linux x64 samples in
+WSL2: CLI/files and GC/identity checks pass; fs-extra fails. This supplements
+historical CI, with no Linux Node oracle or Linux compiler-host build.
+The six ARM64/macOS/BSD targets need workload-specific execution before deployment. Emission,
 bootstrap smoke tests and application compatibility are distinct claims.
 
 The main adoption obstacles are runtime failure localization, missing file
@@ -41,9 +43,10 @@ establish current superiority; [#392 owns their refresh](#performance-and-compar
 
 The [risk register](#risk-register) and [bounded roadmap](#prioritized-roadmap)
 rank follow-up work. Release gates concern truthful claims, reproducible
-evidence and review, not implementing every missing API by v0.20.0. Independent
-review/reproduction, corrections and re-review are explicitly reserved for
-steps 4–6; no approval or security assurance is implied by this draft.
+evidence and review, not implementing every missing API by v0.20.0. The
+[independent review](completeness-review.md) requested changes; step 5 addresses
+its findings below. Final independent re-review remains step 6. Neither the
+corrections nor the sampled checks imply approval or security assurance.
 
 ### How to read the evidence
 
@@ -51,8 +54,8 @@ The [machine-readable inventory](completeness-matrix.json) is the detailed
 capability ledger. It contains 140 rows across nine domains, 42 module entry
 points (36 public, six private), all eight targets, and commit-qualified source,
 documentation and test references. Its statuses are deliberately conservative:
-58 implemented but unverified, 58 partial, 16 missing, three intentionally
-unsupported, five unknown, and **zero implemented and verified across their full row scope**.
+58 implemented but unverified, 59 partial, 16 missing, three intentionally
+unsupported, four unknown, and **zero implemented and verified across their full row scope**.
 These are scoped inventory categories, not a completeness percentage.
 Passing samples are recorded in execution fields; they do not verify every
 method or target represented by a broad inventory row.
@@ -61,21 +64,74 @@ Matrix IDs such as `api.fs.async` identify exact scoped capability rows. The
 following evidence IDs make the findings and roadmap traceable without turning
 an importable name into a support claim:
 
-| ID  | Evidence and boundary                                                                                                                                                                                                                               |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| E1  | [Inventory](completeness-matrix.json): source/test/doc blobs pinned to `453418c167b9b34cd5ff7c0f748674e79222e1cc`, compared with v0.18.0; source inspection is not execution.                                                                       |
-| E2  | [Windows results](evidence/completeness/windows-x64.json), [repeat](evidence/completeness/windows-x64-repeat.json), [fixture contracts](../tests/fixtures/completeness/README.md): bounded package/API execution, Node 26.9.0 oracle.               |
-| E3  | [Local Test262 summary](evidence/completeness/test262-local-summary.json), [CI summary](evidence/completeness/test262-ci-summary.json): explicit selection denominators and exclusions.                                                             |
-| E4  | [CI observations](evidence/completeness/ci-observations.json): actual job outcomes and log excerpts, including failures/cancellations and bootstrap scope.                                                                                          |
-| E5  | [MoveRules](../verification/Nona/MoveRules.lean), [Examples](../verification/Nona/Examples.lean), [Audit](../verification/Nona/Audit.lean), [proof boundary](formal-verification.md): source-reviewed Lean model, not locally rebuilt in this step. |
-| E6  | [PERFORMANCE.md](../PERFORMANCE.md), [benchmark protocol](../bench/README.md), [#392](https://github.com/40oleg/nona/issues/392): dated historical measurements; no new benchmark run.                                                              |
-| E7  | [Comparison sources](#versioned-comparisons): official release/docs/source URLs, versions and retrieval date; alternatives other than the Node oracle were not run.                                                                                 |
-| E8  | [Step 3 validation](#step-3-validation): focused tests, site checks and omissions for this report revision.                                                                                                                                         |
+| ID  | Evidence and boundary                                                                                                                                                                                                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | [Inventory](completeness-matrix.json): source/test/doc blobs pinned to `453418c167b9b34cd5ff7c0f748674e79222e1cc`, compared with v0.18.0; source inspection is not execution.                                                                                                               |
+| E2  | [Windows results](evidence/completeness/windows-x64.json), [repeat](evidence/completeness/windows-x64-repeat.json), [fixture contracts](../tests/fixtures/completeness/README.md): bounded package/API execution, Node 26.9.0 oracle.                                                       |
+| E3  | [Local Test262 summary](evidence/completeness/test262-local-summary.json), [CI summary](evidence/completeness/test262-ci-summary.json): explicit selection denominators and exclusions.                                                                                                     |
+| E4  | [CI observations](evidence/completeness/ci-observations.json): actual job outcomes and log excerpts, including failures/cancellations and bootstrap scope.                                                                                                                                  |
+| E5  | [MoveRules](../verification/Nona/MoveRules.lean), [Examples](../verification/Nona/Examples.lean), [Audit](../verification/Nona/Audit.lean), [proof boundary](formal-verification.md): source-reviewed Lean model, not locally rebuilt in this step.                                         |
+| E6  | [PERFORMANCE.md](../PERFORMANCE.md), [benchmark protocol](../bench/README.md), [#392](https://github.com/40oleg/nona/issues/392): dated historical measurements; no new benchmark run.                                                                                                      |
+| E7  | [Comparison sources](#versioned-comparisons): official release/docs/source URLs, versions and retrieval date; alternatives other than the Node oracle were not run.                                                                                                                         |
+| E8  | [Step 3 validation](#step-3-validation): focused tests, site checks and omissions for this report revision.                                                                                                                                                                                 |
+| E9  | [Independent review](completeness-review.md), [cross-target replay](evidence/completeness/review-cross-target.json), [Windows replay](evidence/completeness/review-windows-x64.json): later Windows/WSL2 samples and source/denominator checks; initial changes-requested verdict retained. |
+| E10 | [Step 5 corrections and validation](#step-5-corrections-and-validation): implementation checks and review-finding disposition; final independent acceptance remains pending.                                                                                                                |
 
 Source links below are convenient checkout links. For the audited bytes use E1's
 commit-qualified registry, or `git show 453418c1:<path>`; the report does not
 silently adopt later `main` changes. Step 3 starts from `b2a9d7c5` (the committed
 step 2 evidence); compiler/runtime inputs remain at the same audited SHA.
+
+## Dated release and review addendum
+
+At **2026-10-18 21:31 UTC**, GitHub's latest published release is
+[v0.19.0](https://github.com/40oleg/nona/releases/tag/v0.19.0), published
+**21:10:48 UTC**. Release PR [#390](https://github.com/40oleg/nona/pull/390)
+merged at **20:36:05 UTC**, merge commit
+`0dbf4c5fc1477a5f463fc3ba8166e45eaa97dba1`. These observations supersede the
+earlier latest-release/open-PR observations for a current reader; they do not
+change what the dated step-1 and step-3 snapshots observed. Exact read-only
+commands and responses are retained in [step-5 evidence](evidence/completeness/step5-validation.json).
+
+**The audit remains frozen at `453418c167b9b34cd5ff7c0f748674e79222e1cc`,
+with v0.18.0 as its release comparison.** Neither v0.19.0 artifacts nor its
+source tree were adopted or verified here. The matrix's `publishedRelease`,
+per-row release relationships and 446 pinned evidence records retain that
+historical meaning. Later release metadata is a separate observation; phrases
+such as “unreleased additions” below mean post-v0.18.0 at the original snapshot,
+not that those features are absent from today's published release. No release
+version, compiler/runtime source or package pin is changed by step 5.
+
+The step-4 reviewer independently rebuilt on Windows and reproduced Windows
+samples, then executed four Linux x64 ELF cases in **Ubuntu 22.04.3 LTS,
+WSL2 kernel 6.18.54.1-microsoft-standard-WSL2**, x86_64 without CPU emulation.
+The [raw cross-target record](evidence/completeness/review-cross-target.json)
+contains sources, argv, expected/actual output, limits and cleanup:
+
+| Linux sample                                         | Result and boundary                                                                                                                 |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| minimist 1.2.8 plus synchronous JSON file round trip | Build and execution pass: `cli 3 false input.json`.                                                                                 |
+| fs-extra 11.3.0 directory/JSON/copy workload         | Build passes; execution exits 1 with `Nona runtime error`, matching the Windows failure. First failing operation remains unknown.   |
+| 100 retained closures/objects under GC stress        | Build and execution pass: `roots 100 value-0 99`; no general memory-safety claim.                                                   |
+| Process identity                                     | `identity linux function true`; basic `getuid` availability/nonnegative result, not identity mutation or full credential semantics. |
+
+All four artifacts were compiled by **Windows Node 26.9.0**. Linux Node was
+absent; the portable CLI/fs/GC oracles ran on Windows. The Linux identity
+expectation uses the POSIX adapter contract and observed guest UID 1000.
+The separate Windows identity check reports `identity win32 undefined absent`.
+The fixture installation was reused with top-level version checks; **transitive
+installed bytes remain unverified**, not a fresh lockfile installation.
+Six other targets remain locally unexecuted. These observations extend only
+their named method/workload scopes and do not promote broad matrix rows to
+fully verified. Historical step-2 evidence is unchanged.
+
+The review also independently confirmed the pinned Test262 tree denominator
+(53,597 files), eight-file local selection (six runtime, two compile-only,
+16 group exclusions) and nine historical CI reports (3,187 runtime passes,
+1,044 exclusions in 4,231 group files). Replays are not additional unique
+conformance cases and are never added to those totals. #392 remains separately
+claimed, open and without a closing PR at the dated step-5 check; no benchmark
+work is duplicated here.
 
 ## Provenance and ownership (step 1 snapshot)
 
@@ -263,11 +319,18 @@ is therefore not a complete global API inventory.
 
 ### Platforms: emission is not execution
 
-Step 1 left every target unexecuted. Step 2 adds a **native win32-x64 sample**;
-the other seven targets still have local build/execution **not run**. CI entries
-in this table describe configured coverage; inspected outcomes are recorded in
-the step 2 evidence section. The [platform document](native-platforms.md) cites
+Step 1 left every target unexecuted. Step 2 added a **native win32-x64 sample**;
+step 4 added the four **Linux x64 WSL2 executions** described in the
+[dated addendum](#dated-release-and-review-addendum). The remaining six targets
+have local workload execution **not run**. CI entries in this table describe
+configured coverage; inspected outcomes are recorded in the step 2 evidence
+section. The [platform document](native-platforms.md) cites
 a historical eight-target success at `5391c47`; that is not the audited run.
+Steps 3 and 5 also generated hello/path images for **all eight targets** in
+the playground comparison. The matrix now records those scoped build passes;
+they do not change the six targets' `run: not-run` states. A failed sample
+takes precedence in a recorded execution summary; Windows/Linux fs-extra
+failures coexist with successful cases, not whole-target failure claims.
 
 | Target       | Format   | Configured execution                             | Material boundaries                                                                                                       |
 | ------------ | -------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -571,8 +634,8 @@ are provenance and timeout diagnostics, not performance comparisons with #392.
 The three package errors are exact observed diagnostics, **not established root
 causes**. They lack an actionable source stack. In particular, the workerpool
 failure cannot be attributed solely to the Worker stub from its diagnostic;
-the separate Worker probe supplies the direct API evidence. Follow-up scopes
-for step 3: isolate the first failing fs-extra/Undici/workerpool operation,
+the separate Worker probe supplies the direct API evidence. The roadmap retains
+separate follow-up scopes: isolate the first failing fs-extra/Undici/workerpool operation,
 identify its transitive dependency and improve runtime error localization.
 Do not silently patch packages or implement missing runtime features in #394.
 
@@ -705,8 +768,9 @@ separate from local execution records:
   **not executed locally**. The GC-root probe does not substitute for it.
 
 No local Linux, arm64, macOS, BSD, emulator, cross-target package execution,
-full conformance suite, benchmark or bootstrap was run in step 2. Their local
-matrix states remain not-run. API/target-specific tests outside the selected
+full conformance suite, benchmark or bootstrap was run in step 2. The later
+Linux review observations are recorded separately in E9 and the current matrix.
+API/target-specific tests outside the selected
 sample, package upstream test suites, larger payloads, persistent servers and
 adversarial networking remain unverified. The conclusions below retain these boundaries.
 
@@ -997,7 +1061,7 @@ concrete outcome to require of the future work, not a test claimed to pass now.
 
 | Rank / scope                                              | User outcome and evidence                                                                                             | Dependencies; size / uncertainty                                                                        | Acceptance and existing work                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R0 Release gate: reviewed, truthful audit                 | Users can distinguish released/current/unknown behavior; F5/F6, E1–E8.                                                | Steps 4–6 and exact final report revision; M / medium. No runtime feature prerequisite.                 | Independent reviewer reads evidence and reproduces samples; resolve material findings, re-review, add review record/verdict. Record release-SHA CI failures and resolve or explicitly downgrade affected claims. [#394](https://github.com/40oleg/nona/issues/394); namespace coordination [#391](https://github.com/40oleg/nona/issues/391)/[#393](https://github.com/40oleg/nona/pull/393).                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| R0 Release gate: reviewed, truthful audit                 | Users can distinguish released/current/unknown behavior; F5/F6, E1–E10.                                               | Final step-6 review of the corrected report revision; M / medium. No runtime feature prerequisite.      | Initial independent reproduction and step-5 RV1/RV2 corrections are recorded in [the review record](completeness-review.md); acceptance remains pending independent re-review. Retain historical CI failures and the frozen-baseline/latest-release distinction. [#394](https://github.com/40oleg/nona/issues/394); namespace coordination [#391](https://github.com/40oleg/nona/issues/391)/[#393](https://github.com/40oleg/nona/pull/393).                                                                                                                                                                                                                                                                                                                                                                    |
 | R1 Near-term: package triage and runtime locations        | fs-extra/Undici/workerpool failures become actionable; F1/F9, E2.                                                     | Preserve exact package locks; source-to-function/frame mapping; M for reductions, L for stacks / high.  | Each package gets a minimal first-failure reproduction, correct root-cause label and linked follow-up. Add file/function/line for nested/imported runtime errors, with a GC-stress regression. Proposed new scope; no matching open issue found.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | R2 Near-term: conformance accounting                      | A reported pass means the expected phase/error/variant ran; F6, E3.                                                   | Test262 runner/report schema and pinned fixture; M / medium.                                            | Serialize selection/full-runtime/variants; assert expected negative error type; separate excluded/skipped/runtime/compiler-only; a bounded fixture proves accounting. Full suites remain CI. Proposed scope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | R3 Near-term: bounded file pipeline                       | CLI/server can copy a large file with bounded buffers and reliable cancellation; F3, E1/E2.                           | Descriptor lifecycle, streams and target adapters; L / high.                                            | Read/write partial chunks, explicit close/abort/error behavior, backpressure and bounded resident growth on Windows/Linux x64; document remaining targets. Split watcher and genuinely asynchronous I/O proposals after this contract. Proposed scope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -1021,20 +1085,20 @@ is bumped by this report.
 
 ## Practical readiness and refresh
 
-| Intended application                                                            | Judgment at the audited SHA                                                                                                                                                                                                       |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bounded CLI, JSON/config/file transformation                                    | Credible experimental choice when the exact package/input contract passes. Windows x64 has local evidence; Linux x64 has substantial separate CI evidence and still needs the workload reproduced.                                |
-| Small HTTP service or compression pipeline                                      | The Express/fflate samples work on Windows x64; they do not validate large payloads, persistent service reliability or hostile input. Respect x64-only network services and enforce deployment limits externally where necessary. |
-| General npm service, secure network endpoint, large streaming filesystem tool   | Likely to meet API, diagnostics or assurance blockers. Use the contract ledger and failing probes before committing to migration; a successful build is insufficient.                                                             |
-| Worker pool, WASM/native-addon-heavy package, locale/zone-sensitive application | Public workers/WASM/addon gaps or Date/Intl restrictions are material blockers; choose an explicit workaround or another runtime.                                                                                                 |
-| ARM64, macOS or BSD application                                                 | Native code/CLI bootstrap exists, with CI scope and failures recorded. Adopt only after running the exact workload on the target; network/child API availability differs sharply.                                                 |
+| Intended application                                                            | Judgment at the audited SHA                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bounded CLI, JSON/config/file transformation                                    | Credible experimental choice when the exact package/input contract passes. Windows x64 has the broader local sample; Linux x64 has a Windows-built minimist/file round trip and fs-extra failure reproduced in WSL2, plus separate historical CI. Other Linux workloads still need execution. |
+| Small HTTP service or compression pipeline                                      | The Express/fflate samples work on Windows x64; they do not validate large payloads, persistent service reliability or hostile input. Respect x64-only network services and enforce deployment limits externally where necessary.                                                             |
+| General npm service, secure network endpoint, large streaming filesystem tool   | Likely to meet API, diagnostics or assurance blockers. Use the contract ledger and failing probes before committing to migration; a successful build is insufficient.                                                                                                                         |
+| Worker pool, WASM/native-addon-heavy package, locale/zone-sensitive application | Public workers/WASM/addon gaps or Date/Intl restrictions are material blockers; choose an explicit workaround or another runtime.                                                                                                                                                             |
+| ARM64, macOS or BSD application                                                 | Native code/CLI bootstrap exists, with CI scope and failures recorded. Adopt only after running the exact workload on the target; network/child API availability differs sharply.                                                                                                             |
 
 Better runtime diagnostics and bounded I/O would materially reduce migration
 cost; trustworthy network/target contracts would expand deployable workloads.
 The strongest unknowns are the three package root causes, untested method/
 option combinations, current native target regressions, long-lived memory and
 latency behavior, adversarial TLS/network/FFI behavior, current performance,
-cross-machine release reproducibility and independent review outcome.
+cross-machine release reproducibility and final independent re-review outcome.
 
 To refresh this report after a release:
 
@@ -1122,7 +1186,99 @@ The final user instruction prohibits a full suite on this shared machine, overri
 earlier generic `npm run check` requirement. Full `npm run check`, `npm run
 compare`, full Test262/corpus/platform/bootstrap and benchmarks are **not run**
 locally for this documentation change. Lean is unavailable locally. These are
-omissions, not passing results. Step 4/6 independent review has not run.
+omissions, not passing results. Independent review had not run at step 3;
+E9 records the subsequent initial review. Step 6 remains pending.
+
+## Step 5 corrections and validation
+
+Step 5 starts from review commit `0962f7345ed1f79096c99b0a982740f4c0c0ec35`.
+RV1's obsolete planning/no-execution statements are reconciled across all
+limitations and evidence-needed fields. In particular, Windows build/run,
+Windows/WSL2 file operations and Test262 sample results now agree with their
+row limitations. The completed source-based alternative comparison is
+`partial`, with experimental comparison still absent; no capability becomes
+fully verified. RV2 is addressed by the dated release/review addendum and
+narrowly scoped review observations. The original review and evidence remain
+intact; [the appended resolution table](completeness-review.md#step-5-author-resolution-record)
+records the implementation disposition, not reviewer approval.
+
+Validation ran on **2026-10-18 UTC / 2026-10-19 Moscow**, TORS, Windows 11 x64
+10.0.26200, Intel Core i7-13620H, PowerShell 7.6.5. The explicitly selected
+Node executable is `work/completeness-tools/node.exe`: **26.9.0**, V8
+14.6.202.34-node.32, OpenSSL 3.5.8; npm 10.9.8, TypeScript 7.0.2,
+Prettier 3.9.10, VitePress 1.6.4 and esbuild 0.21.5. The ambient Node 22 was
+not used for these checks. All heavy commands were sequential, Go/libuv/V8
+pools and test concurrency at most two, V8 heap cap 1536 MiB (probe compiler
+children 768 MiB). Matrix reconciliation was delegated with **gpt-6-astra/high**
+requested; the implementation subagent was not the independent reviewer.
+The request is recorded, without claiming independently verified model routing
+or harness tier assignment.
+
+[Raw validation](evidence/completeness/step5-validation.json) preserves argv,
+environment, working directory, exit/output and timeout state. The new
+[Windows replay](evidence/completeness/step5-windows-x64.json) and
+[Test262 replay](evidence/completeness/step5-test262-windows.json) are additive;
+they do not overwrite or add unique cases to the earlier results. The Windows
+probe record identifies checkout `0962f734`; compiler/runtime source continuity
+with `453418c1` was checked separately. Existing fixture dependencies were
+reused; transitive installed bytes remain unverified.
+
+| Check                                                               | Step-5 result                                                                                                                                                                   |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh compiler build                                                | Pass from unchanged compiler/runtime inputs.                                                                                                                                    |
+| Strict inventory validator (`--git`)                                | Pass: 140 capabilities, 42 module entry points, eight targets, pinned baseline/release evidence.                                                                                |
+| Focused inventory, probe-runner and suite-registration tests        | 14 passed, zero failures/skips, concurrency two.                                                                                                                                |
+| CLI, filesystem, Writable queue and GC-root probes                  | All four build; CLI/stream/GC match Node, fs-extra retains exit 1 / `Nona runtime error`. Four Node oracles pass; cleanup passes. GC stress applies only to the GC-root sample. |
+| Eight-file coalesce Test262 selection                               | Eight passes: six runtime, two compile-only negatives; zero failures/skips. Same 24-file group, 16 exclusions; not a new conformance denominator.                               |
+| Site sample compiler checks                                         | 22 Windows/Linux x64 sample builds pass; no native sample execution.                                                                                                            |
+| Playground check                                                    | 18 image comparisons across eight targets and syntax diagnostic pass; no foreign-target execution.                                                                              |
+| Site sync, playground bundle, production build and repository links | Pass: 12 synced documents, production rendering with page concurrency two, 704 repository links checked. Internal page routes also pass the production build.                   |
+| Formatting and whitespace                                           | Pass: `npm run format`, `npm run format:check`, `git diff --check`; command results retained.                                                                                   |
+
+Reproduce using the existing pinned dependencies and Test262 checkout from
+step 2. Use fresh output paths to preserve committed observations:
+
+```powershell
+$step5Node = (Resolve-Path work/completeness-tools/node.exe).Path
+$step5Npm = 'C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js'
+$env:GOMAXPROCS = '2'
+$env:UV_THREADPOOL_SIZE = '2'
+$env:NODE_OPTIONS = '--v8-pool-size=2 --max-old-space-size=1536'
+& $step5Node scripts/build.mjs
+& $step5Node scripts/check-completeness-inventory.mjs --git
+& $step5Node --test --test-concurrency=2 dist/tests/completeness-probes.test.js dist/tests/completeness-inventory.test.js dist/tests/suites.test.js
+& $step5Node scripts/completeness-probes.mjs --cases cli,filesystem,stream-writable-queues,gc-roots --output work/step5-windows-rerun.json
+$env:TEST262_DIR = (Resolve-Path work/test262).Path
+$env:TEST262_JOBS = '1'
+$env:TEST262_RUNTIME_TIMEOUT_MS = '15000'
+$env:TEST262_DELETE_BINARIES = '1'
+$env:TEST262_FILE_LIST = 'tests/probes/completeness-test262.txt'
+$env:TEST262_REPORT = 'work/step5-test262-rerun.json'
+& $step5Node scripts/test262-smoke.mjs language/expressions/coalesce
+& $step5Node $step5Npm --prefix site run sync
+& $step5Node $step5Npm --prefix site run build:playground
+Push-Location site
+& $step5Node --input-type=module -e 'import { build } from "vitepress"; await build(".", { onAfterConfigResolve(c) { c.buildConcurrency = 2; } });'
+Pop-Location
+& $step5Node $step5Npm --prefix site run check:links
+& $step5Node $step5Npm --prefix site run check:samples
+& $step5Node $step5Npm --prefix site run check:playground
+& $step5Node $step5Npm run format
+& $step5Node $step5Npm run format:check
+git diff --check
+```
+
+The production-build invocation is equivalent to the retained temporary module
+in the command log; the complete public VitePress invocation above requires no
+untracked helper. No runtime/compiler feature, package pin or benchmark changed.
+The final user resource instruction prohibits `npm run check`/`npm test`;
+the full suite, full Test262/corpus/platform/bootstrap, `compare`, Lean rebuild
+and benchmarks were **not run**. New Linux execution was unnecessary: E9's
+immutable WSL2 records are attributed to the initial reviewer, not to step 5.
+The final diff needs neither `full-ci` nor `gc-stress`: it does not change the
+compiler, runtime, loaders, self-hosting or packaging. No labels were added.
+No PR is opened and no push is made in this step; final independent acceptance
+and PR preparation remain step 6.
 
 ## Inventory schema v1
 
@@ -1149,6 +1305,17 @@ different status/evidence; do not silently repurpose an ID.
 | `execution.build/run`                                 | Each is `not-run`, `passed`, `failed`, or `not-applicable`; test-file presence never sets either to passed                                                                                                                                                                                                                               |
 | `execution.results[]`                                 | Later observations: `command`, `environment`, `commit`, `target`, `stage` (`build`/`run`), `outcome` (`passed`/`failed`), `observed`, and retained `artifact` reference. Store exact expected outcomes in the probe/result artifact                                                                                                      |
 | `evidenceNeeded`                                      | What remains to substantiate this row; required even for a narrow verified row to state its residual limits                                                                                                                                                                                                                              |
+
+Execution summaries cover only their recorded samples: a recorded failure takes
+precedence over passes; `not-run` means no observation for that stage. Target
+summaries mirror their platform rows. `build` includes in-memory playground
+image generation, not just files written to disk. `run` always refers to a
+target executable, so byte equality across compilers cannot set it to passed.
+Read mixed outcomes in `execution.results`; a summary failure does not mean
+every application on that platform fails. These sample summaries are separate
+from whole-row capability status. Dated `audit.reviewAddendum` and
+`audit.correctionEvidence` are additive schema-v1 fields; they never replace
+the frozen baseline or release registry.
 
 Status vocabulary:
 

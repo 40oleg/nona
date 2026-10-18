@@ -1,6 +1,6 @@
 # Módulos embutidos e globais
 
-A [auditoria de completude](/reference/completeness-audit) (em inglês) registra limites das APIs, testes limitados de pacotes no Windows x64, comparações, riscos e um roteiro priorizado. A revisão independente está pendente.
+A [auditoria de completude](/reference/completeness-audit) (em inglês) registra limites das APIs, amostras limitadas de Windows x64 e de Linux x64 compiladas no Windows e executadas no WSL2, comparações, riscos e um roteiro priorizado. A revisão independente inicial e as correções estão registradas; a revisão independente final continua pendente.
 
 Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compilador: o runtime nativo e pequenos prelúdios JavaScript são compilados em cada executável, e os módulos embutidos são compilados quando um programa os importa.
 
