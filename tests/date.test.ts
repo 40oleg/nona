@@ -161,9 +161,9 @@ for (const [name, source, expected] of [
         "Thu, 01 Jan 1970 00:00:00 GMT Thu Jan 01 1970 00:00:00 GMT+0000 Thu Jan 01 1970 00:00:00 GMT+0000\n",
     ],
     [
-        "locale date methods use host UTC fallback",
+        "locale date methods format en-US in UTC (Intl)",
         `let d=new Date(0);console.log(d.toLocaleDateString(),d.toLocaleTimeString(),d.toLocaleString());console.log(Date.prototype.toLocaleDateString.length,Date.prototype.toLocaleTimeString.length,Date.prototype.toLocaleString.length)`,
-        "Thu Jan 01 1970 00:00:00 GMT+0000 Thu Jan 01 1970 00:00:00 GMT+0000\n0 0 0\n",
+        "1/1/1970 12:00:00 AM 1/1/1970, 12:00:00 AM\n0 0 0\n",
     ],
     [
         "date strings handle invalid and negative years",

@@ -12,6 +12,7 @@
         ObjectConstructor = Object,
         TypeErrorConstructor = TypeError;
     var mathFloor = Math.floor,
+        mathMax = Math.max,
         mathMin = Math.min,
         mathAbs = Math.abs,
         iteratorSymbol = Symbol.iterator;
@@ -157,6 +158,92 @@
         }.hasOwn,
     );
 
+    // Object.groupBy / Map.groupBy ( items, callbackfn ) (ES2024 7.3.35
+    // GroupBy). The Map intrinsics are captured so that later user mutation
+    // of Map, Map.prototype.get or Map.prototype.set is not observable.
+    var MapConstructor = Map,
+        mapGet = Map.prototype.get,
+        mapSet = Map.prototype.set,
+        createObject = Object.create,
+        ownKeys = Reflect.ownKeys;
+    function groupBy(items, callback, name, propertyKeys) {
+        if (items === undefined || items === null)
+            throw new TypeErrorConstructor(
+                name + " called on null or undefined",
+            );
+        if (typeof callback !== "function")
+            throw new TypeErrorConstructor(
+                name + ": callback is not a function",
+            );
+        var groups = [],
+            index = propertyKeys
+                ? createObject(null)
+                : construct(MapConstructor, []),
+            k = 0;
+        for (var value of items) {
+            if (k >= 9007199254740991)
+                throw new TypeErrorConstructor(name + ": too many elements");
+            var key = call(callback, undefined, value, k);
+            if (propertyKeys) {
+                if (isObject(key)) {
+                    // ToPropertyKey may yield a symbol from ToPrimitive.
+                    var scratch = createObject(null);
+                    defineProperty(scratch, key, { value: 0 });
+                    key = ownKeys(scratch)[0];
+                } else if (typeof key !== "symbol")
+                    key = StringConstructor(key);
+            } else if (key === 0) key = 0;
+            var group = propertyKeys ? index[key] : call(mapGet, index, key);
+            if (group === undefined) {
+                group = { key: key, elements: [], length: 0 };
+                groups[groups.length] = group;
+                if (propertyKeys) index[key] = group;
+                else call(mapSet, index, key, group);
+            }
+            defineProperty(group.elements, group.length++, {
+                value: value,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+            });
+            k++;
+        }
+        var result = propertyKeys
+            ? createObject(null)
+            : construct(MapConstructor, []);
+        for (var i = 0; i < groups.length; i++) {
+            if (propertyKeys)
+                defineProperty(result, groups[i].key, {
+                    value: groups[i].elements,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            else call(mapSet, result, groups[i].key, groups[i].elements);
+        }
+        return result;
+    }
+    install(
+        ObjectConstructor,
+        "groupBy",
+        2,
+        {
+            groupBy(items, callbackfn) {
+                return groupBy(items, callbackfn, "Object.groupBy", true);
+            },
+        }.groupBy,
+    );
+    install(
+        MapConstructor,
+        "groupBy",
+        2,
+        {
+            groupBy(items, callbackfn) {
+                return groupBy(items, callbackfn, "Map.groupBy", false);
+            },
+        }.groupBy,
+    );
+
     // Array.prototype.at / findLast / findLastIndex (ES2022, ES2023).
     var ArrayPrototype = Array.prototype;
     install(
@@ -208,6 +295,120 @@
             },
         }.findLastIndex,
     );
+    // Array.prototype.toReversed / toSorted / toSpliced / with (ES2023). The
+    // sort is the built-in one captured here (linked together with toSorted).
+    var originalSort = ArrayPrototype.sort,
+        RangeErrorConstructor = RangeError;
+    function createArray(length) {
+        if (length > 4294967295)
+            throw new RangeErrorConstructor("Invalid array length");
+        return [];
+    }
+    function put(array, index, value) {
+        defineProperty(array, index, {
+            value: value,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+    }
+    function setLength(array, length) {
+        array.length = length;
+    }
+    function relativeIndex(value, len) {
+        var k = toIntegerOrInfinity(value);
+        return k < 0 ? mathMax(len + k, 0) : mathMin(k, len);
+    }
+    install(
+        ArrayPrototype,
+        "toReversed",
+        0,
+        {
+            toReversed() {
+                var O = toObject(this, "Array.prototype.toReversed"),
+                    len = toLength(O.length),
+                    A = createArray(len);
+                for (var k = 0; k < len; k++) put(A, k, O[len - k - 1]);
+                setLength(A, len);
+                return A;
+            },
+        }.toReversed,
+    );
+    install(
+        ArrayPrototype,
+        "toSorted",
+        1,
+        {
+            toSorted(comparefn) {
+                if (comparefn !== undefined && typeof comparefn !== "function")
+                    throw new TypeErrorConstructor(
+                        "Array.prototype.toSorted: comparator is not a function",
+                    );
+                var O = toObject(this, "Array.prototype.toSorted"),
+                    len = toLength(O.length),
+                    A = createArray(len);
+                for (var k = 0; k < len; k++) put(A, k, O[k]);
+                setLength(A, len);
+                call(originalSort, A, comparefn);
+                return A;
+            },
+        }.toSorted,
+    );
+    install(
+        ArrayPrototype,
+        "toSpliced",
+        2,
+        {
+            toSpliced(start, skipCount) {
+                var O = toObject(this, "Array.prototype.toSpliced"),
+                    len = toLength(O.length),
+                    actualStart = relativeIndex(start, len),
+                    count = arguments.length,
+                    insertCount = count > 2 ? count - 2 : 0,
+                    actualSkip;
+                if (count === 0) actualSkip = 0;
+                else if (count === 1) actualSkip = len - actualStart;
+                else {
+                    var skip = toIntegerOrInfinity(skipCount);
+                    actualSkip = mathMin(mathMax(skip, 0), len - actualStart);
+                }
+                var newLen = len + insertCount - actualSkip;
+                if (newLen > 9007199254740991)
+                    throw new TypeErrorConstructor(
+                        "Array.prototype.toSpliced: array is too long",
+                    );
+                var A = createArray(newLen),
+                    i = 0,
+                    r = actualStart + actualSkip;
+                for (; i < actualStart; i++) put(A, i, O[i]);
+                for (var j = 0; j < insertCount; j++, i++)
+                    put(A, i, arguments[j + 2]);
+                for (; i < newLen; i++, r++) put(A, i, O[r]);
+                setLength(A, newLen);
+                return A;
+            },
+        }.toSpliced,
+    );
+    install(
+        ArrayPrototype,
+        "with",
+        2,
+        {
+            with(index, value) {
+                var O = toObject(this, "Array.prototype.with"),
+                    len = toLength(O.length),
+                    relative = toIntegerOrInfinity(index),
+                    actual = relative >= 0 ? relative : len + relative;
+                if (actual >= len || actual < 0)
+                    throw new RangeErrorConstructor("Invalid index");
+                var A = createArray(len);
+                for (var k = 0; k < len; k++)
+                    put(A, k, k === actual ? value : O[k]);
+                setLength(A, len);
+                return A;
+            },
+        }.with,
+    );
     var unscopables = ArrayPrototype[Symbol.unscopables];
     // Rebuilt in the specification's order (ES2023 23.1.3.38).
     var unscopableNames = [
@@ -223,6 +424,9 @@
         "flatMap",
         "includes",
         "keys",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
         "values",
     ];
     for (var name of unscopableNames) delete unscopables[name];
@@ -312,5 +516,95 @@
                 return findLastFrom(this, len, predicate, arguments[1], true);
             },
         }.findLastIndex,
+    );
+
+    // %TypedArray%.prototype.toReversed / toSorted / with (ES2023): the result
+    // is TypedArrayCreateSameType, an intrinsic constructor chosen by the
+    // receiver's [[TypedArrayName]] (never species or constructor).
+    var typedArrayNameGetter = ObjectConstructor.getOwnPropertyDescriptor(
+        TypedArrayPrototype,
+        Symbol.toStringTag,
+    ).get;
+    var typedArrayConstructors = {
+        Int8Array: Int8Array,
+        Uint8Array: Uint8Array,
+        Uint8ClampedArray: Uint8ClampedArray,
+        Int16Array: Int16Array,
+        Uint16Array: Uint16Array,
+        Int32Array: Int32Array,
+        Uint32Array: Uint32Array,
+        Float32Array: Float32Array,
+        Float64Array: Float64Array,
+        BigInt64Array: BigInt64Array,
+        BigUint64Array: BigUint64Array,
+    };
+    var typedArraySort = TypedArrayPrototype.sort;
+    function createSameType(O, len) {
+        var name = call(typedArrayNameGetter, O);
+        return construct(typedArrayConstructors[name], [len]);
+    }
+    function isBigIntArray(O) {
+        var name = call(typedArrayNameGetter, O);
+        return name === "BigInt64Array" || name === "BigUint64Array";
+    }
+    install(
+        TypedArrayPrototype,
+        "toReversed",
+        0,
+        {
+            toReversed() {
+                var len = validate(this, "%TypedArray%.prototype.toReversed");
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) A[k] = this[len - k - 1];
+                return A;
+            },
+        }.toReversed,
+    );
+    install(
+        TypedArrayPrototype,
+        "toSorted",
+        1,
+        {
+            toSorted(comparefn) {
+                if (comparefn !== undefined && typeof comparefn !== "function")
+                    throw new TypeErrorConstructor(
+                        "%TypedArray%.prototype.toSorted: comparator is not a function",
+                    );
+                var len = validate(this, "%TypedArray%.prototype.toSorted");
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) A[k] = this[k];
+                call(typedArraySort, A, comparefn);
+                return A;
+            },
+        }.toSorted,
+    );
+    install(
+        TypedArrayPrototype,
+        "with",
+        2,
+        {
+            with(index, value) {
+                var len = validate(this, "%TypedArray%.prototype.with"),
+                    relative = toIntegerOrInfinity(index),
+                    actual = relative >= 0 ? relative : len + relative;
+                var big = isBigIntArray(this);
+                if (big) {
+                    // ToBigInt, through a one-element array of the same type.
+                    var coerced = createSameType(this, 1);
+                    coerced[0] = value;
+                    value = coerced[0];
+                } else value = +value;
+                if (!(actual >= 0 && actual < call(lengthGetter, this)))
+                    throw new RangeError(
+                        "%TypedArray%.prototype.with: index out of range",
+                    );
+                var A = createSameType(this, len);
+                for (var k = 0; k < len; k++) {
+                    var element = k === actual ? value : this[k];
+                    A[k] = element === undefined && big ? 0n : element;
+                }
+                return A;
+            },
+        }.with,
     );
 })();

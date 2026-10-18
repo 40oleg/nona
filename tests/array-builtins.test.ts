@@ -551,7 +551,7 @@ test("array builtins: Array unscopables names (with ES2022–ES2023 additions) a
     const source = `var u=Array.prototype[Symbol.unscopables],d=Object.getOwnPropertyDescriptor(Array.prototype,Symbol.unscopables);console.log(Object.getPrototypeOf(u)===null,Object.keys(u).join(','),Object.keys(u).every(function(k){return u[k]===true}),d.writable,d.enumerable,d.configurable);`;
     expectProgram(
         source,
-        "true at,copyWithin,entries,fill,find,findIndex,findLast,findLastIndex,flat,flatMap,includes,keys,values true false false true\n",
+        "true at,copyWithin,entries,fill,find,findIndex,findLast,findLastIndex,flat,flatMap,includes,keys,toReversed,toSorted,toSpliced,values true false false true\n",
     );
 });
 

@@ -5,7 +5,7 @@
 :::
 
 ::: warning
-المقارنة الحالية مع Node.js وDeno وBun (2026-10-14) موجودة في [الصفحة الإنجليزية](/guide/performance#current-release-against-nodejs-deno-and-bun): يبدأ hello world في 2.7 مللي ثانية وحجمه 1.1 ميغابايت، ومعظم الاختبارات الدقيقة للمصفوفات والكائنات والسلاسل والمصفوفات المنمّطة في مستوى Node.js. أدناه ترجمة قياسات v0.7.0.
+المقارنة الحالية مع Node.js وDeno وBun (2026-10-14) موجودة في [الصفحة الإنجليزية](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun): يبدأ hello world في 2.7 مللي ثانية وحجمه 1.1 ميغابايت، ومعظم الاختبارات الدقيقة للمصفوفات والكائنات والسلاسل والمصفوفات المنمّطة في مستوى Node.js. أدناه ترجمة قياسات v0.7.0.
 :::
 
 قيس بتاريخ 2026-10-01 على Nona ‏`v0.7.0` (الإيداع `b31c4d6`). السكربتات موجودة في [`bench/`](https://github.com/40oleg/nona/blob/main/bench/)؛ ويعيد `node bench/run.mjs` إنتاج كل الجداول أدناه.
