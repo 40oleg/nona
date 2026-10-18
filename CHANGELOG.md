@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.17.0 — 2026-10-18
+
+Highlights: ES2023 TypedArray methods, ES2024 RegExp v flag, development improvements.
+
 ### Language
 
 - ES2023 `%TypedArray%.prototype.toSorted`, `toReversed` and `with` ([#309](https://github.com/40oleg/nona/issues/309)). The result is a new array of the receiver's intrinsic type (no species), `with` throws `RangeError` for an index outside the current length after coercing the value. The code is part of the `es2021` prelude, linked when a program names `toSorted`, `toReversed` or `with`
