@@ -51,6 +51,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 - ES2022: `await` верхнего уровня в ES-модулях, с порядком вычисления async-модулей, циклами и распространением отклонения.
 - ES2023: `findLast` и `findLastIndex`, а также методы копирующего изменения массивов `toSorted`, `toReversed`, `toSpliced` и `with` у `Array` (варианты `%TypedArray%` не реализованы).
 - ES2024: `String.prototype.isWellFormed` и `toWellFormed`.
+- ES2024: `Object.groupBy` и `Map.groupBy`.
 - ES2025: модификаторы шаблона RegExp `(?i:…)`, `(?-i:…)` и `(?ims-ims:…)` с ранними ошибками стандарта (SyntaxError для повторенного или противоречивого флага, `(?-:` или отсутствующего `:`).
 
 Там, где закреплённая ревизия Test262 уже проверяет более новую семантику возможностей ES2020, Nona следует Test262; эти случаи перечислены на странице [Test262](/ru/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262).

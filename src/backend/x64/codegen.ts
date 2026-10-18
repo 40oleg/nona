@@ -62,6 +62,11 @@ export type { BaseImage, BaseImageCache } from "./base-image.js";
 
 const stack = (disp: number): Mem => ({ base: "rsp", disp });
 
+// NONA_GC_STRESS=off turns the tests' gcStress builds into normal ones: CI
+// on pull requests runs most suites without GC stress and main runs them
+// all with it (#372).
+const gcStressDisabled = globalThis.process?.env?.NONA_GC_STRESS === "off";
+
 /**
  * `callStats` counts every call by target and prints the counts when the
  * program ends (see call-stats.ts); otherwise this is generateImage.
@@ -81,6 +86,8 @@ export function generate(
         listing?: boolean;
     } = {},
 ): NativeProgram {
+    if (options.gcStress && gcStressDisabled)
+        options = { ...options, gcStress: false };
     if (!options.callStats && !options.coverage)
         return generateImage(module, options);
     if (!options.callStats)

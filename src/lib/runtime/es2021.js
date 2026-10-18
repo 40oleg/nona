@@ -158,6 +158,92 @@
         }.hasOwn,
     );
 
+    // Object.groupBy / Map.groupBy ( items, callbackfn ) (ES2024 7.3.35
+    // GroupBy). The Map intrinsics are captured so that later user mutation
+    // of Map, Map.prototype.get or Map.prototype.set is not observable.
+    var MapConstructor = Map,
+        mapGet = Map.prototype.get,
+        mapSet = Map.prototype.set,
+        createObject = Object.create,
+        ownKeys = Reflect.ownKeys;
+    function groupBy(items, callback, name, propertyKeys) {
+        if (items === undefined || items === null)
+            throw new TypeErrorConstructor(
+                name + " called on null or undefined",
+            );
+        if (typeof callback !== "function")
+            throw new TypeErrorConstructor(
+                name + ": callback is not a function",
+            );
+        var groups = [],
+            index = propertyKeys
+                ? createObject(null)
+                : construct(MapConstructor, []),
+            k = 0;
+        for (var value of items) {
+            if (k >= 9007199254740991)
+                throw new TypeErrorConstructor(name + ": too many elements");
+            var key = call(callback, undefined, value, k);
+            if (propertyKeys) {
+                if (isObject(key)) {
+                    // ToPropertyKey may yield a symbol from ToPrimitive.
+                    var scratch = createObject(null);
+                    defineProperty(scratch, key, { value: 0 });
+                    key = ownKeys(scratch)[0];
+                } else if (typeof key !== "symbol")
+                    key = StringConstructor(key);
+            } else if (key === 0) key = 0;
+            var group = propertyKeys ? index[key] : call(mapGet, index, key);
+            if (group === undefined) {
+                group = { key: key, elements: [], length: 0 };
+                groups[groups.length] = group;
+                if (propertyKeys) index[key] = group;
+                else call(mapSet, index, key, group);
+            }
+            defineProperty(group.elements, group.length++, {
+                value: value,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+            });
+            k++;
+        }
+        var result = propertyKeys
+            ? createObject(null)
+            : construct(MapConstructor, []);
+        for (var i = 0; i < groups.length; i++) {
+            if (propertyKeys)
+                defineProperty(result, groups[i].key, {
+                    value: groups[i].elements,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            else call(mapSet, result, groups[i].key, groups[i].elements);
+        }
+        return result;
+    }
+    install(
+        ObjectConstructor,
+        "groupBy",
+        2,
+        {
+            groupBy(items, callbackfn) {
+                return groupBy(items, callbackfn, "Object.groupBy", true);
+            },
+        }.groupBy,
+    );
+    install(
+        MapConstructor,
+        "groupBy",
+        2,
+        {
+            groupBy(items, callbackfn) {
+                return groupBy(items, callbackfn, "Map.groupBy", false);
+            },
+        }.groupBy,
+    );
+
     // Array.prototype.at / findLast / findLastIndex (ES2022, ES2023).
     var ArrayPrototype = Array.prototype;
     install(

@@ -51,6 +51,7 @@ A maioria dos recursos de edições posteriores não é suportada, entre eles a 
 - ES2022: `await` no nível superior em módulos ES, com a ordem de avaliação de módulos async, ciclos e propagação de rejeição.
 - ES2023: `findLast` e `findLastIndex`, e os métodos de cópia de `Array` `toSorted`, `toReversed`, `toSpliced` e `with` (não as variantes de `%TypedArray%`).
 - ES2024: `String.prototype.isWellFormed` e `toWellFormed`.
+- ES2024: `Object.groupBy` e `Map.groupBy`.
 
 Quando a revisão fixada do Test262 já verifica semântica mais nova para recursos do ES2020, o Nona segue o Test262; a página [Test262](/pt/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) lista esses casos.
 

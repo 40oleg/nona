@@ -4,6 +4,9 @@
 
 ### Development
 
+- On pull requests, CI runs most test files and the program corpus without GC stress (`NONA_GC_STRESS=off`); the files of `tests/gc-stress.json` and every run on `main` keep it, and the `gc-stress` label restores it for a pull request. ([#372](https://github.com/40oleg/nona/issues/372))
+- On pull requests, the Test262 directory jobs of `check` run only when the pull request changes the compiler or runtime (or has `full-ci`). ([#371](https://github.com/40oleg/nona/issues/371))
+- CI runs the Windows tests of `check` in four parallel shards balanced by `tests/timings.json`, without the program corpus (the `program corpus` workflow runs it), and builds once per job. ([#370](https://github.com/40oleg/nona/issues/370))
 - CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
 
 ## v0.16.0 — 2026-10-17
@@ -16,6 +19,7 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 
 ### Runtime
 
+- **`Object.groupBy` and `Map.groupBy`** (ES2024) over any iterable, with the spec's property-key coercion (`Object.groupBy` returns a null-prototype object). They live in the `es2021` prelude, linked when a program names `groupBy`. ([#311](https://github.com/40oleg/nona/issues/311))
 - `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
 - `FinalizationRegistry` with `register`/`unregister` ([#305](https://github.com/40oleg/nona/issues/305)). Cleanup callbacks run as a host job from the event loop after a collection is seen at a checkpoint, never inside the collector, and pending cleanup does not keep the process alive. The runtime part is linked only when a program names `FinalizationRegistry`. `built-ins/FinalizationRegistry` passes 45/47 in Test262; the two failures need symbols as targets or tokens, which are rejected.
 - RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))

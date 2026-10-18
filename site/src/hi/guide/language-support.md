@@ -51,6 +51,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 - ES2022: ES मॉड्यूल में टॉप-लेवल `await`, async मॉड्यूल के मूल्यांकन क्रम, साइकिल और rejection प्रसार सहित।
 - ES2023: `findLast` और `findLastIndex`, साथ ही `Array` की `toSorted`, `toReversed`, `toSpliced` और `with` कॉपी-आधारित विधियाँ (`%TypedArray%` रूप नहीं)।
 - ES2024: `String.prototype.isWellFormed` और `toWellFormed`।
+- ES2024: `Object.groupBy` और `Map.groupBy`।
 
 जहाँ पिन किया गया Test262 रिविज़न ES2020 फ़ीचर के लिए पहले से नई सिमैंटिक्स जाँचता है, वहाँ Nona Test262 का पालन करता है; [Test262](/hi/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) पेज पर ये मामले सूचीबद्ध हैं।
 

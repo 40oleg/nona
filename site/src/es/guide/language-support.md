@@ -51,6 +51,7 @@ La mayoría de las características de ediciones posteriores no están soportada
 - ES2022: `await` de nivel superior en módulos ES, con el orden de evaluación de módulos async, ciclos y propagación del rechazo.
 - ES2023: `findLast` y `findLastIndex`, y los métodos de copia de `Array` `toSorted`, `toReversed`, `toSpliced` y `with` (no las variantes de `%TypedArray%`).
 - ES2024: `String.prototype.isWellFormed` y `toWellFormed`.
+- ES2024: `Object.groupBy` y `Map.groupBy`.
 
 Cuando la revisión fijada de Test262 ya comprueba semántica más reciente para características de ES2020, Nona sigue a Test262; la página de [Test262](/es/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) enumera esos casos.
 

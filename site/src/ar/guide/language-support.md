@@ -51,6 +51,7 @@
 - ES2022: `await` في المستوى الأعلى داخل وحدات ES، بما في ذلك ترتيب تقييم الوحدات غير المتزامنة والدورات وانتشار الرفض.
 - ES2023: `findLast` و`findLastIndex`، وكذلك طرق نسخ `Array` ‏`toSorted` و`toReversed` و`toSpliced` و`with` (دون متغيرات `%TypedArray%`).
 - ES2024: `String.prototype.isWellFormed` و`toWellFormed`.
+- ES2024: `Object.groupBy` و`Map.groupBy`.
 
 وحين تتحقق مراجعة Test262 المثبَّتة بالفعل من دلالات أحدث لميزات ES2020، يتبع Nona معيار Test262؛ وتسرد صفحة [Test262](/ar/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) هذه الحالات.
 

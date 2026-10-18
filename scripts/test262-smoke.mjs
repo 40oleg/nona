@@ -70,7 +70,7 @@ const excludePathFilters = [
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
 // this list: AggregateError, Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Promise.any, String.prototype.isWellFormed/toWellFormed (and the
+// Object.groupBy, Map.groupBy, Promise.any, String.prototype.isWellFormed/toWellFormed (and the
 // well-formed-unicode-strings tag), and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
 // non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
@@ -81,7 +81,6 @@ const postEs2020Features = [
     "iterator-includes",
     "source-phase-imports-module-source",
     "Array.fromAsync",
-    "array-grouping",
     "arbitrary-module-namespace-names",
     "arraybuffer-transfer",
     "Atomics.pause",
