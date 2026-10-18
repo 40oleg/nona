@@ -1,5 +1,6 @@
 import type { RuntimeBuilder } from "./abi.js";
 import { slot } from "./abi.js";
+import { float16ElementType } from "./float16.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
 import { ObjectLayout as O, ObjectFlags as OF } from "./object-layout.js";
 import {
@@ -57,6 +58,9 @@ export function emitViewBounds(b: RuntimeBuilder): void {
                     a.jcc("b", ready);
                 }
                 a.mov("rcx", 3);
+                a.cmp("rax", float16ElementType);
+                a.jcc("ne", ready);
+                a.mov("rcx", 1);
                 a.label(ready);
             }
             a.load("r11", { base: "r8", disp: TypedArrayLayout.buffer });

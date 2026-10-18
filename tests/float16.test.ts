@@ -248,3 +248,12 @@ console.log(bad, sum, bytes.slice(0, 12).join(), Array.prototype.join.call(new U
 var w = new Uint16Array([0x0001, 0x03ff, 0x0400, 0x7bff, 0x7c00, 0xfc00, 0x8000, 0x7e00, 0x3c01]);
 console.log(Array.prototype.join.call(new Float16Array(w.buffer)), Array.prototype.join.call(new Uint16Array(new Float16Array(new Float16Array(w.buffer)).buffer)));
 `));
+
+test("Float16Array over a resizable buffer tracks its length in 2-byte elements", () =>
+    compareWithOracle(`
+var rab = new ArrayBuffer(84, { maxByteLength: 168 });
+var h = new Float16Array(rab);
+console.log(h.length, h.byteLength);
+rab.resize(100);
+console.log(h.length, h.byteLength);
+`));
