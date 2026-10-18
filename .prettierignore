@@ -11,6 +11,8 @@ site/generated/
 site/src/public/playground-worker.js
 src/lib/sources.generated.ts
 bench/real/vendor/
+bench/awfy/vendor/
+bench/results/
 # Written by scripts/snapshot-program-corpus.mjs
 programs/manifest.json
 programs/*/cases.json

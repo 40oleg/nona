@@ -12,6 +12,8 @@ site/generated/
 site/node_modules/
 site/src/public/playground-worker.js
 bench/real/vendor/
+bench/awfy/vendor/
+bench/results/
 src/lib/sources.generated.ts
 
 # Written by process.report tests run from the repository root
