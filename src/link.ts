@@ -130,6 +130,7 @@ export const preludeTriggers = {
         "toSpliced",
         "with",
         "hasOwn",
+        "groupBy",
         "AggregateError",
         "any",
         "unscopables",
