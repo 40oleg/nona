@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-18 — выпуск v0.19.0
+
+- Версия package.json и package-lock.json обновлена до 0.19.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли iterator helpers (ES2025, #322), `Array.fromAsync` (ES2026, #323) и Float16Array, Math.f16round, DataView float16 (ES2025, #321).
+- Полный аудит Test262 для v0.19.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0. PERFORMANCE.md не обновлялся.
+
 ## 2026-10-18 — выпуск v0.18.0
 
 - Версия package.json и package-lock.json обновлена до 0.18.0; `src/version.ts`, CLI help и `--version` — тоже.
