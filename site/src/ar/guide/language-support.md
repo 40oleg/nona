@@ -46,7 +46,7 @@
 
 معظم ميزات الإصدارات اللاحقة غير مدعومة. الإضافات المدعومة:
 
-- ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`، و`WeakRef`، و`FinalizationRegistry`.
+- ES2021: فواصل الأعداد، وعوامل الإسناد المنطقي (`&&=` و`||=` و`??=`)، و`Promise.any` و`AggregateError`، و`String.prototype.replaceAll`، و`WeakRef`، و`FinalizationRegistry`, `Promise.try` (ES2025).
 - ES2022: حقول الأصناف، والتوابع والموصِّلات الخاصة، والكتل الساكنة، و`#x in obj`، و`.at()`، و`Object.hasOwn`، والسبب `cause` في Error، وعلم RegExp `d` مع فهارس المطابقة.
 - ES2022: `await` في المستوى الأعلى داخل وحدات ES، بما في ذلك ترتيب تقييم الوحدات غير المتزامنة والدورات وانتشار الرفض.
 - ES2023: `findLast` و`findLastIndex`، وكذلك طرق نسخ `Array` ‏`toSorted` و`toReversed` و`toSpliced` و`with` (ومعها متغيرات `%TypedArray%` لـ `toSorted` و`toReversed` و`with`).
