@@ -230,7 +230,8 @@ export function emitGc(b: RuntimeBuilder, extraRealms = 0): void {
         a.label(done);
     });
     // A non-heap object (for example an intrinsic prototype) is permanently
-    // reachable. Weak collection keys are always object payload pointers.
+    // reachable, and so is a well-known symbol (static .data). Weak collection
+    // keys are object or unregistered symbol payload pointers.
     b.fn("rt.gcIsMarkedPointer", 56, (a) => {
         const done = a.unique("done"),
             heap = a.unique("heap");

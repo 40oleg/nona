@@ -277,6 +277,37 @@ runtime root scopes либо проверяемое запрещение GC на
 Исключения обязаны снимать root frames при unwind. Promise jobs/modules добавят
 долгоживущие runtime roots. WeakMap требует ephemeron processing отдельно.
 
+## WeakRef и KeepDuringJob
+
+`WeakRef` (#304) живёт в отдельной prelude-части `weakRef`, которая линкуется
+только при упоминании `WeakRef` в исходнике. Цель хранится единственным ключом
+приватного WeakSet: сборщик не маркирует ключи WeakSet и вычищает мёртвые,
+поэтому ему не нужен код для WeakRef; `__nonaWeakRefTarget` читает ключ
+обратно. После сборки `deref()` возвращает `undefined`. Конструктор и `deref()`
+добавляют цель в множество kept (KeepDuringJob); prelude оборачивает проход
+микрозадач и очищает множество до и после каждого checkpoint (ClearKeptObjects),
+так что основной скрипт и каждый callback таймера считаются заданиями. Символы
+как цели отклоняются, WeakRef клонированных realm держат цель сильно.
+
+## FinalizationRegistry
+
+`FinalizationRegistry` (#305) — отдельная prelude-часть `finalizationRegistry`,
+линкуется только при упоминании `FinalizationRegistry` в исходнике. Каждая
+регистрация хранит цель единственным ключом приватного WeakSet, как WeakRef, и
+читает её через `__nonaWeakRefTarget`; в сборщике кода для реестров нет.
+Счётчик сборок отдаёт `__nonaGcCount`. Callback очистки запускается отдельным
+заданием хоста: после checkpoint, на котором замечена новая сборка, prelude
+переносит ячейки с мёртвой целью в список ожидания реестра и ставит несвязанный
+(unref) таймер. Callback никогда не выполняется внутри сборщика или checkpoint,
+а ожидающая очистка не удерживает процесс живым. `unregister` убирает и ячейки,
+ожидающие очистки. Исключение в callback сообщается как исключение callback
+таймера, остальные ячейки ждут следующего задания.
+
+Ограничения: реестр с живыми ячейками удерживается сильно; символы как цели и
+токены отклоняются; в клонированных realm цели держатся сильно, очистка не
+запускается; в программе без таймеров нет следующего витка цикла событий, в
+котором мог бы выполниться callback.
+
 ## Проверка
 
 `tests/gc.test.ts` запускает реальные EXE: освобождение блоков/циклов, interior
@@ -403,8 +434,9 @@ TDZ/missing mutable global/delete super — ReferenceError; const, callable,
 receiver, descriptor, coercion и prototype checks — TypeError; invalid array
 length/radix/argument limits — RangeError. Uncaught throw пока использует
 общий fatal reporter, без stack trace. Runtime message: Invalid operation;
-текст не претендует на совпадение с V8. V8 stack/captureStackTrace и ES2022
-cause не входят в реализованный ES2020 Error surface.
+текст не претендует на совпадение с V8. V8 `Error.captureStackTrace` реализован
+с placeholder-кадрами (prelude `errorStack`); ES2022 cause не входит в
+реализованный ES2020 Error surface.
 
 ## Symbol и Iterator GC roots
 

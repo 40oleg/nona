@@ -39,7 +39,7 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 - لا تبحث `String.prototype.{replace,split,match,matchAll,search}` عن توابع مفاتيحها رموز (Symbol) في الوسائط البدائية (ES2025).
 - أهداف الإسناد في Annex B على شكل تعبير استدعاء ترمي ReferenceError وقت التشغيل في الشيفرة غير الصارمة، وهي أخطاء مبكرة في الشيفرة الصارمة (واقع الويب في ES2022).
 
-ما بقي على ES2020 (وتُصنَّف إخفاقاته `post`): حقول الأصناف والتوابع الخاصة، وفواصل الأعداد، والإسناد المنطقي، و`Promise.any`/`AggregateError`، و`Error.prototype.stack`/`cause`، والعلَم `v` في RegExp ومؤشرات المطابقة، وawait في المستوى الأعلى، وبقية الميزات في `postEs2020Features`. والانحرافات المعروفة المتبقية مدرجة لكل فهرس في `docs/history/pr5-es2020-remaining-work.md` وفي حالة الإصدار.
+ما بقي على ES2020 (وتُصنَّف إخفاقاته `post`): حقول الأصناف والتوابع الخاصة، وفواصل الأعداد، والإسناد المنطقي، و`Promise.any`/`AggregateError`، و`Error.prototype.stack`/`cause`، وawait في المستوى الأعلى، وبقية الميزات في `postEs2020Features`. والانحرافات المعروفة المتبقية مدرجة لكل فهرس في `docs/history/pr5-es2020-remaining-work.md` وفي حالة الإصدار.
 
 ميزات المشغّل المضافة لمحطة ES2020 ‏(2026-09):
 

@@ -349,6 +349,32 @@ export function emitSymbols(b: RuntimeBuilder): void {
             a.label(done);
         },
     );
+    // CanBeHeldWeakly (ES2023): RCX Value*. RAX 1 for an object or a symbol
+    // that Symbol.for did not register (well-known ones included), else 0.
+    b.fn("rt.canBeHeldWeakly", 40, (a) => {
+        const scan = a.unique("scan"),
+            done = a.unique("done");
+        a.load("rax", { base: "rcx" });
+        a.cmp("rax", 5);
+        a.mov("rax", 1);
+        a.jcc("e", done);
+        a.mov("rax", 0);
+        a.load("r10", { base: "rcx" });
+        a.cmp("r10", 6);
+        a.jcc("ne", done);
+        a.load("rcx", { base: "rcx", disp: 8 });
+        a.load("r10", { rip: "rt.symbolRegistry" });
+        a.mov("rax", 1);
+        a.label(scan);
+        a.test("r10", "r10");
+        a.jcc("e", done);
+        a.load("r11", { base: "r10", disp: 16 });
+        a.load("r10", { base: "r10" });
+        a.cmp("r11", "rcx");
+        a.jcc("ne", scan);
+        a.mov("rax", 0);
+        a.label(done);
+    });
     // Registry records contain [next, UTF-16 key descriptor, unique symbol].
     rootedFn(
         b,

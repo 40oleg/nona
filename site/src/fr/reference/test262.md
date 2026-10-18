@@ -39,7 +39,7 @@ Le Test262 figé (2026) vérifie parfois un comportement introduit après ES2020
 - `String.prototype.{replace,split,match,matchAll,search}` ne recherchent pas de méthodes à clé Symbol sur les arguments primitifs (ES2025).
 - Les cibles d’affectation de l’Annex B sous forme d’expression d’appel lèvent ReferenceError à l’exécution en code non strict et sont des erreurs précoces en code strict (réalité du web en ES2022).
 
-Maintenus en ES2020 (échecs classés `post`) : champs de classe et méthodes privées, séparateurs numériques, affectation logique, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, drapeau RegExp `v` et indices de correspondance, await de premier niveau et les autres fonctionnalités de `postEs2020Features`. Les écarts connus restants sont listés par catalogue dans `docs/history/pr5-es2020-remaining-work.md` et dans l’état de la version.
+Maintenus en ES2020 (échecs classés `post`) : champs de classe et méthodes privées, séparateurs numériques, affectation logique, `Promise.any`/`AggregateError`, `Error.prototype.stack`/`cause`, await de premier niveau et les autres fonctionnalités de `postEs2020Features`. Les écarts connus restants sont listés par catalogue dans `docs/history/pr5-es2020-remaining-work.md` et dans l’état de la version.
 
 Fonctionnalités du lanceur ajoutées pour le jalon ES2020 (2026-09) :
 

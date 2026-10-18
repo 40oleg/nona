@@ -352,14 +352,15 @@ export function emitWeakCollections(b: RuntimeBuilder): void {
                         }
                         a.label(noValue);
                     }
-                    a.load("rax", slot(96));
-                    a.cmp("rax", 5);
+                    a.lea("rcx", slot(96));
+                    a.call("rt.canBeHeldWeakly");
+                    a.test("rax", "rax");
                     if (method === "set" || method === "add")
-                        failIf(a, "ne", "rt.throwTypeError");
+                        failIf(a, "e", "rt.throwTypeError");
                     else {
                         const keyReady = a.unique("keyReady"),
                             missing = a.unique("missing");
-                        a.jcc("e", keyReady);
+                        a.jcc("ne", keyReady);
                         a.mov("rax", 0);
                         a.store(slot(64), "rax");
                         a.jmp(missing);
