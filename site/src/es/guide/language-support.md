@@ -56,6 +56,7 @@ La mayoría de las características de ediciones posteriores no están soportada
 - ES2024: ArrayBuffer redimensionable y transferible, SharedArrayBuffer ampliable, typed arrays y DataViews con seguimiento de longitud.
 - ES2025: `RegExp.escape`.
 - ES2025: grupos de captura con nombre duplicados en alternativas distintas de un patrón.
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` y `setFloat16` (conversión por software con redondeo al par más cercano).
 
 Cuando la revisión fijada de Test262 ya comprueba semántica más reciente para características de ES2020, Nona sigue a Test262; la página de [Test262](/es/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) enumera esos casos.
 

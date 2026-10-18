@@ -34,6 +34,10 @@ These are the failures of the v0.8.0 audit; later releases have not repeated the
 
 The audit of v0.8.0 also found seven crashes (`Array.prototype.indexOf` on `Math` with an element, inherited and own keys of typed arrays) introduced with dense elements; they are fixed in [#119](https://github.com/40oleg/nona/issues/119), and the rerun of `built-ins/Array` and `built-ins/TypedArrayConstructors` after the fix (included above) passes them.
 
+## Half-precision floats
+
+[#321](https://github.com/40oleg/nona/issues/321) added `Float16Array`, `Math.f16round` and `DataView` `getFloat16`/`setFloat16`; the `Float16Array` Test262 tag is no longer excluded. On Windows x64 at the pinned revision: `built-ins/Math/f16round` 5 / 5, `built-ins/DataView` 520 / 520 (including `getFloat16` and `setFloat16`), `built-ins/TypedArrayConstructors` 728 / 728 and `built-ins/TypedArray` 1192 / 1192, with no failures. Tests that need resizable or immutable `ArrayBuffer`s stay excluded because Nona does not implement those features.
+
 ## Open work
 
 Language and library gaps:

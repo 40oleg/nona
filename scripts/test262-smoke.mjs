@@ -71,7 +71,7 @@ const excludePathFilters = [
 // this list: AggregateError, Array.fromAsync (its tests stay skipped until a
 // Test262 checkout is run), Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
-// Object.groupBy, Map.groupBy, Promise.any, String.prototype.isWellFormed/toWellFormed (and the
+// Object.groupBy, Map.groupBy, Promise.any, Float16Array (#321), String.prototype.isWellFormed/toWellFormed (and the
 // well-formed-unicode-strings tag), and the ES2022 class elements (fields, private methods and
 // accessors, static blocks, `#x in obj`, and private elements refused on
 // non-extensible objects), symbols as WeakMap keys and WeakSet values, RegExp
@@ -91,7 +91,6 @@ const postEs2020Features = [
     "decorators",
     "Error.isError",
     "explicit-resource-management",
-    "Float16Array",
     "hashbang",
     "immutable-arraybuffer",
     "import-assertions",

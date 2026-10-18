@@ -406,6 +406,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             emitViewCheck(a, "r10");
             a.test("r11", "r11");
@@ -572,6 +577,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             emitViewCheck(a, "r10");
             a.test("r11", "r11");
@@ -1041,6 +1051,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
                 a.jcc("b", valid);
                 a.cmp("rax", 10);
                 failIf(a, "b", "rt.throwTypeError");
+                // Float16Array is not an integer typed array.
+                if (b.float16) {
+                    a.cmp("rax", 11);
+                    failIf(a, "a", "rt.throwTypeError");
+                }
                 a.label(valid);
                 emitViewCheck(a, "r10");
                 a.test("r11", "r11");
@@ -1273,6 +1288,11 @@ export function emitAtomics(b: RuntimeBuilder): void {
             a.jcc("b", valid);
             a.cmp("rax", 10);
             failIf(a, "b", "rt.throwTypeError");
+            // Float16Array is not an integer typed array.
+            if (b.float16) {
+                a.cmp("rax", 11);
+                failIf(a, "a", "rt.throwTypeError");
+            }
             a.label(valid);
             emitViewCheck(a, "r10");
             a.test("r11", "r11");

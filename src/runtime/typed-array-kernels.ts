@@ -7,7 +7,8 @@ import { emitViewCheck } from "./view-bounds.js";
 // copy, a pattern fill and an element search, sixteen bytes per step where
 // the element type allows it. Element types are 1 Uint8, 2 Int8,
 // 3 Uint8Clamped, 4 Uint16, 5 Int16, 6 Uint32, 7 Int32, 8 Float32, 9 Float64,
-// 10 BigInt64 and 11 BigUint64.
+// 10 BigInt64, 11 BigUint64 and 12 Float16 (only with the float16 part; a
+// Float16 element is compared and converted as a number, never as its bits).
 
 /** The 64-bit word repeating each width (1, 2 or 4 bytes) of an element. */
 const repeat = {
@@ -42,8 +43,16 @@ export function emitReplicate(
 }
 
 /** RAX the element type in, its width in bytes out. */
-export function emitElementWidth(a: Assembler): void {
+export function emitElementWidth(a: Assembler, float16 = false): void {
     const done = a.unique("width");
+    if (float16) {
+        const next = a.unique("notHalf");
+        a.cmp("rax", 12);
+        a.jcc("ne", next);
+        a.mov("rax", 2);
+        a.jmp(done);
+        a.label(next);
+    }
     for (const [last, width] of [
         [3, 1],
         [5, 2],
@@ -291,7 +300,8 @@ const integerRanges: Record<number, [number, number]> = {
  * The native path of %TypedArray%.prototype.includes, indexOf and lastIndexOf
  * for a Number searched in a typed array of Number elements: the elements are
  * compared in place by rt.findElements instead of being read as values. Other
- * searches (BigInt arrays, values that are not Numbers) jump to `generic`.
+ * searches (BigInt and Float16 arrays, values that are not Numbers) jump to
+ * `generic`.
  * Slots: the receiver value at `receiver` (its object at +8), the searched
  * value at `search`, the start index at `start`, where a found index is
  * stored before the jump to `found`, and the length read at the start of the

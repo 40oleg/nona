@@ -56,6 +56,7 @@
 - ES2024: ArrayBuffer القابل لتغيير الحجم و`transfer`، وSharedArrayBuffer القابل للنمو، والمصفوفات المنمَّطة وDataView التي تتبع الطول.
 - ES2025: `RegExp.escape`.
 - ES2025: مجموعات التقاط مسمّاة مكررة في بدائل مختلفة من النمط.
+- ES2025: ‏`Float16Array` و`Math.f16round` و`DataView.prototype.getFloat16` و`setFloat16` (تحويل برمجي بالتقريب إلى أقرب قيمة زوجية).
 
 وحين تتحقق مراجعة Test262 المثبَّتة بالفعل من دلالات أحدث لميزات ES2020، يتبع Nona معيار Test262؛ وتسرد صفحة [Test262](/ar/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) هذه الحالات.
 

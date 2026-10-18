@@ -58,6 +58,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 - ES2025: повторяющиеся именованные группы в разных альтернативах регулярного выражения.
 - ES2025: `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` и `isDisjointFrom`.
 - ES2025: модификаторы шаблона RegExp `(?i:…)`, `(?-i:…)` и `(?ims-ims:…)` с ранними ошибками стандарта (SyntaxError для повторенного или противоречивого флага, `(?-:` или отсутствующего `:`).
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` и `setFloat16` (программное преобразование с округлением к ближайшему чётному).
 
 Там, где закреплённая ревизия Test262 уже проверяет более новую семантику возможностей ES2020, Nona следует Test262; эти случаи перечислены на странице [Test262](/ru/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262).
 

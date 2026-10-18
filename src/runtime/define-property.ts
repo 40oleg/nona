@@ -370,6 +370,10 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
                 byteReady = a.unique("byteReady");
             a.load("r10", slot(64));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
+            if (b.float16) {
+                a.cmp("rax", 12);
+                a.jcc("e", floating);
+            }
             a.cmp("rax", 10);
             a.jcc("ae", bigint);
             a.cmp("rax", 8);
@@ -390,6 +394,14 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             a.movsd("xmm0", slot(248));
             a.load("r10", slot(64));
             a.load("r10", { base: "r10", disp: TypedArrayLayout.elementType });
+            if (b.float16) {
+                const single = a.unique("single");
+                a.cmp("r10", 12);
+                a.jcc("ne", single);
+                a.call("rt.float16FromDouble");
+                a.jmp(byteReady);
+                a.label(single);
+            }
             a.cmp("r10", 8);
             const rawFloat = a.unique("rawFloat");
             a.jcc("ne", rawFloat);
@@ -424,6 +436,10 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             const byteAddress = a.unique("byteAddress"),
                 wordAddress = a.unique("wordAddress"),
                 doubleAddress = a.unique("doubleAddress");
+            if (b.float16) {
+                a.cmp("r11", 12);
+                a.jcc("e", wordAddress);
+            }
             a.cmp("r11", 4);
             a.jcc("b", byteAddress);
             a.cmp("r11", 6);
@@ -452,6 +468,10 @@ export function emitDefineProperty(b: RuntimeBuilder): void {
             const storeByte = a.unique("storeByte"),
                 storeWord = a.unique("storeWord"),
                 storeDouble = a.unique("storeDouble");
+            if (b.float16) {
+                a.cmp("r10", 12);
+                a.jcc("e", storeWord);
+            }
             a.cmp("r10", 4);
             a.jcc("b", storeByte);
             a.cmp("r10", 6);

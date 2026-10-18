@@ -56,6 +56,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 - ES2024: রিসাইজযোগ্য ArrayBuffer ও `transfer`, বৃদ্ধিযোগ্য SharedArrayBuffer, দৈর্ঘ্য অনুসরণকারী typed array ও DataView।
 - ES2025: `RegExp.escape`।
 - ES2025: একটি প্যাটার্নের বিভিন্ন বিকল্পে একই নামের নামযুক্ত ক্যাপচার গ্রুপ।
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` ও `setFloat16` (সফটওয়্যার round-to-nearest-even রূপান্তর)।
 
 যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
 

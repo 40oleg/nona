@@ -24,6 +24,7 @@ import { emitBufferLength, emitViewCheck } from "./view-bounds.js";
 import { emitTypedArraySearch } from "./typed-array-search.js";
 import { FunctionLayout as F, FunctionKind } from "./functions.js";
 import { emitElementWidth, emitReplicate } from "./typed-array-kernels.js";
+import { float16ElementType, float16TypedArray } from "./float16.js";
 
 /** Common layout for future numeric and BigInt typed-array variants. */
 export { TypedArrayKind, TypedArrayLayout };
@@ -40,6 +41,9 @@ const typedArrayWidths = [
     ["BigInt64Array", "bigint64array", 8],
     ["BigUint64Array", "biguint64array", 8],
 ] as const;
+/** The typed arrays of this runtime; element type i + 1 is entry i. */
+const linkedWidths = (b: RuntimeBuilder) =>
+    b.float16 ? [...typedArrayWidths, float16TypedArray] : typedArrayWidths;
 export const typedArrayRoots = [
     "rt.TypedArray",
     "rt.TypedArray.of.fn",
@@ -192,6 +196,7 @@ export function emitTypedArrayPrototype(b: RuntimeBuilder): void {
         "float64array",
         "bigint64array",
         "biguint64array",
+        ...(b.float16 ? [float16TypedArray[1]] : []),
     ])
         b.bundle.fragments.push({
             name: "rt." + name + "Prototype",
@@ -447,11 +452,12 @@ export function emitTypedArray(b: RuntimeBuilder): void {
         failIf(a, "ne", "rt.throwTypeError");
         a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
         const found = a.unique("found");
-        for (let i = 0; i < typedArrayWidths.length; i++) {
+        const widths = linkedWidths(b);
+        for (let i = 0; i < widths.length; i++) {
             const next = a.unique("next");
             a.cmp("rax", i + 1);
             a.jcc("ne", next);
-            a.lea("rax", { rip: "rt." + typedArrayWidths[i]![0] });
+            a.lea("rax", { rip: "rt." + widths[i]![0] });
             a.jmp(found);
             a.label(next);
         }
@@ -590,6 +596,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
         "Float64Array",
         "BigInt64Array",
         "BigUint64Array",
+        ...(b.float16 ? [float16TypedArray[0]] : []),
     ])
         b.bundle.fragments
             .find((f) => f.name === "rt." + name)!
@@ -756,6 +763,10 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 two = a.unique("two"),
                 eight = a.unique("eight"),
                 widthReady = a.unique("widthReady");
+            if (b.float16) {
+                a.cmp("rax", float16ElementType);
+                a.jcc("e", two);
+            }
             a.cmp("rax", 4);
             a.jcc("b", one);
             a.cmp("rax", 6);
@@ -960,7 +971,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             // One overlapping block copy (#253).
             a.load("r10", slot(72));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
-            emitElementWidth(a);
+            emitElementWidth(a, b.float16);
             a.mov("r11", "rax");
             a.load("r9", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("r9", { base: "r9", disp: ArrayBufferLayout.bytes });
@@ -1038,6 +1049,10 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.label(valueReady);
             a.store(slot(144), "rax");
             a.load("rax", slot(104));
+            if (b.float16) {
+                a.cmp("rax", float16ElementType);
+                a.jcc("e", floating);
+            }
             a.cmp("rax", 10);
             a.jcc("ae", bigint);
             a.cmp("rax", 8);
@@ -1061,6 +1076,14 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             a.call("rt.toNumber");
             a.movsd("xmm0", slot(160));
             a.load("r10", slot(104));
+            if (b.float16) {
+                const single = a.unique("single");
+                a.cmp("r10", float16ElementType);
+                a.jcc("ne", single);
+                a.call("rt.float16FromDouble");
+                a.jmp(converted);
+                a.label(single);
+            }
             a.cmp("r10", 8);
             const float64 = a.unique("float64");
             a.jcc("ne", float64);
@@ -1138,7 +1161,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             // One block fill of the replicated element (#253).
             a.load("r10", slot(72));
             a.load("rax", { base: "r10", disp: TypedArrayLayout.elementType });
-            emitElementWidth(a);
+            emitElementWidth(a, b.float16);
             a.mov("r11", "rax");
             a.load("r9", { base: "r10", disp: TypedArrayLayout.buffer });
             a.load("r9", { base: "r9", disp: ArrayBufferLayout.bytes });
@@ -1330,6 +1353,32 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             },
         );
     }
+    if (b.float16) {
+        emitNativeFunction(b, "rt.float16Convert.fn", "", 1);
+        rootedFn(
+            b,
+            "rt.float16Convert.fn.code",
+            104,
+            [
+                { kind: "output", register: "rcx" },
+                { kind: "range", register: "r8", count: "rdx" },
+            ],
+            (a) => {
+                a.store(slot(40), "rcx");
+                a.lea("rcx", slot(80));
+                a.mov("rdx", "r8");
+                a.call("rt.toNumber");
+                a.movsd("xmm0", slot(88));
+                a.call("rt.float16FromDouble");
+                a.mov("rcx", "rax");
+                a.call("rt.float16ToDouble");
+                a.load("rcx", slot(40));
+                a.mov("rax", 3);
+                a.store({ base: "rcx" }, "rax");
+                a.storesd({ base: "rcx", disp: 8 }, "xmm0");
+            },
+        );
+    }
     for (const signed of [true, false]) {
         const symbol = signed
             ? "rt.bigint64Convert.fn"
@@ -1444,19 +1493,9 @@ export function emitTypedArray(b: RuntimeBuilder): void {
             }
         });
     }
-    for (const [name, lower] of [
-        ["Uint8Array", "uint8array"],
-        ["Int8Array", "int8array"],
-        ["Uint8ClampedArray", "uint8clampedarray"],
-        ["Uint16Array", "uint16array"],
-        ["Int16Array", "int16array"],
-        ["Uint32Array", "uint32array"],
-        ["Int32Array", "int32array"],
-        ["Float32Array", "float32array"],
-        ["Float64Array", "float64array"],
-        ["BigInt64Array", "bigint64array"],
-        ["BigUint64Array", "biguint64array"],
-    ] as const) {
+    // Float16Array.prototype has no own @@toStringTag: it needs the binaryData
+    // prelude, whose %TypedArray%.prototype getter removes the others.
+    for (const [name, lower] of typedArrayWidths) {
         const tagName = "rt." + lower + "Tag",
             prototypeName = "rt." + lower + "Prototype",
             node = prototypeName + ".@@toStringTag";
@@ -1509,7 +1548,7 @@ export function emitTypedArray(b: RuntimeBuilder): void {
     b.bundle.fragments.push(
         stringLiteral("rt.typedArrayBytesPerElement.key", "BYTES_PER_ELEMENT"),
     );
-    for (const [name, lower, width] of typedArrayWidths)
+    for (const [name, lower, width] of linkedWidths(b))
         for (const ownerName of ["rt." + name, "rt." + lower + "Prototype"]) {
             const owner = b.bundle.fragments.find((f) => f.name === ownerName)!;
             const head = owner.fixups.find((f) => f.offset === O.properties);
@@ -1563,6 +1602,9 @@ export function emitTypedArray(b: RuntimeBuilder): void {
         ["Float64Array", 9, 8],
         ["BigInt64Array", 10, 8],
         ["BigUint64Array", 11, 8],
+        ...(b.float16
+            ? [[float16TypedArray[0], float16ElementType, 2] as const]
+            : []),
     ] as const) {
         b.fn("rt." + name + ".code", 40, (a) => a.call("rt.throwTypeError"));
         rootedFn(
@@ -1622,21 +1664,23 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(192), "rax");
                 a.lea("rax", {
                     rip:
-                        elementType === 3
-                            ? "rt.uint8ClampedConvert.fn"
-                            : elementType === 8
-                              ? "rt.float32Convert.fn"
-                              : elementType === 9
-                                ? "rt.float64Convert.fn"
-                                : elementType === 10
-                                  ? "rt.bigint64Convert.fn"
-                                  : elementType === 11
-                                    ? "rt.biguint64Convert.fn"
-                                    : width === 4
-                                      ? "rt.uint32Convert.fn"
-                                      : width === 2
-                                        ? "rt.uint16Convert.fn"
-                                        : "rt.uint8Convert.fn",
+                        elementType === float16ElementType
+                            ? "rt.float16Convert.fn"
+                            : elementType === 3
+                              ? "rt.uint8ClampedConvert.fn"
+                              : elementType === 8
+                                ? "rt.float32Convert.fn"
+                                : elementType === 9
+                                  ? "rt.float64Convert.fn"
+                                  : elementType === 10
+                                    ? "rt.bigint64Convert.fn"
+                                    : elementType === 11
+                                      ? "rt.biguint64Convert.fn"
+                                      : width === 4
+                                        ? "rt.uint32Convert.fn"
+                                        : width === 2
+                                          ? "rt.uint16Convert.fn"
+                                          : "rt.uint8Convert.fn",
                 });
                 a.store(slot(200), "rax");
                 // thisArg marker: Array.from converts array-like elements as it reads them
@@ -1948,7 +1992,13 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.lea("r8", slot(240));
                 a.call("rt.getProperty");
                 a.lea("rcx", slot(256));
-                if (elementType >= 10) {
+                if (elementType === float16ElementType) {
+                    a.mov("rdx", "rcx");
+                    a.lea("rcx", slot(304));
+                    a.call("rt.toNumber");
+                    a.movsd("xmm0", slot(312));
+                    a.call("rt.float16FromDouble");
+                } else if (elementType >= 10) {
                     a.lea("rcx", slot(240));
                     a.lea("rdx", slot(256));
                     a.call("rt.toBigIntValue");

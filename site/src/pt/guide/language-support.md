@@ -56,6 +56,7 @@ A maioria dos recursos de edições posteriores não é suportada. Adições sup
 - ES2024: ArrayBuffer redimensionável e `transfer`, SharedArrayBuffer expansível, typed arrays e DataViews que acompanham o comprimento.
 - ES2025: `RegExp.escape`.
 - ES2025: grupos de captura nomeados repetidos em alternativas diferentes de um padrão.
+- ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` e `setFloat16` (conversão por software com arredondamento para o par mais próximo).
 
 Quando a revisão fixada do Test262 já verifica semântica mais nova para recursos do ES2020, o Nona segue o Test262; a página [Test262](/pt/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) lista esses casos.
 

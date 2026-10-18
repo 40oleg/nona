@@ -15,6 +15,8 @@ export interface RuntimeLink {
     unicodeStringProperties: boolean;
     /** Unicode normalization tables for String.prototype.normalize, localeCompare and Intl.Collator. */
     unicodeNormalization: boolean;
+    /** Half-precision conversions: Math.f16round and DataView get/setFloat16. */
+    float16: boolean;
     /** Optional JavaScript preludes (see preludeTriggers). */
     preludes: Record<OptionalPrelude, boolean>;
 }
@@ -77,6 +79,7 @@ export const preludeTriggers = {
         "Uint16Array",
         "Int32Array",
         "Uint32Array",
+        "Float16Array",
         "Float32Array",
         "Float64Array",
         "BigInt64Array",
@@ -257,6 +260,7 @@ export const fullRuntimeLink: RuntimeLink = {
     unicodeSets: true,
     unicodeStringProperties: true,
     unicodeNormalization: true,
+    float16: true,
     preludes: preludeSet(true),
 };
 /** The hint every "not linked" error ends with. */
@@ -269,6 +273,7 @@ export const runtimePartNames: readonly string[] = [
     "unicodeSets",
     "unicodeStringProperties",
     "unicodeNormalization",
+    "float16",
     ...optionalPreludes,
 ];
 /**
@@ -296,6 +301,7 @@ export function requestLink(
                     true;
         else if (part === "unicodeNormalization")
             result.unicodeNormalization = true;
+        else if (part === "float16") result.float16 = true;
         else result.preludes[part as OptionalPrelude] = true;
     }
     return result;
@@ -382,6 +388,11 @@ export function linkReport(
                 ? "--full-runtime"
                 : (reasons.unicodeNormalization ?? "requested"),
         );
+    if (link.float16)
+        set(
+            "float16",
+            full ? "--full-runtime" : (reasons.float16 ?? "requested"),
+        );
     // The RegExp protocol methods come with the engine (backend preludes.ts).
     if (regexp.regexp && !linked.has("regexpProtocol")) {
         linkedList.push("regexpProtocol");
@@ -393,6 +404,7 @@ export function linkReport(
     if (regexp.unicodeSets) present.add("unicodeSets");
     if (regexp.unicodeStringProperties) present.add("unicodeStringProperties");
     if (link.unicodeNormalization) present.add("unicodeNormalization");
+    if (link.float16) present.add("float16");
     return runtimePartNames
         .filter((part) => present.has(part))
         .map((part) => ({ part, reason: why.get(part)! }));

@@ -75,6 +75,7 @@ import { emitStringBuiltins } from "./string-builtins.js";
 import { emitNumberBuiltins } from "./number-builtins.js";
 import { emitRestArguments } from "./rest-arguments.js";
 import { emitMath } from "./math.js";
+import { emitFloat16 } from "./float16.js";
 import { emitUri } from "./uri.js";
 import { emitStringSplit } from "./string-split.js";
 import { emitStringReplace } from "./string-replace.js";
@@ -125,7 +126,11 @@ import { emitTypedArrayKernels } from "./typed-array-kernels.js";
 import { emitConsole } from "./console.js";
 /** Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts), and the default (empty) agent entry list. */
 function emitRealmTables(b: RuntimeBuilder, realms: number): void {
-    for (const intrinsic of realmTableIntrinsics)
+    const emitted = new Set(b.bundle.fragments.map((f) => f.name));
+    // The set is shared by every runtime built in this process: a part that
+    // is not linked here (float16) may have added its intrinsics.
+    for (const intrinsic of realmTableIntrinsics) {
+        if (!emitted.has(intrinsic)) continue;
         b.bundle.fragments.push({
             name: "realm.table." + intrinsic,
             section: ".rdata",
@@ -139,6 +144,7 @@ function emitRealmTables(b: RuntimeBuilder, realms: number): void {
                 addend: 0,
             })),
         });
+    }
     b.bundle.fragments.push({
         name: "agent.entryCount",
         section: ".rdata",
@@ -160,6 +166,8 @@ export function emitRuntime(
     request: RuntimeRequest = { operations: new Set() },
 ): RuntimeBundle {
     const b = new RuntimeBuilder();
+    const float16 = request.float16 !== false;
+    b.float16 = float16;
     emitMemory(b);
     emitDateClock(b);
     emitDateCalendar(b);
@@ -228,7 +236,7 @@ export function emitRuntime(
     emitWeakCollections(b);
     emitArrayBuffer(b);
     emitSharedArrayBuffer(b);
-    emitDataView(b);
+    emitDataView(b, float16);
     emitTypedArray(b);
     emitTypedArrayKernels(b);
     emitViewBounds(b);
@@ -261,7 +269,8 @@ export function emitRuntime(
     emitStringReplace(b);
     emitStringNormalize(b, request.unicodeNormalization !== false);
     emitStringLocaleCompare(b);
-    emitMath(b);
+    emitMath(b, float16);
+    if (float16) emitFloat16(b);
     emitAtomics(b);
     emitJson(b);
     emitJsonComposite(b);
@@ -280,7 +289,7 @@ export function emitRuntime(
     emitStrict(b);
     orderIntrinsicProperties(b);
     emitObjectCoercion(b);
-    emitGc(b, request.realms ?? 0);
+    emitGc(b, request.realms ?? 0, float16);
     emitIo(b);
     emitRealmTables(b, request.realms ?? 0);
     const n = emitNumericRuntime();

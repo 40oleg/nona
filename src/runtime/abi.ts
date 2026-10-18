@@ -12,6 +12,7 @@ export interface RuntimeRequest {
     operations: ReadonlySet<string>;
     realms?: number;
     /** Link the normalization tables (default true). */ unicodeNormalization?: boolean;
+    /** Link the half-precision built-ins (default true). */ float16?: boolean;
 }
 export interface RuntimeBundle {
     fragments: NamedFragment[];
@@ -20,6 +21,8 @@ export interface RuntimeBundle {
 }
 export class RuntimeBuilder {
     bundle: RuntimeBundle = { fragments: [], imports: [], functions: [] };
+    /** The float16 part is linked: Float16Array (element type 12) exists. */
+    float16 = true;
     fn(name: string, size: number, body: (a: Assembler) => void): void {
         const a = createAssembler(name);
         a.sub("rsp", size);

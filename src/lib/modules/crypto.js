@@ -603,6 +603,7 @@ export function randomFill(target, offset, size, callback) {
 export function getRandomValues(array) {
     if (
         !ArrayBuffer.isView(array) ||
+        (typeof Float16Array === "function" && array instanceof Float16Array) ||
         array instanceof Float32Array ||
         array instanceof Float64Array ||
         array instanceof DataView

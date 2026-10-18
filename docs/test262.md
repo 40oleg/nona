@@ -395,7 +395,7 @@ The complete `Math.sinh`, `Math.cosh`, and `Math.tanh` groups pass
 on Windows and Linux.
 
 A full `built-ins/Math` run now has 312 passes and 15 failures out of 327. All 15 failures concern `Math.f16round` and `Math.sumPrecise`,
-which are later than ES2020. This does not measure transcendental accuracy for arbitrary finite
+which were later than ES2020 at the time; `Math.f16round` is implemented now (see below). This does not measure transcendental accuracy for arbitrary finite
 inputs. Large-angle reduction for `sin`, `cos`, and `tan` was added
 after this run and verified against Node.js 26 across binary exponents.
 
@@ -446,3 +446,14 @@ On 2026-10-16 (Windows x64, `TEST262_EXCLUDE_FEATURES=post-es2020`)
 `built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85, with no
 failures or skips. `WeakRef` and `FinalizationRegistry` remain excluded
 because those globals do not exist.
+
+## Half-precision floats ([#321](https://github.com/40oleg/nona/issues/321))
+
+The `Float16Array` feature tag is no longer excluded by `post-es2020`, and the
+harness includes `Float16Array` in every `testWithTypedArrayConstructors` run.
+At the pinned revision on Windows x64 (`TEST262_EXCLUDE_FEATURES=post-es2020`):
+`built-ins/Math/f16round` 5/5, `built-ins/DataView/prototype/getFloat16` 20/20,
+`setFloat16` 22/22, `built-ins/DataView` 520/520,
+`built-ins/TypedArrayConstructors` 728/728 and `built-ins/TypedArray` 1192/1192,
+with no failures to classify. Tests that need resizable or immutable
+ArrayBuffers are not part of these counts: those features stay excluded.

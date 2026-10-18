@@ -13,6 +13,7 @@ import { stringLiteral } from "./value.js";
 import { emitTrigReduce } from "./numeric/trig-reduce.js";
 import { emitSoftwareMath } from "./numeric/software-math.js";
 import { machineMath } from "../backend/machine/context.js";
+import { float16MathMethods } from "./float16.js";
 
 const unaryMath = [
     "abs",
@@ -92,7 +93,8 @@ export const mathPropertyRoots = [
     ),
 ];
 
-export function emitMath(b: RuntimeBuilder): void {
+export function emitMath(b: RuntimeBuilder, float16 = true): void {
+    const unaryMethods = [...unaryMath, ...(float16 ? float16MathMethods : [])];
     const machine = machineMath();
     emitTrigReduce(b);
     if (machine.softwareRoutines) emitSoftwareMath(b);
@@ -123,7 +125,7 @@ export function emitMath(b: RuntimeBuilder): void {
     prependFunctionBuiltin(b, "rt.Math.hypot.fn", "hypot", 2, "rt.Math");
     prependFunctionBuiltin(b, "rt.Math.random.fn", "random", 0, "rt.Math");
     b.data("rt.Math.random.state", new Uint8Array(8), ".data");
-    for (const name of unaryMath)
+    for (const name of unaryMethods)
         prependFunctionBuiltin(
             b,
             "rt.Math." + name + ".fn",
@@ -530,7 +532,7 @@ export function emitMath(b: RuntimeBuilder): void {
         a.store({ base: "rcx" }, "rax");
         a.storesd({ base: "rcx", disp: 8 }, "xmm0");
     });
-    for (const name of unaryMath)
+    for (const name of unaryMethods)
         rootedFn(
             b,
             "rt.Math." + name + ".fn.code",
@@ -568,6 +570,12 @@ export function emitMath(b: RuntimeBuilder): void {
                     a.movqToXmm("xmm0", "rax");
                     a.cvtsd2ss("xmm0", "xmm0");
                     a.cvtss2sd("xmm0", "xmm0");
+                    a.movqFromXmm("rax", "xmm0");
+                } else if (name === "f16round") {
+                    a.movqToXmm("xmm0", "rax");
+                    a.call("rt.float16FromDouble");
+                    a.mov("rcx", "rax");
+                    a.call("rt.float16ToDouble");
                     a.movqFromXmm("rax", "xmm0");
                 } else if (name === "sign") {
                     const save = a.unique("save");

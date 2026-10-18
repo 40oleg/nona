@@ -97,6 +97,7 @@
                 "array-buffer",
                 "typed-array-fast-path",
                 "typedarray-change-by-copy",
+                "float16",
                 "string-builtins",
                 "intl",
                 "simd",

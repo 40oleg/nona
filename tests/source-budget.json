@@ -58,7 +58,7 @@
             "line": 210
         },
         "runtime/objects.ts": {
-            "bytes": 88082,
+            "bytes": 88986,
             "line": 140
         },
         "runtime/process-metadata-source.ts": {
@@ -90,7 +90,7 @@
             "line": 79
         },
         "runtime/typed-array.ts": {
-            "bytes": 73291,
+            "bytes": 75393,
             "line": 98
         },
         "selfhost-adapters.ts": {

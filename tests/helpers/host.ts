@@ -9,6 +9,7 @@ import { generate } from "../../src/backend/x64/codegen.js";
 import { linkHost } from "./program.js";
 import { requireHostTarget, getTarget } from "../../src/target.js";
 import { linkLinux } from "../../src/backend/linux/index.js";
+import type { RuntimeLink } from "../../src/link.js";
 
 export interface HostRun {
     status: number | null;
@@ -24,11 +25,14 @@ const TIMEOUT_MS = 60_000;
 /** Compile with the runtime prelude for the host's native target and run it. */
 export function runOnHost(
     source: string,
-    options: { gcStress?: boolean; realms?: number } = { gcStress: true },
+    options: { gcStress?: boolean; realms?: number; link?: RuntimeLink } = {
+        gcStress: true,
+    },
 ): HostRun {
     const program = generate(compileToIR(source), {
         gcStress: options.gcStress,
         ...(options.realms ? { realms: options.realms } : {}),
+        ...(options.link ? { link: options.link } : {}),
     });
     const timeout = options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS;
     if (process.platform !== "linux") {

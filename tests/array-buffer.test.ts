@@ -441,7 +441,7 @@ test("DataView prototype keeps ES method order", () =>
         `
  console.log(Object.getOwnPropertyNames(DataView.prototype).join(','));
 `,
-        "constructor,buffer,byteLength,byteOffset,getInt8,setInt8,getUint8,setUint8,getInt16,setInt16,getUint16,setUint16,getInt32,setInt32,getUint32,setUint32,getFloat32,setFloat32,getFloat64,setFloat64,getBigInt64,setBigInt64,getBigUint64,setBigUint64\n",
+        "constructor,buffer,byteLength,byteOffset,getInt8,setInt8,getUint8,setUint8,getInt16,setInt16,getUint16,setUint16,getInt32,setInt32,getUint32,setUint32,getFloat16,setFloat16,getFloat32,setFloat32,getFloat64,setFloat64,getBigInt64,setBigInt64,getBigUint64,setBigUint64\n",
     ));
 
 test("buffer methods retain native calls after Function.prototype.call changes", () =>
