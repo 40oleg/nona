@@ -10,6 +10,7 @@ import { ObjectLayout as O } from "./object-layout.js";
  */
 export const ArrayBufferKind = 11;
 export const SharedArrayBufferKind = 14;
+export const TypedArrayKind = 13;
 export const ArrayBufferLayout = {
     bytes: O.size,
     byteLength: O.size + 8,

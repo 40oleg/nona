@@ -2,7 +2,7 @@ import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
 import { ObjectLayout as O } from "./object-layout.js";
 import { prependFunctionBuiltin } from "./function-builtin.js";
-import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
+import { TypedArrayKind, TypedArrayLayout } from "./array-buffer-layout.js";
 import { emitViewCheck } from "./view-bounds.js";
 import { emitTypedSearch } from "./typed-array-kernels.js";
 
