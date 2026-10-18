@@ -1,5 +1,28 @@
 # Журнал разработки Nona
 
+## 2026-10-18 — выпуск v0.17.0
+
+- Версия package.json и package-lock.json обновлена до 0.17.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли методы TypedArray ES2023 `toSorted`, `toReversed` и `with` (#334), флаг RegExp `v` (unicodeSets, ES2024) (#351) и улучшения CI.
+- Полный аудит Test262 для v0.17.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0. PERFORMANCE.md не обновлялся.
+
+## 2026-10-17 — выпуск v0.16.0
+
+- Версия package.json и package-lock.json обновлена до 0.16.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли FFI к разделяемым библиотекам на Linux и macOS (#364), `WeakRef` (#304), `FinalizationRegistry` (#305) , индексы совпадений RegExp и методы массивов ES2023 `toSorted`, `toReversed`, `toSpliced`, `with` (#335).
+- CHANGELOG: записи #304, #305 и индексов RegExp, которые после слияния оказались в разделах v0.15.0 и v0.14.0, перенесены в v0.16.0.
+- Полный аудит Test262 для v0.16.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0. PERFORMANCE.md не обновлялся.
+
+## 2026-10-17 — выпуск v0.15.0
+
+- Версия package.json и package-lock.json обновлена до 0.15.0; `src/version.ts`, CLI help и `--version` — тоже.
+- Полный аудит Test262 для v0.15.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
+## 2026-10-16 — выпуск v0.14.0
+
+- Версия package.json и package-lock.json обновлена до 0.14.0; `src/version.ts`, CLI help и `--version` — тоже.
+- Полный аудит Test262 для v0.14.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-13 — выпуск v0.12.0
 
 - Версия package.json и package-lock.json обновлена до 0.12.0; `src/version.ts`, CLI help и `--version` — тоже. Changelog собран в разделы: npm-пакеты, производительность, разработка.

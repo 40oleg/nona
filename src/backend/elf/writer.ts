@@ -1,6 +1,7 @@
 import type { NativeProgram, NamedFragment } from "../machine/model.js";
 import { checkedRel32 } from "../x64/encoder.js";
 import { isArm64Relocation, relocateArm64 } from "../arm64/relocations.js";
+import { linuxInterpreter } from "../../ffi.js";
 import { writeFileSync } from "node:fs";
 
 const align = (value: number, boundary: number) =>
@@ -27,8 +28,137 @@ export interface ElfOptions {
     syscallPins?: readonly { symbol: string; offset: number; number: number }[];
 }
 
-/** Link a fixed-address ELF64/x86-64 executable from target-independent fragments.
- * Native imports must be replaced by Linux runtime shims before this linker runs.
+/**
+ * The loader structures of a dynamically linked executable, as fragments: the
+ * interpreter path, symbol and string tables, a SysV hash table and GLOB_DAT
+ * relocations in the read-only section; the dynamic section and one GOT cell
+ * per import (named by the import symbol, so `call [rip+symbol]` reaches the
+ * bound address) in the writable section. Pointers are va64 fixups, resolved
+ * with everything else once the layout is known.
+ */
+function dynamicFragments(
+    imports: NativeProgram["imports"],
+    machine: "x64" | "arm64",
+): NamedFragment[] {
+    const encoder = new TextEncoder();
+    const fragment = (
+        name: string,
+        section: NamedFragment["section"],
+        bytes: Uint8Array,
+        alignment: number,
+        fixups: NamedFragment["fixups"] = [],
+    ): NamedFragment => ({
+        name,
+        section,
+        alignment,
+        bytes,
+        symbols: {},
+        fixups,
+    });
+    const pointer = (offset: number, target: string) => ({
+        offset,
+        kind: "va64" as const,
+        target,
+        addend: 0,
+    });
+    const symbols = new Set<string>();
+    for (const item of imports) {
+        if (symbols.has(item.symbol))
+            throw new Error(`Duplicate ELF import ${item.symbol}`);
+        symbols.add(item.symbol);
+        if (
+            !/^[\x21-\x7e]+$/.test(item.dll) ||
+            !/^[\x21-\x7e]+$/.test(item.name)
+        )
+            throw new Error(`Invalid ELF import ${item.dll}!${item.name}`);
+    }
+    const libraries = [...new Set(imports.map((item) => item.dll))];
+    // The string table: library names, then symbol names.
+    const strings: number[] = [0],
+        stringOffsets = new Map<string, number>();
+    const intern = (text: string) => {
+        let offset = stringOffsets.get(text);
+        if (offset === undefined) {
+            offset = strings.length;
+            strings.push(...encoder.encode(text), 0);
+            stringOffsets.set(text, offset);
+        }
+        return offset;
+    };
+    libraries.forEach(intern);
+    const dynsym = new Uint8Array(24 * (imports.length + 1)),
+        symbolView = new DataView(dynsym.buffer);
+    imports.forEach((item, index) => {
+        const at = 24 * (index + 1);
+        symbolView.setUint32(at, intern(item.name), true);
+        dynsym[at + 4] = 0x12; // STB_GLOBAL, STT_FUNC; st_shndx SHN_UNDEF
+    });
+    // SysV hash: one bucket chaining every symbol (the loader skips undefined ones).
+    const hash = new Uint8Array(4 * (2 + 1 + imports.length + 1)),
+        hashView = new DataView(hash.buffer);
+    hashView.setUint32(0, 1, true);
+    hashView.setUint32(4, imports.length + 1, true);
+    hashView.setUint32(8, imports.length ? 1 : 0, true);
+    for (let index = 1; index < imports.length; index++)
+        hashView.setUint32(12 + 4 * index, index + 1, true);
+    const rela = new Uint8Array(24 * imports.length),
+        relaView = new DataView(rela.buffer),
+        globDat = machine === "arm64" ? 1025 : 6;
+    const relaFixups = imports.map((item, index) => {
+        relaView.setBigUint64(
+            24 * index + 8,
+            (BigInt(index + 1) << 32n) | BigInt(globDat),
+            true,
+        );
+        return pointer(24 * index, item.symbol);
+    });
+    const entries: [number, number | bigint | string][] = [
+        ...libraries.map((library): [number, number] => [1, intern(library)]),
+        [4, "elf.hash"],
+        [5, "elf.dynstr"],
+        [6, "elf.dynsym"],
+        [10, strings.length],
+        [11, 24],
+        [7, "elf.rela"],
+        [8, rela.length],
+        [9, 24],
+        [24, 0], // DT_BIND_NOW: every symbol resolves before the entry runs
+        [30, 8], // DT_FLAGS: DF_BIND_NOW
+        [0x6ffffffb, 1], // DT_FLAGS_1: DF_1_NOW
+        [0, 0],
+    ];
+    const dynamic = new Uint8Array(16 * entries.length),
+        dynamicView = new DataView(dynamic.buffer),
+        dynamicFixups: NamedFragment["fixups"] = [];
+    entries.forEach(([tag, value], index) => {
+        dynamicView.setBigUint64(16 * index, BigInt(tag), true);
+        if (typeof value === "string")
+            dynamicFixups.push(pointer(16 * index + 8, value));
+        else dynamicView.setBigUint64(16 * index + 8, BigInt(value), true);
+    });
+    return [
+        fragment(
+            "elf.interp",
+            ".rdata",
+            encoder.encode(linuxInterpreter[machine] + "\0"),
+            1,
+        ),
+        fragment("elf.dynsym", ".rdata", dynsym, 8),
+        fragment("elf.dynstr", ".rdata", Uint8Array.from(strings), 1),
+        fragment("elf.hash", ".rdata", hash, 8),
+        fragment("elf.rela", ".rdata", rela, 8, relaFixups),
+        fragment("elf.dynamic", ".data", dynamic, 8, dynamicFixups),
+        ...imports.map((item) =>
+            fragment(item.symbol, ".data", new Uint8Array(8), 8),
+        ),
+    ];
+}
+
+/** Link a fixed-address ELF64 executable (x86-64 or AArch64) from target-independent fragments.
+ * Native imports must be replaced by Linux runtime shims before this linker runs;
+ * the imports that remain are shared library functions, which make the image
+ * dynamically linked (PT_INTERP, PT_DYNAMIC, DT_NEEDED, GOT relocations). An
+ * image without them is static and identical to what earlier versions produced.
  */
 export function linkElf(
     program: NativeProgram,
@@ -43,6 +173,17 @@ export function linkElf(
         throw new Error("Unsupported ELF target");
     if (os !== "linux" && machine !== "x64")
         throw new Error("Unsupported ELF target architecture");
+    const dynamic = program.imports.length > 0;
+    if (dynamic && os !== "linux")
+        throw new Error("Shared library imports require a Linux ELF target");
+    if (dynamic)
+        program = {
+            ...program,
+            fragments: [
+                ...program.fragments,
+                ...dynamicFragments(program.imports, machine),
+            ],
+        };
     const page = options.pageSize ?? (machine === "arm64" ? 65536 : 4096),
         base = options.base ?? 0x400000;
     if (
@@ -56,8 +197,6 @@ export function linkElf(
         throw new Error("Invalid ELF base alignment");
     if (options.syscallPins?.length && os !== "openbsd")
         throw new Error("ELF syscall pins require OpenBSD");
-    if (program.imports.length)
-        throw new Error("ELF requires resolved native imports");
     const sections: Section[] = [];
     let next = page;
     for (const [name, flags] of [
@@ -213,7 +352,8 @@ export function linkElf(
         sections.length +
         1 +
         (pins.length ? 1 : 0) +
-        (os === "openbsd" ? 1 : 0);
+        (os === "openbsd" ? 1 : 0) +
+        (dynamic ? 3 : 0);
     const noteOffset = 64 + 56 * headers;
     if (noteOffset + (os === "openbsd" ? 24 : 0) > page)
         throw new Error("ELF program headers exceed first page");
@@ -243,10 +383,65 @@ export function linkElf(
         view.setBigUint64(at + 40, BigInt(length), true);
         view.setBigUint64(at + 48, BigInt(page), true);
     };
-    segment(0, 0, page, 4);
+    // PT_INTERP precedes the loadable segments; PT_DYNAMIC follows them.
+    const locate = (name: string) => {
+        for (const section of sections)
+            for (const { fragment, offset } of section.fragments)
+                if (fragment.name === name)
+                    return {
+                        offset: section.offset + offset,
+                        length: fragment.bytes.length,
+                    };
+        throw new Error(`Missing ELF fragment ${name}`);
+    };
+    const header = (
+        index: number,
+        type: number,
+        flags: number,
+        offset: number,
+        length: number,
+        alignment: number,
+    ) => {
+        const at = 64 + index * 56;
+        view.setUint32(at, type, true);
+        view.setUint32(at + 4, flags, true);
+        view.setBigUint64(at + 8, BigInt(offset), true);
+        view.setBigUint64(at + 16, BigInt(base + offset), true);
+        view.setBigUint64(at + 24, BigInt(base + offset), true);
+        view.setBigUint64(at + 32, BigInt(length), true);
+        view.setBigUint64(at + 40, BigInt(length), true);
+        view.setBigUint64(at + 48, BigInt(alignment), true);
+    };
+    const first = dynamic ? 1 : 0;
+    if (dynamic) {
+        const interp = locate("elf.interp");
+        header(0, 3, 4, interp.offset, interp.length, 1);
+    }
+    segment(first, 0, page, 4);
     sections.forEach((section, index) =>
-        segment(index + 1, section.offset, section.length, section.flags),
+        segment(
+            first + index + 1,
+            section.offset,
+            section.length,
+            section.flags,
+        ),
     );
+    if (dynamic) {
+        const table = locate("elf.dynamic");
+        header(
+            first + sections.length + 1,
+            2,
+            6,
+            table.offset,
+            table.length,
+            8,
+        );
+        // PT_GNU_STACK: a non-executable stack, as the C library expects.
+        const at = 64 + (first + sections.length + 2) * 56;
+        view.setUint32(at, 0x6474e551, true);
+        view.setUint32(at + 4, 6, true);
+        view.setBigUint64(at + 48, 16n, true);
+    }
     if (os === "openbsd") {
         // Released kernels validate the OpenBSD PT_NOTE before checking EI_OSABI.
         const at = 64 + (sections.length + 1) * 56;

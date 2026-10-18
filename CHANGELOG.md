@@ -2,8 +2,68 @@
 
 ## Unreleased
 
+## v0.17.0 — 2026-10-18
+
+Highlights: ES2023 TypedArray methods, ES2024 RegExp v flag, development improvements.
+
+### Language
+
+- ES2023 `%TypedArray%.prototype.toSorted`, `toReversed` and `with` ([#309](https://github.com/40oleg/nona/issues/309)). The result is a new array of the receiver's intrinsic type (no species), `with` throws `RangeError` for an index outside the current length after coercing the value. The code is part of the `es2021` prelude, linked when a program names `toSorted`, `toReversed` or `with`
+
+### RegExp
+
+- **The `v` flag (`unicodeSets`, ES2024).** Set operations `--` and `&&`, nested classes, `q{...}` string literals, properties of strings (`p{RGI_Emoji}` and six more) and the stricter syntax of the flag, plus the `RegExp.prototype.unicodeSets` getter. The v-mode matcher is linked only for programs that use the flag, and the emoji data only when a property of strings is named (link part `unicodeStringProperties`, for `--link`). Test262 `regexp-v-flag`: 185/187. ([#314](https://github.com/40oleg/nona/issues/314))
+
+### Development
+
+- On a self-hosted runner the CI test scripts run 3 test files at once instead of one per hardware thread, which exhausted the memory of a 32-thread machine; `NONA_TEST_CONCURRENCY` sets the number. ([#380](https://github.com/40oleg/nona/issues/380))
+- On pull requests, CI runs most test files and the program corpus without GC stress (`NONA_GC_STRESS=off`); the files of `tests/gc-stress.json` and every run on `main` keep it, and the `gc-stress` label restores it for a pull request. ([#372](https://github.com/40oleg/nona/issues/372))
+- On pull requests, the Test262 directory jobs of `check` run only when the pull request changes the compiler or runtime (or has `full-ci`). ([#371](https://github.com/40oleg/nona/issues/371))
+- CI runs the Windows tests of `check` in four parallel shards balanced by `tests/timings.json`, without the program corpus (the `program corpus` workflow runs it), and builds once per job. ([#370](https://github.com/40oleg/nona/issues/370))
+- CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
+
+## v0.16.0 — 2026-10-17
+
+Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.
+
+### Language
+
+- **ES2023 change-by-copy methods.** `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with` return a new array and leave the receiver unchanged; `toSorted` sorts with the built-in stable `sort`. Their `Symbol.unscopables` entries are added too. The methods are a prelude part linked only when a source names one of them. The Test262 directories `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables/change-array-by-copy.js` pass (94/94). ([#308](https://github.com/40oleg/nona/issues/308))
+
 ### Runtime
 
+- **`Object.groupBy` and `Map.groupBy`** (ES2024) over any iterable, with the spec's property-key coercion (`Object.groupBy` returns a null-prototype object). They live in the `es2021` prelude, linked when a program names `groupBy`. ([#311](https://github.com/40oleg/nona/issues/311))
+- `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
+- `FinalizationRegistry` with `register`/`unregister` ([#305](https://github.com/40oleg/nona/issues/305)). Cleanup callbacks run as a host job from the event loop after a collection is seen at a checkpoint, never inside the collector, and pending cleanup does not keep the process alive. The runtime part is linked only when a program names `FinalizationRegistry`. `built-ins/FinalizationRegistry` passes 45/47 in Test262; the two failures need symbols as targets or tokens, which are rejected.
+- RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))
+
+### Language
+
+- **Top-level `await` in ES modules (ES2022).** A module with `await` at its top level is evaluated as an async module (`[[AsyncEvaluation]]`, order of its dependents, cycles, rejection propagation), `import()` waits for it, and an entry that never settles exits with code 13. Scripts and CommonJS files still reject it; `require()` of a graph with top-level `await` throws `ERR_REQUIRE_ASYNC_MODULE`. The runtime part is linked only into programs that use it. Test262 `language/module-code/top-level-await` passes 244 of 251; the remaining failures need `Promise.withResolvers` (ES2024) or are runtime-negative tests. ([#306](https://github.com/40oleg/nona/issues/306))
+
+### Host APIs
+
+- `node:child_process` (`child_process`, `nona:child_process`): `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and `ChildProcess` with `pipe`/`inherit`/`ignore` stdio as `stream` streams on the event loop, `cwd`, `env`, `shell`, `timeout`, `kill` and the `spawn`/`exit`/`close`/`error` events. Windows uses `CreateProcessW` with pipes and `cmd.exe /d /s /c`; Linux uses `fork`/`execve`, `pipe2` and `pidfd`/`wait4` through raw system calls. `fork()`/IPC are not supported, and macOS, BSD and arm64 targets throw `ERR_NONA_UNSUPPORTED` ([#328](https://github.com/40oleg/nona/issues/328)). ([#303](https://github.com/40oleg/nona/issues/303))
+- **FFI on Linux and macOS.** `define` from `nona:ffi` calls shared library functions on linux-x64, linux-arm64, darwin-x64 and darwin-arm64: `define("libc.so.6", "strlen", "u64(str)")`, `define("/usr/lib/libSystem.B.dylib", "getpid", "i32()")`, any soname, path, dylib or framework binary. A Linux program that declares a library function becomes a dynamically linked executable (`PT_INTERP`, `DT_NEEDED`, `GLOB_DAT` relocations bound at start); a macOS program loads each library with `LC_LOAD_DYLIB` and binds the symbols through dyld. Programs without library declarations are byte-identical to before (static, libc-free on Linux; kernel startup on Intel macOS). The library argument may also be an object literal keyed by OS (`{ win32: "ucrtbase.dll", linux: "libm.so.6", darwin: "/usr/lib/libSystem.B.dylib" }`); a target without a key, a DLL name on a POSIX target, a `.so`/`.dylib` name on Windows and any library on BSD are `E_FFI_TARGET`. Calls follow the SysV AMD64 and AAPCS64 conventions, with Apple's packed stack arguments on darwin-arm64, for all signature types and up to 32 parameters; `lastError()` returns `errno` after a POSIX library call. See [docs/ffi.md](docs/ffi.md). ([#364](https://github.com/40oleg/nona/issues/364))
+
+## v0.15.0 — 2026-10-17
+
+### Runtime
+
+- **`Intl` for the `en` locale.** Nona's own `Intl` without ICU: `NumberFormat` (decimal, percent, currency, unit, compact, scientific and engineering notation, significant and fraction digits, rounding, `formatToParts`, `formatRange`), `DateTimeFormat` (`dateStyle`/`timeStyle` and component options, UTC and fixed offsets, `formatToParts`, `formatRange`), `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf` and `supportedValuesOf`, and `Number`/`BigInt`/`Date.prototype.toLocale*String` and `String.prototype.localeCompare` delegating to them. Only `en` and `en-US` are available; other locales fall back to `en-US` and `resolvedOptions().locale` says so. The part is linked when a program names `Intl` or a `toLocale*`/`localeCompare` method. [docs/intl.md](docs/intl.md) lists the supported options, the limitations and the Test262 `intl402` results. ([#300](https://github.com/40oleg/nona/issues/300))
+- `Error.captureStackTrace`, `Error.stackTraceLimit` and `Error.prepareStackTrace` (the V8 stack API that `depd`, `http-errors` and Express call at load time). Nona does not walk the stack, so `captureStackTrace` defines `stack` as the `name: message` header, or passes `prepareStackTrace` an array of placeholder CallSite objects with unknown locations. ([#298](https://github.com/40oleg/nona/issues/298))
+- `EventEmitter` methods work on a target whose own `_events` is `undefined` (the emitter prototype's descriptors copied onto a function or object, as Express does) and when called with `.call` on a plain object: `_events` is created lazily like Node.js, and the max-listeners check no longer calls `getMaxListeners()` on the target. ([#298](https://github.com/40oleg/nona/issues/298))
+
+### Host APIs
+
+- **`zlib`** (`node:zlib`, `zlib`, `nona:zlib`): Nona's own DEFLATE codec with zlib and gzip framing, Adler-32 and CRC-32, and the synchronous, callback and stream APIs of Node.js (`deflateSync`, `gunzipSync`, `createGzip`, …, `crc32`, `constants`, error codes compatible with Node.js). Brotli is not provided. Compressed bytes are valid but not byte-identical to Node.js's zlib, and the `http` client does not decompress responses, as in Node.js. See [zlib](docs/host-apis.md#zlib). ([#302](https://github.com/40oleg/nona/issues/302))
+
+## v0.14.0 — 2026-10-16
+
+### Runtime
+
+- `node:fs` gains `lstatSync`, `readlinkSync` (symbolic links, and junctions on Windows), `realpathSync.native`, `accessSync`, `rmSync`, a full `fs.Dirent` (all `is*()` methods, `parentPath`, `path`) for `readdirSync(path, {withFileTypes: true})`, the `Stats` device/FIFO/socket tests, Node.js callback forms of the common functions and `fs.promises`, also as the new `node:fs/promises` module (`fs/promises`, `nona:fs/promises`). Packages such as glob's path-scurry now compile. ([#297](https://github.com/40oleg/nona/issues/297))
+- `EventEmitter.prototype.once` and `prependOnceListener` register their wrapper through `this.on` and `this.prependListener`, as in Node.js, so a subclass that overrides `on` (minipass starts data flow there) sees `once('data')` listeners. `for await` over a minipass stream and glob's `Glob` iterators and streams no longer hang. ([#297](https://github.com/40oleg/nona/issues/297))
 - **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
 - Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
 - **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
@@ -11,8 +71,18 @@
 
 - **ES2025 Set methods.** `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` and `isDisjointFrom` accept set-like arguments (`size`, `has`, `keys`) as ES2025 defines them. The methods are a prelude part linked only when a program names one of them. ([#316](https://github.com/40oleg/nona/issues/316))
 
+- `crypto.hkdf` and `crypto.hkdfSync` (HKDF, RFC 5869, with Node's argument checks and an `ArrayBuffer` result), and the internal module `nona:internal/tls-crypto` with the primitives of the coming TLS client: TLS 1.3 HKDF-Expand-Label, AES-128/256-GCM, ChaCha20-Poly1305, X25519, P-256/P-384 ECDH, ECDSA and RSA (PKCS#1 v1.5, PSS) signature verification and a DER reader, in JavaScript without external code. ([#301](https://github.com/40oleg/nona/issues/301))
+- `node:tls` (also `tls`, `nona:tls`) on win32-x64 and linux-x64: a TLS 1.3 client (`tls.connect`, `TLSSocket`) with SNI, ALPN, HelloRetryRequest, KeyUpdate, the three TLS 1.3 cipher suites and ECDSA/RSA-PSS certificates, checked against the RFC 8448 handshake trace and Node.js servers. TLS 1.2 is not implemented (`ERR_SSL_UNSUPPORTED_PROTOCOL`). ([#301](https://github.com/40oleg/nona/issues/301))
+- TLS certificate verification: X.509 chains are built and checked like Node.js/OpenSSL do (out-of-order chains, CA flags and path lengths, `serverAuth`, key usage, critical extensions, name constraints, RSA PKCS#1/PSS and ECDSA signatures, validity periods), with Node's error codes; host names per RFC 6125 (`tls.checkServerIdentity`); trust anchors from the `ca` option or the operating system's store (a PEM bundle on Linux, the ROOT/CA system stores on Windows), also listed by `tls.rootCertificates`. No revocation checks. ([#301](https://github.com/40oleg/nona/issues/301))
+- `node:https` (also `https`, `nona:https`) on win32-x64 and linux-x64: `https.request`, `https.get`, `https.Agent` and `globalAgent` with keep-alive pooling keyed by the TLS options, over `node:tls`. The https client is client-only and TLS 1.3-only; there is no global `fetch` yet. Limitations are listed in [networking](docs/network.md#security-limitations). ([#301](https://github.com/40oleg/nona/issues/301))
 - **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
+- **npm: `module.createRequire` and CommonJS requires.** `createRequire(filename)` from `node:module` returns a working `require` for the modules the program contains at compile time (the literal requires of the calling file, the program's CommonJS files and modules other files require); other ids throw `MODULE_NOT_FOUND`. CommonJS files get the literal requires made through `createRequire`, `require()` of an ES module returns its namespace, and `createRequire` is resolved through destructuring and `module.createRequire` too. ([#299](https://github.com/40oleg/nona/issues/299))
+- **`node:fs` callbacks.** `readFile`, `writeFile`, `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename`, `copyFile` and `exists` run their synchronous function and call back on a later turn. ([#299](https://github.com/40oleg/nona/issues/299))
+- **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
+- **yargs** (18.2) runs with the output of Node.js for the typical API (options, aliases, commands, `.strict()`, `--help`, `--version`, errors) and is listed as a tested package; see [npm packages](docs/npm.md#tested-packages) for the two differences that remain. ([#299](https://github.com/40oleg/nona/issues/299))
 
+- **Symbols as weak keys (ES2023).** `WeakMap` keys and `WeakSet` values may be non-registered symbols, well-known ones included; `Symbol.for` symbols are rejected with a TypeError by `set`/`add`, as other values that cannot be held weakly are, and `get`/`has`/`delete` report them as absent. The collector holds such keys weakly. Test262 `built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85 with post-ES2020 features excluded. ([#310](https://github.com/40oleg/nona/issues/310))
+- `String.prototype.isWellFormed` and `toWellFormed` (ES2024), linked only when used ([#313](https://github.com/40oleg/nona/issues/313))
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
 ### Performance
@@ -30,6 +100,7 @@
 
 ### Internals
 
+- CI: when GitHub-hosted Windows jobs are already queued, the Windows jobs of `check` and `program corpus` run on the owner's self-hosted Windows runner if it is online and idle; a `route` job (`scripts/pick-runner.mjs`) decides, and pull requests from forks always stay hosted ([docs/ci-runners.md](docs/ci-runners.md), [#359](https://github.com/40oleg/nona/issues/359)).
 - CI: a pull request runs about 190 instead of 452 runner-minutes. The platform suites (`native-platforms`, `self-hosting`) run on `main` and on pull requests labelled `full-ci`; on `main` the heavy workflows check the last commit of a burst of merges while `check` still runs on every commit; a new push to a pull request now cancels its previous `native-platforms` run. ([#353](https://github.com/40oleg/nona/issues/353))
 - `src/ir/lower.ts`: the literal, template, `this`, `import`, `yield` and `await` expression cases moved into per-kind methods of `src/ir/lower/expressions.ts`; the emitted IR is unchanged. ([#290](https://github.com/40oleg/nona/issues/290))
 - The module records prelude part takes `append` from the promise prelude again, stray `process.report` test outputs are no longer committed, and the closure dead-zone analysis of #242 only runs where a closure checks an initialization and below the pinned locals threshold: a function with thousands of `var`s and closures compiled 6× slower and ran out of memory. ([#287](https://github.com/40oleg/nona/issues/287))

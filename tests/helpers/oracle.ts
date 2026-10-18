@@ -9,9 +9,11 @@ export function runOracle(
         'console.log=((write,stringify)=>(...args)=>{write(args.map(stringify).join(" ")+"\\n");})(process.stdout.write.bind(process.stdout),String);\nrequire("node:vm").runInThisContext(' +
         JSON.stringify(source) +
         ");";
+    // Node.js starts in well under a second, but on a loaded CI runner a
+    // spawn can wait several seconds for the CPU, so the limit is generous.
     const run = spawnSync(process.execPath, ["-e", script], {
         encoding: "utf8",
-        timeout: 5000,
+        timeout: 60_000,
         windowsHide: true,
         ...(options.timezone === undefined
             ? {}

@@ -9,7 +9,14 @@ import {
 } from "./encoder.js";
 import type { CodeFragment, Fixup } from "../machine/model.js";
 import { formatInstruction, type ListingEntry } from "./listing.js";
-export type NativeArgumentKind = "gp" | "f32" | "f64";
+/**
+ * Argument kinds of a native (C ABI) call: an integer or pointer in a general
+ * register slot, a float, or an integer of 1, 2 or 4 bytes (passed like `gp`
+ * but packed by size where the ABI packs stack arguments, as Apple ARM64 does).
+ */
+export type NativeArgumentKind = "gp" | "f32" | "f64" | "i8" | "i16" | "i32";
+export const isFloatArgument = (kind: NativeArgumentKind): boolean =>
+    kind === "f32" || kind === "f64";
 export type { Reg, Xmm, Mem, Condition } from "./encoder.js";
 export type { CodeFragment, Fixup } from "../machine/model.js";
 let serial = 0;

@@ -292,10 +292,7 @@ function ensureLoop() {
     if (registered) return;
     registered = true;
     const hook = globalThis.__nonaIoLoop;
-    if (typeof hook === "function") {
-        delete globalThis.__nonaIoLoop;
-        hook(poller);
-    }
+    if (typeof hook === "function") hook(poller);
     sys.init();
 }
 function register(handle) {

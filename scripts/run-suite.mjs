@@ -107,6 +107,23 @@ export function manifestProblems(suites, names) {
     return problems;
 }
 
+/**
+ * `--test-concurrency` for `node --test` (#380). Node runs availableParallelism() - 1 test files at
+ * once: 3 on a GitHub-hosted Windows runner (4 vCPUs), 31 on a 32-thread self-hosted machine, where
+ * that many files compiling and running native programs exhaust memory. NONA_TEST_CONCURRENCY (a
+ * positive integer) sets it; otherwise a self-hosted runner gets 3, and Node's default is kept.
+ */
+export function testConcurrency(env = process.env) {
+    const value = Number(env.NONA_TEST_CONCURRENCY);
+    if (Number.isInteger(value) && value > 0) return value;
+    return env.RUNNER_ENVIRONMENT === "self-hosted" ? 3 : undefined;
+}
+
+export function testConcurrencyArgs(env = process.env) {
+    const value = testConcurrency(env);
+    return value === undefined ? [] : ["--test-concurrency=" + value];
+}
+
 function main(args) {
     const suites = loadSuites(),
         names = testNames();
@@ -131,10 +148,14 @@ function main(args) {
         for (const file of files) console.log(file);
         return 0;
     }
-    const result = spawnSync(process.execPath, ["--test", ...files], {
-        cwd: projectRoot,
-        stdio: "inherit",
-    });
+    const result = spawnSync(
+        process.execPath,
+        ["--test", ...testConcurrencyArgs(), ...files],
+        {
+            cwd: projectRoot,
+            stdio: "inherit",
+        },
+    );
     if (result.error) throw result.error;
     return result.status ?? 1;
 }
