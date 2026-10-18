@@ -41,6 +41,7 @@ import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
 import { es2021PreludeSource } from "../../runtime/es2021-source.js";
+import { setMethodsPreludeSource } from "../../runtime/set-methods-source.js";
 import { wellFormedPreludeSource } from "../../runtime/well-formed-source.js";
 import { weakRefPreludeSource } from "../../runtime/weakref-source.js";
 import { finalizationRegistryPreludeSource } from "../../runtime/finalization-registry-source.js";
@@ -95,6 +96,7 @@ export function lowerRuntimePrelude(
             ["objectIntegrity", objectIntegrityPreludeSource],
             ["annexB", annexBBuiltinsPreludeSource],
             ["es2021", es2021PreludeSource],
+            ["setMethods", setMethodsPreludeSource],
             ["wellFormed", wellFormedPreludeSource],
             // After binaryData: it replaces BigInt.prototype.toLocaleString.
             ["intl", linked.includes("intl") ? intlPreludeSource() : ""],
