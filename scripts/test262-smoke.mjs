@@ -108,6 +108,8 @@ const postEs2020Features = [
     "promise-with-resolvers",
     "Promise.allKeyed",
     "regexp-duplicate-named-groups",
+    "regexp-match-indices",
+    "regexp-v-flag",
     "resizable-arraybuffer",
     "ShadowRealm",
     "source-phase-imports",

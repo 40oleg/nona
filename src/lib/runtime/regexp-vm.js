@@ -272,6 +272,8 @@
     // The v-mode class syntax is linked only when a source can use the v flag.
     if(unicodeSets&&@@NO_UNICODE_SETS@@!==null)throw new Error(@@NO_UNICODE_SETS@@);
     // Classes nest in v mode: inClass is the depth of the open classes.
+    // path: (disjunction id, branch) pairs from the root to the parse position.
+    var path=[],paths=[],disjunctions=0;
     for(var scan=0;scan<pattern.length;scan++){
       var mark=pattern[scan];
       if(mark==='\\'){scan++;continue}
@@ -682,11 +684,14 @@
         else{
           if(pattern[at]==='?'&&pattern[at+1]==='<'){
             at+=2;
-            name=groupName();
-            for(var i=0;i<names.length;i++)if(names[i].name===name)error()
+            name=groupName()
           }
           capture=++groups;
-          if(name!==undefined)append(names,{name:name,index:capture})
+          if(name!==undefined){
+            append(names,{name:name,index:capture});
+            var copy=[];for(var i=0;i<path.length;i++)append(copy,path[i]);
+            append(paths,copy)
+          }
         }
         var inner=disjunction();
         if(pattern[at]!==')')error();
@@ -750,12 +755,21 @@
       return {kind:'sequence',value:items}
     }
     function disjunction(){
+      append(path,disjunctions++);append(path,0);
       var branches=[sequence()];
-      while(pattern[at]==='|'){at++;append(branches,sequence())}
+      while(pattern[at]==='|'){at++;path[path.length-1]++;append(branches,sequence())}
+      path.length-=2;
       return branches.length===1?branches[0]:{kind:'alternative',value:branches}
     }
     var tree=disjunction();
     if(at!==pattern.length)error();
+    // ES2025 duplicate named groups: one name may repeat only in different
+    // branches of a disjunction, where both groups can never participate.
+    for(var i=1;i<names.length;i++)for(var j=0;j<i;j++)if(names[j].name===names[i].name){
+      var left=paths[j],right=paths[i],place=0;
+      while(place<left.length&&place<right.length&&left[place]===right[place]&&left[place+1]===right[place+1])place+=2;
+      if(place>=left.length||place>=right.length||left[place]!==right[place]||left[place+1]===right[place+1])error()
+    }
     function validateReferences(node){
       if(node.kind==='backref'){
         if(isUnicode(flags)&&node.value>groups)error()
@@ -913,6 +927,8 @@
   //   21 REPEAT_ENTER (same operands; resumed after a lazy repeat skipped)
   //   20 REPEAT_END r, min, head
   //   22 SIMPLE_REPEAT kind, datum, dir, min, max, greedy, width (0 = varies)
+  //   23 BACKREF_ANY count, group..., dir (a duplicate name: the group that
+  //     participated, empty when none did)
   //   26 MODE bits (1 i, 2 m, 4 s): only in patterns with modifier groups,
   //     before every instruction that depends on these flags.
   //   27 STRINGS datum, dir (the strings of a v-mode class, longest first)
@@ -995,8 +1011,13 @@
       if(k==='backref'||k==='namedBackref'){
         var index=node.value;
         if(k==='namedBackref'){
-          index=0;
-          for(i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)index=compiled.names[i].index
+          var indices=[];
+          for(i=0;i<compiled.names.length;i++)if(compiled.names[i].name===node.value)append(indices,compiled.names[i].index);
+          if(indices.length>1){
+            emit(23);emit(indices.length);for(i=0;i<indices.length;i++)emit(indices[i]);emit(dir);
+            return
+          }
+          index=indices[0]
         }
         scoped();emit(16);emit(index);emit(dir);
         return
@@ -1278,6 +1299,19 @@
         var refLength=refEnd-refBegin,refStart=refDir<0?pos-refLength:pos;
         if(refStart>=0&&refStart+refLength<=length&&same(slice(input,refStart,refStart+refLength),slice(input,refBegin,refEnd))){
           pos+=refDir*refLength;pc+=3;continue
+        }
+      }
+      else if(op===23){
+        var refCount=code[pc+1],next=pc+refCount+3;
+        refDir=code[next-1];refBegin=NONE;
+        for(var r=0;r<refCount&&refBegin===NONE;r++){
+          index=code[pc+2+r];
+          if(state[index*2]!==NONE&&state[index*2+1]!==NONE){refBegin=state[index*2];refEnd=state[index*2+1]}
+        }
+        if(refBegin===NONE){pc=next;continue}
+        refLength=refEnd-refBegin;refStart=refDir<0?pos-refLength:pos;
+        if(refStart>=0&&refStart+refLength<=length&&same(slice(input,refStart,refStart+refLength),slice(input,refBegin,refEnd))){
+          pos+=refDir*refLength;pc=next;continue
         }
       }
       else if(op===17){
@@ -1573,7 +1607,9 @@
       groups=Object.create(null);
       for(var i=0;i<compiled.names.length;i++){
         var at=compiled.names[i].index*2;
-        groups[compiled.names[i].name]=captures[at]===4294967295?undefined:[captures[at],captures[at+1]]
+        // A repeated name keeps the pair of the group that participated.
+        if(captures[at]!==4294967295)groups[compiled.names[i].name]=[captures[at],captures[at+1]];
+        else if(!(compiled.names[i].name in groups))groups[compiled.names[i].name]=undefined
       }
     }
     appendDescriptor.value=groups;Object.defineProperty(pairs,'groups',appendDescriptor);
