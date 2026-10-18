@@ -1,0 +1,176 @@
+{
+    "startedAt": "2026-10-18T21:48:33.082Z",
+    "reviewerConfiguration": {
+        "model": "gpt-6-astra",
+        "reasoning": "high",
+        "harnessTierMappingIndependentlyAuthenticated": false
+    },
+    "checkout": "3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45",
+    "baseline": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "inputHashes": {
+        "report": "17b7aec4b4dad098a46c95154b58542c0b0ae6fa942a004e01e8351e824dfc15",
+        "matrix": "0cb27f8bb1c404fa230f71897ead162b2efcc4bbb1136fa41a59ce7a72057aa3"
+    },
+    "environment": {
+        "node": "v26.9.0",
+        "versions": {
+            "node": "26.9.0",
+            "acorn": "8.18.0",
+            "ada": "4.0.0",
+            "amaro": "1.1.11",
+            "ares": "1.34.8",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.3",
+            "libffi": "3.8.0",
+            "lief": "0.17.0",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "147",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.70.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "3.5.8",
+            "simdjson": "4.6.11",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.4",
+            "tz": "2026c",
+            "undici": "8.10.2",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "14.6.202.34-node.32",
+            "zlib": "1.3.2.1-motley-285e94b",
+            "zstd": "1.5.7"
+        },
+        "platform": "win32",
+        "arch": "x64",
+        "GOMAXPROCS": "2",
+        "UV_THREADPOOL_SIZE": "2",
+        "NODE_OPTIONS": "--v8-pool-size=2 --max-old-space-size=1536"
+    },
+    "commands": [
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "scripts/build.mjs"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 120000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "",
+            "stderr": "",
+            "durationMs": 1432
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "scripts/check-completeness-inventory.mjs",
+                "--git"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 120000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "Completeness inventory v1: 140 capabilities, 42 module entry points, 8 targets; valid. Runtime probes were not executed.\n",
+            "stderr": "",
+            "durationMs": 895
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "scripts/completeness-probes.mjs",
+                "--cases",
+                "cli,filesystem,worker-api,tls-verification",
+                "--output",
+                "docs/evidence/completeness/final-review-windows-x64.json"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 240000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "cli: agreement\nfilesystem: runtime-failed\nworker-api: expected-api-gap\ntls-verification: agreement\nReport: C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\docs\\evidence\\completeness\\final-review-windows-x64.json\n",
+            "stderr": "",
+            "durationMs": 26365
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "scripts/test262-smoke.mjs",
+                "language/expressions/coalesce"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 120000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "Test262 smoke: 8 pass, 0 fail, 0 skip\nPASS language/expressions/coalesce/abrupt-is-a-short-circuit.js (runtime)\nPASS language/expressions/coalesce/cannot-chain-head-with-logical-and.js (parse)\nPASS language/expressions/coalesce/cannot-chain-head-with-logical-or.js (parse)\nPASS language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and.js (runtime)\nPASS language/expressions/coalesce/follows-null.js (runtime)\nPASS language/expressions/coalesce/follows-undefined.js (runtime)\nPASS language/expressions/coalesce/short-circuit-number-0.js (runtime)\nPASS language/expressions/coalesce/short-circuit-prevents-evaluation.js (runtime)\n",
+            "stderr": "",
+            "durationMs": 28506
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "site/scripts/build-playground.mjs"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 120000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "playground worker: 4.5 MB\n",
+            "stderr": "",
+            "durationMs": 1125
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "site/scripts/check-playground.mjs"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 180000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "ok   hello.js → win32-x64 (400 ms)\nok   hello.js → win32-arm64 (373 ms)\nok   hello.js → linux-x64 (290 ms)\nok   hello.js → linux-arm64 (338 ms)\nok   hello.js → darwin-x64 (287 ms)\nok   hello.js → darwin-arm64 (408 ms)\nok   hello.js → freebsd-x64 (247 ms)\nok   hello.js → openbsd-x64 (279 ms)\nok   playground-async.mjs → linux-x64 (393 ms)\nok   path.mjs → win32-x64 (1144 ms)\nok   path.mjs → linux-x64 (1069 ms)\nok   path.mjs → darwin-x64 (1313 ms)\nok   path.mjs → darwin-arm64 (1633 ms)\nok   path.mjs → freebsd-x64 (995 ms)\nok   path.mjs → openbsd-x64 (923 ms)\nok   path.mjs → win32-arm64 (1306 ms)\nok   path.mjs → linux-arm64 (1315 ms)\nok   playground-messagebox.win32.mjs → win32-x64 (454 ms)\nok   syntax error → E_SYNTAX\n",
+            "stderr": "",
+            "durationMs": 27004
+        },
+        {
+            "command": [
+                "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                "site/scripts/check-repo-links.mjs"
+            ],
+            "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+            "timeoutMs": 120000,
+            "exit": 0,
+            "signal": null,
+            "timedOut": false,
+            "truncated": false,
+            "error": null,
+            "stdout": "704 repository links checked\n",
+            "stderr": "",
+            "durationMs": 199
+        }
+    ],
+    "finishedAt": "2026-10-18T21:53:06.078Z"
+}

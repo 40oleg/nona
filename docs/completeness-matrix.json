@@ -3,8 +3,8 @@
     "schemaDocumentation": "completeness-audit.md#inventory-schema-v1",
     "audit": {
         "issue": 394,
-        "step": 5,
-        "state": "review-findings-corrected-pending-final-independent-review",
+        "step": 6,
+        "state": "final-independent-review-recorded-see-review-verdict",
         "reportDate": "2026-10-18",
         "baselineCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
         "planningCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
@@ -50,8 +50,8 @@
             "issue": 392,
             "state": "OPEN",
             "labels": ["blocked", "enhancement", "complex"],
-            "linkedPrs": [],
-            "action": "Rechecked issue/timeline on 2026-10-18 UTC in step 3: still open/blocked, no completed report available; retain historical PERFORMANCE.md limits without competing benchmarks. Step-5 read-only check at 21:31 UTC again found #392 open/blocked without a closing PR; no new benchmarks."
+            "linkedPrs": [395],
+            "action": "Rechecked issue/timeline on 2026-10-18 UTC in step 3: still open/blocked, no completed report available; retain historical PERFORMANCE.md limits without competing benchmarks. Step-5 read-only check at 21:31 UTC again found #392 open/blocked without a closing PR; no new benchmarks. Step-6 read-only check at 2026-10-18 21:48 UTC found open PR #395, head f9cb33f718062694064d2d01affeed1f2d708e67. Its proposed report describes Linux x64 measurements at the same compiler baseline; see the audit performance section and step6-finalization.json. Unmerged author-reported results are not independently reproduced or approved here; no benchmarks duplicated."
         },
         "openPrsExcluded": [
             {
@@ -64,8 +64,14 @@
                 "head": "c6500913b70d062f0ae380c9ada7f9fc72ac460d",
                 "scope": "nona: documentation aliases (#391)"
             },
-            { "number": 369, "scope": "Markdown/release CI filtering (#368)" },
-            { "number": 286, "scope": "Unmerged Lean int32 experiment (#284)" }
+            {
+                "number": 369,
+                "scope": "Markdown/release CI filtering (#368)"
+            },
+            {
+                "number": 286,
+                "scope": "Unmerged Lean int32 experiment (#284)"
+            }
         ],
         "mergedSinceRelease": [
             {
@@ -84,7 +90,7 @@
                 "scope": "Float16Array/Math.f16round/DataView float16"
             }
         ],
-        "executionPolicy": "Step 2 ran sequential native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap were not run in that step. Step 3 added source/comparison/readiness analysis, focused validation and site checks. Step 4 independently replayed selected Windows cases and cross-compiled four ELF cases on Windows for WSL2 Linux x64 execution, without a Linux Node oracle or CPU emulation. Historical CI remains separate. Step 5 reconciles those retained observations; final independent re-review is pending. Passing samples do not verify every method/target in a broad row.",
+        "executionPolicy": "Step 2 ran sequential native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap were not run in that step. Step 3 added source/comparison/readiness analysis, focused validation and site checks. Step 4 independently replayed selected Windows cases and cross-compiled four ELF cases on Windows for WSL2 Linux x64 execution, without a Linux Node oracle or CPU emulation. Historical CI remains separate. Step 5 reconciled those retained observations; see finalReview for the step-6 independent reproductions and verdict. Passing samples do not verify every method/target in a broad row.",
         "structuralChecks": [
             {
                 "command": "node scripts/check-completeness-inventory.mjs --git",
@@ -162,6 +168,14 @@
             "windows": "docs/evidence/completeness/step5-windows-x64.json",
             "test262": "docs/evidence/completeness/step5-test262-windows.json",
             "scope": "Implementation validation, not independent final review. Repeated cases are not new distinct conformance files. Windows probe record identifies checkout 0962f7345ed1f79096c99b0a982740f4c0c0ec35; validation confirms source continuity with the frozen baseline."
+        },
+        "finalReview": {
+            "record": "docs/completeness-review.md#step-6-final-independent-review",
+            "correctionCommit": "3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45",
+            "reportRevision": "Final report and matrix SHA-256 hashes are in the review record; separate from compiler baselineCommit.",
+            "verdict": "Consult the independent record for exact verdict and retained limitations.",
+            "validation": "docs/evidence/completeness/step6-finalization.json",
+            "publication": "Local PR description in docs/completeness-pr.md; user prohibits push/open PR in this step. Applicable PR CI remains pending publication."
         }
     },
     "domains": [

@@ -475,3 +475,256 @@ these checks and the corrected hashes. Verify them from the checkout with:
 Get-FileHash -Algorithm SHA256 docs/completeness-audit.md, docs/completeness-matrix.json
 git log -1 --format='%H' -- docs/completeness-audit.md docs/completeness-matrix.json
 ```
+
+## Step 6 final independent review
+
+Reviewed on **2026-10-18 UTC / 2026-10-19 Europe/Moscow**.
+**Final verdict: accepted for the local audit and PR handoff, with the explicit
+limitations below. RV1 and RV2 are resolved; no material review finding remains
+open in the reviewed artifacts.** This accepts the report's evidence and scoped
+claims, not the compiler's general correctness, security or release readiness.
+Publication and applicable PR CI remain outstanding under the user's explicit
+instruction to prepare a local commit/draft without pushing or opening a PR.
+This review does not close #394 or count the absent PR as an existing one.
+
+### Reviewer independence and exact final inputs
+
+This is a new, separate reviewer that authored none of steps 1–5 or the
+coordinator's final report/matrix corrections. The actual configured model is
+**gpt-6-astra**, reasoning **high**. The mapping of this configuration to the
+harness's `strong` tier was **not independently authenticated**. I read the
+initial review and author dispositions, but formed this verdict from the
+corrected narrative/ledger, underlying source and retained evidence, fresh
+executions, official sources and the finalization diff. No other final reviewer's
+conclusion is adopted. I changed only this appended review and new
+`final-review-*` evidence; no report/matrix, prior evidence, compiler or GitHub
+state was changed by this reviewer.
+
+| Input                                                                 | Revision / SHA-256                                                     |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Step-5 correction commit, reviewed independently                      | `3b8432a7e8b8c7e17315bec7a2c370d9b62e0e45`                             |
+| Report in that correction commit                                      | `17b7aec4b4dad098a46c95154b58542c0b0ae6fa942a004e01e8351e824dfc15`     |
+| Matrix in that correction commit                                      | `0cb27f8bb1c404fa230f71897ead162b2efcc4bbb1136fa41a59ce7a72057aa3`     |
+| **Final reviewed report bytes**                                       | **`519ca2b49bd7dc3441a56d3008d8cfbdc84032355a66920c267477eb1871c410`** |
+| **Final reviewed matrix bytes**                                       | **`3fd06b8da073c73ea802d0e987f1d1c40b19322a71f925009ae7e2a515ad4381`** |
+| Compiler/runtime/workflow baseline, distinct from the report revision | `453418c167b9b34cd5ff7c0f748674e79222e1cc`                             |
+| Frozen comparison release                                             | v0.18.0, `ce350fdf7e1632b258862db1618db4d71bde97f1`                    |
+
+The final two hashes bind the coordinator's uncommitted finalization content on
+top of the correction commit, including the dated #392/#395 observation and
+review-status pointers. They are not hashes of a v0.19.0 compiler or a future
+commit. A final commit may package these exact bytes; any further report/matrix
+change requires renewed review/hash binding. Source/workflow/package/build
+inputs still have no diff from the compiler baseline.
+
+The [independent inspection record](evidence/completeness/final-review-inspection.json)
+authenticates all **446** source/test/doc registry records against both pinned
+Git trees, with zero mismatches. Finalization leaves all 140 capability objects,
+eight target records, 42 entry points and the registry unchanged from the
+correction commit. All **47** pre-correction execution records remain, and all
+13 evidence files present at the correction commit retain their exact bytes.
+The entire previous review plus step-5 resolution remains an unchanged prefix
+of this document. These integrity checks establish provenance, not the semantic
+sufficiency of every cited test.
+
+### Findings and disposition
+
+| Finding                                             | Independent re-review decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RV1: current ledger contradicted completed evidence | **Resolved.** I read all 140 scope/status/limitations/evidence-needed records and checked the named `platform.win32-x64`, `api.fs.read-write`, `assurance.test262` and `ecosystem.comparisons` rows against their execution records. Windows/file/Test262 evidence is now acknowledged; comparisons are source-based and partial. Ecosystem rows preserve each pinned outcome rather than requesting already-completed installation/probes. No row becomes fully verified.                              |
+| RV1: other rows and target summaries                | **Resolved at their stated scope.** Additional checks included `runtime.gc`, `runtime.array-from-async`, `language.float16`, `api.process.credentials`, `api.fs.mutations`, stream/TLS/worker rows, packaging/self-hosting, security/notice and all eight platform rows. Playground build passes are distinct from six `run: not-run` targets; Windows/Linux summary failures retain real failed samples alongside successes. Generic remaining evidence requests do not erase recorded narrower cases. |
+| RV2: later release and Linux evidence               | **Resolved by an explicit frozen-snapshot decision.** v0.19.0 publication and #390 merge are dated separately; audited source/release relationships remain `453418c1` versus v0.18.0. Windows-built WSL2 evidence, absent Linux Node/compiler-host build, retained fs-extra failure and unverified transitive installed bytes are explicit. Fresh Linux reproduction agrees.                                                                                                                            |
+| Finalization wording raised during this review      | **Corrected by the coordinator and rechecked.** The comparison table now includes WSL2 Linux evidence, F1 explicitly includes Linux fs-extra failure, and `audit.executionPolicy` points to step 6 instead of claiming final review is pending. The Nona comparison label explicitly says frozen release comparison. These clarify scope/state without changing capability conclusions.                                                                                                                 |
+| Later performance work                              | **Correctly attributed.** The #395 proposal is pinned to `f9cb33f718062694064d2d01affeed1f2d708e67` and described as unmerged, externally collected evidence at the same compiler baseline. Its Linux-only/shared-VM and runtime-version limits remain visible. I read the retained fetched report/metadata; I did not reproduce or approve benchmark ratios. No benchmark work was duplicated.                                                                                                         |
+
+The readiness conclusion remains warranted: bounded, specifically tested tools
+have useful evidence; broad npm services, public workers, descriptor/stream
+filesystem workloads, secure exposed services and six other target deployments
+still face stated blockers or unknowns. The risk register distinguishes observed
+errors from unmeasured risks, and the roadmap supplies bounded outcomes and
+acceptance contracts rather than claiming those features were implemented.
+
+### Fresh reproductions and all eight targets
+
+A fresh compiler build preceded the executions. The selected executable was
+`work/completeness-tools/node.exe`, **Node 26.9.0**, V8
+**14.6.202.34-node.32**, OpenSSL **3.5.8**, on Windows 11 x64 / 10.0.26200,
+TORS, Intel Core i7-13620H. Linux execution used Ubuntu **22.04.3 LTS**, WSL2
+kernel **6.18.54.1-microsoft-standard-WSL2**, x86_64, UID 1000. The fresh guest
+check again found no `node` command. There was no CPU emulation. All compiler
+and portable oracle processes ran on Windows; the Linux identity expectation
+comes from the POSIX contract, not a Linux Node run.
+
+Heavy commands were sequential, with exclusive execution ownership released to
+the coordinator only after the final playground check. `GOMAXPROCS=2`,
+`UV_THREADPOOL_SIZE=2` and `NODE_OPTIONS='--v8-pool-size=2
+--max-old-space-size=1536'` bounded host pools/memory. Compiler children were
+limited to 768 MiB/45 seconds; ordinary programs 15 seconds, TLS 30 seconds;
+WSL runs also used guest `timeout 15s` with a 20-second outer bound. No retained
+probe timed out or overflowed output. Owned execution directories were removed,
+and the Windows runner recorded service/subprocess cleanup. No child service
+was deliberately left running.
+
+| Fresh check                                                                          | Observed outcome and limit                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimist 1.2.8 plus synchronous fs, Windows and WSL2 Linux                           | Both compile and print `cli 3 false input.json`, exit 0, matching the Windows Node oracle.                                                                                                                                                                                                                 |
+| fs-extra 11.3.0, Windows and WSL2 Linux                                              | Both compile, then exit 1 with empty stdout and `Nona runtime error\r\n`; Windows Node prints `filesystem 5`. The expected existing failure is reproduced, not counted as compatibility success or diagnosed further.                                                                                      |
+| Worker stub, Windows                                                                 | Node prints `worker 42`; Nona prints `worker ERR_NONA_UNSUPPORTED`. The explicit API-gap result is reproduced separately from workerpool's undiagnosed failure.                                                                                                                                            |
+| TLS trust/hostname, Windows                                                          | Trusted fixture CA prints `trusted authorized true`; wrong hostname gives `ERR_TLS_CERT_ALTNAME_INVALID`; untrusted leaf gives `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. Three outputs match Node; no Linux trust-store or adversarial-security inference.                                                        |
+| Process identity, WSL2 Linux                                                         | `identity linux function true`, exit 0; Windows oracle separately prints `identity win32 undefined absent`. No credential mutation/name-resolution claim.                                                                                                                                                  |
+| **New reviewer-written interaction sample**, Windows and WSL2 Linux, `gcStress=true` | Math.f16round, Float16Array, DataView float16, Iterator.from/map/toArray and asynchronous Array.fromAsync mapping jointly print `later 1 1 2.5 2,4,6 4,5`, matching Windows Node. This is fresh sample evidence for the post-v0.18.0 additions, not their whole-method or cross-architecture verification. |
+| Same eight-file Test262 selection                                                    | Eight passes, zero failures/skips: six runtime cases and two compile-only negatives returning `E_SYNTAX`. No distinct-file count is increased by replaying the same selection.                                                                                                                             |
+| Fresh browser-worker bundle and playground comparisons                               | All 18 image comparisons and the syntax diagnostic pass, including hello/path images for every target. Canonical `modulePath` inputs and exact byte comparison are retained. This executes the browser compiler in Node, not native foreign programs.                                                      |
+
+Raw commands, sources, expected/actual output, exits, bounds and cleanup are in
+[Windows replay](evidence/completeness/final-review-windows-x64.json),
+[cross-target/new sample](evidence/completeness/final-review-cross-target.json),
+[Test262 replay](evidence/completeness/final-review-test262-windows.json) and
+[validation commands](evidence/completeness/final-review-validation.json).
+Dependencies were reused with top-level version/lock checks; transitive
+installed package bytes were not freshly authenticated with `npm ci`.
+
+| Target       | Fresh image comparison | Local native-program evidence available to this final review                                                                                              |
+| ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| win32-x64    | Pass                   | Fresh package/API/TLS and new GC-stress sample executions; earlier broader samples remain separately attributed.                                          |
+| linux-x64    | Pass                   | Fresh Windows-built ELF execution in WSL2: CLI/identity/new stress sample pass, fs-extra fails. Earlier Linux GC-root result remains historical evidence. |
+| linux-arm64  | Pass                   | Not executed locally. Network/child services absent; 64 KiB-kernel behavior still unverified.                                                             |
+| win32-arm64  | Pass                   | Not executed locally. Network/child services absent; hardware-unwind/source-stack limits remain.                                                          |
+| darwin-x64   | Pass                   | Not executed locally. libSystem/deployment boundary and network/child gaps remain.                                                                        |
+| darwin-arm64 | Pass                   | Not executed locally. libSystem/ad-hoc-signing/deployment boundary and service gaps remain.                                                               |
+| freebsd-x64  | Pass                   | Not executed locally. Historical guest smoke is not a local/full Node-oracle suite.                                                                       |
+| openbsd-x64  | Pass                   | Not executed locally. Same distinction, with execPath and BSD ABI limits retained.                                                                        |
+
+The freshly built public alias union is exactly **86** names, matching the
+inventory's 36 public providers; six private providers remain excluded.
+Per-target inspection finds filesystem imports on all eight and network
+inventory entries only on Windows/Linux x64. Child-process import names on
+other targets are **not service support**: the dispatch selects throwing
+adapters. These source distinctions agree with the matrix and the target table.
+
+Reproduce the Windows and image checks without an untracked review helper:
+
+```powershell
+$finalNode = (Resolve-Path work/completeness-tools/node.exe).Path
+$env:GOMAXPROCS = '2'
+$env:UV_THREADPOOL_SIZE = '2'
+$env:NODE_OPTIONS = '--v8-pool-size=2 --max-old-space-size=1536'
+& $finalNode scripts/build.mjs
+& $finalNode scripts/check-completeness-inventory.mjs --git
+& $finalNode scripts/completeness-probes.mjs --cases cli,filesystem,worker-api,tls-verification --output work/final-review-windows-rerun.json
+$env:TEST262_DIR = (Resolve-Path work/test262).Path
+$env:TEST262_JOBS = '1'
+$env:TEST262_RUNTIME_TIMEOUT_MS = '15000'
+$env:TEST262_DELETE_BINARIES = '1'
+$env:TEST262_FILE_LIST = 'tests/probes/completeness-test262.txt'
+$env:TEST262_REPORT = 'work/final-review-test262-rerun.json'
+& $finalNode scripts/test262-smoke.mjs language/expressions/coalesce
+& $finalNode site/scripts/build-playground.mjs
+& $finalNode site/scripts/check-playground.mjs
+```
+
+For the fresh Linux interaction case, use the exact source retained in JSON:
+
+```powershell
+$finalData = Get-Content docs/evidence/completeness/final-review-cross-target.json -Raw | ConvertFrom-Json
+$finalCase = $finalData.cases | Where-Object id -eq 'linux-later-builtins-fresh'
+$finalDir = Join-Path (Get-Location) 'work/final-review-linux-rerun'
+New-Item -ItemType Directory -Force $finalDir | Out-Null
+$finalEntry = Join-Path $finalDir 'main.mjs'
+$finalImage = Join-Path $finalDir 'program'
+[IO.File]::WriteAllText($finalEntry, $finalCase.source)
+& $finalNode $finalEntry
+& $finalNode --max-old-space-size=768 scripts/completeness-probes.mjs --compile $finalEntry linux-x64 $finalImage true
+$finalGuest = (wsl -d Ubuntu --exec wslpath -a $finalDir).Trim()
+wsl -d Ubuntu --cd $finalGuest --exec timeout 15s ./program
+```
+
+This rerun leaves its explicit owned directory for inspection. To replay CLI or
+fs-extra, use the original fixture entry path so its pinned dependencies resolve;
+do not move the package-import source away from its installation and call that
+the same reproduction. Exact original paths/argv are retained as provenance.
+
+### Factual checks beyond execution
+
+I read the complete corrected narrative and final diff, all capability
+limitations/evidence needs, entry-point registry, targets and previous review
+dispositions. Semantic source checks were risk-based, not a line-by-line audit
+of every referenced file. They included:
+
+- Registry and fs/net/child dispatch; Worker/HTTP2 stubs; synchronous fs callback
+  and promise wrappers; OS telemetry and UTF-8 decoder behavior; HTTPS option
+  forwarding and HTTP timeout fields; anonymous error-stack CallSites. Actual
+  provider bodies support the stated distinctions between names and services.
+- `ir/optimize.ts`, `link.ts`, `runtime/root-scope.ts` and representative
+  `runtime-roots.test.ts`/`float16.test.ts` bodies: pass ordering, lexical
+  triggers, stable range/snapshot/container roots and narrow stress/oracle
+  contracts agree with the report. Those full test files were not rerun.
+- Test262 selection/negative-test branches and metadata: any compilation failure
+  can satisfy the general parse-negative branch, and one default strictness
+  variant is run. Fresh success does not cure these runner limitations.
+- `MoveRules.lean` and `Audit.lean`: the modeled program is pure and
+  straight-line, with transitive theorem-axiom checks; it is not a refinement
+  proof of production TypeScript, GC, ABI or machine code. No Lean build was run.
+- Native packaging/release scripts and workflow predicates: notice copying is
+  absent in the inspected packager; `full-ci`, platform smoke and target-specific
+  runners have the described boundaries. Archives were not inspected or fixed.
+
+Independent recounting again finds **53,597** Test262 candidate files and **24**
+coalesce files at `7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd`. All nine retained
+CI source-report hashes match the local downloaded artifacts. Their actual
+results contain **3,187 runtime passes**, zero failures/skips, within **4,231**
+group files, leaving **1,044 exclusions**. The CI artifacts were inspected,
+not freshly downloaded or rerun; their counts do not become local executions.
+
+Official comparison pages reopened on this review date support the material
+packaging/platform distinctions: versioned [Node SEA](https://nodejs.org/download/release/v26.9.0/docs/api/single-executable-applications.html)
+includes the runtime and built-in generation/VFS restrictions;
+[Deno compile](https://docs.deno.com/runtime/reference/cli/compile/) embeds denort
+and lists six targets; [Bun executables](https://bun.com/docs/bundler/executables)
+include Bun and list six OS/CPU pairs plus musl variants;
+[QuickJS](https://bellard.org/quickjs/) makes its own scoped ES2025 claim, while
+[QuickJS-NG CLI](https://quickjs-ng.github.io/quickjs/cli/) appends bytecode to an
+interpreter executable and requires prebundling dependencies. Pinned
+[Static Hermes features](https://github.com/facebook/hermes/blob/17b37301da5da4a2cd55d78f9697c46c0fd96123/doc/Features.md)
+and [shermes source](https://github.com/facebook/hermes/blob/17b37301da5da4a2cd55d78f9697c46c0fd96123/tools/shermes/shermes.cpp)
+remain a source-only comparator. The unusual Deno lifecycle statement was
+explicitly rechecked against its [2026-10-09 announcement](https://deno.com/blog/cloudflare).
+These are documentation observations, not an executed comparative benchmark,
+security rating or common conformance run; mutable manuals remain dated.
+
+### Acceptance, public entry points and remaining handoff
+
+| Issue criterion                                                | Final assessment                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–3: inventory, auditable claims and workload/API impact       | Accepted at the stated scope. 140 rows and eight targets retain explicit unverified/partial/missing boundaries; no universal compatibility percentage or inferred service support.                                                                                               |
+| 4–5: alternatives, performance coordination, risks and roadmap | Accepted. Versioned primary sources and frozen baseline are explicit; #392/#395 remains separately owned; findings and bounded outcomes do not promise universal Node parity or all missing features in v0.20.0.                                                                 |
+| 6: reproducible representative verification                    | Accepted. Fresh Windows/WSL, positive/negative and new interaction samples have exact raw records and reproduction commands; omitted suites are explicit.                                                                                                                        |
+| 7: inventory, links and relevant checks                        | Strict validation and independent references/aliases/denominators pass. Coordinator's final 14 focused tests pass with zero failures/skips; refreshed production site build and 718 repository links pass. Final formatting/whitespace packaging is recorded by the coordinator. |
+| 8: independent strong-model review/corrections/re-review       | Completed with the actual configuration recorded above, substantive independent reproduction and explicit RV1/RV2 resolution. No material unresolved disagreement.                                                                                                               |
+| 9: linked PR and verification/review description               | Local PR description reviewed and prepared with `Closes #394`, verification, unknowns and review link. An actual PR and its CI remain pending publication, as explicitly required by the user's no-push/no-PR instruction.                                                       |
+
+English/Russian READMEs, docs navigation, changelog, the report wrapper and all
+nine localized module entry points now consistently describe bounded Windows
+and Windows-built WSL2 evidence and point to this final verdict. They do not
+call v0.20.0 released or infer eight-target execution. The independent local
+file-link scan includes the local PR draft and this review. Its exact final
+count is in the inspection record. The reviewer also checked 704 repository
+links in the existing step-5 HTML; **that was not a regenerated final site**.
+After execution ownership was released, the coordinator's new production
+build checked **718** repository links; its commands and 14-test output were
+read in [step-6 validation](evidence/completeness/step6-finalization.json).
+
+The retained limitations remain substantive: undiagnosed fs-extra/Undici/
+workerpool operations; untested methods/options, six local native targets and
+Linux compiler/oracle builds; transitive package-byte authentication; long-lived
+memory/network behavior; TLS/FFI/security assurance; notice delivery and archive
+provenance; comparable independent performance. Fresh samples do not promote
+whole matrix rows. No full `npm run check`/`npm test`, full Test262/corpus/
+platform/bootstrap, `compare`, benchmark, Lean rebuild or security campaign was
+run in this final review. The later main CI successes do not validate this
+unpushed branch or erase the audited check failure/cancelled platform run.
+
+**Disposition:** RV1 resolved; RV2 resolved; finalization consistency comments
+resolved. The exact report/matrix bytes above are accepted for the authorized
+local handoff. Apply the future PR's required CI/merge rules separately and
+retain #394's existing claim until the owner completes or gives up that handoff.

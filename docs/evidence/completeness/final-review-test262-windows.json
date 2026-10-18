@@ -1,0 +1,94 @@
+{
+    "date": "2026-10-18T21:52:37.657Z",
+    "revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+    "target": "win32-x64",
+    "group": "language/expressions/coalesce",
+    "pathFilter": "",
+    "excludePathFilters": [],
+    "excludeFeatures": [],
+    "directOnly": false,
+    "runAsync": false,
+    "runtimeTimeout": 15000,
+    "jobs": 1,
+    "counts": {
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+    },
+    "results": [
+        {
+            "path": "language/expressions/coalesce/abrupt-is-a-short-circuit.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        },
+        {
+            "path": "language/expressions/coalesce/cannot-chain-head-with-logical-and.js",
+            "outcome": "pass",
+            "phase": "parse",
+            "diagnostics": [
+                {
+                    "code": "E_SYNTAX",
+                    "message": "Nullish coalescing and logical operators require parentheses when mixed",
+                    "file": "language/expressions/coalesce/cannot-chain-head-with-logical-and.js",
+                    "span": {
+                        "start": 796,
+                        "end": 798
+                    }
+                }
+            ]
+        },
+        {
+            "path": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
+            "outcome": "pass",
+            "phase": "parse",
+            "diagnostics": [
+                {
+                    "code": "E_SYNTAX",
+                    "message": "Nullish coalescing and logical operators require parentheses when mixed",
+                    "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
+                    "span": {
+                        "start": 796,
+                        "end": 798
+                    }
+                }
+            ]
+        },
+        {
+            "path": "language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        },
+        {
+            "path": "language/expressions/coalesce/follows-null.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        },
+        {
+            "path": "language/expressions/coalesce/follows-undefined.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        },
+        {
+            "path": "language/expressions/coalesce/short-circuit-number-0.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        },
+        {
+            "path": "language/expressions/coalesce/short-circuit-prevents-evaluation.js",
+            "outcome": "pass",
+            "phase": "runtime",
+            "status": 0,
+            "stderr": ""
+        }
+    ]
+}
