@@ -138,6 +138,7 @@ export const preludeTriggers = {
         "toReversed",
         "with",
     ],
+    wellFormed: ["isWellFormed", "toWellFormed"],
     // WeakRef and its microtask-checkpoint hook; the native part is linked with it.
     weakRef: ["WeakRef"],
     // FinalizationRegistry and its cleanup jobs; shares the native part of WeakRef.

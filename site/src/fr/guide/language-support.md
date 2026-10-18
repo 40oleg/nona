@@ -50,6 +50,7 @@ La plupart des fonctionnalités des éditions ultérieures ne sont pas prises en
 - ES2022 : champs de classe, méthodes et accesseurs privés, blocs statiques, `#x in obj`, `.at()`, `Object.hasOwn`, `cause` des erreurs et le drapeau RegExp `d` avec indices de correspondance.
 - ES2022 : `await` de premier niveau dans les modules ES, avec l’ordre d’évaluation des modules async, les cycles et la propagation du rejet.
 - ES2023 : `findLast` et `findLastIndex`, ainsi que les méthodes de copie de `Array` `toSorted`, `toReversed`, `toSpliced` et `with` (et les variantes `%TypedArray%` de `toSorted`, `toReversed` et `with`).
+- ES2024 : `String.prototype.isWellFormed` et `toWellFormed`.
 - ES2024 : le drapeau RegExp `v` (`unicodeSets`) : opérations `--` et `&&` sur les classes, classes imbriquées, `q{...}` et propriétés de chaînes comme `p{RGI_Emoji}`.
 - ES2024 : `Object.groupBy` et `Map.groupBy`.
 

@@ -50,6 +50,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 - ES2022: क्लास फ़ील्ड, प्राइवेट मेथड और एक्सेसर, स्टैटिक ब्लॉक, `#x in obj`, `.at()`, `Object.hasOwn`, Error `cause` और RegExp का `d` फ़्लैग (match indices)।
 - ES2022: ES मॉड्यूल में टॉप-लेवल `await`, async मॉड्यूल के मूल्यांकन क्रम, साइकिल और rejection प्रसार सहित।
 - ES2023: `findLast` और `findLastIndex`, साथ ही `Array` की `toSorted`, `toReversed`, `toSpliced` और `with` कॉपी-आधारित विधियाँ (और `%TypedArray%` के `toSorted`, `toReversed`, `with` रूप)।
+- ES2024: `String.prototype.isWellFormed` और `toWellFormed`।
 - ES2024: RegExp का `v` फ़्लैग (`unicodeSets`): क्लास पर `--` और `&&` ऑपरेशन, नेस्टेड क्लास, `q{...}` और `p{RGI_Emoji}` जैसी स्ट्रिंग प्रॉपर्टी।
 - ES2024: `Object.groupBy` और `Map.groupBy`।
 
