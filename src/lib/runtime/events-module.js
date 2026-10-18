@@ -23,7 +23,7 @@ function checkMax(n) {
 }
 const hasOwn = Object.prototype.hasOwnProperty;
 function init(emitter) {
-    if (!hasOwn.call(emitter, "_events")) {
+    if (!hasOwn.call(emitter, "_events") || emitter._events === undefined) {
         emitter._events = Object.create(null);
         emitter._eventsCount = 0;
     }
@@ -39,6 +39,16 @@ export function EventEmitter(options) {
 EventEmitter.prototype._events = undefined;
 EventEmitter.prototype._eventsCount = 0;
 EventEmitter.prototype._maxListeners = undefined;
+function maxOf(emitter) {
+    return emitter._maxListeners === undefined
+        ? defaultMaxListeners
+        : emitter._maxListeners;
+}
+function rawOf(emitter, name) {
+    init(emitter);
+    const list = emitter._events[name];
+    return list ? list.slice() : [];
+}
 function add(emitter, name, listener, prepend) {
     checkListener(listener);
     init(emitter);
@@ -52,7 +62,7 @@ function add(emitter, name, listener, prepend) {
     }
     if (prepend) list.unshift(listener);
     else list.push(listener);
-    const max = emitter.getMaxListeners();
+    const max = maxOf(emitter);
     if (max > 0 && list.length > max && !list.warned) {
         list.warned = true;
         const warning = new Error(
@@ -83,7 +93,7 @@ EventEmitter.prototype.on = EventEmitter.prototype.addListener;
 EventEmitter.prototype.prependListener = function (name, listener) {
     return add(this, name, listener, true);
 };
-function onceListener(emitter, name, listener, prepend) {
+function onceWrap(emitter, name, listener) {
     checkListener(listener);
     let fired = false;
     function wrapped(...args) {
@@ -93,13 +103,14 @@ function onceListener(emitter, name, listener, prepend) {
         return listener.apply(emitter, args);
     }
     wrapped.listener = listener;
-    return add(emitter, name, wrapped, prepend);
+    return wrapped;
 }
+// Like Node.js, go through the (possibly overridden) on/prependListener.
 EventEmitter.prototype.once = function (name, listener) {
-    return onceListener(this, name, listener, false);
+    return this.on(name, onceWrap(this, name, listener));
 };
 EventEmitter.prototype.prependOnceListener = function (name, listener) {
-    return onceListener(this, name, listener, true);
+    return this.prependListener(name, onceWrap(this, name, listener));
 };
 EventEmitter.prototype.removeListener = function (name, listener) {
     checkListener(listener);
@@ -210,12 +221,10 @@ EventEmitter.prototype.emit = function (name, ...args) {
     return true;
 };
 EventEmitter.prototype.rawListeners = function (name) {
-    init(this);
-    const list = this._events[name];
-    return list ? list.slice() : [];
+    return rawOf(this, name);
 };
 EventEmitter.prototype.listeners = function (name) {
-    return this.rawListeners(name).map((fn) => fn.listener || fn);
+    return rawOf(this, name).map((fn) => fn.listener || fn);
 };
 EventEmitter.prototype.listenerCount = function (name, listener) {
     if (listener === undefined) {
@@ -223,8 +232,7 @@ EventEmitter.prototype.listenerCount = function (name, listener) {
         const own = this._events[name];
         return own ? own.length : 0;
     }
-    const list = this.rawListeners(name);
-    if (listener === undefined) return list.length;
+    const list = rawOf(this, name);
     return list.filter((fn) => fn === listener || fn.listener === listener)
         .length;
 };
@@ -238,9 +246,7 @@ EventEmitter.prototype.setMaxListeners = function (n) {
     return this;
 };
 EventEmitter.prototype.getMaxListeners = function () {
-    return this._maxListeners === undefined
-        ? defaultMaxListeners
-        : this._maxListeners;
+    return maxOf(this);
 };
 export function listenerCount(emitter, name) {
     return emitter.listenerCount(name);

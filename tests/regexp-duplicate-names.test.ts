@@ -30,6 +30,7 @@ console.log(/(?<=\k<a>(?:(?<a>x)|(?<a>y)))q/.exec('xxq')?.index);
 console.log(/(?:(?<a>x)|(?<a>y))+/.exec('xy').groups.a, /(?:(?<a>x)|(?<a>y))+/.exec('yx').groups.a);
 console.log(/^(?:(?:(?<a>x)|(?<a>y))\k<a>){2}$/.test('xxyy'), /^(?:(?:(?<a>x)|(?<a>y))\k<a>){2}$/.test('xxyx'));
 console.log(/(?:(?<a>x)|(?<a>y))\k<a>/i.test('xX'));
+console.log(JSON.stringify(/(?<k>x)|(?<k>y)/d.exec('y').indices.groups), JSON.stringify(/(?<k>x)|(?<k>y)/d.exec('x').indices.groups));
 `,
     String.raw`
 const re = /(?<w>a)(?<n>\d)|(?<n>\d)(?<w>b)/g;

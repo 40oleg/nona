@@ -29,6 +29,8 @@
       }
     }
     field.value=groups;Object.defineProperty(result,'groups',field);
+    // The d flag: the core adds indices, so programs without the engine do not carry the code.
+    vm.indices(result,compiled,matched);
     return result
 };
 __nonaRegexpVm.replaceApply=Function.prototype.apply;

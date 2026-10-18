@@ -30,10 +30,10 @@ function fixture(body: (dir: string) => void) {
 test("CLI help and version", () => {
     const help = cli(["--help"]);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /Nona 0\.12\.0/);
+    assert.match(help.stdout, /Nona 0\.17\.0/);
     const version = cli(["--version"]);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout, "0.12.0\n");
+    assert.equal(version.stdout, "0.17.0\n");
 });
 test("CLI builds nested output and runs executable", () =>
     fixture((dir) => {
@@ -261,7 +261,8 @@ test("locked output fails without removing previous executable", async () => {
         await new Promise<void>((res, rej) => {
             const timer = setTimeout(
                 () => rej(new Error("lock helper timed out")),
-                10000,
+                // PowerShell can take well over 10 s to start on a busy runner.
+                60000,
             );
             holder.on("error", (e) => {
                 clearTimeout(timer);

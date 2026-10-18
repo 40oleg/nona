@@ -475,7 +475,7 @@ test("Windows ARM imports preserve logical internal/syscall calls and native OS 
     );
 });
 test("uppercase SYSCALL external DLL keeps native Windows ARM FFI thunk ABI", () => {
-    checkFfiNames("SYSCALL", "Example");
+    checkFfiNames("SYSCALL", "Example", "win32");
     const bundle = withNativeTarget(
         "win32-arm64",
         () =>

@@ -1,6 +1,7 @@
 // This source is compiled by Nona itself for the native RegExp fallback.
 // It deliberately uses only language features implemented by the frontend.
 import { regexpUnicodeData } from "./data/regexp-unicode-data.js";
+import { regexpEmojiData } from "./data/regexp-emoji-data.js";
 import { fullRuntimeHint } from "../link.js";
 import {
     runtimeBinaryData,
@@ -15,8 +16,15 @@ const regexpVmTemplate = runtimeRegexpVm;
 export interface RegExpLink {
     regexp: boolean;
     unicodeProperties: boolean;
+    unicodeSets: boolean;
+    unicodeStringProperties: boolean;
 }
-const fullRegExpLink: RegExpLink = { regexp: true, unicodeProperties: true };
+const fullRegExpLink: RegExpLink = {
+    regexp: true,
+    unicodeProperties: true,
+    unicodeSets: true,
+    unicodeStringProperties: true,
+};
 const rebuild = fullRuntimeHint;
 const missingEngine =
     "Nona: this program was compiled without the RegExp engine because its source contains no RegExp literal and does not mention RegExp, match, matchAll or search. " +
@@ -24,6 +32,17 @@ const missingEngine =
 const missingProperties =
     "Nona: this program was compiled without the Unicode property tables for \\p{...} because its source does not mention them. " +
     rebuild;
+const missingUnicodeSets =
+    "Nona: this program was compiled without the v flag (unicodeSets) syntax of regular expressions because its source has no v flag literal or flags string. " +
+    rebuild;
+const missingStringProperties =
+    "Nona: this program was compiled without the emoji data for the properties of strings (\\p{RGI_Emoji} …) because its source does not name them. " +
+    rebuild;
+
+// The v-mode class syntax (set operations, nested classes, \q{} and the
+// properties of strings) between these markers of regexp-vm.js.
+const unicodeSetsRegion =
+    /\/\*@@UNICODE_SETS\{\*\/[\s\S]*?\/\*\}@@UNICODE_SETS\*\//g;
 
 function vmCore(link: RegExpLink): string {
     if (!link.regexp)
@@ -39,9 +58,23 @@ function vmCore(link: RegExpLink): string {
               values: [],
               folds: (JSON.parse(regexpUnicodeData) as { folds: string }).folds,
           });
-    return regexpVmTemplate
+    const unicodeSets = link.unicodeSets || link.unicodeStringProperties;
+    return (
+        unicodeSets
+            ? regexpVmTemplate
+            : regexpVmTemplate.replace(unicodeSetsRegion, "")
+    )
         .replace("@@UNICODE_DATA@@", () => data)
-        .replace("@@NO_PROPERTIES@@", () => JSON.stringify(missingProperties));
+        .replace("@@NO_PROPERTIES@@", () => JSON.stringify(missingProperties))
+        .replace("@@EMOJI_DATA@@", () =>
+            link.unicodeStringProperties ? regexpEmojiData : "null",
+        )
+        .replace("@@NO_STRING_PROPERTIES@@", () =>
+            JSON.stringify(missingStringProperties),
+        )
+        .replaceAll("@@NO_UNICODE_SETS@@", () =>
+            unicodeSets ? "null" : JSON.stringify(missingUnicodeSets),
+        );
 }
 
 /** The complete engine: validates RegExp literals in the compiler and backs every executable that may use RegExp. */
