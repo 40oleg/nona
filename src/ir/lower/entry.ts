@@ -55,10 +55,14 @@ export abstract class EntryLowerer extends AssignmentCallLowerer {
         const modules = this.bound.modules!;
         for (const module of modules) {
             const body = this.slot();
+            // A body with top-level await is an async function: its call
+            // returns the promise of the evaluation.
+            const topLevelAwait = module.record.ast.topLevelAwait === true;
             this.emit({
                 kind: "newFunction",
                 strict: true,
                 dest: body,
+                ...(topLevelAwait ? { async: true } : {}),
                 target: `js.module.${module.record.index}`,
                 captures: [],
                 parameterCount: 0,
@@ -107,6 +111,7 @@ export abstract class EntryLowerer extends AssignmentCallLowerer {
                     : this.constant(module.linkError),
                 builtinAliases,
                 namespaceFactory,
+                ...(topLevelAwait ? [this.constant(true)] : []),
             ]);
         }
         const script = this.bound.ast;
@@ -390,7 +395,10 @@ export abstract class EntryLowerer extends AssignmentCallLowerer {
                 this.fn.declaration.derivedConstructor === true,
             generator:
                 this.fn?.declaration.generator === true ||
-                this.fn?.declaration.async === true,
+                this.fn?.declaration.async === true ||
+                (moduleBody &&
+                    this.bound.modules![this.moduleIndex!]!.record.ast
+                        .topLevelAwait === true),
             blocks: this.blocks,
         };
     }

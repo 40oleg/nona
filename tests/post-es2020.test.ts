@@ -20,6 +20,42 @@ console.log([1,2,3].at(-1),[1,2,3].at(5),"abc".at(-2),new Int8Array([4,5]).at(-1
 console.log(Object.hasOwn({a:1},"a"),Object.hasOwn([],"length"),Object.hasOwn.length,Array.prototype.at.name,Array.prototype[Symbol.unscopables].findLast,Object.getOwnPropertyDescriptor(Array.prototype,"at").enumerable);
 try{Object.hasOwn(null,"x");}catch(e){console.log(e.constructor.name);}try{[].findLast();}catch(e){console.log(e.constructor.name);}
 const ec=new TypeError("m",{cause:1});console.log(ec.cause,Object.getOwnPropertyDescriptor(ec,"cause").enumerable,"cause" in new Error("x",{}),"cause" in new RangeError("x"));`,
+    "change-by-copy array methods": `
+const t=(f)=>{try{const r=f();console.log(Array.isArray(r)?JSON.stringify(r)+" "+r.length:r);}catch(e){console.log(e.constructor.name);}};
+const a=[3,1,2];
+t(()=>a.toSorted());t(()=>a.toSorted((x,y)=>y-x));t(()=>a.toReversed());t(()=>a.with(1,9));t(()=>a.with(-1,9));t(()=>a.toSpliced(1,1,"x","y"));
+console.log(a.join());
+t(()=>a.with(3,0));t(()=>a.with(-4,0));t(()=>a.with(1/0,0));t(()=>a.with());
+t(()=>a.toSorted(null));t(()=>a.toSorted({}));t(()=>[].toSorted(1));t(()=>a.toSorted(undefined));
+t(()=>a.toSpliced());t(()=>a.toSpliced(1));t(()=>a.toSpliced(-1));t(()=>a.toSpliced(1,-5,7));t(()=>a.toSpliced(0,100));t(()=>a.toSpliced(1,undefined,7));t(()=>a.toSpliced(undefined,undefined,7));
+const h=[1,,3];
+t(()=>h.toReversed());t(()=>h.toSorted());t(()=>h.with(0,5));t(()=>h.toSpliced(0,1));console.log(1 in h.toReversed(),1 in h.with(0,5));
+t(()=>[,"b",undefined,"a"].toSorted());
+const like={length:3,0:"c",1:"a",2:"b"};
+const P=Array.prototype;
+t(()=>P.toSorted.call(like));t(()=>P.toReversed.call(like));t(()=>P.with.call(like,0,"z"));t(()=>P.toSpliced.call(like,1,1));
+t(()=>P.toSorted.call("cab"));t(()=>P.toReversed.call("abc"));t(()=>P.with.call({length:-1},0,1));t(()=>P.toReversed.call({}));t(()=>P.toReversed.call({length:"2",0:1,1:2}));
+t(()=>P.toSorted.call(null));t(()=>P.toReversed.call(undefined));t(()=>P.with.call(null,0,0));t(()=>P.toSpliced.call(undefined));
+t(()=>P.toReversed.call({length:2**32}));t(()=>P.toSorted.call({length:2**32}));t(()=>P.with.call({length:2**32},0,1));t(()=>P.toSpliced.call({length:2**32-1},0,0,1));t(()=>P.toSpliced.call({length:2**53-1},0,0,1));
+t(()=>P.toSpliced.call({length:2**32},0,2**32,1));
+class S extends Array{static get [Symbol.species](){throw new Error("species");}}
+const s=S.from([3,1,2]);
+t(()=>Object.getPrototypeOf(s.toSorted())===Array.prototype);t(()=>Object.getPrototypeOf(s.toReversed())===Array.prototype);t(()=>Object.getPrototypeOf(s.with(0,1))===Array.prototype);t(()=>Object.getPrototypeOf(s.toSpliced(0,1))===Array.prototype);
+const log=[];
+const obs=new Proxy({length:2,0:"b",1:"a"},{get(o,k){log.push("get "+String(k));return o[k];}});
+P.toSorted.call(obs,(x,y)=>x<y?-1:1);P.with.call(obs,0,1);console.log(log.join());
+Object.defineProperty(P,"7",{set(){console.log("setter");},configurable:true});
+t(()=>[1,2,3,4,5,6,7,8,9].toReversed());t(()=>[1,2,3,4,5,6,7,8,9].toSorted());t(()=>[1,2,3,4,5,6,7,8,9].with(0,0));t(()=>[1,2,3,4,5,6,7,8,9].toSpliced(0,0,1));
+delete P[7];
+for(const [n,l] of [["toSorted",1],["toReversed",0],["toSpliced",2],["with",2]]){
+const f=P[n],d=Object.getOwnPropertyDescriptor(P,n);
+console.log(f.name,f.length,d.writable,d.enumerable,d.configurable,Object.hasOwn(f,"prototype"),Object.keys(P).includes(n),Object.getOwnPropertyDescriptor(f,"name").configurable);
+try{new f();}catch(e){console.log(e.constructor.name);}}
+console.log(JSON.stringify(Object.keys(P[Symbol.unscopables])),Object.getPrototypeOf(P[Symbol.unscopables]));
+const ud=Object.getOwnPropertyDescriptor(P[Symbol.unscopables],"toSorted");console.log(ud.value,ud.writable,ud.enumerable,ud.configurable);
+with([]){console.log(typeof toSorted,typeof toReversed,typeof toSpliced,typeof with_);}
+var toSorted=1,toReversed=2,toSpliced=3;
+with([]){console.log(toSorted,toReversed,toSpliced);}`,
     "AggregateError and Promise.any": `
 const ae=new AggregateError([1,2],"msg",{cause:"c"});
 console.log(ae.message,ae.errors.join(),ae.cause,ae.name,ae instanceof Error,Object.prototype.toString.call(ae),AggregateError.length,Object.getPrototypeOf(AggregateError)===Error,AggregateError("x").message,Object.keys(ae).length,String(ae));
@@ -28,6 +64,36 @@ const log=[];Promise.any([Promise.reject(1),Promise.resolve(2),3]).then(v=>log.p
 Promise.any([Promise.reject(1),Promise.reject(2)]).catch(e=>log.push(e.constructor.name+" "+e.errors.join()));
 Promise.any([]).catch(e=>log.push("empty "+e.errors.length));
 setTimeout(()=>console.log(log.join("|")),0);`,
+    "Object.groupBy and Map.groupBy": `
+const show=v=>JSON.stringify(v);
+const a=Object.groupBy([1,2,3,4,5],(x,i)=>x%2?"odd":"even");
+console.log(show(a),Object.getPrototypeOf(a)===null,Object.keys(a).join());
+console.log(show(Object.groupBy("a𝒜b𝒜",c=>c)),show(Object.groupBy(new Set([1,2,3]),x=>x>1)));
+function*g(){yield 1;yield 2;yield 3;}
+console.log(show(Object.groupBy(g(),(x,i)=>i)),show([...Map.groupBy(g(),x=>x%2)]));
+const sym=Symbol("s"),ts={toString(){return "ts";}};
+const c=Object.groupBy([1,2,3,4],x=>[0,sym,ts,1.5,null][x]);
+console.log(Object.getOwnPropertyNames(c).join(),c[sym].join(),c.ts.join(),c["1.5"].join(),c["null"].join());
+console.log(Object.keys(Object.groupBy([-0,0],x=>x)).join(),show(Object.groupBy([2,1],x=>x)));
+const m=Map.groupBy([-0,0,NaN,NaN,"x",1],x=>x);
+console.log(m instanceof Map,m.size,[...m.keys()].map(k=>Object.is(k,-0)?"-0":String(k)).join(),show([...m.values()]));
+const ks=Symbol("k"),vk=Object.groupBy([1],()=>({[Symbol.toPrimitive](){return ks;}}));console.log(Object.getOwnPropertySymbols(vk).length);
+const o1={},o2={};const m2=Map.groupBy([o1,o2,o1],x=>x);console.log(m2.size,m2.get(o1).length,[...Map.groupBy([3,1,2],x=>-x).keys()].join());
+const ps=Map.prototype.set,MM=Map;Map.prototype.set=function(){throw new Error("patched");};
+try{console.log(Map.groupBy([1,2],x=>x).size);}catch(e){console.log("bad",e.message);}
+Map.prototype.set=ps;
+for(const f of [()=>Object.groupBy(null,x=>x),()=>Map.groupBy(undefined,x=>x),()=>Object.groupBy([1]),()=>Map.groupBy([1],{}),()=>Object.groupBy(5,x=>x),()=>Map.groupBy({},x=>x)])
+try{f();console.log("no throw");}catch(e){console.log(e.constructor.name);}
+function it(log){return{[Symbol.iterator](){return{i:0,next(){return{value:this.i++,done:false};},return(){log.push("return");return{};}};}};}
+let log=[];try{Object.groupBy(it(log),()=>{throw new RangeError("cb");});}catch(e){log.push(e.constructor.name);}
+try{Map.groupBy(it(log),()=>{throw new EvalError("cb");});}catch(e){log.push(e.constructor.name);}
+try{Object.groupBy(it(log),()=>({toString(){throw new SyntaxError("k");}}));}catch(e){log.push(e.constructor.name);}
+try{Object.groupBy(it(log),()=>({[Symbol.toPrimitive](){return {};}}));}catch(e){log.push(e.constructor.name);}
+console.log(log.join());
+for(const [o,n] of [[Object,"Object"],[Map,"Map"]]){const d=Object.getOwnPropertyDescriptor(o,"groupBy");
+console.log(n,d.writable,d.enumerable,d.configurable,o.groupBy.name,o.groupBy.length,Function.prototype.toString.call(o.groupBy).includes("native code"));}
+let seen=[];Object.groupBy([5,6],function(){seen.push(this===undefined,arguments.length);return "k";});console.log(seen.join());
+const d2=Object.getOwnPropertyDescriptor(a,"odd");console.log(d2.writable,d2.enumerable,d2.configurable,Array.isArray(a.odd));`,
 };
 for (const [name, source] of Object.entries(programs))
     test(`post-ES2020: ${name}`, () => {

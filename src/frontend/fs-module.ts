@@ -5,6 +5,7 @@ import {
     modulesFsCommon,
     modulesFsWin32,
     modulesFsLinux,
+    modulesFsPromises,
 } from "../lib/sources.generated.js";
 /**
  * Source of the built-in `nona:fs` (alias `node:fs`) module: a synchronous
@@ -16,6 +17,9 @@ const common = modulesFsCommon;
 const win32 = modulesFsWin32;
 
 const linux = modulesFsLinux;
+
+/** `node:fs/promises` re-exports `fs.promises` of the one `node:fs` instance. */
+export const fsPromisesModuleSource = modulesFsPromises;
 
 /** The `const name = define("syscall", ...)` statement of fs-linux.js. */
 function syscallDefinition(name: string): RegExp {

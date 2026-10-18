@@ -172,11 +172,14 @@ export function emitFunctionSource(b: RuntimeBuilder): void {
             a.jcc("e", proxyTarget);
             // DataView validates the offset before obtaining newTarget.prototype.
             // Its construct code allocates the result after that validation.
-            // TypedArray(length) likewise converts the length first (ES2020 22.2.4.2).
+            // TypedArray(length) likewise converts the length first (ES2020 22.2.4.2),
+            // and ArrayBuffer(length, options) checks maxByteLength (ES2024 25.1.4.1).
             const dataViewReceiver = a.unique("dataViewReceiver");
             a.load("rax", { base: "r10", disp: F.constructCode });
             for (const target of [
                 "rt.DataView.construct",
+                "rt.ArrayBuffer.construct",
+                "rt.SharedArrayBuffer.construct",
                 ...[
                     "Uint8Array",
                     "Int8Array",

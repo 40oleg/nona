@@ -9,6 +9,7 @@ import { emitKeySort } from "./key-sort.js";
 import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
 import { ProxyKind } from "./proxy.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 export function emitOwnKeys(b: RuntimeBuilder): void {
     emitValueList(b);
@@ -222,9 +223,8 @@ export function emitOwnKeys(b: RuntimeBuilder): void {
             a.cmp("rax", TypedArrayKind);
             a.jcc("ne", notTyped);
             a.load("rax", slot(56));
-            a.load("r10", { base: "rax", disp: TypedArrayLayout.buffer });
-            a.load("r10", { base: "r10", disp: ArrayBufferLayout.detached });
-            a.test("r10", "r10");
+            emitViewCheck(a, "rax");
+            a.test("r11", "r11");
             const attached = a.unique("attached");
             a.jcc("e", attached);
             a.mov("rax", 0);

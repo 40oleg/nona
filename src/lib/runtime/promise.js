@@ -609,6 +609,22 @@ var __nonaPromiseDrainJobs = (function () {
             return combinator(this, iterable, 3);
         },
     }.any;
+    var tryMethod = {
+        try(callback, ...args) {
+            if (
+                (typeof this !== "object" && typeof this !== "function") ||
+                this === null
+            )
+                throw new TypeError("Promise.try called on a non-object");
+            var next = capability(this);
+            try {
+                next.resolve(reflectApply(callback, undefined, args));
+            } catch (error) {
+                next.reject(error);
+            }
+            return next.promise;
+        },
+    }.try;
     var withResolvers = {
         withResolvers() {
             var c = capability(this);
@@ -636,6 +652,7 @@ var __nonaPromiseDrainJobs = (function () {
     method(Promise, "allSettled", allSettled);
     method(Promise, "race", race);
     method(Promise, "any", any);
+    method(Promise, "try", tryMethod);
     method(Promise, "withResolvers", withResolvers);
     var speciesGetter = Object.getOwnPropertyDescriptor(
         {
@@ -1151,7 +1168,8 @@ var __nonaPromiseDrainJobs = (function () {
             if (record.failed) throw record.error;
             return;
         }
-        if (record.status === 1) return;
+        // Evaluating, or evaluating-async (3, see top-level-await.js).
+        if (record.status !== 0) return;
         record.status = 1;
         try {
             instantiateModule(index);
@@ -1209,11 +1227,13 @@ var __nonaPromiseDrainJobs = (function () {
         paths: modulePaths,
         builtins: builtinModules,
         evaluate: evaluateModule,
+        instantiate: instantiateModule,
         linkError: linkError,
         newPromiseState: newPromiseState,
         enqueue: enqueueCallback,
         settle: settle,
         resolve: resolveState,
+        performThen: performThen,
         append: append,
     };
     // Dynamic async function constructors are part of the documented

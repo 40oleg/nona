@@ -41,6 +41,10 @@ import {
     processNativeHelpers,
     captureProcessStartup,
 } from "../../runtime/process-host.js";
+import {
+    weakRefNativeHelpers,
+    gcCountNativeHelper,
+} from "../../runtime/weak-ref.js";
 import { ffiImportSymbol } from "../../ffi.js";
 import { cloneRealms, realmSymbol } from "../realms.js";
 import { mergeAgentPrograms, agentSymbol } from "../agents.js";
@@ -57,6 +61,11 @@ import {
 export type { BaseImage, BaseImageCache } from "./base-image.js";
 
 const stack = (disp: number): Mem => ({ base: "rsp", disp });
+
+// NONA_GC_STRESS=off turns the tests' gcStress builds into normal ones: CI
+// on pull requests runs most suites without GC stress and main runs them
+// all with it (#372).
+const gcStressDisabled = globalThis.process?.env?.NONA_GC_STRESS === "off";
 
 /**
  * `callStats` counts every call by target and prints the counts when the
@@ -77,6 +86,8 @@ export function generate(
         listing?: boolean;
     } = {},
 ): NativeProgram {
+    if (options.gcStress && gcStressDisabled)
+        options = { ...options, gcStress: false };
     if (!options.callStats && !options.coverage)
         return generateImage(module, options);
     if (!options.callStats)
@@ -729,6 +740,22 @@ function generateImage(
     if (hasPrelude && linked.includes("buffer")) {
         hostGlobal("__nonaHexEncode", "rt.hexEncode.code", 1);
         hostGlobal("__nonaByteCopy", "rt.byteCopy.code", 3);
+    }
+    const finalizationRegistry = linked.includes("finalizationRegistry");
+    if (hasPrelude && (linked.includes("weakRef") || finalizationRegistry)) {
+        // Captured and removed from the global object by the WeakRef or the
+        // FinalizationRegistry prelude, whichever runs first.
+        const helpers = weakRefNativeHelpers().bundle;
+        fragments.push(...helpers.fragments);
+        functions.push(...helpers.functions);
+        hostGlobal("__nonaWeakRefTarget", "rt.weakRefTarget.code", 1);
+    }
+    if (hasPrelude && finalizationRegistry) {
+        // Captured and removed by the FinalizationRegistry prelude.
+        const helpers = gcCountNativeHelper().bundle;
+        fragments.push(...helpers.fragments);
+        functions.push(...helpers.functions);
+        hostGlobal("__nonaGcCount", "rt.gcCountValue.code", 0);
     }
     if (hasPrelude && regexpLink.regexp)
         // First-unit scan of the RegExp engine (#258), captured and removed by the prelude.

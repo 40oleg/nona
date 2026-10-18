@@ -122,8 +122,18 @@ const sys = {
     },
     lstat(path) {
         const result = sysLstat(cpath(path), statBuffer);
+        if (result === -2 || result === -20) return null;
         check(result, "lstat", path);
         return statResult();
+    },
+    readlink(path) {
+        const data = new Uint8Array(65536),
+            length = check(
+                sysReadlink(cpath(path), data, data.length),
+                "readlink",
+                path,
+            );
+        return decoder.decode(data.subarray(0, length));
     },
     realpath(path) {
         let parts = path.split("/").filter(Boolean),

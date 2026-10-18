@@ -5,14 +5,25 @@ Decision record for [#182](https://github.com/40oleg/nona/issues/182).
 ## Context
 
 The runtime has optional parts: the RegExp engine and its Unicode property
-tables, the Unicode normalization tables, and JavaScript preludes such as
-`proxy`, `timers`, `buffer` or `process` (`src/link.ts`). The compiler links a
-part only when the program's sources can reach it. The lexer
+tables, the emoji data of the properties of strings (`\p{RGI_Emoji}` and the
+other six of the `v` flag, part `unicodeStringProperties`), the Unicode
+normalization tables, and JavaScript preludes such as `proxy`, `timers`,
+`buffer` or `process` (`src/link.ts`). The compiler links a part only when the
+program's sources can reach it. The lexer
 (`collectSourceUsage` in `src/frontend/lexer.ts`) records every identifier,
 property name and string or template literal; `preludeTriggers` maps names
 to parts, a long trigger name also counts inside a longer string, and
 `getOwnPropertyNames`, `getOwnPropertyDescriptors` and `ownKeys` link every
 prelude because a program using them could list the built-ins.
+
+The emoji data is
+linked only when a regular expression literal or a string names one of the
+properties of strings (`Basic_Emoji`, `Emoji_Keycap_Sequence`, `RGI_Emoji…`)
+and the RegExp engine is linked: unlike the Unicode property tables, the
+`RegExp` name alone does not bring it, so programs that use only `\p{L}` do
+not grow. A pattern that names the property only through a computed string
+throws an error that asks for `--link unicodeStringProperties` or
+`--full-runtime`.
 
 This rule is lexical. It over-links on common words (`at`, `any`, `sort`,
 `compile`, `globalThis`), it cannot see a name built at run time

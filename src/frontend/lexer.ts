@@ -6,6 +6,7 @@ import {
     preludeSet,
     preludeTriggers,
     reflectiveNames,
+    syntaxOnlyPreludes,
 } from "../link.js";
 import type { Token, TokenStream } from "./token.js";
 
@@ -32,20 +33,27 @@ function validateRegExpPattern(pattern: string, flags: string): void {
  * String.prototype.match/matchAll/search with a string argument, so a program
  * whose sources never spell these names (as identifiers, property names or
  * inside string and template literals) cannot run the RegExp engine. The
- * normalization tables are reached only through normalize and localeCompare.
+ * normalization tables are reached only through normalize, localeCompare and
+ * Intl.Collator (number formatting through toLocaleString does not need them).
  */
 export type SourceUsage = RuntimeLink;
 const regexpNames = ["RegExp", "match", "matchAll", "search"],
-    normalizationNames = ["normalize", "localeCompare"],
+    normalizationNames = ["normalize", "localeCompare", "Intl", "Collator"],
     float16Names = ["Float16Array", "f16round", "getFloat16", "setFloat16"];
 const unicodePropertyEscape = /\\[pP]\{/;
+// The properties of strings of v-mode patterns (\p{RGI_Emoji} …): their
+// emoji data is linked only when a literal or a string names one of them.
+const stringPropertyName = /RGI_Emoji|Basic_Emoji|Emoji_Keycap_Sequence/;
+// The v-mode class syntax is linked by a v flag literal or a string that may
+// be the flags of new RegExp(pattern, "v").
+const unicodeSetsFlags = /^[dgimsy]*v[dgimsy]*$/;
 // A group name with a non-ASCII character or an escape is validated against
 // the ID_Start/ID_Continue property tables.
 const unicodeGroupName = /(?:\(\?|\\k)<(?![=!])[^>]*(?:[^\x00-\x7f]|\\u)/;
 let usage: SourceUsage | undefined;
 /** Why each part was linked: the first name that selected it (see LinkReasons). */
 let reasons: LinkReasons | undefined;
-/** Runtime part (regexp, unicodeProperties, unicodeNormalization, float16 or a prelude name) → why it is linked. */
+/** Runtime part (regexp, unicodeProperties, unicodeSets, unicodeStringProperties, unicodeNormalization, float16 or a prelude name) → why it is linked. */
 export type LinkReasons = Record<string, string>;
 function note(part: string, why: string): void {
     if (reasons && !(part in reasons)) reasons[part] = why;
@@ -55,7 +63,11 @@ function linkPrelude(name: OptionalPrelude, why: string): void {
     usage.preludes[name] = true;
     note(name, why);
 }
-function linkRegExp(why: string, unicodeProperties: boolean): void {
+function linkRegExp(
+    why: string,
+    unicodeProperties: boolean,
+    stringProperties = false,
+): void {
     if (!usage) return;
     usage.regexp = true;
     note("regexp", why);
@@ -63,6 +75,15 @@ function linkRegExp(why: string, unicodeProperties: boolean): void {
         usage.unicodeProperties = true;
         note("unicodeProperties", why);
     }
+    if (stringProperties) {
+        usage.unicodeStringProperties = true;
+        note("unicodeStringProperties", why);
+    }
+}
+function linkUnicodeSets(why: string): void {
+    if (!usage) return;
+    usage.unicodeSets = true;
+    note("unicodeSets", why);
 }
 /** Select a runtime dependency discovered from parsed source expressions. */
 export function requireRuntimePrelude(name: OptionalPrelude): void {
@@ -84,6 +105,8 @@ export function collectSourceUsage<T>(
         current: SourceUsage = {
             regexp: false,
             unicodeProperties: false,
+            unicodeSets: false,
+            unicodeStringProperties: false,
             unicodeNormalization: false,
             float16: false,
             preludes: preludeSet(false),
@@ -105,6 +128,8 @@ export function collectSourceUsage<T>(
         if (outer) {
             outer.regexp ||= current.regexp;
             outer.unicodeProperties ||= current.unicodeProperties;
+            outer.unicodeSets ||= current.unicodeSets;
+            outer.unicodeStringProperties ||= current.unicodeStringProperties;
             outer.unicodeNormalization ||= current.unicodeNormalization;
             outer.float16 ||= current.float16;
             for (const name of optionalPreludes)
@@ -140,7 +165,10 @@ function recordPreludeName(name: string, inString: boolean): void {
         // Enumerating Math or DataView.prototype would observe the methods.
         linkFloat16(`${JSON.stringify(name)} can enumerate built-ins`);
         for (const prelude of optionalPreludes)
-            if (!unavailableReflectivePreludes.includes(prelude))
+            if (
+                !unavailableReflectivePreludes.includes(prelude) &&
+                !syntaxOnlyPreludes.includes(prelude)
+            )
                 linkPrelude(
                     prelude,
                     `${JSON.stringify(name)} can enumerate built-ins`,
@@ -164,11 +192,15 @@ function recordUsage(tokens: TokenStream): void {
     if (!usage) return;
     for (const token of tokens) {
         if (token.kind === "regexp") {
+            const pattern = token.pattern ?? "";
             linkRegExp(
                 "a regular expression literal",
-                unicodePropertyEscape.test(token.pattern ?? "") ||
-                    unicodeGroupName.test(token.pattern ?? ""),
+                unicodePropertyEscape.test(pattern) ||
+                    unicodeGroupName.test(pattern),
+                stringPropertyName.test(pattern),
             );
+            if (token.flags?.includes("v"))
+                linkUnicodeSets("a regular expression literal with the v flag");
         } else if (token.kind === "word") {
             const word = String(token.value);
             // A pattern built at run time may use any Unicode property.
@@ -199,6 +231,21 @@ function recordUsage(tokens: TokenStream): void {
                 );
             else if (unicodePropertyEscape.test(text))
                 linkRegExp("a \\p{…} escape inside a string", true);
+            // The engine itself is linked only by RegExp and the names above.
+            if (unicodeSetsFlags.test(text))
+                linkUnicodeSets(
+                    `the flags ${JSON.stringify(text)} in a string`,
+                );
+            // A pattern built at run time names the property in a string
+            // (the engine itself is linked only by the names above).
+            const stringProperty = stringPropertyName.exec(text);
+            if (stringProperty) {
+                usage.unicodeStringProperties = true;
+                note(
+                    "unicodeStringProperties",
+                    `${JSON.stringify(stringProperty[0])} inside a string`,
+                );
+            }
             const normalization = normalizationNames.find((name) =>
                 text.includes(name),
             );
@@ -724,8 +771,9 @@ export function lex(
                 i += codePoint().length;
             const flags = source.slice(flagStart, i);
             if (
-                !/^[gimsuy]*$/.test(flags) ||
-                new Set(flags).size !== flags.length
+                !/^[dgimsuvy]*$/.test(flags) ||
+                new Set(flags).size !== flags.length ||
+                (flags.includes("u") && flags.includes("v"))
             )
                 fail("Invalid regular expression flags", flagStart);
             try {

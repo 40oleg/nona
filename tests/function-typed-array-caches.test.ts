@@ -22,9 +22,9 @@ import { ArrayBufferLayout } from "../src/runtime/array-buffer.js";
 // later ones hit; the programs change the objects between rounds. Each runs
 // with and without GC stress and is compared with Node.js.
 
-function expectProgram(source: string): void {
+function expectProgram(source: string, stressModes = [true, false]): void {
     const expected = runOracle(source).stdout;
-    for (const gcStress of [true, false]) {
+    for (const gcStress of stressModes) {
         const native = runOnHost(source, { gcStress });
         assert.equal(native.error, undefined);
         assert.equal(native.status, 0, native.stderr);
@@ -39,6 +39,7 @@ test("the constants spelled out in property-cache.ts match their definitions", (
         buffer: TypedArrayLayout.buffer,
         length: TypedArrayLayout.length,
         detached: ArrayBufferLayout.detached,
+        maxByteLength: ArrayBufferLayout.maxByteLength,
     });
 });
 
@@ -110,9 +111,7 @@ for (let round = 0; round < 7; round++) {
 Object.defineProperty(typedArrayPrototype, 'length', savedLength);
 delete Float64Array.prototype.length;
 out.push(arrays.map(a => a.length).join(','));
-console.log(out.join(' | '));
-let total = 0; const big = new Uint8Array(64); for (let r = 0; r < 2000; r++) for (let i = 0; i < big.length; i += 8) total += big.length;
-console.log(total);`,
+console.log(out.join(' | '));`,
     ],
     [
         "functions and typed arrays across collections",
@@ -130,6 +129,17 @@ console.log(sum);`,
 for (const [name, source] of cases)
     test(`function and typed array caches: ${name}`, () =>
         expectProgram(source));
+
+// GC stress collects before every operation, so this hot loop alone took
+// about 25 s under it and timed out on the Windows CI runner; it only checks
+// that a cached typed array length site keeps hitting, so it runs without.
+test("function and typed array caches: hot typed array length site", () =>
+    expectProgram(
+        `
+let total = 0; const big = new Uint8Array(64); for (let r = 0; r < 2000; r++) for (let i = 0; i < big.length; i += 8) total += big.length;
+console.log(total);`,
+        [false],
+    ));
 
 test("a detached typed array reports length 0 at a cached site", () => {
     const native = runOnHost(

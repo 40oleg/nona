@@ -9,6 +9,8 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/tc39/test262.
 git -C work/test262 sparse-checkout set harness test/language/expressions/coalesce test/language/expressions/arrow-function test/language/expressions/array test/language/expressions/call test/language/expressions/new test/language/expressions/template-literal test/language/rest-parameters test/language/statements/function test/language/statements/for-in test/language/statements/for-of test/built-ins/Symbol test/built-ins/Array/prototype/includes test/built-ins/Array/prototype/pop test/built-ins/Math/pow test/built-ins/Math/min test/built-ins/Math/max test/built-ins/Math/abs test/built-ins/Math/sign test/built-ins/Math/sqrt test/built-ins/Math/trunc test/built-ins/Math/floor test/built-ins/Math/ceil test/built-ins/Math/round test/built-ins/String/prototype/includes test/built-ins/Number/isFinite test/built-ins/Number/isInteger test/built-ins/Number/isNaN test/built-ins/Number/isSafeInteger
 git -C work/test262 rev-parse HEAD
 git -C work/test262 sparse-checkout add test/built-ins/Math/imul test/built-ins/Math/clz32
+# optional: Intl (see docs/intl.md); intl402 tests also need the harness testIntl.js
+git -C work/test262 sparse-checkout add test/intl402
 npm ci
 npm run test262:smoke
 node scripts/test262-smoke.mjs language/expressions/coalesce
@@ -62,6 +64,33 @@ metadata (for example one copied to another machine) is accepted when
 `work/test262/.nona-test262-revision` contains the pinned commit hash; line
 terminator tests then read the files directly.
 
+## Array change-by-copy methods
+
+The `change-array-by-copy` tests are excluded by `post-es2020`, so the full
+audit does not run them. The `Array` methods `toSorted`, `toReversed`,
+`toSpliced` and `with` (and their `Symbol.unscopables` entries) are checked by
+running their directories explicitly against the pinned revision (Windows x64,
+#308; `TEST262_EXCLUDE_FEATURES` unset):
+
+```
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSorted
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toReversed
+node scripts/test262-smoke.mjs built-ins/Array/prototype/toSpliced
+node scripts/test262-smoke.mjs built-ins/Array/prototype/with
+node scripts/test262-smoke.mjs built-ins/Array/prototype/Symbol.unscopables
+```
+
+| Directory                                      | Passed / applicable | Remaining failures |
+| ---------------------------------------------- | ------------------- | ------------------ |
+| `built-ins/Array/prototype/toSorted`           | 21 / 21             | none               |
+| `built-ins/Array/prototype/toReversed`         | 17 / 17             | none               |
+| `built-ins/Array/prototype/toSpliced`          | 30 / 30             | none               |
+| `built-ins/Array/prototype/with`               | 21 / 21             | none               |
+| `built-ins/Array/prototype/Symbol.unscopables` | 5 / 5               | none               |
+
+The `%TypedArray%.prototype` variants (`toReversed`, `toSorted`, `with`) are not
+implemented; their tests stay excluded by `post-es2020`.
+
 ## Semantics newer than ES2020 in the pinned Test262
 
 The pinned Test262 (2026) sometimes asserts behaviour introduced after ES2020
@@ -78,13 +107,67 @@ Following Test262:
   no effect and a valid one is OrdinarySet on the Receiver.
 - `String.prototype.{replace,split,match,matchAll,search}` do not look up
   Symbol-keyed methods on primitive arguments (ES2025).
+- RegExp duplicate named groups in different alternatives (ES2025, #319). Of
+  the 19 tests with the `regexp-duplicate-named-groups` feature tag, 16 pass;
+  the three that also need match indices (`regexp-match-indices`, the `d`
+  flag, not implemented) are classified `post`:
+  `built-ins/RegExp/named-groups/duplicate-names-match-indices.js`,
+  `built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties.js`
+  and `built-ins/String/prototype/match/duplicate-named-indices-groups-properties.js`.
 - Annex B call-expression assignment targets throw ReferenceError at run time
   in sloppy code and are early errors in strict code (ES2022 web reality).
 
-Kept at ES2020 (failures classified `post`): `Error.prototype.stack`, RegExp `v` flag and match indices, top-level
-await, and the other features in `postEs2020Features`. Remaining known
+Kept at ES2020 (failures classified `post`): `Error.prototype.stack`,
+and the other features in `postEs2020Features`. Remaining known
 deviations are listed per catalog in `docs/history/pr5-es2020-remaining-work.md` and
-the release status.
+the release status. RegExp match indices (`d` flag, ES2022) are supported; see below.
+
+## RegExp match indices (ES2022, #307)
+
+The `d` flag, `RegExp.prototype.hasIndices` and the `indices` array of `exec`,
+`match` and `matchAll` results are implemented. The pinned Test262 directories
+pass as follows (runner: `TEST262_JOBS=2 node scripts/test262-smoke.mjs <dir>`
+on Windows x64; the table lists every failure in these directories):
+
+| Directory                                                                      | Result | Remaining failures                                               |
+| ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------- |
+| `built-ins/RegExp/match-indices`                                               | 14/14  | none                                                             |
+| `built-ins/RegExp/prototype/hasIndices`                                        | 8/8    | none                                                             |
+| `built-ins/RegExp/prototype/flags`                                             | 15/16  | `this-val-regexp.js`: `/./v` (`regexp-v-flag`, `post`)           |
+| `built-ins/RegExp/duplicate-flags.js`                                          | 1/1    | none                                                             |
+| `built-ins/RegExp/named-groups/duplicate-names-match-indices.js`               | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+| `built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties.js` | 0/1    | duplicate named groups (`regexp-duplicate-named-groups`, `post`) |
+
+Those three fail at compile time (`E_LEX`: the flag or the pattern is
+rejected). Both features are in `postEs2020Features`, so
+`TEST262_EXCLUDE_FEATURES=post-es2020` skips them and `test262-summary.mjs`
+classifies them `post`.
+
+Top-level await (ES2022, [#306](https://github.com/40oleg/nona/issues/306)) is
+implemented and no longer classified `post`. With `TEST262_RUN_ASYNC=1`,
+`language/module-code/top-level-await` passes 244 of 251 tests:
+
+- `fulfillment-order.js`, `rejection-order.js` and
+  `unobservable-global-async-evaluation-count-reset.js` use
+  `Promise.withResolvers` (ES2024, feature `promise-with-resolvers`). With a
+  local replacement for it they produce the order Test262 expects (Node.js 22
+  differs in the last two).
+- `await-dynamic-import-rejection.js`, `module-import-rejection.js`,
+  `module-import-rejection-body.js` and `module-import-rejection-tick.js` are
+  runtime-negative tests, which the adapter skips. Imported with `import()`
+  they reject with the expected error type.
+
+`language/expressions/dynamic-import` and the rest of `language/module-code`
+fail only tests of later proposals (`import-defer`, `source-phase-imports`,
+the `import()` options argument and duplicate keys of `import-attributes`).
+
+The RegExp `v` flag (`unicodeSets`, #314) is supported. Every test with
+`features: [regexp-v-flag]` (187 files, `built-ins/RegExp/unicodeSets`,
+`property-escapes/generated/strings`, `prototype/unicodeSets` and the
+String and `flags` tests) passes except two (185/187):
+`prototype/flags/this-val-regexp.js` and
+`prototype/unicodeSets/this-val-regexp.js` also use the `d` flag, so they stay
+classified `post`.
 
 RegExp pattern modifiers (ES2025, `regexp-modifiers`, issue #320) are supported
 and no longer in `postEs2020Features`: `built-ins/RegExp/regexp-modifiers`, the
@@ -134,8 +217,10 @@ Broader raw groups on the pinned revision have 72 pass / 26 fail for
 142 pass / 607 fail / 2 skip for `language/statements/for-of`. These groups
 include cases outside the implemented subset and cases added after ES2020;
 the raw counts are diagnostic, not ES2020 conformance percentages.
-`built-ins/Array/prototype/includes` has 26 pass / 4 fail / 0 skip;
-the failing cases use Proxy or resizable ArrayBuffers.
+`built-ins/Array/prototype/includes` has 27 pass / 3 fail / 0 skip; the
+three failing cases include `resizableArrayBufferUtils.js`, which builds its
+typed array subclasses with `new Function` (the documented `eval` exception),
+and pass with that helper replaced by class expressions.
 `built-ins/Math/pow` has 28 pass / 0 fail / 0 skip after adding the
 ES2020 Math constants.
 `built-ins/Math/min` and `built-ins/Math/max` each have 10 pass / 0 fail /
@@ -149,10 +234,10 @@ remaining cases depend on `eval` or BigInt.
 `built-ins/String/prototype/lastIndexOf` has 25 pass / 0 fail / 0 skip.
 `built-ins/String/fromCharCode` has 16 pass / 1 fail / 0 skip;
 the remaining case requires BigInt.
-`built-ins/Array/prototype/indexOf` has 193 pass / 8 fail / 0 skip, and
-`lastIndexOf` has 189 pass / 9 fail / 0 skip after adding global `isNaN`.
-The remaining cases use Date, RegExp, JSON, Proxy, resizable buffers/typed
-arrays, or `eval`.
+`built-ins/Array/prototype/indexOf` has 197 pass / 4 fail / 0 skip, and
+`lastIndexOf` has 195 pass / 3 fail / 0 skip. Every remaining case includes
+`resizableArrayBufferUtils.js` (the `eval` exception above); with the helper
+replaced by class expressions both directories pass completely.
 Global `isFinite` has 15 pass / 0 fail / 0 skip. Global `isNaN` has 14 pass /
 1 fail / 0 skip; the remaining case uses `Array.prototype.forEach` in its
 test harness body.
@@ -204,6 +289,10 @@ which have since been fixed. The repeat full Array run has 2640 pass,
 [the v0.4 deferral list](history/v0.4-array-deferred.json): 150 post-ES2020 API
 cases, 72 resizable-buffer cases, and 130 other future dependencies or
 the documented `eval` exception. The positive manifest passes 100/100.
+Since [#315](https://github.com/40oleg/nona/issues/315) the 82
+`resizable-arraybuffer` tests in `built-ins/Array` pass 11/82; the other 71
+include `resizableArrayBufferUtils.js` and are classified `eval` (they pass
+with the helper replaced by class expressions).
 
 After v0.4.0, the complete `built-ins/String/fromCodePoint` group passes
 11/11. One case is retained in the pinned smoke manifest; the manifest
@@ -316,6 +405,31 @@ examples pass 74/74 on Windows and Linux.
 search, functional replacement, replacement patterns, and custom
 `Symbol.replace` are covered. Positive smoke is 140/140; compatible
 examples pass 75/75 on Windows and Linux.
+
+Resizable and transferable ArrayBuffers and growable SharedArrayBuffers
+([#315](https://github.com/40oleg/nona/issues/315)) are supported, so
+`resizable-arraybuffer` and `arraybuffer-transfer` are no longer in
+`postEs2020Features`. With `TEST262_EXCLUDE_FEATURES=post-es2020`,
+`built-ins/ArrayBuffer` passes 192/192, `built-ins/SharedArrayBuffer` 104/104,
+`built-ins/DataView` 506/506 and `built-ins/Atomics` 272/272 (2 skips). The
+whole `built-ins/TypedArray` directory, without exclusions, passed 1304/1453 before the change-by-copy methods landed:
+98 tests include
+`resizableArrayBufferUtils.js`, whose `subClass` helper creates
+`MyUint8Array`, `MyFloat32Array` and `MyBigInt64Array` with `new Function` from a
+string built at run time (the documented dynamic function exception;
+`scripts/test262-summary.mjs` classifies them `eval`). With that helper
+replaced by class expressions, all 304 tests that use the feature in
+`built-ins/Array`, `built-ins/TypedArray` and `built-ins/TypedArrayConstructors`
+pass except the 10 `TypedArray.prototype.with` tests. The Array
+`includes`, `indexOf`, `lastIndexOf`, `sort` and `toLocaleString` cases
+attributed to resizable buffers above are among them.
+
+Symbols as WeakMap keys and WeakSet values (ES2023, [#310](https://github.com/40oleg/nona/issues/310)):
+the `symbols-as-weakmap-keys` tag is no longer in `postEs2020Features`.
+On 2026-10-16 (Windows x64, `TEST262_EXCLUDE_FEATURES=post-es2020`)
+`built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85, with no
+failures or skips. `WeakRef` and `FinalizationRegistry` remain excluded
+because those globals do not exist.
 
 ## Half-precision floats ([#321](https://github.com/40oleg/nona/issues/321))
 

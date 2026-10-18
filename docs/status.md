@@ -67,6 +67,12 @@ Windows x64 (Node 22, PE), полный закреплённый Test262 на `6
 (`iterator-chunking`, `iterator-includes`, `Iterator.prototype.join`)
 теперь исключаются как post-ES2020.
 
+RegExp duplicate named groups (ES2025, #319) are no longer excluded by tag:
+16 of the 19 `regexp-duplicate-named-groups` tests pass. The three that also
+need match indices (`regexp-match-indices`) stay `post` with that tag; they
+are listed in [test262.md](test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
+The table above is the last full run and was not re-run for this change.
+
 Сравнение с предыдущим полным прогоном Windows (`71486fb`, который в свою
 очередь сравнён с базой `c6c3b5b` PR #5: 27 исправлено, 0 регрессий):
 **1273 файла исправлены, 0 новых отказов**; `language/eval-code`
@@ -85,6 +91,18 @@ eval-коде и другой realm), `annexB/language/eval-code` 468/469
 `language/module-code` 297/298; `TypedArrayConstructors` 726/728,
 `TypedArray` 1117/1117, `DataView` 478/478, `Atomics` 268/268, `Proxy`
 308/311, `Reflect` 153/153; `compare-linux` 83/83.
+
+## RegExp match indices (ES2022, #307)
+
+Флаг `d`, `RegExp.prototype.hasIndices` и массив `indices` у результатов
+`exec`, `match` и `matchAll` реализованы. Test262 на Windows:
+`built-ins/RegExp/match-indices` 14/14, `built-ins/RegExp/prototype/hasIndices`
+8/8, `built-ins/RegExp/prototype/flags` 15/16, `built-ins/RegExp/duplicate-flags.js`
+1/1. Оставшиеся три отказа классифицированы как `post` и исключаются
+`TEST262_EXCLUDE_FEATURES=post-es2020`: `this-val-regexp.js` использует флаг `v`
+(ES2024), два теста `named-groups/duplicate-names-match-indices.js` и
+`prototype/exec/duplicate-named-indices-groups-properties.js` — повторяющиеся
+имена групп (ES2025). Подробности — в [test262.md](test262.md).
 
 ## Оставшиеся отказы
 
