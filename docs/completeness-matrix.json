@@ -3,8 +3,8 @@
     "schemaDocumentation": "completeness-audit.md#inventory-schema-v1",
     "audit": {
         "issue": 394,
-        "step": 1,
-        "state": "inventory-only",
+        "step": 2,
+        "state": "inventory-and-bounded-probes",
         "reportDate": "2026-10-18",
         "baselineCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
         "planningCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
@@ -23,15 +23,16 @@
             "os": "Windows 11, NT 10.0.26200.0",
             "arch": "x64",
             "host": "TORS",
-            "node": "v22.23.2",
+            "node": "v26.9.0",
             "npm": "10.9.8",
             "powershell": "7.6.5",
             "git": "2.43.0.windows.1",
             "gh": "2.101.0",
             "requiredDevelopmentNode": ">=26",
-            "configuredCiNode": "26.9.0"
+            "configuredCiNode": "26.9.0",
+            "typescript": "7.0.2"
         },
-        "runtimeTargetsExecuted": [],
+        "runtimeTargetsExecuted": ["win32-x64"],
         "claim": {
             "labels": [
                 "blocked",
@@ -89,7 +90,7 @@
                 "scope": "Float16Array/Math.f16round/DataView float16"
             }
         ],
-        "executionPolicy": "No capability build/run reproductions in step 1. Existing test files are candidates, not passing runtime evidence. Structural inventory and suite-registration tests run separately in the modified audit working tree; no baseline target artifacts compiled or executed.",
+        "executionPolicy": "Step 2: sequential opt-in native Windows x64 package/API probes and eight Test262 files; full suites, benchmarks, Linux/emulation and bootstrap not run locally. Historical CI is recorded separately. Passing samples do not verify every method/target in a broad row.",
         "structuralChecks": [
             {
                 "command": "node scripts/check-completeness-inventory.mjs --git",
@@ -100,8 +101,34 @@
                 "command": "node --experimental-strip-types --test --test-concurrency=2 tests/completeness-inventory.test.ts tests/suites.test.ts",
                 "outcome": "passed",
                 "scope": "8 structural tests in the modified audit working tree on Node v22.23.2; no native programs."
+            },
+            {
+                "command": "node --test --test-concurrency=2 dist/tests/completeness-probes.test.js dist/tests/completeness-inventory.test.js dist/tests/suites.test.js",
+                "outcome": "passed",
+                "scope": "14 focused structural/runner tests under Node 26.9.0, including child-tree timeout cleanup. Opt-in capability probes are separate."
             }
-        ]
+        ],
+        "inventoryEnvironment": {
+            "os": "Windows 11, NT 10.0.26200.0",
+            "arch": "x64",
+            "host": "TORS",
+            "node": "v22.23.2",
+            "npm": "10.9.8",
+            "powershell": "7.6.5",
+            "git": "2.43.0.windows.1",
+            "gh": "2.101.0",
+            "requiredDevelopmentNode": ">=26",
+            "configuredCiNode": "26.9.0"
+        },
+        "practicalEvidence": {
+            "report": "docs/evidence/completeness/windows-x64.json",
+            "repeat": "docs/evidence/completeness/windows-x64-repeat.json",
+            "fixtureRevision": "d7ec25bc34227da91cd895cec9eb12f2d3ff54294ca10826e8ace7d61a503c13",
+            "checkoutCommit": "23289bc41a71f0766a9f96d3bbfc6873bf89c64b",
+            "test262Local": "docs/evidence/completeness/test262-local.json",
+            "test262Ci": "docs/evidence/completeness/test262-ci-summary.json",
+            "ci": "docs/evidence/completeness/ci-observations.json"
+        }
     },
     "domains": [
         "language",
@@ -118,12 +145,12 @@
         {
             "id": "win32-x64",
             "format": "pe",
-            "localBuild": "not-run",
-            "localRun": "not-run",
+            "localBuild": "passed",
+            "localRun": "passed",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
-            "limitations": "Network/child adapters present only on win32-x64/linux-x64.",
+            "limitations": "Network/child adapters present only on win32-x64/linux-x64. Step 2: 15 artifacts, 11 agreements, 3 runtime failures and one expected worker API-gap response; DNS build failed. These states mean selected probes ran, not full platform compatibility.",
             "evidence": [
                 "src/target.ts",
                 ".github/workflows/native-platforms.yml",
@@ -136,7 +163,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "Network/child adapters present only on win32-x64/linux-x64.",
             "evidence": [
@@ -151,7 +178,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "64 KiB page geometry designed for, separate 64 KiB-kernel execution unverified.",
             "evidence": [
@@ -166,7 +193,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "No hardware unwind or OS stack-walking across generated frames.",
             "evidence": [
@@ -181,7 +208,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld.",
             "evidence": [
@@ -196,7 +223,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-native",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "OS libSystem boundary; ARM ad-hoc signing/dyld.",
             "evidence": [
@@ -211,7 +238,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-vm",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "Guest probes; full portable Node oracle suites not configured.",
             "evidence": [
@@ -226,7 +253,7 @@
             "localBuild": "not-run",
             "localRun": "not-run",
             "configuredExecution": "ci-vm",
-            "ciResultAtBaseline": "not-inspected",
+            "ciResultAtBaseline": "Historical self-hosting CI succeeded (39160044376); x64 Windows/Linux stage-2 comparison, other targets platform-smoke; native-platforms workflow 39160044412 cancelled without jobs. See docs/evidence/completeness/ci-observations.json. Not local execution.",
             "emulation": "not-run",
             "limitations": "Guest probes; full portable Node oracle suites not configured.",
             "evidence": [
@@ -6426,11 +6453,32 @@
                 "relationship": "sources-changed-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "gc-roots: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "gc-roots: agreement, exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only gc-roots on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "runtime.allocation",
@@ -6920,11 +6968,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement, exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 verified only the cli workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.fs.metadata",
@@ -6998,11 +7067,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement, exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 verified only the cli workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.fs.async",
@@ -7856,11 +7946,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-writable-queues --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "stream-writable-queues: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-writable-queues --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "stream-writable-queues: agreement, exit 0, stdout \"pressure true false 2 true\\nclosed batch:a,b,c|a|b|end 0 true true\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only stream-writable-queues on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.stream.helpers",
@@ -7941,11 +8052,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-web-cancellation --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "stream-web-cancellation: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases stream-web-cancellation --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "stream-web-cancellation: agreement, exit 0, stdout \"abort stop false false 1 true\\nrelease TypeError false false\\nvalidation ERR_INVALID_ARG_TYPE false false\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only stream-web-cancellation on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.net.tcp",
@@ -8035,11 +8167,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "http-server: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "http-server: agreement, exit 0, stdout \"server 201 5\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 verified only the http-server workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.http.client",
@@ -8065,11 +8218,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "http-server: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "http-server: agreement, exit 0, stdout \"server 201 5\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 verified only the http-server workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.tls.client",
@@ -8100,11 +8274,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "tls-verification: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "tls-verification: agreement, exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only tls-verification on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.tls.certificates",
@@ -8136,11 +8331,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "tls-verification: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "tls-verification: agreement, exit 0, stdout \"trusted authorized true\\nhostname ERR_TLS_CERT_ALTNAME_INVALID\\nuntrusted UNABLE_TO_VERIFY_LEAF_SIGNATURE\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only tls-verification on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.https.client",
@@ -8311,11 +8527,22 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
+                "build": "failed",
                 "run": "not-run",
-                "results": []
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases dns-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "failed",
+                        "observed": "dns-api: not-created, compiler exit 1",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
+            "evidenceNeeded": "Step 2 tested only dns-api on win32-x64; exact scoped results in execution.results. No dedicated test selected in step 1; locate or add a bounded capability probe in step 2."
         },
         {
             "id": "api.fetch-websocket",
@@ -8514,11 +8741,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases subprocess --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "subprocess: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases subprocess --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "subprocess: agreement, exit 0, stdout \"subprocess 7 child-ok\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 verified only the subprocess workload on win32-x64; other methods/options and targets remain unverified. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.child-process.other-targets",
@@ -8629,11 +8877,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases worker-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "worker-api: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases worker-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "worker-api: expected-api-gap, exit 0, stdout \"worker ERR_NONA_UNSUPPORTED\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only worker-api on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.messaging",
@@ -8705,11 +8974,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases zlib-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "zlib-api: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases zlib-api --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "zlib-api: agreement, exit 0, stdout \"zlib hello\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only zlib-api on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "api.compression-gaps",
@@ -9900,11 +10190,32 @@
                 "relationship": "sources-changed-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "TEST262_JOBS=1 TEST262_RUNTIME_TIMEOUT_MS=15000 TEST262_DELETE_BINARIES=1 TEST262_FILE_LIST=tests/probes/completeness-test262.txt node scripts/test262-smoke.mjs language/expressions/coalesce",
+                        "environment": "Windows 11 x64; Node 26.9.0; native; pin 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "24 group files; 8 selected, 16 excluded. Six artifacts created and two expected parse-negative diagnostics. No full-suite assertion.",
+                        "artifact": "docs/evidence/completeness/test262-local.json"
+                    },
+                    {
+                        "command": "node scripts/test262-smoke.mjs language/expressions/coalesce (same bounded environment/selection)",
+                        "environment": "Windows 11 x64; Node 26.9.0; native; sequential",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "6 native runtime executions passed; 2 compile-only negative passes; 0 failed, 0 skipped. Other tree files not run locally.",
+                        "artifact": "docs/evidence/completeness/test262-local.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Local sample and nine historical CI reports are in docs/completeness-audit.md; 1044 pre-selection CI exclusions are not passes. Remaining edition/variant/target coverage and semantic negative-test validation require follow-up."
         },
         {
             "id": "assurance.regression",
@@ -10154,8 +10465,8 @@
             "id": "ecosystem.cli-files",
             "domain": "ecosystem",
             "family": "workloads",
-            "scope": "CLI/package tools and filesystem workflows: commander/yargs and JSON config/files.",
-            "status": "unknown",
+            "scope": "Pinned minimist 1.2.8 CLI/filesystem operation and fs-extra 11.3.0 async copy/JSON workload; broader CLI tooling unverified.",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["CLI workload"],
             "affectedTargets": [
@@ -10188,18 +10499,59 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "failed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "cli: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases cli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "cli: agreement, exit 0, stdout \"cli 3 false input.json\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "filesystem: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases filesystem --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "filesystem: runtime-failed, exit 1, stdout \"\", stderr \"Nona runtime error\\r\\n\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only cli, filesystem on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "ecosystem.json-data",
             "domain": "ecosystem",
             "family": "workloads",
-            "scope": "JSON/data processing and parsing packages such as acorn/marked/lodash.",
-            "status": "unknown",
+            "scope": "Pinned json5 2.2.3 parse/stringify/invalid-input workload; acorn/marked/lodash and larger data pipelines not tested here.",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["data workload"],
             "affectedTargets": [
@@ -10235,18 +10587,39 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases json --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "json: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases json --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "json: agreement, exit 0, stdout \"json demo 6\\ninvalid SyntaxError\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only json on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "ecosystem.http",
             "domain": "ecosystem",
             "family": "workloads",
-            "scope": "HTTP server/client packages, documented Express 5.3.0 and axios examples.",
-            "status": "unknown",
+            "scope": "Pinned Express 5.1.0 JSON POST server and Undici 7.16.0 client; no blanket framework/client compatibility.",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["HTTP workload"],
             "affectedTargets": [
@@ -10282,18 +10655,59 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "failed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "http-server: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-server --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "http-server: agreement, exit 0, stdout \"server 201 5\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-client --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "http-client: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases http-client --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "http-client: runtime-failed, exit 1, stdout \"\", stderr \"TypeError: Invalid operation\\n\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only http-server, http-client on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "ecosystem.stream-compression",
             "domain": "ecosystem",
             "family": "workloads",
-            "scope": "Streaming/compression/archive workloads.",
-            "status": "unknown",
+            "scope": "Pinned fflate 0.8.2 two-chunk gzip/decompression workload; async compression workers and archives unverified.",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["streaming workload"],
             "affectedTargets": [
@@ -10329,18 +10743,39 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases compression --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "compression: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases compression --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "compression: agreement, exit 0, stdout \"compression hello stream\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only compression on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "ecosystem.subprocess-concurrency",
             "domain": "ecosystem",
             "family": "workloads",
-            "scope": "Subprocess task runners and worker/shared-memory workloads.",
-            "status": "unknown",
+            "scope": "Pinned cross-spawn 7.0.6 child status/output, p-limit 6.2.0 promise concurrency and workerpool 9.3.4 task; shared-memory applications unverified.",
+            "status": "partial",
             "visibility": "public",
             "surfaces": ["concurrency workload"],
             "affectedTargets": [
@@ -10376,11 +10811,72 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "failed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases subprocess --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "subprocess: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases subprocess --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "subprocess: agreement, exit 0, stdout \"subprocess 7 child-ok\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases concurrency --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "concurrency: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases concurrency --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "concurrency: agreement, exit 0, stdout \"concurrency 2,4,6,8 2 0 0\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases workers --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "workers: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases workers --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "failed",
+                        "observed": "workers: runtime-failed, exit 1, stdout \"\", stderr \"ReferenceError: Invalid operation\\n\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only subprocess, concurrency, workers on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "ecosystem.comparisons",
@@ -10454,11 +10950,32 @@
                 "relationship": "sources-unchanged-since-release"
             },
             "execution": {
-                "build": "not-run",
-                "run": "not-run",
-                "results": []
+                "build": "passed",
+                "run": "passed",
+                "results": [
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "build",
+                        "outcome": "passed",
+                        "observed": "gc-roots: created, compiler exit 0",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    },
+                    {
+                        "command": "node scripts/completeness-probes.mjs --cases gc-roots --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "environment": "Windows 11 x64 (10.0.26200); Node 26.9.0; native, sequential; see artifact for exact commands, dependencies and expected/actual output.",
+                        "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+                        "target": "win32-x64",
+                        "stage": "run",
+                        "outcome": "passed",
+                        "observed": "gc-roots: agreement, exit 0, stdout \"roots 100 value-0 99\\n\", stderr \"\"",
+                        "artifact": "docs/evidence/completeness/windows-x64.json"
+                    }
+                ]
             },
-            "evidenceNeeded": "Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
+            "evidenceNeeded": "Step 2 tested only gc-roots on win32-x64; exact scoped results in execution.results. Run bounded representative cases at the audited SHA; inspect assertions and target skips before assigning verified status."
         },
         {
             "id": "platform.linux-x64",

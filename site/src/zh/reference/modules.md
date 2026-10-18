@@ -1,6 +1,6 @@
 # 内置模块与全局对象
 
-[完整性清单](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md)（英文）仍在编写中；运行验证和独立审查尚未完成。
+[完整性审计](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md)（英文）已包含有限的 Windows x64 包及运行验证；总体结论和独立审查尚未完成。
 
 Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译器的一部分：原生运行时和小型 JavaScript 前导代码会编译进每个可执行文件，内置模块则在程序导入时编译进去。
 

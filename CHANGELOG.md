@@ -4,7 +4,7 @@
 
 ### Documentation
 
-- Start the v0.20.0 [completeness audit](docs/completeness-audit.md) with a commit-pinned capability/API inventory, release and target provenance, and lightweight structural validation. This is the inventory stage; runtime probes, readiness conclusions and independent review are still pending. ([#394](https://github.com/40oleg/nona/issues/394))
+- Start the v0.20.0 [completeness audit](docs/completeness-audit.md) with a commit-pinned capability/API inventory, release and target provenance, lightweight validation, and opt-in pinned package/runtime probes with bounded Windows x64 evidence. Readiness conclusions and independent review are still pending. ([#394](https://github.com/40oleg/nona/issues/394))
 
 ### Runtime
 

@@ -165,6 +165,7 @@
                 "accessor-runtime",
                 "architecture-doc",
                 "completeness-inventory",
+                "completeness-probes",
                 "arguments",
                 "array-destructuring",
                 "array-literal-elements",

@@ -1,6 +1,6 @@
-# Completeness audit for v0.20.0 — inventory foundation
+# Completeness audit for v0.20.0 — inventory and practical evidence
 
-**Report date: 2026-10-18. Status: step 1 of 6, incomplete and not independently reviewed.**
+**Report date: 2026-10-18. Status: steps 1–2 of 6, incomplete and not independently reviewed.**
 This is the evidence inventory for [#394](https://github.com/40oleg/nona/issues/394),
 covering the Nona JavaScript compiler/runtime. The target milestone is v0.20.0;
 it does not promise that all identified gaps will be fixed in that release.
@@ -9,19 +9,22 @@ The inspected source supports a substantially broader implementation than some
 older documentation describes. It also contains importable compatibility stubs,
 restricted options, private services, and platform-specific implementations.
 Neither module availability nor a test filename establishes that an application
-works. **No Nona program was compiled or executed for this inventory step.**
-Practical readiness conclusions, pinned package results, alternative-runtime
-comparisons, a ranked roadmap and independent review belong to steps 2–6.
+works. Step 1 inspected source; step 2 adds the bounded Windows x64
+[practical evidence below](#step-2-practical-evidence). Broader readiness
+conclusions, alternative-runtime comparisons, a ranked roadmap and independent
+review still belong to steps 3–6.
 
 The [machine-readable inventory](completeness-matrix.json) is the detailed
 capability ledger. It contains 140 rows across nine domains, 42 module entry
 points (36 public, six private), all eight targets, and commit-qualified source,
 documentation and test references. Its statuses are deliberately conservative:
-58 implemented but unverified, 53 partial, 16 missing, three intentionally
-unsupported, ten unknown, and **zero implemented and verified**.
+58 implemented but unverified, 58 partial, 16 missing, three intentionally
+unsupported, five unknown, and **zero implemented and verified across their full row scope**.
 These are scoped inventory categories, not a completeness percentage.
+Passing samples are recorded in execution fields; they do not verify every
+method or target represented by a broad inventory row.
 
-## Provenance and ownership
+## Provenance and ownership (step 1 snapshot)
 
 | Item                        | Observation                                                                                                                                               |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -108,7 +111,7 @@ The installed gh uses `closedByPullRequestsReferences`; the older field name
 `gh pr view <number> --json state,mergedAt,mergeCommit` supplied merge evidence.
 No GitHub writes, pushes or PR creation are part of this step.
 
-## Method and evidence limits
+## Method and evidence limits (step 1)
 
 1. Read AGENTS.md and inspect live claim/development/release metadata before
    implementation. No CLAUDE.md or deeper AGENTS.md was found in this checkout.
@@ -207,10 +210,11 @@ is therefore not a complete global API inventory.
 
 ### Platforms: emission is not execution
 
-Every row below has **local build: not run; local execution: not run**.
-CI entries describe configured coverage. Success at the audited SHA has not
-been checked. The [platform document](native-platforms.md) cites a historical
-eight-target success at `5391c47` and an Actions URL; that is not a current run.
+Step 1 left every target unexecuted. Step 2 adds a **native win32-x64 sample**;
+the other seven targets still have local build/execution **not run**. CI entries
+in this table describe configured coverage; inspected outcomes are recorded in
+the step 2 evidence section. The [platform document](native-platforms.md) cites
+a historical eight-target success at `5391c47`; that is not the audited run.
 
 | Target       | Format   | Configured execution                             | Material boundaries                                                                                                       |
 | ------------ | -------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -247,7 +251,7 @@ References resolve to the audited versions through the matrix registry.
 | Platform docs imply platform workflow coverage on every PR; corpus docs imply all stress executions on every PR                                                | Actual workflow predicates require `full-ci` for platforms and gate stress/path-selected Test262 jobs; AGENTS.md describes these newer rules        |
 | `node:module.builtinModules` is read as actual target support                                                                                                  | Its static list omits crypto/async_hooks and includes services unavailable on some targets; compiler registry and method behavior are authoritative |
 
-## Performance coordination and pending evidence
+## Performance coordination and step 1 handoff
 
 [#392](https://github.com/40oleg/nona/issues/392) was open and `blocked`, with no
 comments/closing PRs and no linked performance PR in the inspected timeline.
@@ -258,8 +262,9 @@ did not claim #392, contact another agent, run benchmarks or replace its work.
 audited-SHA measurements. Step 3 must recheck #392 and reuse its dated results,
 or retain that uncertainty; no fresh performance figures are inferred here.
 
-The next agent should prioritize evidence collection, not implementation of
-missing APIs:
+The following is the original step 1 handoff. Step 2's completed sample and
+remaining limits are recorded below; this list is not a claim that every
+suggested probe has now run:
 
 1. Use Node >=26 for compiler builds and record the exact host, tool versions,
    compiler SHA, dependency pins and commands. Preserve this inventory baseline
@@ -292,6 +297,246 @@ missing APIs:
    with corrections in step 5. No review verdict or review document is fabricated
    in this step. Tie that later verdict to the final report revision.
 
+## Step 2 practical evidence
+
+### Baseline, setup and reproduction
+
+The local experiments use **Windows 11 x64, NT 10.0.26200**, on TORS, Intel
+Core i7-13620H, with Node **26.9.0** (V8 and OpenSSL versions are in the JSON),
+npm **10.9.8**, TypeScript **7.0.2**, Prettier **3.9.10**, PowerShell **7.6.5**
+and Git **2.43.0.windows.1**. Node was downloaded from
+[the official 26.9.0 distribution](https://nodejs.org/dist/v26.9.0/);
+`win-x64/node.exe` SHA-256
+`8490398f5e0082772dfb0ae5a6ebdff98a97696a20cb9778b4f82eec79b6d0a1`
+matches its published SHASUMS256.txt. No global Node installation was changed.
+
+Compiler inputs remain at **453418c167b9b34cd5ff7c0f748674e79222e1cc**;
+the step 1 checkout commit is **23289bc41a71f0766a9f96d3bbfc6873bf89c64b**.
+The new fixture/runner revision is identified by content hashes in each result;
+the full fixture digest is
+`d7ec25bc34227da91cd895cec9eb12f2d3ff54294ca10826e8ace7d61a503c13`.
+The latest published release was rechecked as **v0.18.0**. These experiments
+exercise the audited source after that release, not the release executable.
+The runner refuses a baseline whose compiler inputs differ from the checkout.
+It requires a fresh explicit build; it does not authenticate an arbitrary stale
+`dist/` directory. This run rebuilt it from the unchanged compiler inputs.
+
+The [fixture guide](../tests/fixtures/completeness/README.md) documents package
+selection, primary sources, pins, commands, timeouts, cleanup and output
+contracts. The [full result](evidence/completeness/windows-x64.json) preserves
+setup, Node oracle, compilation, artifact and execution records separately.
+The [repeat sample](evidence/completeness/windows-x64-repeat.json) reproduced
+the same outcomes for eight cases with a reused installation. Actual commands include temporary paths and
+loopback ports; rerun the top-level invocation to create fresh equivalents.
+Paths in these files describe this execution, not files expected to survive.
+
+Commands used from this checkout (the explicit npm CLI avoids accidentally
+using the machine's Node 22 through its npm launcher):
+
+```powershell
+$probeNode = (Resolve-Path work/completeness-tools/node.exe).Path
+$npmCli = 'C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js'
+& $probeNode $npmCli ci --ignore-scripts --no-audit --no-fund
+$env:GOMAXPROCS = '2'
+& $probeNode scripts/build.mjs
+& $probeNode scripts/completeness-probes.mjs --install --npm-cli $npmCli --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc --output docs/evidence/completeness/windows-x64.json
+& $probeNode scripts/completeness-probes.mjs --cases cli,filesystem,http-client,workers,stream-writable-queues,gc-roots,dns-api,tls-verification --audited-commit 453418c167b9b34cd5ff7c0f748674e79222e1cc --output docs/evidence/completeness/windows-x64-repeat.json
+```
+
+On another machine use an installed Node >=26 and its npm CLI. Run root
+`npm ci` and `node scripts/build.mjs` first. The root build and fixture `npm ci`
+succeeded. An initial npm invocation used the machine's Node 22 and emitted
+an engine warning; setup was repeated explicitly under Node 26 before the
+retained runs. An initial fixture lock generation from the wrong working
+directory added an unwanted local dependency; it was removed and the isolated
+lock regenerated before these results. Neither is counted as a Nona failure.
+
+### Workload results and bounded findings
+
+All **16 Node oracles pass** their explicit expected-output contracts. Nona
+creates **15 artifacts**; the DNS case fails compilation and is not executed.
+Native results: **11 agreements, three runtime failures, one verified API-gap
+response**. No retained run times out. All executables, subprocess trees and
+loopback services are cleaned up. Timings and binary sizes in the raw record
+are provenance and timeout diagnostics, not performance comparisons with #392.
+
+| Workload / pinned package                      | Compilation / artifact | Native execution compared with Node                                                                                                                                   |
+| ---------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI + `node:fs`, minimist 1.2.8                | Pass / created         | Agreement: argument alias/negation, JSON write/read/delete.                                                                                                           |
+| Recursive async filesystem, fs-extra 11.3.0    | Pass / created         | Exit 1, empty stdout, stderr `Nona runtime error\r\n`; Node prints `filesystem 5`.                                                                                    |
+| JSON5 config, json5 2.2.3                      | Pass / created         | Agreement: parse, stringify, aggregate and reject invalid input.                                                                                                      |
+| JSON POST server, Express 5.1.0                | Pass / created         | Agreement: JSON middleware, route, response status 201 and sum 5.                                                                                                     |
+| HTTP JSON client, Undici 7.16.0                | Pass / created         | Exit 1, `TypeError: Invalid operation`; Node prints `client 200 42`.                                                                                                  |
+| Chunked gzip, fflate 0.8.2                     | Pass / created         | Agreement: two input chunks and decompressed `hello stream`; async workers untested.                                                                                  |
+| Child execution, cross-spawn 7.0.6             | Pass / created         | Agreement: capture `child-ok` and exit 7. Explicit Node payload dependency; not a Node-free deployment claim.                                                         |
+| Promise task queue, p-limit 6.2.0              | Pass / created         | Agreement: four ordered results, at most two active, queue empty.                                                                                                     |
+| Worker task, workerpool 9.3.4                  | Pass / created         | Exit 1, `ReferenceError: Invalid operation`; Node prints `workers 5`.                                                                                                 |
+| Existing `stream-writable-queues` case         | Pass / created         | Agreement: second write returns false at highWaterMark, queued length/needDrain, batched writev, callbacks and closed state.                                          |
+| Existing `stream-web-cancellation` case        | Pass / created         | Agreement: abort propagation despite stopImmediatePropagation, destroyed source, released locks and invalid-signal error.                                             |
+| Closure/object retention with `gcStress: true` | Pass / created         | Agreement after 100 captured object allocations; narrow rooting sample, not memory-safety proof.                                                                      |
+| `node:worker_threads.Worker`                   | Pass / created         | Explicit `ERR_NONA_UNSUPPORTED`; Node receives a worker result of 42. API absence is reproduced, not a compatibility pass.                                            |
+| `node:zlib` sync gzip/gunzip                   | Pass / created         | Agreement on a gzip round trip; other codecs/options remain scoped separately.                                                                                        |
+| `node:dns.lookup('localhost')`                 | **Fail / none**        | `E_MODULE: Cannot resolve module 'node:dns'`; execution not run. Node resolves a loopback address.                                                                    |
+| `node:tls` verification                        | Pass / created         | Agreement: trusted CA succeeds with `authorized=true`; wrong hostname yields `ERR_TLS_CERT_ALTNAME_INVALID`; untrusted leaf yields `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. |
+
+The three package errors are exact observed diagnostics, **not established root
+causes**. They lack an actionable source stack. In particular, the workerpool
+failure cannot be attributed solely to the Worker stub from its diagnostic;
+the separate Worker probe supplies the direct API evidence. Follow-up scopes
+for step 3: isolate the first failing fs-extra/Undici/workerpool operation,
+identify its transitive dependency and improve runtime error localization.
+Do not silently patch packages or implement missing runtime features in #394.
+
+For the tested simple workloads, direct `node:fs` works where fs-extra failed,
+the HTTP primitives used inside the passing Express case provide a narrower
+alternative to Undici, and p-limit handles promise concurrency. None supplies
+fs-extra's full API, Undici's pooling/streaming contract or parallel worker
+execution. DNS users need a resolver integration; literal loopback addresses
+are sufficient only for these probes. TLS verification is a three-case positive/
+negative sample with a fixture CA, not an assurance of secure networking under
+adversarial traffic. No external network is used during workload execution.
+
+### Test262 denominators and runner limitations
+
+The runner and CI pin **7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd**. Its
+tracked `test/**/*.js` tree contains **53,597 candidate files** after excluding
+`_FIXTURE` names, following `filesUnder`'s rules. This is a file denominator,
+not the number of strict/sloppy/module execution variants. A sparse checkout
+was used to inspect the tree and run eight chosen coalescing cases:
+
+```powershell
+git init work/test262
+git -C work/test262 remote add origin https://github.com/tc39/test262.git
+git -C work/test262 config core.longpaths true
+git -C work/test262 fetch --depth 1 --filter=blob:none origin 7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd
+git -C work/test262 sparse-checkout set harness test/built-ins/JSON test/language/expressions/coalesce
+git -C work/test262 checkout --detach FETCH_HEAD
+$env:TEST262_JOBS = '1'
+$env:TEST262_RUNTIME_TIMEOUT_MS = '15000'
+$env:TEST262_DELETE_BINARIES = '1'
+$env:TEST262_FILE_LIST = 'tests/probes/completeness-test262.txt'
+$env:TEST262_REPORT = 'work/completeness-test262-local/coalesce.json'
+& $probeNode scripts/test262-smoke.mjs language/expressions/coalesce
+& $probeNode scripts/completeness-test262-summary.mjs work/test262 work/completeness-test262-local work/test262-local-summary.json
+```
+
+Local scope: 24 files in the group; **8 selected/evaluated, 6 executed natively,
+2 compile-only negative checks, 8 passed, 0 failed, 0 skipped; 16 excluded by
+the explicit sample list**. See the [raw report](evidence/completeness/test262-local.json),
+[denominator summary](evidence/completeness/test262-local-summary.json) and
+[selection file](../tests/probes/completeness-test262.txt). The other 53,589
+tree files were not evaluated locally. This tiny sample is not an ES conformance
+rate and does not reproduce all CI exclusions.
+
+Nine available report artifacts were downloaded from audited-commit
+[check run 39160044403](https://github.com/40oleg/nona/actions/runs/39160044403).
+The [CI summary](evidence/completeness/test262-ci-summary.json) retains source
+report SHA-256 hashes, original filters, targets and counts. The small
+denominator script validates counts and the Test262 revision; it does not
+reinterpret exclusions or execute tests.
+
+| CI group                        | Total in group | Selected / executed / passed | Excluded before selection | Failed / skipped |
+| ------------------------------- | -------------: | ---------------------------: | ------------------------: | ---------------: |
+| ArrayBuffer                     |            221 |                           82 |                       139 |            0 / 0 |
+| DataView                        |            561 |                          476 |                        85 |            0 / 0 |
+| Date                            |            594 |                          583 |                        11 |            0 / 0 |
+| JSON                            |            165 |                          142 |                        23 |            0 / 0 |
+| Object/prototype (Linux subset) |            248 |                           54 |                       194 |            0 / 0 |
+| Promise                         |            732 |                          522 |                       210 |            0 / 0 |
+| Reflect                         |            153 |                          152 |                         1 |            0 / 0 |
+| SharedArrayBuffer               |            104 |                           59 |                        45 |            0 / 0 |
+| TypedArray                      |          1,453 |                        1,117 |                       336 |            0 / 0 |
+| These nine disjoint scopes      |      **4,231** |                    **3,187** |                 **1,044** |        **0 / 0** |
+
+These are **historical CI runtime executions** at the audited SHA, not new
+local executions. The other 49,366 tree files lie outside these nine report
+scopes. A zero skip count does not erase the 1,044 pre-selection exclusions.
+Reproduce artifact inspection without rerunning the large suites:
+
+```powershell
+gh run download 39160044403 --repo 40oleg/nona --pattern 'test262-*-report' --dir work/completeness-ci
+& $probeNode scripts/completeness-test262-summary.mjs work/test262 work/completeness-ci work/completeness-test262-ci-summary.json
+```
+
+Source inspection found these limits:
+
+- Path/file-list/direct-only/feature filters act **before** `results`; excluded
+  files do not appear in `counts.skip`. `TEST262_FILE_LIST` and full-runtime
+  mode are not serialized in the final runner report, so the command and
+  selection file must accompany it. There is no xfail counter in this runner.
+- `CanBlockIsFalse`, raw mode, disabled async and other unsupported negative
+  modes become skips. Parse/resolution negatives pass on any compiler failure;
+  the runner does not verify the exact expected error class for those cases.
+- Default tests run in one variant; `onlyStrict` adds a directive. Passing
+  files are not proof of both Test262 default strictness variants.
+- Async completion markers are checked, realms are capped at four, agent source
+  discovery is bounded, and unhandled rejections are ignored for harness policy.
+  These are harness assumptions, not a complete host conformance model.
+- The summary script's `eval`/`post`/`other` failure labels are source heuristics,
+  not proven root causes. The `post-es2020` list is not a canonical edition
+  boundary; for example its actual list still contains WeakRef and
+  well-formed-unicode-strings despite broader current implementation claims.
+  Keep failures/exclusions visible while reconciling that filter in follow-up.
+
+### Reused platform, corpus and bootstrap evidence
+
+[CI observations](evidence/completeness/ci-observations.json) preserve run/job
+URLs, SHAs, outcomes, selected log excerpts and retrieval commands. They are
+separate from local execution records:
+
+- The audited `check` run failed Windows shard 1/4 at
+  `runtime-link.test.ts`, “programs using each optional prelude behave as
+  before”: `rmSync` reported `EPERM` on its temporary directory. This is a
+  cleanup failure; it still means the baseline workflow was not green.
+- The audited native-platform workflow was **cancelled with no job execution**.
+  A successful intervening PR run inspected during the audit ran only the
+  browser compiler and skipped native matrices. Workflow badges alone are
+  insufficient platform evidence.
+- Release v0.18.0 run
+  [39142649906](https://github.com/40oleg/nona/actions/runs/39142649906)
+  executed native linux-x64/darwin-x64 suites, Linux distribution containers and
+  FreeBSD/OpenBSD guest-VM probes successfully. Linux arm64, Darwin arm64 and
+  Windows arm64 jobs failed in portable oracle suites; logs include long-running
+  RegExp tests. This is historical release evidence, not a reproduced current
+  compiler defect or a passing audited-commit platform matrix.
+- Audited-SHA [self-hosting run 39160044376](https://github.com/40oleg/nona/actions/runs/39160044376)
+  succeeded across all eight target jobs. Windows/Linux x64 logs explicitly
+  report deterministic stage 2 with Node absent from PATH; `verify-selfhost.mjs`
+  compares stage 1/2 image bytes/hash. Other native targets and BSD guest VMs
+  use `--platform-smoke`, which does not perform that stage-2 comparison.
+  This is useful execution evidence, not a claim of independently reproducible
+  release packaging across arbitrary machines/toolchains.
+- Audited-SHA [program corpus run 39160044385](https://github.com/40oleg/nona/actions/runs/39160044385)
+  completed successfully on Linux and Windows: **1,011 tests passed, zero failed
+  or skipped per job**. These are test counts, not independent npm applications.
+  No corpus rerun was performed on this shared machine.
+- `scripts/check-weak-memory.mjs` compares weak/strong retention under a 96 MiB
+  Linux address-space cap (Windows dispatches via WSL). Its source was inspected;
+  no corresponding retained CI result was located in these runs and it was
+  **not executed locally**. The GC-root probe does not substitute for it.
+
+No local Linux, arm64, macOS, BSD, emulator, cross-target package execution,
+full conformance suite, benchmark or bootstrap was run in step 2. Their local
+matrix states remain not-run. API/target-specific tests outside the selected
+sample, package upstream test suites, larger payloads, persistent servers and
+adversarial networking remain unverified. Steps 3–6 must retain these boundaries.
+
+### Step 2 validation
+
+`scripts/build.mjs` succeeded. The focused inventory, runner and suite-registration
+tests pass (**14 tests**); runner tests cover nonzero exit, missing executable,
+timeout, descendant termination, output bounds, cleanup, invalid CLI arguments,
+dependency pins and denominator accounting. New default tests are registered
+once in `tests/suites.json`. Formatting, JSON/inventory validation and local
+documentation links are checked before this step's commit. No full suite or
+site build was run, as required by the step's resource limits.
+
+```powershell
+& $probeNode --test --test-concurrency=2 dist/tests/completeness-probes.test.js dist/tests/completeness-inventory.test.js dist/tests/suites.test.js
+& $probeNode scripts/check-completeness-inventory.mjs --git
+git diff --check
+```
+
 ## Inventory schema v1
 
 The JSON is UTF-8, uses `schemaVersion: 1`, and is validated by
@@ -320,8 +565,9 @@ different status/evidence; do not silently repurpose an ID.
 
 Status vocabulary:
 
-- `implemented-unverified`: an implementation path is identified; its bounded
-  behavior has not been executed in this audit.
+- `implemented-unverified`: an implementation path is identified, but its full
+  method/target scope has not been verified in this audit. Execution records may
+  contain passing samples within that broader scope.
 - `implemented-verified`: requires passing build/run records at the audited SHA
   for **every target within that row's scope**. Narrow/split the row when only
   a sample of targets is verified; record scope precisely.
@@ -335,7 +581,10 @@ Status vocabulary:
 - `unknown`: available evidence cannot establish the requested conclusion
   (for example, real package readiness or whole-release reproducibility).
 
-## Validation and refresh
+## Inventory validation and refresh (step 1)
+
+The following records the initial inventory checks; step 2's additional checks
+and 14-test result are recorded above.
 
 Run from the repository root:
 
