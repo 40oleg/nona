@@ -50,6 +50,7 @@
 - ES2022: حقول الأصناف، والتوابع والموصِّلات الخاصة، والكتل الساكنة، و`#x in obj`، و`.at()`، و`Object.hasOwn`، والسبب `cause` في Error، وعلم RegExp `d` مع فهارس المطابقة.
 - ES2022: `await` في المستوى الأعلى داخل وحدات ES، بما في ذلك ترتيب تقييم الوحدات غير المتزامنة والدورات وانتشار الرفض.
 - ES2023: `findLast` و`findLastIndex`، وكذلك طرق نسخ `Array` ‏`toSorted` و`toReversed` و`toSpliced` و`with` (دون متغيرات `%TypedArray%`).
+- ES2024: `String.prototype.isWellFormed` و`toWellFormed`.
 - ES2024: العلَم `v` في RegExp (`unicodeSets`): العمليتان `--` و`&&` على الأصناف، والأصناف المتداخلة، و`q{...}`، وخصائص السلاسل مثل `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` و`Map.groupBy`.
 

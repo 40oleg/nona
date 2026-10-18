@@ -50,6 +50,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 - ES2022：类字段、私有方法和访问器、静态块、`#x in obj`、`.at()`、`Object.hasOwn`、Error 的 `cause`，以及 RegExp 的 `d` 标志（匹配索引）。
 - ES2022：ES 模块中的顶层 `await`，包括异步模块的求值顺序、循环依赖和拒绝传播。
 - ES2023：`findLast` 和 `findLastIndex`，以及 `Array` 的复制式方法 `toSorted`、`toReversed`、`toSpliced` 和 `with`（不含 `%TypedArray%` 变体）。
+- ES2024：`String.prototype.isWellFormed` 和 `toWellFormed`。
 - ES2024：RegExp 的 `v` 标志（`unicodeSets`）：类的 `--` 和 `&&` 运算、嵌套类、`q{...}` 以及 `p{RGI_Emoji}` 等字符串属性。
 - ES2024：`Object.groupBy` 和 `Map.groupBy`。
 - ES2025：RegExp 模式修饰符 `(?i:…)`、`(?-i:…)` 和 `(?ims-ims:…)`，并带有规范规定的早期错误（重复或冲突的标志、`(?-:` 或缺少冒号时抛出 SyntaxError）。
