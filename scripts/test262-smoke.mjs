@@ -68,7 +68,8 @@ const excludePathFilters = [
 // Test262 feature tags introduced after ES2020; `post-es2020` in
 // TEST262_EXCLUDE_FEATURES expands to this list for gate audits.
 // Features newer than ES2020 that Nona implements (see CHANGELOG) are not in
-// this list: AggregateError, Array/String/TypedArray .at, findLast,
+// this list: AggregateError, Array.fromAsync (its tests stay skipped until a
+// Test262 checkout is run), Array/String/TypedArray .at, findLast,
 // error cause, logical assignment, numeric separators, Object.hasOwn,
 // Object.groupBy, Map.groupBy, Promise.any, String.prototype.isWellFormed/toWellFormed (and the
 // well-formed-unicode-strings tag), and the ES2022 class elements (fields, private methods and
