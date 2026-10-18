@@ -90,3 +90,19 @@ pull request changes `src/`, the Test262 runner or the build scripts it uses,
 `tests/test262*`, `package.json`, `package-lock.json`, `tsconfig.json` or
 `check.yml`, or has the `full-ci` label; otherwise they show as skipped. When
 the list of changed files cannot be read, they run.
+
+## GC stress on pull requests
+
+Oracle tests build their programs with `gcStress` (a collection on every
+allocation), which makes them several times slower: six of the heaviest files
+took 818 s under GC stress and 150 s without it on Linux. On a pull request
+without the `gc-stress` label ([#372](https://github.com/40oleg/nona/issues/372)):
+
+- the Windows shards run with `NONA_GC_STRESS_SCOPE=marked`: the files of
+  `tests/gc-stress.json` (collector, roots, weak references, ropes) run as
+  usual, every other file with `NONA_GC_STRESS=off`, which makes the code
+  generator ignore `gcStress` (`src/backend/x64/codegen.ts`);
+- the program corpus runs each program once, without GC stress.
+
+`main` runs everything under GC stress, so a missing root still fails there
+right after the merge. Local `npm run check` is unchanged.

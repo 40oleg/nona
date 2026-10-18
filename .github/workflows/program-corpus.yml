@@ -61,3 +61,7 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run check:programs
+              env:
+                  # Pull requests run each program once, without GC stress,
+                  # unless the gc-stress label is set; main runs both (#372).
+                  NONA_GC_STRESS: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'gc-stress') && 'off' || '' }}

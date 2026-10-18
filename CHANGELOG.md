@@ -4,6 +4,7 @@
 
 ### Development
 
+- On pull requests, CI runs most test files and the program corpus without GC stress (`NONA_GC_STRESS=off`); the files of `tests/gc-stress.json` and every run on `main` keep it, and the `gc-stress` label restores it for a pull request. ([#372](https://github.com/40oleg/nona/issues/372))
 - On pull requests, the Test262 directory jobs of `check` run only when the pull request changes the compiler or runtime (or has `full-ci`). ([#371](https://github.com/40oleg/nona/issues/371))
 - CI runs the Windows tests of `check` in four parallel shards balanced by `tests/timings.json`, without the program corpus (the `program corpus` workflow runs it), and builds once per job. ([#370](https://github.com/40oleg/nona/issues/370))
 - CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
