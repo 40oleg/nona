@@ -109,6 +109,8 @@ const postEs2020Features = [
     "Promise.allKeyed",
     "RegExp.escape",
     "regexp-duplicate-named-groups",
+    "regexp-match-indices",
+    "regexp-v-flag",
     "ShadowRealm",
     "source-phase-imports",
     "String.prototype.replaceAll",
