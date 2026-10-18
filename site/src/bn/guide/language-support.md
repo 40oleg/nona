@@ -50,6 +50,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 - ES2022: class fields, private মেথড ও অ্যাক্সেসর, static blocks, `#x in obj`, `.at()`, `Object.hasOwn` Error `cause` এবং RegExp-এর `d` ফ্ল্যাগ ও match indices।
 - ES2022: ES মডিউলে টপ-লেভেল `await`, async মডিউলের মূল্যায়ন ক্রম, সাইকেল ও rejection প্রচারসহ।
 - ES2023: `findLast` ও `findLastIndex`, এবং `Array`-এর `toSorted`, `toReversed`, `toSpliced` ও `with` কপি-ভিত্তিক পদ্ধতি (এবং `%TypedArray%`-এর `toSorted`, `toReversed`, `with`)।
+- ES2024: `Object.groupBy` ও `Map.groupBy`।
 
 যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
 

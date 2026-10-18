@@ -38,6 +38,28 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
                   TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    changes:
+        # Whether this run needs the Test262 directory jobs (#371,
+        # scripts/ci-changes.mjs): always on main and manual runs; on a pull
+        # request when it changes src/, the Test262 runner, package files or
+        # this workflow, or has the full-ci label.
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            test262: ${{ steps.decide.outputs.test262 }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts/ci-changes.mjs
+                  sparse-checkout-cone-mode: false
+            - id: decide
+              run: node scripts/ci-changes.mjs
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  FULL_CI: ${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}
     format:
         # Sources are formatted with Prettier (#250): npm run format fixes them.
         runs-on: ubuntu-latest
@@ -50,6 +72,40 @@ jobs:
             - run: npm ci
             - run: npm run format:check
     windows:
+        # The Windows test files in four shards balanced by tests/timings.json
+        # (scripts/run-shard.mjs, #370). program-corpus* runs in the program
+        # corpus workflow, on Windows too.
+        name: windows (${{ matrix.shard }}/4)
+        needs: route
+        runs-on: ${{ fromJSON(needs.route.outputs.windows) }}
+        strategy:
+            fail-fast: false
+            matrix:
+                shard: [1, 2, 3, 4]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: node scripts/run-shard.mjs --shard ${{ matrix.shard }}/4 --exclude "program-corpus*" --timings-out work/test-timings-${{ matrix.shard }}.json
+              env:
+                  # Pull requests: GC stress only for tests/gc-stress.json
+                  # unless the gc-stress label is set; main: everything (#372).
+                  NONA_GC_STRESS_SCOPE: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'gc-stress') && 'marked' || 'all' }}
+            - run: node scripts/test-timings.mjs work/test-timings-${{ matrix.shard }}*.json
+              if: always()
+              shell: bash
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: windows-test-timings-${{ matrix.shard }}
+                  path: work/test-timings-${{ matrix.shard }}*.json
+                  if-no-files-found: ignore
+    windows-compare:
+        # Oracle comparison and the Test262 smoke manifest on Windows.
         needs: route
         runs-on: ${{ fromJSON(needs.route.outputs.windows) }}
         steps:
@@ -64,8 +120,8 @@ jobs:
               if: runner.environment == 'github-hosted'
               shell: pwsh
               run: ./scripts/process-abort-oracle.ps1
-            - run: npm run check
-            - run: npm run compare
+            - run: npm run build
+            - run: node scripts/compare.mjs
             - uses: actions/checkout@v4
               with:
                   repository: tc39/test262
@@ -100,7 +156,7 @@ jobs:
                       test/intl402/Number/prototype
                       test/intl402/String/prototype
                       test/intl402/Date/prototype
-            - run: npm run test262:smoke
+            - run: node scripts/test262-smoke.mjs
     linux-native:
         runs-on: ubuntu-latest
         steps:
@@ -138,6 +194,8 @@ jobs:
     windows-test262:
         # Same job names and report artifacts as the former per-directory jobs.
         name: windows-${{ matrix.group }}-test262
+        needs: changes
+        if: needs.changes.outputs.test262 == 'true'
         runs-on: windows-latest
         strategy:
             fail-fast: false

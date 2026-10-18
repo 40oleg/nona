@@ -334,7 +334,9 @@
                 "console-streams",
                 "zlib",
                 "pick-runner",
-                "cancel-pr-runs"
+                "cancel-pr-runs",
+                "run-shard",
+                "ci-changes"
             ]
         }
     }
