@@ -5,6 +5,7 @@
 ### Runtime
 
 - **ES2025 iterator helpers.** The global `Iterator`, `Iterator.from`, and `map`, `filter`, `take`, `drop`, `flatMap`, `reduce`, `toArray`, `forEach`, `some`, `every` and `find` on `Iterator.prototype`, with the wrapping and closing protocol of the spec. They are the optional `iteratorHelpers` prelude part, linked when a program names `Iterator`, `toArray`, `take`, `drop` or `flatMap`, otherwise with `--link iteratorHelpers` or `--full-runtime`; programs that do not use them do not grow. ([#322](https://github.com/40oleg/nona/issues/322))
+- **`Array.fromAsync`** (ES2026) over async iterables, sync iterables (each value awaited) and array-likes, with the mapping function, `thisArg`, construction through `this` and closing of the iterator on errors. It is a separate prelude part linked only when a program names `fromAsync`. ([#323](https://github.com/40oleg/nona/issues/323))
 
 ## v0.18.0 — 2026-10-18
 

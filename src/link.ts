@@ -179,6 +179,7 @@ export const preludeTriggers = {
         "sub",
         "sup",
     ],
+    arrayFromAsync: ["fromAsync"],
     // toSorted of the es2021 prelude sorts with the built-in sort.
     arraySort: ["sort", "toSorted"],
     objectIntegrity: ["freeze", "seal", "isFrozen", "isSealed"],
