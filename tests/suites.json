@@ -164,6 +164,7 @@
             "files": [
                 "accessor-runtime",
                 "architecture-doc",
+                "completeness-inventory",
                 "arguments",
                 "array-destructuring",
                 "array-literal-elements",

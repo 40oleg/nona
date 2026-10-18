@@ -1,5 +1,7 @@
 # Built-in modules and globals
 
+The [completeness inventory](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md) is in progress; runtime probes and independent review are pending.
+
 Nona programs run without Node.js. The host APIs below are part of the compiler: the native runtime and small JavaScript preludes are compiled into every executable, and built-in modules are compiled in when a program imports them.
 
 ## Overview

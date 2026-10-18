@@ -2,6 +2,8 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: [`status.md`](status.md) and [`language-support.md`](language-support.md) describe what is.
 
+The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) distinguish inspected implementation, partial APIs, stubs and unexecuted evidence at a pinned commit. This is step 1 of the v0.20.0 audit; practical verification and independent review are pending.
+
 | Document                                         | Contents                                                                                                           | Language |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------- |
 | [architecture.md](architecture.md)               | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking                | English  |

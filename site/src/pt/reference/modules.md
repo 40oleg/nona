@@ -1,5 +1,7 @@
 # Módulos embutidos e globais
 
+O [inventário de completude](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md) (em inglês) está em andamento; os testes de execução e a revisão independente estão pendentes.
+
 Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compilador: o runtime nativo e pequenos prelúdios JavaScript são compilados em cada executável, e os módulos embutidos são compilados quando um programa os importa.
 
 ## Visão geral

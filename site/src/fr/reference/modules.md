@@ -1,5 +1,7 @@
 # Modules intégrés et objets globaux
 
+L’[inventaire de complétude](https://github.com/40oleg/nona/blob/main/docs/completeness-audit.md) (en anglais) est en cours ; les tests d’exécution et la revue indépendante restent à faire.
+
 Les programmes Nona s’exécutent sans Node.js. Les API de l’hôte ci-dessous font partie du compilateur : le runtime natif et de petits préludes JavaScript sont compilés dans chaque exécutable, et les modules intégrés le sont lorsqu’un programme les importe.
 
 ## Vue d’ensemble

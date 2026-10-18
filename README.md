@@ -16,6 +16,8 @@ The executable contains your program's machine code and Nona's runtime, and noth
 
 ## Why Nona
 
+The [v0.20.0 completeness audit](docs/completeness-audit.md) is in progress: its initial inventory separates source evidence, API limits and target coverage. Runtime probes and independent review are still pending.
+
 - **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them. It starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
 - **No dependencies at run time.** Windows executables import only `KERNEL32.dll` (plus DLLs you call through FFI). Linux, BSD and Intel macOS executables make direct kernel calls without libc; a program that declares shared library functions through FFI is linked dynamically against those libraries only. Apple Silicon output uses the system dyld and libSystem.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.

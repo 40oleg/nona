@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Start the v0.20.0 [completeness audit](docs/completeness-audit.md) with a commit-pinned capability/API inventory, release and target provenance, and lightweight structural validation. This is the inventory stage; runtime probes, readiness conclusions and independent review are still pending. ([#394](https://github.com/40oleg/nona/issues/394))
+
 ### Runtime
 
 - **ES2025 iterator helpers.** The global `Iterator`, `Iterator.from`, and `map`, `filter`, `take`, `drop`, `flatMap`, `reduce`, `toArray`, `forEach`, `some`, `every` and `find` on `Iterator.prototype`, with the wrapping and closing protocol of the spec. They are the optional `iteratorHelpers` prelude part, linked when a program names `Iterator`, `toArray`, `take`, `drop` or `flatMap`, otherwise with `--link iteratorHelpers` or `--full-runtime`; programs that do not use them do not grow. ([#322](https://github.com/40oleg/nona/issues/322))
