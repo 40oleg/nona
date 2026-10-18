@@ -54,6 +54,7 @@ Most features from later editions are not supported. Supported additions:
 - ES2024: the RegExp `v` flag (`unicodeSets`): set operations `--` and `&&`, nested classes, `q{...}` and properties of strings such as `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` and `Map.groupBy`.
 - ES2024: resizable ArrayBuffer and transfer, growable SharedArrayBuffer, length-tracking typed arrays and DataViews.
+- ES2025: `RegExp.escape`.
 - ES2025: duplicate named capture groups in different alternatives of a pattern.
 - ES2025: `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` and `isDisjointFrom`.
 - ES2025: RegExp pattern modifiers `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)`, with the spec's early errors (a SyntaxError for a repeated or conflicting flag, `(?-:` or a missing colon).

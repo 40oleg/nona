@@ -54,6 +54,7 @@ Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说�
 - ES2024：RegExp 的 `v` 标志（`unicodeSets`）：类的 `--` 和 `&&` 运算、嵌套类、`q{...}` 以及 `p{RGI_Emoji}` 等字符串属性。
 - ES2024：`Object.groupBy` 和 `Map.groupBy`。
 - ES2024：可调整大小的 ArrayBuffer 与 `transfer`、可增长的 SharedArrayBuffer、跟踪长度的类型化数组和 DataView。
+- ES2025：`RegExp.escape`。
 - ES2025：不同分支中重复的命名捕获组。
 - ES2025：RegExp 模式修饰符 `(?i:…)`、`(?-i:…)` 和 `(?ims-ims:…)`，并带有规范规定的早期错误（重复或冲突的标志、`(?-:` 或缺少冒号时抛出 SyntaxError）。
 

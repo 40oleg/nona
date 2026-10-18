@@ -54,6 +54,7 @@ Nona दस्तावेज़ित अपवादों के साथ EC
 - ES2024: RegExp का `v` फ़्लैग (`unicodeSets`): क्लास पर `--` और `&&` ऑपरेशन, नेस्टेड क्लास, `q{...}` और `p{RGI_Emoji}` जैसी स्ट्रिंग प्रॉपर्टी।
 - ES2024: `Object.groupBy` और `Map.groupBy`।
 - ES2024: आकार बदलने योग्य ArrayBuffer और `transfer`, बढ़ने योग्य SharedArrayBuffer, लंबाई ट्रैक करने वाले टाइप्ड ऐरे और DataView।
+- ES2025: `RegExp.escape`।
 - ES2025: किसी पैटर्न के अलग-अलग विकल्पों में एक ही नाम वाले नामित कैप्चर ग्रुप।
 
 जहाँ पिन किया गया Test262 रिविज़न ES2020 फ़ीचर के लिए पहले से नई सिमैंटिक्स जाँचता है, वहाँ Nona Test262 का पालन करता है; [Test262](/hi/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) पेज पर ये मामले सूचीबद्ध हैं।

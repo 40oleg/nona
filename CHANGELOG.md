@@ -6,6 +6,7 @@
 
 - **ES2024: Resizable ArrayBuffer and SharedArrayBuffer.** `ArrayBuffer` constructor accepts `options.maxByteLength`, and instances have `resize`, `resizable`, `maxByteLength`, `transfer`, `transferToFixedLength` and `detached` properties; `SharedArrayBuffer` also supports `grow` and growable sizes; length-tracking typed arrays and DataViews re-check their source buffers in method calls. Test262: `built-ins/ArrayBuffer` 192/192, `built-ins/SharedArrayBuffer` 104/104, `built-ins/TypedArray` 1304/1453 and `built-ins/DataView` 506/506 (post-ES2020 API and eval-exception mismatches excluded). ([#315](https://github.com/40oleg/nona/issues/315))
 - `Promise.try(fn, ...args)` (ES2025) calls `fn` and returns a promise for its result or its thrown error. ([#317](https://github.com/40oleg/nona/issues/317))
+- **`RegExp.escape`** (ES2025, [#318](https://github.com/40oleg/nona/issues/318)). A small JavaScript prelude linked only when a program names `escape`; programs that do not use it do not grow
 
 ## v0.17.0 — 2026-10-18
 

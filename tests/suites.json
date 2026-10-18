@@ -114,6 +114,7 @@
                 "regexp-replace",
                 "regexp-match-all",
                 "regexp-match-indices",
+                "regexp-escape",
                 "regexp-modifiers",
                 "regexp-v-flag",
                 "map",

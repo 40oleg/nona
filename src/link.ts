@@ -60,6 +60,8 @@ export const preludeTriggers = {
     errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
+    // RegExp.escape: needs the RegExp constructor, so it is linked with the engine.
+    regexpEscape: ["escape"],
     // The JavaScript methods of ArrayBuffer, DataView and the typed arrays. Built-in
     // modules and preludes that hand out binary data name these types in their own
     // sources, and the preludes that do (see preludeDependencies) depend on it.

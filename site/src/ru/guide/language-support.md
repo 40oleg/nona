@@ -54,6 +54,7 @@ Nona реализует ECMA-262 11-го издания (ES2020) с докуме
 - ES2024: флаг RegExp `v` (`unicodeSets`): операции `--` и `&&` над классами, вложенные классы, `q{...}` и свойства строк вроде `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` и `Map.groupBy`.
 - ES2024: изменяемые по размеру ArrayBuffer и `transfer`, расширяемые SharedArrayBuffer, typed arrays и DataView, отслеживающие длину буфера.
+- ES2025: `RegExp.escape`.
 - ES2025: повторяющиеся именованные группы в разных альтернативах регулярного выражения.
 - ES2025: `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` и `isDisjointFrom`.
 - ES2025: модификаторы шаблона RegExp `(?i:…)`, `(?-i:…)` и `(?ims-ims:…)` с ранними ошибками стандарта (SyntaxError для повторенного или противоречивого флага, `(?-:` или отсутствующего `:`).

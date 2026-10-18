@@ -54,6 +54,7 @@ La plupart des fonctionnalités des éditions ultérieures ne sont pas prises en
 - ES2024 : le drapeau RegExp `v` (`unicodeSets`) : opérations `--` et `&&` sur les classes, classes imbriquées, `q{...}` et propriétés de chaînes comme `p{RGI_Emoji}`.
 - ES2024 : `Object.groupBy` et `Map.groupBy`.
 - ES2024 : ArrayBuffer redimensionnable et transférable, SharedArrayBuffer extensible, tableaux typés et DataViews avec suivi de longueur.
+- ES2025 : `RegExp.escape`.
 - ES2025 : groupes de capture nommés dupliqués dans des alternatives différentes d'un motif.
 
 Lorsque la révision figée de Test262 vérifie déjà une sémantique plus récente pour des fonctionnalités d’ES2020, Nona suit Test262 ; la page [Test262](/fr/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) liste ces cas.
