@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.18.0 — 2026-10-18
+
 ### Language
 
 - **ES2024: Resizable ArrayBuffer and SharedArrayBuffer.** `ArrayBuffer` constructor accepts `options.maxByteLength`, and instances have `resize`, `resizable`, `maxByteLength`, `transfer`, `transferToFixedLength` and `detached` properties; `SharedArrayBuffer` also supports `grow` and growable sizes; length-tracking typed arrays and DataViews re-check their source buffers in method calls; typed arrays that are not fixed-length cannot be made non-extensible. Test262: `built-ins/ArrayBuffer` 192/192, `built-ins/SharedArrayBuffer` 104/104, `built-ins/TypedArray` 1304/1453 and `built-ins/DataView` 506/506 (post-ES2020 API and eval-exception mismatches excluded). ([#315](https://github.com/40oleg/nona/issues/315))
