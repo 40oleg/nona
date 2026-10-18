@@ -422,7 +422,7 @@ test("syntax helpers are linked by the calls of the lowered program", () => {
             {},
             target,
         ).length;
-        assert.ok(hello < 1_150_000, `${target}: ${hello} bytes`);
+        assert.ok(hello < 1_200_000, `${target}: ${hello} bytes`);
         assert.ok(fields - hello > 8_000, `${target}: ${fields} vs ${hello}`);
     }
 });

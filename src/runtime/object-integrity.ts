@@ -107,8 +107,9 @@ export function emitObjectIntegrity(b: RuntimeBuilder): void {
                         a.jmp(no);
                     } else a.jcc("e", no);
                 } else {
-                    a.or("rax", OF.nonExtensible);
-                    a.store({ base: "r10", disp: O.flags }, "rax");
+                    a.call("rt.ordinaryPreventExtensions");
+                    a.test("rax", "rax");
+                    failIf(a, "e", "rt.throwTypeError");
                     if (name === "preventExtensions") a.jmp(done);
                 }
                 if (name !== "preventExtensions" && name !== "isExtensible") {

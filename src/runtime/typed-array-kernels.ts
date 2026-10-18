@@ -1,6 +1,7 @@
 import { RuntimeBuilder, slot } from "./abi.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
 import { ArrayBufferLayout, TypedArrayLayout } from "./array-buffer-layout.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 // Block kernels of typed arrays and ArrayBuffers (#253): an overlapping
 // copy, a pattern fill and an element search, sixteen bytes per step where
@@ -292,15 +293,16 @@ const integerRanges: Record<number, [number, number]> = {
  * compared in place by rt.findElements instead of being read as values. Other
  * searches (BigInt arrays, values that are not Numbers) jump to `generic`.
  * Slots: the receiver value at `receiver` (its object at +8), the searched
- * value at `search` and the start index at `start`, where a found index is
- * stored before the jump to `found`. The length read at the start of the
- * method may exceed the current one: elements past the end are undefined and
- * equal no Number.
+ * value at `search`, the start index at `start`, where a found index is
+ * stored before the jump to `found`, and the length read at the start of the
+ * method at `length`. Only elements below both that length and the current
+ * one are searched: elements past the current end are undefined and equal no
+ * Number, and a grown buffer adds no elements to the search.
  */
 export function emitTypedSearch(
     a: Assembler,
     name: "includes" | "indexOf" | "lastIndexOf",
-    slots: { receiver: number; search: number; start: number },
+    slots: { receiver: number; search: number; start: number; length: number },
     labels: { generic: string; found: string; notFound: string },
 ): void {
     const { notFound } = labels;
@@ -311,18 +313,24 @@ export function emitTypedSearch(
     a.cmp("rax", 3);
     a.jcc("ne", labels.generic);
     a.load("r10", slot(slots.receiver + 8));
+    emitViewCheck(a, "r10");
+    a.test("r11", "r11");
+    a.jcc("ne", notFound);
     a.load("r11", { base: "r10", disp: TypedArrayLayout.elementType });
     a.cmp("r11", 10);
     a.jcc("ae", labels.generic);
     a.load("rcx", { base: "r10", disp: TypedArrayLayout.buffer });
-    a.load("rax", { base: "rcx", disp: ArrayBufferLayout.detached });
-    a.test("rax", "rax");
-    a.jcc("ne", notFound);
     a.load("rcx", { base: "rcx", disp: ArrayBufferLayout.bytes });
     a.load("rax", { base: "r10", disp: TypedArrayLayout.byteOffset });
     a.add("rcx", "rax");
     a.load("rdx", slot(slots.start));
     a.load("r8", { base: "r10", disp: TypedArrayLayout.length });
+    const bounded = a.unique("bounded");
+    a.load("r9", slot(slots.length));
+    a.cmp("r8", "r9");
+    a.jcc("be", bounded);
+    a.mov("r8", "r9");
+    a.label(bounded);
     if (name === "lastIndexOf") {
         const inside = a.unique("inside");
         a.test("r8", "r8");

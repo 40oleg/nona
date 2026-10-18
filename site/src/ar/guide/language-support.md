@@ -36,7 +36,7 @@
 | Array                                      | مدعوم  | جميع توابع ES2020، وspecies، والثغرات، والأطوال الكبيرة جدًا.                                                                                                                                                                                                             |
 | Date وJSON                                 | مدعوم  | تحليل التواريخ وتنسيقها بتوقيت UTC والتوقيت المحلي، و`JSON.parse` مع reviver، و`JSON.stringify` مع replacer والإزاحة.                                                                                                                                                     |
 | Map وSet وWeakMap وWeakSet                 | مدعوم  | دلالات ephemeron للمجموعات الضعيفة.                                                                                                                                                                                                                                       |
-| ArrayBuffer وDataView والمصفوفات المنمَّطة | مدعوم  | جميع أنواع المصفوفات المنمَّطة الأحد عشر، بما فيها مصفوفات BigInt، والفصل (detach)، وspecies.                                                                                                                                                                             |
+| ArrayBuffer وDataView والمصفوفات المنمَّطة | مدعوم  | جميع أنواع المصفوفات المنمَّطة الأحد عشر، بما فيها مصفوفات BigInt، والفصل (detach)، وspecies، وArrayBuffer القابل لتغيير الحجم والنقل، وSharedArrayBuffer القابل للنمو، والمصفوفات المنمَّطة وDataView التي تتبع الطول.                                                   |
 | SharedArrayBuffer وAtomics                 | مدعوم  | بما فيها `Atomics.wait`/`notify` مع وكلاء عاملين (يستخدمها Test262).                                                                                                                                                                                                      |
 | Proxy وReflect                             | مدعوم  | جميع المصائد والثوابت.                                                                                                                                                                                                                                                    |
 | Promise                                    | مدعوم  | `all` و`allSettled` و`race` و`withResolvers` و`finally` والكائنات القابلة للانتظار (thenables) والإبلاغ عن حالات الرفض غير المعالَجة.                                                                                                                                     |
@@ -53,6 +53,7 @@
 - ES2024: `String.prototype.isWellFormed` و`toWellFormed`.
 - ES2024: العلَم `v` في RegExp (`unicodeSets`): العمليتان `--` و`&&` على الأصناف، والأصناف المتداخلة، و`q{...}`، وخصائص السلاسل مثل `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` و`Map.groupBy`.
+- ES2024: ArrayBuffer القابل لتغيير الحجم و`transfer`، وSharedArrayBuffer القابل للنمو، والمصفوفات المنمَّطة وDataView التي تتبع الطول.
 - ES2025: `RegExp.escape`.
 - ES2025: مجموعات التقاط مسمّاة مكررة في بدائل مختلفة من النمط.
 

@@ -7,8 +7,8 @@
 // subdirectories (reruns of single directories) override earlier results per
 // file. Failures are classified per file:
 //   eval  - the documented eval/dynamic Function exception (the test calls
-//           eval, $262.evalScript, or uses wellKnownIntrinsicObjects, which
-//           builds functions from strings);
+//           eval, $262.evalScript, or uses wellKnownIntrinsicObjects or
+//           resizableArrayBufferUtils.js, which build functions from strings);
 //   post  - post-ES2020 semantics under an untagged or older feature
 //           (features listed by test262-smoke.mjs as post-es2020, d flag
 //           (match indices) literals, top-level await, numeric separators,
@@ -84,6 +84,10 @@ function classify(path) {
     )
         return "post";
     if (/\beval(Script)?\b|wellKnownIntrinsicObjects/.test(body)) return "eval";
+    // The harness makes its typed array subclasses with
+    // `new Function("return class My" + type + ...)`.
+    if (/^includes:.*resizableArrayBufferUtils\.js/m.test(source))
+        return "eval";
     return "other";
 }
 

@@ -25,6 +25,7 @@ import {
 import { FunctionKind, FunctionLayout } from "./functions.js";
 import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
+import { emitViewCheck } from "./view-bounds.js";
 
 export {
     ProxyKind,
@@ -221,10 +222,7 @@ export function emitProxy(b: RuntimeBuilder): void {
             a.call("rt.proxyPreventExtensions");
             a.jmp(done);
             a.label(ordinary);
-            a.load("rax", { base: "r10", disp: O.flags });
-            a.or("rax", 1);
-            a.store({ base: "r10", disp: O.flags }, "rax");
-            a.mov("rax", 1);
+            a.call("rt.ordinaryPreventExtensions");
             a.label(done);
             a.load("rcx", slot(40));
             a.store({ base: "rcx", disp: 8 }, "rax");
@@ -1147,11 +1145,7 @@ export function emitProxy(b: RuntimeBuilder): void {
                 a.load("rax", slot(216));
                 a.cmp("rax", -2);
                 a.jcc("e", done);
-                a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-                a.load("r11", {
-                    base: "r11",
-                    disp: ArrayBufferLayout.detached,
-                });
+                emitViewCheck(a, "r10");
                 a.test("r11", "r11");
                 a.jcc("ne", done);
                 a.load("r11", { base: "r10", disp: TypedArrayLayout.length });
@@ -2109,10 +2103,7 @@ export function emitProxy(b: RuntimeBuilder): void {
             a.call("rt.proxyPreventExtensions");
             a.jmp(done);
             a.label(ordinaryForward);
-            a.load("rax", { base: "r10", disp: O.flags });
-            a.or("rax", 1);
-            a.store({ base: "r10", disp: O.flags }, "rax");
-            a.mov("rax", 1);
+            a.call("rt.ordinaryPreventExtensions");
             a.label(done);
         },
     );

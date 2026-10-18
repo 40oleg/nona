@@ -19,14 +19,11 @@ import {
 import { stringLiteral } from "./value.js";
 import { ArrayBufferKind, ArrayBufferLayout } from "./array-buffer.js";
 import { SharedArrayBufferKind } from "./shared-array-buffer.js";
+import { DataViewLayout } from "./array-buffer-layout.js";
+import { emitBufferLength, emitViewCheck } from "./view-bounds.js";
 
 export const DataViewKind = 12;
-export const DataViewLayout = {
-    buffer: O.size,
-    byteOffset: O.size + 8,
-    byteLength: O.size + 16,
-    size: O.size + 24,
-} as const;
+export { DataViewLayout };
 const byteMethods = ["getInt8", "getUint8", "setInt8", "setUint8"] as const;
 const wordMethods = [
     "getInt16",
@@ -178,12 +175,9 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.cmp("rax", DataViewKind);
             failIf(a, "ne", "rt.throwTypeError");
             if (name !== "buffer") {
-                a.load("r10", { base: "rdx", disp: DataViewLayout.buffer });
-                a.load("r10", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("r10", "r10");
+                // Detached or out of bounds (ES2024 25.3.4.2-3).
+                emitViewCheck(a, "rdx", true);
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
             }
             a.load("rax", { base: "rdx", disp: offset });
@@ -289,12 +283,9 @@ export function emitDataView(b: RuntimeBuilder): void {
                     a.store(slot(64), "rax");
                 }
                 a.load("rdx", slot(88));
-                a.load("r10", { base: "rdx", disp: DataViewLayout.buffer });
-                a.load("r10", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("r10", "r10");
+                // GetViewValue / SetViewValue: detached or out of bounds.
+                emitViewCheck(a, "rdx", true);
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", slot(72));
                 a.load("r10", { base: "rdx", disp: DataViewLayout.byteLength });
@@ -445,12 +436,9 @@ export function emitDataView(b: RuntimeBuilder): void {
                 a.store(slot(64), "rax");
                 a.label(noEndian);
                 a.load("rdx", slot(88));
-                a.load("r10", { base: "rdx", disp: DataViewLayout.buffer });
-                a.load("r10", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("r10", "r10");
+                // GetViewValue / SetViewValue: detached or out of bounds.
+                emitViewCheck(a, "rdx", true);
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteLength });
                 a.cmp("rax", width);
@@ -623,12 +611,9 @@ export function emitDataView(b: RuntimeBuilder): void {
                 a.store(slot(64), "rax");
                 a.label(noEndian);
                 a.load("rdx", slot(88));
-                a.load("r10", { base: "rdx", disp: DataViewLayout.buffer });
-                a.load("r10", {
-                    base: "r10",
-                    disp: ArrayBufferLayout.detached,
-                });
-                a.test("r10", "r10");
+                // GetViewValue / SetViewValue: detached or out of bounds.
+                emitViewCheck(a, "rdx", true);
+                a.test("r11", "r11");
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteLength });
                 a.cmp("rax", 8);
@@ -755,6 +740,8 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.mov("rax", 0);
             a.store(slot(72), "rax");
             a.store(slot(80), "rax");
+            // slot 128: whether byteLength was given.
+            a.store(slot(128), "rax");
             const haveOffset = a.unique("haveOffset"),
                 haveLength = a.unique("haveLength");
             a.load("rax", slot(48));
@@ -790,7 +777,8 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.load("r10", { base: "rax", disp: ArrayBufferLayout.detached });
             a.test("r10", "r10");
             failIf(a, "ne", "rt.throwTypeError");
-            a.load("rax", { base: "rax", disp: ArrayBufferLayout.byteLength });
+            emitBufferLength(a, "rax", "r11");
+            a.mov("rax", "r11");
             a.load("r10", slot(72));
             a.cmp("r10", "rax");
             failIf(a, "a", "rt.throwRangeError");
@@ -804,6 +792,8 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.load("rax", { base: "rax" });
             a.test("rax", "rax");
             a.jcc("e", haveLength);
+            a.mov("rax", 1);
+            a.store(slot(128), "rax");
             a.lea("rcx", slot(88));
             a.load("rdx", slot(56));
             a.add("rdx", 32);
@@ -871,6 +861,42 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.load("r10", { base: "r10", disp: ArrayBufferLayout.detached });
             a.test("r10", "r10");
             failIf(a, "ne", "rt.throwTypeError");
+            // ES2024 25.3.2.1 steps 12-14: the prototype lookup may have
+            // resized the buffer. Without a byteLength, a view of a resizable
+            // buffer tracks its length (slot 136: the fixed byte length or -1).
+            {
+                const given = a.unique("given"),
+                    checked = a.unique("checked");
+                a.load("r10", slot(112));
+                emitBufferLength(a, "r10", "rax");
+                a.load("r11", slot(72));
+                a.cmp("r11", "rax");
+                failIf(a, "a", "rt.throwRangeError");
+                a.load("r11", slot(80));
+                a.store(slot(136), "r11");
+                a.load("r11", slot(128));
+                a.test("r11", "r11");
+                a.jcc("ne", given);
+                a.load("r11", {
+                    base: "r10",
+                    disp: ArrayBufferLayout.maxByteLength,
+                });
+                a.test("r11", "r11");
+                a.jcc("s", checked);
+                a.mov("r11", -1);
+                a.store(slot(136), "r11");
+                a.load("r11", slot(72));
+                a.sub("rax", "r11");
+                a.store(slot(80), "rax");
+                a.jmp(checked);
+                a.label(given);
+                a.load("r11", slot(72));
+                a.load("r10", slot(80));
+                a.add("r11", "r10");
+                a.cmp("r11", "rax");
+                failIf(a, "a", "rt.throwRangeError");
+                a.label(checked);
+            }
             a.mov("rcx", DataViewLayout.size);
             a.call("rt.alloc");
             a.mov("r10", HeapKind.object);
@@ -907,6 +933,11 @@ export function emitDataView(b: RuntimeBuilder): void {
             a.store({ base: "rax", disp: DataViewLayout.byteOffset }, "r10");
             a.load("r10", slot(80));
             a.store({ base: "rax", disp: DataViewLayout.byteLength }, "r10");
+            a.load("r10", slot(136));
+            a.store(
+                { base: "rax", disp: DataViewLayout.fixedByteLength },
+                "r10",
+            );
             a.load("rcx", slot(40));
             a.mov("r10", 5);
             a.store({ base: "rcx" }, "r10");
