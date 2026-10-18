@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { entryPattern } from "./run-suite.mjs";
+import { entryPattern, testConcurrencyArgs } from "./run-suite.mjs";
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -142,6 +142,7 @@ function main(argv) {
             process.execPath,
             [
                 "--test",
+                ...testConcurrencyArgs(),
                 ...reporters,
                 ...files.map((name) =>
                     join("dist", "tests", name + ".test.js"),
