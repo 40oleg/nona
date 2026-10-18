@@ -53,6 +53,7 @@ La mayoría de las características de ediciones posteriores no están soportada
 - ES2024: `String.prototype.isWellFormed` y `toWellFormed`.
 - ES2024: el flag `v` de RegExp (`unicodeSets`): operaciones `--` y `&&` entre clases, clases anidadas, `q{...}` y propiedades de cadenas como `p{RGI_Emoji}`.
 - ES2024: `Object.groupBy` y `Map.groupBy`.
+- ES2025: `RegExp.escape`.
 - ES2025: grupos de captura con nombre duplicados en alternativas distintas de un patrón.
 
 Cuando la revisión fijada de Test262 ya comprueba semántica más reciente para características de ES2020, Nona sigue a Test262; la página de [Test262](/es/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) enumera esos casos.

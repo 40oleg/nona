@@ -5,6 +5,7 @@
 ### Language
 
 - `Promise.try(fn, ...args)` (ES2025) calls `fn` and returns a promise for its result or its thrown error. ([#317](https://github.com/40oleg/nona/issues/317))
+- **`RegExp.escape`** (ES2025, [#318](https://github.com/40oleg/nona/issues/318)). A small JavaScript prelude linked only when a program names `escape`; programs that do not use it do not grow
 
 ## v0.17.0 — 2026-10-18
 

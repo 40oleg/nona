@@ -53,6 +53,7 @@ Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 
 - ES2024: `String.prototype.isWellFormed` ও `toWellFormed`।
 - ES2024: RegExp-এর `v` ফ্ল্যাগ (`unicodeSets`): ক্লাসের `--` ও `&&` অপারেশন, নেস্টেড ক্লাস, `q{...}` এবং `p{RGI_Emoji}`-এর মতো স্ট্রিংয়ের প্রপার্টি।
 - ES2024: `Object.groupBy` ও `Map.groupBy`।
+- ES2025: `RegExp.escape`।
 - ES2025: একটি প্যাটার্নের বিভিন্ন বিকল্পে একই নামের নামযুক্ত ক্যাপচার গ্রুপ।
 
 যেখানে পিন করা Test262 রিভিশন ইতিমধ্যে ES2020 ফিচারের জন্য নতুন সিমান্টিক্স যাচাই করে, সেখানে Nona Test262 অনুসরণ করে; [Test262](/bn/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) পৃষ্ঠায় এই ক্ষেত্রগুলোর তালিকা আছে।
