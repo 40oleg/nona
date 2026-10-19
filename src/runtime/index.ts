@@ -78,6 +78,7 @@ import { emitMath } from "./math.js";
 import { emitFloat16 } from "./float16.js";
 import { emitUri } from "./uri.js";
 import { emitStringSplit } from "./string-split.js";
+import { emitStringReplaceAll } from "./string-replace-all.js";
 import { emitStringReplace } from "./string-replace.js";
 import { emitStringNormalize } from "./string-normalize.js";
 import { emitStringLocaleCompare } from "./string-locale-compare.js";
@@ -266,6 +267,7 @@ export function emitRuntime(
     emitArrayUnscopables(b);
     emitStringBuiltins(b);
     emitStringSplit(b);
+    emitStringReplaceAll(b);
     emitStringReplace(b);
     emitStringNormalize(b, request.unicodeNormalization !== false);
     emitStringLocaleCompare(b);

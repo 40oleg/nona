@@ -6,9 +6,14 @@
 
 - Add the v0.20.0 [completeness and readiness report](docs/completeness-audit.md): commit-pinned capability/API inventory, reproducible package probes and bounded Windows x64/WSL2 Linux x64 evidence, compiler/assurance analysis, versioned alternatives, risk register and prioritized roadmap. Publish the report on the documentation site with consistent translated entry points; record initial independent review, corrections and a dated later-release addendum while preserving the original audit baseline. Record the final independent re-review, exact reviewed artifact hashes and local PR handoff; reference the separate unmerged #392 performance proposal without duplicating benchmarks. ([#394](https://github.com/40oleg/nona/issues/394))
 
+### Performance
+
+- `String.prototype.replaceAll` with a string pattern now counts the matches and builds the result with one allocation, reducing time on a 200 000-match case from 321 ms to 15 ms (Node.js: 34 ms). The benchmark case `bench/16_string_scan.js` covers this with large-text, many-matches operations. ([#387](https://github.com/40oleg/nona/issues/387))
+
 ### Runtime
 
 - **JSON straight into UTF-8 bytes.** The native JSON serializer has a byte-output mode that writes UTF-8 into a growable byte buffer with the same walk as `JSON.stringify` (replacer, `toJSON`, indentation, cycle detection, property order, lone surrogates as `\uXXXX`). The new `nona:json` module exports `stringifyToBuffer(value, replacer, space)`, a `Buffer` byte-for-byte equal to `Buffer.from(JSON.stringify(...))`. `res.end(JSON.stringify(value))` and `res.write(...)` in `node:http` use it when `JSON.stringify` is the unmodified intrinsic, so a JSON response no longer builds a UTF-16 string, a finished string and a second UTF-8 copy. `JSON.stringify` itself is unchanged. ([#155](https://github.com/40oleg/nona/issues/155))
+- Speed up `Array.prototype.sort` and `toSorted`: the default order sorts all-string arrays with direct `<` comparisons (no per-comparison `String()` call), converts other elements with `ToString` once each, skips merging runs that are already ordered, and calls a user comparator without a wrapper closure. 50 000 log lines: 215 ms to 32 ms on Windows x64 (Node.js 22: 29 ms); new `bench/18_sort.js`. ([#388](https://github.com/40oleg/nona/issues/388))
 
 ### Internals
 
