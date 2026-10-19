@@ -1,6 +1,6 @@
 # Nona documentation site
 
-The site at https://40oleg.github.io/nona/ is built with [VitePress](https://vitepress.dev) and deployed by `.github/workflows/pages.yml` from `main`.
+The site at https://40oleg.github.io/nona/ is built with [VitePress](https://vitepress.dev/guide/what-is-vitepress) and deployed by `.github/workflows/pages.yml` from `main`.
 
 ```sh
 npm run build            # in the repository root: the compiler, needed by check:samples

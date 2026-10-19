@@ -51,7 +51,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## दस्तावेज़ीकरण साइट
 
-साइट `site/` से [VitePress](https://vitepress.dev) के साथ बनती है:
+साइट `site/` से [VitePress](https://vitepress.dev/guide/what-is-vitepress) के साथ बनती है:
 
 ```sh
 npm run build              # the compiler, needed to check the samples

@@ -51,7 +51,7 @@ Cuando una característica cambia un comportamiento visible para los programas, 
 
 ## Sitio de documentación
 
-El sitio se construye con [VitePress](https://vitepress.dev) a partir de `site/`:
+El sitio se construye con [VitePress](https://vitepress.dev/guide/what-is-vitepress) a partir de `site/`:
 
 ```sh
 npm run build              # the compiler, needed to check the samples

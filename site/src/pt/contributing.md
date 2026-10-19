@@ -51,7 +51,7 @@ Quando um recurso muda um comportamento visível para os programas, atualize:
 
 ## Site de documentação
 
-O site é construído com [VitePress](https://vitepress.dev) a partir de `site/`:
+O site é construído com [VitePress](https://vitepress.dev/guide/what-is-vitepress) a partir de `site/`:
 
 ```sh
 npm run build              # the compiler, needed to check the samples
