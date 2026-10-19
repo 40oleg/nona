@@ -17,7 +17,7 @@ Nona 是提前编译的，因此 `eval` 和动态函数构造器需要在编译�
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-运行时源码的支持在 [#11](https://github.com/40oleg/nona/issues/11) 中跟踪。
+这是一个长期的、已记录的例外（[#11](https://github.com/40oleg/nona/issues/11)，[ES2020 约定](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)）：生成的可执行文件不包含解释器或编译器。
 
 ## 与 Node.js 的差异
 

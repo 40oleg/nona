@@ -17,7 +17,7 @@
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-تُتابَع الشيفرة المحسوبة وقت التشغيل في [#11](https://github.com/40oleg/nona/issues/11).
+هذا استثناء دائم وموثّق ([#11](https://github.com/40oleg/nona/issues/11)، [عقد ES2020](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)): لا تحتوي الملفات التنفيذية المولَّدة على مفسِّر أو مُصرِّف.
 
 ## الفروق عن Node.js
 

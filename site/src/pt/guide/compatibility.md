@@ -17,7 +17,7 @@ O Nona compila antecipadamente, então `eval` e os construtores dinâmicos de fu
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-O suporte a código em tempo de execução é acompanhado em [#11](https://github.com/40oleg/nona/issues/11).
+É uma exceção permanente e documentada ([#11](https://github.com/40oleg/nona/issues/11), [contrato ES2020](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)): os executáveis gerados não contêm interpretador nem compilador.
 
 ## Diferenças em relação ao Node.js
 

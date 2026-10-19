@@ -36,7 +36,6 @@ v0.8.0 के ऑडिट में सात क्रैश भी मिल�
 
 भाषा और लाइब्रेरी की कमियाँ:
 
-- [#11](https://github.com/40oleg/nona/issues/11) — रनटाइम पर बने सोर्स के साथ `eval` और `Function`।
 - [#44](https://github.com/40oleg/nona/issues/44) — Promise रिएक्शन: समर्पित promise प्रकार और हर `then` के लिए एक रिकॉर्ड।
 
 प्रदर्शन, [रोडमैप](https://github.com/40oleg/nona/blob/main/docs/roadmap.md) की मुख्य दिशा:

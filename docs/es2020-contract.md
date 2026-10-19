@@ -49,7 +49,62 @@ The concrete conformance gaps after the merged PR #5 are tracked in
       identity check falls back to an ordinary call when the variable no longer
       holds the intrinsic. Calls with no arguments create empty functions at run
       time. Any other source throws `EvalError` with the message above.
-    - Issue #11 tracks the remaining run-time sources (an embedded evaluator).
+    - **Decision (issue #11): run-time-source `eval`, `$262.evalScript` and the
+      dynamic function constructors stay a permanent, explicit exception of the
+      ES2020 contract.** Generated executables must not contain a runtime
+      compiler, an interpreter or a bundled frontend (see "Code conventions" in
+      `AGENTS.md`: no external dependencies, no bundled interpreter). The
+      options considered and rejected:
+        1. An embedded IR/bytecode interpreter with access to the calling
+           environment. It needs a second implementation of every language
+           feature next to the AOT code generator, compiled environments that
+           keep variable names and scope layout (defeating the AOT slot
+           allocation and optimizations), and it adds the interpreter to every
+           executable, including programs that never call `eval`.
+        2. Shipping the Nona frontend (lexer, parser, early errors, binder, IR
+           lowering) plus an IR interpreter in the runtime. Same costs, plus the
+           whole frontend in every executable: far beyond the size and the
+           “standalone executable, no JavaScript engine” design.
+           The remaining Test262 `eval-code`, `annexB/language/eval-code` and
+           `$262.evalScript` failures that need a run-time source are therefore
+           intentional, not open work (they are listed separately by
+           `scripts/test262-summary.mjs`).
+    - Exact behavior of the exception:
+        - The error is an `EvalError` created in the realm of the caller.
+          For `eval`, `Function` and the spread forms the message is “Nona
+          compiles ahead of time: eval and Function need source text known at
+          compile time”. `GeneratorFunction`, `AsyncFunction` and
+          `AsyncGeneratorFunction` reached through a variable
+          (`Object.getPrototypeOf(function* () {}).constructor`) with a
+          non-blank run-time source use “Nona compiles ahead of time: <name>
+          needs source text known at compile time”. Every argument is
+          converted with ToString first (observable); blank sources create
+          empty functions.
+        - `typeof eval === 'function'`; `eval.name` is `"eval"`, `eval.length`
+          is 1, `Function.prototype.toString` of `eval` is `function eval() {
+[native code] }`. These do not depend on whether the program calls
+          `eval`.
+        - Dynamic functions compiled at compile time have the name `anonymous`
+          and the source text of CreateDynamicFunction, for example
+          `function anonymous(a,b
+) {
+return a + b;
+}` (`function*`,
+          `async function` and `async function*` for the other kinds), so
+          `toString` matches Node.js.
+        - Compiled at compile time: string literals, no-substitution template
+          literals, concatenations of such literals, variables only ever
+          assigned them (for `eval`), and number, boolean, `null` and BigInt
+          literals as `Function` arguments (their ToString is fixed). Not
+          compiled: any other expression (calls, member reads, templates with
+          substitutions, variables assigned anything else) and spread
+          arguments, which throw the `EvalError` when the call is evaluated, not
+          when the program is compiled.
+        - `SyntaxError` is thrown only for sources known at compile time that
+          fail to parse or violate an early error, when the call is evaluated
+          (the surrounding program still compiles and runs up to that call). A
+          run-time source is never parsed, so it throws `EvalError`, even if
+          it is not valid JavaScript.
 - `with` is implemented in sloppy script code (`tests/with.test.ts`); strict mode code
   rejects it with an early error.
 - Annex B web-compatibility features are tracked separately. Implement the

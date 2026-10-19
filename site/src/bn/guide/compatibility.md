@@ -17,7 +17,7 @@ Nona আগেভাগে (ahead of time) কম্পাইল করে, ত�
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-রানটাইম সোর্স [#11](https://github.com/40oleg/nona/issues/11)-এ ট্র্যাক করা হচ্ছে।
+এটি একটি স্থায়ী, নথিভুক্ত ব্যতিক্রম ([#11](https://github.com/40oleg/nona/issues/11), [ES2020 চুক্তি](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)): তৈরি এক্সিকিউটেবলে ইন্টারপ্রেটার বা কম্পাইলার থাকে না।
 
 ## Node.js-এর সঙ্গে পার্থক্য
 
