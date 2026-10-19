@@ -46,6 +46,9 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({ error: name }));
   }
   if (name === 'chained') { res.writeHead(201, { 'Content-Type': 'application/json' }); console.log('server: returns res', res.end(JSON.stringify(payloads.emoji)) === res); return; }
+  // Other bytes take the same path as the serializer's: views keep their offset.
+  if (name === 'view') return res.end(Buffer.from('xxé🎉yy').subarray(2, 8));
+  if (name === 'uint8') return res.end(new Uint8Array([0x7b, 0x7d, 0xff]).subarray(1));
   if (name === 'head') return res.end(JSON.stringify(payloads.emoji));
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payloads[name]));
@@ -64,7 +67,7 @@ server.listen(0, '127.0.0.1', async () => {
       });
     }).end();
   });
-  for (const name of ['ascii', 'latin', 'emoji', 'lone', 'big', 'spaced', 'replacer', 'keys', 'tojson', 'undefined', 'function', 'cycle', 'bigint', 'chained'])
+  for (const name of ['ascii', 'latin', 'emoji', 'lone', 'big', 'spaced', 'replacer', 'keys', 'tojson', 'undefined', 'function', 'cycle', 'bigint', 'chained', 'view', 'uint8'])
     await get('/' + name);
   await get('/head', 'HEAD');
   server.close(() => console.log('closed'));
