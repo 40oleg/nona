@@ -8,6 +8,8 @@
 
 ### Runtime
 
+- **JSON straight into UTF-8 bytes.** The native JSON serializer has a byte-output mode that writes UTF-8 into a growable byte buffer with the same walk as `JSON.stringify` (replacer, `toJSON`, indentation, cycle detection, property order, lone surrogates as `\uXXXX`). The new `nona:json` module exports `stringifyToBuffer(value, replacer, space)`, a `Buffer` byte-for-byte equal to `Buffer.from(JSON.stringify(...))`. `res.end(JSON.stringify(value))` and `res.write(...)` in `node:http` use it when `JSON.stringify` is the unmodified intrinsic, so a JSON response no longer builds a UTF-16 string, a finished string and a second UTF-8 copy. `JSON.stringify` itself is unchanged. ([#155](https://github.com/40oleg/nona/issues/155))
+
 ### Internals
 
 - AGENTS.md: every issue and pull request has one type label and the milestone of its version; a closed issue carries the milestone of the release that ships it and no `blocked` label ([#396](https://github.com/40oleg/nona/issues/396)).
