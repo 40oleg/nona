@@ -46,7 +46,8 @@ import type { Assembler } from "../backend/machine/context.js";
 /** Four entries of {prototype, node}, newest first, behind one epoch. */
 /** Then the key's property-index hash (rt.propKeyHash, seeded per process), computed on first use (0 until then). */
 /** Then the key's bit in object key filters (rt.keyFilterBit), also 0 until first use. */
-/** Then two entries of {shape, slot, offset} for shaped receivers (shapes.ts): the key's slot (32 bits), or -1 when it is not an own key, and the slot's byte offset in the object when it is an inline slot (else 0; 32 bits), newest first. */
+/** Then two entries of {shape, slot, offset} for shaped receivers (shapes.ts): the key's slot (32 bits), or -1 when it is not an own key, */
+/** and the slot's byte offset in the object when it is an inline slot (else 0; 32 bits), newest first. */
 /** Then one {object, node, epoch} entry for a function object that has the key as an own property (#192): static members, `Ctor.prototype`, a function's `length` and `name`. Function objects are not shaped; the entry is valid at its own epoch (see emitOwnEntryHit). */
 export const PropertyCacheLayout = {
     epoch: 0,
@@ -68,7 +69,11 @@ export const PropertyCacheLayout = {
 } as const;
 
 /** Record of an `object.name = value` site (rt.setPropertyCached). */
-/** Two entries of {shape, slot, offset}, newest first: the slot of the key in receivers of that shape, and its byte offset in the object when it is inline (else 0; generated code writes there itself). Then two entries of {from, to, prototype}, newest first: the transitions that add the key, valid at `epoch`; failed: the epoch at which the chain check failed. Two entries keep a site in a method that several classes share (a base constructor's field initializers, a stream method called with sockets and requests) from relearning at every call. */
+/** Two entries of {shape, slot, offset}, newest first: the slot of the key in receivers of that shape, and its byte offset in the object */
+/** when it is inline (else 0; slot and offset are 32-bit halves of one word). Then two entries of {from, to, prototype}, newest first: */
+/** the transitions that add the key, valid at `epoch`; failed: the epoch at which the chain check failed. Two entries keep a site in a */
+/** method that several classes share (a base constructor's field initializers, a stream method called with sockets and requests) */
+/** from relearning at every call. */
 export const SetCacheLayout = {
     shape: 0,
     slot: 8, // 32 bits (at most maxShapeProperties)
