@@ -168,10 +168,17 @@ console.log(typeof Math[k], typeof DataView.prototype[g], typeof globalThis[c], 
     };
     const plain =
         "console.log(Math.fround(1.1), new DataView(new ArrayBuffer(4)).getFloat32(0));";
-    assert.ok(size(plain) < size(plain, ["float16"]));
-    assert.ok(size(plain) < size(plain + "Math.f16round(1);"));
+    // arm64 ELF segments are padded to 64 KiB pages and the float16 code is
+    // smaller than a page, so the images may be equal: compare with <= and
+    // check the strict difference on the runtime fragments.
+    assert.ok(
+        emitRuntime({ operations: new Set(), float16: false }).fragments
+            .length < emitRuntime({ operations: new Set() }).fragments.length,
+    );
+    assert.ok(size(plain) <= size(plain, ["float16"]));
+    assert.ok(size(plain) <= size(plain + "Math.f16round(1);"));
     const typed = "console.log(new Float32Array([1.1]).sort().join());";
-    assert.ok(size(typed) < size(typed + "new Float16Array(1);"));
+    assert.ok(size(typed) <= size(typed + "new Float16Array(1);"));
 });
 
 test("Float16Array construction, rounding on store and conversions", () =>

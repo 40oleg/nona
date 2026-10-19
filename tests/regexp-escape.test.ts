@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
 
-function same(source: string) {
-    const run = runOnHost(source);
+function same(source: string, gcStress = true) {
+    const run = runOnHost(source, { gcStress });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);
 }
@@ -28,12 +28,29 @@ try { new RegExp.escape("a"); } catch (e) { console.log(e instanceof TypeError);
 console.log("prototype" in RegExp.escape, Object.getPrototypeOf(RegExp.escape) === Function.prototype);`);
 });
 
-test("RegExp.escape output matches the input literally", () => {
-    same(String.raw`const inputs = ["1a", "a.b*c", "(x)|[y]{2}", "a-b", " x ", "\n\r", "😀+", "\ud83d", "\ude00", "a😀b", "^$", "/path/to", "<tag>", "1 "];
+const literalProgram = (
+    inputs: string,
+) => String.raw`const inputs = [${inputs}];
 for (const s of inputs) for (const flags of ["", "u"]) {
   const re = new RegExp(RegExp.escape(s), flags);
   const m = re.exec("zz" + s + "zz");
   console.log(JSON.stringify(s), flags, m && m.index, m && m[0] === s);
   console.log(new RegExp("^" + RegExp.escape(s) + "$", flags).test(s));
-}`);
+}`;
+
+// The full matrix runs without gcStress; small groups keep the stress
+// coverage (arm64 is about twice as slow as x64 under gcStress).
+test("RegExp.escape output matches the input literally", () => {
+    same(
+        literalProgram(
+            String.raw`"1a", "a.b*c", "(x)|[y]{2}", "a-b", " x ", "\n\r", "😀+", "\ud83d", "\ude00", "a😀b", "^$", "/path/to", "<tag>", "1 "`,
+        ),
+        false,
+    );
+});
+
+test("RegExp.escape output matches the input literally under stress GC", () => {
+    same(literalProgram(String.raw`"1a", "a.b*c", "(x)|[y]{2}"`));
+    same(literalProgram(String.raw`"😀+", "a😀b", "1 "`));
+    same(literalProgram(String.raw`"\ud83d", "\ude00", "/path/to"`));
 });

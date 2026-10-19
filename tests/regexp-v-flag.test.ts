@@ -248,7 +248,8 @@ console.log(/^[\p{RGI_Emoji}--\q{🇫🇷}]$/v.test(fr), /^[\p{RGI_Emoji}--\q{�
         false,
     ));
 
-test("small properties of strings backtrack, look behind and capture", () =>
+// Split into three programs: arm64 is about twice as slow as x64 under gcStress.
+test("small properties of strings backtrack, look behind and capture", () => {
     sameAsNode(
         emoji +
             String.raw`
@@ -256,16 +257,27 @@ console.log(/^\p{Emoji_Keycap_Sequence}+$/v.test(keycap + one), /^\p{Emoji_Keyca
 // The longest string fails at the end: the next shorter one is tried.
 console.log(/^[\p{Emoji_Keycap_Sequence}\q{#\u{FE0F}|#}]\u{20E3}$/v.exec(keycap)[0].length);
 console.log(/^(\p{Emoji_Keycap_Sequence}|[\q{#\u{FE0F}}])(\u{20E3}?)$/v.exec(keycap).map((s) => s.length).join());
+`,
+    );
+    sameAsNode(
+        emoji +
+            String.raw`
 console.log(("a" + england + "b").replace(/\p{RGI_Emoji_Tag_Sequence}/v, "_"));
 console.log(/(?<=\p{RGI_Emoji_Tag_Sequence})b/v.exec("a" + england + "b").index);
 console.log(/(?<![\p{Emoji_Keycap_Sequence}a])x/v.exec(keycap + "xaxx").index);
+`,
+    );
+    sameAsNode(
+        emoji +
+            String.raw`
 const notEngland = new RegExp("^[\\p{RGI_Emoji_Tag_Sequence}--\\q{" + england + "}]$", "v");
 console.log(notEngland.test(england), notEngland.test(scotland));
 console.log(/^[\p{Emoji_Keycap_Sequence}&&\q{1\u{FE0F}\u{20E3}|ab}]$/v.test(one));
 console.log(/^[\p{Emoji_Keycap_Sequence}\q{AB}]+$/vi.test("ab" + keycap + "aB"), /^\p{Emoji_Keycap_Sequence}$/vi.test(one));
 console.log((keycap + one + "x" + keycap).match(/\p{Emoji_Keycap_Sequence}/gv).length);
 `,
-    ));
+    );
+});
 
 test("properties of strings are only valid as \\p in v mode", () => {
     sameAsNode(
