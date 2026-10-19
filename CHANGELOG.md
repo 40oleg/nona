@@ -13,6 +13,7 @@
 ### Performance
 
 - `String.prototype.replaceAll` with a string pattern now counts the matches and builds the result with one allocation, reducing time on a 200 000-match case from 321 ms to 15 ms (Node.js: 34 ms). The benchmark case `bench/16_string_scan.js` covers this with large-text, many-matches operations. ([#387](https://github.com/40oleg/nona/issues/387))
+- **Faster global RegExp `match`.** `String.prototype.match` with a global, genuine RegExp (not subclassed, no own `exec`, the builtin `RegExp.prototype.exec`) collects the matched strings in the engine in one call instead of one `exec` per match; a pattern of literal strings only finds each string with `indexOf`. For patterns whose alternatives are literal strings (`ERROR|WARN`), the engine now compares the second and the last code unit of the shortest literal at each candidate found by the first-unit scan ([#258](https://github.com/40oleg/nona/issues/258)) before a `startsWith` per literal, and a match attempt no longer allocates or clears its state, which also speeds up `exec`, `matchAll` and `replace`. On win32-x64, `log.match(/(?:ERROR|WARN) \[(?:auth|gateway)\]/g)` on an 11 MB log takes about 38 ms instead of 130 ms (Node.js 22: 11 ms). `matchAll`, `replace` and `split` with `g`, and a global `match` that the native matcher handles (for example with a capturing group, `/(?:ERROR|WARN) \[(\w+)\]/g`), still call `exec` per match. ([#389](https://github.com/40oleg/nona/issues/389))
 
 ### Runtime
 

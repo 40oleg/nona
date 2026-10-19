@@ -109,6 +109,7 @@
                 "well-formed-strings",
                 "regexp-vm",
                 "regexp-scan",
+                "regexp-match-fast",
                 "regexp-surrogates",
                 "regexp-construction",
                 "regexp-duplicate-names",
