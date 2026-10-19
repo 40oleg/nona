@@ -106,6 +106,8 @@ for (const p of [/(?:ERROR|WARN) \[/y, /(?:ab|abc)d/y, /(?:ERROR|WARN)/gy]) {
 const m = /(?:ERROR|WARN) \[auth\]/.exec("x ERROR [auth]");
 console.log(Object.keys(m), JSON.stringify(Object.getOwnPropertyDescriptor(m, "index")), m.input, m.groups);
 console.log("no candidates here".match(/(?:ERROR|WARN) \[x\]/g), "".match(/(?:a|b)c/g));
+console.log("abg cdefg cdeg abcdefg xxWA".match(/(?:ab|cdef)g/g), "xxWA".match(/(?:WARN|ERROR)/g), "xxWAR".search(/(?:WAR|ER)N?/));
+const near = /(?:WARN|ERROR)/y; near.lastIndex = 2; console.log(near.exec("xxWAR"), near.lastIndex);
 Object.defineProperty(Array.prototype, "index", { set() { throw new Error("setter"); }, configurable: true });
 const n = /(?:ab|cd)/.exec("xcd");
 console.log(JSON.stringify(Object.getOwnPropertyDescriptor(n, "index")), n[0]);`;

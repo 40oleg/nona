@@ -810,7 +810,7 @@
       }
     }
     validateReferences(tree);
-    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined,literals:undefined,whole:false,modifiers:modifiers,
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined,literals:undefined,literalUnits:undefined,literalLast:0,whole:false,modifiers:modifiers,
       updatesLastIndex:indexOf(flags,'g')>=0||indexOf(flags,'y')>=0,hasIndices:indexOf(flags,'d')>=0};
     // A pattern whose every alternative starts with ^ (without the m flag) can
     // only match at index 0: search tries no other start position.
@@ -833,7 +833,18 @@
       if(set.strings!==null&&(set.strings.length>1||set.whole)){
         var usable=true;
         for(var l=0;l<set.strings.length;l++)if(set.strings[l]==='')usable=false;
-        if(usable){compiled.literals=set.strings;compiled.whole=set.whole&&groups===0}
+        if(usable){
+          compiled.literals=set.strings;compiled.whole=set.whole&&groups===0;
+          // Two code units every string has (the second and the last of the
+          // shortest) reject most candidates before a startsWith per string.
+          var shortest=set.strings[0].length;
+          for(var l=1;l<set.strings.length;l++)if(set.strings[l].length<shortest)shortest=set.strings[l].length;
+          if(shortest>=2){
+            var units=[];
+            for(var l=0;l<set.strings.length;l++){append(units,charCodeAt(set.strings[l],1));append(units,charCodeAt(set.strings[l],shortest-1))}
+            compiled.literalUnits=units;compiled.literalLast=shortest-1
+          }
+        }
       }
     }
     // Otherwise a pattern whose matches must start with one of at most eight
@@ -1640,6 +1651,7 @@
     var anchored=compiled.anchored;
     var scan=sticky||nativeScan===null?undefined:compiled.firstUnits;
     var literals=compiled.literals,count=literals===undefined?0:literals.length;
+    var literalUnits=compiled.literalUnits,literalLast=compiled.literalLast;
     // A failed run undoes its register changes: the registers are cleared
     // once, not before every candidate.
     for(var s=0;s<stateSize;s++)state[s]=NONE;
@@ -1657,7 +1669,11 @@
       }
       if(count>0){
         var hit=0;
-        while(hit<count&&!safeStartsWith.call(input,literals[hit],candidate))hit++;
+        if(literalUnits!==undefined){
+          if(candidate+literalLast>=length){if(sticky)break;return null}
+          var second=charCodeAt(input,candidate+1),last=charCodeAt(input,candidate+literalLast);
+          while(hit<count&&(literalUnits[hit*2]!==second||literalUnits[hit*2+1]!==last||!safeStartsWith.call(input,literals[hit],candidate)))hit++
+        }else while(hit<count&&!safeStartsWith.call(input,literals[hit],candidate))hit++;
         if(hit===count){if(sticky)break;continue}
         if(compiled.whole)return {end:candidate+literals[hit].length,captures:noCaptures,start:candidate}
       }
