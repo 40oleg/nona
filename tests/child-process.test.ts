@@ -16,7 +16,15 @@ const skip =
     `node:child_process has no platform layer for ${host ?? process.platform + "-" + process.arch}`;
 const posixSkip =
     skip ||
-    (process.platform !== "linux" && "the POSIX tools test runs on Linux");
+    (process.platform !== "linux" &&
+        process.platform !== "darwin" &&
+        "the POSIX tools test runs on Linux and macOS");
+// node:net has platform layers for linux-x64 and win32-x64 only.
+const netSkip =
+    skip ||
+    (host !== "linux-x64" &&
+        host !== "win32-x64" &&
+        `node:net has no platform layer for ${host}`);
 const prelude = `const node = ${JSON.stringify(process.execPath)};\n`;
 
 function expectNode(source: string): void {
@@ -152,7 +160,7 @@ child.stdin.end(input);
 `),
 );
 
-test("child_process and node:net share the event loop", { skip }, () =>
+test("child_process and node:net share the event loop", { skip: netSkip }, () =>
     expectNode(String.raw`import net from 'node:net';
 import { spawn } from 'node:child_process';
 // The two sides finish in either order; the lines are printed sorted.

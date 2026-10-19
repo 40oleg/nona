@@ -4,6 +4,7 @@ import {
     modulesChildProcessCommon,
     modulesChildProcessWin32,
     modulesChildProcessLinux,
+    modulesChildProcessDarwin,
 } from "../lib/sources.generated.js";
 /**
  * Source of the built-in `node:child_process` module (aliases
@@ -81,14 +82,33 @@ import {
  * (linuxArm64Source): openat, ppoll, dup3 and clone(SIGCHLD) stand in for
  * open, poll, dup2 and fork.
  *
- * Other targets (macOS, BSD) get a stub whose functions throw
- * ERR_NONA_UNSUPPORTED.
+ * macOS layer (darwin-x64, darwin-arm64): libSystem calls through nona:ffi
+ * (fork and pipe return a second value that raw system calls through the FFI
+ * lose). The parent resolves the file against PATH like the Linux layer and
+ * calls posix_spawn on each candidate with execvp's rules; posix_spawn reports
+ * exec failures itself. File actions dup2 the child's pipe ends, open
+ * /dev/null for 'ignore', mark inherited descriptors (addinherit_np) and
+ * change directory (addchdir_np); the attributes reset signal dispositions
+ * and the mask, start a session for `detached` and close every other
+ * descriptor in the child (POSIX_SPAWN_CLOEXEC_DEFAULT). argv and envp are
+ * laid out for an address malloc returns and copied there with memcpy.
+ * Readiness uses poll(2) on the pipe ends and on one kqueue per child with an
+ * EVFILT_PROC/NOTE_EXIT event, or a 10 ms waitpid poll when the event cannot
+ * be registered. The parent's stdin end has F_SETNOSIGPIPE, and writes also
+ * block SIGPIPE and consume a pending one. fcntl, which is variadic, is a raw
+ * system call. Darwin errno values and signal numbers are translated to and
+ * from the contract's Linux numbers; sys.errno returns libuv's negative Darwin
+ * errno values.
+ *
+ * Other targets (BSD) get a stub whose functions throw ERR_NONA_UNSUPPORTED.
  */
 const common = modulesChildProcessCommon;
 
 const win32 = modulesChildProcessWin32;
 
 const linux = modulesChildProcessLinux;
+
+const darwin = modulesChildProcessDarwin;
 
 /** The `const name = define("syscall", ...)` statement of child-process-linux.js. */
 function syscallDefinition(name: string): RegExp {
@@ -153,6 +173,8 @@ const layers: Record<string, () => string> = {
     "win32-arm64": () => win32,
     "linux-x64": () => linux,
     "linux-arm64": linuxArm64Source,
+    "darwin-x64": () => darwin,
+    "darwin-arm64": () => darwin,
 };
 
 /** Targets with a node:child_process platform layer. */
