@@ -295,7 +295,10 @@ function emitPromiseIntrinsics(b: RuntimeBuilder): void {
         a.shl("r11", 4);
         a.add("r10", "r11");
         for (const part of [0, 8]) {
-            a.load("rax", { base: "r10", disp: PromiseLayout.value - 16 + part });
+            a.load("rax", {
+                base: "r10",
+                disp: PromiseLayout.value - 16 + part,
+            });
             a.store({ base: "rcx", disp: part }, "rax");
         }
         a.jmp(done);

@@ -188,7 +188,8 @@
     var entry,
         warned = false;
     function unsettled() {
-        if (entry === undefined || (promiseGet(entry, 0) & 3) !== 0 || warned) return false;
+        if (entry === undefined || (promiseGet(entry, 0) & 3) !== 0 || warned)
+            return false;
         warned = true;
         console.error(
             "Warning: Detected unsettled top-level await at file://" +
