@@ -48,6 +48,7 @@ import {
     type StackMapEntry,
 } from "../../runtime/stack-maps.js";
 import { enterFrameStub } from "../../runtime/prologue.js";
+import { usesFrameThis } from "../../ir/calls.js";
 import {
     FunctionLayout,
     FunctionKind,
@@ -298,7 +299,14 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     for (const n of liveness.get(fn.blocks[0]!.id)!.liveIn)
         if (!staticConstant(n)) clear = Math.max(clear, location(n) + 1);
     a.lea("r10", { rip: fn.id + ".frame" });
-    a.call(enterFrameStub(fn.parameterCount, clear, allocation));
+    a.call(
+        enterFrameStub(
+            fn.parameterCount,
+            clear,
+            allocation,
+            usesFrameThis(fn),
+        ),
+    );
     // For the unwind information the frame exists once the stub has returned.
     const allocated = a.offset,
         prologSize = a.offset;
@@ -1593,8 +1601,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.jcc("ne", general);
                     // this: unchanged for strict code; sloppy code gets the global
                     // object for undefined/null and an object receiver as is
-                    // (primitives, which need boxing, take the general path).
-                    if (op.receiver === undefined)
+                    // (primitives, which need boxing, take the general path). A
+                    // callee that reads neither this nor new.target gets neither
+                    // (its prologue does not read the pointers).
+                    if (op.directNoThis) {
+                        // No receiver.
+                    } else if (op.receiver === undefined)
                         a.lea("rax", {
                             rip: op.directStrict
                                 ? "rt.undefinedValue"
@@ -1615,9 +1627,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         a.lea("rax", value(op.receiver));
                         a.label(ready);
                     }
-                    a.store(stack(32), "rax");
-                    a.lea("rax", { rip: "rt.undefinedValue" });
-                    a.store(stack(40), "rax");
+                    if (!op.directNoThis) {
+                        a.store(stack(32), "rax");
+                        a.lea("rax", { rip: "rt.undefinedValue" });
+                        a.store(stack(40), "rax");
+                    }
                     pointer("rcx", op.dest);
                     a.mov("rdx", op.arguments.length);
                     a.lea("r8", stack(argsBase));

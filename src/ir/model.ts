@@ -103,6 +103,7 @@ export type Operation =
           tail?: boolean;
           /** Code label of the function the callee is expected to be (src/ir/calls.ts). */ direct?: string;
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
+          /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
       }

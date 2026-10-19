@@ -7,9 +7,12 @@ import { JsFrame as F, FrameDescriptor as D } from "./frame-layout.js";
  * The end of every prologue: copies this (also into the super receiver slot)
  * and new.target from the caller's pointers into the slots after the value
  * slots, links the root record and returns into the function. RAX is the
- * frame's stack pointer, RBP the frame base and R10 the descriptor.
+ * frame's stack pointer, RBP the frame base and R10 the descriptor. A
+ * function that reads none of them (`usesFrameThis` in src/ir/calls.ts) gets
+ * the lean variant, which only clears the three slots for the collector
+ * (callers still pass valid pointers; they are not read).
  */
-function finishFrame(a: Assembler): void {
+function finishFrame(a: Assembler, copyThis: boolean): void {
     const frame = (disp: number) => ({
         base: "rbp" as const,
         disp: disp - F.bias,
@@ -17,20 +20,27 @@ function finishFrame(a: Assembler): void {
     // this, new.target and the super receiver follow the value slots.
     a.load("r9", { base: "r10", disp: D.thisSlot });
     a.add("r9", "rbp");
-    a.load("r11", { base: "r10", disp: D.allocation });
-    a.add("r11", "rax");
-    a.load("rcx", { base: "r11", disp: F.incomingThis });
-    a.load("r8", { base: "rcx" });
-    a.load("rcx", { base: "rcx", disp: 8 });
-    a.store({ base: "r9" }, "r8");
-    a.store({ base: "r9", disp: 8 }, "rcx");
-    a.store({ base: "r9", disp: 32 }, "r8");
-    a.store({ base: "r9", disp: 40 }, "rcx");
-    a.load("rcx", { base: "r11", disp: F.incomingNewTarget });
-    a.load("r8", { base: "rcx" });
-    a.load("rcx", { base: "rcx", disp: 8 });
-    a.store({ base: "r9", disp: 16 }, "r8");
-    a.store({ base: "r9", disp: 24 }, "rcx");
+    if (copyThis) {
+        a.load("r11", { base: "r10", disp: D.allocation });
+        a.add("r11", "rax");
+        a.load("rcx", { base: "r11", disp: F.incomingThis });
+        a.load("r8", { base: "rcx" });
+        a.load("rcx", { base: "rcx", disp: 8 });
+        a.store({ base: "r9" }, "r8");
+        a.store({ base: "r9", disp: 8 }, "rcx");
+        a.store({ base: "r9", disp: 32 }, "r8");
+        a.store({ base: "r9", disp: 40 }, "rcx");
+        a.load("rcx", { base: "r11", disp: F.incomingNewTarget });
+        a.load("r8", { base: "rcx" });
+        a.load("rcx", { base: "rcx", disp: 8 });
+        a.store({ base: "r9", disp: 16 }, "r8");
+        a.store({ base: "r9", disp: 24 }, "rcx");
+    } else {
+        a.mov("r8", 0);
+        a.movqToXmm("xmm0", "r8");
+        for (const disp of [0, 16, 32])
+            a.storeXmm128({ base: "r9", disp }, "xmm0");
+    }
     // The frame's precise root record: the value slots, this, new.target and
     // the super receiver. The count is negative: the collector scans the
     // slots the stack map of the current call lists (gc.ts, stack-maps.ts).
@@ -60,12 +70,14 @@ export function enterFrameStub(
     parameters: number,
     clear: number,
     allocation: number,
+    copyThis: boolean,
 ): string {
+    const name = copyThis ? "rt.enterFrame" : "rt.enterFrameLean";
     return allocation < 4096 &&
         parameters <= fixedPrologueParameters &&
         clear === parameters
-        ? "rt.enterFrame" + parameters
-        : "rt.enterFrame";
+        ? name + parameters
+        : name;
 }
 
 /**
@@ -87,7 +99,21 @@ export function enterFrameStub(
  * record. It uses RAX, R11, XMM0, XMM1 and, once they are saved, RCX, R8, R9.
  */
 export function emitPrologue(b: RuntimeBuilder): void {
-    b.raw("rt.enterFrame", (a) => {
+    for (const copyThis of [true, false])
+        emitPrologueStubs(
+            b,
+            copyThis ? "rt.enterFrame" : "rt.enterFrameLean",
+            copyThis,
+        );
+}
+
+/** The general stub `name` and its fixed-parameter variants (`name` + count). */
+function emitPrologueStubs(
+    b: RuntimeBuilder,
+    name: string,
+    copyThis: boolean,
+): void {
+    b.raw(name, (a) => {
         const overflow = a.unique("overflow"),
             noProbe = a.unique("noProbe"),
             probe = a.unique("probe"),
@@ -179,7 +205,7 @@ export function emitPrologue(b: RuntimeBuilder): void {
         a.sub("rcx", 1);
         a.jcc("ne", clear);
         a.label(cleared);
-        finishFrame(a);
+        finishFrame(a, copyThis);
         // The frame was not allocated: the throw runs on the caller's aligned stack.
         a.label(overflow);
         a.call("rt.throwStackOverflow");
@@ -189,7 +215,7 @@ export function emitPrologue(b: RuntimeBuilder): void {
         parameters <= fixedPrologueParameters;
         parameters++
     )
-        b.raw("rt.enterFrame" + parameters, (a) => {
+        b.raw(name + parameters, (a) => {
             const overflow = a.unique("overflow"),
                 frame = (disp: number) => ({
                     base: "rbp" as const,
@@ -198,7 +224,7 @@ export function emitPrologue(b: RuntimeBuilder): void {
             // Fewer arguments than parameters: the general stub supplies undefined.
             if (parameters > 0) {
                 a.cmp("rdx", parameters);
-                a.jcc("b", "rt.enterFrame");
+                a.jcc("b", name);
             }
             a.lea("rax", { base: "rsp", disp: 8 });
             a.subMemory("rax", { base: "r10", disp: D.allocation });
@@ -218,7 +244,7 @@ export function emitPrologue(b: RuntimeBuilder): void {
                     a.movsd("xmm1", { base: "r8", disp: 16 * i + half });
                     a.storesd(frame(F.values + 16 * i + half), "xmm1");
                 }
-            finishFrame(a);
+            finishFrame(a, copyThis);
             a.label(overflow);
             a.call("rt.throwStackOverflow");
         });

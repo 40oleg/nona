@@ -13,10 +13,38 @@ import type { FunctionIR, ModuleIR, Operation } from "./model.js";
  * fills with the same function declaration. Arrow functions (lexical this),
  * generators, async functions and class constructors are never annotated.
  */
-type Target = { target: string; strict: boolean };
+type Target = { target: string; strict: boolean; noThis: boolean };
+
+/** Operations that read or write the frame's this, new.target or super receiver slots. */
+const frameThisOperations = new Set<Operation["kind"]>([
+    "currentThis",
+    "setCurrentThis",
+    "newTarget",
+    "superReceiver",
+    "derivedReturn",
+]);
+/**
+ * Whether a function's code uses the this, new.target or super receiver
+ * slots of its frame: through the operations above, or by creating an arrow
+ * function (which copies them as its lexical this and new.target). A
+ * function that does not gets the lean prologue (src/runtime/prologue.ts),
+ * and a direct call to it passes no receiver.
+ */
+export function usesFrameThis(fn: FunctionIR): boolean {
+    if (fn.derivedConstructor || fn.generator) return true;
+    for (const block of fn.blocks)
+        for (const op of block.operations)
+            if (
+                frameThisOperations.has(op.kind) ||
+                (op.kind === "newFunction" && op.arrow)
+            )
+                return true;
+    return false;
+}
 
 export function annotateDirectCalls(module: ModuleIR): ModuleIR {
-    const callable = new Map<string, Target | null>();
+    const callable = new Map<string, Target | null>(),
+        byId = new Map(module.functions.map((fn) => [fn.id, fn]));
     const definitions = (
         fn: FunctionIR,
         visit: (op: Operation, fromFunction: Map<number, string>) => void,
@@ -37,7 +65,8 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
         for (const block of fn.blocks)
             for (const op of block.operations)
                 if (op.kind === "newFunction") {
-                    const plain =
+                    const callee = byId.get(op.target),
+                        plain =
                         !op.arrow &&
                         !op.generator &&
                         !op.async &&
@@ -45,7 +74,13 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
                     callable.set(
                         op.target,
                         plain
-                            ? { target: op.target, strict: !!op.strict }
+                            ? {
+                                  target: op.target,
+                                  strict: !!op.strict,
+                                  noThis:
+                                      callee !== undefined &&
+                                      !usesFrameThis(callee),
+                              }
                             : null,
                     );
                 }
@@ -85,6 +120,7 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
                             ...op,
                             direct: info.target,
                             directStrict: info.strict,
+                            ...(info.noThis ? { directNoThis: true } : {}),
                         };
                         blockChanged = true;
                     }
