@@ -97,6 +97,7 @@ import {
     generatorPropertyRoots,
 } from "./generator.js";
 import { asyncRoots, asyncPropertyRoots } from "./async.js";
+import { PromiseKind, PromiseLayout } from "./promise-layout.js";
 import { CellTag, EnvironmentLayout as E } from "./environment-layout.js";
 import { BoxKind, BoxLayout } from "./boxing.js";
 import { callStaticProperties } from "./function-call.js";
@@ -602,6 +603,20 @@ export function emitGc(
         }
         a.jmp(done);
         a.label(notProxy);
+        const notPromise = a.unique("notPromise");
+        a.cmp("rax", PromiseKind);
+        a.jcc("ne", notPromise);
+        for (const offset of [
+            PromiseLayout.value,
+            PromiseLayout.first,
+            PromiseLayout.last,
+        ]) {
+            a.load("rcx", slot(40));
+            a.add("rcx", offset);
+            a.call("rt.gcMarkValue");
+        }
+        a.jmp(done);
+        a.label(notPromise);
         // Private finalization callbacks are strong during marking. A callback
         // closure that captures its weak target therefore keeps that target live.
         const noFinalization = a.unique("noFinalization");

@@ -10,10 +10,11 @@
     var core = __nonaRegexpVm.moduleCore,
         moduleTable = core.table,
         instantiateModule = core.instantiate,
-        newPromiseState = core.newPromiseState,
+        newPromise = core.newPromise,
+        promiseGet = core.promiseGet,
         enqueueCallback = core.enqueue,
         settle = core.settle,
-        resolveState = core.resolve,
+        resolvePromise = core.resolve,
         performThen = core.performThen,
         append = core.append;
     // The order in which modules start their asynchronous evaluation
@@ -28,14 +29,14 @@
         module.failed = true;
         module.error = error;
     }
-    // Evaluate(): the state of the promise of the module's evaluation.
+    // Evaluate(): the promise of the module's evaluation.
     function evaluate(index) {
         var module = moduleTable[index];
         if (module.status === 2 || module.status === 3)
             module = cycleRoot(module);
         if (module.capability !== undefined) return module.capability;
         var stack = [],
-            capability = newPromiseState();
+            capability = newPromise();
         module.capability = capability;
         try {
             instantiateModule(index);
@@ -172,9 +173,9 @@
     // import(): the namespace once the evaluation has finished.
     core.evaluateImport = function (index, promise) {
         performThen(
-            evaluate(index).promise,
+            evaluate(index),
             function () {
-                resolveState(promise, moduleTable[index].namespace);
+                resolvePromise(promise, moduleTable[index].namespace);
             },
             function (error) {
                 settle(promise, 2, error);
@@ -187,7 +188,7 @@
     var entry,
         warned = false;
     function unsettled() {
-        if (entry === undefined || entry.kind !== 0 || warned) return false;
+        if (entry === undefined || (promiseGet(entry, 0) & 3) !== 0 || warned) return false;
         warned = true;
         console.error(
             "Warning: Detected unsettled top-level await at file://" +
@@ -216,19 +217,20 @@
         moduleTable[args[0]].hasTLA = args[10] === true;
     };
     __nonaRegexpVm.evaluateModule = function (index) {
-        var state = evaluate(index);
-        if (state.kind === 1) return;
-        if (state.kind === 2) {
-            __nonaRegexpVm.markPromiseHandled(state.promise);
-            throw state.value;
+        var promise = evaluate(index),
+            kind = promiseGet(promise, 0) & 3;
+        if (kind === 1) return;
+        if (kind === 2) {
+            __nonaRegexpVm.markPromiseHandled(promise);
+            throw promiseGet(promise, 1);
         }
-        performThen(state.promise, undefined, function (error) {
+        performThen(promise, undefined, function (error) {
             // A job outside every reaction: the error is uncaught.
             enqueueCallback(function () {
                 throw error;
             });
         });
-        entry = state;
+        entry = promise;
         var drainJobs = __nonaPromiseDrainJobs;
         __nonaPromiseDrainJobs = function () {
             drainJobs();

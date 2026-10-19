@@ -7,10 +7,10 @@
         builtinModules = core.builtins,
         evaluateModule = core.evaluate,
         graphLinkError = core.linkError,
-        newPromiseState = core.newPromiseState,
+        newPromise = core.newPromise,
         enqueueCallback = core.enqueue,
         settle = core.settle,
-        resolveState = core.resolve,
+        resolvePromise = core.resolve,
         append = core.append,
         objectCreate = Object.create,
         defineProperty = Object.defineProperty,
@@ -214,10 +214,10 @@
             settle(promise, 2, error);
             return;
         }
-        resolveState(promise, moduleTable[target].namespace);
+        resolvePromise(promise, moduleTable[target].namespace);
     };
     __nonaRegexpVm.dynamicImport = function (specifier, referrer) {
-        var promise = newPromiseState();
+        var promise = newPromise();
         try {
             if (typeof specifier === "symbol")
                 throw new TypeError(
@@ -243,6 +243,6 @@
         } catch (error) {
             settle(promise, 2, error);
         }
-        return promise.promise;
+        return promise;
     };
 })();

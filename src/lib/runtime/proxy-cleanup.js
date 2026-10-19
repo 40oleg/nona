@@ -12,5 +12,8 @@
     delete Function.prototype.__nonaPromiseRealmInternal;
     delete Function.prototype.__nonaRealmVmInternal;
     delete Function.prototype.__nonaSharedQueueInternal;
+    delete Function.prototype.__nonaPromiseCreateInternal;
+    delete Function.prototype.__nonaPromiseGetInternal;
+    delete Function.prototype.__nonaPromiseSetInternal;
     delete Function.prototype.__nonaRegExpCopyInternal;
 })();
