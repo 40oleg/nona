@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.20.0 — 2026-10-19
+
 ### Host APIs
 
 - **`node:child_process` on all eight targets.** `spawn`, `exec`, `execFile` and their synchronous variants now work on macOS (darwin-x64/arm64), BSD (freebsd-x64, openbsd-x64) and ARM64 (linux-arm64, win32-arm64) in addition to the previously supported Linux x64 and Windows x64. Unsupported targets continue to throw `ERR_NONA_UNSUPPORTED`. ([#328](https://github.com/40oleg/nona/issues/328))
