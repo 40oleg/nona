@@ -73,12 +73,26 @@ for (let round = 0; round < S(5); round++) {
 }
 const tKeys = performance.now() - t;
 
+t = performance.now();
+// Large text with many matches: a log with S(200000) lines.
+let log = "";
+for (let i = 0; i < S(200000); i++) {
+    log += `line ${i} request ${i} took 1ms\n`;
+}
+for (let round = 0; round < S(1); round++) {
+    check += log.replaceAll("request ", "req#").length;
+    check += log.replace(/request /g, "req#").length;
+    check += log.split("request ").join("req#").length;
+}
+const tReplaceAll = performance.now() - t;
+
 console.log(
     JSON.stringify({
         equals: tEquals,
         search: tSearch,
         split: tSplit,
         keys: tKeys,
+        replaceAll: tReplaceAll,
         check,
     }),
 );

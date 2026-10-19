@@ -6,6 +6,10 @@
 
 - Add the v0.20.0 [completeness and readiness report](docs/completeness-audit.md): commit-pinned capability/API inventory, reproducible package probes and bounded Windows x64/WSL2 Linux x64 evidence, compiler/assurance analysis, versioned alternatives, risk register and prioritized roadmap. Publish the report on the documentation site with consistent translated entry points; record initial independent review, corrections and a dated later-release addendum while preserving the original audit baseline. Record the final independent re-review, exact reviewed artifact hashes and local PR handoff; reference the separate unmerged #392 performance proposal without duplicating benchmarks. ([#394](https://github.com/40oleg/nona/issues/394))
 
+### Performance
+
+- `String.prototype.replaceAll` with a string pattern now counts the matches and builds the result with one allocation, reducing time on a 200 000-match case from 321 ms to 15 ms (Node.js: 34 ms). The benchmark case `bench/16_string_scan.js` covers this with large-text, many-matches operations. ([#387](https://github.com/40oleg/nona/issues/387))
+
 ### Runtime
 
 ### Internals
