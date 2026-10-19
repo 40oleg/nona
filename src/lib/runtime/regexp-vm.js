@@ -25,6 +25,18 @@
   var objectCreate=intrinsic&&intrinsic.replaceCreate?intrinsic.replaceCreate:Object.create;
   var dataField=objectCreate(null);
   dataField.value=undefined;dataField.writable=true;dataField.enumerable=true;dataField.configurable=true;
+  // An assignment to a fresh array creates the same data property as
+  // defineProperty (CreateDataProperty) when no object on its prototype
+  // chain has the key: while Array.prototype inherits from Object.prototype,
+  // both are ordinary objects, so the in checks below are not observable,
+  // and Object.prototype's prototype is always null.
+  var getPrototypeOf=intrinsic&&intrinsic.replaceGetPrototypeOf?intrinsic.replaceGetPrototypeOf:Object.getPrototypeOf;
+  var objectPrototype=intrinsic&&intrinsic.replaceObjectPrototype?intrinsic.replaceObjectPrototype:Object.prototype;
+  var arrayPrototype=getPrototypeOf([]);
+  function plainResultKeys(){
+    if(getPrototypeOf(arrayPrototype)!==objectPrototype)return false;
+    return !('index' in arrayPrototype)&&!('input' in arrayPrototype)&&!('groups' in arrayPrototype)
+  }
   function slice(string,start,end){return safeSlice.call(string,start,end)}
   function indexOf(string,value){return safeIndexOf.call(string,value)}
   function charCodeAt(string,index){return safeCharCodeAt.call(string,index)}
@@ -1617,6 +1629,8 @@
     input=undefined;current=null;
     return result
   }
+  // The captures of a match of a pattern without groups: only read.
+  var noCaptures=new PositionArray(2);
   function search(compiled,stateSize,start,sticky){
     if(unicode&&start>0&&start<length){
       var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
@@ -1645,7 +1659,7 @@
         var hit=0;
         while(hit<count&&!safeStartsWith.call(input,literals[hit],candidate))hit++;
         if(hit===count){if(sticky)break;continue}
-        if(compiled.whole)return {end:candidate+literals[hit].length,captures:new PositionArray(2),start:candidate}
+        if(compiled.whole)return {end:candidate+literals[hit].length,captures:noCaptures,start:candidate}
       }
       var end=run(0,candidate);
       if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky||anchored);
@@ -1712,10 +1726,13 @@
         else if(!(named.name in groups))groups[named.name]=undefined
       }
     }
-    dataField.value=matched.start;defineProperty(result,'index',dataField);
-    dataField.value=subject;defineProperty(result,'input',dataField);
-    dataField.value=groups;defineProperty(result,'groups',dataField);
-    dataField.value=undefined;
+    if(plainResultKeys()){result.index=matched.start;result.input=subject;result.groups=groups}
+    else{
+      dataField.value=matched.start;defineProperty(result,'index',dataField);
+      dataField.value=subject;defineProperty(result,'input',dataField);
+      dataField.value=groups;defineProperty(result,'groups',dataField);
+      dataField.value=undefined
+    }
     // The d flag: the core adds indices, so programs without the engine do not carry the code.
     indices(result,compiled,matched);
     return result

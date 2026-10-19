@@ -9,6 +9,8 @@ __nonaRegexpVm.replaceStartsWith=String.prototype.startsWith;
 // The match result's index, input and groups (the core's exec).
 __nonaRegexpVm.replaceDefineProperty=Object.defineProperty;
 __nonaRegexpVm.replaceCreate=Object.create;
+__nonaRegexpVm.replaceGetPrototypeOf=Object.getPrototypeOf;
+__nonaRegexpVm.replaceObjectPrototype=Object.prototype;
 // The native first-unit scan (#258): a host global only where the engine is linked.
 __nonaRegexpVm.regexpScan=typeof __nonaRegexpScan==='function'?__nonaRegexpScan:null;
 delete globalThis.__nonaRegexpScan;

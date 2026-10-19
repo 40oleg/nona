@@ -83,3 +83,33 @@ const re = /[\\n,]/g; let count = 0; for (const piece of ("a,b\\n".repeat(20)).s
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);
 });
+
+// The literal strings of alternations (#389): candidates that start with
+// none of them are rejected without running the matcher, and a pattern that
+// is nothing but those strings matches without it.
+test("literal-string alternations match Node.js", () => {
+    const source = String.raw`const lv = ["INFO", "WARN", "ERROR", "DEBUG"], sv = ["auth", "billing", "gateway"];
+let log = "";
+for (let i = 0; i < 40; i++) log += lv[i % 4] + " [" + sv[i % 3] + "] request " + i + "\n";
+log += "abd abcd ac abc y xy WARN [gateway]";
+const patterns = [/(?:ERROR|WARN) \[(?:auth|gateway)\]/g, /(?:ERROR|WARN) \[(\w+)\]/g, /(?:ab|abc)d/g, /(?:a|ab)c/g, /(?:|x)y/g,
+  /(?:(ERROR)|(WARN)) \[(a)?/g, /(ERROR|WARN) \[\w+\] request \d+\n\1/g, /(?:error|warn) \[auth\]/gi, /(?:ERROR|WARN) \[auth\]/gu,
+  /(?<lv>ERROR|WARN) \[gateway\]$/g, /(?:FATAL|TRACE) \[x\]/g, /(?:ab|cd|ef)/g, /x|y/g, /(?:WARN|ERROR)(?= \[b)/g, /(?:WA|ER)R/dg];
+for (const p of patterns) {
+  const all = [...log.matchAll(p)].map((m) => m.index + ":" + m.join(",") + ":" + JSON.stringify(m.groups) + (m.indices ? JSON.stringify(m.indices) : ""));
+  p.lastIndex = 0;
+  console.log(String(p), all.length, all.slice(0, 6).join(" "), all.slice(-2).join(" "), log.match(p)?.length, log.search(p), log.replace(p, "#").length);
+}
+for (const p of [/(?:ERROR|WARN) \[/y, /(?:ab|abc)d/y, /(?:ERROR|WARN)/gy]) {
+  for (const at of [0, 5, 18, 19, log.length - 15]) { p.lastIndex = at; const m = p.exec(log); console.log(String(p), at, m && m.index, m && m[0], p.lastIndex); }
+}
+const m = /(?:ERROR|WARN) \[auth\]/.exec("x ERROR [auth]");
+console.log(Object.keys(m), JSON.stringify(Object.getOwnPropertyDescriptor(m, "index")), m.input, m.groups);
+console.log("no candidates here".match(/(?:ERROR|WARN) \[x\]/g), "".match(/(?:a|b)c/g));
+Object.defineProperty(Array.prototype, "index", { set() { throw new Error("setter"); }, configurable: true });
+const n = /(?:ab|cd)/.exec("xcd");
+console.log(JSON.stringify(Object.getOwnPropertyDescriptor(n, "index")), n[0]);`;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+});
