@@ -30,12 +30,6 @@ export const eventEmitterPreludeSource = (() => {
     );
     implementation = patchSource(
         implementation,
-        "Object.create(null)",
-        "emitterCreate(null)",
-        { all: true },
-    );
-    implementation = patchSource(
-        implementation,
         "Symbol.for(",
         "emitterSymbolFor(",
         { all: true },
@@ -78,7 +72,7 @@ export const eventEmitterPreludeSource = (() => {
  var Reflect={apply:globalThis.Reflect.apply,ownKeys:globalThis.Reflect.ownKeys};
  var emitterSymbolFor=Symbol.for;
  function AsyncResource(type,options){var constructor=EventTarget[Symbol.for('nona.async_hooks.internal')].AsyncResource;return new constructor(type,options)}
- var emitterApply=Reflect.apply,emitterPush=Array.prototype.push,emitterUnshift=Array.prototype.unshift,emitterSplice=Array.prototype.splice,emitterCreate=Object.create;
+ var emitterApply=Reflect.apply,emitterPush=Array.prototype.push,emitterUnshift=Array.prototype.unshift,emitterSplice=Array.prototype.splice;
  function initialize(){if(initialized)return initialized;
  function updateExports(){for(var subscriber of subscribers)subscriber(defaultMaxListeners,captureRejections)}
  ${implementation}

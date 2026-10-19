@@ -230,9 +230,12 @@ ${processReportSource}
   function flush(){
     do{
       while(tickHead<ticks.length){var job=ticks[tickHead++],context=__nonaRegexpVm.asyncContext,previous=context?context.activeRecord:undefined,captured=job.context||(context?context.defaultRecord:undefined);try{if(context&&captured&&captured!==previous)context.runCaptured(captured,job.callback,undefined,job.args);else apply(job.callback,undefined,job.args)}catch(error){if(typeof __nonaRegexpVm.dispatchUncaught!=='function')throw error;__nonaRegexpVm.dispatchUncaught(error,'uncaughtException')}finally{if(!context){context=__nonaRegexpVm.asyncContext;previous=context?context.defaultRecord:undefined}if(context&&context.activeRecord!==previous)context.restoreRecord(previous)}}
-      ticks=[];tickHead=0;drain();
+      if(ticks.length!==0){ticks=[];tickHead=0}drain();
     }while(ticks.length||(typeof __nonaRegexpVm.hasPendingPromiseJobs==='function'&&__nonaRegexpVm.hasPendingPromiseJobs()));
   }
+  // The event loop (timers.js) flushes with this after every callback and
+  // runs the exit checks below only when it finds nothing left to do.
+  __nonaRegexpVm.flushTicks=flush;
   return function(){
     flush();
     if(created===null)return;

@@ -1,6 +1,13 @@
-__nonaPromiseDrainJobs = (function (drain) {
+__nonaPromiseDrainJobs = (function (fullDrain) {
     // Cloned realms (Test262) have no host primitives; they share the first realm's loop.
-    if (typeof __nonaHostNow !== "function") return drain;
+    if (typeof __nonaHostNow !== "function") return fullDrain;
+    // fullDrain (process.js) also decides whether the program is done
+    // (beforeExit, exit); after a callback only the tick and job queues are
+    // flushed, and fullDrain runs when the loop finds nothing left (quit).
+    var drain =
+        typeof __nonaRegexpVm.flushTicks === "function"
+            ? __nonaRegexpVm.flushTicks
+            : fullDrain;
     var hostNow = __nonaHostNow,
         hostWait = __nonaHostWait;
     delete globalThis.__nonaHostNow;
@@ -397,6 +404,20 @@ __nonaPromiseDrainJobs = (function (drain) {
     // The pollers fire socket inactivity timeouts only when they are due
     // before the earliest timer: Node.js runs both from one timer queue.
     function pollNetwork(timeout) {
+        // One poller (node:net alone): no list of the live ones.
+        if (pollers.length === 1) {
+            var only = pollers[0];
+            if (only.total() === 0) {
+                if (timeout !== 0) hostWait(timeout < 0 ? IO_SLICE : timeout);
+                return;
+            }
+            var count = only.poll(
+                timeout,
+                heap.length > 0 ? heap[0].when - origin : Infinity,
+            );
+            if (count > 0) runReady(only, count);
+            return;
+        }
         var live = [];
         for (var i = 0; i < pollers.length; i++)
             if (pollers[i].total() > 0) append(live, pollers[i]);
@@ -418,6 +439,20 @@ __nonaPromiseDrainJobs = (function (drain) {
             }
         }
     }
+    // Nothing is left to do: the full drain emits beforeExit and exit; work
+    // scheduled by beforeExit continues the loop.
+    function quit() {
+        fullDrain();
+        return (
+            referenced === 0 &&
+            immediateHead >= immediates.length &&
+            !networkAlive() &&
+            !(
+                typeof __nonaRegexpVm.hasPendingIO === "function" &&
+                __nonaRegexpVm.hasPendingIO()
+            )
+        );
+    }
     return function eventLoop() {
         drain();
         if (
@@ -426,7 +461,8 @@ __nonaPromiseDrainJobs = (function (drain) {
             !(
                 typeof __nonaRegexpVm.hasPendingIO === "function" &&
                 __nonaRegexpVm.hasPendingIO()
-            )
+            ) &&
+            quit()
         )
             return;
         for (;;) {
@@ -481,7 +517,8 @@ __nonaPromiseDrainJobs = (function (drain) {
                     hostWait(5);
                     continue;
                 }
-                return;
+                if (quit()) return;
+                continue;
             }
             var timer = heap[0];
             if (timer.cancelled) {
@@ -490,7 +527,10 @@ __nonaPromiseDrainJobs = (function (drain) {
             }
             var remaining = timer.when - hostNow();
             if (remaining > 0) {
-                if (referenced === 0 && !pendingIO && !networkAlive()) return;
+                if (referenced === 0 && !pendingIO && !networkAlive()) {
+                    if (quit()) return;
+                    continue;
+                }
                 if (immediateHead < immediates.length) {
                     immediatePhase();
                     continue;
@@ -526,7 +566,8 @@ __nonaPromiseDrainJobs = (function (drain) {
                 !(
                     typeof __nonaRegexpVm.hasPendingIO === "function" &&
                     __nonaRegexpVm.hasPendingIO()
-                )
+                ) &&
+                quit()
             )
                 return;
         }

@@ -21,20 +21,33 @@ function checkMax(n) {
         throw e;
     }
 }
-const hasOwn = Object.prototype.hasOwnProperty;
+// Like Node.js, an emitter whose _events is undefined (the prototype's
+// value, or an own one that a subclass cleared) gets a fresh table.
 function init(emitter) {
-    if (!hasOwn.call(emitter, "_events") || emitter._events === undefined) {
-        emitter._events = Object.create(null);
+    if (emitter._events === undefined) {
+        emitter._events = { __proto__: null };
         emitter._eventsCount = 0;
     }
 }
 export function EventEmitter(options) {
-    init(this);
+    const events = this._events;
+    if (
+        events === undefined ||
+        events === Object.getPrototypeOf(this)._events
+    ) {
+        this._events = { __proto__: null };
+        this._eventsCount = 0;
+    }
     this._maxListeners = undefined;
     const enabled = options == null ? undefined : options.captureRejections;
     if (enabled !== undefined && typeof enabled !== "boolean")
         throw invalid("options.captureRejections");
-    this[capture] = enabled === undefined ? captureRejections : enabled;
+    // The flag is a symbol-keyed property: writing one turns a shaped object
+    // into a dictionary (shapes.ts), which every later property access of
+    // the emitter would pay for, so it is only written when it is true (an
+    // absent flag reads as undefined, which is false).
+    if (enabled === undefined ? captureRejections : enabled)
+        this[capture] = true;
 }
 EventEmitter.prototype._events = undefined;
 EventEmitter.prototype._eventsCount = 0;
@@ -140,7 +153,7 @@ EventEmitter.prototype.removeAllListeners = function (name) {
         for (const key of names)
             if (key !== "removeListener") this.removeAllListeners(key);
         this.removeAllListeners("removeListener");
-        this._events = Object.create(null);
+        this._events = { __proto__: null };
         this._eventsCount = 0;
     } else {
         const list = this._events[name];
@@ -158,13 +171,18 @@ EventEmitter.prototype.removeAllListeners = function (name) {
     return this;
 };
 function callListener(emitter, listener, name, args) {
+    const count = args.length;
     const result =
-        args.length === 0
+        count === 0
             ? listener.call(emitter)
-            : args.length === 1
+            : count === 1
               ? listener.call(emitter, args[0])
-              : listener.apply(emitter, args);
-    if (emitter[capture] && result != null) {
+              : count === 2
+                ? listener.call(emitter, args[0], args[1])
+                : count === 3
+                  ? listener.call(emitter, args[0], args[1], args[2])
+                  : listener.apply(emitter, args);
+    if (result != null && emitter[capture]) {
         try {
             const then = result.then;
             if (typeof then === "function")
@@ -196,10 +214,12 @@ function callListener(emitter, listener, name, args) {
     }
 }
 EventEmitter.prototype.emit = function (name, ...args) {
-    init(this);
+    const events = this._events;
+    const list = events === undefined ? undefined : events[name];
     if (name === "error") {
-        if (this._events[errorMonitor]) this.emit(errorMonitor, ...args);
-        if (!this._events.error) {
+        if (events !== undefined && events[errorMonitor])
+            this.emit(errorMonitor, ...args);
+        if (!list) {
             const value = args[0];
             if (value instanceof Error) throw value;
             const e = new Error("Unhandled error. (" + String(value) + ")");
@@ -208,7 +228,6 @@ EventEmitter.prototype.emit = function (name, ...args) {
             throw e;
         }
     }
-    const list = this._events[name];
     if (!list) return false;
     // One listener needs no snapshot; several are called from a copy, so
     // listeners added or removed meanwhile do not change this emit.
