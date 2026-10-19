@@ -177,14 +177,10 @@ const sys = {
     readyFd(i) {
         return epollEvents[3 * i + 1];
     },
+    // EPOLLIN 1, EPOLLOUT 4, EPOLLERR 8, EPOLLHUP 16 -> READ 1, WRITE 2, ERROR 4, HANGUP 8.
     readyEvents(i) {
         const r = epollEvents[3 * i];
-        return (
-            (r & 1 ? 1 : 0) |
-            (r & 4 ? 2 : 0) |
-            (r & 8 ? 4 : 0) |
-            (r & 16 ? 8 : 0)
-        );
+        return (r & 1) | ((r >> 1) & 14);
     },
     errno(errno) {
         return -errno;

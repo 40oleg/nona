@@ -16,3 +16,4 @@ src/lib/sources.generated.ts
 
 # Written by process.report tests run from the repository root
 nona-process-report-*.json
+bench/results/

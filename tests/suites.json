@@ -233,6 +233,7 @@
                 "harness",
                 "has-cache",
                 "http",
+                "http-responses",
                 "immediate-source",
                 "ir-constants",
                 "ir-control-flow",

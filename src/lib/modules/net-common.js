@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
 import { Buffer } from "node:buffer";
-import { Readable, defaults } from "nona:internal/stream";
-import { copy as copyBytes } from "nona:internal/native";
+import { Readable, defaults, clock } from "nona:internal/stream";
+import { copy as copyBytes, slice as sliceBytes } from "nona:internal/native";
+const bufferPrototype = Buffer.prototype;
 const READ = 1,
     WRITE = 2,
     ERROR = 4,
@@ -283,11 +284,30 @@ let immediates = [],
 const byFd = [];
 const readyHandles = [],
     readyEvents = [];
-// Inactivity timeouts: deadlines in loop time; scanned only when the earliest one is due.
-const timed = new HandleList("_timedIndex");
+// Inactivity timeouts: deadlines in loop time; scanned only when the earliest
+// one is due. A handle whose deadline was cleared stays on the list with
+// deadline 0 until a scan drops it: a keep-alive connection sets and clears
+// its deadline once per request, which is then two field writes.
+const timedItems = [];
 let earliestDeadline = Infinity;
+// The timed list is a HandleList over the _timedIndex field of sockets,
+// spelled out: it changes on every request of a keep-alive connection.
+function timedHas(handle) {
+    const i = handle._timedIndex;
+    return i >= 0 && timedItems[i] === handle;
+}
+function timedDelete(handle) {
+    const i = handle._timedIndex,
+        last = timedItems.pop();
+    if (last !== handle) {
+        timedItems[i] = last;
+        last._timedIndex = i;
+    }
+    handle._timedIndex = -1;
+}
 /** Loop time in milliseconds, updated after every wait (like libuv's uv_now). */
 let loopNow = performance.now();
+clock.now = loopNow;
 function ensureLoop() {
     if (registered) return;
     registered = true;
@@ -307,7 +327,7 @@ function unregister(handle) {
     handle._registered = false;
     handleCount--;
     if (handle._refed) refedCount--;
-    timed.delete(handle);
+    if (timedHas(handle)) timedDelete(handle);
 }
 function setRef(handle, refed) {
     if (handle._refed === refed) return;
@@ -339,9 +359,12 @@ function markDirty(handle) {
 function setDeadline(handle, deadline) {
     handle._deadline = deadline;
     if (deadline > 0) {
-        timed.add(handle);
+        if (!timedHas(handle)) {
+            handle._timedIndex = timedItems.length;
+            timedItems.push(handle);
+        }
         if (deadline < earliestDeadline) earliestDeadline = deadline;
-    } else timed.delete(handle);
+    }
 }
 /** Run a callback in a later turn of the event loop (after I/O, like setImmediate). */
 function defer(callback) {
@@ -383,7 +406,7 @@ const poller = {
             if (timeout < 0 || wait < timeout) timeout = wait;
         }
         const n = sys.wait(timeout);
-        loopNow = performance.now();
+        loopNow = clock.now = performance.now();
         let count = 0;
         for (let i = 0; i < n; i++) {
             const handle = byFd[sys.readyFd(i)];
@@ -395,17 +418,16 @@ const poller = {
         // A timer due first runs first, as in Node.js where socket timeouts are timers too.
         if (earliestDeadline <= loopNow && earliestDeadline < nextTimer) {
             let next = Infinity;
-            for (const handle of timed.values()) {
-                if (
-                    handle._deadline <= loopNow &&
-                    handle._deadline < nextTimer
-                ) {
+            for (const handle of timedItems.slice()) {
+                const deadline = handle._deadline;
+                if (deadline === 0) timedDelete(handle);
+                else if (deadline <= loopNow && deadline < nextTimer) {
                     handle._deadline = 0;
-                    timed.delete(handle);
+                    timedDelete(handle);
                     readyHandles[count] = handle;
                     readyEvents[count] = TIMEOUT;
                     count++;
-                } else if (handle._deadline < next) next = handle._deadline;
+                } else if (deadline < next) next = deadline;
             }
             earliestDeadline = next;
         }
@@ -676,9 +698,7 @@ export class Socket extends Readable {
             this._consumer.onData(readBuffer, n);
             return;
         }
-        const chunk = Buffer.allocUnsafe(n);
-        copyBytes(readBuffer, 0, n, chunk, 0);
-        this.push(chunk);
+        this.push(sliceBytes(readBuffer, 0, n, bufferPrototype));
     }
     _ended_() {
         this._maybeClose();
@@ -888,6 +908,17 @@ export class Socket extends Readable {
         else if (this._deadline !== 0) setDeadline(this, 0);
         return this;
     }
+    /**
+     * Inactivity timeout in loop time, for the server's keep-alive and
+     * per-request timeouts (node:http): like setTimeout(timeout) without the
+     * listener and without reading the clock.
+     */
+    _idleTimeout(timeout) {
+        this._timeout = timeout;
+        if (timeout > 0 && !this._destroyed)
+            setDeadline(this, loopNow + timeout);
+        else if (this._deadline !== 0) setDeadline(this, 0);
+    }
     /** Activity: extends the inactivity deadline (never moves it earlier). */
     _touch() {
         if (this._timeout > 0 && !this._destroyed) {
@@ -916,9 +947,7 @@ export class Socket extends Readable {
             this._fd < 0 ||
             this._destroyed
         ) {
-            const copy = new Uint8Array(length);
-            copyBytes(bytes, 0, length, copy, 0);
-            return this.write(copy, callback);
+            return this.write(sliceBytes(bytes, 0, length), callback);
         }
         let n = sys.send(this._fd, bytes, length);
         if (n === EINTR) n = EAGAIN;
@@ -929,8 +958,7 @@ export class Socket extends Readable {
         if (n === EAGAIN) n = 0;
         this._bytesWritten += n;
         if (n < length) {
-            const rest = new Uint8Array(length - n);
-            copyBytes(bytes, n, length, rest, 0);
+            const rest = sliceBytes(bytes, n, length);
             (this._writeQueue || (this._writeQueue = [])).push({
                 bytes: rest,
                 offset: 0,
@@ -966,6 +994,7 @@ defaults(Socket.prototype, {
     _eof: false,
     _timeout: 0,
     _deadline: 0,
+    _timedIndex: -1,
     _registered: false,
     _dirty: false,
     _watched: 0,

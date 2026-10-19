@@ -770,6 +770,7 @@ function generateImage(
         hostGlobal("__nonaNetWrite", "rt.netWrite.code", 4);
         hostGlobal("__nonaNetCopy", "rt.netCopy.code", 5);
         hostGlobal("__nonaNetCheck", "rt.netCheck.code", 2);
+        hostGlobal("__nonaNetSlice", "rt.netSlice.code", 4);
     }
     const agentPrograms = options.agentPrograms ?? [];
     if (options.agent) {

@@ -1,7 +1,8 @@
 import { RuntimeBuilder, slot } from "./abi.js";
 import { ObjectLayout as O } from "./object-layout.js";
 import { TypedArrayKind, TypedArrayLayout as T } from "./typed-array.js";
-import { ArrayBufferLayout as AB } from "./array-buffer.js";
+import { ArrayBufferKind, ArrayBufferLayout as AB } from "./array-buffer.js";
+import { HeapKind, HeapLayout as H } from "./heap-layout.js";
 import type { Assembler, Reg } from "../backend/machine/context.js";
 import { emitViewCheck } from "./view-bounds.js";
 
@@ -47,6 +48,11 @@ import { emitViewCheck } from "./view-bounds.js";
  * to both arrays) and returns the number of bytes copied. TypedArray slice,
  * subarray and set go through the species protocol and cost microseconds;
  * the server copies request heads and body chunks on every request. *
+ * __nonaNetSlice(source, start, end, prototype): a new Uint8Array holding a
+ * copy of source[start, end), with the given prototype object (Buffer's) or
+ * Uint8Array's. The request head, body chunks and raw socket reads are
+ * copied into fresh buffers on every read; the constructor path costs
+ * thousands of instructions for each. *
  * __nonaNetCheck(string, kind): the index of the first character that is not
  * allowed, or -1. Kind 0: an HTTP token (RFC 9110 tchar); kind 1: a header
  * field value (HTAB, visible ASCII, space and 0x80-0xff); kind 2: a request
@@ -1031,6 +1037,128 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.pop("rsi");
         a.load("rax", slot(56));
         numberResult(a, "rax");
+        a.jmp(done);
+        a.label(bad);
+        undefinedResult(a);
+        a.label(done);
+    });
+
+    // __nonaNetSlice(source, start, end, prototype): a new Uint8Array over
+    // its own buffer holding source[start, end) (clamped), whose prototype is
+    // the given object (Buffer.prototype) or %Uint8Array.prototype%. The
+    // constructor path (new Uint8Array(n) and Buffer.allocUnsafe) costs
+    // thousands of instructions in prototype resolution and argument
+    // coercion; this is three allocations and a block copy. No safepoint is
+    // reached between them (the collector runs only at compiled code's
+    // safepoints), so the blocks need no roots before the result is stored.
+    b.fn("rt.netSlice.code", 88, (a) => {
+        // Frame: 48 source pointer + start, 56 count, 64 prototype, 72 bytes block, 80 buffer object.
+        a.store(slot(40), "rcx");
+        const bad = a.unique("bad"),
+            done = a.unique("done");
+        a.cmp("rdx", 3);
+        a.jcc("b", bad);
+        a.store(slot(32), "rdx");
+        a.mov("rdx", "r8");
+        bytesOf(a, bad);
+        a.mov("r9", "r11");
+        intArg(a, 2, bad);
+        a.cmp("rax", "r9");
+        {
+            const ok = a.unique("ok");
+            a.jcc("le", ok);
+            a.mov("rax", "r9");
+            a.label(ok);
+        }
+        a.mov("r11", "rax");
+        intArg(a, 1, bad);
+        a.test("rax", "rax");
+        a.jcc("l", bad);
+        a.cmp("rax", "r11");
+        {
+            const ok = a.unique("ok");
+            a.jcc("le", ok);
+            a.mov("rax", "r11");
+            a.label(ok);
+        }
+        a.sub("r11", "rax");
+        a.add("r10", "rax");
+        a.store(slot(48), "r10");
+        a.store(slot(56), "r11");
+        {
+            const given = a.unique("given"),
+                chosen = a.unique("chosen");
+            a.lea("rax", { rip: "rt.uint8arrayPrototype" });
+            a.load("r9", slot(32));
+            a.cmp("r9", 4);
+            a.jcc("b", chosen);
+            a.load("r9", { base: "r8", disp: 48 });
+            a.cmp("r9", 5);
+            a.jcc("ne", chosen);
+            a.load("rax", { base: "r8", disp: 56 });
+            a.label(chosen);
+            a.store(slot(64), "rax");
+            a.label(given);
+        }
+        // The bytes (rt.alloc's block is zeroed; it is overwritten here).
+        a.load("rcx", slot(56));
+        a.call("rt.alloc");
+        a.store(slot(72), "rax");
+        a.push("rsi");
+        a.push("rdi");
+        a.load("rsi", slot(48 + 16));
+        a.mov("rdi", "rax");
+        a.load("rcx", slot(56 + 16));
+        a.repMovsb();
+        a.pop("rdi");
+        a.pop("rsi");
+        // The ArrayBuffer object (as rt.ArrayBuffer.construct lays it out).
+        a.mov("rcx", AB.size);
+        a.call("rt.alloc");
+        a.mov("r10", HeapKind.object);
+        a.store({ base: "rax", disp: H.kind - H.size }, "r10");
+        a.mov("r10", ArrayBufferKind);
+        a.store({ base: "rax", disp: O.kind }, "r10");
+        a.mov("r10", 0);
+        for (const offset of [O.properties, O.length, O.shape, O.flags])
+            a.store({ base: "rax", disp: offset }, "r10");
+        a.lea("r10", { rip: "rt.arraybufferPrototype" });
+        a.store({ base: "rax", disp: O.prototype }, "r10");
+        a.load("r10", slot(72));
+        a.store({ base: "rax", disp: AB.bytes }, "r10");
+        a.load("r10", slot(56));
+        a.store({ base: "rax", disp: AB.byteLength }, "r10");
+        a.mov("r10", 0);
+        a.store({ base: "rax", disp: AB.detached }, "r10");
+        a.mov("r10", -1);
+        a.store({ base: "rax", disp: AB.maxByteLength }, "r10");
+        a.store(slot(80), "rax");
+        // The view (as the typed array constructors lay it out).
+        a.mov("rcx", T.size);
+        a.call("rt.alloc");
+        a.mov("r10", HeapKind.object);
+        a.store({ base: "rax", disp: H.kind - H.size }, "r10");
+        a.mov("r10", TypedArrayKind);
+        a.store({ base: "rax", disp: O.kind }, "r10");
+        a.mov("r10", 0);
+        for (const offset of [O.properties, O.length, O.shape, O.flags])
+            a.store({ base: "rax", disp: offset }, "r10");
+        a.load("r10", slot(64));
+        a.store({ base: "rax", disp: O.prototype }, "r10");
+        a.load("r10", slot(80));
+        a.store({ base: "rax", disp: T.buffer }, "r10");
+        a.mov("r10", 0);
+        a.store({ base: "rax", disp: T.byteOffset }, "r10");
+        a.load("r10", slot(56));
+        a.store({ base: "rax", disp: T.byteLength }, "r10");
+        a.store({ base: "rax", disp: T.length }, "r10");
+        a.store({ base: "rax", disp: T.fixedByteLength }, "r10");
+        a.mov("r10", 1);
+        a.store({ base: "rax", disp: T.elementType }, "r10");
+        a.load("rcx", slot(40));
+        a.mov("r10", 5);
+        a.store({ base: "rcx" }, "r10");
+        a.store({ base: "rcx", disp: 8 }, "rax");
         a.jmp(done);
         a.label(bad);
         undefinedResult(a);
