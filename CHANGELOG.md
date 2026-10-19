@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- Cheaper direct calls and prologues for known callees. A function that reads neither `this` nor `new.target` (and creates no arrow that would) gets a lean prologue that does not copy them, and a direct call to it passes no receiver. A direct call that passes exactly the callee's parameter count enters at a second entry with the prologue inline (no stub call, no argument-count handling) when the frame is small. Arrows that do not read their lexical `this` are now called directly too. `bench/14_calls.js` (scale 0.1, Windows x64, median of 3): direct calls `add(s, i)` 35.1 → 28.0 ms (Node.js: 4.1 ms); other rows unchanged within noise. The callee check (kind and code pointer) stays even where the binding cannot change: dropping it measured no gain. Results still go through the caller's result slot rather than registers: the slot is shared with `rt.invoke`, the call stubs and the tail-call marker, so a register convention would not stay contained to direct calls ([#47](https://github.com/40oleg/nona/issues/47)).
+
 ## v0.20.0 — 2026-10-19
 
 ### Host APIs
