@@ -6,7 +6,7 @@ The command line is a thin wrapper around `compile()` from `src/compiler.ts`. Th
 
 ```js
 // build.mjs — run with Node.js from the repository root.
-import { writeFileSync } from "node:fs";
+import { writeFileSync } from "nona:fs";
 import { compile } from "./dist/src/compiler.js";
 
 const source = 'console.log("built with compile()");';

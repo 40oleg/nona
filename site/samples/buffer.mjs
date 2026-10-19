@@ -1,4 +1,4 @@
-import { Buffer, Blob, File, isUtf8, resolveObjectURL } from "node:buffer";
+import { Buffer, Blob, File, isUtf8, resolveObjectURL } from "nona:buffer";
 
 const packet = Buffer.alloc(8);
 packet.writeUInt32BE(0x12345678, 0);

@@ -424,7 +424,7 @@ packages which only mention the module still load. Support for them is
 tracked in [328](https://github.com/40oleg/nona/issues/328).
 
 ```js
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, execFileSync } from "nona:child_process";
 
 const child = spawn("git", ["status", "--short"], { cwd: "." });
 child.stdout.on("data", (chunk) => process.stdout.write(chunk));

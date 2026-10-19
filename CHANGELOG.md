@@ -20,6 +20,10 @@
 - **`Array.fromAsync`** (ES2026) over async iterables, sync iterables (each value awaited) and array-likes, with the mapping function, `thisArg`, construction through `this` and closing of the iterator on errors. It is a separate prelude part linked only when a program names `fromAsync`. ([#323](https://github.com/40oleg/nona/issues/323))
 - **Half-precision floats (ES2025).** `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` and `setFloat16` ([#321](https://github.com/40oleg/nona/issues/321)). Conversion is a software round-to-nearest-even path on every target (no F16C fast path). The code is linked only when a program names one of them (`--link float16` for computed access), so other programs do not grow
 
+### Documentation
+
+- Examples, site samples, docs and the README import built-in modules with their `nona:` names (`nona:fs`, `nona:http`, …) instead of `node:`; `fs`, `node:fs` and `nona:fs` stay the same module, and modules without a `nona:` name (`path`, `crypto`, `os`, `url`, `util`) keep `node:` ([#391](https://github.com/40oleg/nona/issues/391)).
+
 ## v0.18.0 — 2026-10-18
 
 ### Language

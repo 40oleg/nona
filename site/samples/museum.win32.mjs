@@ -1,7 +1,7 @@
 // museum.win32.mjs — show a different painting as the desktop wallpaper
 // every few minutes. Windows only (nona:win32).
 // Usage: museum <folder with .jpg/.png/.bmp files> [minutes] [--install]
-import { readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync } from "nona:fs";
 import {
     SystemParametersInfoW,
     MessageBoxW,

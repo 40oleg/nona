@@ -68,7 +68,7 @@ nona build hello.js -o hello --target darwin-arm64      # кросс-компи�
 
 ```js
 // server.mjs
-import http from "node:http";
+import http from "nona:http";
 
 http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
