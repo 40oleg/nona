@@ -1,19 +1,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runModulesOnHost } from "./helpers/host.js";
+import { detectHostTarget } from "../src/target.js";
+import { childProcessTargets } from "../src/frontend/child-process-module.js";
 
 // Each program runs as an ES module on the host target and under Node.js; the
 // outputs must be identical. The children are Node.js itself (the test
 // runner's executable), so both runs see the same child behaviour. Like the
 // node:net tests, they run without GC stress: a forced collection before every
 // block walks the whole compiled module graph and takes minutes.
-// Platform layers exist for Windows and Linux.
+// The tests run on hosts whose target has a platform layer.
+const host = detectHostTarget();
 const skip =
-    process.platform !== "win32" &&
-    process.platform !== "linux" &&
-    "node:child_process has Windows and Linux platform layers only";
+    (host === undefined || !childProcessTargets.includes(host)) &&
+    `node:child_process has no platform layer for ${host ?? process.platform + "-" + process.arch}`;
 const posixSkip =
-    process.platform !== "linux" && "the POSIX tools test runs on Linux";
+    skip ||
+    (process.platform !== "linux" && "the POSIX tools test runs on Linux");
 const prelude = `const node = ${JSON.stringify(process.execPath)};\n`;
 
 function expectNode(source: string): void {

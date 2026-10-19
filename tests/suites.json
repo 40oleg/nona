@@ -150,6 +150,10 @@
             "description": "Portable process suites (native loader jobs).",
             "files": ["process", "process-portable", "process-io"]
         },
+        "child-process": {
+            "description": "node:child_process (Linux check job and native loader jobs; skipped on targets without a platform layer).",
+            "files": ["child-process", "child-process-targets"]
+        },
         "selfhost": {
             "description": "Compiler liveness and self-hosting adapters (self-hosting jobs).",
             "files": [
@@ -256,7 +260,6 @@
                 "tls-crypto",
                 "tls-handshake",
                 "https",
-                "child-process",
                 "zlib",
                 "x509",
                 "new-target",

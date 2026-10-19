@@ -1,3 +1,4 @@
+import { patchSource } from "../source-patch.js";
 import {
     modulesChildProcessUnsupported,
     modulesChildProcessCommon,
@@ -60,7 +61,10 @@ import {
  * between polls the layer waits on the process handles (or sleeps) for a
  * short, growing slice (1 to 16 ms).
  *
- * Linux layer (linux-x64): raw system calls. The parent resolves the file
+ * The Windows layer serves win32-x64 and win32-arm64 (DLL calls through
+ * nona:ffi do not depend on the architecture).
+ *
+ * Linux layer (linux-x64, linux-arm64): raw system calls. The parent resolves the file
  * against PATH (execvp's candidate list), maps the argv and envp arrays into
  * anonymous memory whose address it knows (JavaScript cannot take the address
  * of its own buffers, so the bytes are copied in through a pipe), creates
@@ -73,20 +77,92 @@ import {
  * non-blocking parent pipe ends and on a pidfd (pidfd_open), or a 10 ms wait4
  * poll on kernels without pidfd. Writes block SIGPIPE and consume a pending
  * one, so a closed child stdin fails with EPIPE instead of killing the parent.
+ * linux-arm64 uses the same source with the asm-generic system calls
+ * (linuxArm64Source): openat, ppoll, dup3 and clone(SIGCHLD) stand in for
+ * open, poll, dup2 and fork.
+ *
+ * Other targets (macOS, BSD) get a stub whose functions throw
+ * ERR_NONA_UNSUPPORTED.
  */
 const common = modulesChildProcessCommon;
 
 const win32 = modulesChildProcessWin32;
 
+const linux = modulesChildProcessLinux;
+
+/** The `const name = define("syscall", ...)` statement of child-process-linux.js. */
+function syscallDefinition(name: string): RegExp {
+    return new RegExp(
+        `const ${name} = define\\("syscall", "\\d+", "[^"]*"\\);`,
+    );
+}
+
+/**
+ * AArch64's asm-generic table: other numbers, *at and p* variants instead of
+ * open, poll and dup2, and clone instead of fork. The flags and structures
+ * the layer uses are the same as on x86-64.
+ */
+function linuxArm64Source(): string {
+    let source = linux;
+    const numbers: Record<string, string> = {
+        sysRead: "63",
+        sysWrite: "64",
+        sysClose: "57",
+        sysMmap: "222",
+        sysMunmap: "215",
+        sysSigaction: "134",
+        sysSigprocmask: "135",
+        sysReadTo: "63",
+        sysExecve: "221",
+        sysWait4: "260",
+        sysKill: "129",
+        sysFcntl: "25",
+        sysChdir: "49",
+        sysSetsid: "157",
+        sysSigtimedwait: "137",
+        sysExitGroup: "94",
+        sysPipe2: "59",
+        sysPidfdOpen: "434",
+    };
+    for (const [name, number] of Object.entries(numbers))
+        source = patchSource(source, syscallDefinition(name), (statement) =>
+            statement.replace(/"\d+"/, `"${number}"`),
+        );
+    const replacements: Record<string, string> = {
+        sysOpen:
+            'const openat = define("syscall", "56", "i64(i64,buf,i64,i64)");function sysOpen(path,flags,mode){return openat(-100,path,flags,mode)}',
+        // ppoll takes a timespec (NULL: no limit) and a signal mask (NULL: unchanged).
+        sysPoll:
+            'const ppoll = define("syscall", "73", "i64(buf,i64,buf,buf,i64)"),pollTime = new Uint32Array(4);function sysPoll(fds,count,timeout){if(timeout<0)return ppoll(fds,count,null,null,8);const seconds=Math.floor(timeout/1000);pollTime[0]=seconds;pollTime[2]=Math.floor((timeout-seconds*1000)*1000000);return ppoll(fds,count,pollTime,null,8)}',
+        // dup3 fails with EINVAL when both descriptors are equal; dup2 would
+        // keep the descriptor, which the child needs without FD_CLOEXEC.
+        sysDup2:
+            'const dup3 = define("syscall", "24", "i64(i64,i64,i64)");function sysDup2(from,to){return from===to?sysFcntl(to,2,0):dup3(from,to,0)}',
+        // clone(SIGCHLD, no new stack, ...) is fork.
+        sysFork:
+            'const clone = define("syscall", "220", "i64(i64,i64,i64,i64,i64)");function sysFork(){return clone(17,0,0,0,0)}',
+    };
+    for (const [name, statements] of Object.entries(replacements))
+        source = patchSource(source, syscallDefinition(name), statements);
+    return source;
+}
+
 /** Platform layers by target; other targets get the stub whose functions throw ERR_NONA_UNSUPPORTED. */
-const layers: Record<string, string> = {
-    "win32-x64": win32,
-    "linux-x64": modulesChildProcessLinux,
+const layers: Record<string, () => string> = {
+    "win32-x64": () => win32,
+    "win32-arm64": () => win32,
+    "linux-x64": () => linux,
+    "linux-arm64": linuxArm64Source,
 };
 
+/** Targets with a node:child_process platform layer. */
+export const childProcessTargets: readonly string[] = Object.freeze(
+    Object.keys(layers),
+);
+
 export function childProcessModuleSource(target: string): string {
-    const layer = layers[target];
+    const layer = Object.hasOwn(layers, target) ? layers[target] : undefined;
     return layer === undefined
         ? modulesChildProcessUnsupported
-        : layer + common;
+        : layer() + common;
 }
