@@ -13,6 +13,7 @@ import {
 } from "./stream-module.js";
 import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
+import { jsonModuleSource } from "./json-module.js";
 import { netModuleSource } from "./net-module.js";
 import { childProcessModuleSource } from "./child-process-module.js";
 import { httpModuleSource } from "./http-module.js";
@@ -160,6 +161,7 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:string_decoder", () => aliasOf("node:string_decoder")],
     ["nona:internal/stream", () => networkStreamModuleSource],
     ["nona:internal/native", () => nativeModuleSource],
+    ["nona:json", () => jsonModuleSource],
     ["nona:internal/commonjs", () => commonJsModuleSource],
     ["nona:internal/tls-crypto", () => tlsCryptoModuleSource],
     ["nona:internal/x509", () => x509ModuleSource],
