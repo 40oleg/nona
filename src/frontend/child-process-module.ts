@@ -5,6 +5,7 @@ import {
     modulesChildProcessWin32,
     modulesChildProcessLinux,
     modulesChildProcessDarwin,
+    modulesChildProcessBsd,
 } from "../lib/sources.generated.js";
 /**
  * Source of the built-in `node:child_process` module (aliases
@@ -100,7 +101,21 @@ import {
  * from the contract's Linux numbers; sys.errno returns libuv's negative Darwin
  * errno values.
  *
- * Other targets (BSD) get a stub whose functions throw ERR_NONA_UNSUPPORTED.
+ * BSD layer (freebsd-x64, openbsd-x64): the Linux layer's design with raw
+ * BSD system calls (src/lib/modules/child-process-bsd.js, written for
+ * FreeBSD; openbsdSource derives OpenBSD). The FFI stub turns the carry-flag
+ * errors into negative BSD errno values, which the layer translates to the
+ * contract's Linux numbers. fork returns 0 in the child's rax on both kernels,
+ * and the child exits with exit(2). Readiness uses poll(2) on the pipe ends and
+ * on one kqueue per child with an EVFILT_PROC/NOTE_EXIT event, or a 10 ms
+ * wait4 poll when the event cannot be registered. OpenBSD's sigprocmask takes
+ * the mask by value and returns the old one; a pending SIGPIPE is consumed
+ * with sigtimedwait (FreeBSD) or __thrsigdivert (OpenBSD). Signal numbers and
+ * errno values are translated like on macOS; sys.errno returns libuv's
+ * negative BSD errno values.
+ *
+ * Every current target has a layer; a target without one (a future NetBSD or
+ * other architecture) gets a stub whose functions throw ERR_NONA_UNSUPPORTED.
  */
 const common = modulesChildProcessCommon;
 
@@ -110,7 +125,9 @@ const linux = modulesChildProcessLinux;
 
 const darwin = modulesChildProcessDarwin;
 
-/** The `const name = define("syscall", ...)` statement of child-process-linux.js. */
+const bsd = modulesChildProcessBsd;
+
+/** The `const name = define("syscall", ...)` statement of a raw system call layer. */
 function syscallDefinition(name: string): RegExp {
     return new RegExp(
         `const ${name} = define\\("syscall", "\\d+", "[^"]*"\\);`,
@@ -167,6 +184,51 @@ function linuxArm64Source(): string {
     return source;
 }
 
+/**
+ * OpenBSD from child-process-bsd.js (written for FreeBSD): other numbers for
+ * wait4, kill, pipe2, poll, mmap, sigaction, kqueue and kevent, other
+ * O_CLOEXEC and F_DUPFD_CLOEXEC values, sigprocmask with the mask passed by
+ * value and the old mask returned, and __thrsigdivert for sigtimedwait.
+ */
+function openbsdSource(): string {
+    let source = bsd;
+    const numbers: Record<string, string> = {
+        sysWait4: "11",
+        sysKill: "122",
+        sysPipe2: "101",
+        sysPoll: "252",
+        sysMmap: "49",
+        sysSigaction: "46",
+        sysKqueue: "269",
+        sysKevent: "72",
+    };
+    for (const [name, number] of Object.entries(numbers))
+        source = patchSource(source, syscallDefinition(name), (statement) =>
+            statement.replace(/"\d+"/, `"${number}"`),
+        );
+    const replacements: Record<string, string> = {
+        // A null set reads the mask (SIG_BLOCK with no signals).
+        sysSigprocmask:
+            'const sigprocmask = define("syscall", "48", "i64(i64,i64)");function sysSigprocmask(how,set,old){const result=set===null?sigprocmask(1,0):sigprocmask(how,set[0]);if(result>=0&&old!==null)old[0]=result;return result<0?result:0}',
+        sysSigtimedwait:
+            'const thrsigdivert = define("syscall", "303", "i64(i64,buf,buf)");function sysSigtimedwait(set,info,timeout){return thrsigdivert(set[0],info,timeout)}',
+    };
+    for (const [name, statements] of Object.entries(replacements))
+        source = patchSource(source, syscallDefinition(name), statements);
+    source = patchSource(
+        source,
+        'const platform = "freebsd";',
+        'const platform = "openbsd";',
+    );
+    source = patchSource(source, "O_CLOEXEC = 0x100000", "O_CLOEXEC = 0x10000");
+    source = patchSource(
+        source,
+        "F_DUPFD_CLOEXEC = 17",
+        "F_DUPFD_CLOEXEC = 10",
+    );
+    return source;
+}
+
 /** Platform layers by target; other targets get the stub whose functions throw ERR_NONA_UNSUPPORTED. */
 const layers: Record<string, () => string> = {
     "win32-x64": () => win32,
@@ -175,6 +237,8 @@ const layers: Record<string, () => string> = {
     "linux-arm64": linuxArm64Source,
     "darwin-x64": () => darwin,
     "darwin-arm64": () => darwin,
+    "freebsd-x64": () => bsd,
+    "openbsd-x64": openbsdSource,
 };
 
 /** Targets with a node:child_process platform layer. */
