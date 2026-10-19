@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **Object literals with known keys and small array literals are written in one pass.** Their values are evaluated first; a resolved literal site then allocates its object with a constant cell size and the generated code writes the header, the values and the spare slots at once, without `rt.newLiteralObject`, the slot-clearing loop or per-key stores. Array literals of up to eight elements are built the same way. The short-lived object benchmark (`bench/09_gc.js`) drops from 488 ms to about 407 ms (x4.8 of Node.js; x3.1 at `--scale 0.1`); generational collection remains the long-term item. ([#48](https://github.com/40oleg/nona/issues/48))
+
 ### Documentation
 
 - **`eval` and the dynamic `Function` constructors with run-time sources are a permanent, documented exception of the ES2020 contract.** Generated executables contain no interpreter, compiler or bundled frontend, so an embedded evaluator (options 1 and 2 of the issue) is rejected. The [contract](docs/es2020-contract.md) now specifies the exact behavior (`EvalError` and its messages, `typeof eval`, `eval.name`/`length`/`toString`, the source text of ahead-of-time dynamic functions, which forms are compiled at compile time and when `SyntaxError` is thrown); new assertions in `tests/eval-exception.test.ts` and `tests/dynamic-functions.test.ts` cover it. The remaining Test262 `eval-code` failures are intentional. ([#11](https://github.com/40oleg/nona/issues/11))

@@ -10,6 +10,17 @@ date and version they were measured at: v0.7.0 on 2026-10-01 and
 The scripts live in [`bench/`](bench/); `node bench/run.mjs` reproduces every
 table (protocol in [`bench/README.md`](bench/README.md)).
 
+## Literal sites written in one pass (#48)
+
+Measured 2026-10-20 on a shared Windows 11 machine with Node.js 22.23.2: "before" is `main` 50280f42, "after" the #48 branch on top of it (object literals with known keys and array literals of up to eight elements evaluated first and written in one pass). `node bench/run.mjs --only 09 --runs 3 --runtimes node,nona`, medians of `alloc5M` (`bench/09_gc.js`):
+
+| Scale | Node.js | Nona before | Nona after | After / Node.js |
+| ----- | ------- | ----------- | ---------- | --------------- |
+| 0.1   | 14.0 ms | 53.2 ms     | 44.0 ms    | x3.1            |
+| 1     | 84.8 ms | 488.4 ms    | 407.2 ms   | x4.8            |
+
+The literal itself is now cheap; the remaining gap at full scale is the collection of 2 GB/s of garbage (lazy sweep of every dead cell), which generational collection would address. Popping the free list inline at the literal site instead of calling `rt.allocRaw` was tried and gave no measurable difference (400–438 ms), so it was not kept.
+
 ## HTTP `/json` with the UTF-8 JSON serializer (#155)
 
 Measured 2026-10-19 on a shared Windows 11 machine, with the Linux x64 servers running in WSL2 (16 logical CPUs, 7.8 GB). Both servers are `bench/http/server.mjs` built with `--target linux-x64 --module`: "before" from `3fbc0ad2` (the base of the #155 branch), "after" from the #155 branch (`res.end(JSON.stringify(x))` through the byte serializer). The load generator is `bench/http/load.c` (50 keep-alive connections, 4 s per case; server on CPU 0, load on CPU 1), three alternating rounds; `run.sh` itself was not used because there is no Node.js in WSL, so the Node.js column is not measured here.

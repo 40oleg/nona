@@ -58,9 +58,15 @@ only marks their keys.
   key, accessor, `__proto__` or array-index key) has a per-site record
   (`LiteralSiteLayout`, in `.data`) with its keys in order. Its first
   evaluation resolves the shape the keys lead to from the literal root
-  (`rt.literalSiteResolve`); every evaluation allocates the object with that
-  shape (`rt.newLiteralObject`, slots undefined) and each definition stores its
-  value into its slot directly, without a transition lookup. The shape is the
+  (`rt.literalSiteResolve`). A literal without methods evaluates its values
+  first (not observable) and, once its site is resolved, the generated code
+  allocates the object with the site's constant cell size (`rt.allocRaw`) and
+  writes the header, every value into its slot and undefined into the spare
+  slots in one pass, with nothing in between that could reach a collection.
+  A literal with methods (whose home object must exist first) allocates the
+  object with that shape (`rt.newLiteralObject`, slots undefined) and each
+  definition stores its value into its slot directly, without a transition
+  lookup. The shape is the
   one the key-by-key definitions would give, so these objects share shapes
   and inline caches with objects built by assignments. When the shape cannot
   be resolved (too many shapes or transitions), the site falls back to
@@ -75,7 +81,9 @@ only marks their keys.
   managed allocation instead of a cell and a raw-heap table, and nothing to
   release when the array dies. An object whose `elements` is its payload +
   `ObjectLayout.size` owns such a table; growing the array moves the elements
-  to a raw-heap table.
+  to a raw-heap table. An array literal of up to eight elements evaluates its
+  elements first and is written by the generated code in one pass, header,
+  table and elements, into one `rt.allocRaw` cell.
 - `rt.newShapedObject` (object literals and constructor instances) takes an
   uncleared cell (`rt.allocRaw`) and writes every header field and inline
   slot itself.

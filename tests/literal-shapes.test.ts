@@ -157,6 +157,17 @@ for (let i = 0; i < 3; i++) { const [x, y, z] = mk(i); x.b = i; out.push(x.b, y.
 console.log(out.join(), set, Object.keys(mk(5)[0]).join());`,
     ],
     [
+        "a value that throws mid-literal",
+        `
+let n = 0;
+const boom = () => { if (++n % 3 === 0) throw new Error('boom' + n); return [n]; };
+const out = [];
+for (let i = 0; i < 9; i++) {
+    try { const o = {a: {i}, b: boom(), c: 'c'.repeat(i), a: i}; out.push(JSON.stringify(o)); } catch (e) { out.push(e.message); }
+}
+console.log(out.join('|'));`,
+    ],
+    [
         "more keys than inline slots",
         `
 const mk = i => ({${Array.from({ length: 70 }, (_, k) => `k${k}: i + ${k}`).join(", ")}});
