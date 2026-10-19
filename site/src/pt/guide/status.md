@@ -36,7 +36,6 @@ A auditoria da v0.8.0 também encontrou sete falhas fatais (`Array.prototype.ind
 
 Lacunas na linguagem e na biblioteca:
 
-- [#11](https://github.com/40oleg/nona/issues/11) — `eval` e `Function` com código calculado em tempo de execução.
 - [#44](https://github.com/40oleg/nona/issues/44) — reações de Promise: um tipo de promise dedicado e um registro por `then`.
 
 Desempenho, a linha principal do [roteiro](https://github.com/40oleg/nona/blob/main/docs/roadmap.md):

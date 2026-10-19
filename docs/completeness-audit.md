@@ -384,7 +384,7 @@ binding. The runtime receives a compiled graph. Literal/recoverable `eval` and
 Function constructors can be compiled with guards; arbitrary source created at
 runtime raises `EvalError`. Computed import/require can select known compiled
 entries, not discover and execute newly deployed source. Those limits are
-intentional AOT policy ([#11](https://github.com/40oleg/nona/issues/11)); failures
+intentional AOT policy, a permanent exception of the ES2020 contract ([#11](https://github.com/40oleg/nona/issues/11), [decision](es2020-contract.md)); failures
 within the supported static subset are still bugs. The compiler accepts JS,
 not TypeScript/JSX merely because its implementation is TypeScript.
 

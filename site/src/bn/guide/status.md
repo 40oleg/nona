@@ -36,7 +36,6 @@ v0.8.0 নিরীক্ষায় সাতটি ক্র্যাশও �
 
 ভাষা ও লাইব্রেরির ঘাটতি:
 
-- [#11](https://github.com/40oleg/nona/issues/11) — রানটাইমে গণনা করা সোর্সসহ `eval` ও `Function`।
 - [#44](https://github.com/40oleg/nona/issues/44) — Promise reaction: আলাদা promise ধরন এবং প্রতিটি `then`-এর জন্য একটি রেকর্ড।
 
 পারফরম্যান্স, [রোডম্যাপের](https://github.com/40oleg/nona/blob/main/docs/roadmap.md) মূল ধারা:
